@@ -95,11 +95,11 @@ internal static class RetrievalAndWitherContracts
         {
             Battle battle = root; if (noEnergy) battle.Energy = 0;
             Trace trace = new(battle, item.Rules, powerId);
-            BeamOptions options = item.Options with
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(item.Options) with
             {
                 BeamWidth = 64, MaxTurns = turns, MaxExpandedNodes = 100_000, UnlimitedNodes = false,
                 SoftTimeBudget = TimeSpan.MaxValue, Act3BossStrategy = enabled, Trace = trace,
-                Bound = null, Incumbent = null,
+                Bound = null,
                 Ordering = new(battle.Player.CurrentHp, battle.Player.MaxHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
                 Potions = new(int.MinValue, 1, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
             };

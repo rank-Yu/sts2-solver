@@ -15,7 +15,6 @@ internal sealed class SearchStorage
     private readonly Dictionary<(Type Type, int Length), Stack<Array>> _freeChunks = [];
     private readonly Dictionary<(Type Type, int Length), Stack<Array>> _freeArrays = [];
     private int[] _intScratch = [];
-    private bool _strictAccounting;
 
     internal SearchMemoryLedger Memory { get; } = new();
 
@@ -35,10 +34,9 @@ internal sealed class SearchStorage
             capacity <<= 1;
         long previous = (long)_intScratch.Length * sizeof(int);
         long next = (long)capacity * sizeof(int);
-        if (!_strictAccounting) Memory.Release(previous);
         Memory.Charge(next, "scratch");
         int[] replacement = new int[capacity];
-        if (_strictAccounting) Memory.Release(previous);
+        Memory.Release(previous);
         _intScratch = replacement;
         return _intScratch;
     }
@@ -47,15 +45,14 @@ internal sealed class SearchStorage
     /// Starts one solve: clears the budget-exceeded flag, makes every retained block rentable, and
     /// keeps the retained bytes on the ledger.
     /// </summary>
-    internal void BeginSolve(long limitBytes, bool releaseTransient = false)
+    internal void BeginSolve(long limitBytes)
     {
-        _strictAccounting = releaseTransient;
-        Memory.BeginSolve(limitBytes, releaseTransient);
+        Memory.BeginSolve(limitBytes);
         _freeChunks.Clear();
         for (int index = 0; index < _chunks.Count; index++)
         {
             Array chunk = _chunks[index];
-            if (releaseTransient && !chunk.GetType().GetElementType()!.IsValueType)
+            if (!chunk.GetType().GetElementType()!.IsValueType)
                 Array.Clear(chunk);
             Push(_freeChunks, (chunk.GetType().GetElementType()!, chunk.Length), chunk);
         }
@@ -63,7 +60,7 @@ internal sealed class SearchStorage
         for (int index = 0; index < _arrays.Count; index++)
         {
             (Type type, int length, Array array) = _arrays[index];
-            if (releaseTransient && !type.IsValueType) Array.Clear(array);
+            if (!type.IsValueType) Array.Clear(array);
             Push(_freeArrays, (type, length), array);
         }
     }

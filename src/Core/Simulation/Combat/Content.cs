@@ -1180,16 +1180,6 @@ public abstract class PowerDef : ListenerDef
     /// </summary>
     public virtual bool IsVisible => true;
 
-    /// <summary>Native <c>BeforeCombatStart</c> (Vital Spark/Galvanic card affliction).</summary>
-    public virtual void BeforeCombatStart(ref Exec x, Listener self)
-    {
-    }
-
-    /// <summary>Native <c>BeforeCombatStartLate</c>.</summary>
-    public virtual void BeforeCombatStartLate(ref Exec x, Listener self)
-    {
-    }
-
     /// <summary>
     /// The instance carries a selected card value in <see cref="Battle.DetachedCards"/>
     /// (<see cref="Power.Aux0"/> = slot + 1). Removing the power clears the slot.
@@ -1426,21 +1416,6 @@ public abstract class RelicDef : ListenerDef
     {
     }
 
-    /// <summary>Native <c>AfterRoomEntered</c> for the room just entered.</summary>
-    public virtual void AfterRoomEntered(ref Exec x, Listener self, bool elite, bool boss)
-    {
-    }
-
-    /// <summary>Native <c>BeforeCombatStart</c>, after the room-entry hooks and before the first turn.</summary>
-    public virtual void BeforeCombatStart(ref Exec x, Listener self)
-    {
-    }
-
-    /// <summary>Native <c>BeforeCombatStartLate</c>, the second pass over the same listeners.</summary>
-    public virtual void BeforeCombatStartLate(ref Exec x, Listener self)
-    {
-    }
-
     /// <summary>Native <c>BeforeHandDraw</c> relic stage on the player's hand draw.</summary>
     public virtual void BeforeHandDraw(ref Exec x, Listener self)
     {
@@ -1451,12 +1426,7 @@ public abstract class RelicDef : ListenerDef
     /// </summary>
     public virtual bool ShouldProcurePotion(in Battle battle, ushort relicId, ushort potionId) => true;
 
-    /// <summary>
-    /// Native relic-bar status after the room-entry/combat-start passes: 0 Normal, 1 Active,
-    /// 2 Disabled, or -1 to keep the imported status.
-    /// </summary>
-    public virtual sbyte RoomEnteredStatus(in Battle battle, ushort relicId,
-        ICombatStartContent content, bool elite, bool boss) => -1;
+
 }
 
 /// <summary>
@@ -1744,21 +1714,6 @@ public abstract class MonsterDef : ListenerDef
     /// </summary>
     public virtual int ImbalancedStunFollowUp(in MonsterRules rules) => -1;
 
-    /// <summary>
-    /// The native constructor's initial move when an encounter variant changes it (Chomper's
-    /// <c>ScreamFirst</c>, KinFollower's <c>StartsWithDance</c>, ...), or null to use the compiled
-    /// content-table initial node. The encounter generator selects the variant byte.
-    /// </summary>
-    public virtual string? CombatStartMove(byte variant) => null;
-
-    /// <summary>Current-HP reduction an encounter variant applies after the initial roll (PunchOff).</summary>
-    public virtual int CombatStartHpReduction(byte variant) => 0;
-
-    /// <summary>
-    /// Resolved target of a conditional branch for an encounter variant that changes a private model
-    /// flag the Battle does not carry (Nibbit/Toadpole front/back), or -1 to use the compiled target.
-    /// </summary>
-    public virtual int CombatStartConditional(byte variant, in MonsterRules rules, int node) => -1;
 
 }
 

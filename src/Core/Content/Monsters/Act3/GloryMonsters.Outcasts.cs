@@ -10,13 +10,6 @@ namespace Sts2Solver.Content.Monsters.Act3;
 [ContentId("SCROLL_OF_BITING")]
 public sealed partial class ScrollOfBiting : MonsterDef
 {
-    public override string? CombatStartMove(byte variant) => variant switch
-    {
-        0 => "CHOMP",
-        1 => "CHEW",
-        2 => "MORE_TEETH",
-        _ => null,
-    };
 
     public override void ApplyMoveEffects(ref Exec x, byte owner, int moveNode)
     {

@@ -75,11 +75,6 @@ internal static class Program
         bool searchNormal = false;
         bool fullCombat = false;
         bool offlineCombat = false;
-        int? beamWidth = null;
-        int? maxWidth = null;
-        int? maxNodes = null;
-        int? nodesPerWidth = null;
-        int? poolStateBudgetMb = null;
         int? memoryBudgetMb = null;
         long? memoryBudgetBytes = null;
         int jobs = 1;
@@ -152,21 +147,6 @@ internal static class Program
                 case "--offline-combat":
                     offlineCombat = true;
                     break;
-                case "--beam-width" when index + 1 < args.Length:
-                    beamWidth = int.Parse(args[++index]);
-                    break;
-                case "--max-nodes" when index + 1 < args.Length:
-                    maxNodes = int.Parse(args[++index]);
-                    break;
-                case "--max-width" when index + 1 < args.Length:
-                    maxWidth = int.Parse(args[++index]);
-                    break;
-                case "--nodes-per-width" when index + 1 < args.Length:
-                    nodesPerWidth = int.Parse(args[++index]);
-                    break;
-                case "--pool-state-budget-mb" when index + 1 < args.Length:
-                    poolStateBudgetMb = int.Parse(args[++index]);
-                    break;
                 case "--memory-budget-mb" when index + 1 < args.Length:
                     memoryBudgetMb = int.Parse(args[++index]);
                     break;
@@ -203,16 +183,12 @@ internal static class Program
                 Console.Error.WriteLine("--offline-combat 不能与其它对照/发射模式同时使用。");
                 return 2;
             }
-            return RunOfflineCombat(data, corpora, output, searchTier, beamWidth, maxWidth,
-                maxNodes, nodesPerWidth, poolStateBudgetMb, memoryBudgetMb, memoryBudgetBytes,
-                fullCombat, jobs, root, liveRootsFile);
+            return RunOfflineCombat(data, corpora, output, searchTier, memoryBudgetMb,
+                memoryBudgetBytes, fullCombat, jobs, root, liveRootsFile);
         }
-        if (beamWidth != null || maxWidth != null || maxNodes != null || nodesPerWidth != null
-            || poolStateBudgetMb != null || memoryBudgetMb != null || memoryBudgetBytes != null)
+        if (memoryBudgetMb != null || memoryBudgetBytes != null)
         {
-            Console.Error.WriteLine(
-                "--pool-state-budget-mb/"
-                + "--memory-budget-mb 只能与 --offline-combat 一起使用。");
+            Console.Error.WriteLine("--memory-budget-mb 只能与 --offline-combat 一起使用。");
             return 2;
         }
         if (compareOnlyNew != null)
@@ -835,8 +811,7 @@ internal static class Program
     }
 
     private static int RunOfflineCombat(string data, string corpora, string output,
-        string? searchTier, int? beamWidth, int? maxWidth, int? maxNodes, int? nodesPerWidth,
-        int? poolStateBudgetMb, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
+        string? searchTier, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
         bool fullCombat, int jobs, string? root, string? rootsFile)
     {
         if (fullCombat)
@@ -848,16 +823,6 @@ internal static class Program
         if (jobs is < 1 or > 8)
         {
             Console.Error.WriteLine("--jobs 必须在 1 到 8 之间。");
-            return 2;
-        }
-        if (beamWidth is not null || maxWidth is not null || maxNodes is not null || nodesPerWidth is not null)
-        {
-            Console.Error.WriteLine("旧加宽和节点上限参数已移除；请使用 --search-tier。 ");
-            return 2;
-        }
-        if (poolStateBudgetMb is <= 0)
-        {
-            Console.Error.WriteLine("--pool-state-budget-mb 必须是正整数。");
             return 2;
         }
         if (memoryBudgetMb is <= 0)
@@ -889,7 +854,7 @@ internal static class Program
             Environment.GetEnvironmentVariable("STS2_SOLVER_OFFLINE_WARMUP_NODES"), out int warmup)
             ? Math.Max(0, warmup) : 50_000;
         OfflineCombatSettings settings = new(data, corpora, output, tier, profile,
-            memoryBudgetBytes, warmupNodes, maxNodes, poolStateBudgetMb);
+            memoryBudgetBytes, warmupNodes);
         return OfflineCombat.Run(settings, root, rootsFile, jobs);
     }
 
@@ -1014,7 +979,7 @@ internal static class Program
               dotnet Differential.dll --list-quality-roots [--corpora <dir>]
               dotnet Differential.dll --offline-combat [--root <name> | --roots-file <file> | --corpora <dir>]
                   [--search-tier Low|Medium|High|ExtraHigh] [--jobs 1..8] [--out <dir>]
-                  [--pool-state-budget-mb N] [--memory-budget-mb N]
+                  [--memory-budget-mb N]
             """);
     }
 }

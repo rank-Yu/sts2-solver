@@ -57,7 +57,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | 成员 | 一轮束搜索的设置：宽度、途中评价、候选保留、用药限制。一次决策顺序跑多个成员，见 [战斗搜索](combat-ai.md)。 |
 | 模拟回归 / 搜索回归 | 冻结快照的两部分，数据目录分别是 `d1`、`d2`，旧编号 D1、D2。 |
 | K0 / K1 / K2 / K4 | K0 是纯内核合同（`tests/KernelChecks` 与 `Golden k0`）；K1 是模拟回归里每个根上每个合法动作的单步展开；K2 是固定种子的随机游走；K4 是记录在模拟回归里的评分、下界和路线标签哈希（`scoreHash`、`boundHash`、`traitHash`）。 |
-| BATL / RULE / GOLD / SREQ / SRES / SCV2 | 二进制格式标签：状态、规则表、模拟回归文件、单成员搜索请求与结果、组合搜索请求。格式见 [冻结快照](golden-data.md)。 |
+| BATL / RULE / GOLD / SREQ / SRES | 二进制格式标签：状态、规则表、模拟回归文件、单成员搜索请求与结果。格式见 [冻结快照](golden-data.md)。 |
 
 ## 文档
 

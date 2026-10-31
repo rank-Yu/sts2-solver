@@ -71,7 +71,6 @@ public sealed partial class PunchConstruct : MonsterDef
 {
     private const int ReadyBlock = 10;
 
-    public override string? CombatStartMove(byte variant) => variant == 1 ? "FAST_PUNCH_MOVE" : "READY_MOVE";
     private const int FastPunchFrail = 1;
 
     public override void ApplyMoveEffects(ref Exec x, byte owner, int moveNode)
@@ -192,13 +191,6 @@ public sealed class TwoTailedRat : MonsterDef
 {
     private const int TurnsUntilSummonable = 0;
 
-    public override string? CombatStartMove(byte variant) => variant switch
-    {
-        0 => "SCRATCH_MOVE",
-        1 => "DISEASE_BITE_MOVE",
-        2 => "SCREECH_MOVE",
-        _ => null,
-    };
     private const int CallForBackupCount = 1;
     private const float CallForBackupWeight = 0.75f;
     private const float OtherBranchWeightWhenSummonable = 1f / 12f;

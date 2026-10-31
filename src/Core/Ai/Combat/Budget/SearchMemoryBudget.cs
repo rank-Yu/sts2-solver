@@ -27,21 +27,17 @@ internal sealed class SearchMemoryBudgetException : Exception
 
 /// <summary>
 /// Logical search-memory ledger. It counts allocated search-owned blocks, never GC or process
-/// memory, so the offline host and the game see the same decisions. A limit of zero (the default for
-/// decoded legacy requests and direct kernel tests) is unlimited.
+/// memory, so the offline host and the game see the same decisions. Every solve has a positive limit.
 /// </summary>
 internal sealed class SearchMemoryLedger
 {
     /// <summary>Bytes retained by this storage across solves; never decreases.</summary>
     internal long UsedBytes { get; private set; }
 
-    /// <summary>Usage when the current solve started, before any of its own allocations.</summary>
-    internal long SolveStartBytes { get; private set; }
-
     /// <summary>Highest usage observed during the current solve.</summary>
     internal long PeakBytes { get; private set; }
 
-    /// <summary>Limit of the current solve; zero means unlimited.</summary>
+    /// <summary>Limit of the current solve; always positive.</summary>
     internal long LimitBytes { get; private set; }
 
     /// <summary>True once the current solve requested a block that would cross the limit.</summary>
@@ -55,21 +51,21 @@ internal sealed class SearchMemoryLedger
 
     private readonly Dictionary<string, long> _byRegion = new(StringComparer.Ordinal);
 
-    internal void BeginSolve(long limitBytes, bool releaseTransient = false)
+    internal void BeginSolve(long limitBytes)
     {
+        if (limitBytes <= 0)
+            throw new InvalidDataException("搜索内存预算必须为正。");
         // Per-solve structures are no longer reachable after the previous solve.
-        if (releaseTransient)
-            foreach (string region in new[] { "pool-aux", "candidate-routes", "pool-labels", "routing-signature" })
-            {
-                UsedBytes -= _byRegion.GetValueOrDefault(region);
-                _byRegion.Remove(region);
-            }
-        LimitBytes = Math.Max(0, limitBytes);
-        SolveStartBytes = UsedBytes;
+        foreach (string region in new[] { "pool-aux", "candidate-routes", "pool-labels", "routing-signature" })
+        {
+            UsedBytes -= _byRegion.GetValueOrDefault(region);
+            _byRegion.Remove(region);
+        }
+        LimitBytes = limitBytes;
         PeakBytes = UsedBytes;
         Exceeded = false;
         ExceededAtBytes = 0;
-        if (LimitBytes != 0 && UsedBytes > LimitBytes)
+        if (UsedBytes > LimitBytes)
         {
             Exceeded = true;
             ExceededAtBytes = UsedBytes;
@@ -86,7 +82,7 @@ internal sealed class SearchMemoryLedger
             return;
         if (Exceeded)
             throw new SearchMemoryBudgetException(region, ExceededAtBytes, LimitBytes);
-        if (LimitBytes != 0 && UsedBytes + bytes > LimitBytes)
+        if (UsedBytes + bytes > LimitBytes)
         {
             Exceeded = true;
             ExceededAtBytes = UsedBytes;

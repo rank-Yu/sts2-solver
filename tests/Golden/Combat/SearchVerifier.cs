@@ -110,12 +110,12 @@ internal static class SearchVerifier
                 throw new InvalidDataException($"搜索回归请求 {hash} 的 SHA-256 是 {requestHash}。");
 
             SearchCase search = SearchCodec.DecodeRequest(requestBytes);
-            BeamOptions options = search.Options with
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
                 Trace = null,
-            };
+            });
             BeamResult actual = new BeamSolver(search.Rules, options)
                 .Solve(search.Battles, CancellationToken.None);
             BeamResult expected = SearchCodec.DecodeResult(
@@ -202,33 +202,6 @@ internal static class SearchVerifier
             return $"EndedCompactions expected={expected.EndedCompactions} actual={actual.EndedCompactions}";
         if (expected.EndedCompressedStates != actual.EndedCompressedStates)
             return $"EndedCompressedStates expected={expected.EndedCompressedStates} actual={actual.EndedCompressedStates}";
-        if (expected.BestPayoffCount != actual.BestPayoffCount)
-            return $"BestPayoffCount expected={expected.BestPayoffCount} actual={actual.BestPayoffCount}";
-        if (expected.ScoutLayers.Count != actual.ScoutLayers.Count)
-            return $"ScoutLayers count expected={expected.ScoutLayers.Count} actual={actual.ScoutLayers.Count}";
-        for (int layer = 0; layer < expected.ScoutLayers.Count; layer++)
-        {
-            ScoutLayer expectedLayer = expected.ScoutLayers[layer];
-            ScoutLayer actualLayer = actual.ScoutLayers[layer];
-            if (expectedLayer.Turns != actualLayer.Turns)
-                return $"ScoutLayers[{layer}].Turns expected={expectedLayer.Turns} actual={actualLayer.Turns}";
-            if (expectedLayer.Candidates.Count != actualLayer.Candidates.Count)
-                return $"ScoutLayers[{layer}].Candidates count expected={expectedLayer.Candidates.Count} actual={actualLayer.Candidates.Count}";
-            for (int candidate = 0; candidate < expectedLayer.Candidates.Count; candidate++)
-            {
-                ScoutCandidate expectedCandidate = expectedLayer.Candidates[candidate];
-                ScoutCandidate actualCandidate = actualLayer.Candidates[candidate];
-                difference = Difference($"ScoutLayers[{layer}].Candidates[{candidate}].Actions",
-                    expectedCandidate.Actions, actualCandidate.Actions);
-                if (difference != null)
-                    return difference;
-                if (BitConverter.DoubleToInt64Bits(expectedCandidate.Score)
-                    != BitConverter.DoubleToInt64Bits(actualCandidate.Score))
-                    return $"ScoutLayers[{layer}].Candidates[{candidate}].Score expected={expectedCandidate.Score:R} actual={actualCandidate.Score:R}";
-                if (expectedCandidate.RootIndex != actualCandidate.RootIndex)
-                    return $"ScoutLayers[{layer}].Candidates[{candidate}].RootIndex expected={expectedCandidate.RootIndex} actual={actualCandidate.RootIndex}";
-            }
-        }
         if (expected.BestRootIndex != actual.BestRootIndex)
             return $"BestRootIndex expected={expected.BestRootIndex} actual={actual.BestRootIndex}";
         if (expected.PotionPolicySatisfied != actual.PotionPolicySatisfied)

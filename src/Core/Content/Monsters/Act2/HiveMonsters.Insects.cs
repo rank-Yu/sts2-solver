@@ -129,13 +129,6 @@ public sealed partial class SlumberingBeetle : MonsterDef
 /// </summary>
 public abstract partial class DecimillipedeSegmentDef : MonsterDef
 {
-    public override string? CombatStartMove(byte variant) => variant switch
-    {
-        0 => "WRITHE_MOVE",
-        1 => "BULK_MOVE",
-        2 => "CONSTRICT_MOVE",
-        _ => null,
-    };
 
     public override void ResolveReviveMove(ref Exec x, byte owner, int moveNode)
     {
@@ -232,7 +225,6 @@ public sealed partial class PhrogParasite : MonsterDef
 [ContentId("WRIGGLER")]
 public sealed class Wriggler : MonsterDef
 {
-    public override string? CombatStartMove(byte variant) => variant == 1 ? "SPAWNED_MOVE" : null;
 
     public override string? SpawnSlotName => "wriggler1";
 

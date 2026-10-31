@@ -273,7 +273,6 @@
 | `CurrentPlayIsHistoryCourseDupe` | 当前打出的是 HISTORY_COURSE 的复制品 |
 | `StarValue` | 本次出牌的星能 X 值（原版 `LastStarsSpent`） |
 | `ChoiceRequest.GeneratedOptions` | 不在牌堆里的选项卡值：Discovery、Splash 的生成选项，Knowledge Demon 的两张诅咒；需要选择时整个动作从父状态重执行 |
-| `FirstRoomIsBoss`、`FirstRoomIsElite`、`CombatStart`、`SetupContent` | 开战建局路径的上下文（BoomingConch、Pantograph、BagOfPreparation 等只执行一次，并提供遗物的 `DynamicVars`）。主分支目前没有调用这条路径 |
 
 伤害来源直接放在栈上的 `DamageResult` 里。搜索容器（候选池、路线节点）不属于状态布局，见 [战斗搜索](combat-ai.md#7-内存与容量)。
 
@@ -334,7 +333,7 @@
 - `UnsupportedException`（内核不支持的语义）不管出现在哪一步，都让整次求解作废。
 - 数值钳制与原引擎一致：HP、格挡、能量、Power 数量钳制在 ±999,999,999，由内核统一实现。
 
-搜索池的容量与内存账本见 [战斗搜索](combat-ai.md#7-内存与容量)。旧请求的池预算（每个可增长池默认 200 MiB）是兼容路径，见 [战斗搜索](combat-ai.md#10-兼容旧请求的路径是否保留待代码清理决定)。
+搜索池的容量与内存账本见 [战斗搜索](combat-ai.md#7-内存与容量)。
 
 ## 8. 尺寸
 

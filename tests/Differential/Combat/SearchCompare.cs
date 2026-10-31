@@ -118,7 +118,9 @@ internal static class SearchCompare
                 {
                     throw new InvalidDataException("SREQ 含宿主回调，确定性重放会不同。");
                 }
-                BeamSolver solver = new(searchCase.Rules, searchCase.Options);
+                BeamOptions replayOptions = SearchBudgetPolicy.ApplyRegression(searchCase.Options with
+                    { SoftTimeBudget = TimeSpan.MaxValue, Pacer = null, Trace = null });
+                BeamSolver solver = new(searchCase.Rules, replayOptions);
                 BeamResult replayed = solver.Solve(searchCase.Battles, CancellationToken.None);
                 byte[] replayedBytes = SearchCodec.EncodeResult(replayed);
                 resultSame = replayedBytes.AsSpan().SequenceEqual(resultBytes);

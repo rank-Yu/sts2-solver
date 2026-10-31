@@ -669,7 +669,7 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
         // TriggerAutoPrePlayEarly: Bombardment cards in the exhaust pile, then the scheduled Mayhem
-        // auto-plays. Imbued / HistoryCourse / WhisperingEarring have no Sts2Solver definitions.
+        // auto-plays. The Imbued, HistoryCourse and WhisperingEarring definitions live in Content.
         x.B.Phase = PlayerPhase.AutoPrePlay;
         AutoPrePlay(ref x);
         if (x.NeedsChoice)

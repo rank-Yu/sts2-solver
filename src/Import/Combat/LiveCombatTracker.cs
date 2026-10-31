@@ -2,7 +2,7 @@
 // old-search ledgers; this tracker keeps the stable known-enemy order and carries those ledgers so
 // the reconciliation projection can still be compared byte for byte. Reference semantics follow
 // CombatSolver src/Runtime/ContinuationStamp.cs at a62f1850 (MIT, Copyright (c) 2026 Torch1230 and
-// contributors), but the field set is Sts2SolverBattle-only and is documented in docs/mod.md.
+// contributors), but the field set is Sts2SolverBattle-only and is documented in docs/import.md 第 3.1 节.
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
 using MegaCrit.Sts2.Core.Combat;

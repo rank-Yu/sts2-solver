@@ -92,17 +92,6 @@ public sealed class GalvanicPower : PowerDef
 {
     public override PowerType Type => PowerType.Buff;
 
-    public override void BeforeCombatStart(ref Exec x, Listener self)
-    {
-        for (int position = 0; position < x.B.CardCount; position++)
-        {
-            Card card = x.B.Cards[position];
-            if (x.R.Card(card.Id, card.Upgrade).Type != CardType.Power)
-                continue;
-            Kernel.ApplyAffliction(ref x, position,
-                Registry.AfflictionId<Afflictions.GalvanizedAffliction>(), x.B.Powers[self.Index].Amount);
-        }
-    }
 
     public override PowerStackType StackType => PowerStackType.Counter;
 

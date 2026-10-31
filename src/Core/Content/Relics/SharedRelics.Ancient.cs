@@ -470,13 +470,6 @@ public sealed class PaelsLegion : RelicDef
 
     public override IReadOnlyList<string> VarNames => ["Turns"];
 
-    public override void BeforeCombatStart(ref Exec x, Listener self)
-    {
-        // Native BeforeCombatStart summons the PaelsLegion pet (PlayerCmd.AddPet). The pet has
-        // 9999 HP and only a no-op move, so Sts2Solver does not model a creature row, but native
-        // CreateCreature consumes one CombatId and later summons must continue from it.
-        x.B.NextCombatId++;
-    }
 
     public override decimal ModifyBlockMultiplicative(ref Exec x, Listener self, in BlockContext block,
         decimal amount)
@@ -656,15 +649,6 @@ public sealed class DelicateFrond : RelicDef
 {
     public override bool SetupOnlyOutOfCombatPotionPool => true;
 
-    public override void BeforeCombatStart(ref Exec x, Listener self)
-    {
-        while (HasOpenPotionSlot(in x.B))
-        {
-            ushort potion = Kernel.GenerateRandomPotionOutOfCombat(ref x.B, x.R);
-            if (!Kernel.TryProcurePotion(ref x.B, potion))
-                return;
-        }
-    }
 
     private static bool HasOpenPotionSlot(in Battle battle)
     {
@@ -684,15 +668,6 @@ public sealed class DelicateFrond : RelicDef
 [ContentId("DIAMOND_DIADEM")]
 public sealed class DiamondDiadem : RelicDef
 {
-    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
-    {
-        if (side != Side.Player || x.B.PlayerTurn > 1)
-            return;
-        Kernel.GainBlock(ref x, Limits.PlayerOwner, StartVars.Int(ref x, self, "Block"),
-            ValueProps.Unpowered, fromCard: false);
-        Kernel.ApplyPower(ref x, Limits.PlayerOwner,
-            Registry.PowerId<Powers.BlurPower>(), 1, Limits.PlayerOwner);
-    }
 }
 
 /// <summary>
@@ -704,19 +679,6 @@ public sealed class RadiantPearl : RelicDef
 {
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("LUMINESCE", 0), ("LUMINESCE", 1)];
 
-    public override void BeforeHandDraw(ref Exec x, Listener self)
-    {
-        if (x.B.PlayerTurn != 1)
-            return;
-        int count = StartVars.Int(ref x, self, "Cards");
-        for (int index = 0; index < count; index++)
-        {
-            Card card = Kernel.CreateCard(x.R, Registry.CardId<Cards.Colorless.Luminesce>());
-            Kernel.AddGeneratedCard(ref x, card, Pile.Hand, PilePosition.Bottom);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
 }
 
 // --- rewards, shops, rest sites, map and pickup effects --------------------------------
@@ -860,19 +822,7 @@ public sealed class RadiantPearl : RelicDef
 [ContentId("BOOMING_CONCH")]
 public sealed class BoomingConch : RelicDef
 {
-    public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
-    {
-        if (!x.CombatStart || x.B.PlayerTurn > 1 || !x.FirstRoomIsElite)
-            return amount;
-        return amount + StartVars.Int(ref x, self, "Cards");
-    }
 
-    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
-    {
-        if (side != Side.Player || !x.CombatStart || x.B.PlayerTurn > 1 || !x.FirstRoomIsElite)
-            return;
-        Kernel.GainEnergy(ref x, StartVars.Int(ref x, self, "Energy"));
-    }
 }
 
 /// <summary>

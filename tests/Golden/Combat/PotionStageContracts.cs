@@ -35,7 +35,7 @@ internal static class PotionStageContracts
             root.PotionSlotCount = 1; root.Potions[0] = (ushort)(fire + 1);
             BeamOptions options = fixture.Options with
             {
-                InitialExplicitPotionUses = 0, MinimumPotionUses = 0, HasUnboundedGrowthTargets = false,
+                InitialExplicitPotionUses = 0, HasUnboundedGrowthTargets = false,
                 TheftPolicy = null, EffectivePotionPolicy = PotionUseMode.Smart,
                 Ordering = new(75, 75, BossHpRelief.None, PostCombatRelicHealProfile.None),
                 Potions = new(int.MinValue, null, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
@@ -64,10 +64,6 @@ internal static class PotionStageContracts
                 "fixed-prefix automatic potion keeps search open");
             Assert(!Skip(root, rules, options, selected with { ExplicitPotionUseCount = 1 }),
                 "after a one-potion victory search the unrestricted stage again");
-            Assert(!Skip(root, rules, options with { MinimumPotionUses = 1 }, selected), "minimum use bypasses gate");
-            Assert(!Skip(root, rules, options with { MinimumPotionUses = 2 },
-                    selected with { Key = selected.Key with { StrategicHpDeficit = 0 } }),
-                "minimum two bypasses gate even at zero loss");
             Assert(!Skip(root, rules, options, selected with { ProjectedDeathSaveUseCount = 1 }), "death save bypasses gate");
             RulesDraft lowPool = new();
             lowPool.SetPotion(fire, new PotionStats { Target = TargetType.AnyEnemy, Rarity = PotionRarity.Common,

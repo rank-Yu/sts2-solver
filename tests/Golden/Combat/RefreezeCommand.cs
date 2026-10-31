@@ -17,18 +17,25 @@ internal static class RefreezeCommand
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("用法：Golden refreeze <source-dir> <target-dir> [--jobs N]");
+            Console.Error.WriteLine("用法：Golden refreeze <source-dir> <target-dir> [--jobs N] [--reason 文本]");
             return 2;
         }
         string source = Path.GetFullPath(args[0]);
         string target = Path.GetFullPath(args[1]);
         int jobs = Environment.ProcessorCount;
+        string? reason = null;
         for (int index = 2; index < args.Length; index++)
         {
             if (args[index] == "--jobs")
             {
                 if (++index >= args.Length || !int.TryParse(args[index], out jobs) || jobs <= 0)
                     throw new InvalidDataException("--jobs 需要正整数。");
+            }
+            else if (args[index] == "--reason")
+            {
+                if (++index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
+                    throw new InvalidDataException("--reason 需要非空文本。");
+                reason = args[index];
             }
             else
             {
@@ -61,16 +68,20 @@ internal static class RefreezeCommand
         {
             string hash = Path.GetFileName(path)[..^".request.br".Length];
             SearchCase search = SearchCodec.DecodeRequest(GoldenFiles.ReadCompressed(path));
-            BeamOptions options = search.Options with
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
                 Trace = null,
-            };
+            });
             BeamResult result = new BeamSolver(search.Rules, options)
                 .Solve(search.Battles, CancellationToken.None);
             byte[] encoded = SearchCodec.EncodeResult(result);
-            GoldenFiles.WriteCompressed(Path.Combine(expectedDirectory, hash + ".result.br"), encoded);
+            // Keep the stored bytes when the decoded result is unchanged, so a refreeze only
+            // rewrites the results that actually changed.
+            string expected = Path.Combine(expectedDirectory, hash + ".result.br");
+            if (!File.Exists(expected) || !GoldenFiles.ReadCompressed(expected).AsSpan().SequenceEqual(encoded))
+                GoldenFiles.WriteCompressed(expected, encoded);
             int done = Interlocked.Increment(ref completed);
             if (done % 200 == 0)
                 Console.WriteLine($"REFREEZE progress={done}/{requests.Length}");
@@ -81,7 +92,9 @@ internal static class RefreezeCommand
             File.Delete(report);
         WriteReport(Path.Combine(target, "d2", "replay-report-1-of-1.json"), captured, requests.Length);
         string content = ResultSetHash(requests, expectedDirectory);
-        ManifestProvenance.Refreeze = $"M3b current-code results sha256={content}";
+        ManifestProvenance.Refreeze = reason is null
+            ? $"M3b current-code results sha256={content}"
+            : $"{reason} sha256={content}";
         ManifestBuilder.Write(target);
         Console.WriteLine($"REFREEZE_OK source={source} target={target} requests={requests.Length} "
             + $"captured={captured} jobs={jobs} refreeze={ManifestProvenance.Refreeze}");

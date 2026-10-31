@@ -97,10 +97,4 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 - fixture：`tests/corpora/fixtures/<root>.json`；
 - 质量语料：`tests/corpora/quality/<name>/spec.json` 与 `request.json`，根名为 `quality-<name>`。
 
-请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`relicCounterRules`、`ignoreLongTermRewards`、两个 Boss 策略、`theftPolicyForTest`、`act3BossStrategyForTest`、`baseScoreOnlyForTest`、`continuousThreatRankingForTest`、`beamWeightTermForTest`/`beamWeightScaleForTest`）。未知字段、非空的 `checkpointArchivePath`/`replayPolicyOverridePath`，以及不支持的搜索或部署取值都显式失败。
-
-## 兼容旧选项（是否保留待代码清理决定）
-
-- `--offline-combat` 的 `--potion-schedule one-allowed|one-two-three|one-two-allowed`：改用旧的默认用药调度跑实验（见 [战斗搜索](../../docs/combat-ai.md#10-兼容旧请求的路径是否保留待代码清理决定)）；不指定时用现行默认计划。`--potion-schedule-checks` 单独运行这些调度的自检。
-- `--offline-combat` 的 `--pool-state-budget-mb`：覆盖旧的单池状态预算。
-- 旧的加宽与节点上限参数 `--beam-width`、`--max-width`、`--max-nodes`、`--nodes-per-width` 仍会被识别，但只为报错“已移除，请使用 `--search-tier`”。
+请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`relicCounterRules`、`ignoreLongTermRewards`、两个 Boss 策略、`theftPolicyForTest`、`act3BossStrategyForTest`、`baseScoreOnlyForTest`、`continuousThreatRankingForTest`、`beamWeightTermForTest`/`beamWeightScaleForTest`）。未知字段和不支持的搜索或部署取值都显式失败。

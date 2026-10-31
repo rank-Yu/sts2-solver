@@ -89,14 +89,7 @@ internal static class SearchCodec
         writer.Write(options.Bound != null);
         if (options.Bound is { } bound)
             EncodeBoundConfig(writer, bound.ConfigForCodec);
-        writer.Write(options.Incumbent != null);
-        if (options.Incumbent is { } incumbent)
-        {
-            writer.Write(incumbent.StrategicHpDeficit);
-            writer.Write(incumbent.CombatEndedTurn);
-            writer.Write(incumbent.ExplicitPotionStrategicCost != null);
-            writer.Write(incumbent.ExplicitPotionStrategicCost ?? 0);
-        }
+        writer.Write(false); // reserved: initial Incumbent is removed; only null is accepted.
         writer.Write((int)options.EffectivePotionPolicy);
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
@@ -108,7 +101,7 @@ internal static class SearchCodec
         writer.Write(0);
         writer.Write(0);
         writer.Write(false); // reserved: EnforceForcedPotionDirectives
-        writer.Write(options.MinimumPotionUses);
+        writer.Write(0); // reserved: MinimumPotionUses is removed; only zero is accepted.
         writer.Write(options.InitialExplicitPotionUses);
         writer.Write(options.InitialAutomaticPotionUses);
         writer.Write(options.PotionFreeBaseline != null);
@@ -122,11 +115,9 @@ internal static class SearchCodec
         writer.Write(options.AuditPotionPolicy);
         writer.Write(options.InitialActionCount);
         writer.Write(options.Act3BossStrategy);
-        writer.Write(options.PlanCommitment != null);
-        if (options.PlanCommitment is { } plan)
-            EncodePlanCommitment(writer, plan);
-        writer.Write(options.InitialPlanPayoffCount);
-        writer.Write(options.EarlyTurnScoutDepth);
+        writer.Write(false); // reserved: PlanCommitment is removed; only null is accepted.
+        writer.Write(0); // reserved: InitialPlanPayoffCount is removed; only zero is accepted.
+        writer.Write(0); // reserved: EarlyTurnScoutDepth is removed; only zero is accepted.
         writer.Write(false); // reserved: Novelty is removed; only null is accepted.
         writer.Write(options.InitialPlayerTurn);
         writer.Write(options.InitialSearchTurn);
@@ -143,7 +134,9 @@ internal static class SearchCodec
         writer.Write(hooks);
         if (options.Scorer?.QueenPolicy is { } queen)
         {
-            writer.Write(queen.PreserveKillTiming ? 0x32505351u : 0x31505351u); // QSP1 delay / QSP2 retention.
+            if (!queen.PreserveKillTiming)
+                throw new InvalidDataException("QSP1 女王能力补搜已删除。");
+            writer.Write(0x32505351u); // QSP2 retention.
             queen.Encode(writer);
         }
         if (options.Scorer?.SetupPreference == true)
@@ -177,16 +170,8 @@ internal static class SearchCodec
             throw new InvalidDataException("HpTargetStop 已删除，只接受 null。");
         bool hasBound = Codec.ReadBool(reader);
         BoundFeatures? bound = hasBound ? new BoundFeatures(DecodeBoundConfig(reader)) : null;
-        bool hasIncumbent = Codec.ReadBool(reader);
-        SearchIncumbent? incumbent = null;
-        if (hasIncumbent)
-        {
-            int deficit = reader.ReadInt32();
-            int turn = reader.ReadInt32();
-            bool hasCost = Codec.ReadBool(reader);
-            int costValue = reader.ReadInt32();
-            incumbent = new SearchIncumbent(deficit, turn, hasCost ? costValue : null);
-        }
+        if (Codec.ReadBool(reader))
+            throw new InvalidDataException("Incumbent 初始值已删除，只接受 null。");
         PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "有效药水政策");
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
@@ -202,6 +187,8 @@ internal static class SearchCodec
         // Existing D2 requests may carry true with an empty directive list; it is behaviorally
         // equivalent to false and is accepted, but it has no effect on the decoded request.
         int minPotions = reader.ReadInt32();
+        if (minPotions != 0)
+            throw new InvalidDataException("MinimumPotionUses 已删除，只接受 0。");
         int initialExplicit = reader.ReadInt32();
         int initialAutomatic = reader.ReadInt32();
         bool hasBaseline = Codec.ReadBool(reader);
@@ -220,10 +207,14 @@ internal static class SearchCodec
         bool audit = Codec.ReadBool(reader);
         int initialAction = reader.ReadInt32();
         bool act3 = Codec.ReadBool(reader);
-        bool hasPlan = Codec.ReadBool(reader);
-        PlanCommitment? plan = hasPlan ? DecodePlanCommitment(reader) : null;
+        if (Codec.ReadBool(reader))
+            throw new InvalidDataException("PlanCommitment 已删除，只接受 null。");
         int initialPayoff = reader.ReadInt32();
+        if (initialPayoff != 0)
+            throw new InvalidDataException("InitialPlanPayoffCount 已删除，只接受 0。");
         int scoutDepth = reader.ReadInt32();
+        if (scoutDepth != 0)
+            throw new InvalidDataException("EarlyTurnScoutDepth 已删除，只接受 0。");
         bool hasNovelty = Codec.ReadBool(reader);
         if (hasNovelty)
             throw new InvalidDataException("Novelty 已删除，只接受 null。");
@@ -248,11 +239,13 @@ internal static class SearchCodec
                 SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader, continuous: extension == 0x32505553u);
                 scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, setup: setup);
             }
-            else if (extension is 0x31505351u or 0x32505351u)
+            else if (extension == 0x32505351u)
             {
-                QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader) with { PreserveKillTiming = extension == 0x32505351u };
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly: !queen.PreserveKillTiming, queen: queen);
+                QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader) with { PreserveKillTiming = true };
+                scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, queen: queen);
             }
+            else if (extension == 0x31505351u)
+                throw new InvalidDataException("QSP1 女王能力补搜已删除。");
             else throw new InvalidDataException("Unknown search request extension.");
         }
         return new BeamOptions(beamWidth, maxExpanded, maxTurns, budget, initialHp)
@@ -261,10 +254,8 @@ internal static class SearchCodec
             Scorer = scorer,
             Ordering = ordering,
             Bound = bound,
-            Incumbent = incumbent,
             EffectivePotionPolicy = effective,
             TheftPolicy = theft,
-            MinimumPotionUses = minPotions,
             InitialExplicitPotionUses = initialExplicit,
             InitialAutomaticPotionUses = initialAutomatic,
             PotionFreeBaseline = baseline,
@@ -273,9 +264,6 @@ internal static class SearchCodec
             AuditPotionPolicy = audit,
             InitialActionCount = initialAction,
             Act3BossStrategy = act3,
-            PlanCommitment = plan,
-            InitialPlanPayoffCount = initialPayoff,
-            EarlyTurnScoutDepth = scoutDepth,
             InitialPlayerTurn = initialTurn,
             InitialSearchTurn = initialSearchTurn,
             SecondRankBand = secondRank,
@@ -370,22 +358,6 @@ internal static class SearchCodec
         int deathSaves = reader.ReadInt32();
         return new PotionFreePolicyBaseline(won, deficit, hp, turn) { DeathSaveUseCount = deathSaves };
     }
-
-    private static void EncodePlanCommitment(BinaryWriter writer, PlanCommitment plan)
-    {
-        writer.Write(plan.CopyPowerSeats);
-        writer.Write(plan.OpenedTurn);
-        writer.Write(plan.EarliestTurn);
-        writer.Write((byte)plan.PayoffKind);
-        writer.Write(plan.PayoffCardId);
-        writer.Write(plan.PayoffPotionId);
-        writer.Write(plan.PayoffCardBit);
-    }
-
-    private static PlanCommitment DecodePlanCommitment(BinaryReader reader)
-        => new(Codec.ReadBool(reader), reader.ReadInt32(), reader.ReadInt32(),
-            (PlanPayoffKind)ReadByteEnum(reader, "计划收益类型"),
-            reader.ReadUInt16(), reader.ReadUInt16(), reader.ReadInt32());
 
     private static void EncodePowerCommitments(BinaryWriter writer, PowerCommitmentCatalog catalog)
     {
@@ -978,19 +950,8 @@ internal static class SearchCodec
             writer.Write(result.EndedCompactions);
             writer.Write(result.EndedCompressedStates);
             writer.Write(0); // reserved: SmartPotionPruned is removed; only zero is accepted.
-            writer.Write(result.BestPayoffCount);
-            writer.Write(result.ScoutLayers.Count);
-            foreach (ScoutLayer layer in result.ScoutLayers)
-            {
-                writer.Write(layer.Turns);
-                writer.Write(layer.Candidates.Count);
-                foreach (ScoutCandidate candidate in layer.Candidates)
-                {
-                    WriteRoute(writer, candidate.Actions);
-                    writer.Write(BitConverter.DoubleToInt64Bits(candidate.Score));
-                    writer.Write(candidate.RootIndex);
-                }
-            }
+            writer.Write(0); // reserved: BestPayoffCount is removed.
+            writer.Write(0); // reserved: ScoutLayers is removed; only zero is accepted.
             writer.Write(false); // reserved: NoveltySearchTelemetry is removed.
             writer.Write(result.BestRootIndex);
             writer.Write(result.PotionPolicySatisfied);
@@ -1032,24 +993,11 @@ internal static class SearchCodec
             if (smartPruned != 0)
                 throw new InvalidDataException("SmartPotionPruned 已删除，只接受 0。");
             int payoff = reader.ReadInt32();
+            if (payoff != 0)
+                throw new InvalidDataException("BestPayoffCount 已删除，只接受 0。");
             int layerCount = Codec.ReadCount(reader, 1 << 10, "侦察层");
-            ScoutLayer[] layers = new ScoutLayer[layerCount];
-            for (int index = 0; index < layerCount; index++)
-            {
-                int layerTurns = reader.ReadInt32();
-                int candidateCount = Codec.ReadCount(reader, 1 << 16, "侦察候选");
-                ScoutCandidate[] candidates = new ScoutCandidate[candidateCount];
-                for (int candidate = 0; candidate < candidateCount; candidate++)
-                {
-                    PlayerAction[] route = ReadRoute(reader);
-                    double candidateScore = BitConverter.Int64BitsToDouble(reader.ReadInt64());
-                    candidates[candidate] = new ScoutCandidate(route, candidateScore)
-                    {
-                        RootIndex = reader.ReadInt32(),
-                    };
-                }
-                layers[index] = new ScoutLayer(layerTurns, candidates);
-            }
+            if (layerCount != 0)
+                throw new InvalidDataException("ScoutLayers 已删除，只接受空列表。");
             if (Codec.ReadBool(reader))
                 throw new InvalidDataException("NoveltySearchTelemetry 已删除，只接受 null。");
             int bestRoot = reader.ReadInt32();
@@ -1067,8 +1015,6 @@ internal static class SearchCodec
                 CapacityDroppedChildren = capacity,
                 EndedCompactions = endedCompactions,
                 EndedCompressedStates = endedCompressed,
-                BestPayoffCount = payoff,
-                ScoutLayers = layers,
                 BestRootIndex = bestRoot,
                 PotionPolicySatisfied = potionSatisfied,
             };

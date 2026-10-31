@@ -98,7 +98,8 @@ u32 magic="SREQ" | u16 version=3 | rules 长度 + RULE | battles 数量 + 每个
 
 - `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数规则、战后治疗、Boss 生命减免、`ContinuousThreatRanking`、`ContextualRanking`（只允许为 null）、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
-- 宿主回调 `Pacer`、`Progress`、`PollTakeover`、`Trace` 只写存在位，解码后为 null，不影响路线选择。`ContextualRankingModel` 非 null 时，捕获显式抛 `NotSupportedException`，不会写出半份数据。
+- 宿主回调 `Pacer`、`Trace` 只写存在位，解码后为 null，不影响路线选择。`ContextualRankingModel` 非 null 时，捕获显式抛 `NotSupportedException`，不会写出半份数据。
+- 回归请求不写墙钟截止；读取器把 `SoftTimeBudget` 改为 `TimeSpan.MaxValue`，用固定回归参数重解（见 6.3）。
 
 ### 6.2 `SRES`
 
@@ -109,12 +110,41 @@ ExpandedNodes | Transitions | Duplicates | TurnsSearched | PrunedIncumbents
 CapacityPruned | CapacityDroppedChildren（按 key 排序） | EndedCompactions
 EndedCompressedStates | SmartPotionPruned | BestPayoffCount | ScoutLayers
 BestRootIndex | PotionPolicySatisfied | Takeover
+
 ```
 
 魔数常量是 `0x53455253`（`SRES`）。
 
 - 不写 `Elapsed`、`WorkerYieldCount`、`FrameRecoveryWaitCount/Duration`、`MaxObservedGcPause` 这类不参与路线选择的值。`BestScore` 用 `BitConverter.DoubleToInt64Bits` 精确保存。
 - `CapacityDroppedChildren` 的键是数据格式的一部分，池容量区块的键是 `Beam.Pool`。
+
+### 6.3 保留槽位与搜索回归参数
+
+`SREQ`/`SRES` 仍保留下列已删除功能的字节槽位，保证旧数据能读出并明确失败。编码写中性值；解码读到非中性值时抛 `InvalidDataException`。
+
+| 格式 | 字段 | 中性值 |
+| --- | --- | --- |
+| `SREQ` | `CandidateScanCount` | 0 |
+| `SREQ` | `HpTargetStop` | false（无负载） |
+| `SREQ` | `ForcedPotionDirectives` 三个数组、mask、used cost | 空数组、0、0 |
+| `SREQ` | `EnforceForcedPotionDirectives` | false；历史 `true + 空数组` 也接受，但不进入解码请求 |
+| `SREQ` | `PotionReplacementHpCredit` | 0 |
+| `SREQ` | `SmartPotionEligibilityHpCeiling` | false + 0 |
+| `SREQ` | `Novelty` | false（无负载） |
+| `SREQ` | `Incumbent` | null |
+| `SREQ` | `MinimumPotionUses` | 0 |
+| `SREQ` | `PlanCommitment` / `InitialPlanPayoffCount` | null / 0 |
+| `SREQ` | `EarlyTurnScoutDepth` | 0 |
+| `SREQ` | hooks 的 Progress/Poll 位 | 0；Pacer bit1、Trace bit8 保留 |
+| `SRES` | TopRoutes | 空列表 |
+| `SRES` | `SmartPotionPruned` | 0 |
+| `SRES` | `NoveltySearchTelemetry` / `BestPayoffCount` / `ScoutLayers` / `Takeover` | false / 0 / 空列表 / 0 |
+
+搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
+`SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
+状态池预算和搜索内存预算都使用 2,576,980,377 字节。协调器用同一个
+`SearchBudgetPolicy.Apply`，只是传入计划里的宽度倍数和内存预算。`MaxExpandedNodes`、`MaxTurns` 和
+`UnlimitedNodes` 保持请求值。
 
 ## 7. `d1/<root>/config.br`
 
@@ -164,7 +194,7 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 - 模拟回归的 `golden.br` 和 `config.br` 来自同一套根输入；`meta.json` 记录输入映射、规则哈希和计数。
 - 模拟回归重放比较状态、合法动作、选择、K1、K2 和 K4 哈希。
-- 搜索回归对冻结请求重新求解，逐字段比较路线、分数、计数、容量丢弃、审计与接管结果。确定性重放不用墙钟截止。
+- 搜索回归对冻结请求重新求解，逐字段比较路线、分数、计数、容量丢弃和药水审计。确定性重放不用墙钟截止。
 - manifest 核对逐文件的大小和 SHA-256、总字节数、计数和来源；数据的更新记录保存在 `provenance`。
 - 时间、GC、帧压力和运行期路径只用于诊断，不写进确定性结果。
 
@@ -192,14 +222,6 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 - 质量语料的随机种子 `FLASH-QUALITY-<角色>-<NNN>`：换了种子就是另一批牌组；
 - `meta.json` 的 `input`、移植文件的来源头、提交哈希和固定的 GitHub 链接（CombatSolver 出处）。
 
-## 12. 旧格式（是否保留待代码清理决定）
+## 12. 旧版本
 
-当前读取器只接受版本 3。各编码器还会专门识别并拒绝旧版本的魔数，给出明确错误：
-
-- `BATL`：v1 的 `FBAT`、version 1，以及 v2 的完整 12,696 字节结构体镜像；
-- `RULE`：v1 的 `FRUL` 或 version 1；
-- `GOLD`：v1 的 `FGD1` 或 version 1；
-- `SREQ`：v1 的 `FRS1` 或 version 1；
-- `SRES`：v1 的 `FRR1` 或 version 1（旧常量 `0x31535252` 按字节实际是 `RRS1`）。
-
-`SREQ` 的选项里还有只在测试中启用的新颖度搜索字段（`Novelty`）；`NoveltySearchTelemetry` 非 null 时捕获显式抛 `NotSupportedException`，`SRES` 也不写新颖度遥测时间。代码清理删除这些旧格式与新颖度搜索时，本节一起删除。
+读取器只接受版本 3。魔数或版本不符一律抛 `InvalidDataException`，不尝试迁移。

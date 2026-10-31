@@ -360,7 +360,6 @@ internal sealed partial class BeamSolver
                 }
                 return;
             }
-            if (_scorer.QueenPolicy is { } queen && !queen.Accepts(child)) return;
             int depth = _nodes[parentNode].Depth + 1;
             bool isTerminal = !Kernel.IsInProgress(child);
             int traceStep = _trace?.Match(parentNode, action) ?? 0;
@@ -382,7 +381,6 @@ internal sealed partial class BeamSolver
             int node = _nodes.Count;
             ulong lineage = NextLineage(parentNode, parent, action, node,
                 out ulong rootActionKey, out ushort firstCardId, out int firstCardTarget);
-            int payoffCount = NextPayoffCount(parentNode, parent, action, features, parentFacts, commitment);
             RouteNode parentRoute = _nodes[parentNode];
             int routingSignature = routingChoice?.SignatureId ?? 0;
             RoutingMeta routingMeta;
@@ -412,7 +410,7 @@ internal sealed partial class BeamSolver
             }
             int actionCardId = action.Kind == PlayerActionKind.PlayCard && action.HandIndex < parent.HandCount
                 ? parent.Cards[action.HandIndex].Id : 0;
-            _nodes.Add(new RouteNode(parentNode, depth, action, rootActionKey, lineage, payoffCount,
+            _nodes.Add(new RouteNode(parentNode, depth, action, rootActionKey, lineage,
                 usedPotion, firstCardId, firstCardTarget, commitment, actionCardId,
                 TargetCombatId(parent, action), routingMeta.SignatureId, routingMeta.Turn,
                 routingMeta.ChoiceDepth, routingMeta.ParentRank, routingMeta.ParentScore,
@@ -438,18 +436,18 @@ internal sealed partial class BeamSolver
                     childPocketwatchThreshold, childPocketwatchPlayed, childPocketwatchLastTurn,
                     parentRank, parentScore, parentFacts.EnemyBlock, parentFacts.EnemyHp,
                     parentFacts.FutureResourceValue, parentFacts.StrategicResourcePotential,
-                    selectedPowers, score, rank, pureRank, potionCost);
+                    selectedPowers, score, rank, potionCost);
                 return;
             }
             // The retention-only hand values are computed by the pool only when the state is actually
             // stored (a duplicate keeps its existing values); a terminal state never needs them.
             bool added = action.Kind == PlayerActionKind.EndTurn || child.PlayerTurn != parent.PlayerTurn
-                ? AddEndTurnChild(ended, child, node, score, rank, pureRank, potionCost, features, depth,
-                    lineage, payoffCount, commitment, childTraits, childPocketwatchThreshold,
+                ? AddEndTurnChild(ended, child, node, score, rank, potionCost, features, depth,
+                    lineage, commitment, childTraits, childPocketwatchThreshold,
                     childPocketwatchPlayed, childPocketwatchLastTurn, parentFacts.EnemyBlock, parentFacts.EnemyHp,
                     parentFacts.FutureResourceValue, parentFacts.StrategicResourcePotential)
-                : next.CommitReserved(node, score, rank, pureRank, potionCost, features, depth, lineage,
-                    payoffCount, commitment, childTraits, childPocketwatchThreshold,
+                : next.CommitReserved(node, score, rank, potionCost, features, depth, lineage,
+                    commitment, childTraits, childPocketwatchThreshold,
                     childPocketwatchPlayed, childPocketwatchLastTurn, parentFacts.EnemyBlock, parentFacts.EnemyHp,
                     parentFacts.FutureResourceValue, parentFacts.StrategicResourcePotential);
             if (!added)
@@ -764,15 +762,15 @@ internal sealed partial class BeamSolver
     /// turn boundary uses, then add the child. Duplicates never reach the bound and stay free.
     /// </summary>
     private bool AddEndTurnChild(Pool ended, in Battle child, int node, double score, double rank,
-        double pureRank, int potionCost, in ScoreFeatures features, int depth, ulong lineage,
-        int payoffCount, int commitment, SearchRouteTraits traits, int pocketwatchThreshold,
+        int potionCost, in ScoreFeatures features, int depth, ulong lineage,
+        int commitment, SearchRouteTraits traits, int pocketwatchThreshold,
         int pocketwatchPlayed, int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp,
         int parentFutureResourceValue, int parentStrategicResourcePotential)
     {
         try
         {
-            return ended.AddScored(child, node, score, rank, pureRank, potionCost, features, depth,
-                lineage, payoffCount, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
+            return ended.AddScored(child, node, score, rank, potionCost, features, depth,
+                lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
                 parentStrategicResourcePotential);
         }
@@ -783,8 +781,8 @@ internal sealed partial class BeamSolver
             int dropped = ended.Compact(_endedCompactionTarget);
             _endedCompactions++;
             _endedCompressedStates += dropped;
-            return ended.AddScored(child, node, score, rank, pureRank, potionCost, features, depth,
-                lineage, payoffCount, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
+            return ended.AddScored(child, node, score, rank, potionCost, features, depth,
+                lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
                 parentStrategicResourcePotential);
         }
@@ -811,7 +809,7 @@ internal sealed partial class BeamSolver
         int pocketwatchThreshold, int pocketwatchPlayed, int pocketwatchLastTurn,
         int parentRank, double parentScore, int parentEnemyBlock, int parentEnemyHp,
         int parentFutureResourceValue, int parentStrategicResourcePotential,
-        scoped ReadOnlySpan<Card> selectedPowers, double score, double rank, double pureRank, int potionCost)
+        scoped ReadOnlySpan<Card> selectedPowers, double score, double rank, int potionCost)
     {
         // CommitReserved and recursive ExpandAction both reuse pool storage. Keep an independent
         // snapshot even when deduplication rejects the ordinary fetched state.
@@ -827,8 +825,8 @@ internal sealed partial class BeamSolver
             _scorer.InitialRetainedAttackValue, parentEnemyBlock, parentEnemyHp,
             parentFutureResourceValue, parentStrategicResourcePotential);
         RouteNode route = _nodes[commitmentNode];
-        if (!next.CommitReserved(commitmentNode, score, rank, pureRank, potionCost,
-                commitmentFeatures, commitmentDepth, route.Lineage, route.PayoffCount,
+        if (!next.CommitReserved(commitmentNode, score, rank, potionCost,
+                commitmentFeatures, commitmentDepth, route.Lineage,
                 route.Commitment, traits, pocketwatchThreshold, pocketwatchPlayed, pocketwatchLastTurn,
                 parentEnemyBlock, parentEnemyHp, parentFutureResourceValue, parentStrategicResourcePotential))
             _duplicates++;
@@ -912,11 +910,5 @@ internal sealed partial class BeamSolver
             && left.EnchantmentAmount == right.EnchantmentAmount
             && left.AfflictionId == right.AfflictionId
             && left.AfflictionAmount == right.AfflictionAmount;
-
-    /// <summary>Per-pool budget: new request budget, legacy override, or the original 200 MiB.</summary>
-    private long EffectivePoolStateBudgetBytes
-        => _options.StatePoolBudgetBytes > 0 ? _options.StatePoolBudgetBytes
-            : _options.PoolStateBudgetBytes > 0 ? _options.PoolStateBudgetBytes
-            : DefaultPoolStateBudgetBytes;
 
 }

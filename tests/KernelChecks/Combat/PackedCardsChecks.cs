@@ -42,7 +42,7 @@ internal static class PackedCardsChecks
         // Arena: full 200-card records cross the 512 KiB block boundary, compact in place, and
         // reclaim the released blocks.
         SearchStorage storage = new();
-        storage.BeginSolve(0);
+        storage.BeginSolve(SearchBudgetPolicy.RegressionMemoryBudgetBytes);
         PackedStateArena arena = new(64, storage);
         Battle[] originals = new Battle[40];
         for (int index = 0; index < originals.Length; index++)
@@ -110,7 +110,7 @@ internal static class PackedCardsChecks
     private static void CheckCompactionInvariant()
     {
         SearchStorage storage = new();
-        storage.BeginSolve(0);
+        storage.BeginSolve(SearchBudgetPolicy.RegressionMemoryBudgetBytes);
         PackedStateArena arena = new(64, storage);
         int[] counts = [255, 240, 220, 200, 180, 160, 140, 120, 100, 80, 60, 40, 20, 5, 255, 200, 150, 100, 50, 10];
         Battle[] originals = new Battle[counts.Length];
@@ -143,7 +143,7 @@ internal static class PackedCardsChecks
     private static void CheckUnorderedCompaction()
     {
         SearchStorage storage = new();
-        storage.BeginSolve(0);
+        storage.BeginSolve(SearchBudgetPolicy.RegressionMemoryBudgetBytes);
         PackedStateArena arena = new(8, storage);
         foreach (int cards in new[] { 5, 20, 200 })
         {

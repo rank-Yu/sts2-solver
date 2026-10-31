@@ -3,5 +3,4 @@ namespace Sts2Solver.Ai.Combat.Quality;
 
 internal readonly record struct SearchIncumbent(
     int StrategicHpDeficit,
-    int CombatEndedTurn,
-    int? ExplicitPotionStrategicCost = null);
+    int CombatEndedTurn);

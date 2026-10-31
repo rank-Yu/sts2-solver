@@ -2,7 +2,7 @@ using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat;
 
-internal enum SearchEvaluation { Standard, Base, Offensive, QueenSetup, Setup, ContinuousSetup }
+internal enum SearchEvaluation { Standard, Base, Offensive, Setup, ContinuousSetup }
 internal enum SearchRetention { Standard, Power, SecondBand, QueenKillTiming }
 internal enum SearchPotionLimit { None = 0, One = 1, Allowed = 2 }
 
@@ -19,7 +19,7 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
     /// <summary>Encounter-specific default portfolio.</summary>
     public bool QueenStrategies { get; init; }
 
-    /// <summary>Generic setup members replace the historical QueenSetup member.</summary>
+    /// <summary>Generic setup members cover the queen opening's setup behavior.</summary>
     public bool SetupStrategies { get; init; }
 
     /// <summary>Wide continuous-gain supplement in the Allowed stage only.</summary>

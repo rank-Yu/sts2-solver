@@ -24,7 +24,6 @@ internal static class PotionStageGate
             || freeBaseline is not { } free || !free.Key.Won || !free.Key.Survives
             || free.ExplicitPotionUseCount != 0 || free.ProjectedDeathSaveUseCount != 0
             || options.InitialExplicitPotionUses != 0 || options.InitialAutomaticPotionUses != 0
-            || options.MinimumPotionUses != 0
             || options.EffectivePotionPolicy != PotionUseMode.Smart
             || options.Potions.EffectivePolicy != PotionUseMode.Smart
             || options.HasUnboundedGrowthTargets

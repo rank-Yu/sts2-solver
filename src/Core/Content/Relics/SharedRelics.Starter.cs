@@ -21,13 +21,6 @@ public sealed class InfusedCore : RelicDef
         return value + rules.RelicVar(Id, 1);
     }
 
-    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
-    {
-        if (side != Side.Player || x.B.PlayerTurn > 1)
-            return;
-        Kernel.ChannelOrbs(ref x, Kernel.OrbId("LIGHTNING_ORB"),
-            StartVars.Int(ref x, self, "Lightning"));
-    }
 }
 
 /// <summary>
@@ -54,12 +47,6 @@ public sealed partial class PhylacteryUnbound : RelicDef
 [ContentId("DIVINE_DESTINY")]
 public sealed class DivineDestiny : RelicDef
 {
-    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
-    {
-        if (side != Side.Player || x.B.PlayerTurn > 1)
-            return;
-        Kernel.GainStars(ref x, StartVars.Int(ref x, self, "Stars"));
-    }
 }
 
 [ContentId("BLACK_BLOOD")] public sealed class BlackBlood : RelicDef; // AfterCombatVictory

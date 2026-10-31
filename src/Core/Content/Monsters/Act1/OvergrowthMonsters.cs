@@ -224,7 +224,6 @@ public sealed partial class Byrdonis : MonsterDef;
 [ContentId("INKLET")]
 public sealed partial class Inklet : MonsterDef
 {
-    public override string? CombatStartMove(byte variant) => variant == 1 ? "WHIRLWIND_MOVE" : "JAB_MOVE";
 }
 
 /// <summary>
@@ -254,13 +253,6 @@ public sealed partial class CorpseSlug : MonsterDef
 {
     private const int GoopFrailAmt = 0;
 
-    public override string? CombatStartMove(byte variant) => variant switch
-    {
-        0 => "WHIP_SLAP_MOVE",
-        1 => "GLOMP_MOVE",
-        2 => "GOOP_MOVE",
-        _ => null,
-    };
 
     public override IReadOnlyList<string> StaticIntNames => ["GoopFrailAmt"];
 

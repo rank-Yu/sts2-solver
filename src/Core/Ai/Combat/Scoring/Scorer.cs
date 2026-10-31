@@ -556,7 +556,6 @@ internal sealed class Scorer
         if (won)
             score += ScoreWeights.VictoryBonus;
         score += enemyHp * ScoreWeights.EnemyHp;
-        if (QueenPolicy is { } queen) score += queen.Bonus(battle);
         double handWitherDamage = 0;
         int liveDeckClutter = 0;
         int liveCardCount = battle.HandCount + battle.DrawCount + battle.DiscardCount;

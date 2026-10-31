@@ -35,7 +35,7 @@ public static class Limits
     /// played this turn (<c>Stomp.BeforeCardPlayed</c>) on top of the modifiers other effects write,
     /// so the native unbounded list needs room for a full turn's plays. Overflow still throws
     /// <see cref="CapacityException"/> instead of truncating; the expansion boundary drops the
-    /// child, and a root-level overflow fails the On-mode solve.
+    /// child, and a root-level overflow fails the whole solve.
     /// </summary>
     public const int CardEnergyCostModifiers = 16;
     // One action may carry a primary choice plus nested auto-play choices. Decisions, Decisions

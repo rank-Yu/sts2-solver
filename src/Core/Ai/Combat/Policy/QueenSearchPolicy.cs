@@ -55,27 +55,6 @@ internal sealed record QueenSearchPolicy(byte QueenSlot, byte TorchSlot, ushort 
             initialDexterity, prowessDexterity, footwork);
     }
 
-    internal bool Accepts(in Battle battle)
-        => PreserveKillTiming || battle.Enemies[TorchSlot].Creature.IsAlive
-            || battle.Enemies[QueenSlot].Creature.CurrentHp <= QueenHpThreshold;
-
-    internal double Bonus(in Battle battle)
-    {
-        if (PreserveKillTiming) return 0;
-        int active = 0;
-        if (Amount(battle, AfterimageId) > 0) active++;
-        if (Amount(battle, AccuracyId) > 0) active++;
-        if (Amount(battle, ToolsId) > 0) active++;
-        bool strengthSetup = Amount(battle, StrengthId) >= StrengthThreshold;
-        if (strengthSetup) active++;
-        if (FootworkGain > 0
-            && Amount(battle, DexterityId) - (strengthSetup ? ProwessDexterity : 0)
-                >= (long)InitialDexterity + FootworkGain)
-            active++;
-        return Math.Max(0, battle.Enemies[QueenSlot].Creature.CurrentHp) * ScoreWeights.EnemyHp
-            + active * SetupHpValue * ScoreWeights.Hp;
-    }
-
     private static int Amount(in Battle battle, ushort id)
     {
         for (int i = 0; i < battle.PowerCount; i++)

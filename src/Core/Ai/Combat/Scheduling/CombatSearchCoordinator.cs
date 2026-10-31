@@ -29,8 +29,7 @@ internal static class CombatSearchCoordinator
         if (initial.Battles.Length == 0) throw new InvalidDataException("搜索根为空。");
         if (initial.Options.Scorer is not { } scorer) throw new InvalidDataException("缺少评分配置。");
         bool canUsePotions = PotionSearchSchedule.HasAllowedUse(initial.Battles, initial.Rules, initial.Options);
-        bool requiredPlan = initial.Options.MinimumPotionUses > 0
-            || initial.Options.EffectivePotionPolicy == PotionUseMode.RequireAtLeastOne;
+        bool requiredPlan = initial.Options.EffectivePotionPolicy == PotionUseMode.RequireAtLeastOne;
         SearchMember[] members = PortfolioBuilder.Build(plan,
             initial.Options.PowerCommitments is { Rules.Length: > 0 });
         QueenSearchPolicy? queen = plan.QueenStrategies && initial.Battles.Length == 1
@@ -53,9 +52,7 @@ internal static class CombatSearchCoordinator
                 initial.Options.InitialExplicitPotionUses);
             policies[i] = policy;
             bool potionPhase = !requiredPlan && item.Potions != SearchPotionLimit.None;
-            if (policy.MaximumUses is { } cap && cap < initial.Options.MinimumPotionUses)
-                skips[i] = "minimum-exceeds-limit";
-            else if (potionPhase && !canUsePotions)
+            if (potionPhase && !canUsePotions)
                 skips[i] = "no-allowed-potions";
             else if (potionPhase && policy.MaximumUses is { } limit
                 && limit <= initial.Options.InitialExplicitPotionUses)
@@ -107,26 +104,22 @@ internal static class CombatSearchCoordinator
                 UnlimitedNodes = true,
                 DeadlineExpired = DeadlineExpired,
                 SoftTimeBudget = TimeSpan.FromMilliseconds(searchMs),
-                SearchMemoryBudgetBytes = plan.MemoryBytes,
-                StatePoolBudgetBytes = initial.Options.PoolStateBudgetBytes > 0
-                    ? initial.Options.PoolStateBudgetBytes : plan.MemoryBytes,
-                EndedBatchTarget = checked(member.Width * plan.EndedKeepWidths),
-                EndedBatchTrigger = checked(member.Width * plan.EndedTriggerWidths),
                 Scorer = new Scorer(scorer.RulesForCodec,
-                    baseOnly: member.Evaluation is SearchEvaluation.Base or SearchEvaluation.QueenSetup,
+                    baseOnly: member.Evaluation is SearchEvaluation.Base,
                     offensive: member.Evaluation == SearchEvaluation.Offensive,
-                    queen: member.Evaluation == SearchEvaluation.QueenSetup ? queen
-                        : member.Retention == SearchRetention.QueenKillTiming ? timing : null,
+                    queen: member.Retention == SearchRetention.QueenKillTiming ? timing : null,
                     setup: member.Evaluation == SearchEvaluation.Setup ? setupPolicy
                         : member.Evaluation == SearchEvaluation.ContinuousSetup ? continuousSetup : null),
                 SecondRankBand = member.Retention == SearchRetention.SecondBand,
                 SecondRankBandWidth = member.Width,
                 AggressivePowerCommitment = member.Retention == SearchRetention.Power,
                 Potions = policies[index],
-                AuditPotionPolicy = potionPhase || requiredPlan || initial.Options.InitialExplicitPotionUses > 0
-                    || initial.Options.MinimumPotionUses > 0,
+                AuditPotionPolicy = potionPhase || requiredPlan
+                    || initial.Options.InitialExplicitPotionUses > 0,
                 PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
             };
+            options = SearchBudgetPolicy.Apply(options, plan.EndedKeepWidths,
+                plan.EndedTriggerWidths, plan.MemoryBytes);
             SearchMemberMeasurement measurement;
             try
             {

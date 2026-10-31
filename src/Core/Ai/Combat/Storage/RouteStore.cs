@@ -64,7 +64,6 @@ internal sealed partial class BeamSolver
         private readonly ChunkedList<PlayerAction> _action;
         private readonly ChunkedList<ulong> _rootActionKey;
         private readonly ChunkedList<ulong> _lineage;
-        private readonly ChunkedList<int> _payoffCount;
         private readonly ChunkedList<ushort> _potionId;
         private readonly ChunkedList<ushort> _firstCardId;
         private readonly ChunkedList<int> _firstCardTarget;
@@ -82,7 +81,6 @@ internal sealed partial class BeamSolver
             _action = new ChunkedList<PlayerAction>(storage);
             _rootActionKey = new ChunkedList<ulong>(storage);
             _lineage = new ChunkedList<ulong>(storage);
-            _payoffCount = new ChunkedList<int>(storage);
             _potionId = new ChunkedList<ushort>(storage);
             _firstCardId = new ChunkedList<ushort>(storage);
             _firstCardTarget = new ChunkedList<int>(storage);
@@ -121,7 +119,6 @@ internal sealed partial class BeamSolver
             _action.Clear();
             _rootActionKey.Clear();
             _lineage.Clear();
-            _payoffCount.Clear();
             _potionId.Clear();
             _firstCardId.Clear();
             _firstCardTarget.Clear();
@@ -140,7 +137,6 @@ internal sealed partial class BeamSolver
             _action.Add(node.Action);
             _rootActionKey.Add(node.RootActionKey);
             _lineage.Add(node.Lineage);
-            _payoffCount.Add(node.PayoffCount);
             _potionId.Add(node.PotionId);
             _firstCardId.Add(node.FirstCardId);
             _firstCardTarget.Add(node.FirstCardTarget);
@@ -160,8 +156,8 @@ internal sealed partial class BeamSolver
                 RoutingMeta meta = _metas[_routingMetaId[index]];
                 return new RouteNode(
                     _parent[index], _depth[index], _action[index], _rootActionKey[index],
-                    _lineage[index], _payoffCount[index], _potionId[index], _firstCardId[index],
-                    _firstCardTarget[index], _commitment[index], _actionCardId[index],
+                    _lineage[index], _potionId[index], _firstCardId[index], _firstCardTarget[index],
+                    _commitment[index], _actionCardId[index],
                     _targetCombatId[index], meta.SignatureId, meta.Turn, meta.ChoiceDepth,
                     meta.ParentRank, meta.ParentScore, meta.ParentEnergy, _parentTurn[index],
                     _routingMetaId[index]);
@@ -187,7 +183,6 @@ internal sealed partial class BeamSolver
             _action.Move(from, to);
             _rootActionKey.Move(from, to);
             _lineage.Move(from, to);
-            _payoffCount.Move(from, to);
             _potionId.Move(from, to);
             _firstCardId.Move(from, to);
             _firstCardTarget.Move(from, to);
@@ -205,7 +200,6 @@ internal sealed partial class BeamSolver
             _action.Truncate(count);
             _rootActionKey.Truncate(count);
             _lineage.Truncate(count);
-            _payoffCount.Truncate(count);
             _potionId.Truncate(count);
             _firstCardId.Truncate(count);
             _firstCardTarget.Truncate(count);

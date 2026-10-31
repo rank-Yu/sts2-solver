@@ -129,25 +129,6 @@ public sealed class OrangeDough : RelicDef
 {
     public override IReadOnlyList<string> SetupOnlyCardPools => [CardPools.ColorlessAll];
 
-    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
-    {
-        if (side != Side.Player || x.B.PlayerTurn > 1)
-            return;
-        int count = StartVars.Int(ref x, self, "Cards");
-        if (count <= 0)
-            return;
-        if (count > Limits.Cards)
-            throw new CapacityException("GeneratedCards", Limits.Cards);
-        Span<Card> cards = stackalloc Card[count];
-        int sampled = Kernel.SampleCardPool(ref x.B, x.R, CardPools.ColorlessAll, count,
-            distinct: true, RngStream.CombatCardGeneration, cards);
-        for (int index = 0; index < sampled; index++)
-        {
-            Kernel.AddGeneratedCard(ref x, cards[index], Pile.Hand, PilePosition.Bottom);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
 }
 
 /// <summary>

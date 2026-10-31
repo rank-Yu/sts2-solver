@@ -13,7 +13,7 @@ internal static class SearchContracts
 
     internal static void Run()
     {
-        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/2e24a41bc5d846940be57d710ba8888bf0e2744a36ed2171eddfa5e4dbc0f1c0.request.br");
+        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/191031ddb26d3e8e2b820fdd1e567a47e5ff0225107a25c0d77fede8f76b32dd.request.br");
         using BrotliStream compressed = new(input, CompressionMode.Decompress);
         using MemoryStream bytes = new();
         compressed.CopyTo(bytes);
@@ -31,7 +31,8 @@ internal static class SearchContracts
         double attackRank = new Scorer(standardScorer.RulesForCodec, offensive: true)
             .BeamRankScore(original.Battles[0], rootFeatures, false, false);
         Assert(baseRank != standardRank && attackRank != standardRank, "evaluation dimension changes ranking");
-        BeamOptions legacy = original.Options with { BeamWidth = 8, MaxExpandedNodes = 1,
+        BeamOptions baseline = SearchBudgetPolicy.ApplyRegression(original.Options);
+        BeamOptions legacy = baseline with { BeamWidth = 8, MaxExpandedNodes = 1,
             SoftTimeBudget = TimeSpan.MaxValue };
         BeamResult capped = new BeamSolver(original.Rules, legacy).Solve(original.Battles, CancellationToken.None);
         BeamResult uncompressed = new BeamSolver(original.Rules, legacy with { MaxExpandedNodes = 2_000 })
@@ -39,7 +40,8 @@ internal static class SearchContracts
         _ = ReplayedRoute.Build(original.Battles[uncompressed.BestRootIndex], original.Rules,
             uncompressed.BestRoute, uncompressed.BestIsVictory);
         BeamOptions batched = legacy with { MaxExpandedNodes = 2_000,
-            EndedBatchTrigger = 16, EndedBatchTarget = 8, SearchMemoryBudgetBytes = 100_000_000 };
+            EndedBatchTrigger = 16, EndedBatchTarget = 8,
+            SearchMemoryBudgetBytes = 100_000_000 };
         BeamOptions unlimited = batched with { UnlimitedNodes = true, MaxExpandedNodes = 1,
             SoftTimeBudget = TimeSpan.FromSeconds(1) };
         BeamResult unbounded = new BeamSolver(original.Rules, unlimited).Solve(original.Battles, CancellationToken.None);
@@ -120,25 +122,20 @@ internal static class SearchContracts
         bool smallPool = false;
         try
         {
-            BeamOptions tiny = batched with { BeamWidth = 100, PoolStateBudgetBytes = SearchMemoryBudget.PlanningStateBytes * 64 };
+            BeamOptions tiny = batched with { BeamWidth = 100,
+                StatePoolBudgetBytes = SearchMemoryBudget.PlanningStateBytes * 64 };
             _ = new BeamSolver(original.Rules, tiny).Solve(original.Battles, CancellationToken.None);
         }
         catch (SearchMemoryBudgetException error) when (error.Region == "ended-pool-capacity") { smallPool = true; }
         Assert(smallPool, "too-small pool is an explicit budget failure");
-        bool longPoolLimit = false;
-        try
-        {
-            BeamOptions tinyNew = batched with { BeamWidth = 100,
-                StatePoolBudgetBytes = (long)SearchMemoryBudget.PlanningStateBytes * 64,
-                PoolStateBudgetBytes = 20_000_000 };
-            _ = new BeamSolver(original.Rules, tinyNew).Solve(original.Battles, CancellationToken.None);
-        }
-        catch (SearchMemoryBudgetException error) when (error.Region == "ended-pool-capacity") { longPoolLimit = true; }
-        Assert(longPoolLimit, "actual beam obeys long pool budget ahead of legacy override");
+        bool zeroBudget = false;
+        try { _ = new BeamSolver(original.Rules, batched with { SearchMemoryBudgetBytes = 0 })
+            .Solve(original.Battles, CancellationToken.None); }
+        catch (InvalidDataException) { zeroBudget = true; }
+        Assert(zeroBudget, "zero search-memory budget is rejected at Solve entry");
         BeamResult largePool = new BeamSolver(original.Rules, batched with
         {
             MaxExpandedNodes = 1, StatePoolBudgetBytes = 3_000_000_000,
-            PoolStateBudgetBytes = SearchMemoryBudget.PlanningStateBytes * 64,
         }).Solve(original.Battles, CancellationToken.None);
         Assert(largePool.ExpandedNodesTotal > 0, "actual beam supports long pool budget above 2 GiB");
 

@@ -21,9 +21,6 @@ internal static class IncumbentPolicy
                 && turn > incumbent.CombatEndedTurn;
 
     internal static bool TryTightenIncumbent(
-        PotionFreePolicyBaseline? auditedPotionFreeBaseline,
-        int minimumPotionUses,
-        int? maximumPotionUses,
         bool candidateCompleteVictory,
         bool candidateSatisfiesHardRules,
         int candidateExplicitPotionUses,
@@ -31,44 +28,22 @@ internal static class IncumbentPolicy
         int? candidateCombatEndedTurn,
         ref SearchIncumbent? incumbent,
         PotionUseMode? effectivePotionPolicy = null,
-        int candidateDeathSaveUseCount = 0,
-        int? candidateExplicitPotionStrategicCost = null)
+        int candidateDeathSaveUseCount = 0)
     {
         if (!candidateCompleteVictory
             || !candidateSatisfiesHardRules
             || candidateDeathSaveUseCount > 0
-            || candidateExplicitPotionUses != minimumPotionUses
+            || candidateExplicitPotionUses != 0
             || candidateCombatEndedTurn is not { } combatEndedTurn)
         {
             return false;
         }
 
-        // A complete, hard-policy-compliant victory without explicit potion use is
-        // already eligible under Disabled/Smart. It needs no separate potion audit.
-        // Positive exact layers retain their stricter, audited eligibility proof.
-        bool eligiblePotionFreeVictory = minimumPotionUses == 0
-            && effectivePotionPolicy is PotionUseMode.Disabled or PotionUseMode.Smart;
-        bool eligibleExactPotionVictory = auditedPotionFreeBaseline is { } baseline
-            && minimumPotionUses > 0
-            && maximumPotionUses == minimumPotionUses
-            && InterimResultOrdering.ComparePrimaryQuality(
-                candidateCompleteVictory: true,
-                candidateStrategicHpDeficit,
-                candidateCombatEndedTurn,
-                currentCompleteVictory: baseline.Won,
-                currentStrategicHpDeficit: baseline.HpDeficit,
-                currentCombatEndedTurn: baseline.CombatEndedTurn,
-                candidateDeathSaveUseCount: candidateDeathSaveUseCount,
-                currentDeathSaveUseCount: baseline.DeathSaveUseCount) < 0;
-        if (!eligiblePotionFreeVictory && !eligibleExactPotionVictory)
-        {
+        // A complete, hard-policy-compliant potion-free victory is eligible under Disabled/Smart.
+        if (effectivePotionPolicy is not (PotionUseMode.Disabled or PotionUseMode.Smart))
             return false;
-        }
 
-        SearchIncumbent candidate = new(
-            candidateStrategicHpDeficit,
-            combatEndedTurn,
-            minimumPotionUses == 0 ? 0 : candidateExplicitPotionStrategicCost);
+        SearchIncumbent candidate = new(candidateStrategicHpDeficit, combatEndedTurn);
         if (incumbent is { } current
             && InterimResultOrdering.ComparePrimaryQuality(
                 candidateCompleteVictory: true,

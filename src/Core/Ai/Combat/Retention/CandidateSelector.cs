@@ -24,10 +24,8 @@ internal sealed partial class BeamSolver
             {
                 int source = selected[index];
                 target.Add(_states[source], _nodes[source], _scores[source], _ranks[source],
-                    _trackPlanSeats ? _pureRanks[source] : 0d, _potionCosts[source],
-                    _facts[source], _lineages[source],
-                    _trackPlanSeats ? _payoffs[source] : 0, _commitment[source],
-                    _labels[source]);
+                    _potionCosts[source], _facts[source], _lineages[source],
+                    _commitment[source], _labels[source]);
             }
         }
 
@@ -63,8 +61,7 @@ internal sealed partial class BeamSolver
                     Move(source, index);
             }
             int dropped = count - selected.Count;
-            if (_lazyScratch)
-                for (int index = selected.Count; index < count; index++) _labels[index] = null;
+            for (int index = selected.Count; index < count; index++) _labels[index] = null;
             Count = selected.Count;
             _states.Truncate(selected.Count);
             RebuildTable();
@@ -139,8 +136,6 @@ internal sealed partial class BeamSolver
             }
             if (_trackPowerCommitments && _hasCommitments)
                 AdmitPowerCommitmentSeats(selected, required, width);
-            if (_planCommitment is { CopyPowerSeats: true })
-                AdmitPlanCommitmentSeats(selected, required, width);
             if (_scorer.QueenPolicy is { PreserveKillTiming: true } queen)
                 AdmitQueenPhaseSeats(selected, width, queen);
             if (_checkPotionQuota)
@@ -348,79 +343,6 @@ internal sealed partial class BeamSolver
                 if (target == fsetup) labels.Add("focus.setup");
             }
             return labels.Count == 0 ? "-" : string.Join(",", labels);
-        }
-
-        /// <summary>
-        /// <c>BeamRetentionPolicy.AdmitPlanCommitmentRepresentatives</c>: a CopyPower plan keeps the
-        /// best-ranked state of the three highest realized-payoff progress bands. A representative
-        /// replaces only a selected non-required state with strictly lower progress (the existing
-        /// <c>FindLastIndex</c>), so equal-progress seats are not displaced.
-        /// </summary>
-        private void AdmitPlanCommitmentSeats(List<int> selected, List<int> required, int width)
-        {
-            // The existing selection takes the three highest distinct progress bands, then each
-            // band's MaxBy(BeamRankScore). Collect the bands first; the best member is scanned below.
-            Span<int> progressBands = stackalloc int[3];
-            int bandCount = 0;
-            for (int index = 0; index < Count; index++)
-            {
-                int progress = _payoffs[index];
-                if (progress <= 0)
-                    continue;
-                int insert = 0;
-                while (insert < bandCount && progressBands[insert] > progress)
-                    insert++;
-                if (insert < bandCount && progressBands[insert] == progress)
-                    continue;
-                if (insert >= 3)
-                    continue;
-                int moveTo = Math.Min(bandCount, 2);
-                while (moveTo > insert)
-                {
-                    progressBands[moveTo] = progressBands[moveTo - 1];
-                    moveTo--;
-                }
-                progressBands[insert] = progress;
-                if (bandCount < 3)
-                    bandCount++;
-            }
-            // Pick the best pure-rank member of every retained progress band. The scan is bounded by
-            // the pool and runs only for a CopyPower plan member.
-            for (int group = 0; group < bandCount; group++)
-            {
-                int progress = progressBands[group];
-                int best = -1;
-                for (int index = 0; index < Count; index++)
-                {
-                    if (_payoffs[index] != progress)
-                        continue;
-                    if (best < 0 || _pureRanks[index] > _pureRanks[best])
-                        best = index;
-                }
-                int candidate = best;
-                int candidateProgress = progress;
-                if (selected.Contains(candidate))
-                {
-                    AddRequired(required, candidate, width);
-                    continue;
-                }
-                int replaceIndex = -1;
-                for (int index = selected.Count - 1; index >= 0; index--)
-                {
-                    int node = selected[index];
-                    if (!_required[node] && _payoffs[node] < candidateProgress)
-                    {
-                        replaceIndex = index;
-                        break;
-                    }
-                }
-                if (replaceIndex < 0)
-                    continue;
-                _taken[selected[replaceIndex]] = false;
-                selected[replaceIndex] = candidate;
-                _taken[candidate] = true;
-                AddRequired(required, candidate, width);
-            }
         }
 
         /// <summary>

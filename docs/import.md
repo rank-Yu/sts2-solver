@@ -205,7 +205,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 `SearchPerformanceProfile` 给出基准、窄、宽、进攻四种宽度和每单位宽度的时限，并决定是否追加补搜（档位值见 [战斗搜索](combat-ai.md#2-档位与时间)）。Mod 和差分宿主再把宿主的内存预算放进 `CombatSearchRequest`，交给 `CombatSearchCoordinator` 构造成员。成员的宽度、评价、保留、用药限制和时限都在协调器里设置，全部受原请求的保护和强制指令约束；生产搜索没有展开节点上限。宿主回调和帧压力信号只在运行时传递，worker 不读实时战斗或全局搜索设置。
 
-测试用的确定性捕获仍按旧的单成员请求编码（`SREQ`），用固定的节点上限（512,000）代替墙钟。组合请求的编码 `SCV2` 见 [战斗搜索](combat-ai.md#10-兼容旧请求的路径是否保留待代码清理决定)。
+测试用的确定性捕获使用单成员请求编码（`SREQ`），用固定的节点上限（512,000）代替墙钟。生产调度由协调器按计划构造，不经过请求编码。
 
 ## 7. 拒绝规则
 

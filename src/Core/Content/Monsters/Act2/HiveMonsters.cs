@@ -8,7 +8,6 @@ public sealed partial class Chomper : MonsterDef
 {
     private const int ScreechDazed = 3;
 
-    public override string? CombatStartMove(byte variant) => variant == 1 ? "SCREECH_MOVE" : "CLAMP_MOVE";
 
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
 

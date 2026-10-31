@@ -285,27 +285,6 @@ public ref struct Exec
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
 
-    /// <summary>
-    /// The room being entered is a boss room. Set only while the opening combat-start hooks run;
-    /// Pantograph reads it, and later steps leave it false.
-    /// </summary>
-    public bool FirstRoomIsBoss;
-
-    /// <summary>
-    /// The room being entered is an elite room. Set only while the opening build runs; BoomingConch
-    /// reads it.
-    /// </summary>
-    public bool FirstRoomIsElite;
-
-    /// <summary>
-    /// The opening build is running its battle-start hooks. First-turn-only relic/room effects
-    /// check this so a search root captured at turn 1 does not replay them.
-    /// </summary>
-    public bool CombatStart;
-
-    /// <summary>Opening-content values supplied only while the battle is being built.</summary>
-    public ICombatStartContent? SetupContent;
-
     /// <summary>Number of carried choices already consumed (the pending request's index).</summary>
     public readonly int ChoicesTaken => _choicesTaken;
 

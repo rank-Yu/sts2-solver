@@ -124,12 +124,12 @@ internal static class CompareCommand
         {
             string hash = Path.GetFileName(path)[..^".request.br".Length];
             SearchCase search = SearchCodec.DecodeRequest(GoldenFiles.ReadCompressed(path));
-            BeamOptions options = search.Options with
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
                 Trace = null,
-            };
+            });
             BeamResult expected = SearchCodec.DecodeResult(
                 GoldenFiles.ReadCompressed(Path.Combine(expectedDirectory, hash + ".result.br")));
             BeamSolver solver = new(search.Rules, options);

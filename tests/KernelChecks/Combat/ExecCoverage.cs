@@ -75,10 +75,6 @@ internal static class ExecCoverage
     private static readonly string[] StepTransient =
     [
         nameof(Exec.EnemySideTurnEndReached),
-        nameof(Exec.FirstRoomIsBoss),
-        nameof(Exec.FirstRoomIsElite),
-        nameof(Exec.CombatStart),
-        nameof(Exec.SetupContent),
     ];
 
     private static readonly string[] ResetAtPlayerStart =

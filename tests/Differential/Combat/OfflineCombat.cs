@@ -23,9 +23,7 @@ internal sealed record OfflineCombatSettings(
     SearchPerformanceTier Tier,
     SearchPerformanceProfile Profile,
     long MemoryBudgetBytes,
-    int WarmupNodes,
-    int? MaxExpandedNodesOverride,
-    int? PoolStateBudgetMb)
+    int WarmupNodes)
 {
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
@@ -178,8 +176,7 @@ internal static class OfflineCombat
             SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
                 SearchPolicyCapture.Capture(combat, player), request, player);
             DifferentialCombat host = new(combat, player, rules, policy, settings.Profile,
-                settings.MemoryBudgetBytes, settings.WarmupNodes,
-                settings.MaxExpandedNodesOverride, settings.PoolStateBudgetMb, opening);
+                settings.MemoryBudgetBytes, settings.WarmupNodes, opening);
             CombatPilotResult result = CombatPilot.RunAsync(host, root, CancellationToken.None)
                 .GetAwaiter().GetResult();
             long wallMs = stopwatch.ElapsedMilliseconds;
@@ -275,16 +272,6 @@ internal static class OfflineCombat
         start.ArgumentList.Add(settings.Output);
         start.ArgumentList.Add("--search-tier");
         start.ArgumentList.Add(settings.Tier.ToString());
-        if (settings.MaxExpandedNodesOverride is { } maxNodes)
-        {
-            start.ArgumentList.Add("--max-nodes");
-            start.ArgumentList.Add(maxNodes.ToString());
-        }
-        if (settings.PoolStateBudgetMb is { } poolMb)
-        {
-            start.ArgumentList.Add("--pool-state-budget-mb");
-            start.ArgumentList.Add(poolMb.ToString());
-        }
         start.ArgumentList.Add("--memory-budget-bytes");
         start.ArgumentList.Add(settings.MemoryBudgetBytes.ToString());
         start.ArgumentList.Add("--jobs");
@@ -331,7 +318,6 @@ internal static class OfflineCombat
             wideWidth = settings.Profile.WideWidth,
             offensiveWidth = settings.Profile.OffensiveWidth,
             millisecondsPerWidth = settings.Profile.MillisecondsPerWidth,
-            poolStateBudgetMb = settings.PoolStateBudgetMb,
             memoryBudgetBytes = settings.MemoryBudgetBytes,
             roots,
             failed,
@@ -423,8 +409,6 @@ internal static class OfflineCombat
         SearchPerformanceProfile profile,
         long MemoryBudgetBytes,
         int WarmupNodes,
-        int? MaxExpandedNodesOverride,
-        int? PoolStateBudgetMb,
         Battle opening) : ICombatPilotHost
     {
         private readonly List<string> _potionsUsed = [];
@@ -445,15 +429,14 @@ internal static class OfflineCombat
         {
             if (WarmupNodes <= 0)
                 return;
-            BeamOptions options = searchCase.Options with
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(searchCase.Options with
             {
                 BeamWidth = searchCase.Options.BeamWidth,
                 MaxExpandedNodes = WarmupNodes,
-                SearchMemoryBudgetBytes = 0,
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
                 Trace = null,
-            };
+            });
             try
             {
                 _ = new BeamSolver(searchCase.Rules, options)
@@ -528,11 +511,6 @@ internal static class OfflineCombat
                 StorageCheck(searchCase, token);
             }
 
-            if (MaxExpandedNodesOverride is not null)
-                return ValueTask.FromResult(Failed("rejected", "组合搜索不接受节点上限。", "request_invalid", "组合搜索不接受节点上限。"));
-            if (PoolStateBudgetMb is { } poolMb)
-                searchCase = searchCase with { Options = searchCase.Options with
-                    { PoolStateBudgetBytes = checked(poolMb * 1024 * 1024) } };
             SearchPlan plan = profile.ToSearchPlan(MemoryBudgetBytes, combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Boss,
             combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Elite, combat.RunState.CurrentActIndex);
             SearchStorage storage = new();
@@ -711,12 +689,14 @@ internal static class OfflineCombat
         {
             SearchStorage storage = new();
             long gcStart = GC.GetAllocatedBytesForCurrentThread();
-            BeamResult first = new BeamSolver(searchCase.Rules, searchCase.Options)
+            BeamOptions storageOptions = SearchBudgetPolicy.ApplyRegression(searchCase.Options with
+                { SoftTimeBudget = TimeSpan.MaxValue, Pacer = null, Trace = null });
+            BeamResult first = new BeamSolver(searchCase.Rules, storageOptions)
                 .Solve(searchCase.Battles, storage, token);
             long firstBytes = storage.AllocatedBytes;
             string regionsFirst = RegionDump(storage);
             long gcFirst = GC.GetAllocatedBytesForCurrentThread();
-            BeamResult second = new BeamSolver(searchCase.Rules, searchCase.Options)
+            BeamResult second = new BeamSolver(searchCase.Rules, storageOptions)
                 .Solve(searchCase.Battles, storage, token);
             long secondBytes = storage.AllocatedBytes;
             string regionsSecond = RegionDump(storage);

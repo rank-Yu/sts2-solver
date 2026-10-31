@@ -75,7 +75,6 @@ public sealed partial class KinFollower : MonsterDef
 {
     private const int DanceStrength = 0;
 
-    public override string? CombatStartMove(byte variant) => variant == 1 ? "POWER_DANCE_MOVE" : "QUICK_SLASH_MOVE";
 
     public override IReadOnlyList<string> StaticIntNames => ["DanceStrength"];
 

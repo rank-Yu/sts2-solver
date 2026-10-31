@@ -111,15 +111,17 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 对 `d2/requests/*.request.br` 的每个唯一请求：
 
 1. 解码 `SREQ`（规则、战斗、搜索选项）；
-2. 把软时间预算改为 `TimeSpan.MaxValue`，清空让帧器、进度、接管和追踪回调；
+2. 把软时间预算改为 `TimeSpan.MaxValue`，清空让帧器和追踪回调；
 3. 运行 `BeamSolver.Solve`；
-4. 与 `d2/expected/*.result.br` 逐字段比较：路线、`TopRoutes`、分数的 double 位、展开/转移/去重计数、容量丢弃、结束回合池压缩、药水审计、侦察层、`BestRootIndex`、`PotionPolicySatisfied`、`Takeover`。
+4. 与 `d2/expected/*.result.br` 逐字段比较：路线、分数的 double 位、展开/转移/去重计数、容量丢弃、结束回合池压缩、药水审计、`BestRootIndex` 和 `PotionPolicySatisfied`。
 
 `SEARCH_OK` 还会输出 `playDeduped`、`playVerifiedExact/Approx`、`choiceByClassRequests`、`choiceVerifiedExact/Approx` 和未决计数；没开等价自检时 `*Verified*` 项为 0（见 4.3）。
 
-每次搜索回归先打印一行 `SEARCH_SHARD`，列出当前分片的 `requests`、`weight`，以及按旧分法算的 `oldRequests`、`oldWeight`（旧分法对照是否保留，待代码清理决定）。
+每次搜索回归先打印一行 `SEARCH_SHARD`，列出当前分片的 `requests` 和 `weight`。
 
 证明：冻结请求在去掉软时间后能复现完整搜索结果。不证明：请求集合之外的根、实机运行、界面与部署行为。
+
+搜索回归通过 Core 的 `SearchBudgetPolicy.ApplyRegression` 注入固定参数：结束回合池保留宽度 × 8、触发宽度 × 16，状态池预算和搜索内存预算都是 2,576,980,377 字节。协调器用同一个 `SearchBudgetPolicy.Apply` 计算生产成员，回放和测试不另写公式。
 
 ### 4.3 搜索等价自检
 
@@ -307,11 +309,11 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 输出逐根的 `live ... status=same ... native=same`，最后汇总 `live roots=N same=... diff=... reject=... native=...`。
 
-旧结果目录没有 `SREQ.capture` 时，比较回退到 `SREQ`（这个回退是否保留，待代码清理决定）。
+结果目录必须包含 `SREQ.capture`；缺失时该根按拒绝处理。
 
 ### 9.2 实机搜索请求与结果对照
 
-单次捕获测试默认用中档、确定性的单成员旧格式请求求解一次（软时间关闭、宽度 300、节点上限 512,000），写出 `SREQ`、`SRES`、`search.json`。`--search-compare <结果目录>` 对每个根做两件事：
+单次捕获测试默认用中档、确定性的单成员请求求解一次（软时间关闭、宽度 300、节点上限 512,000），写出 `SREQ`、`SRES`、`search.json`。`--search-compare <结果目录>` 对每个根做两件事：
 
 1. 解码游戏写出的 `SREQ`，用同一个 `BeamSolver` 离线重解，`SearchCodec.EncodeResult` 后与游戏的 `SRES` 逐字节比较；
 2. 用离线宿主重建同一个原生根，导入并编译规则和评估配置，再按 `status.searchTier`、`status.deterministicSearch` 调用同一个 `SearchRequestCompiler`，与游戏的 `SREQ` 逐字节比较。

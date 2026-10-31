@@ -36,19 +36,6 @@ public sealed class NinjaScroll : RelicDef
 {
     public override IReadOnlyList<(string CardId, int Upgrade)> SetupOnlyGeneratedCards => [("SHIV", 0)];
 
-    public override void BeforeHandDraw(ref Exec x, Listener self)
-    {
-        if (x.B.PlayerTurn > 1)
-            return;
-        int count = StartVars.Int(ref x, self, "Shivs");
-        for (int index = 0; index < count; index++)
-        {
-            Card shiv = Kernel.CreateCard(x.R, Registry.CardId<Cards.Silent.Shiv>());
-            Kernel.AddGeneratedCard(ref x, shiv, Pile.Hand, PilePosition.Bottom);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
 }
 
 /// <summary>
@@ -204,30 +191,6 @@ public sealed class Toolbox : RelicDef
 
     public override bool MayGenerateIdentityContent => true;
 
-    public override void BeforeHandDraw(ref Exec x, Listener self)
-    {
-        if (x.B.PlayerTurn > 1)
-            return;
-        int count = StartVars.Int(ref x, self, "Cards");
-        if (count <= 0)
-            return;
-        if (count > Limits.Cards)
-            throw new CapacityException("GeneratedCards", Limits.Cards);
-        Span<Card> options = stackalloc Card[count];
-        int sampled = Kernel.SampleCardPool(ref x.B, x.R, CardPools.ColorlessAll, count,
-            distinct: true, RngStream.CombatCardGeneration, options);
-        if (sampled == 0)
-            return;
-        Span<int> selected = stackalloc int[1];
-        if (!Kernel.ChooseOptionsInRange(ref x, ChoiceEffect.GenerateToHand, options[..sampled],
-                0, 1, selected, out int selectedCount))
-        {
-            return;
-        }
-        if (selectedCount == 0)
-            return;
-        Kernel.AddGeneratedCard(ref x, options[selected[0]], Pile.Hand);
-    }
 }
 
 /// <summary><c>Cauldron</c>: <c>AfterObtained</c> potion rewards only.</summary>

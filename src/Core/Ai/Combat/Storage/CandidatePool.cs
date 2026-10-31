@@ -18,7 +18,6 @@ internal sealed partial class BeamSolver
     private sealed partial class Pool
     {
         private readonly int _maxCapacity;
-        private readonly bool _lazyScratch;
         private readonly CancellationToken _cancellationToken;
         private readonly Action? _checkpoint;
         private readonly Action? _retentionObserver;
@@ -44,8 +43,6 @@ internal sealed partial class BeamSolver
         private readonly ChunkedArray<ulong> _hashes;
         private readonly ChunkedArray<RetentionFacts> _facts;
         private readonly ChunkedArray<int> _potionCosts;
-        private readonly ChunkedArray<double> _pureRanks;
-        private readonly ChunkedArray<int> _payoffs;
         private readonly ChunkedArray<int> _commitment;
         private int[] _table;
         private int[] _order;
@@ -65,8 +62,6 @@ internal sealed partial class BeamSolver
         private readonly List<(int Potion, uint? Target)> _focusOrder = new();
         private readonly Scorer _scorer;
         private readonly bool _preserveTheft;
-        private readonly PlanCommitment? _planCommitment;
-        private readonly bool _trackPlanSeats;
         private readonly bool _secondRankBand;
         private readonly int _secondRankBandWidth;
         private readonly bool _aggressivePowerCommitment;
@@ -135,23 +130,20 @@ internal sealed partial class BeamSolver
         private bool _hasCommitments;
 
         public Pool(int initialCapacity, int maxCapacity, bool preserveTheft, Scorer scorer,
-            PlanCommitment? planCommitment, bool secondRankBand, int secondRankBandWidth,
+            bool secondRankBand, int secondRankBandWidth,
             bool aggressivePowerCommitment, PowerCommitmentCatalog? powerCommitments,
             ChunkedList<PowerCommitmentState> commitmentStates, RouteNodeStore routeNodes,
             ChunkedList<RoutingSignature> routingSignatures, bool checkPotionQuota, int initialActionCount,
             bool preserveReplayAllocatorOpening, BeamTrace? trace, SearchStorage storage,
-            bool lazyScratch = false, CancellationToken cancellationToken = default,
+            CancellationToken cancellationToken = default,
             Action? checkpoint = null, Action? retentionObserver = null)
         {
             _maxCapacity = maxCapacity;
-            _lazyScratch = lazyScratch;
             _cancellationToken = cancellationToken;
             _checkpoint = checkpoint;
             _retentionObserver = retentionObserver;
             _preserveTheft = preserveTheft;
             _scorer = scorer;
-            _planCommitment = planCommitment;
-            _trackPlanSeats = planCommitment is { CopyPowerSeats: true };
             _secondRankBand = secondRankBand;
             _secondRankBandWidth = secondRankBandWidth;
             _aggressivePowerCommitment = aggressivePowerCommitment;
@@ -174,12 +166,10 @@ internal sealed partial class BeamSolver
             _hashes = new ChunkedArray<ulong>(maxCapacity, storage);
             _facts = new ChunkedArray<RetentionFacts>(maxCapacity, storage);
             _potionCosts = new ChunkedArray<int>(maxCapacity, storage);
-            _pureRanks = new ChunkedArray<double>(maxCapacity, storage);
-            _payoffs = new ChunkedArray<int>(maxCapacity, storage);
             _commitment = new ChunkedArray<int>(maxCapacity, storage);
-            // Sorting needs contiguous arrays. Legacy reserves the maximum; the batch path grows
-            // these arrays when the pool is actually selected.
-            int scratchCapacity = lazyScratch ? Math.Clamp(initialCapacity, 1, maxCapacity) : maxCapacity;
+            // Sorting needs contiguous arrays. Start at the expected seat count and grow them when
+            // the pool is actually selected.
+            int scratchCapacity = Math.Clamp(initialCapacity, 1, maxCapacity);
             _order = storage.RentArray<int>(scratchCapacity);
             _rankOrder = storage.RentArray<int>(scratchCapacity);
             _rankPosition = storage.RentArray<int>(scratchCapacity);
@@ -196,7 +186,7 @@ internal sealed partial class BeamSolver
 
         private void EnsureScratch(int count)
         {
-            if (!_lazyScratch || count <= _order.Length)
+            if (count <= _order.Length)
                 return;
             int capacity = Math.Min(_maxCapacity, Math.Max(count, checked(_order.Length * 2)));
             _storage.Memory.Charge((long)(capacity - _auxSeats) * PoolAuxiliaryBytesPerSeat, "pool-aux");
@@ -311,18 +301,12 @@ internal sealed partial class BeamSolver
             _facts[to] = _facts[from];
             _potionCosts[to] = _potionCosts[from];
             _commitment[to] = _commitment[from];
-            if (_trackPlanSeats)
-            {
-                _pureRanks[to] = _pureRanks[from];
-                _payoffs[to] = _payoffs[from];
-            }
         }
 
         /// <summary>Drops the tail after an incumbent bound; removed seats are not refilled.</summary>
         public void Truncate(int count)
         {
-            if (_lazyScratch)
-                for (int index = count; index < Count; index++) _labels[index] = null;
+            for (int index = count; index < Count; index++) _labels[index] = null;
             Count = count;
             _states.Truncate(count);
             RebuildTable();
@@ -368,39 +352,39 @@ internal sealed partial class BeamSolver
         }
 
         /// <summary>Adds the state built in the reserved slot; returns false when an identical state was already present.</summary>
-        public bool CommitReserved(int node, double score, double rank, double pureRank, int potionCost,
-            in ScoreFeatures features, int depth, ulong lineage, int payoffCount, int commitment,
+        public bool CommitReserved(int node, double score, double rank, int potionCost,
+            in ScoreFeatures features, int depth, ulong lineage, int commitment,
             SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
             int parentStrategicResourcePotential)
         {
             return Insert(ref _states.ReservedState, inPlace: true,
-                node, score, rank, pureRank, potionCost, features, default, factsReady: false, depth,
-                lineage, payoffCount, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
+                node, score, rank, potionCost, features, default, factsReady: false, depth,
+                lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
                 parentStrategicResourcePotential);
         }
 
         /// <summary>Adds a scored state and computes its retention-only values when it is stored.</summary>
-        public bool AddScored(in Battle state, int node, double score, double rank, double pureRank,
-            int potionCost, in ScoreFeatures features, int depth, ulong lineage, int payoffCount,
+        public bool AddScored(in Battle state, int node, double score, double rank,
+            int potionCost, in ScoreFeatures features, int depth, ulong lineage,
             int commitment, SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
             int parentStrategicResourcePotential)
             => Insert(ref Unsafe.AsRef(in state), inPlace: false,
-                node, score, rank, pureRank, potionCost, features, default, factsReady: false, depth,
-                lineage, payoffCount, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
+                node, score, rank, potionCost, features, default, factsReady: false, depth,
+                lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
                 parentStrategicResourcePotential);
 
         /// <summary>Adds a state whose retention facts are already computed (pool-to-pool copies).</summary>
-        public bool Add(in Battle state, int node, double score, double rank, double pureRank,
-            int potionCost, in RetentionFacts facts, ulong lineage, int payoffCount, int commitment,
+        public bool Add(in Battle state, int node, double score, double rank,
+            int potionCost, in RetentionFacts facts, ulong lineage, int commitment,
             List<PoolLabel>? labels = null)
         {
             bool added = Insert(ref Unsafe.AsRef(in state), inPlace: false,
-                node, score, rank, pureRank, potionCost, default, facts, factsReady: true, facts.Depth,
-                lineage, payoffCount, commitment, facts.Traits, facts.PocketwatchCardThreshold,
+                node, score, rank, potionCost, default, facts, factsReady: true, facts.Depth,
+                lineage, commitment, facts.Traits, facts.PocketwatchCardThreshold,
                 facts.PocketwatchCardsPlayedThisTurn, facts.PocketwatchCardsPlayedLastTurn, 0, 0, 0, 0);
             if (added && labels is { Count: > 0 })
             {
@@ -457,8 +441,8 @@ internal sealed partial class BeamSolver
         }
 
         private bool Insert(ref Battle state, bool inPlace, int node, double score, double rank,
-            double pureRank, int potionCost, in ScoreFeatures features, in RetentionFacts knownFacts,
-            bool factsReady, int depth, ulong lineage, int payoffCount, int commitment,
+            int potionCost, in ScoreFeatures features, in RetentionFacts knownFacts,
+            bool factsReady, int depth, ulong lineage, int commitment,
             SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
             int parentStrategicResourcePotential)
@@ -522,11 +506,6 @@ internal sealed partial class BeamSolver
                         _ranks[existing] = rank;
                         _nodes[existing] = node;
                         _potionCosts[existing] = potionCost;
-                        if (_trackPlanSeats)
-                        {
-                            _pureRanks[existing] = pureRank;
-                            _payoffs[existing] = payoffCount;
-                        }
                         _facts[existing] = factsReady
                             ? knownFacts
                             // The byte-identical state has the same retention-only hand values; only
@@ -579,11 +558,6 @@ internal sealed partial class BeamSolver
             _lineages[Count] = lineage;
             _scores[Count] = score;
             _ranks[Count] = rank;
-            if (_trackPlanSeats)
-            {
-                _pureRanks[Count] = pureRank;
-                _payoffs[Count] = payoffCount;
-            }
             _hashes[Count] = hash;
             _facts[Count] = facts;
             _potionCosts[Count] = potionCost;

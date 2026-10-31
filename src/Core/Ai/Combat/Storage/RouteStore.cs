@@ -219,11 +219,11 @@ internal sealed partial class BeamSolver
 
     /// <summary>
     /// Keeps only nodes that are an ancestor of a live search state. Roots are every pool slot, the
-    /// current best, candidate routes, takeover/incumbent candidates and novelty queue entries. The
+    /// current best, the best potion-free/audited candidates and the end-turn prefix candidates. The
     /// rewrite preserves ascending index order, so the node-index tie-breakers compare exactly as
     /// before; parent links are rewritten through the same map.
     /// </summary>
-    private void CompactRouteNodes(List<(RouteKey Key, int Node)> candidates, ref int bestNode,
+    private void CompactRouteNodes(ref int bestNode,
         Pool? current, Pool? next, Pool? ended, Pool? turnFrontier)
     {
         // The offline trace keys its watched targets by the original node identity. Trace is a
@@ -237,9 +237,6 @@ internal sealed partial class BeamSolver
         ended?.AppendNodes(roots);
         turnFrontier?.AppendNodes(roots);
         AddRoot(roots, bestNode);
-        for (int index = 0; index < candidates.Count; index++)
-            AddRoot(roots, candidates[index].Node);
-        AddRoot(roots, _takeoverNode);
         AddRoot(roots, _bestFeaturesNode);
         AddRoot(roots, _endTurnPrefixNode);
         AddRoot(roots, _endTurnPrefixAttemptNode);
@@ -250,15 +247,6 @@ internal sealed partial class BeamSolver
             foreach (Candidate candidate in audited.Values)
                 AddRoot(roots, candidate.Node);
         }
-        AddRoot(roots, _noveltyBestNode);
-        if (_noveltyFallback is { } fallback)
-            AddRoot(roots, fallback.Node);
-        if (_noveltyOpen is { } noveltyOpen)
-        {
-            foreach (NoveltyOpenEntry entry in noveltyOpen.Values)
-                AddRoot(roots, entry.Node);
-        }
-
         int count = _nodes.Count;
         if (count == 0)
             return;
@@ -309,9 +297,6 @@ internal sealed partial class BeamSolver
         ended?.RemapNodes(map);
         turnFrontier?.RemapNodes(map);
         bestNode = RemapNode(map, bestNode);
-        for (int index = 0; index < candidates.Count; index++)
-            candidates[index] = (candidates[index].Key, RemapNode(map, candidates[index].Node));
-        _takeoverNode = RemapNode(map, _takeoverNode);
         _bestFeaturesNode = RemapNode(map, _bestFeaturesNode);
         _endTurnPrefixNode = RemapNode(map, _endTurnPrefixNode);
         _endTurnPrefixAttemptNode = RemapNode(map, _endTurnPrefixAttemptNode);
@@ -329,17 +314,6 @@ internal sealed partial class BeamSolver
                 bestByCount[key] = candidate with { Node = RemapNode(map, candidate.Node) };
             }
         }
-        _noveltyBestNode = RemapNode(map, _noveltyBestNode);
-        if (_noveltyFallback is { } noveltyFallback)
-        {
-            _noveltyFallback = noveltyFallback with
-            {
-                Node = RemapNode(map, noveltyFallback.Node),
-            };
-        }
-        if (_noveltyOpen is { } open)
-            open.Remap(value => value with { Node = RemapNode(map, value.Node) });
-
         CompactCommitments(live);
         CompactRoutingMetadata();
         if (_options.UnlimitedNodes) SearchCheckpoint();

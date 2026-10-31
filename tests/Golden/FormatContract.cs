@@ -35,28 +35,6 @@ internal static class FormatContract
         }
         if (Codec.FormatVersion != 3)
             throw new InvalidOperationException($"数据格式版本应为 3，实际为 {Codec.FormatVersion}。");
-
-        // The battle header is the innermost format: reject the old magic and version explicitly.
-        byte[] current = BattleCodec.Encode(default);
-        byte[] oldVersion = (byte[])current.Clone();
-        BinaryPrimitives.WriteUInt16LittleEndian(oldVersion.AsSpan(4), 1);
-        ExpectInvalid(() => BattleCodec.Decode(oldVersion), "BATL version 1");
-        byte[] oldMagic = (byte[])current.Clone();
-        BinaryPrimitives.WriteUInt32LittleEndian(oldMagic, 0x54414246);
-        ExpectInvalid(() => BattleCodec.Decode(oldMagic), "旧战斗魔数");
         return string.Join(',', labels);
-    }
-
-    private static void ExpectInvalid(Action decode, string what)
-    {
-        try
-        {
-            decode();
-        }
-        catch (InvalidDataException)
-        {
-            return;
-        }
-        throw new InvalidOperationException($"{what} 未被拒绝。");
     }
 }

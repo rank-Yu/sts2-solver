@@ -14,7 +14,7 @@ namespace Sts2Solver.Ai.Combat.Scoring;
 /// </summary>
 /// <remarks>
 /// The per-content values (card values, latent setup values and traits, power strategic effects) come from
-/// <see cref="ScoreRules"/>, which <c>ScoreBridge</c> compiles from the existing engine's
+/// <see cref="ScoreRules"/>, which the request compiler builds from the reference engine's
 /// models at the root. This type only reads the battle, the rule table and that compile output.
 /// It allocates nothing on the hot path.
 /// </remarks>
@@ -57,7 +57,7 @@ internal sealed class Scorer
 
     private Rules Rules => _score.Rules;
 
-    /// <summary><c>SearchRunContext.InitialRetainedAttackValue</c>, frozen by the root score bridge.</summary>
+    /// <summary>The root-frozen initial retained-attack value.</summary>
     public int InitialRetainedAttackValue => _score.InitialRetainedAttackValue;
 
     /// <summary>The root-frozen kernel rule table, used by the retention stand-pat replay.</summary>
@@ -443,13 +443,13 @@ internal sealed class Scorer
         => Evaluate(battle, actionCount, includeRetentionOnly);
 
     /// <summary>
-    /// <c>SearchPolicySnapshot.GrowthTargetSatisfied</c>: every bounded growth goal has been realized.
+    /// Every bounded growth goal has been realized.
     /// The request already disabled the HP-target stop for unbounded targets.
     /// </summary>
     public bool GrowthTargetsSatisfied(in ScoreFeatures features)
         => features.GrowthRewards.Satisfies(_score.RequiredGrowthRewards);
 
-    /// <summary><c>SearchPolicySnapshot.RelicTargetsSatisfied</c>.</summary>
+    /// <summary>Every relic-counter target has been satisfied.</summary>
     public bool RelicTargetsSatisfied(in ScoreFeatures features)
         => (features.RelicSatisfiedMask & features.RelicTargetMask) == features.RelicTargetMask;
 
@@ -759,8 +759,7 @@ internal sealed class Scorer
             persistentSetupTraits |= rules.Trait;
         }
         if (SetupPolicy is {} setupPolicy && !dead && battle.Outcome == Outcome.None)
-            score += Math.Min(48d, setupPotentialHp) * ScoreWeights.Hp
-                + setupPolicy.FocusHp(battle) * ScoreWeights.EnemyHp;
+            score += Math.Min(48d, setupPotentialHp) * ScoreWeights.Hp;
         int persistentBuffValue = strategicEffects.RetentionValue;
         if (battle.OrbCount > 0)
         {
@@ -1799,7 +1798,7 @@ internal sealed class Scorer
         public int? ExhaustDrawPlays { get; init; }
         public int ReachableCards { get; init; }
 
-        /// <summary><c>SearchPolicySnapshot.Act3BossStrategy</c> frozen in the score table.</summary>
+        /// <summary>The request's Act3 boss strategy, frozen in the score table.</summary>
         public bool Act3BossInteractions { get; init; }
 
         /// <summary><c>CaptureFirstAttackDamage</c>: the best payable attack's total first-hit damage.</summary>

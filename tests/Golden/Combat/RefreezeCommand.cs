@@ -65,8 +65,6 @@ internal static class RefreezeCommand
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
-                Progress = null,
-                PollTakeover = null,
                 Trace = null,
             };
             BeamResult result = new BeamSolver(search.Rules, options)

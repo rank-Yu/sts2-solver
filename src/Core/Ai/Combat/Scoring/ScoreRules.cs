@@ -160,7 +160,7 @@ internal enum ShivSupplyKind : byte
 /// <summary>
 /// Root-frozen per-content evaluation values for one card id at one upgrade level. Every admitted card
 /// has an entry; the values themselves are read from the existing engine's models when
-/// <c>ScoreBridge</c> builds the table.
+/// The request compiler builds the table.
 /// </summary>
 internal sealed class CardScore
 {
@@ -273,7 +273,7 @@ internal sealed class ScoreRules
     /// <summary>Indexed by potion id; <c>PotionUsePolicy.StrategicHpCost</c> of the canonical potion.</summary>
     public required int[] PotionStrategicCost { get; init; }
 
-    /// <summary><c>SearchPolicySnapshot.EffectiveGrowthBudgets</c>: HP credit per realized reward.</summary>
+    /// <summary>HP credit per realized growth reward.</summary>
     public GrowthValues GrowthBudgets { get; init; }
 
     /// <summary>
@@ -300,7 +300,7 @@ internal sealed class ScoreRules
     public required bool IsActEndingBoss { get; init; }
 
     /// <summary>
-    /// <c>SearchPolicySnapshot.Act3BossStrategy</c>, frozen at the root. Gates the existing engine's
+    /// The request's Act3 boss strategy, frozen at the root. Gates the reference engine's
     /// three-act boss interaction requirements/evaluation and the fetched-power commitment on every searched turn.
     /// </summary>
     public required bool Act3BossStrategy { get; init; }

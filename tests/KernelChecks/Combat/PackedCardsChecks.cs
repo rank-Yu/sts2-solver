@@ -30,7 +30,6 @@ internal static class PackedCardsChecks
         Span<byte> suffix = MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref copy, 1))[packed..];
         suffix.Fill(0xA5);
         Assert(Fingerprint.Hash(in copy) == Fingerprint.Hash(in state), "hash ignores suffix");
-        Assert(LegacyHash(in state) == Fingerprint.Hash(in state), "hash matches the pre-packed value");
         Assert(Fingerprint.Equal(in copy, in state), "equality ignores suffix");
         Assert(BattleCodec.Encode(copy).AsSpan().SequenceEqual(BattleCodec.Encode(state)),
             "encoding ignores suffix");
@@ -174,77 +173,4 @@ internal static class PackedCardsChecks
             Piles.Append(ref state, Pile.Draw, new Card { Id = 0, Private = checked((short)card) });
         return state;
     }
-
-    /// <summary>The pre-v3 fingerprint: same segments over the canonical 12,696-byte image.</summary>
-    private static ulong LegacyHash(in Battle battle)
-    {
-        const int legacyHeader = 3768;
-        const int legacyCards = 3768;
-        const int legacyHistory = 12600;
-        const int legacySize = 12696;
-        Span<byte> image = stackalloc byte[legacySize];
-        ReadOnlySpan<byte> source = MemoryMarshal.AsBytes(
-            MemoryMarshal.CreateReadOnlySpan(in battle, 1));
-        source[..legacyHeader].CopyTo(image);
-        source.Slice(Battle.HeaderSize, battle.CardCount * 92).CopyTo(image[legacyCards..]);
-        source.Slice((int)Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)), 92)
-            .CopyTo(image[legacyHistory..]);
-
-        const int decimalVarsOffset = 328;
-        const int decimalVarsEndOffset = 392;
-        const int enemiesOffset = 1000;
-        const int powersOffset = 1768;
-        const int relicsOffset = 3304;
-        const int orbsOffset = 3688;
-        ulong hash = Prime3;
-        hash = Mix(hash, image[..decimalVarsOffset]);
-        int decimalBytes = battle.DecimalVarCount * Unsafe.SizeOf<decimal>();
-        if (decimalBytes > 0)
-            hash = Mix(hash, image.Slice(decimalVarsOffset, decimalBytes));
-        hash = Mix(hash, image[decimalVarsEndOffset..enemiesOffset]);
-        hash = Mix(hash, image.Slice(enemiesOffset, battle.EnemyCount * Unsafe.SizeOf<Enemy>()));
-        hash = Mix(hash, image.Slice(powersOffset, battle.PowerCount * Unsafe.SizeOf<Power>()));
-        hash = Mix(hash, image.Slice(relicsOffset, battle.RelicCount * Unsafe.SizeOf<Relic>()));
-        hash = Mix(hash, image.Slice(orbsOffset, battle.OrbCount * Unsafe.SizeOf<Orb>()));
-        hash = Mix(hash, image.Slice(legacyCards, battle.CardCount * Unsafe.SizeOf<Card>()));
-        if ((battle.Flags & BattleFlags.HistoryCourseCardPresent) != 0)
-            hash = Mix(hash, image.Slice(legacyHistory, Unsafe.SizeOf<Card>()));
-        hash ^= hash >> 33;
-        hash *= Prime2;
-        hash ^= hash >> 29;
-        return hash;
-    }
-
-    private const ulong Prime1 = 0x9E3779B185EBCA87UL;
-    private const ulong Prime2 = 0xC2B2AE3D27D4EB4FUL;
-    private const ulong Prime3 = 0x165667B19E3779F9UL;
-
-    private static ulong Mix(ulong seed, ReadOnlySpan<byte> data)
-    {
-        ulong v0 = seed + Prime1 + Prime2, v1 = seed + Prime2, v2 = seed, v3 = seed - Prime1;
-        ReadOnlySpan<ulong> words = MemoryMarshal.Cast<byte, ulong>(data);
-        int index = 0;
-        for (; index + 4 <= words.Length; index += 4)
-        {
-            v0 = Round(v0, words[index]);
-            v1 = Round(v1, words[index + 1]);
-            v2 = Round(v2, words[index + 2]);
-            v3 = Round(v3, words[index + 3]);
-        }
-        ulong hash = BitOperations.RotateLeft(v0, 1) + BitOperations.RotateLeft(v1, 7)
-            + BitOperations.RotateLeft(v2, 12) + BitOperations.RotateLeft(v3, 18);
-        for (; index < words.Length; index++)
-            hash = BitOperations.RotateLeft(hash ^ Round(0, words[index]), 27) * Prime1 + Prime3;
-        int tail = data.Length & 7;
-        if (tail != 0)
-        {
-            ulong last = 0;
-            data[^tail..].CopyTo(MemoryMarshal.AsBytes(new Span<ulong>(ref last)));
-            hash = BitOperations.RotateLeft(hash ^ Round(0, last), 27) * Prime1 + Prime3;
-        }
-        return hash ^ (ulong)data.Length;
-    }
-
-    private static ulong Round(ulong accumulator, ulong word)
-        => BitOperations.RotateLeft(accumulator + word * Prime2, 31) * Prime1;
 }

@@ -84,6 +84,12 @@ internal static class TestSession
             Directory.CreateDirectory(resultDirectory);
             Stopwatch stopwatch = Stopwatch.StartNew();
             string stage = "load";
+            void CaptureFailed(string resultDetail, string logDetail)
+            {
+                failed++;
+                results.Add(Failure(root, stage, stopwatch, resultDetail, null, false));
+                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} {logDetail}");
+            }
             try
             {
                 OfflineRequest request = JsonSerializer.Deserialize<OfflineRequest>(
@@ -213,71 +219,27 @@ internal static class TestSession
                 }
             }
             catch (UnsupportedImportException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, $"unsupported reason={error.Reason} {error.Detail}", null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} unsupported reason={error.Reason} {error.Detail}");
-            }
+            { CaptureFailed($"unsupported reason={error.Reason} {error.Detail}", $"unsupported reason={error.Reason} {error.Detail}"); }
             catch (UnsupportedException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} unsupported {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"unsupported {error.Message}"); }
             catch (CapacityException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, $"capacity region={error.Region} {error.Message}", null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} capacity region={error.Region} {error.Message}");
-            }
+            { CaptureFailed($"capacity region={error.Region} {error.Message}", $"capacity region={error.Region} {error.Message}"); }
             catch (NotSupportedException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} unsupported {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"unsupported {error.Message}"); }
             catch (InvalidDataException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} invalid_data {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"invalid_data {error.Message}"); }
             catch (InvalidOperationException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} invalid_operation {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"invalid_operation {error.Message}"); }
             catch (TimeoutException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} timeout {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"timeout {error.Message}"); }
             catch (OperationCanceledException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} canceled {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"canceled {error.Message}"); }
             catch (IOException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} io {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"io {error.Message}"); }
             catch (JsonException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} json {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"json {error.Message}"); }
             catch (UnauthorizedAccessException error)
-            {
-                failed++;
-                results.Add(Failure(root, stage, stopwatch, error.Message, null, false));
-                ModLog.Error($"[Sts2Solver] CAPTURE_FAILED root={root} stage={stage} access {error.Message}");
-            }
+            { CaptureFailed(error.Message, $"access {error.Message}"); }
 
             bool breakAfterCleanup = false;
             try

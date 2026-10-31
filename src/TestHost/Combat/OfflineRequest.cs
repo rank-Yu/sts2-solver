@@ -30,8 +30,6 @@ internal sealed record OfflineRequest
     public string Seed { get; init; } = "COMBATSOLVER";
     public string? GeneratedScenarioPath { get; init; }
     public string? EvidenceDirectory { get; init; }
-    public string? CheckpointArchivePath { get; init; }
-    public string? ReplayPolicyOverridePath { get; init; }
     public bool PreserveNativeCombatStateForTest { get; init; }
     /// <summary>Restore an already owned deck and relics before the native opening, without acquisition upgrades.</summary>
     public OfflineOwnedLoadout? OwnedLoadoutForTest { get; init; }
@@ -87,7 +85,6 @@ internal sealed record OfflineRequest
 
     // Search/deployment fields present in frozen fixture JSON. They do not affect root construction;
     // ValidateSupported rejects the values this batch does not understand.
-    public bool UseNoveltyPortfolioForTest { get; init; }
     // Policy fields the evaluation-config compiler reads. The frozen corpus uses the fixed M0
     // defaults and root-derived values; these are the request overrides the harness protocol
     // carried so a fixture can reproduce a different player setting.
@@ -102,11 +99,7 @@ internal sealed record OfflineRequest
     public bool? ContinuousThreatRankingForTest { get; init; }
     public string? BeamWeightTermForTest { get; init; }
     public double? BeamWeightScaleForTest { get; init; }
-    public int? ExpectedUnexpectedReplansAtMost { get; init; }
     public string? HeadlessFastModeForTest { get; init; }
-    public string? DeploymentFastModeForTest { get; init; }
-    public string? FlashSearchModeForTest { get; init; }
-    public int? DeploymentInterActionDelaySecondsForTest { get; init; }
     public bool ExportBugReportAfterCombat { get; init; }
 }
 

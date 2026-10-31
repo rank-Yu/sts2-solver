@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Sts2Solver.Simulation.Combat;
-using Sts2Solver.Ai.Combat.Novelty;
 using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Ai.Combat.Quality;
 using Sts2Solver.Ai.Combat.Scoring;
@@ -420,8 +419,6 @@ internal sealed partial class BeamSolver
                 routingMeta.ParentEnergy, parentFacts.Turn, routingMetaId), routingMetaId);
             if (traceStep > 0)
                 _trace!.NodeCreated(node, traceStep);
-            if (_options.Novelty != null)
-                ObserveNoveltyChild(child, node, features);
             if (isTerminal)
             {
                 terminal(child, node, score);
@@ -626,7 +623,7 @@ internal sealed partial class BeamSolver
             stateKey = CardStateKey(card);
             occurrence = option;
         }
-        // The existing PlanCardChoice.SourceId is the requesting card's entry (the potion's entry
+        // The reference engine's PlanCardChoice.SourceId is the requesting card's entry (the potion's entry
         // for potion choices, the relic's for turn-start relic choices). Sts2Solver has no string on the
         // request, so the currently played card or potion identifies the source; a card/potion id is
         // prefixed with its kind so the two id spaces cannot merge.
@@ -802,7 +799,6 @@ internal sealed partial class BeamSolver
     private bool CommitmentBudgetAvailable()
         => NodeBudgetAvailable
             && !_memoryBudgetExceeded
-            && !_hpTargetReached
             && (_solveWatch is not { } watch || watch.Elapsed < _options.SoftTimeBudget);
 
     /// <summary>

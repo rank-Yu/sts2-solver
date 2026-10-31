@@ -34,9 +34,9 @@ internal readonly record struct BoundValues(
     int SmartPotionHpLowerBound);
 
 /// <summary>
-/// Root-frozen healing-bound tables for Beam and the K5 probe. The bridge classifies every admitted
+/// Root-frozen healing-bound tables for Beam and the K5 probe. The bound compiler classifies every admitted
 /// content id with the existing engine's own predicates; evaluation reads only <see cref="Battle"/>
-/// and this table. When a bound input cannot be represented exactly the bridge disables the whole bound,
+/// and this table. When a bound input cannot be represented exactly the compiler disables the whole bound,
 /// so the solver never prunes with an approximation.
 /// </summary>
 internal sealed class BoundFeatures

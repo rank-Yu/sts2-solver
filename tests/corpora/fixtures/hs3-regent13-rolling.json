@@ -212,7 +212,6 @@
     }
   ],
   "timeoutSeconds": 600,
-  "useNoveltyPortfolioForTest": false,
   "expectedUnexpectedReplansAtMost": 0,
   "headlessFastModeForTest": "Instant",
   "deploymentFastModeForTest": "Instant",

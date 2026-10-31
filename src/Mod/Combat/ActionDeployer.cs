@@ -107,28 +107,20 @@ internal sealed class ActionDeployer(
             ?? throw new DeploymentFailureException("live_player_missing", "动作完成后找不到本地玩家。");
         combat = liveState;
         player = livePlayer;
+        static DeploymentFailureException ImportFailure(string kind, string detail)
+            => new(kind, detail);
         try
         {
             return tracker.ImportForComparison(liveState, livePlayer, rules, planned.After);
         }
         catch (UnsupportedImportException error)
-        {
-            throw new DeploymentFailureException("import_failed",
-                $"reason={error.Reason} {error.Detail}");
-        }
+        { throw ImportFailure("import_failed", $"reason={error.Reason} {error.Detail}"); }
         catch (UnsupportedException error)
-        {
-            throw new DeploymentFailureException("import_unsupported", error.Message);
-        }
+        { throw ImportFailure("import_unsupported", error.Message); }
         catch (CapacityException error)
-        {
-            throw new DeploymentFailureException("import_capacity",
-                $"region={error.Region} {error.Message}");
-        }
+        { throw ImportFailure("import_capacity", $"region={error.Region} {error.Message}"); }
         catch (InvalidOperationException error)
-        {
-            throw new DeploymentFailureException("import_invalid_operation", error.Message);
-        }
+        { throw ImportFailure("import_invalid_operation", error.Message); }
     }
 
     /// <summary>Validates the live turn, hand, potion and target against the predicted state.</summary>

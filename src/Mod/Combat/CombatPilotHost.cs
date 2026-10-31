@@ -94,6 +94,17 @@ internal sealed class CombatPilotHost(
         token.ThrowIfCancellationRequested();
         Battle searchRoot;
         SearchCase searchCase;
+        CombatPilotSearch Rejected(string kind, string detail)
+        {
+            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {detail}");
+            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, detail, kind, detail, 0, 0);
+        }
+        CombatPilotSearch RouteRejected(CombatSearchResult result, BeamResult resultBeam,
+            string kind, string detail)
+        {
+            ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {detail}");
+            return InvalidRoute(result, resultBeam, "invalid", kind, detail);
+        }
         try
         {
             tracker.Refresh(_combat);
@@ -102,37 +113,15 @@ internal sealed class CombatPilotHost(
                 _combat, _player, rules, searchRoot, configurePolicy, deterministic: false, tier);
         }
         catch (UnsupportedImportException error)
-        {
-            string detail = $"reason={error.Reason} {error.Detail}";
-            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {detail}");
-            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, detail,
-                "import_failed", detail, 0, 0);
-        }
+        { return Rejected("import_failed", $"reason={error.Reason} {error.Detail}"); }
         catch (UnsupportedException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {error.Message}");
-            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, error.Message,
-                "import_unsupported", error.Message, 0, 0);
-        }
+        { return Rejected("import_unsupported", error.Message); }
         catch (CapacityException error)
-        {
-            string detail = $"region={error.Region} {error.Message}";
-            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {detail}");
-            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, detail,
-                "import_capacity", detail, 0, 0);
-        }
+        { return Rejected("import_capacity", $"region={error.Region} {error.Message}"); }
         catch (InvalidDataException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {error.Message}");
-            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, error.Message,
-                "request_invalid", error.Message, 0, 0);
-        }
+        { return Rejected("request_invalid", error.Message); }
         catch (InvalidOperationException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {error.Message}");
-            return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, error.Message,
-                "request_invalid", error.Message, 0, 0);
-        }
+        { return Rejected("request_invalid", error.Message); }
         SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
         SearchPlan plan = profile.ToSearchPlan(searchCase.Options.SearchMemoryBudgetBytes,
             _combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Boss,
@@ -169,26 +158,13 @@ internal sealed class CombatPilotHost(
             route = ReplayedRoute.Build(searchRoot, rules, beam.BestRoute, beam.BestIsVictory);
         }
         catch (InvalidDataException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {error.Message}");
-            return InvalidRoute(outcome, beam, "invalid", "route_invalid", error.Message);
-        }
+        { return RouteRejected(outcome, beam, "route_invalid", error.Message); }
         catch (InvalidOperationException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {error.Message}");
-            return InvalidRoute(outcome, beam, "invalid", "route_invalid", error.Message);
-        }
+        { return RouteRejected(outcome, beam, "route_invalid", error.Message); }
         catch (UnsupportedException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {error.Message}");
-            return InvalidRoute(outcome, beam, "invalid", "route_unsupported", error.Message);
-        }
+        { return RouteRejected(outcome, beam, "route_unsupported", error.Message); }
         catch (CapacityException error)
-        {
-            string detail = $"region={error.Region} {error.Message}";
-            ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {detail}");
-            return InvalidRoute(outcome, beam, "invalid", "route_capacity", detail);
-        }
+        { return RouteRejected(outcome, beam, "route_capacity", $"region={error.Region} {error.Message}"); }
         tracker.Observe(searchRoot);
         ModLog.Info(
             $"[Sts2Solver] AUTO_SEARCH turn={turn} reason={reason} ms={outcome.ElapsedMs} " +

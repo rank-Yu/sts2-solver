@@ -99,7 +99,7 @@ internal readonly record struct ScoreFeatures
 
     public double SetupPotentialHp { get; init; }
 
-    /// <summary><c>Snapshot.StrategicEffects.DamagePotential</c>; novelty facts read the five components.</summary>
+    /// <summary><c>Snapshot.StrategicEffects.DamagePotential</c>.</summary>
     public int StrategicDamagePotential { get; init; }
 
     /// <summary><c>Snapshot.StrategicEffects.PreventionPotential</c>.</summary>

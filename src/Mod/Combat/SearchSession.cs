@@ -69,8 +69,6 @@ internal static class SearchSession
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
             return SearchRunResult.Busy(root);
         if (searchCase.Options.Pacer != null
-            || searchCase.Options.Progress != null
-            || searchCase.Options.PollTakeover != null
             || searchCase.Options.Trace != null)
         {
             Volatile.Write(ref _running, 0);

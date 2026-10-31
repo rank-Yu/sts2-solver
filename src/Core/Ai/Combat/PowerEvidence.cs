@@ -13,7 +13,7 @@ namespace Sts2Solver.Ai.Combat;
 /// </summary>
 /// <summary>
 /// The route-node commitment metadata: the ported <c>PowerCommitment</c> without its string list.
-/// Registered cards are indexed in the bridge catalog, so the played set is an exact 128-bit mask.
+/// Registered cards are indexed by the power-commitment catalog, so the played set is an exact 128-bit mask.
 /// </summary>
 internal readonly record struct PowerCommitmentState(
     PowerCommitmentFamily Family,

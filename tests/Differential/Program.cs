@@ -51,8 +51,6 @@ internal static class Program
         }
         if (args.Length > 0 && args[0] == "--combat-pilot-compare")
             return CombatPilotCompare.Run(args[1..]);
-        if (args.Length == 1 && args[0] == "--potion-schedule-checks")
-            return PotionScheduleTrial.Checks();
         string data = DefaultData;
         string corpora = DefaultCorpora;
         string output = DefaultOutput;
@@ -73,7 +71,6 @@ internal static class Program
         string? emitLiveRequestsDir = null;
         string? liveRootsFile = null;
         string? searchTier = null;
-        string? potionSchedule = null;
         int? searchCancelAfterMilliseconds = null;
         bool searchNormal = false;
         bool fullCombat = false;
@@ -146,9 +143,6 @@ internal static class Program
                 case "--search-tier" when index + 1 < args.Length:
                     searchTier = args[++index];
                     break;
-                case "--potion-schedule" when index + 1 < args.Length:
-                    potionSchedule = args[++index];
-                    break;
                 case "--search-normal":
                     searchNormal = true;
                     break;
@@ -211,12 +205,7 @@ internal static class Program
             }
             return RunOfflineCombat(data, corpora, output, searchTier, beamWidth, maxWidth,
                 maxNodes, nodesPerWidth, poolStateBudgetMb, memoryBudgetMb, memoryBudgetBytes,
-                fullCombat, jobs, root, liveRootsFile, potionSchedule);
-        }
-        if (potionSchedule != null)
-        {
-            Console.Error.WriteLine("--potion-schedule 只能与 --offline-combat 一起使用。");
-            return 2;
+                fullCombat, jobs, root, liveRootsFile);
         }
         if (beamWidth != null || maxWidth != null || maxNodes != null || nodesPerWidth != null
             || poolStateBudgetMb != null || memoryBudgetMb != null || memoryBudgetBytes != null)
@@ -848,13 +837,8 @@ internal static class Program
     private static int RunOfflineCombat(string data, string corpora, string output,
         string? searchTier, int? beamWidth, int? maxWidth, int? maxNodes, int? nodesPerWidth,
         int? poolStateBudgetMb, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
-        bool fullCombat, int jobs, string? root, string? rootsFile, string? potionSchedule)
+        bool fullCombat, int jobs, string? root, string? rootsFile)
     {
-        if (!PotionScheduleTrial.IsValid(potionSchedule))
-        {
-            Console.Error.WriteLine("--potion-schedule 只能是 one-allowed、one-two-three 或 one-two-allowed。");
-            return 2;
-        }
         if (fullCombat)
         {
             // fullCombat is the headless request flag; it is not valid in this mode.
@@ -905,7 +889,7 @@ internal static class Program
             Environment.GetEnvironmentVariable("STS2_SOLVER_OFFLINE_WARMUP_NODES"), out int warmup)
             ? Math.Max(0, warmup) : 50_000;
         OfflineCombatSettings settings = new(data, corpora, output, tier, profile,
-            memoryBudgetBytes, warmupNodes, maxNodes, poolStateBudgetMb, potionSchedule);
+            memoryBudgetBytes, warmupNodes, maxNodes, poolStateBudgetMb);
         return OfflineCombat.Run(settings, root, rootsFile, jobs);
     }
 
@@ -1030,7 +1014,6 @@ internal static class Program
               dotnet Differential.dll --list-quality-roots [--corpora <dir>]
               dotnet Differential.dll --offline-combat [--root <name> | --roots-file <file> | --corpora <dir>]
                   [--search-tier Low|Medium|High|ExtraHigh] [--jobs 1..8] [--out <dir>]
-                  [--potion-schedule one-allowed|one-two-three|one-two-allowed]
                   [--pool-state-budget-mb N] [--memory-budget-mb N]
             """);
     }

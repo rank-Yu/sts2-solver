@@ -8,15 +8,14 @@ namespace Sts2Solver.Ai.Combat;
 
 /// <summary>
 /// One complete Sts2Solver search request: the frozen rules, every root battle and the exact
-/// <see cref="BeamOptions"/> the bridge constructed.
+/// <see cref="BeamOptions"/> the request compiler constructed.
 /// </summary>
 internal sealed record SearchCase(Rules Rules, Battle[] Battles, BeamOptions Options);
 
 /// <summary>
 /// Deterministic encoding of one <see cref="BeamSolver"/> request and result. The request
 /// carries the complete rule and score/bound tables Sts2Solver reads, so a decoded request can be solved
-/// without the existing engine. Host-only callbacks (<see cref="BeamOptions.Pacer"/>,
-/// <see cref="BeamOptions.Progress"/>, <see cref="BeamOptions.PollTakeover"/>,
+/// without the existing engine. Host-only callbacks (<see cref="BeamOptions.Pacer"/> and
 /// <see cref="BeamOptions.Trace"/>) are recorded as presence bits and not reconstructed: they
 /// do not participate in route selection, but the report lists them explicitly.
 /// </summary>
@@ -68,13 +67,6 @@ internal static class SearchCodec
                 battles[index] = BattleCodec.Decode(battleBytes);
             }
             BeamOptions options = DecodeOptions(reader, rules);
-            if (options.Scorer?.QueenPolicy is { } queen)
-                foreach (Battle battle in battles) queen.ValidateRoot(battle);
-            if (options.Scorer?.SetupPolicy is { } setup)
-            {
-                if (battles.Length != 1) throw new InvalidDataException("Setup requires one frozen root.");
-                setup.ValidateRoot(battles[0], rules);
-            }
             return new SearchCase(rules, battles, options);
         });
 
@@ -85,7 +77,7 @@ internal static class SearchCodec
         writer.Write(options.MaxTurns);
         writer.Write(options.SoftTimeBudget.Ticks);
         writer.Write(options.InitialPlayerMaxHp);
-        writer.Write(options.CandidateScanCount);
+        writer.Write(0); // reserved: CandidateScanCount is removed; only zero is accepted.
         EncodePotionPolicy(writer, options.Potions);
         writer.Write(options.Scorer != null);
         if (options.Scorer != null)
@@ -93,9 +85,7 @@ internal static class SearchCodec
         writer.Write(options.Ordering != null);
         if (options.Ordering is { } ordering)
             EncodeOrdering(writer, ordering);
-        writer.Write(options.HpTargetStop != null);
-        if (options.HpTargetStop is { } stop)
-            EncodeHpTargetStop(writer, stop);
+        writer.Write(false); // reserved: HpTargetStop is removed; only null is accepted.
         writer.Write(options.Bound != null);
         if (options.Bound is { } bound)
             EncodeBoundConfig(writer, bound.ConfigForCodec);
@@ -111,17 +101,22 @@ internal static class SearchCodec
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
             writer.Write((int)theft);
-        EncodeForcedDirectives(writer, options.ForcedPotionDirectives);
-        writer.Write(options.EnforceForcedPotionDirectives);
+        // reserved: ForcedPotionDirectives is removed; write three empty arrays and zero counters.
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(false); // reserved: EnforceForcedPotionDirectives
         writer.Write(options.MinimumPotionUses);
         writer.Write(options.InitialExplicitPotionUses);
         writer.Write(options.InitialAutomaticPotionUses);
         writer.Write(options.PotionFreeBaseline != null);
         if (options.PotionFreeBaseline is { } baseline)
             EncodePotionFreeBaseline(writer, baseline);
-        writer.Write(options.PotionReplacementHpCredit);
-        writer.Write(options.SmartPotionEligibilityHpCeiling != null);
-        writer.Write(options.SmartPotionEligibilityHpCeiling ?? 0);
+        writer.Write(0); // reserved: PotionReplacementHpCredit is removed.
+        writer.Write(false); // reserved: SmartPotionEligibilityHpCeiling is removed.
+        writer.Write(0);
         writer.Write(options.AmbergrisPotionId);
         writer.Write(options.InitialAmbergrisUses);
         writer.Write(options.AuditPotionPolicy);
@@ -132,16 +127,7 @@ internal static class SearchCodec
             EncodePlanCommitment(writer, plan);
         writer.Write(options.InitialPlanPayoffCount);
         writer.Write(options.EarlyTurnScoutDepth);
-        writer.Write(options.Novelty != null);
-        if (options.Novelty is { } novelty)
-        {
-            writer.Write(novelty.Width);
-            writer.Write(novelty.FamiliarAllowance);
-            writer.Write(novelty.MaxOpen);
-            writer.Write(novelty.MaxNoveltyEntries);
-            writer.Write(novelty.MaxActions);
-            writer.Write(novelty.MaxTurns);
-        }
+        writer.Write(false); // reserved: Novelty is removed; only null is accepted.
         writer.Write(options.InitialPlayerTurn);
         writer.Write(options.InitialSearchTurn);
         writer.Write(options.SecondRankBand);
@@ -153,8 +139,6 @@ internal static class SearchCodec
             EncodePowerCommitments(writer, commitments);
         byte hooks = 0;
         if (options.Pacer != null) hooks |= 1;
-        if (options.Progress != null) hooks |= 2;
-        if (options.PollTakeover != null) hooks |= 4;
         if (options.Trace != null) hooks |= 8;
         writer.Write(hooks);
         if (options.Scorer?.QueenPolicy is { } queen)
@@ -179,6 +163,8 @@ internal static class SearchCodec
         TimeSpan budget = TimeSpan.FromTicks(reader.ReadInt64());
         int initialHp = reader.ReadInt32();
         int scan = reader.ReadInt32();
+        if (scan != 0)
+            throw new InvalidDataException("CandidateScanCount 已删除，只接受 0。");
         PotionPolicy potions = DecodePotionPolicy(reader);
         bool hasScorer = Codec.ReadBool(reader);
         Scorer? scorer = null;
@@ -187,7 +173,8 @@ internal static class SearchCodec
         bool hasOrdering = Codec.ReadBool(reader);
         RouteOrdering? ordering = hasOrdering ? DecodeOrdering(reader) : null;
         bool hasStop = Codec.ReadBool(reader);
-        HpTargetStop? stop = hasStop ? DecodeHpTargetStop(reader) : null;
+        if (hasStop)
+            throw new InvalidDataException("HpTargetStop 已删除，只接受 null。");
         bool hasBound = Codec.ReadBool(reader);
         BoundFeatures? bound = hasBound ? new BoundFeatures(DecodeBoundConfig(reader)) : null;
         bool hasIncumbent = Codec.ReadBool(reader);
@@ -203,17 +190,31 @@ internal static class SearchCodec
         PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "有效药水政策");
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
-        ForcedPotionDirectives forced = DecodeForcedDirectives(reader);
+        int[] forcedSlots = Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水槽");
+        ushort[] forcedPotionIds = Codec.ReadUShortArray(reader, Limits.PotionSlots, "强制药水 id");
+        int[] forcedCosts = Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水代价");
+        int forcedUsedMask = reader.ReadInt32();
+        int forcedUsedCost = reader.ReadInt32();
         bool enforceForced = Codec.ReadBool(reader);
+        if (forcedSlots.Length != 0 || forcedPotionIds.Length != 0 || forcedCosts.Length != 0
+            || forcedUsedMask != 0 || forcedUsedCost != 0)
+            throw new InvalidDataException("ForcedPotionDirectives 已删除，只接受空数组和 0。");
+        // Existing D2 requests may carry true with an empty directive list; it is behaviorally
+        // equivalent to false and is accepted, but it has no effect on the decoded request.
         int minPotions = reader.ReadInt32();
         int initialExplicit = reader.ReadInt32();
         int initialAutomatic = reader.ReadInt32();
         bool hasBaseline = Codec.ReadBool(reader);
         PotionFreePolicyBaseline? baseline = hasBaseline ? DecodePotionFreeBaseline(reader) : null;
         int replacementCredit = reader.ReadInt32();
+        if (replacementCredit != 0)
+            throw new InvalidDataException("PotionReplacementHpCredit 已删除，只接受 0。");
         bool hasCeiling = Codec.ReadBool(reader);
+        if (hasCeiling)
+            throw new InvalidDataException("SmartPotionEligibilityHpCeiling 已删除，只接受 null。");
         int ceilingValue = reader.ReadInt32();
-        int? ceiling = hasCeiling ? ceilingValue : null;
+        if (ceilingValue != 0)
+            throw new InvalidDataException("SmartPotionEligibilityHpCeiling 已删除，只接受 0。");
         ushort ambergris = reader.ReadUInt16();
         int initialAmbergris = reader.ReadInt32();
         bool audit = Codec.ReadBool(reader);
@@ -224,10 +225,8 @@ internal static class SearchCodec
         int initialPayoff = reader.ReadInt32();
         int scoutDepth = reader.ReadInt32();
         bool hasNovelty = Codec.ReadBool(reader);
-        NoveltyOptions? novelty = hasNovelty
-            ? new NoveltyOptions(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
-                reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32())
-            : null;
+        if (hasNovelty)
+            throw new InvalidDataException("Novelty 已删除，只接受 null。");
         int initialTurn = reader.ReadInt32();
         int initialSearchTurn = reader.ReadInt32();
         bool secondRank = Codec.ReadBool(reader);
@@ -247,7 +246,7 @@ internal static class SearchCodec
             if (extension is 0x31505553u or 0x32505553u)
             {
                 SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader, continuous: extension == 0x32505553u);
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly: setup.Focused, setup: setup);
+                scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, setup: setup);
             }
             else if (extension is 0x31505351u or 0x32505351u)
             {
@@ -258,23 +257,17 @@ internal static class SearchCodec
         }
         return new BeamOptions(beamWidth, maxExpanded, maxTurns, budget, initialHp)
         {
-            CandidateScanCount = scan,
             Potions = potions,
             Scorer = scorer,
             Ordering = ordering,
-            HpTargetStop = stop,
             Bound = bound,
             Incumbent = incumbent,
             EffectivePotionPolicy = effective,
             TheftPolicy = theft,
-            ForcedPotionDirectives = forced,
-            EnforceForcedPotionDirectives = enforceForced,
             MinimumPotionUses = minPotions,
             InitialExplicitPotionUses = initialExplicit,
             InitialAutomaticPotionUses = initialAutomatic,
             PotionFreeBaseline = baseline,
-            PotionReplacementHpCredit = replacementCredit,
-            SmartPotionEligibilityHpCeiling = ceiling,
             AmbergrisPotionId = ambergris,
             InitialAmbergrisUses = initialAmbergris,
             AuditPotionPolicy = audit,
@@ -283,7 +276,6 @@ internal static class SearchCodec
             PlanCommitment = plan,
             InitialPlanPayoffCount = initialPayoff,
             EarlyTurnScoutDepth = scoutDepth,
-            Novelty = novelty,
             InitialPlayerTurn = initialTurn,
             InitialSearchTurn = initialSearchTurn,
             SecondRankBand = secondRank,
@@ -356,34 +348,6 @@ internal static class SearchCodec
         => new(reader.ReadInt32(), reader.ReadInt32(),
             ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免"),
             DecodePostCombatHeal(reader));
-
-    private static void EncodeHpTargetStop(BinaryWriter writer, HpTargetStop stop)
-    {
-        writer.Write(stop.AcceptableBattleHpLoss);
-        writer.Write(stop.HpLostSoFar);
-        writer.Write(stop.EarlyStopPotionUses);
-        writer.Write(stop.RequiredPotionUses);
-        writer.Write(stop.EnforceForcedPotionDirectives);
-    }
-
-    private static HpTargetStop DecodeHpTargetStop(BinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
-            Codec.ReadBool(reader));
-
-    private static void EncodeForcedDirectives(BinaryWriter writer, ForcedPotionDirectives directives)
-    {
-        Codec.WriteIntArray(writer, directives.Slots);
-        Codec.WriteUShortArray(writer, directives.PotionIds);
-        Codec.WriteIntArray(writer, directives.StrategicHpCosts);
-        writer.Write(directives.AlreadyUsedMask);
-        writer.Write(directives.AlreadyUsedStrategicHpCost);
-    }
-
-    private static ForcedPotionDirectives DecodeForcedDirectives(BinaryReader reader)
-        => new(Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水槽"),
-            Codec.ReadUShortArray(reader, Limits.PotionSlots, "强制药水 id"),
-            Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水代价"),
-            reader.ReadInt32(), reader.ReadInt32());
 
     private static void EncodePotionFreeBaseline(BinaryWriter writer, PotionFreePolicyBaseline baseline)
     {
@@ -995,9 +959,7 @@ internal static class SearchCodec
             writer.Write(ResultMagic);
             writer.Write(Codec.FormatVersion);
             WriteRoute(writer, result.BestRoute);
-            writer.Write(result.TopRoutes.Count);
-            foreach (PlayerAction[] route in result.TopRoutes)
-                WriteRoute(writer, route);
+            writer.Write(0); // reserved: TopRoutes is removed; only an empty list is accepted.
             writer.Write(result.BestIsVictory);
             writer.Write(BitConverter.DoubleToInt64Bits(result.BestScore));
             writer.Write(result.ExpandedNodes);
@@ -1015,7 +977,7 @@ internal static class SearchCodec
             }
             writer.Write(result.EndedCompactions);
             writer.Write(result.EndedCompressedStates);
-            writer.Write(result.SmartPotionPruned);
+            writer.Write(0); // reserved: SmartPotionPruned is removed; only zero is accepted.
             writer.Write(result.BestPayoffCount);
             writer.Write(result.ScoutLayers.Count);
             foreach (ScoutLayer layer in result.ScoutLayers)
@@ -1029,13 +991,10 @@ internal static class SearchCodec
                     writer.Write(candidate.RootIndex);
                 }
             }
-            if (result.NoveltyTelemetry != null)
-                throw new NotSupportedException(
-                    "NoveltySearchTelemetry 含有时间字段且不在本批协调器请求中，未导出。");
-            writer.Write(false);
+            writer.Write(false); // reserved: NoveltySearchTelemetry is removed.
             writer.Write(result.BestRootIndex);
             writer.Write(result.PotionPolicySatisfied);
-            writer.Write((byte)result.Takeover);
+            writer.Write((byte)0); // reserved: Takeover is removed; only None is accepted.
         });
 
     internal static BeamResult DecodeResult(byte[] bytes, int expectedBestRootIndex = -1)
@@ -1048,9 +1007,8 @@ internal static class SearchCodec
                 throw new InvalidDataException($"Sts2Solver 搜索结果版本 {version} 不受支持。");
             PlayerAction[] best = ReadRoute(reader);
             int topCount = Codec.ReadCount(reader, 1 << 16, "最终候选路线");
-            PlayerAction[][] top = new PlayerAction[topCount][];
-            for (int index = 0; index < topCount; index++)
-                top[index] = ReadRoute(reader);
+            if (topCount != 0)
+                throw new InvalidDataException("TopRoutes 已删除，只接受空列表。");
             bool victory = Codec.ReadBool(reader);
             double score = BitConverter.Int64BitsToDouble(reader.ReadInt64());
             int expanded = reader.ReadInt32();
@@ -1071,6 +1029,8 @@ internal static class SearchCodec
             int endedCompactions = reader.ReadInt32();
             int endedCompressed = reader.ReadInt32();
             int smartPruned = reader.ReadInt32();
+            if (smartPruned != 0)
+                throw new InvalidDataException("SmartPotionPruned 已删除，只接受 0。");
             int payoff = reader.ReadInt32();
             int layerCount = Codec.ReadCount(reader, 1 << 10, "侦察层");
             ScoutLayer[] layers = new ScoutLayer[layerCount];
@@ -1091,26 +1051,26 @@ internal static class SearchCodec
                 layers[index] = new ScoutLayer(layerTurns, candidates);
             }
             if (Codec.ReadBool(reader))
-                throw new InvalidDataException("本格式不解码 NoveltySearchTelemetry。");
+                throw new InvalidDataException("NoveltySearchTelemetry 已删除，只接受 null。");
             int bestRoot = reader.ReadInt32();
             bool potionSatisfied = Codec.ReadBool(reader);
-            TakeoverAction takeover = (TakeoverAction)ReadByteEnum(reader, "接管动作");
+            byte takeover = reader.ReadByte();
+            if (takeover != 0)
+                throw new InvalidDataException("Takeover 已删除，只接受 None。");
             if (expectedBestRootIndex >= 0 && bestRoot != expectedBestRootIndex)
                 throw new InvalidDataException(
                     $"Sts2Solver 搜索结果根下标 {bestRoot} 与请求的 {expectedBestRootIndex} 不同。");
-            return new BeamResult(best, top, victory, score, expanded, transitions,
+            return new BeamResult(best, [], victory, score, expanded, transitions,
                 duplicates, turns, pruned, TimeSpan.Zero)
             {
                 CapacityPruned = capacityPruned,
                 CapacityDroppedChildren = capacity,
                 EndedCompactions = endedCompactions,
                 EndedCompressedStates = endedCompressed,
-                SmartPotionPruned = smartPruned,
                 BestPayoffCount = payoff,
                 ScoutLayers = layers,
                 BestRootIndex = bestRoot,
                 PotionPolicySatisfied = potionSatisfied,
-                Takeover = takeover,
             };
         });
 

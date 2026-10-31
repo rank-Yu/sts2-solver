@@ -182,8 +182,6 @@ internal static class LiveCompare
             try
             {
                 string captureRequest = Path.Combine(directory, "SREQ.capture");
-                if (!File.Exists(captureRequest))
-                    captureRequest = Path.Combine(directory, "SREQ");
                 actualRequest = File.ReadAllBytes(captureRequest);
             }
             catch (FileNotFoundException)

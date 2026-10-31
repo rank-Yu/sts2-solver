@@ -180,9 +180,7 @@ internal static class GeneratedCombatScenario
 
     internal static OfflineRequest Apply(OfflineRequest request, ResolvedGeneratedCombatScenario resolved)
     {
-        if (!string.IsNullOrWhiteSpace(request.CheckpointArchivePath)
-            || !string.IsNullOrWhiteSpace(request.ReplayPolicyOverridePath)
-            || request.RunCards.Length != 0 || request.Relics.Length != 0 || request.CombatRelics.Length != 0
+        if (request.RunCards.Length != 0 || request.Relics.Length != 0 || request.CombatRelics.Length != 0
             || request.Potions.Length != 0 || request.Powers.Length != 0
             || request.Cards.Length != 0)
             throw new InvalidDataException("生成场景不能同时恢复问题包/快照、或注入另一套牌组、遗物、药水、Power。");

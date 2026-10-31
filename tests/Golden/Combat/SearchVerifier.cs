@@ -16,9 +16,7 @@ internal sealed record SearchRequestEntry(string Hash, string Path, int Weight);
 
 internal sealed record SearchShardPlan(
     SearchRequestEntry[] Selected,
-    long SelectedWeight,
-    int OldSelected,
-    long OldSelectedWeight);
+    long SelectedWeight);
 
 internal static class SearchVerifier
 {
@@ -75,18 +73,7 @@ internal static class SearchVerifier
 
         SearchShardPlan[] plans = new SearchShardPlan[shards];
         for (int index = 0; index < shards; index++)
-        {
-            // Both lists inherit the global descending-weight order.
-            SearchRequestEntry[] selected = [.. buckets[index]];
-            long oldWeight = 0;
-            int oldSelected = 0;
-            for (int oldIndex = index; oldIndex < requests.Length; oldIndex += shards)
-            {
-                oldWeight += requests[oldIndex].Weight;
-                oldSelected++;
-            }
-            plans[index] = new SearchShardPlan(selected, weights[index], oldSelected, oldWeight);
-        }
+            plans[index] = new SearchShardPlan([.. buckets[index]], weights[index]);
         return plans;
     }
 
@@ -97,8 +84,7 @@ internal static class SearchVerifier
         if (selected.Length == 0)
             throw new InvalidDataException($"--shard {shard}/{shards} 没有选到 搜索回归请求。");
         Console.WriteLine($"SEARCH_SHARD shard={shard}/{shards} requests={selected.Length} "
-            + $"weight={plan.SelectedWeight} oldRequests={plan.OldSelected} "
-            + $"oldWeight={plan.OldSelectedWeight} jobs={jobs}");
+            + $"weight={plan.SelectedWeight} jobs={jobs}");
 
         int equal = 0, completed = 0;
         long expanded = 0;
@@ -128,8 +114,6 @@ internal static class SearchVerifier
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
-                Progress = null,
-                PollTakeover = null,
                 Trace = null,
             };
             BeamResult actual = new BeamSolver(search.Rules, options)
@@ -218,8 +202,6 @@ internal static class SearchVerifier
             return $"EndedCompactions expected={expected.EndedCompactions} actual={actual.EndedCompactions}";
         if (expected.EndedCompressedStates != actual.EndedCompressedStates)
             return $"EndedCompressedStates expected={expected.EndedCompressedStates} actual={actual.EndedCompressedStates}";
-        if (expected.SmartPotionPruned != actual.SmartPotionPruned)
-            return $"SmartPotionPruned expected={expected.SmartPotionPruned} actual={actual.SmartPotionPruned}";
         if (expected.BestPayoffCount != actual.BestPayoffCount)
             return $"BestPayoffCount expected={expected.BestPayoffCount} actual={actual.BestPayoffCount}";
         if (expected.ScoutLayers.Count != actual.ScoutLayers.Count)
@@ -251,8 +233,6 @@ internal static class SearchVerifier
             return $"BestRootIndex expected={expected.BestRootIndex} actual={actual.BestRootIndex}";
         if (expected.PotionPolicySatisfied != actual.PotionPolicySatisfied)
             return $"PotionPolicySatisfied expected={expected.PotionPolicySatisfied} actual={actual.PotionPolicySatisfied}";
-        if (expected.Takeover != actual.Takeover)
-            return $"Takeover expected={expected.Takeover} actual={actual.Takeover}";
         return null;
     }
 

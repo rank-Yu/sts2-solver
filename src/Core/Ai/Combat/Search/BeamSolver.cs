@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Sts2Solver.Simulation.Combat;
-using Sts2Solver.Ai.Combat.Novelty;
 using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Ai.Combat.Quality;
 using Sts2Solver.Ai.Combat.Scoring;
@@ -32,9 +31,6 @@ internal sealed record BeamOptions(
     public int EndedBatchTrigger { get; init; }
     public int EndedBatchTarget { get; init; }
 
-    /// <summary>Number of final candidate routes retained for offline replay scanning (0 = off).</summary>
-    public int CandidateScanCount { get; init; }
-
     /// <summary>
     /// Hard cap on search-owned logical bytes for this solve, or zero for no cap. The host supplies
     /// one number (the Mod's 15%-of-available default or the offline host's 0.15 x 16 GiB); the request
@@ -56,20 +52,17 @@ internal sealed record BeamOptions(
     public PotionPolicy Potions { get; init; } = PotionPolicy.Disabled;
 
     /// <summary>
-    /// The ported existing-engine evaluation. Set by <c>RouteMaterializer</c> from
-    /// <c>ScoreBridge</c>; a caller that supplies it is responsible for the same root.
+    /// The root-frozen evaluation. <see cref="Sts2Solver.Import.SearchRequestCompiler"/> and the
+    /// differential host set it; a caller that supplies it is responsible for the same root.
     /// </summary>
     public Scorer? Scorer { get; init; }
 
     /// <summary>Root values the final route ordering reads; set together with <see cref="Scorer"/>.</summary>
     public RouteOrdering? Ordering { get; init; }
 
-    /// <summary>The acceptable battle HP-loss stop; null when the request cannot stop at an HP target.</summary>
-    public HpTargetStop? HpTargetStop { get; init; }
-
     /// <summary>
     /// The ported incumbent lower bound; null or disabled means the root never prunes. Set together with
-    /// <see cref="Incumbent"/> by <c>RouteMaterializer</c>.
+    /// <see cref="Incumbent"/> by the request compiler; production leaves it null.
     /// </summary>
     public BoundFeatures? Bound { get; init; }
 
@@ -82,20 +75,8 @@ internal sealed record BeamOptions(
     /// <summary>The request's theft policy; <c>PreserveResources</c> adds the existing final ordering's recovery keys.</summary>
     public TheftPolicy? TheftPolicy { get; init; }
 
-    /// <summary>
-    /// The request's forced potion directives, as canonical Sts2Solver potion ids. Only a request without a
-    /// potion-policy override enforces them, matching <c>the existing search's EnforcesPotionDirectives</c>.
-    /// </summary>
-    public ForcedPotionDirectives ForcedPotionDirectives { get; init; } = ForcedPotionDirectives.None;
-
-    /// <summary>Whether the forced directives are part of the final policy filter (<c>potionPolicyOverride == null</c>).</summary>
-    public bool EnforceForcedPotionDirectives { get; init; }
-
     /// <summary>The request's cumulative minimum explicit potion uses.</summary>
     public int MinimumPotionUses { get; init; }
-
-    /// <summary>Include bounded per-count audited candidate diagnostics for SCV2.</summary>
-    internal bool CollectPotionCandidates { get; init; }
 
     /// <summary>
     /// Explicit potion uses already spent by the fixed prefix (included in the request's cumulative
@@ -112,15 +93,6 @@ internal sealed record BeamOptions(
     /// against; null means the evaluated candidates decide it. Only potion-audit requests set it.
     /// </summary>
     public PotionFreePolicyBaseline? PotionFreeBaseline { get; init; }
-
-    /// <summary>The existing final ordering's one-reward potion replacement credit.</summary>
-    public int PotionReplacementHpCredit { get; init; }
-
-    /// <summary>
-    /// The existing exact-layer HP ceiling (<c>the existing search's _smartPotionEligibilityHpCeiling</c>).
-    /// Null means the existing search would not prune this layer either.
-    /// </summary>
-    public int? SmartPotionEligibilityHpCeiling { get; init; }
 
     /// <summary>Root ambergris potion id, or <see cref="ushort.MaxValue"/> when not registered.</summary>
     public ushort AmbergrisPotionId { get; init; } = ushort.MaxValue;
@@ -142,7 +114,7 @@ internal sealed record BeamOptions(
     public int InitialActionCount { get; init; }
 
     /// <summary>
-    /// <c>SearchPolicySnapshot.Act3BossStrategy</c>. Adds a direct play of a fetched, payable
+    /// The request's Act3 boss strategy. Adds a direct play of a fetched, payable
     /// power before layer selection on every searched turn, retaining the ordinary fetched state.
     /// </summary>
     public bool Act3BossStrategy { get; init; }
@@ -168,12 +140,6 @@ internal sealed record BeamOptions(
     public int EarlyTurnScoutDepth { get; init; }
 
     /// <summary>
-    /// The request's <c>NoveltySearchOptions</c>. Set only for the coordinator's novelty exploration
-    /// and adaptive refinement; the solver then runs the Bfws open-queue scheduler instead of the beam.
-    /// </summary>
-    public NoveltyOptions? Novelty { get; init; }
-
-    /// <summary>
     /// The request root's combat turn (before a fixed prefix), matching the existing solver's
     /// <c>_startTurnNumber</c> for the power-commitment turn offset.
     /// </summary>
@@ -195,7 +161,7 @@ internal sealed record BeamOptions(
 
     /// <summary>
     /// The existing profile's band width (<c>effectiveLimit</c> in <c>RankBest</c>). Zero means the Sts2Solver
-    /// layer width. The bridge freezes the request profile's width so the W+1..2W band uses the same
+    /// layer width. The request profile freezes the width so the W+1..2W band uses the same
     /// width as the regular search.
     /// </summary>
     public int SecondRankBandWidth { get; init; }
@@ -214,34 +180,21 @@ internal sealed record BeamOptions(
     public bool PreserveReplayAllocatorOpening { get; init; }
 
     /// <summary>
-    /// Per-card power-commitment descriptors compiled by the bridge, plus the request's frozen
+    /// Per-card power-commitment descriptors compiled by the request compiler, plus the request's frozen
     /// <c>TotalFloor</c>. Null when the root holds no registered power card: the existing solver also
     /// skips the whole lane for such roots.
     /// </summary>
     public PowerCommitmentCatalog? PowerCommitments { get; init; }
 
     /// <summary>
-    /// The shared frame-pressure pacer. The bridge creates it from
-    /// <see cref="SearchPolicySnapshot.FramePressureSignal"/> so the Sts2Solver layer and expansion loops
-    /// yield exactly like the existing search's replay checkpoints. Null in direct kernel tests.
+    /// The shared frame-pressure pacer. The Mod's search host creates it from the live frame signal so
+    /// the Sts2Solver layer and expansion loops yield during play. Null in direct kernel tests.
     /// </summary>
     public SearchWorkPacer? Pacer { get; init; }
 
     /// <summary>
-    /// Progress sink. The bridge translates one snapshot into an existing <c>SolverProgress</c> and
-    /// materializes the route preview lazily; the solver only copies route metadata.
-    /// </summary>
-    public Action<ProgressSnapshot>? Progress { get; init; }
-
-    /// <summary>
-    /// Polls the pending takeover request. The bridge owns the <c>SearchInteractionState</c> mapping;
-    /// the solver only sees the three-way decision.
-    /// </summary>
-    public Func<TakeoverAction>? PollTakeover { get; init; }
-
-    /// <summary>
-    /// Offline route trace. Null in production and in every request that does not ask for a trace;
-    /// the solver only reports the points it already evaluates.
+    /// Offline route trace for test diagnostics only. Production never sets it; the solver only
+    /// reports the points it already evaluates.
     /// </summary>
     public BeamTrace? Trace { get; init; }
 }
@@ -271,7 +224,7 @@ internal enum PlanPayoffKind : byte
 
 /// <summary>
 /// A <see cref="PlanCommitment"/> reduced to the values Beam reads: the CopyPower representative
-/// seats and the per-route payoff count. The card is a Sts2Solver content id resolved by the bridge.
+/// seats and the per-route payoff count. The card is a Sts2Solver content id resolved by the request compiler.
 /// </summary>
 internal sealed record PlanCommitment(
     bool CopyPowerSeats,
@@ -291,19 +244,6 @@ internal sealed record ScoutCandidate(PlayerAction[] Actions, double Score)
 
 /// <summary>The candidates the existing search's observer reports after one searched turn layer.</summary>
 internal sealed record ScoutLayer(int Turns, IReadOnlyList<ScoutCandidate> Candidates);
-
-/// <summary>The request's HP-target stop (<c>the existing search's MeetsHpTarget</c>): a complete victory
-/// without death saves, with at least <paramref name="RequiredPotionUses"/> and at most
-/// <paramref name="EarlyStopPotionUses"/> explicit potion uses, satisfying the enforced forced
-/// directives, and with <paramref name="HpLostSoFar"/> plus its cumulative HP loss within
-/// <paramref name="AcceptableBattleHpLoss"/>, ends the search before the next parent.
-/// </summary>
-internal sealed record HpTargetStop(
-    int AcceptableBattleHpLoss,
-    int HpLostSoFar,
-    int EarlyStopPotionUses,
-    int RequiredPotionUses = 0,
-    bool EnforceForcedPotionDirectives = false);
 
 /// <summary>The root values <c>FinalPlanOrdering.Select</c> reads for the route keys Beam ports.</summary>
 internal sealed record RouteOrdering(
@@ -339,27 +279,6 @@ internal sealed record PotionPolicy(
     }
 }
 
-/// <summary>
-/// The request's forced potion directives (<c>PotionStrategySnapshot.Directives</c> with
-/// <see cref="PotionDirective.Force"/>), resolved to canonical Sts2Solver potion ids. A directive is
-/// satisfied by one explicit use of that potion identity in its slot; the fixed prefix's uses are
-/// folded into <paramref name="AlreadyUsedMask"/> because they are not Sts2Solver nodes.
-/// </summary>
-internal sealed record ForcedPotionDirectives(
-    int[] Slots,
-    ushort[] PotionIds,
-    int[] StrategicHpCosts,
-    int AlreadyUsedMask,
-    int AlreadyUsedStrategicHpCost)
-{
-    public static ForcedPotionDirectives None { get; } = new([], [], [], 0, 0);
-
-    public int Count => Slots.Length;
-}
-
-internal sealed record PotionCandidateSummary(int ExplicitUses, bool Victory, int StrategicHpDeficit,
-    int PlayerHp, bool ForcedSatisfied, bool PolicyEligible);
-
 internal sealed record BeamResult(
     PlayerAction[] BestRoute,
     IReadOnlyList<PlayerAction[]> TopRoutes,
@@ -372,10 +291,7 @@ internal sealed record BeamResult(
     int PrunedIncumbents,
     TimeSpan Elapsed)
 {
-    public IReadOnlyList<PotionCandidateSummary> PotionCandidates { get; init; } = [];
-    public bool PotionCandidatesComplete { get; init; } = true;
     public long ExpandedNodesTotal { get; init; }
-    public int CandidatePoolPeakCount { get; init; }
     public string StopReason { get; init; } = "unknown";
 
     internal static readonly IReadOnlyDictionary<string, int> NoCapacityDrops =
@@ -397,9 +313,6 @@ internal sealed record BeamResult(
 
     /// <summary>End-turn children dropped by those compactions.</summary>
     public int EndedCompressedStates { get; init; }
-
-    /// <summary>Audited branches removed by the Smart exact-layer HP ceiling.</summary>
-    public int SmartPotionPruned { get; init; }
 
     /// <summary>Search-owned logical bytes charged to the reusable storage at the end of the solve.</summary>
     public long SearchMemoryUsedBytes { get; init; }
@@ -442,12 +355,9 @@ internal sealed record BeamResult(
     /// <summary>The scout layers reported by an early-turn scout request, in searched order.</summary>
     public IReadOnlyList<ScoutLayer> ScoutLayers { get; init; } = [];
 
-    /// <summary>The novelty statistics of a <see cref="BeamOptions.Novelty"/> request.</summary>
-    public NoveltySearchTelemetry? NoveltyTelemetry { get; init; }
-
     /// <summary>
     /// Which root of the solve the selected route started from: 0 for an ordinary root, or the
-    /// turn-setup root candidate index (the bridge maps it back to the setup choices).
+    /// turn-setup root candidate index (the coordinator maps it back to the setup choices).
     /// </summary>
     public int BestRootIndex { get; init; }
 
@@ -507,14 +417,6 @@ internal sealed record BeamResult(
     public int EndTurnPrefixNotInProgress { get; init; }
 
     /// <summary>
-    /// Set when the search stopped at a takeover checkpoint instead of running to its own stop
-    /// condition. <see cref="BestRoute"/> then identifies the adopted current-turn route (or is empty
-    /// for <see cref="TakeoverAction.AdoptRoute"/>, where the bridge materializes the requested
-    /// seed itself).
-    /// </summary>
-    public TakeoverAction Takeover { get; init; }
-
-    /// <summary>
     /// Counts of the two content-deduplications and, when the verification switch is on, of the
     /// skipped-alternative comparisons. Diagnostics only; not part of the result encoding.
     /// </summary>
@@ -525,7 +427,7 @@ internal sealed record BeamResult(
 /// Turn-layered beam search over <see cref="Battle"/>. Within a turn it expands card plays
 /// depth by depth; end-turn children seed the next turn layer. Children are deduplicated by full
 /// byte equality and the best score is kept. Only <see cref="Battle"/> and
-/// <see cref="Rules"/> are touched; translation and materialization happen in the bridge.
+/// <see cref="Rules"/> are touched; route materialization happens in the replay/CombatPilot layer.
 /// </summary>
 [System.Runtime.CompilerServices.SkipLocalsInit]
 internal sealed partial class BeamSolver
@@ -649,13 +551,9 @@ internal sealed partial class BeamSolver
     private readonly PotionUseMode _effectivePotionPolicy;
     private readonly TheftPolicy? _theftPolicy;
     private readonly bool _auditPotionPolicy;
-    private readonly ForcedPotionDirectives _forcedPotionDirectives;
-    private readonly bool _enforceForcedPotionDirectives;
     private readonly int _initialExplicitPotionUses;
     private readonly int _initialAutomaticPotionUses;
     private readonly PotionFreePolicyBaseline? _potionFreeBaseline;
-    private readonly int _potionReplacementHpCredit;
-    private readonly int? _smartPotionEligibilityHpCeiling;
     private readonly ushort _ambergrisPotionId;
     private readonly int _initialAmbergrisUses;
     private Dictionary<int, Candidate>? _auditBestByPotionCount;
@@ -671,7 +569,6 @@ internal sealed partial class BeamSolver
     private long _memoryBudgetExceededAtBytes;
     private int _capacityPruned;
     private int _pruned;
-    private int _smartPruned;
     private int _endedCompactions;
     private int _endedCompressedStates;
     private int _endedCompactionTarget;
@@ -713,9 +610,10 @@ internal sealed partial class BeamSolver
     private readonly BeamTrace? _trace;
     private string _tracePhase = "next";
     private bool _singleRoot;
+    private ScoreFeatures _bestFeatures;
+    private int _bestFeaturesNode = -1;
 
     /// <summary>The existing search's HP-target stop, so a commitment batch stops like its parent layer.</summary>
-    private bool _hpTargetReached;
 
     private CancellationToken _cancellationToken;
 
@@ -754,13 +652,9 @@ internal sealed partial class BeamSolver
         _effectivePotionPolicy = options.EffectivePotionPolicy;
         _theftPolicy = options.TheftPolicy;
         _auditPotionPolicy = options.AuditPotionPolicy;
-        _forcedPotionDirectives = options.ForcedPotionDirectives;
-        _enforceForcedPotionDirectives = options.EnforceForcedPotionDirectives;
         _initialExplicitPotionUses = options.InitialExplicitPotionUses;
         _initialAutomaticPotionUses = options.InitialAutomaticPotionUses;
         _potionFreeBaseline = options.PotionFreeBaseline;
-        _potionReplacementHpCredit = options.PotionReplacementHpCredit;
-        _smartPotionEligibilityHpCeiling = options.SmartPotionEligibilityHpCeiling;
         _ambergrisPotionId = options.AmbergrisPotionId;
         _initialAmbergrisUses = options.InitialAmbergrisUses;
         _planCommitment = options.PlanCommitment;
@@ -772,8 +666,6 @@ internal sealed partial class BeamSolver
         _aggressivePowerCommitment = options.AggressivePowerCommitment;
         _preserveReplayAllocatorOpening = options.PreserveReplayAllocatorOpening;
         _trace = options.Trace;
-        if (_smartPotionEligibilityHpCeiling != null && _bound == null)
-            throw new InvalidOperationException("Smart 药水资格上界需要启用下界输入。");
         _incumbent = _bound == null ? null : options.Incumbent;
     }
 
@@ -793,7 +685,6 @@ internal sealed partial class BeamSolver
     public BeamResult Solve(IReadOnlyList<Battle> roots, SearchStorage storage,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(storage);
         cancellationToken.ThrowIfCancellationRequested();
         if (roots.Count == 0)
             throw new ArgumentOutOfRangeException(nameof(roots), "至少需要一个搜索根。");
@@ -830,7 +721,6 @@ internal sealed partial class BeamSolver
         Stopwatch watch = Stopwatch.StartNew();
         _cancellationToken = cancellationToken;
         _solveWatch = watch;
-        ResetProgressState();
         _expanded = 0;
         _expandedTotal = 0;
         _transitions = 0;
@@ -852,11 +742,10 @@ internal sealed partial class BeamSolver
         _endTurnPrefixChoiceUnshared = 0;
         _endTurnPrefixExtraTurnUnshared = 0;
         _endTurnPrefixNotInProgress = 0;
+        _bestFeatures = default;
+        _bestFeaturesNode = -1;
         _scoutLayers.Clear();
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
-        if (_options.Novelty is { } novelty)
-            return SolveNovelty(roots, novelty, watch, cancellationToken);
-        _hpTargetReached = false;
         for (int slot = 0; slot < Limits.PotionSlots; slot++)
             _rootPotions[slot] = slot < roots[0].PotionSlotCount ? roots[0].Potions[slot] : (ushort)0;
         int width = Math.Max(1, _options.BeamWidth);
@@ -933,7 +822,6 @@ internal sealed partial class BeamSolver
         RouteKey? best = null;
         int bestNode = 0;
         bool bestVictory = false;
-        List<(RouteKey Key, int Node)> candidateRoutes = [];
         void Consider(in Battle state, int node, in RouteKey key,
             in ScoreFeatures features)
         {
@@ -945,18 +833,12 @@ internal sealed partial class BeamSolver
             _bestFeatures = features;
             _bestFeaturesNode = node;
         }
-        // The existing search's two early stops. The HP-target stop ends the search before the next parent
-        // (the existing search's Phases.cs, MeetsHpTarget); the zero-damage stop ends it after the current turn
-        // once a victory lost no HP, used no explicit potion and left the player at full, undiminished HP
-        // (growth targets, which disable it there, are rejected at admission).
-        bool hpTargetReached = false, zeroDamageVictory = false;
+        // The zero-damage stop ends the search after the current turn once a victory lost no HP,
+        // used no explicit potion and left the player at full, undiminished HP (growth targets,
+        // which disable it there, are rejected at admission).
+        bool zeroDamageVictory = false;
         void ConsiderCandidate(in Battle state, int node, in ScoreFeatures features, in RouteKey key)
         {
-            if (_options.CandidateScanCount > 0)
-            {
-                candidateRoutes.Add((key, node));
-                _storage.Memory.Charge(32, "candidate-routes");
-            }
             if (_auditPotionPolicy)
                 ConsiderAudited(node, features, key);
             else
@@ -972,20 +854,6 @@ internal sealed partial class BeamSolver
             if (!features.AllEnemiesDead)
                 return;
             int explicitPotionUses = ExplicitPotionUses(node);
-            if (key.Won && _options.HpTargetStop is { } stop
-                && (!_options.UnlimitedNodes || !_options.HasUnboundedGrowthTargets)
-                && _scorer.GrowthTargetsSatisfied(features)
-                && _scorer.RelicTargetsSatisfied(features)
-                && features.ProjectedDeathSaveUseCount == 0
-                && explicitPotionUses >= stop.RequiredPotionUses
-                && (!stop.EnforceForcedPotionDirectives
-                    || EvaluateForcedUses(node, out _, out _, out _))
-                && explicitPotionUses <= stop.EarlyStopPotionUses
-                && stop.HpLostSoFar + features.CumulativePlayerHpLost <= stop.AcceptableBattleHpLoss)
-            {
-                hpTargetReached = true;
-                _hpTargetReached = true;
-            }
             if (explicitPotionUses == 0
                 && features.CumulativePlayerHpLost == 0
                 && features.PlayerMaxHp >= _options.InitialPlayerMaxHp
@@ -1025,43 +893,34 @@ internal sealed partial class BeamSolver
         }
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
         TerminalSink terminal = ConsiderTerminal;
-        PublishProgress(0, 0, turnFrontier.Count, 0, "初始化", force: true, routeNode: -1);
         int turns = 0;
         try
         {
         while (turnFrontier.Count > 0 && turns < _options.MaxTurns && !OutOfBudget(watch)
-            && !hpTargetReached && _takeoverAction == TakeoverAction.None
             && (_earlyTurnScoutDepth == 0 || turns < _earlyTurnScoutDepth))
         {
             SearchCheckpoint();
-            if (TryHandleTakeover(turnFrontier))
-                break;
             turns++;
             // The previous turn's end-turn pool is no longer a route consumer; clear it before the
             // boundary mark-sweep so only states that can still win a seat are retained.
             ended.Clear();
             next.Clear();
-            CompactRouteNodes(candidateRoutes, ref bestNode, current, next, ended, turnFrontier);
+            CompactRouteNodes(ref bestNode, current, next, ended, turnFrontier);
             current.Clear();
             _tracePhase = "turn-frontier";
             turnFrontier.TracePhase = _tracePhase;
             turnFrontier.CopyTopTo(current, turns == 1 ? frontierCapacity : width);
-            PublishProgressWithPreview(turns - 1, 0, current.Count, 0, "展开回合", force: true,
-                best is null ? -1 : bestNode, best, current);
             int playDepth = 0;
-            while (current.Count > 0 && !OutOfBudget(watch) && !hpTargetReached
-                && _takeoverAction == TakeoverAction.None)
+            while (current.Count > 0 && !OutOfBudget(watch))
             {
                 SearchCheckpoint();
-                if (TryHandleTakeover(current))
-                    break;
                 next.Clear();
                 if (_nodes.Count >= _nodeCleanupThreshold)
                 {
-                    CompactRouteNodes(candidateRoutes, ref bestNode, current, next, ended, turnFrontier);
+                    CompactRouteNodes(ref bestNode, current, next, ended, turnFrontier);
                     _nodeCleanupThreshold = Math.Max(_nodeCleanupThreshold, _nodes.Count * 2);
                 }
-                for (int index = 0; index < current.Count && !OutOfBudget(watch) && !hpTargetReached; index++)
+                for (int index = 0; index < current.Count && !OutOfBudget(watch); index++)
                 {
                     SearchCheckpoint();
                     CountExpanded();
@@ -1092,23 +951,14 @@ internal sealed partial class BeamSolver
                         ExpandAction(in parent, parentNode, action, next, ended, terminal,
                             current.Facts(index), current.RankPosition(index), current.Rank(index));
                     }
-                    PublishProgressWithPreview(turns - 1, playDepth,
-                        Math.Max(0, current.Count - index - 1) + next.Count, ended.Count,
-                        "展开出牌序列", force: false,
-                        best is null ? -1 : bestNode, best, current);
                 }
                 current.Clear();
                 _tracePhase = "next";
                 next.TracePhase = _tracePhase;
                 next.CopyTopTo(current, width);
                 PrunePool(current);
-                PublishProgressWithPreview(turns - 1, playDepth, current.Count, ended.Count,
-                    "剪枝候选", force: true,
-                    best is null ? -1 : bestNode, best, current);
                 playDepth++;
             }
-            if (_takeoverAction != TakeoverAction.None)
-                break;
             if (_earlyTurnScoutDepth > 0 && turns <= _earlyTurnScoutDepth)
                 CollectEarlyTurnScout(ended, turns, roots);
             if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
@@ -1119,10 +969,6 @@ internal sealed partial class BeamSolver
             ended.TracePhase = _tracePhase;
             ended.CopyTopTo(turnFrontier, width, turnBoundary: true);
             PrunePool(turnFrontier);
-            PublishProgressWithPreview(turns, 0, turnFrontier.Count, ended.Count, "回合层完成",
-                force: true, best is null ? -1 : bestNode, best, turnFrontier);
-            if (TryHandleTakeover(turnFrontier))
-                break;
             if (zeroDamageVictory)
                 break;
         }
@@ -1135,24 +981,6 @@ internal sealed partial class BeamSolver
         {
             _memoryBudgetExceeded = true;
             _memoryBudgetExceededAtBytes = error.UsedBytes;
-        }
-        PublishProgressWithPreview(turns, 0, turnFrontier.Count, ended.Count, "复核最终候选",
-            force: true, best is null ? -1 : bestNode, best, turnFrontier);
-        if (_takeoverAction != TakeoverAction.None)
-            return TakeoverResult(turns);
-
-        PlayerAction[][] TopCandidateRoutes()
-        {
-            int count = Math.Min(_options.CandidateScanCount, candidateRoutes.Count);
-            if (count <= 0)
-                return [];
-            List<(RouteKey Key, int Node)> ordered = [.. candidateRoutes];
-            ordered.Sort((left, right) =>
-            {
-                int comparison = CompareRoutes(left.Key, right.Key);
-                return comparison != 0 ? comparison : left.Node.CompareTo(right.Node);
-            });
-            return ordered.Take(count).Select(item => Route(item.Node)).ToArray();
         }
         if (_auditPotionPolicy)
         {
@@ -1178,11 +1006,10 @@ internal sealed partial class BeamSolver
                 bestNode = auditedNode;
                 bestVictory = auditedVictory;
             }
-            PotionCandidateSummary[] summaries = CandidateSummaries(out bool summariesComplete);
-            _trace?.Finish(TraceFinishReason(hpTargetReached, zeroDamageVictory, watch, turns),
+            _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
                 turns, _expanded);
             BeamResult audited = new(_auditPotionPolicy && best is null ? [] : Route(bestNode),
-                TopCandidateRoutes(), bestVictory, best?.Score ?? double.NegativeInfinity,
+                [], bestVictory, best?.Score ?? double.NegativeInfinity,
                 _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
             {
                 CapacityPruned = _capacityPruned,
@@ -1199,10 +1026,7 @@ internal sealed partial class BeamSolver
                     : _capacityDropped,
                 EndedCompactions = _endedCompactions,
                 EndedCompressedStates = _endedCompressedStates,
-                SmartPotionPruned = _smartPruned,
                 PotionPolicySatisfied = best is not null,
-                PotionCandidates = summaries,
-                PotionCandidatesComplete = summariesComplete,
                 BestPayoffCount = _nodes[bestNode].PayoffCount,
                 BestRootIndex = RootIndex(bestNode),
                 ScoutLayers = _scoutLayers,
@@ -1212,9 +1036,7 @@ internal sealed partial class BeamSolver
                 MaxObservedGcPause = _options.Pacer?.MaxObservedGcPause ?? TimeSpan.Zero,
                 Equivalence = EquivalenceDiagnostics(),
             ExpandedNodesTotal = _expandedTotal,
-            CandidatePoolPeakCount = Math.Max(Math.Max(current.PeakCount, next.PeakCount),
-                Math.Max(ended.PeakCount, turnFrontier.PeakCount)),
-            StopReason = TraceFinishReason(hpTargetReached, zeroDamageVictory, watch, turns),
+            StopReason = TraceFinishReason(zeroDamageVictory, watch, turns),
             SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
             SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
             SearchMemoryLimitBytes = _storage.Memory.LimitBytes,
@@ -1256,9 +1078,9 @@ internal sealed partial class BeamSolver
             if (fallback >= 0)
                 bestNode = fallback;
         }
-        _trace?.Finish(TraceFinishReason(hpTargetReached, zeroDamageVictory, watch, turns),
+        _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
             turns, _expanded);
-        BeamResult result = new(Route(bestNode), TopCandidateRoutes(), bestVictory,
+        BeamResult result = new(Route(bestNode), [], bestVictory,
             best?.Score ?? double.NegativeInfinity,
             _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
         {
@@ -1276,7 +1098,6 @@ internal sealed partial class BeamSolver
                 : _capacityDropped,
             EndedCompactions = _endedCompactions,
             EndedCompressedStates = _endedCompressedStates,
-            SmartPotionPruned = _smartPruned,
             BestPayoffCount = _nodes[bestNode].PayoffCount,
             BestRootIndex = RootIndex(bestNode),
             ScoutLayers = _scoutLayers,
@@ -1286,9 +1107,7 @@ internal sealed partial class BeamSolver
             MaxObservedGcPause = _options.Pacer?.MaxObservedGcPause ?? TimeSpan.Zero,
             Equivalence = EquivalenceDiagnostics(),
             ExpandedNodesTotal = _expandedTotal,
-            CandidatePoolPeakCount = Math.Max(Math.Max(current.PeakCount, next.PeakCount),
-                Math.Max(ended.PeakCount, turnFrontier.PeakCount)),
-            StopReason = TraceFinishReason(hpTargetReached, zeroDamageVictory, watch, turns),
+            StopReason = TraceFinishReason(zeroDamageVictory, watch, turns),
             SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
             SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
             SearchMemoryLimitBytes = _storage.Memory.LimitBytes,
@@ -1304,12 +1123,8 @@ internal sealed partial class BeamSolver
         return result;
     }
 
-    private string TraceFinishReason(bool hpTargetReached, bool zeroDamageVictory, Stopwatch watch, int turns)
+    private string TraceFinishReason(bool zeroDamageVictory, Stopwatch watch, int turns)
     {
-        if (_takeoverAction != TakeoverAction.None)
-            return "takeover";
-        if (hpTargetReached)
-            return "hp-target";
         if (zeroDamageVictory)
             return "zero-damage-victory";
         if (OutOfBudget(watch))
@@ -1324,19 +1139,11 @@ internal sealed partial class BeamSolver
     {
         if (key.Won)
             _anyAuditedVictory = true;
-        bool forcedSatisfied = true;
-        int forcedCount = 0, forcedCost = 0, forcedAmbergris = 0;
-        if (_enforceForcedPotionDirectives && _forcedPotionDirectives.Count > 0)
-        {
-            forcedSatisfied = EvaluateForcedUses(node,
-                out forcedCount, out forcedCost, out forcedAmbergris);
-        }
-        int optionalPotionCount = Math.Max(0, features.ExplicitPotionUseCount - forcedCount);
+        int optionalPotionCount = features.ExplicitPotionUseCount;
         int optionalPotionStrategicCost = OptionalPotionStrategicCost(
-            features.ExplicitPotionStrategicCost, optionalPotionCount, forcedCost);
+            features.ExplicitPotionStrategicCost, optionalPotionCount);
         PotionUseMode effectivePotionPolicy = _effectivePotionPolicy switch
         {
-            PotionUseMode.RequireAtLeastOne when forcedCount > 0 => PotionUseMode.Smart,
             PotionUseMode.Disabled when optionalPotionCount > 0 => PotionUseMode.Smart,
             _ => _effectivePotionPolicy,
         };
@@ -1359,10 +1166,6 @@ internal sealed partial class BeamSolver
             AmbergrisUses(node),
             features.PlayerHp,
             features.ProjectedDeathSaveUseCount,
-            forcedSatisfied,
-            forcedCount,
-            forcedCost,
-            forcedAmbergris,
             effectivePotionPolicy);
         if (candidate.ExplicitPotionUseCount == 0
             && (_bestPotionFree is not { } free || ComparePotionFree(candidate, free) < 0))
@@ -1370,9 +1173,7 @@ internal sealed partial class BeamSolver
             _bestPotionFree = candidate;
         }
         Dictionary<int, Candidate> bestByCount = _auditBestByPotionCount ??= new();
-        // A route that does not satisfy a forced directive can never pass the policy filter, but it
-        // must not mask a satisfying route of the same explicit count.
-        int bucket = checked(candidate.ExplicitPotionUseCount * 2 + (forcedSatisfied ? 0 : 1));
+        int bucket = candidate.ExplicitPotionUseCount;
         if (!bestByCount.TryGetValue(bucket, out Candidate current)
             || CompareAudited(candidate, current) < 0)
         {
@@ -1380,57 +1181,9 @@ internal sealed partial class BeamSolver
         }
     }
 
-    private int OptionalPotionStrategicCost(int explicitPotionStrategicCost, int optionalPotionCount,
-        int forcedPotionStrategicCost = 0)
+    private static int OptionalPotionStrategicCost(int explicitPotionStrategicCost, int optionalPotionCount)
         => PotionUsePolicy.ApplyReplacementCredit(
-            Math.Max(0, explicitPotionStrategicCost - forcedPotionStrategicCost),
-            optionalPotionCount,
-            _potionReplacementHpCredit);
-
-    /// <summary>
-    /// <c>PotionStrategySnapshot.EvaluateForcedUses(SearchNode)</c> over the Sts2Solver node chain: one
-    /// explicit use of each forced potion identity in its slot, with the fixed prefix's uses folded in.
-    /// Returns whether every forced directive was used.
-    /// </summary>
-    private bool EvaluateForcedUses(int node, out int count, out int strategicCost,
-        out int ambergrisCount)
-    {
-        ForcedPotionDirectives directives = _forcedPotionDirectives;
-        count = 0;
-        strategicCost = 0;
-        ambergrisCount = 0;
-        for (int index = 0; index < directives.Count; index++)
-        {
-            int slot = directives.Slots[index];
-            bool used = (directives.AlreadyUsedMask & (1 << index)) != 0;
-            if (!used)
-            {
-                for (int cursor = node; _nodes[cursor].Parent >= 0; cursor = _nodes[cursor].Parent)
-                {
-                    PlayerAction action = _nodes[cursor].Action;
-                    if (action.Kind == PlayerActionKind.UsePotion && action.PotionSlot == slot
-                        && _nodes[cursor].PotionId == directives.PotionIds[index])
-                    {
-                        used = true;
-                        break;
-                    }
-                }
-            }
-            if (!used)
-                continue;
-            count++;
-            strategicCost += (directives.AlreadyUsedMask & (1 << index)) != 0
-                ? 0
-                : directives.StrategicHpCosts[index];
-            if (_ambergrisPotionId != ushort.MaxValue
-                && directives.PotionIds[index] == _ambergrisPotionId)
-            {
-                ambergrisCount++;
-            }
-        }
-        strategicCost += directives.AlreadyUsedStrategicHpCost;
-        return count == directives.Count;
-    }
+            Math.Max(0, explicitPotionStrategicCost), optionalPotionCount, 0);
 
     /// <summary>
     /// The existing <c>FinalPlanOrdering.Select</c> filter and ordering, applied to the best candidate
@@ -1482,40 +1235,10 @@ internal sealed partial class BeamSolver
             potionFreePlayerHp, potionFreeDeathSaves, potionFreeOutstanding, anyRouteWon);
     }
 
-    private PotionCandidateSummary[] CandidateSummaries(out bool complete)
-    {
-        complete = true;
-        if (!_options.CollectPotionCandidates || _auditBestByPotionCount is not { } candidates) return [];
-        const int maxSummaries = 16;
-        int count = Math.Min(candidates.Count, maxSummaries);
-        if (count == 0) return [];
-        try { _storage.Memory.Charge(checked(64L * count), "potion-candidate-summaries"); }
-        catch (SearchMemoryBudgetException error)
-        {
-            _memoryBudgetExceeded = true;
-            _memoryBudgetExceededAtBytes = error.UsedBytes;
-            complete = false;
-            return [];
-        }
-        List<PotionCandidateSummary> summaries = new(count);
-        foreach (Candidate candidate in candidates.Values)
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-            if (DeadlineExpired()) { _deadlineReached = true; complete = false; break; }
-            if (summaries.Count == count) { complete = false; break; }
-            summaries.Add(new(candidate.ExplicitPotionUseCount, candidate.Key.Won,
-                candidate.Key.StrategicHpDeficit, candidate.PlayerHp, candidate.ForcedUsesSatisfied,
-                IsCurrentAuditedPolicyEligible(candidate)));
-        }
-        return [.. summaries];
-    }
-
     private bool IsAuditedPolicyEligible(Candidate candidate, bool hasPotionFree, bool potionFreeWon,
         int potionFreeDeficit, int potionFreePlayerHp, int potionFreeDeathSaves, int potionFreeOutstanding,
         bool anyRouteWon)
     {
-        if (!candidate.ForcedUsesSatisfied)
-            return false;
         if (candidate.ExplicitPotionUseCount < _options.MinimumPotionUses)
             return false;
         if (_options.Potions.MaximumUses is { } maximum
@@ -1549,7 +1272,7 @@ internal sealed partial class BeamSolver
             || recoversLoot
             || PotionUsePolicy.MeetsAmbergrisRestriction(
                 hasPotionFree,
-                Math.Max(0, candidate.AmbergrisUses - candidate.ForcedAmbergrisCount),
+                candidate.AmbergrisUses,
                 candidate.OptionalPotionStrategicCost,
                 _ordering.InitialPlayerMaxHp,
                 potionFreePlayerHp,
@@ -1647,10 +1370,6 @@ internal sealed partial class BeamSolver
         int AmbergrisUses,
         int PlayerHp,
         int ProjectedDeathSaveUseCount,
-        bool ForcedUsesSatisfied,
-        int ForcedUseCount,
-        int ForcedStrategicHpCost,
-        int ForcedAmbergrisCount,
         PotionUseMode EffectivePotionPolicy);
 
     private RouteKey Key(in Battle state, in ScoreFeatures features, int actionCount)
@@ -1994,13 +1713,12 @@ internal sealed partial class BeamSolver
     private void TightenIncumbent(in Battle state, int node, in ScoreFeatures features, in RouteKey key)
     {
         // the existing search's TightenSearchIncumbentAtTurnLayer: only a potion-free victory, or an
-        // exact audited layer with a baseline and no enforced directives, may establish the bound.
+        // exact audited layer with a baseline, may establish the bound.
         bool canEstablishPotionFree = _options.MinimumPotionUses == 0
             && _effectivePotionPolicy is PotionUseMode.Disabled or PotionUseMode.Smart;
         bool canEstablishExactPotion = _potionFreeBaseline != null
             && _options.MinimumPotionUses > 0
-            && _options.Potions.MaximumUses == _options.MinimumPotionUses
-            && !_enforceForcedPotionDirectives;
+            && _options.Potions.MaximumUses == _options.MinimumPotionUses;
         if (!canEstablishPotionFree && !canEstablishExactPotion)
             return;
         if (_bound == null || !key.Won || features.ProjectedDeathSaveUseCount > 0)
@@ -2008,11 +1726,6 @@ internal sealed partial class BeamSolver
         int explicitPotionUses = features.ExplicitPotionUseCount;
         if (explicitPotionUses != _options.MinimumPotionUses)
             return;
-        if (_enforceForcedPotionDirectives && _forcedPotionDirectives.Count > 0
-            && !EvaluateForcedUses(node, out _, out _, out _))
-        {
-            return;
-        }
         int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
             features.CumulativePlayerHpLost,
             Math.Max(0, _options.InitialPlayerMaxHp - features.PlayerMaxHp),
@@ -2046,18 +1759,18 @@ internal sealed partial class BeamSolver
     private void PrunePool(Pool pool)
     {
         SearchIncumbent? incumbent = _bound == null ? null : _incumbent;
-        int? ceiling = _smartPotionEligibilityHpCeiling;
-        if (ceiling is null && (incumbent is null || _bound is null))
+        if (incumbent is null || _bound is null)
             return;
+        SearchIncumbent bounded = incumbent.Value;
         int write = 0;
         for (int read = 0; read < pool.Count; read++)
         {
-            BoundValues values = _bound!.Evaluate(pool.State(read), pool.PotionCost(read),
-                includeSmartPotionLowerBound: ceiling is not null);
+            BoundValues values = _bound.Evaluate(pool.State(read), pool.PotionCost(read),
+                includeSmartPotionLowerBound: false);
             bool certifiedUnknown = _bound.RequireCertifiedHealingProof && _pruneEqualHp
                 && values.RemainingHealingPotential == int.MaxValue;
             bool incumbentPrune = false;
-            if (incumbent is { } bounded && !certifiedUnknown)
+            if (!certifiedUnknown)
             {
                 bool costClosed = !_preservePotionCostOpportunities
                     || (bounded.ExplicitPotionStrategicCost is { } cost
@@ -2069,31 +1782,19 @@ internal sealed partial class BeamSolver
                     allowTurnTieBound: costClosed,
                     pruneEqualHp: _pruneEqualHp && !values.HasRisk && costClosed);
             }
-            bool smartPrune = !incumbentPrune && ceiling is { } limit
-                && !(_bound.RequireCertifiedHealingProof
-                    && values.SmartPotionRemainingHealingPotential == int.MaxValue)
-                && values.SmartPotionHpLowerBound > limit;
-            if (!incumbentPrune && !smartPrune)
+            if (!incumbentPrune)
             {
                 if (write != read)
                     pool.Move(read, write);
                 write++;
                 continue;
             }
-            // The existing pipeline applies the incumbent bound first and the potion ceiling to what
-            // survives, so a branch removed by both is attributed to the incumbent.
-            if (incumbentPrune)
-                _pruned++;
-            else
-                _smartPruned++;
+            _pruned++;
             if (_trace != null)
             {
                 int node = pool.Node(read);
                 if (_trace.IsWatched(node))
-                {
-                    _trace.NodePruned(node, pool.TracePhase,
-                        incumbentPrune ? "incumbent-lower-bound" : "smart-potion-ceiling");
-                }
+                    _trace.NodePruned(node, pool.TracePhase, "incumbent-lower-bound");
             }
         }
         pool.Truncate(write);
@@ -2233,7 +1934,7 @@ internal sealed partial class BeamSolver
 
     /// <summary>
     /// A route node's power-commitment metadata: the ported <c>PowerCommitment</c> without its string
-    /// card list. Registered cards are indexed in the bridge catalog, so the played set is an exact
+    /// card list. Registered cards are indexed by the power-commitment catalog, so the played set is an exact
     /// 128-bit mask (87 registered powers today). This is route history and never enters
     /// <see cref="Battle"/>, the fingerprint or the state key.
     /// </summary>
@@ -2875,7 +2576,7 @@ internal sealed partial class BeamSolver
 
     /// <summary>
     /// <c>SimulatedCombatState.TryGetPocketwatchState</c>: the first non-melted relic's threshold,
-    /// this turn's plays (Counter) and last turn's plays (Aux; the bridge projects the engine's
+    /// this turn's plays (Counter) and last turn's plays (Aux; the importer projects the engine's
     /// StatefulRelicState Previous into Aux).
     /// </summary>
     internal static void PocketwatchState(in Battle battle, Rules rules,

@@ -46,9 +46,8 @@ internal readonly record struct TraceSetupLeader(
 /// Offline-only route trace for <see cref="BeamSolver"/>. The solver reports every point where a
 /// state can be dropped (generation, dedup, rank truncation, lane representatives, incumbent/ceiling
 /// pruning, end-turn compaction and budget end) with the route node identity it already carries.
-/// The implementation lives in the bridge (it needs the existing engine to map a target
-/// <c>PlanAction</c> route onto Sts2Solver actions); production leaves <see cref="BeamOptions.Trace"/>
-/// null, so every call site is one null check and no retention decision reads trace state.
+/// This is a test diagnostic surface: production leaves <see cref="BeamOptions.Trace"/> null, so every
+/// call site is one null check and no retention decision reads trace state.
 /// </summary>
 internal abstract class BeamTrace
 {

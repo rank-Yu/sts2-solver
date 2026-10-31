@@ -80,34 +80,13 @@ internal static class AutoCombatSession
                 $"deviations={result.Deviations} failures={result.DeploymentFailures} " +
                 $"elapsed_ms={result.ElapsedMs}");
         }
-        catch (UnsupportedImportException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual reason={error.Reason} {error.Detail}");
-        }
-        catch (UnsupportedException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual unsupported {error.Message}");
-        }
-        catch (CapacityException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual capacity region={error.Region} {error.Message}");
-        }
-        catch (NotSupportedException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual unsupported {error.Message}");
-        }
-        catch (InvalidDataException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual invalid_data {error.Message}");
-        }
-        catch (InvalidOperationException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual invalid_operation {error.Message}");
-        }
-        catch (TimeoutException error)
-        {
-            ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual timeout {error.Message}");
-        }
+        catch (UnsupportedImportException error) { LogFailure($"reason={error.Reason} {error.Detail}"); }
+        catch (UnsupportedException error) { LogFailure($"unsupported {error.Message}"); }
+        catch (CapacityException error) { LogFailure($"capacity region={error.Region} {error.Message}"); }
+        catch (NotSupportedException error) { LogFailure($"unsupported {error.Message}"); }
+        catch (InvalidDataException error) { LogFailure($"invalid_data {error.Message}"); }
+        catch (InvalidOperationException error) { LogFailure($"invalid_operation {error.Message}"); }
+        catch (TimeoutException error) { LogFailure($"timeout {error.Message}"); }
         catch (OperationCanceledException)
         {
             ModLog.Info($"[Sts2Solver] AUTO_CANCELLED root=manual reason={Reason() ?? "cancel"}");
@@ -216,6 +195,9 @@ internal static class AutoCombatSession
         }
         return true;
     }
+
+    private static void LogFailure(string detail)
+        => ModLog.Error($"[Sts2Solver] AUTO_FAILED root=manual {detail}");
 
     private static string? Reason()
     {

@@ -13,7 +13,7 @@ using MegaCrit.Sts2.Core.Models.Relics;
 
 namespace Sts2Solver.Import;
 
-/// <summary>Performance tiers exposed by the Flash solver settings.</summary>
+/// <summary>Performance tiers exposed by the combat search settings.</summary>
 public enum SearchPerformanceTier
 {
     Low,
@@ -27,10 +27,10 @@ public readonly record struct SearchPerformanceProfile(
     int BaselineWidth, int NarrowWidth, int WideWidth, int OffensiveWidth,
     int MillisecondsPerWidth)
 {
-    /// <summary>Legacy deterministic capture retains its historical turn boundary.</summary>
+    /// <summary>Deterministic capture keeps the regression's fixed turn boundary; production overrides it.</summary>
     public const int MaxTurns = 64;
-    private const int LegacyCaptureNodeLimit = 512_000;
-    internal int StartMaxExpandedNodes => LegacyCaptureNodeLimit;
+    private const int CaptureNodeLimit = 512_000;
+    internal int StartMaxExpandedNodes => CaptureNodeLimit;
 
     public static SearchPerformanceProfile For(SearchPerformanceTier tier)
     {
@@ -47,11 +47,10 @@ public readonly record struct SearchPerformanceProfile(
             preset.OffensiveWidth, preset.MillisecondsPerWidth);
     }
 
-    internal SearchPlan ToSearchPlan(long memoryBytes, bool isBoss, bool isElite = false, int actIndex = 0)
+    internal SearchPlan ToSearchPlan(long memoryBytes, bool isBoss, bool isElite, int actIndex)
     {
         bool longEncounter = SearchPlan.IsLongEncounter(isBoss, isElite, actIndex);
-        return new SearchPlan(BaselineWidth, NarrowWidth, WideWidth, OffensiveWidth,
-            0, memoryBytes)
+        return new SearchPlan(BaselineWidth, NarrowWidth, WideWidth, OffensiveWidth, memoryBytes)
             { QueenStrategies = true, SetupStrategies = longEncounter, ContinuousSetupStrategies = longEncounter,
                 MillisecondsPerWidth = MillisecondsPerWidth };
     }
@@ -84,7 +83,7 @@ internal static class SearchRequestCompiler
         EvaluationRootFacts facts,
         SearchPerformanceProfile profile,
         bool deterministic,
-        long searchMemoryBudgetBytes = 0)
+        long searchMemoryBudgetBytes)
     {
         if (profile.BaselineWidth <= 0 || profile.NarrowWidth <= 0
             || profile.WideWidth <= 0 || profile.OffensiveWidth <= 0)

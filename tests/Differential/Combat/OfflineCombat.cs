@@ -25,8 +25,7 @@ internal sealed record OfflineCombatSettings(
     long MemoryBudgetBytes,
     int WarmupNodes,
     int? MaxExpandedNodesOverride,
-    int? PoolStateBudgetMb,
-    string? PotionSchedule)
+    int? PoolStateBudgetMb)
 {
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
@@ -81,8 +80,7 @@ internal static class OfflineCombat
         Console.WriteLine(
             $"offline-combat roots={roots.Length} jobs={jobs} tier={settings.Tier} " +
             $"widths={settings.Profile.BaselineWidth}/{settings.Profile.NarrowWidth}/{settings.Profile.WideWidth}/{settings.Profile.OffensiveWidth} " +
-            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} "
-            + $"potion_schedule={settings.PotionSchedule ?? "default"} out={settings.Output}");
+            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} out={settings.Output}");
         Stopwatch wall = Stopwatch.StartNew();
         List<OfflineCombatRootResult> results = [];
         object gate = new();
@@ -181,14 +179,12 @@ internal static class OfflineCombat
                 SearchPolicyCapture.Capture(combat, player), request, player);
             DifferentialCombat host = new(combat, player, rules, policy, settings.Profile,
                 settings.MemoryBudgetBytes, settings.WarmupNodes,
-                settings.MaxExpandedNodesOverride, settings.PoolStateBudgetMb, settings.PotionSchedule, opening);
+                settings.MaxExpandedNodesOverride, settings.PoolStateBudgetMb, opening);
             CombatPilotResult result = CombatPilot.RunAsync(host, root, CancellationToken.None)
                 .GetAwaiter().GetResult();
             long wallMs = stopwatch.ElapsedMilliseconds;
             CheckQualityExpectation(settings.Corpora, root, settings.Tier, result);
             WriteResult(settings.Output, root, result);
-            if (settings.PotionSchedule != null)
-                WriteSchedule(settings.Output, root, settings.PotionSchedule, host.ScheduleObservations);
             Console.WriteLine(
                 $"root={root} status={result.Status} outcome={result.Outcome} turns={result.Turns} " +
                 $"hp={result.PlayerHp}/{result.PlayerMaxHp} searches={result.Searches} " +
@@ -291,11 +287,6 @@ internal static class OfflineCombat
         }
         start.ArgumentList.Add("--memory-budget-bytes");
         start.ArgumentList.Add(settings.MemoryBudgetBytes.ToString());
-        if (settings.PotionSchedule is { } potionSchedule)
-        {
-            start.ArgumentList.Add("--potion-schedule");
-            start.ArgumentList.Add(potionSchedule);
-        }
         start.ArgumentList.Add("--jobs");
         start.ArgumentList.Add("1");
         using Process process = Process.Start(start)
@@ -334,7 +325,6 @@ internal static class OfflineCombat
         object summary = new
         {
             schemaVersion = 1,
-            potionSchedule = settings.PotionSchedule,
             tier = settings.Tier.ToString(),
             baselineWidth = settings.Profile.BaselineWidth,
             narrowWidth = settings.Profile.NarrowWidth,
@@ -362,13 +352,6 @@ internal static class OfflineCombat
         string temporary = path + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(result, OfflineJson.Options));
         File.Move(temporary, path, true);
-    }
-
-    private static void WriteSchedule(string output, string root, string name,
-        IReadOnlyList<PotionScheduleObservation> observations)
-    {
-        string path = Path.Combine(output, root, "potion-schedule.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new { potionSchedule = name, observations }, OfflineJson.Options));
     }
 
     private static void WriteFailure(string output, string root, string error)
@@ -442,11 +425,9 @@ internal static class OfflineCombat
         int WarmupNodes,
         int? MaxExpandedNodesOverride,
         int? PoolStateBudgetMb,
-        string? PotionSchedule,
         Battle opening) : ICombatPilotHost
     {
         private readonly List<string> _potionsUsed = [];
-        internal List<PotionScheduleObservation> ScheduleObservations { get; } = [];
         private bool _warmedUp;
         private bool _storageChecked;
         private readonly int _combatStartHp = opening.Player.CurrentHp;
@@ -468,12 +449,9 @@ internal static class OfflineCombat
             {
                 BeamWidth = searchCase.Options.BeamWidth,
                 MaxExpandedNodes = WarmupNodes,
-                CandidateScanCount = 0,
                 SearchMemoryBudgetBytes = 0,
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
-                Progress = null,
-                PollTakeover = null,
                 Trace = null,
             };
             try
@@ -557,13 +535,6 @@ internal static class OfflineCombat
                     { PoolStateBudgetBytes = checked(poolMb * 1024 * 1024) } };
             SearchPlan plan = profile.ToSearchPlan(MemoryBudgetBytes, combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Boss,
             combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Elite, combat.RunState.CurrentActIndex);
-            if (PotionSchedule is { } schedule)
-            {
-                bool forced = PotionSearchSchedule.HasForcedDirectives(searchCase.Options);
-                plan = PotionScheduleTrial.Build(plan, searchCase.Options, schedule, forced);
-                ScheduleObservations.Add(new(turn, searchCase.Options.Potions.MaximumUses,
-                    searchCase.Options.InitialExplicitPotionUses, searchCase.Options.MinimumPotionUses, forced));
-            }
             SearchStorage storage = new();
             CombatSearchResult outcome;
             try

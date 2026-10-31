@@ -128,8 +128,6 @@ internal static class CompareCommand
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
-                Progress = null,
-                PollTakeover = null,
                 Trace = null,
             };
             BeamResult expected = SearchCodec.DecodeResult(

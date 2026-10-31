@@ -114,8 +114,6 @@ internal static class SearchCompare
             {
                 SearchCase searchCase = SearchCodec.DecodeRequest(requestBytes);
                 if (searchCase.Options.Pacer != null
-                    || searchCase.Options.Progress != null
-                    || searchCase.Options.PollTakeover != null
                     || searchCase.Options.Trace != null)
                 {
                     throw new InvalidDataException("SREQ 含宿主回调，确定性重放会不同。");
@@ -238,7 +236,7 @@ internal static class SearchCompare
             SearchPerformanceTier tier = SearchPerformanceProfile.ParseTier(status.SearchTier);
             SearchCase assembled = SearchRequestCompiler.CompileRequest(
                 combat, player, rules, battle, policy, EvaluationRootFacts.Default,
-                SearchPerformanceProfile.For(tier), status.DeterministicSearch);
+                SearchPerformanceProfile.For(tier), status.DeterministicSearch, 0);
             byte[] actual = SearchCodec.EncodeRequest(assembled);
             bool same = actual.AsSpan().SequenceEqual(expectedRequest);
             if (!same)

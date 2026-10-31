@@ -17,8 +17,6 @@ public static class RulesCodec
 
     public static byte[] Encode(Rules rules)
     {
-        if (EncodedFieldCount != Rules.SchemaFieldCount)
-            throw new InvalidOperationException("Rules 编解码字段数与 K0 合同不一致。");
         return Codec.ToBytes(writer =>
         {
             writer.Write(Magic);

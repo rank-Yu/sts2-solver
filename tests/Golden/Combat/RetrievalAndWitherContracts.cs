@@ -99,7 +99,7 @@ internal static class RetrievalAndWitherContracts
             {
                 BeamWidth = 64, MaxTurns = turns, MaxExpandedNodes = 100_000, UnlimitedNodes = false,
                 SoftTimeBudget = TimeSpan.MaxValue, Act3BossStrategy = enabled, Trace = trace,
-                HpTargetStop = null, Bound = null, Incumbent = null,
+                Bound = null, Incumbent = null,
                 Ordering = new(battle.Player.CurrentHp, battle.Player.MaxHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
                 Potions = new(int.MinValue, 1, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
             };

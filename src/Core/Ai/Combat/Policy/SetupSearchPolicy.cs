@@ -7,29 +7,22 @@ internal sealed class SetupSearchPolicy
 {
     private readonly int[] _initialAmounts;
     private readonly int[] _activationAmounts;
-    internal int FocusSlot { get; }
-    private readonly uint _focusCombatId;
-    internal bool Focused { get; }
     internal bool Continuous { get; }
 
-    private SetupSearchPolicy(int[] initial, int[] activation, bool focused, int slot, uint combatId, bool continuous = false)
+    private SetupSearchPolicy(int[] initial, int[] activation, bool continuous = false)
     {
         Continuous = continuous;
         _initialAmounts = initial; _activationAmounts = activation;
-        Focused = focused; FocusSlot = slot; _focusCombatId = combatId;
     }
 
-    internal static SetupSearchPolicy Capture(in Battle root, Rules rules, bool focused = false, bool continuous = false)
+    internal static SetupSearchPolicy Capture(in Battle root, Rules rules, bool continuous = false)
     {
         int[] initial = new int[Registry.PowerCount], activation = new int[Registry.PowerCount];
         for (int i = 0; i < root.PowerCount; i++)
             if (root.Powers[i].Owner == Limits.PlayerOwner)
                 initial[root.Powers[i].Id] = Math.Max(0, root.Powers[i].Amount);
         if (continuous)
-        {
-            if (focused) throw new ArgumentException("连续增益不能叠加目标偏好。");
-            return new(initial, activation, false, -1, 0, continuous: true);
-        }
+            return new(initial, activation, continuous: true);
         Dictionary<string, int> names = new(StringComparer.OrdinalIgnoreCase);
         for (int id = 0; id < activation.Length; id++)
             names.Add(Normalize(Registry.Power((ushort)id).NativeId), id);
@@ -50,16 +43,7 @@ internal sealed class SetupSearchPolicy
                 activation[power] = Math.Max(activation[power], amount);
             }
         }
-        int slot = -1, hp = -1;
-        if (focused && root.RosterCount > 1)
-            for (int i = 0; i < root.RosterCount; i++)
-            {
-                int candidate = root.Roster[i];
-                ref readonly Enemy enemy = ref root.Enemies[candidate];
-                if (enemy.Creature.IsAlive && enemy.Creature.MaxHp > hp)
-                { slot = candidate; hp = enemy.Creature.MaxHp; }
-            }
-        return new(initial, activation, focused, slot, slot < 0 ? 0 : root.Enemies[slot].CombatId, continuous);
+        return new(initial, activation, continuous);
     }
 
     private static string Normalize(string value)
@@ -81,17 +65,14 @@ internal sealed class SetupSearchPolicy
         return value <= 0 ? 0 : 8d * value / (1d + value);
     }
 
-    internal int FocusHp(in Battle battle)
-        => FocusSlot >= 0 && FocusSlot < battle.EnemyCount
-            && battle.Enemies[FocusSlot].CombatId == _focusCombatId
-            ? Math.Max(0, battle.Enemies[FocusSlot].Creature.CurrentHp) : 0;
-
     internal void Encode(BinaryWriter writer)
     {
         writer.Write(_initialAmounts.Length);
         for (int i = 0; i < _initialAmounts.Length; i++)
         { writer.Write(_initialAmounts[i]); writer.Write(_activationAmounts[i]); }
-        writer.Write(Focused); writer.Write(FocusSlot); writer.Write(_focusCombatId);
+        writer.Write(false); // reserved: focused setup is removed.
+        writer.Write(-1);
+        writer.Write(0u);
     }
 
     internal static SetupSearchPolicy Decode(BinaryReader reader, bool continuous = false)
@@ -106,17 +87,16 @@ internal sealed class SetupSearchPolicy
         }
         bool focused = Codec.ReadBool(reader);
         int slot = reader.ReadInt32(); uint combatId = reader.ReadUInt32();
-        if (slot < -1 || slot >= Limits.Enemies || !focused && slot != -1 || continuous && focused)
-            throw new InvalidDataException("能力展开目标无效。");
-        return new(initial, activation, focused, slot, combatId, continuous);
+        if (focused || slot != -1 || combatId != 0)
+            throw new InvalidDataException("能力展开目标已删除，只接受无目标。");
+        return new(initial, activation, continuous);
     }
 
     internal void ValidateRoot(in Battle root, Rules rules)
     {
-        SetupSearchPolicy captured = Capture(root, rules, Focused, Continuous);
+        SetupSearchPolicy captured = Capture(root, rules, Continuous);
         if (!_initialAmounts.AsSpan().SequenceEqual(captured._initialAmounts)
-            || !_activationAmounts.AsSpan().SequenceEqual(captured._activationAmounts)
-            || FocusSlot != captured.FocusSlot || _focusCombatId != captured._focusCombatId)
+            || !_activationAmounts.AsSpan().SequenceEqual(captured._activationAmounts))
             throw new InvalidDataException("能力展开参数与搜索根不符。");
     }
 }

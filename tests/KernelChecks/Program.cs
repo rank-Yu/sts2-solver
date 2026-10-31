@@ -37,7 +37,7 @@ Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverage
 CheckRng();
 CheckGrowthRewards();
 Rules rules = SliceRules();
-SearchV2Checks.Check(rules);
+SearchChecks.Check();
 CheckHookDeactivation(rules);
 bool lateRegistrationThrew = false;
 try

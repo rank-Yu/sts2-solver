@@ -27,8 +27,8 @@ internal static class PotionStageGate
             || options.MinimumPotionUses != 0
             || options.EffectivePotionPolicy != PotionUseMode.Smart
             || options.Potions.EffectivePolicy != PotionUseMode.Smart
-            || options.EnforceForcedPotionDirectives || options.HasUnboundedGrowthTargets
-            || options.HpTargetStop != null || options.Ordering is not { } ordering
+            || options.HasUnboundedGrowthTargets
+            || options.Ordering is not { } ordering
             || options.Scorer is not { } scorer || roots.Count == 0)
             return false;
         ScoreRules scores = scorer.RulesForCodec;
@@ -69,7 +69,7 @@ internal static class PotionStageGate
             }
         }
         if (minimum == int.MaxValue || minimum <= 0) return false;
-        int discounted = PotionUsePolicy.ApplyReplacementCredit(minimum, 1, options.PotionReplacementHpCredit);
+        int discounted = PotionUsePolicy.ApplyReplacementCredit(minimum, 1, 0);
         if (discounted <= 0 || ordering.BossHpRelief == BossHpRelief.ActClearHeal && discounted > int.MaxValue / 5)
             return false;
         int required = PotionUsePolicy.SmartRequiredHpSaved(discounted, ordering.BossHpRelief);

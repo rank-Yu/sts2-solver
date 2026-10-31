@@ -182,22 +182,8 @@ internal static class ScenarioBuilder
             throw new InvalidDataException("已有牌组恢复需要原版开局、完整牌组、有效生命金币及无获取效果的遗物。");
         if (request.SchemaVersion != 1)
             throw new NotSupportedException($"不支持的请求 schemaVersion：{request.SchemaVersion}。");
-        if (!string.IsNullOrWhiteSpace(request.CheckpointArchivePath))
-            throw new NotSupportedException("离线宿主不支持 checkpointArchivePath。");
-        if (!string.IsNullOrWhiteSpace(request.ReplayPolicyOverridePath))
-            throw new NotSupportedException("离线宿主不支持 replayPolicyOverridePath。");
-        if (request.FlashSearchModeForTest is { Length: > 0 } searchMode && searchMode != "On")
-            throw new NotSupportedException($"不支持的 flashSearchModeForTest：{searchMode}。");
         if (request.HeadlessFastModeForTest is { Length: > 0 } headless && headless != "Instant")
             throw new NotSupportedException($"不支持的 headlessFastModeForTest：{headless}。");
-        if (request.DeploymentFastModeForTest is { Length: > 0 } deployment && deployment != "Instant")
-            throw new NotSupportedException($"不支持的 deploymentFastModeForTest：{deployment}。");
-        if (request.DeploymentInterActionDelaySecondsForTest is { } delay && delay != 0)
-            throw new NotSupportedException($"不支持的 deploymentInterActionDelaySecondsForTest：{delay}。");
-        if (request.UseNoveltyPortfolioForTest)
-            throw new NotSupportedException("离线宿主不支持 useNoveltyPortfolioForTest=true。");
-        if (request.ExpectedUnexpectedReplansAtMost is { } replans && replans != 0)
-            throw new NotSupportedException($"不支持的 expectedUnexpectedReplansAtMost：{replans}。");
         if (request.TargetRoomType is not (RoomType.Monster or RoomType.Elite or RoomType.Boss))
             throw new NotSupportedException($"不支持的 targetRoomType：{request.TargetRoomType}。");
         if (request.TargetMapPointType is not (MapPointType.Unassigned or MapPointType.Monster

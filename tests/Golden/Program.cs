@@ -19,7 +19,7 @@ try
     {
         case "k0":
             RulesCodecContract.Run();
-            SearchV2Contracts.Run();
+            SearchContracts.Run();
             PowerEvidenceContracts.Run();
             RetrievalAndWitherContracts.Run();
             string magics = FormatContract.Run();
@@ -91,8 +91,8 @@ internal static class VerifyCommand
                 case "--only":
                     only = Next(args, ref index, "--only") switch
                     {
-                        "simulation" or "d1" => "simulation",
-                        "search" or "d2" => "search",
+                        "simulation" => "simulation",
+                        "search" => "search",
                         var value => throw new InvalidDataException($"--only 只能是 simulation 或 search，实际为 {value}。"),
                     };
                     break;

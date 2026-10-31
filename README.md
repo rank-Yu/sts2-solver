@@ -1,58 +1,41 @@
 # STS2 Solver · 尖塔求解器
 
-面向《杀戮尖塔 2》原版单人、同种子 SL 模式的战斗求解 Mod。读取当前战斗和真实随机数状态，搜索整场路线，通过原版入口自动出牌、用药并逐动作核对结果。
+《杀戮尖塔 2》的战斗求解 Mod，面向原版单人、同种子 SL 模式。它读取当前战斗和真实的随机数状态，搜索整场战斗的出牌路线，再通过游戏自己的操作入口自动出牌、用药，并逐个动作核对实际结果。
 
-当前以战斗功能为发布范围，局外由玩家操作。局外开发代码保存在 `dev/full-run` 分支；完整版本的存档标签为 `archive/full-run-before-combat-release`。
+“同种子 SL”指同一个种子下存档读档：随机结果是确定的，求解器正是靠这一点预测每一步的结果。
+
+本 Mod 只接管战斗；地图、事件、商店等局外操作仍由玩家完成。
+
+## 安装
+
+需要游戏 v0.111.0，以及兼容的 RitsuLib（清单要求最低 0.6.0）。
+
+1. 单独安装 RitsuLib。
+2. 把发布包里的 `Sts2Solver/` 目录放进游戏的 `mods/` 目录。
+
+不要和 CombatSolver 同时安装：检测到 CombatSolver 时，本 Mod 不启用，以免两个求解器同时控制战斗。
 
 ## 使用
 
-需要游戏 v0.111.0 及兼容的 RitsuLib（清单最低版本 0.6.0）。把发布包中的 `Sts2Solver/` 目录放入游戏的 `mods/` 目录，并单独安装 RitsuLib。
+- 在自己的出牌阶段按 **F8**，开启本场战斗的自动执行；再按一次 F8 停止。停止时已经入队的原版动作会执行完。
+- 战斗结束后自动停止，下一场需要重新按 F8。
+- 预测和实际状态不符时，丢弃剩下的路线并重新搜索；同一回合连续失败 3 次就停下，交还手动操作。
+- 遇到不支持的内容（例如第三方 Mod 加入的卡牌）会明确拒绝，不会乱打。
+- 目前固定使用中档搜索，还没有设置界面。状态和错误写在游戏日志里，条目前缀是 `[Sts2Solver]`。
 
-- 在自己的出牌阶段按 **F8**，开启本场战斗自动执行；再次按 F8 停止。
-- 当前采用中档搜索，状态与错误写入游戏日志。设置界面尚未提供。
-- 战斗结束自动停止，下一场需要重新开启。停止时已经入队的原版动作会完成。
-- 检测到 CombatSolver 同时安装时，本 Mod 不启用，避免同时控制战斗。
-- 预测与实际状态不符时会丢弃路线并重新搜索；连续失败后停止并交还手动。不支持的内容会明确拒绝。
+## 构建
 
-安装、构建与测试版说明见 [Mod 使用与构建](docs/mod.md)。
+需要 .NET 9 SDK。
 
-## 架构
-
-| 目录 | 职责 |
-| --- | --- |
-| `src/Core/Simulation/Combat` | 战斗状态（打包牌区）、规则、动作和回合结算 |
-| `src/Core/Content` | 五角色卡牌、状态、怪物、遗物、药水、球与附魔效果 |
-| `src/Core/Ai/Combat` | 搜索调度、评分、分支保留、去重与预算 |
-| `src/Core/Autoplay` | `CombatPilot`：整场决策、路线续用与重搜 |
-| `src/Import/Combat` | 只读导入游戏状态、编译规则与搜索配置 |
-| `src/Mod` | 游戏入口、F8、后台搜索、动作执行与实际结果核对 |
-| `src/TestHost/Combat` | 测试场景创建、注入、原生状态转储 |
-| `src/TestHost/ModTesting` | 仅测试版 Mod 编入的实机测试入口与补丁 |
-| `tests` | 合同、架构、冻结回归、原版差分与质量语料 |
-| `tools/testing` | 本地验证与无头实机测试脚本 |
-
-Core 只依赖 .NET 基础库。`Battle` 是不含对象引用的结构体；搜索池按“头部 + 实际牌数”的打包前缀保存状态，热路径只复制这份前缀，牌数不再固定为 96。正式发布包不包含局外模块、测试场景注入或测试补丁。完整依赖规则与文档索引见 [架构说明](docs/README.md)。
-
-## 构建与验证
-
-需要 .NET 9 SDK。无需游戏文件的完整验证：
+不需要游戏文件的完整验证（内核合同、架构检查、冻结回归）：
 
 ```bash
 tools/testing/verify-core.sh --jobs 8
 ```
 
-也可分别执行：
+冻结回归与基准一致只说明行为没变，不代表路线最优；搜索质量另由质量语料评估。
 
-```bash
-dotnet build Sts2Solver.sln -c Release
-dotnet run --project tests/KernelChecks -c Release --no-build
-dotnet run --project tests/Architecture -c Release --no-build
-dotnet run --project tests/Golden -c Release --no-build -- k0
-dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/data --only simulation --jobs 8
-dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/data --only search --jobs 8
-```
-
-模拟回归检查固定操作后的战斗状态；搜索回归检查固定请求的搜索结果。它们与基准一致不代表路线最优，搜索质量另由质量语料评估。实验记录与验证流水保存在本地 `.local/`，不提交。
+构建 Mod 本身需要本机的游戏文件，路径配置和正式版、测试版的区别见 [Mod 安装与构建](docs/mod.md)。架构、文档索引和术语见 [docs/README.md](docs/README.md)。
 
 ## 来源与许可
 

@@ -61,6 +61,7 @@ internal static class UiLogicChecks
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("search_memory_priority", MemoryPriority);
+        Check("search_thread_count", ThreadCount);
         Check("english_catalog_placeholders", LocaleCatalog);
         Check("panel_text_catalog", PanelTextCatalog);
         try
@@ -206,6 +207,29 @@ internal static class UiLogicChecks
             SearchMemoryBudget.Resolve(null, "nope", gib);
         Require(unparseable.Source == SearchMemoryBudgetSource.Default, "unparseable_env_source");
         Require(unparseable.Bytes == gib, "unparseable_env_bytes");
+    }
+
+    private static void ThreadCount()
+    {
+        SearchThreadCountResolution many = SearchThreadCount.Resolve(null, 24);
+        Require(many.Threads == 8 && many.Source == SearchThreadCountSource.Default,
+            "default_upper_clamp");
+        SearchThreadCountResolution four = SearchThreadCount.Resolve(null, 4);
+        Require(four.Threads == 2, "default_minus_two");
+        SearchThreadCountResolution one = SearchThreadCount.Resolve(null, 1);
+        Require(one.Threads == 1, "default_floor");
+        SearchThreadCountResolution environment = SearchThreadCount.Resolve("3", 24);
+        Require(environment.Threads == 3 && environment.Source == SearchThreadCountSource.Environment,
+            "env_source");
+        SearchThreadCountResolution clamped = SearchThreadCount.Resolve("99", 24);
+        Require(clamped.Threads == 8 && clamped.Source == SearchThreadCountSource.Environment,
+            "env_upper_clamp");
+        SearchThreadCountResolution invalid = SearchThreadCount.Resolve("0", 24);
+        Require(invalid.Threads == 8 && invalid.Source == SearchThreadCountSource.Default,
+            "invalid_env_fallthrough");
+        SearchThreadCountResolution unparseable = SearchThreadCount.Resolve("nope", 4);
+        Require(unparseable.Threads == 2 && unparseable.Source == SearchThreadCountSource.Default,
+            "unparseable_env_fallthrough");
     }
 
     private static void LocaleCatalog()

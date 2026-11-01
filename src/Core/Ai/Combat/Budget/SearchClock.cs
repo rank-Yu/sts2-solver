@@ -1,6 +1,10 @@
 namespace Sts2Solver.Ai.Combat;
 
-/// <summary>Monotonic decision clock used to report elapsed time and schedule member deadlines.</summary>
+/// <summary>
+/// Monotonic decision clock used to report elapsed time and schedule member deadlines. The default
+/// reader is <see cref="Environment.TickCount64"/>; a caller-supplied reader is also invoked from
+/// expansion worker threads through <c>DeadlineExpired</c>, so it must be thread-safe.
+/// </summary>
 internal sealed class SearchClock
 {
     private readonly Func<long> _clock;

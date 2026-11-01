@@ -78,6 +78,12 @@ internal sealed record OfflineRequest
     public bool DeterministicSearchForTest { get; init; } = true;
     public int? SearchCancelAfterMillisecondsForTest { get; init; }
 
+    // Host-only thread count for one single search. The production request never carries it, and
+    // omitted or 1 keeps the deterministic single-search path unchanged. Omitted when unset so a
+    // default request stays readable by a Mod build that predates the field.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SearchThreadsForTest { get; init; }
+
     // Whole-combat acceptance. The run starts full auto immediately after the root is captured and
     // uses normal-tier searches with the profile's soft time; HeadlessFastModeForTest may override
     // the combat animation speed (Instant by default for this mode).

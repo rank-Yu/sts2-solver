@@ -139,6 +139,7 @@ internal sealed partial class SolverMemoryBar : PanelContainer
             + "\n" + SolverText.Get("- 托管堆：.NET 托管对象当前占用，是工作集的一部分（彩色段）。")
             + "\n" + SolverText.Format($"- 整条代表运行时可用内存 {total}；灰色段是工作集里托管堆以外的部分。")
             + "\n" + SolverText.Get("- 搜索上限只约束求解器自己的搜索存储，不是游戏进程的内存上限。")
+            + "\n" + SolverText.Get("- 展开工作区按线程单独持有，不计入搜索上限；峰值在状态详情里单独显示。")
             + "\n" + SolverText.Format($"- 搜索上限来源：{SolverPanelText.MemorySource(memory.BudgetSource)}（环境变量 > 设置 > 默认 15%，至少 1 GiB）。");
     }
 

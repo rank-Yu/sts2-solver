@@ -376,17 +376,17 @@ internal static class TestSession
             combat, player, rules, battle, policy, facts,
             SearchPerformanceProfile.For(tier), request.DeterministicSearchForTest,
             SearchMemoryBudget.Bytes);
-        // SearchSession writes SREQ from this case; the budget fields are host-only and are not
-        // encoded, so attaching them keeps the request bytes identical while giving the single
-        // search the same pool budget the offline replay uses.
-        SearchCase runCase = request.DeterministicSearchForTest
-            ? searchCase with { Options = SearchBudgetPolicy.ApplyRegression(searchCase.Options) }
-            : searchCase with
-            {
-                Options = SearchBudgetPolicy.Apply(searchCase.Options,
-                    SearchBudgetPolicy.RegressionEndedKeepWidths,
-                    SearchBudgetPolicy.RegressionEndedTriggerWidths, SearchMemoryBudget.Bytes),
-            };
+        // SearchSession writes SREQ from this case; the budget and thread fields are host-only and
+        // are not encoded, so attaching them keeps the request bytes identical while giving the
+        // single search the same pool budget the offline replay uses.
+        BeamOptions options = request.DeterministicSearchForTest
+            ? SearchBudgetPolicy.ApplyRegression(searchCase.Options)
+            : SearchBudgetPolicy.Apply(searchCase.Options,
+                SearchBudgetPolicy.RegressionEndedKeepWidths,
+                SearchBudgetPolicy.RegressionEndedTriggerWidths, SearchMemoryBudget.Bytes);
+        if (request.SearchThreadsForTest is { } searchThreads)
+            options = options with { SearchThreads = searchThreads };
+        SearchCase runCase = searchCase with { Options = options };
         return new CapturedSearch(runCase, request.DeterministicSearchForTest, tier);
     }
 
@@ -507,6 +507,9 @@ internal static class TestSession
         if (request.SearchCancelAfterMillisecondsForTest is <= 0)
             throw new NotSupportedException(
                 $"searchCancelAfterMillisecondsForTest 必须为正：{request.SearchCancelAfterMillisecondsForTest}");
+        if (request.SearchThreadsForTest is < 1 or > 8)
+            throw new NotSupportedException(
+                $"searchThreadsForTest 必须在 1..8：{request.SearchThreadsForTest}");
         if (request.FullCombatForTest && request.FlashTurnSetupRootForTest)
             throw new NotSupportedException("整场测试不支持回合准备根。");
         if (request.UiSnapshotForTest && !request.FullCombatForTest)

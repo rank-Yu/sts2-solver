@@ -112,6 +112,7 @@ internal sealed partial class SolverDetailsPanel : PanelContainer
         Line(SolverText.Get("原因"), SolverPanelText.SearchReason(search.Reason));
         Line(SolverText.Get("档位"), SolverPanelText.Tier(search.Tier) + "  ·  "
             + SolverText.Format($"基准宽度每轮 {SolverPanelText.Seconds(search.BudgetMilliseconds)}"));
+        Line(SolverText.Get("搜索线程"), SolverPanelText.Count(search.SearchThreads));
         if (search.Phase == SearchUiPhase.Completed)
         {
             Line(SolverText.Get("结果"), search.Status switch
@@ -135,6 +136,8 @@ internal sealed partial class SolverDetailsPanel : PanelContainer
             Line(SolverText.Get("停止原因"), SolverPanelText.StopReasons(search.StopReason));
             Line(SolverText.Get("搜索内存"), SolverText.Format(
                 $"峰值 {SolverPanelText.Bytes(search.SearchMemoryPeakBytes)}，结束时 {SolverPanelText.Bytes(search.SearchMemoryUsedBytes)}"));
+            Line(SolverText.Get("工作区峰值"), SolverText.Format(
+                $"可增长 {SolverPanelText.Bytes(search.SearchWorkspaceGrowablePeakBytes)}，总计 {SolverPanelText.Bytes(search.SearchWorkspacePeakBytes)}，超限父节点 {SolverPanelText.Count(search.WorkspaceOverflowParents)}"));
             Line(SolverText.Get("进程内存峰值"), SolverText.Format(
                 $"托管堆 {SolverPanelText.Bytes(search.ManagedHeapPeakBytes)}，工作集 {SolverPanelText.Bytes(search.WorkingSetPeakBytes)}"));
             if (search.SoftTimeRisk)

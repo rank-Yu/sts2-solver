@@ -96,6 +96,7 @@ internal static class SearchSession
                 WriteBytes(Path.Combine(resultDirectory, "SREQ"), requestBytes);
             ModLog.Info(
                 $"[Sts2Solver] SEARCH_STARTED root={root} tier={tier} deterministic={deterministic} "
+                + $"threads={searchCase.Options.SearchThreads} "
                 + $"beam={searchCase.Options.BeamWidth} "
                 + (searchCase.Options.UnlimitedNodes ? "nodes=unlimited " : $"nodes={searchCase.Options.MaxExpandedNodes} ")
                 + $"soft_ms={(deterministic ? -1 : (long)searchCase.Options.SoftTimeBudget.TotalMilliseconds)} "
@@ -138,6 +139,8 @@ internal static class SearchSession
             elapsed.Stop();
             SampleMemory(ref managedPeak, ref workingSetPeak);
             long allocated = GC.GetTotalAllocatedBytes(precise: false) - allocatedBefore;
+            int frameWaits = pacer?.FrameRecoveryWaitCount ?? 0;
+            long frameWaitMilliseconds = (long)(pacer?.FrameRecoveryWaitDuration.TotalMilliseconds ?? 0d);
 
             bool workerExited = worker.IsCompleted;
             SearchRunResult result;
@@ -146,10 +149,17 @@ internal static class SearchSession
                 result = SearchRunResult.Cancelled(root, elapsed.ElapsedMilliseconds,
                     solver?.ExpandedNodes ?? 0, solver?.TransitionCount ?? 0,
                     managedPeak, workingSetPeak, allocated, workerExited, pacer?.YieldCount ?? 0,
-                    Reason());
+                    Reason()) with
+                {
+                    SearchThreads = searchCase.Options.SearchThreads,
+                    PacerFrameRecoveryWaits = frameWaits,
+                    PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
+                };
                 ModLog.Info(
                     $"[Sts2Solver] SEARCH_CANCELLED root={root} reason={result.Error} "
-                    + $"ms={elapsed.ElapsedMilliseconds} worker_exited={workerExited}");
+                    + $"threads={result.SearchThreads} ms={elapsed.ElapsedMilliseconds} "
+                    + $"worker_exited={workerExited} yields={result.PacerYields} "
+                    + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds}");
             }
             else if (worker.IsFaulted)
             {
@@ -157,7 +167,12 @@ internal static class SearchSession
                 (string status, string reason) = Classify(error);
                 result = SearchRunResult.Failed(root, elapsed.ElapsedMilliseconds,
                     managedPeak, workingSetPeak, allocated, workerExited, pacer?.YieldCount ?? 0,
-                    status, reason);
+                    status, reason) with
+                {
+                    SearchThreads = searchCase.Options.SearchThreads,
+                    PacerFrameRecoveryWaits = frameWaits,
+                    PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
+                };
                 ModLog.Error(
                     $"[Sts2Solver] SEARCH_FAILED root={root} stage=solve kind={result.ErrorKind} "
                     + $"reason={result.Error} ms={elapsed.ElapsedMilliseconds}");
@@ -167,17 +182,26 @@ internal static class SearchSession
                 BeamResult beam = worker.GetAwaiter().GetResult();
                 result = SearchRunResult.Ok(root, beam, elapsed.ElapsedMilliseconds,
                     managedPeak, workingSetPeak, allocated, workerExited, pacer?.YieldCount ?? 0,
-                    searchCase);
+                    searchCase) with
+                {
+                    PacerFrameRecoveryWaits = frameWaits,
+                    PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
+                };
                 if (resultDirectory != null && deterministic)
                     WriteBytes(Path.Combine(resultDirectory, "SRES"), SearchCodec.EncodeResult(beam));
                 ModLog.Info(
                     $"[Sts2Solver] SEARCH_DONE root={root} ms={elapsed.ElapsedMilliseconds} "
+                    + $"threads={result.SearchThreads} "
                     + $"expanded={beam.ExpandedNodes} transitions={beam.Transitions} turns={beam.TurnsSearched} "
                     + $"victory={beam.BestIsVictory} score={beam.BestScore} actions={beam.BestRoute.Length} "
                     + $"duplicates={beam.Duplicates} pruned={beam.PrunedIncumbents} "
                     + $"capacity_pruned={beam.CapacityPruned} managed_peak_mb={ToMegabytes(managedPeak):0.0} "
                     + $"working_set_peak_mb={ToMegabytes(workingSetPeak):0.0} "
-                    + $"allocated_mb={ToMegabytes(allocated):0.0} yields={pacer?.YieldCount ?? 0}");
+                    + $"allocated_mb={ToMegabytes(allocated):0.0} yields={pacer?.YieldCount ?? 0} "
+                    + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} "
+                    + $"workspace_overflow_parents={beam.WorkspaceOverflowParents} "
+                    + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "
+                    + $"workspace_peak_mb={ToMegabytes(beam.SearchWorkspacePeakBytes):0.0}");
             }
 
             if (resultDirectory != null)
@@ -327,6 +351,13 @@ internal sealed record SearchRunResult(
     SearchCase? Case = null,
     BeamResult? Beam = null)
 {
+    public int SearchThreads { get; init; } = 1;
+    public int WorkspaceOverflowParents { get; init; }
+    public long SearchWorkspaceGrowablePeakBytes { get; init; }
+    public long SearchWorkspacePeakBytes { get; init; }
+    public int PacerFrameRecoveryWaits { get; init; }
+    public long PacerFrameRecoveryWaitMilliseconds { get; init; }
+
     public static SearchRunResult Busy(string root) => new(
         root, "failed", "busy", "已有搜索在运行", "busy", 0, 0, 0, 0, 0,
         false, 0, 0, "", 0, 0, 0, 0, 0, false, 0);
@@ -352,13 +383,21 @@ internal sealed record SearchRunResult(
             result.Transitions, result.Duplicates, result.TurnsSearched, result.BestIsVictory,
             result.BestScore, result.BestRoute.Length, Summarize(result.BestRoute),
             result.CapacityPruned, result.PrunedIncumbents, managedPeak, workingSetPeak,
-            allocated, workerExited, yields, searchCase, result);
+            allocated, workerExited, yields, searchCase, result)
+        {
+            SearchThreads = searchCase.Options.SearchThreads,
+            WorkspaceOverflowParents = result.WorkspaceOverflowParents,
+            SearchWorkspaceGrowablePeakBytes = result.SearchWorkspaceGrowablePeakBytes,
+            SearchWorkspacePeakBytes = result.SearchWorkspacePeakBytes,
+        };
 
     public SearchMetrics ToMetrics(SearchPerformanceTier tier, bool deterministic) => new(
         1, Root, Status, Stage, Error, ErrorKind, tier.ToString(), deterministic,
         ElapsedMilliseconds, ExpandedNodes, Transitions, Duplicates, TurnsSearched, Victory,
         Score, RouteActionCount, CapacityPruned, PrunedIncumbents, ManagedHeapPeakBytes,
-        WorkingSetPeakBytes, AllocatedBytes, WorkerExited, PacerYields);
+        WorkingSetPeakBytes, AllocatedBytes, WorkerExited, PacerYields,
+        PacerFrameRecoveryWaits, PacerFrameRecoveryWaitMilliseconds, SearchThreads,
+        WorkspaceOverflowParents, SearchWorkspaceGrowablePeakBytes, SearchWorkspacePeakBytes);
 
     private static string Summarize(PlayerAction[] route)
     {
@@ -391,4 +430,10 @@ internal sealed record SearchMetrics(
     long WorkingSetPeakBytes,
     long AllocatedBytes,
     bool WorkerExited,
-    int PacerYields);
+    int PacerYields,
+    int PacerFrameRecoveryWaits,
+    long PacerFrameRecoveryWaitMilliseconds,
+    int SearchThreads,
+    int WorkspaceOverflowParents,
+    long SearchWorkspaceGrowablePeakBytes,
+    long SearchWorkspacePeakBytes);

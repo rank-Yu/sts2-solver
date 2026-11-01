@@ -193,6 +193,9 @@ internal static class CombatSearchCoordinator
                 RouteNodePeakCount = beam?.RouteNodePeakCount ?? 0,
                 ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
                 WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
+                WorkspaceOverflowParents = beam?.WorkspaceOverflowParents ?? 0,
+                SearchWorkspacePeakBytes = beam?.SearchWorkspacePeakBytes ?? 0,
+                SearchWorkspaceGrowablePeakBytes = beam?.SearchWorkspaceGrowablePeakBytes ?? 0,
             });
             if (error != null || cancelled || stop == "memory" || goalReached) break;
         }
@@ -213,6 +216,9 @@ internal static class CombatSearchCoordinator
             : bestOutcome is Outcome.Defeat or Outcome.EventDefeat ? CombatSearchStatus.Defeat
             : CombatSearchStatus.Incomplete;
         return new(status, error == null && !cancelled ? best : null, bestIndex, budget.Elapsed,
-            expanded, [.. logs], error);
+            expanded, [.. logs], error)
+        {
+            SearchThreads = initial.Options.SearchThreads,
+        };
     }
 }

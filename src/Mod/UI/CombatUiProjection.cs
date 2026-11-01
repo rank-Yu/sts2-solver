@@ -55,7 +55,7 @@ internal static class CombatUiProjection
         };
 
     internal static SearchUiSnapshot SearchStarted(int turn, string reason, SearchPerformanceTier tier,
-        SearchPerformanceProfile profile, long startedAtMilliseconds)
+        SearchPerformanceProfile profile, int searchThreads, long startedAtMilliseconds)
         => new()
         {
             Phase = SearchUiPhase.Running,
@@ -63,12 +63,14 @@ internal static class CombatUiProjection
             Turn = turn,
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
+            SearchThreads = searchThreads,
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "running",
         };
 
     internal static SearchUiSnapshot SearchFailed(string errorCode, int turn, string reason,
-        SearchPerformanceTier tier, SearchPerformanceProfile profile, long startedAtMilliseconds)
+        SearchPerformanceTier tier, SearchPerformanceProfile profile, int searchThreads,
+        long startedAtMilliseconds)
         => new()
         {
             Phase = SearchUiPhase.Completed,
@@ -76,6 +78,7 @@ internal static class CombatUiProjection
             Turn = turn,
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
+            SearchThreads = searchThreads,
             ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - startedAtMilliseconds),
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "failed",
@@ -85,8 +88,8 @@ internal static class CombatUiProjection
         };
 
     internal static SearchUiSnapshot SearchCancelled(int turn, string reason,
-        SearchPerformanceTier tier, SearchPerformanceProfile profile, long startedAtMilliseconds,
-        SearchMemberRunUi[] memberRuns)
+        SearchPerformanceTier tier, SearchPerformanceProfile profile, int searchThreads,
+        long startedAtMilliseconds, SearchMemberRunUi[] memberRuns)
         => new()
         {
             Phase = SearchUiPhase.Completed,
@@ -94,6 +97,7 @@ internal static class CombatUiProjection
             Turn = turn,
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
+            SearchThreads = searchThreads,
             ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - startedAtMilliseconds),
             ExpandedNodes = memberRuns.Sum(static run => (long)run.ExpandedNodes),
             Transitions = memberRuns.Sum(static run => (long)run.Transitions),
@@ -128,6 +132,7 @@ internal static class CombatUiProjection
             Turn = turn,
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
+            SearchThreads = outcome.SearchThreads,
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             ElapsedMilliseconds = outcome.ElapsedMilliseconds,
             ExpandedNodes = outcome.TotalExpandedNodes,
@@ -145,6 +150,9 @@ internal static class CombatUiProjection
             MemoryBudgetExceeded = outcome.MemoryBudgetExceeded,
             SearchMemoryUsedBytes = outcome.SearchMemoryUsedBytes,
             SearchMemoryPeakBytes = outcome.SearchMemoryPeakBytes,
+            WorkspaceOverflowParents = outcome.WorkspaceOverflowParents,
+            SearchWorkspacePeakBytes = outcome.SearchWorkspacePeakBytes,
+            SearchWorkspaceGrowablePeakBytes = outcome.SearchWorkspaceGrowablePeakBytes,
             ManagedHeapPeakBytes = outcome.ManagedHeapPeakBytes,
             WorkingSetPeakBytes = outcome.WorkingSetPeakBytes,
             Members = outcome.Members.Select(static (member, index) => new SearchMemberUi

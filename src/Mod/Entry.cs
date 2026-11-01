@@ -49,7 +49,10 @@ public static class ModEntry
         SolverSettings.Initialize();
         SolverText.Initialize();
         if (NGame.IsMainThread())
+        {
+            SearchThreadCount.Resolve();
             CombatUiStore.Reset(CombatUiProjection.Idle(SearchMemoryBudget.Resolve()));
+        }
         else
             ModLog.Warn("[Sts2Solver] UI_STORE_DEFERRED reason=not_main_thread");
         ModLog.Info($"[Sts2Solver] INIT id={ModId} version={Version} name={DisplayName} english={EnglishName} test_mode={TestMode}");

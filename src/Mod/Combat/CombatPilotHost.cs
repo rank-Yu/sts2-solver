@@ -48,6 +48,7 @@ internal sealed class CombatPilotHost(
     private int _deploymentFailures;
     private List<SearchMemberRunUi> _memberRuns = [];
     private long _searchStartedAt;
+    private int _searchThreads = 1;
 
     public async ValueTask<CombatPilotTurn?> WaitForTurnAsync(CancellationToken token)
     {
@@ -110,6 +111,7 @@ internal sealed class CombatPilotHost(
         token.ThrowIfCancellationRequested();
         SearchPerformanceTier tier = AutoCombatSession.ResolveSearchTier(tierOverride);
         SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
+        _searchThreads = SearchThreadCount.Value;
         _searches++;
         _route = null;
         _completedActions = 0;
@@ -141,6 +143,10 @@ internal sealed class CombatPilotHost(
             searchRoot = tracker.ImportRoot(_combat, _player, rules);
             searchCase = SearchSession.CompileCase(
                 _combat, _player, rules, searchRoot, configurePolicy, deterministic: false, tier);
+            searchCase = searchCase with
+            {
+                Options = searchCase.Options with { SearchThreads = _searchThreads },
+            };
         }
         catch (UnsupportedImportException error)
         { return Rejected("import_failed", $"reason={error.Reason} {error.Detail}"); }
@@ -213,6 +219,8 @@ internal sealed class CombatPilotHost(
             $"expanded={outcome.TotalExpandedNodes} route={beam.BestRoute.Length} " +
             $"victory={beam.BestIsVictory} score={beam.BestScore} members={outcome.Members.Length} " +
             $"selected_member={outcome.SelectedMember} " +
+            $"threads={_searchThreads} overflow_parents={outcome.WorkspaceOverflowParents} " +
+            $"workspace_growable_peak_mb={outcome.SearchWorkspaceGrowablePeakBytes / (1024d * 1024d):0.0} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime}");
         return new CombatPilotSearch(route, "ok", outcome.ElapsedMs, outcome.TotalExpandedNodes,
             beam.BestRoute.Length, beam.BestIsVictory, null, null, null,
@@ -249,11 +257,14 @@ internal sealed class CombatPilotHost(
                 WorkingSetPeakBytes = result.WorkingSetPeakBytes,
                 AllocatedBytes = result.AllocatedBytes,
                 PacerYields = result.PacerYields,
+                PacerFrameRecoveryWaits = result.PacerFrameRecoveryWaits,
+                PacerFrameRecoveryWaitMilliseconds = result.PacerFrameRecoveryWaitMilliseconds,
             });
             PublishMemberFinished();
             ModLog.Info($"[Sts2Solver] AUTO_SEARCH_MEMBER turn={turn} reason={reason} " +
                 $"width={member.Options.BeamWidth} status={result.Status} " +
-                $"ms={result.ElapsedMilliseconds} expanded={result.ExpandedNodes}");
+                $"ms={result.ElapsedMilliseconds} expanded={result.ExpandedNodes} " +
+                $"yields={result.PacerYields} frame_waits={result.PacerFrameRecoveryWaits}");
             return new(result.Beam, result.Status, result.Error, result.ElapsedMilliseconds,
                 result.ManagedHeapPeakBytes, result.WorkingSetPeakBytes);
         }
@@ -521,7 +532,8 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        SearchUiSnapshot search = CombatUiProjection.SearchStarted(turn, reason, tier, profile, _searchStartedAt);
+        SearchUiSnapshot search = CombatUiProjection.SearchStarted(turn, reason, tier, profile,
+            _searchThreads, _searchStartedAt);
         CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.Searching,
@@ -541,7 +553,7 @@ internal sealed class CombatPilotHost(
         if (!CombatUiStore.Initialized)
             return;
         SearchUiSnapshot search = CombatUiProjection.SearchFailed(code, turn, reason, tier, profile,
-            _searchStartedAt);
+            _searchThreads, _searchStartedAt);
         CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,
@@ -557,7 +569,7 @@ internal sealed class CombatPilotHost(
         if (!CombatUiStore.Initialized)
             return;
         SearchUiSnapshot search = CombatUiProjection.SearchCancelled(turn, reason, tier, profile,
-            _searchStartedAt, [.. _memberRuns]);
+            _searchThreads, _searchStartedAt, [.. _memberRuns]);
         CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,

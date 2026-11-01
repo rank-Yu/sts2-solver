@@ -114,6 +114,9 @@ internal sealed record SearchUiSnapshot
 
     public string Reason { get; init; } = "";
 
+    /// <summary>Actual threads used by this search, including the search thread itself.</summary>
+    public int SearchThreads { get; init; } = 1;
+
     /// <summary><see cref="Environment.TickCount64"/> at search start; the panel derives the live elapsed time.</summary>
     public long StartedAtMilliseconds { get; init; }
 
@@ -163,6 +166,15 @@ internal sealed record SearchUiSnapshot
     public long SearchMemoryUsedBytes { get; init; }
 
     public long SearchMemoryPeakBytes { get; init; }
+
+    /// <summary>Parents that exceeded one workspace's growable-buffer cap and expanded straight through.</summary>
+    public int WorkspaceOverflowParents { get; init; }
+
+    /// <summary>Highest growable workspace bytes retained by one member; outside the search ledger.</summary>
+    public long SearchWorkspaceGrowablePeakBytes { get; init; }
+
+    /// <summary>Highest total workspace bytes retained by one member; outside the search ledger.</summary>
+    public long SearchWorkspacePeakBytes { get; init; }
 
     public long ManagedHeapPeakBytes { get; init; }
 
@@ -232,6 +244,11 @@ internal sealed record SearchMemberRunUi
     public long AllocatedBytes { get; init; }
 
     public int PacerYields { get; init; }
+
+    /// <summary>Frame-recovery waits, including those drained from expansion workers.</summary>
+    public int PacerFrameRecoveryWaits { get; init; }
+
+    public long PacerFrameRecoveryWaitMilliseconds { get; init; }
 }
 
 /// <summary>A route frozen into per-turn groups; indexes are global over the whole route.</summary>

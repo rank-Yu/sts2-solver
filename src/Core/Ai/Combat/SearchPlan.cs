@@ -67,6 +67,9 @@ internal sealed record SearchMemberResult(SearchMember Member, bool Ran, string?
     public int RouteNodePeakCount { get; init; }
     public long ManagedHeapPeakBytes { get; init; }
     public long WorkingSetPeakBytes { get; init; }
+    public int WorkspaceOverflowParents { get; init; }
+    public long SearchWorkspacePeakBytes { get; init; }
+    public long SearchWorkspaceGrowablePeakBytes { get; init; }
 }
 
 internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult? Beam,
@@ -89,4 +92,11 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
     internal int RouteNodePeakCount => Members.Select(m => m.RouteNodePeakCount).DefaultIfEmpty().Max();
     internal long ManagedHeapPeakBytes => Members.Select(m => m.ManagedHeapPeakBytes).DefaultIfEmpty().Max();
     internal long WorkingSetPeakBytes => Members.Select(m => m.WorkingSetPeakBytes).DefaultIfEmpty().Max();
+    internal int WorkspaceOverflowParents => Members.Sum(m => m.WorkspaceOverflowParents);
+    internal long SearchWorkspacePeakBytes => Members.Select(m => m.SearchWorkspacePeakBytes).DefaultIfEmpty().Max();
+    internal long SearchWorkspaceGrowablePeakBytes
+        => Members.Select(m => m.SearchWorkspaceGrowablePeakBytes).DefaultIfEmpty().Max();
+
+    /// <summary>Threads each member was allowed to use; host-only and not encoded in SREQ.</summary>
+    public int SearchThreads { get; init; } = 1;
 }

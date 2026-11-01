@@ -1,6 +1,6 @@
 # Sts2Solver 仓库工作指令
 
-本文件约束所有在本仓库中工作的编码代理。开始任务前完整阅读。术语（原引擎、根、稳定边界、模拟回归等）见 [docs/README.md](docs/README.md#术语)。
+本文件约束所有在本仓库中工作的编码代理。开始任务前完整阅读。文档索引与术语（原引擎、根、稳定边界、模拟回归等）见 [docs/README.md](docs/README.md)。
 
 ## 1. 边界
 
@@ -51,7 +51,7 @@
 
 ## 3. 冻结快照
 
-`tests/Golden/data` 是回归基准：从 CombatSolver 导出时逐步与原引擎核对过的期望值，来源记录在 `manifest.json` 的 `provenance`。格式与更新条件见 [docs/golden-data.md](docs/golden-data.md)。
+`tests/Golden/data` 是回归基准：从 CombatSolver 导出时逐步与原引擎核对过的期望值，来源记录在 `manifest.json` 的 `provenance`。
 
 - 改动 `src/Core` 的提交必须通过完整 `verify`（模拟回归与搜索回归）。
 - 不手改数据；`manifest.json` 只由 `Golden manifest` 重写。
@@ -59,11 +59,11 @@
 
 ## 4. 移植代码
 
-- 从 CombatSolver 移植的代码，在文件头保留来源路径、源提交与 MIT 声明。
-- 参照 CombatSolver 翻译编写的代码（例如对照原引擎的结算顺序、CombatSolver Runtime 的部署流程），同样在文件头或文档里注明对照来源。
-- 不从 CombatSolver 的 `src/Engine` 复制状态定义或方法体。
+- 从其他项目移植的代码，在文件头保留来源路径、源提交与许可声明。
+- 参照其他项目翻译编写的代码（例如对照上游的结算顺序或部署流程），同样在文件头或文档里注明对照来源。
+- 状态定义和方法体按本仓库的 `Battle` 布局重写，不从上游引擎复制。
 - 只移植 Sts2Solver 实际读取的成员，语义与注释原样保留。要改语义时另起提交，并按第 3 节处理。
-- README 的“来源与许可”一节保留 CombatSolver 与 Random Foreseer 的版权声明，不要删。
+- README 的“来源与许可”一节保留上游项目的版权声明，不要删。
 - `LICENSE` 与 `README.md` 随每个二进制发布包一起提供（README 里有上游的版权声明）。
 
 ## 5. 验证
@@ -88,8 +88,6 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 - 报告完成前，运行与改动相称的验证；无法执行时明确写“未验证”。
 - 只改文档时不跑搜索回归。同一输入已经通过的验证不重复跑。
 
-各层检查证明什么，见 [docs/testing.md](docs/testing.md)。
-
 ## 6. 提交与文档
 
 提交：
@@ -103,4 +101,4 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 
 - 文档用中文，每份文档只有一个职责。`docs/README.md` 是索引；新增、改名或删除文档时同步更新它，并用 `python3 tools/docs/check-links.py` 检查所有相对链接和锚点。
 - `docs/` 只保存架构、接口、使用说明、设计参考与测试方法。实验记录、跑分表、验证流水、任务规格和批次报告放在本地 `.local/`，不提交到仓库。进度与运行流水也不写进本文件。
-- 文档写现状，不写演变过程；不用里程碑或批次代号（如 M2c、R2a-5）代替说明。指 CombatSolver 引擎时统一说“原引擎”。
+- 文档写现状，不写演变过程；不用里程碑或批次代号（如 M2c、R2a-5）代替说明。

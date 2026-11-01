@@ -20,6 +20,7 @@ try
         case "k0":
             RulesCodecContract.Run();
             SearchContracts.Run();
+            SearchProgressContracts.Run();
             PowerEvidenceContracts.Run();
             RetrievalAndWitherContracts.Run();
             string magics = FormatContract.Run();
@@ -61,7 +62,8 @@ catch (AggregateException error)
 static void PrintUsage()
     => Console.Error.WriteLine(
         "用法：Golden verify <data-dir> [--jobs N] [--search-threads N] "
-        + "[--workspace-buffer-bytes N] [--workspace-stats] [--only simulation|search] "
+        + "[--workspace-buffer-bytes N] [--workspace-stats] [--progress] "
+        + "[--progress-throttle N] [--only simulation|search] "
         + "[--shard i/n] | "
         + "compare <data-dir> [--jobs N] [--search-threads N] "
         + "[--config none|play|choice|all|choice-fill|all-fill] "
@@ -85,6 +87,8 @@ internal static class VerifyCommand
         int searchThreads = 1;
         int workspaceBufferBytes = 0;
         bool workspaceStats = false;
+        bool progress = false;
+        int progressThrottleMilliseconds = 200;
         string only = "all";
         int shard = 0, shards = 1;
         for (int index = 1; index < args.Length; index++)
@@ -105,6 +109,14 @@ internal static class VerifyCommand
                     break;
                 case "--workspace-stats":
                     workspaceStats = true;
+                    break;
+                case "--progress":
+                    progress = true;
+                    break;
+                case "--progress-throttle":
+                    progressThrottleMilliseconds = ParseNonNegativeInt(
+                        Next(args, ref index, "--progress-throttle"), "--progress-throttle");
+                    progress = true;
                     break;
                 case "--only":
                     only = Next(args, ref index, "--only") switch
@@ -149,7 +161,7 @@ internal static class VerifyCommand
         {
             Stopwatch watch = Stopwatch.StartNew();
             d2 = SearchVerifier.Run(dataDirectory, jobs, shard, shards, searchThreads,
-                workspaceBufferBytes, workspaceStats);
+                workspaceBufferBytes, workspaceStats, progress, progressThrottleMilliseconds);
             watch.Stop();
             Console.WriteLine($"SEARCH_OK selected={d2.Selected} equal={d2.Equal} mismatch={d2.Mismatch} "
                 + $"expanded={d2.Expanded} prefixChecks={d2.PrefixChecks} threatChecks={d2.ThreatChecks} "
@@ -203,6 +215,13 @@ internal static class VerifyCommand
     {
         if (!int.TryParse(text, out int value) || value <= 0)
             throw new InvalidDataException($"{name} 需要正整数，实际为 {text}。");
+        return value;
+    }
+
+    private static int ParseNonNegativeInt(string text, string name)
+    {
+        if (!int.TryParse(text, out int value) || value < 0)
+            throw new InvalidDataException($"{name} 需要非负整数，实际为 {text}。");
         return value;
     }
 

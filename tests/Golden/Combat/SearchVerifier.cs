@@ -80,14 +80,15 @@ internal static class SearchVerifier
     }
 
     internal static SearchSummary Run(string dataDirectory, int jobs, int shard, int shards,
-        int searchThreads, int workspaceBufferBytes, bool workspaceStats)
+        int searchThreads, int workspaceBufferBytes, bool workspaceStats, bool progress,
+        int progressThrottleMilliseconds)
     {
         WorkspaceStatsCollector? stats = workspaceStats ? new WorkspaceStatsCollector() : null;
         BeamSolver.ParentWorkspaceObserver = stats is null ? null : stats.Add;
         try
         {
             return RunCore(dataDirectory, jobs, shard, shards, searchThreads,
-                workspaceBufferBytes, stats);
+                workspaceBufferBytes, stats, progress, progressThrottleMilliseconds);
         }
         finally
         {
@@ -96,14 +97,16 @@ internal static class SearchVerifier
     }
 
     private static SearchSummary RunCore(string dataDirectory, int jobs, int shard, int shards,
-        int searchThreads, int workspaceBufferBytes, WorkspaceStatsCollector? stats)
+        int searchThreads, int workspaceBufferBytes, WorkspaceStatsCollector? stats,
+        bool progress, int progressThrottleMilliseconds)
     {
         SearchShardPlan plan = BuildPlans(dataDirectory, shards)[shard];
         SearchRequestEntry[] selected = plan.Selected;
         if (selected.Length == 0)
             throw new InvalidDataException($"--shard {shard}/{shards} 没有选到 搜索回归请求。");
         Console.WriteLine($"SEARCH_SHARD shard={shard}/{shards} requests={selected.Length} "
-            + $"weight={plan.SelectedWeight} jobs={jobs} searchThreads={searchThreads}");
+            + $"weight={plan.SelectedWeight} jobs={jobs} searchThreads={searchThreads} "
+            + $"progress={(progress ? progressThrottleMilliseconds.ToString() : "off")}");
 
         int equal = 0, completed = 0;
         long expanded = 0;
@@ -135,6 +138,12 @@ internal static class SearchVerifier
                 throw new InvalidDataException($"搜索回归请求 {hash} 的 SHA-256 是 {requestHash}。");
 
             SearchCase search = SearchCodec.DecodeRequest(requestBytes);
+            SearchProgressChannel? progressChannel = progress
+                ? new SearchProgressChannel(progressThrottleMilliseconds)
+                {
+                    Published = static _ => { },
+                }
+                : null;
             BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
             {
                 SoftTimeBudget = TimeSpan.MaxValue,
@@ -142,6 +151,7 @@ internal static class SearchVerifier
                 Trace = null,
                 SearchThreads = searchThreads,
                 WorkspaceBufferLimitBytes = workspaceBufferBytes,
+                Progress = progressChannel,
             });
             BeamResult actual = new BeamSolver(search.Rules, options)
                 .Solve(search.Battles, CancellationToken.None);

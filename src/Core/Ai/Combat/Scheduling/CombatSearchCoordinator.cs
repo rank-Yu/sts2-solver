@@ -72,6 +72,8 @@ internal static class CombatSearchCoordinator
         bool cancelled = false;
         bool goalReached = false;
         SortedDictionary<string, int>? capacityDrops = null;
+        SearchProgressChannel? progress = request.Progress;
+        SearchInterimResult? bestComplete = null;
         for (int index = 0; index < members.Length; index++)
         {
             token.ThrowIfCancellationRequested();
@@ -118,10 +120,12 @@ internal static class CombatSearchCoordinator
                 AuditPotionPolicy = potionPhase || requiredPlan
                     || initial.Options.InitialExplicitPotionUses > 0,
                 PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
+                Progress = progress,
             };
             options = SearchBudgetPolicy.Apply(options, plan.EndedKeepWidths,
                 plan.EndedTriggerWidths, plan.MemoryBytes);
             SearchMemberMeasurement measurement;
+            progress?.BeginMember(index, member, bestComplete);
             try
             {
                 measurement = await run(initial with { Options = options }, storage, token);
@@ -136,7 +140,54 @@ internal static class CombatSearchCoordinator
             else if (beam == null && measurement.Status is not ("ok" or "none" or "memory"))
                 error = measurement.Error ?? measurement.Status;
             expanded += beam?.ExpandedNodesTotal ?? 0;
+            if (beam is { StopWithoutCandidate: true })
+            {
+                logs.Add(new SearchMemberResult(member, true, null,
+                    Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal, "stopped",
+                    false, null, null, false, 0, 0));
+                return new CombatSearchResult(CombatSearchStatus.Cancelled, null, -1,
+                    budget.Elapsed, expanded, [.. logs], null)
+                {
+                    Completion = SearchCompletionKind.Cancelled,
+                    SearchThreads = initial.Options.SearchThreads,
+                };
+            }
+            if (beam is { Adoption: { } adoption })
+            {
+                logs.Add(new SearchMemberResult(member, true, null,
+                    Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal,
+                    adoption.Kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
+                    beam.BestIsVictory, null, null, true, beam.SearchMemoryPeakBytes,
+                    beam.EndedCompactions)
+                {
+                    MemoryUsedBytes = beam.SearchMemoryUsedBytes,
+                    MemoryBudgetExceeded = beam.SearchMemoryBudgetExceeded,
+                    MemoryExceededAtBytes = beam.SearchMemoryExceededAtBytes,
+                    RouteNodeStorageBytes = beam.RouteNodeStorageBytes,
+                    RouteNodePeakCount = beam.RouteNodePeakCount,
+                    ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
+                    WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
+                    WorkspaceOverflowParents = beam.WorkspaceOverflowParents,
+                    SearchWorkspacePeakBytes = beam.SearchWorkspacePeakBytes,
+                    SearchWorkspaceGrowablePeakBytes = beam.SearchWorkspaceGrowablePeakBytes,
+                });
+                CombatSearchStatus adoptionStatus = adoption.Outcome == Outcome.Victory
+                    ? CombatSearchStatus.Victory
+                    : adoption.Outcome is Outcome.Defeat or Outcome.EventDefeat
+                        ? CombatSearchStatus.Defeat
+                        : CombatSearchStatus.Incomplete;
+                return new CombatSearchResult(adoptionStatus, beam, index, budget.Elapsed,
+                    expanded, [.. logs], null)
+                {
+                    Completion = adoption.Kind == SearchAdoptionKind.Stopped
+                        ? SearchCompletionKind.StoppedWithCandidate
+                        : SearchCompletionKind.Adopted,
+                    Adoption = adoption,
+                    SearchThreads = initial.Options.SearchThreads,
+                };
+            }
             bool adopted = false;
+            SearchInterimResult? completeVictory = null;
             int? hpLost = null;
             int? potionCount = null;
             CombatSearchStatus? memberStatus = null;
@@ -174,12 +225,20 @@ internal static class CombatSearchCoordinator
                         bestIndex = index;
                         adopted = true;
                         goalReached = meetsGoal;
+                        if (candidate.Key.Won)
+                        {
+                            completeVictory = new SearchInterimResult(index, true, rawHpLost,
+                                candidate.ExplicitPotionUseCount, beam.BestRoute.Length,
+                                candidate.Key.Score, candidate.Key.CombatEndedTurn);
+                        }
                     }
                 }
                 catch (TimeoutException) { stop = "deadline"; }
                 catch (InvalidDataException exception) { error = exception.Message; stop = "invalid"; }
                 catch (CapacityException exception) { error = exception.Message; stop = "invalid"; }
             }
+            if (completeVictory != null)
+                bestComplete = completeVictory;
             logs.Add(new(member, true, null, Math.Max(0, budget.Now - memberStarted),
                 beam?.ExpandedNodesTotal ?? 0, stop, beam?.BestIsVictory ?? false, hpLost, potionCount,
                 adopted, beam?.SearchMemoryPeakBytes ?? storage.Memory.PeakBytes,
@@ -218,6 +277,9 @@ internal static class CombatSearchCoordinator
         return new(status, error == null && !cancelled ? best : null, bestIndex, budget.Elapsed,
             expanded, [.. logs], error)
         {
+            Completion = cancelled ? SearchCompletionKind.Cancelled
+                : error != null || capacityBounded ? SearchCompletionKind.Failed
+                : SearchCompletionKind.Completed,
             SearchThreads = initial.Options.SearchThreads,
         };
     }

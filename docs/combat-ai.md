@@ -194,6 +194,60 @@ Mod 默认用可用内存的 15%，下限 1 GiB，可由 `STS2_SOLVER_SEARCH_MEM
 
 审计搜索还会记录“实际访问或保留过的状态里，每种主动用药次数的最佳候选”。成员内部先按原政策筛选，协调器再统一比较各成员可回放的路线。成员日志给出各次数的质量和资格摘要、有效上限和完整性标志；摘要因截止、内存或容量而不完整时，不会声称覆盖了所有见过的候选。
 
-## 9. 移植来源
+## 9. 搜索进度与采用
+
+`SearchProgressChannel` 把搜索过程发布为主线程可轮询的不可变快照。没有订阅者时
+`BeamOptions.Progress` 为 null，搜索不分配、不复制、不调用回调；这条路径用于离线工具、
+Golden 和 Mod 的默认整场流程。订阅只读取搜索状态，不改变展开顺序、随机数或预算计数。
+
+### 9.1 快照内容
+
+`SearchProgressSnapshot` 每份包含：
+
+| 字段 | 含义 |
+| --- | --- |
+| `MemberIndex`、`Member` | 当前成员序号，以及它的宽度、评价、保留方式和用药限制。 |
+| `ExpandedNodes`、`ElapsedMilliseconds` | 本次求解累计展开的物理父节点数和已用时间。 |
+| `Route` | 推演路线：候选版本、起始回合、覆盖到的回合、根下标、从根到该节点的动作序列，以及逐回合的动作和回合末数值。逐回合数值包括掉血、回血、敌方掉血、剩余能量和是否结束战斗；另外带完整胜利标记和“候选全是死亡路线”标记。 |
+| `CurrentTurn` | 当前回合预览：推演路线中属于起始回合的动作，以及该回合的掉血、回血、敌方掉血、剩余能量和是否结束战斗。 |
+| `BestCompleteResult` | 此前成员中已经采用的最好完整胜利路线摘要：成员序号、掉血、用药次数、动作数、分数和结束回合。没有完整胜利时为空。 |
+| `CandidateVersion` | 单调递增的候选版本号；没有候选时保持上一次的值。 |
+
+推演路线取当前保留节点中按最终排序最好的一个，语义对照 CombatSolver
+`src/Search/CombatBeamSolver.Phases.cs:883-1030` 的 `BuildRoutePreview` /
+`PublishRoutePreview`：先过滤没有动作的根席位，再按 `FinalOrdering` 的键比较，淘汰后胜出者
+从根回放。Sts2Solver 不保存每个节点的快照，因此回放同时生成逐回合数值；当前回合预览取回放
+结果中起始回合的那一段，对应 `RefreshCurrentTurnPreview`（同文件 `412-451`）。只有完整胜利
+才会更新 `BestCompleteResult`，对应 `src/Search/CombatSearchCoordinator.cs:29-140` 的
+`PublishAdoptableResult` 规则。
+
+### 9.2 发布时点与节流
+
+发布只在搜索线程的提交阶段发生：每回合开始、每个动作层提交完并筛选后、每个回合边界筛选后。
+工作线程只做 `Expand`，不接触进度对象。默认节流是 200 毫秒（`Environment.TickCount64`
+墙钟）；测试和离线工具可以把节流设为 0，让每个检查点都发布。测试版 Mod 可以用
+`STS2_SOLVER_SEARCH_PROGRESS=1` 打开订阅，用
+`STS2_SOLVER_SEARCH_PROGRESS_THROTTLE_MS=0` 把节流设成零。一次发布可能没有候选
+（例如搜索刚开始），此时版本号不变。
+
+### 9.3 采用与停止
+
+- `RequestAdopt(candidateVersion)`：在下一个检查点收尾。搜索从该候选记录的动作和根下标重新
+  回放，确认动作合法、最终 `Battle` 与候选快照逐字节一致（`Fingerprint.Equal`）后，返回与完整
+  搜索同类型的 `BeamResult`。结果带 `Adoption`，写明候选版本、覆盖到的回合、采用方式（请求或
+  停止）和终局。回放不一致时抛 `InvalidDataException`，不交出半成品路线。
+- `RequestStop()`：有已发布候选时等同于采用最新版本并以“停止”方式收尾；没有候选时返回
+  `StopWithoutCandidate`，协调器把它归为取消，不产出路线。
+- 候选版本保留最近 8 个。旧版本仍在窗口内时仍可被采用，对应 CombatSolver
+  `SolverRouteAdoptionSeed` 保留自己的物化闭包（`src/Runtime/SolverProgress.cs:30-52`）；
+  已被挤出窗口或从未发布的版本在检查点显式失败（`InvalidDataException`），不默默改采最新
+  版本。面板总应使用它渲染过的版本，停止则总是取最新版本。
+
+`CombatSearchResult.Completion` 区分完整结束、采用、停止并保留候选、取消和失败；
+`SearchRunResult.Completion` 是单成员层面的同一分类。Mod 侧 `SearchSession.LatestProgress`
+供主线程每帧读取，`RequestAdopt` / `RequestStop` 是线程安全的请求入口，
+`ConfigureProgress` 控制后续搜索是否订阅。
+
+## 10. 移植来源
 
 能力政策和搜索组合参照 CombatSolver `src/Search/BeamWidthPortfolio.cs`、`src/Search/CombatSearchCoordinator.BeamPortfolio.cs`、`src/Search/CombatSearchCoordinator.PotionChain.cs` 与 `src/Search/PowerCardValuation/Cards/*/*PowerRoutePolicy.cs`，提交 `a62f1850`，MIT License，Copyright (c) 2026 Torch1230 and contributors。

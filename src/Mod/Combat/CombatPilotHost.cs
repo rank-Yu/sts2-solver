@@ -163,15 +163,20 @@ internal sealed class CombatPilotHost(
             _combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Elite, _combat.RunState.CurrentActIndex);
         SearchStorage storage = new();
         CombatSearchResult outcome;
+        SearchProgressChannel? progress = SearchSession.BeginProgress();
         try
         {
             outcome = await CombatSearchCoordinator.RunAsync(
-                new(searchCase, plan), storage, RunMember, token);
+                new(searchCase, plan) { Progress = progress }, storage, RunMember, token);
         }
         catch (OperationCanceledException)
         {
             PublishSearchCancelled(turn, reason, tier, profile);
             throw;
+        }
+        finally
+        {
+            SearchSession.EndProgress(progress);
         }
         if (outcome.Beam is not { } beam)
         {

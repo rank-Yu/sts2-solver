@@ -169,6 +169,12 @@ internal sealed record BeamOptions(
     public int WorkspaceBufferLimitBytes { get; init; }
 
     /// <summary>
+    /// Optional progress subscriber. Null is the default and keeps the search free of progress
+    /// work; a channel is host-only and never enters SREQ.
+    /// </summary>
+    public SearchProgressChannel? Progress { get; init; }
+
+    /// <summary>
     /// Offline route trace for test diagnostics only. Production never sets it; the solver only
     /// reports the points it already evaluates.
     /// </summary>
@@ -251,6 +257,12 @@ internal sealed record BeamResult(
 
     internal static readonly IReadOnlyDictionary<string, int> NoCapacityDrops =
         new Dictionary<string, int>(0);
+
+    /// <summary>Set when the solve ended by adopting a published candidate.</summary>
+    public SearchAdoptionInfo? Adoption { get; init; }
+
+    /// <summary>Set when a stop request had no published candidate; no route is returned.</summary>
+    public bool StopWithoutCandidate { get; init; }
 
     /// <summary>Children dropped because their state exceeded a Sts2Solver capacity (a search boundary).</summary>
     public int CapacityPruned { get; init; }
@@ -675,6 +687,7 @@ internal sealed partial class BeamSolver
         Stopwatch watch = Stopwatch.StartNew();
         _cancellationToken = cancellationToken;
         _solveWatch = watch;
+        BeginProgress(roots);
         _expanded = 0;
         _expandedTotal = 0;
         _transitions = 0;
@@ -828,6 +841,7 @@ internal sealed partial class BeamSolver
         while (turnFrontier.Count > 0 && turns < _options.MaxTurns && !OutOfBudget(watch))
         {
             SearchCheckpoint();
+            ProgressCheckpoint(turnFrontier, force: turns == 0);
             turns++;
             // The previous turn's end-turn pool is no longer a route consumer; clear it before the
             // boundary mark-sweep so only states that can still win a seat are retained.
@@ -842,6 +856,7 @@ internal sealed partial class BeamSolver
             while (current.Count > 0 && !OutOfBudget(watch))
             {
                 SearchCheckpoint();
+                PollProgressRequest();
                 next.Clear();
                 if (_nodes.Count >= _nodeCleanupThreshold)
                 {
@@ -879,6 +894,7 @@ internal sealed partial class BeamSolver
                 next.CopyTopTo(current, width);
                 PrunePool(current);
                 playDepth++;
+                ProgressCheckpoint(current, force: false);
             }
             if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
             turnFrontier.Clear();
@@ -888,6 +904,7 @@ internal sealed partial class BeamSolver
             ended.TracePhase = _tracePhase;
             ended.CopyTopTo(turnFrontier, width, turnBoundary: true);
             PrunePool(turnFrontier);
+            ProgressCheckpoint(turnFrontier, force: false);
             if (zeroDamageVictory)
                 break;
         }
@@ -901,10 +918,19 @@ internal sealed partial class BeamSolver
             _memoryBudgetExceeded = true;
             _memoryBudgetExceededAtBytes = error.UsedBytes;
         }
+        catch (SearchAdoptionException adoption)
+        {
+            _adoptedResult = adoption.Result;
+        }
         finally
         {
             _parallelExpansion?.Dispose();
             _parallelExpansion = null;
+        }
+        if (_adoptedResult is { } adopted)
+        {
+            _trace?.Finish("adopted", turns, _expanded);
+            return adopted;
         }
         if (_auditPotionPolicy)
         {

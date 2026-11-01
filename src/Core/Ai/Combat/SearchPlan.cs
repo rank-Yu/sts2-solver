@@ -45,6 +45,9 @@ internal sealed class CombatSearchRequest
 
     internal SearchCase Case => _case;
     internal SearchPlan Plan { get; }
+
+    /// <summary>Optional progress publisher for this request; null keeps the search progress-free.</summary>
+    internal SearchProgressChannel? Progress { get; init; }
 }
 
 /// <summary>
@@ -99,4 +102,10 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
 
     /// <summary>Threads each member was allowed to use; host-only and not encoded in SREQ.</summary>
     public int SearchThreads { get; init; } = 1;
+
+    /// <summary>How the request ended; <see cref="SearchCompletionKind.Completed"/> for an ordinary solve.</summary>
+    internal SearchCompletionKind Completion { get; init; } = SearchCompletionKind.Completed;
+
+    /// <summary>Adoption provenance when <see cref="Completion"/> is an adoption.</summary>
+    internal SearchAdoptionInfo? Adoption { get; init; }
 }

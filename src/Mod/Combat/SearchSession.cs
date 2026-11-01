@@ -31,8 +31,73 @@ internal static class SearchSession
     private static string? _cancelReason;
     private static int _running;
     private static string _root = "";
+    private static int _progressSubscribed;
+    private static int _progressThrottleMilliseconds = 200;
+    private static SearchProgressChannel? _activeProgress;
+    private static SearchProgressSnapshot? _latestProgress;
+
+    static SearchSession()
+    {
+#if STS2_SOLVER_TESTING
+        // The testing build can force progress on (throttle 0 = every checkpoint) for headless runs.
+        if (Environment.GetEnvironmentVariable("STS2_SOLVER_SEARCH_PROGRESS") == "1")
+            _progressSubscribed = 1;
+        if (int.TryParse(Environment.GetEnvironmentVariable(
+                "STS2_SOLVER_SEARCH_PROGRESS_THROTTLE_MS"), out int throttle) && throttle >= 0)
+            _progressThrottleMilliseconds = throttle;
+#endif
+    }
 
     public static bool IsRunning => Volatile.Read(ref _running) != 0;
+
+    /// <summary>The newest immutable search snapshot; the main thread may poll it every frame.</summary>
+    internal static SearchProgressSnapshot? LatestProgress => Volatile.Read(ref _latestProgress);
+
+    /// <summary>Latest published candidate version, or zero when no search is running.</summary>
+    internal static int LatestCandidateVersion
+        => Volatile.Read(ref _activeProgress)?.LatestCandidateVersion ?? 0;
+
+    /// <summary>
+    /// Enables or disables progress publication for subsequent searches. The panel calls this when
+    /// its visible state changes; it does not affect the running solve.
+    /// </summary>
+    internal static void ConfigureProgress(bool subscribed, int throttleMilliseconds = 200)
+    {
+        Volatile.Write(ref _progressSubscribed, subscribed ? 1 : 0);
+        Volatile.Write(ref _progressThrottleMilliseconds, Math.Max(0, throttleMilliseconds));
+    }
+
+    /// <summary>Creates the per-request channel; null means the search does no progress work.</summary>
+    internal static SearchProgressChannel? BeginProgress()
+    {
+        if (Volatile.Read(ref _progressSubscribed) == 0)
+        {
+            Volatile.Write(ref _latestProgress, null);
+            Volatile.Write(ref _activeProgress, null);
+            return null;
+        }
+        SearchProgressChannel channel = new(Volatile.Read(ref _progressThrottleMilliseconds))
+        {
+            Published = static snapshot => Volatile.Write(ref _latestProgress, snapshot),
+        };
+        Volatile.Write(ref _latestProgress, null);
+        Volatile.Write(ref _activeProgress, channel);
+        return channel;
+    }
+
+    internal static void EndProgress(SearchProgressChannel? channel)
+    {
+        if (channel != null)
+            Interlocked.CompareExchange(ref _activeProgress, null, channel);
+    }
+
+    /// <summary>Requests adoption of one published candidate version.</summary>
+    internal static bool RequestAdopt(int candidateVersion)
+        => Volatile.Read(ref _activeProgress)?.RequestAdopt(candidateVersion) == true;
+
+    /// <summary>Stops the search; a published candidate is preserved, otherwise it is cancelled.</summary>
+    internal static bool RequestStop()
+        => Volatile.Read(ref _activeProgress)?.RequestStop() == true;
 
     /// <summary>
     /// Compiles a request for an already imported root and an already frozen rule table. Auto
@@ -180,28 +245,45 @@ internal static class SearchSession
             else
             {
                 BeamResult beam = worker.GetAwaiter().GetResult();
-                result = SearchRunResult.Ok(root, beam, elapsed.ElapsedMilliseconds,
-                    managedPeak, workingSetPeak, allocated, workerExited, pacer?.YieldCount ?? 0,
-                    searchCase) with
+                if (beam.StopWithoutCandidate)
                 {
-                    PacerFrameRecoveryWaits = frameWaits,
-                    PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
-                };
-                if (resultDirectory != null && deterministic)
-                    WriteBytes(Path.Combine(resultDirectory, "SRES"), SearchCodec.EncodeResult(beam));
-                ModLog.Info(
-                    $"[Sts2Solver] SEARCH_DONE root={root} ms={elapsed.ElapsedMilliseconds} "
-                    + $"threads={result.SearchThreads} "
-                    + $"expanded={beam.ExpandedNodes} transitions={beam.Transitions} turns={beam.TurnsSearched} "
-                    + $"victory={beam.BestIsVictory} score={beam.BestScore} actions={beam.BestRoute.Length} "
-                    + $"duplicates={beam.Duplicates} pruned={beam.PrunedIncumbents} "
-                    + $"capacity_pruned={beam.CapacityPruned} managed_peak_mb={ToMegabytes(managedPeak):0.0} "
-                    + $"working_set_peak_mb={ToMegabytes(workingSetPeak):0.0} "
-                    + $"allocated_mb={ToMegabytes(allocated):0.0} yields={pacer?.YieldCount ?? 0} "
-                    + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} "
-                    + $"workspace_overflow_parents={beam.WorkspaceOverflowParents} "
-                    + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "
-                    + $"workspace_peak_mb={ToMegabytes(beam.SearchWorkspacePeakBytes):0.0}");
+                    result = SearchRunResult.Cancelled(root, elapsed.ElapsedMilliseconds,
+                        beam.ExpandedNodes, beam.Transitions, managedPeak, workingSetPeak, allocated,
+                        workerExited, pacer?.YieldCount ?? 0, "stopped") with
+                    {
+                        SearchThreads = searchCase.Options.SearchThreads,
+                        PacerFrameRecoveryWaits = frameWaits,
+                        PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
+                    };
+                    ModLog.Info(
+                        $"[Sts2Solver] SEARCH_STOPPED root={root} reason=no_candidate "
+                        + $"ms={elapsed.ElapsedMilliseconds} worker_exited={workerExited}");
+                }
+                else
+                {
+                    result = SearchRunResult.Ok(root, beam, elapsed.ElapsedMilliseconds,
+                        managedPeak, workingSetPeak, allocated, workerExited, pacer?.YieldCount ?? 0,
+                        searchCase) with
+                    {
+                        PacerFrameRecoveryWaits = frameWaits,
+                        PacerFrameRecoveryWaitMilliseconds = frameWaitMilliseconds,
+                    };
+                    if (resultDirectory != null && deterministic)
+                        WriteBytes(Path.Combine(resultDirectory, "SRES"), SearchCodec.EncodeResult(beam));
+                    ModLog.Info(
+                        $"[Sts2Solver] SEARCH_DONE root={root} ms={elapsed.ElapsedMilliseconds} "
+                        + $"threads={result.SearchThreads} "
+                        + $"expanded={beam.ExpandedNodes} transitions={beam.Transitions} turns={beam.TurnsSearched} "
+                        + $"victory={beam.BestIsVictory} score={beam.BestScore} actions={beam.BestRoute.Length} "
+                        + $"duplicates={beam.Duplicates} pruned={beam.PrunedIncumbents} "
+                        + $"capacity_pruned={beam.CapacityPruned} managed_peak_mb={ToMegabytes(managedPeak):0.0} "
+                        + $"working_set_peak_mb={ToMegabytes(workingSetPeak):0.0} "
+                        + $"allocated_mb={ToMegabytes(allocated):0.0} yields={pacer?.YieldCount ?? 0} "
+                        + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} "
+                        + $"workspace_overflow_parents={beam.WorkspaceOverflowParents} "
+                        + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "
+                        + $"workspace_peak_mb={ToMegabytes(beam.SearchWorkspacePeakBytes):0.0}");
+                }
             }
 
             if (resultDirectory != null)
@@ -358,23 +440,38 @@ internal sealed record SearchRunResult(
     public int PacerFrameRecoveryWaits { get; init; }
     public long PacerFrameRecoveryWaitMilliseconds { get; init; }
 
+    /// <summary>How this member ended; adoption and stop are never reported as a plain completion.</summary>
+    public SearchCompletionKind Completion { get; init; } = SearchCompletionKind.Completed;
+
+    /// <summary>The adopted candidate's provenance, when <see cref="Completion"/> is an adoption.</summary>
+    public SearchAdoptionInfo? Adoption { get; init; }
+
     public static SearchRunResult Busy(string root) => new(
         root, "failed", "busy", "已有搜索在运行", "busy", 0, 0, 0, 0, 0,
-        false, 0, 0, "", 0, 0, 0, 0, 0, false, 0);
+        false, 0, 0, "", 0, 0, 0, 0, 0, false, 0)
+    {
+        Completion = SearchCompletionKind.Failed,
+    };
 
     public static SearchRunResult Cancelled(
         string root, long elapsed, int expanded, int transitions, long managedPeak,
         long workingSetPeak, long allocated, bool workerExited, int yields, string? reason)
         => new(root, "cancelled", "solve", reason ?? "canceled", "cancelled", elapsed,
             expanded, transitions, 0, 0, false, 0, 0, "", 0, 0, managedPeak, workingSetPeak,
-            allocated, workerExited, yields);
+            allocated, workerExited, yields)
+        {
+            Completion = SearchCompletionKind.Cancelled,
+        };
 
     public static SearchRunResult Failed(
         string root, long elapsed, long managedPeak, long workingSetPeak, long allocated,
         bool workerExited, int yields, string kind, string reason)
         => new(root, "failed", "solve", reason, kind, elapsed,
             0, 0, 0, 0, false, 0, 0, "", 0, 0, managedPeak, workingSetPeak, allocated,
-            workerExited, yields);
+            workerExited, yields)
+        {
+            Completion = SearchCompletionKind.Failed,
+        };
 
     public static SearchRunResult Ok(
         string root, BeamResult result, long elapsed, long managedPeak, long workingSetPeak,
@@ -389,6 +486,11 @@ internal sealed record SearchRunResult(
             WorkspaceOverflowParents = result.WorkspaceOverflowParents,
             SearchWorkspaceGrowablePeakBytes = result.SearchWorkspaceGrowablePeakBytes,
             SearchWorkspacePeakBytes = result.SearchWorkspacePeakBytes,
+            Completion = result.Adoption is { Kind: SearchAdoptionKind.Stopped }
+                ? SearchCompletionKind.StoppedWithCandidate
+                : result.Adoption != null ? SearchCompletionKind.Adopted
+                : SearchCompletionKind.Completed,
+            Adoption = result.Adoption,
         };
 
     public SearchMetrics ToMetrics(SearchPerformanceTier tier, bool deterministic) => new(

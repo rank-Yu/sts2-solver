@@ -1,0 +1,287 @@
+// Snapshot shape adapted from CombatSolver src/UI/SolverOverlaySnapshot.cs at 5c773caa
+// (MIT License, Copyright (c) 2026 Torch1230 and contributors).
+// The Sts2Solver records carry only frozen route/search/session data and no engine types.
+using Sts2Solver.Import;
+
+namespace Sts2Solver;
+
+internal enum CombatUiPhase
+{
+    Idle,
+    WaitingTurn,
+    Searching,
+    Deploying,
+    Paused,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+internal enum SearchUiPhase
+{
+    Running,
+    Completed,
+}
+
+/// <summary>Immutable main-thread projection of the current combat session. No live game object or search node is retained.</summary>
+internal sealed record CombatUiSnapshot
+{
+    internal const int CurrentSchemaVersion = 1;
+
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
+
+    /// <summary>Monotonic publish order, useful to drop stale reads.</summary>
+    public long Sequence { get; init; }
+
+    public CombatUiPhase Phase { get; init; } = CombatUiPhase.Idle;
+
+    public string Root { get; init; } = "";
+
+    public int Turn { get; init; }
+
+    public int PlayerHp { get; init; }
+
+    public int PlayerMaxHp { get; init; }
+
+    /// <summary>Stable terminal code such as <c>victory</c>, <c>defeat</c>, <c>paused</c> or <c>cancelled</c>.</summary>
+    public string? EndReason { get; init; }
+
+    /// <summary>Human-readable detail from the pilot; tests must assert <see cref="EndReason"/> instead.</summary>
+    public string? PauseReason { get; init; }
+
+    public string? ErrorCode { get; init; }
+
+    public string? ErrorDetail { get; init; }
+
+    public SearchUiSnapshot? Search { get; init; }
+
+    public RouteUiSnapshot? Route { get; init; }
+
+    public MemoryUiSnapshot Memory { get; init; } = new();
+
+    public SettingsUiSnapshot Settings { get; init; } = new();
+
+    public int Searches { get; init; }
+
+    public int ReusedTurns { get; init; }
+
+    public int Deviations { get; init; }
+
+    public int DeploymentFailures { get; init; }
+}
+
+internal sealed record SettingsUiSnapshot
+{
+    public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
+
+    public bool AutoEnableFullAuto { get; init; }
+
+    public long MemoryBudgetBytes { get; init; }
+
+    public SearchMemoryBudgetSource MemoryBudgetSource { get; init; }
+}
+
+internal sealed record MemoryUiSnapshot
+{
+    public long BudgetBytes { get; init; }
+
+    public SearchMemoryBudgetSource BudgetSource { get; init; }
+
+    public long ManagedHeapBytes { get; init; }
+
+    public long WorkingSetBytes { get; init; }
+
+    public long GcAvailableBytes { get; init; }
+
+    public long SampledAtMilliseconds { get; init; }
+}
+
+/// <summary>One search, from request compilation to the coordinator's final member table.</summary>
+internal sealed record SearchUiSnapshot
+{
+    public SearchUiPhase Phase { get; init; } = SearchUiPhase.Running;
+
+    public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
+
+    public int Turn { get; init; }
+
+    public string Reason { get; init; } = "";
+
+    public long BudgetMilliseconds { get; init; }
+
+    public long ElapsedMilliseconds { get; init; }
+
+    public long ExpandedNodes { get; init; }
+
+    public long Transitions { get; init; }
+
+    public int RouteActions { get; init; }
+
+    /// <summary>Null while the search is running.</summary>
+    public bool? Victory { get; init; }
+
+    /// <summary>Host-visible result such as <c>ok</c>, <c>failed</c>, <c>cancelled</c> or <c>running</c>.</summary>
+    public string Status { get; init; } = "running";
+
+    /// <summary>Coordinator status such as <c>victory</c>, <c>incomplete</c> or <c>capacitybounded</c>.</summary>
+    public string? SearchStatus { get; init; }
+
+    public string? StopReason { get; init; }
+
+    public string? ErrorCode { get; init; }
+
+    public int SelectedMember { get; init; } = -1;
+
+    public int MembersRun { get; init; }
+
+    public int MembersSkippedByTime { get; init; }
+
+    public bool SoftTimeRisk { get; init; }
+
+    public bool MemoryBudgetExceeded { get; init; }
+
+    public long SearchMemoryUsedBytes { get; init; }
+
+    public long SearchMemoryPeakBytes { get; init; }
+
+    public long ManagedHeapPeakBytes { get; init; }
+
+    public long WorkingSetPeakBytes { get; init; }
+
+    public SearchMemberUi[] Members { get; init; } = [];
+
+    public SearchMemberRunUi[] MemberRuns { get; init; } = [];
+}
+
+internal sealed record SearchMemberUi
+{
+    public int Index { get; init; }
+
+    public int Width { get; init; }
+
+    public string Evaluation { get; init; } = "";
+
+    public string Retention { get; init; } = "";
+
+    public string Potions { get; init; } = "";
+
+    public bool Ran { get; init; }
+
+    public string? SkippedReason { get; init; }
+
+    public string StopReason { get; init; } = "";
+
+    public long ElapsedMilliseconds { get; init; }
+
+    public long ExpandedNodes { get; init; }
+
+    public bool Victory { get; init; }
+
+    public bool Adopted { get; init; }
+
+    public long MemoryPeakBytes { get; init; }
+
+    public long ManagedHeapPeakBytes { get; init; }
+
+    public long WorkingSetPeakBytes { get; init; }
+
+    public int? HpLost { get; init; }
+
+    public int? PotionUses { get; init; }
+}
+
+/// <summary>One <c>SearchRunResult</c>, recorded in coordinator order for member-level diagnostics.</summary>
+internal sealed record SearchMemberRunUi
+{
+    public int Index { get; init; }
+
+    public string Status { get; init; } = "";
+
+    public string? ErrorKind { get; init; }
+
+    public long ElapsedMilliseconds { get; init; }
+
+    public int ExpandedNodes { get; init; }
+
+    public int Transitions { get; init; }
+
+    public long ManagedHeapPeakBytes { get; init; }
+
+    public long WorkingSetPeakBytes { get; init; }
+
+    public long AllocatedBytes { get; init; }
+
+    public int PacerYields { get; init; }
+}
+
+/// <summary>A route frozen into per-turn groups; indexes are global over the whole route.</summary>
+internal sealed record RouteUiSnapshot
+{
+    public int StartTurn { get; init; }
+
+    public int CurrentTurn { get; init; }
+
+    /// <summary>Global index of the action being deployed or the next action when waiting.</summary>
+    public int CurrentActionIndex { get; init; }
+
+    public int CompletedActions { get; init; }
+
+    public int ActionCount { get; init; }
+
+    public bool Victory { get; init; }
+
+    public bool Reused { get; init; }
+
+    /// <summary>Reserved for the per-turn command set; always false until then.</summary>
+    public bool Frozen { get; init; }
+
+    public RouteTurnUi[] Turns { get; init; } = [];
+}
+
+internal sealed record RouteTurnUi
+{
+    public int Turn { get; init; }
+
+    public int StartActionIndex { get; init; }
+
+    public int HpBefore { get; init; }
+
+    public int HpAfter { get; init; }
+
+    public int EnemyHpLost { get; init; }
+
+    public bool CombatEnded { get; init; }
+
+    public RouteActionUi[] Actions { get; init; } = [];
+}
+
+internal sealed record RouteActionUi
+{
+    public int Index { get; init; }
+
+    /// <summary>Stable action kind: <c>play_card</c>, <c>use_potion</c> or <c>end_turn</c>.</summary>
+    public string Kind { get; init; } = "";
+
+    public string? CardId { get; init; }
+
+    public int Upgrade { get; init; }
+
+    public string? PotionId { get; init; }
+
+    public uint? TargetCombatId { get; init; }
+
+    public string? TargetName { get; init; }
+
+    /// <summary>One entry per carried choice; each entry lists the selected card names.</summary>
+    public string[][] Choices { get; init; } = [];
+
+    public string[] Kills { get; init; } = [];
+
+    public int HpBefore { get; init; }
+
+    public int HpAfter { get; init; }
+
+    public int EnergyAfter { get; init; }
+
+    public bool EndsTurn { get; init; }
+}

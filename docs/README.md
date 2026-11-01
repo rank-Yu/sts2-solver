@@ -16,7 +16,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 - `Simulation.Combat` 不引用 Content、Ai、Autoplay 或游戏。
 - `Content` 与 `Ai.Combat` 只向下引用 `Simulation.Combat`，Ai 不直接引用 Content。
 - `Autoplay` 引用 Simulation 与 Ai，通过宿主接口请求搜索和执行。
-- Core 只依赖 BCL。Import 负责读取原生模型和私有字段。Mod 在游戏主线程捕获与执行，后台 worker 只处理冻结后的数据。
+- Core 只依赖 BCL。Import 负责读取原生模型和私有字段。Mod 在游戏主线程捕获与执行，设置和只读 UI 快照也在主线程维护；后台 worker 只处理冻结后的数据。
 - `TestHost/Combat` 提供场景创建和注入，供 Differential 与测试版 Mod 使用；`TestHost/ModTesting` 只编入测试版 Mod。
 - 正式 Mod 不引用 TestHost，不注册测试补丁。无头测试用的是和正式版相同的搜索、执行和核对代码。
 
@@ -27,7 +27,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | `src/Core/Ai/Combat` | 搜索调度、评分、分支保留、去重与预算 |
 | `src/Core/Autoplay` | `CombatPilot`：整场决策、路线续用与重搜 |
 | `src/Import/Combat` | 只读导入游戏状态，编译规则与搜索配置 |
-| `src/Mod` | 游戏入口、F8、后台搜索、动作执行与实际结果核对 |
+| `src/Mod` | 游戏入口、F8、设置存储、只读快照、后台搜索、动作执行与实际结果核对 |
 | `src/TestHost/Combat` | 测试场景创建、注入、原生状态转储 |
 | `src/TestHost/ModTesting` | 只编入测试版 Mod 的实机测试入口与补丁 |
 | `tests` | 内核合同、架构检查、冻结回归、原版差分与质量语料 |
@@ -63,7 +63,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 
 | 文档 | 什么时候读 |
 | --- | --- |
-| [Mod 安装与构建](mod.md) | 安装发布包、构建正式版或测试版、检查包边界 |
+| [Mod 安装与构建](mod.md) | 安装发布包、构建正式版或测试版、检查包边界、查看设置文件与线程分工 |
 | [战斗自动执行与核对](autoplay.md) | 想知道按 F8 之后怎么搜、怎么执行、什么时候停 |
 | [战斗搜索](combat-ai.md) | 改搜索调度、评分或预算；想知道一次决策跑了哪些成员 |
 | [战斗状态布局](combat-state-layout.md) | 改 `Battle`、`Card` 等结构的字段或容量之前 |

@@ -1,0 +1,313 @@
+// Route projection adapted from CombatSolver src/UI/SolverOverlaySnapshot.cs at 5c773caa
+// (MIT License, Copyright (c) 2026 Torch1230 and contributors).
+// The data source is the Sts2Solver ReplayedRoute and coordinator result, not the old engine.
+using Sts2Solver.Ai.Combat;
+using Sts2Solver.Import;
+using Sts2Solver.Simulation.Combat;
+
+namespace Sts2Solver;
+
+/// <summary>Builds immutable UI records from already-captured route/search data on the main thread.</summary>
+internal static class CombatUiProjection
+{
+    internal static CombatUiSnapshot Idle(SearchMemoryBudgetResolution budget)
+        => new()
+        {
+            Phase = CombatUiPhase.Idle,
+            Memory = Memory(budget),
+            Settings = Settings(budget),
+        };
+
+    internal static CombatUiSnapshot SessionStarted(string root, int turn, int playerHp, int playerMaxHp,
+        SearchMemoryBudgetResolution budget)
+        => new()
+        {
+            Phase = CombatUiPhase.WaitingTurn,
+            Root = root,
+            Turn = turn,
+            PlayerHp = playerHp,
+            PlayerMaxHp = playerMaxHp,
+            Memory = Memory(budget),
+            Settings = Settings(budget),
+        };
+
+    internal static SettingsUiSnapshot Settings(SearchMemoryBudgetResolution budget)
+    {
+        SolverSettingsData settings = SolverSettings.Current;
+        return new SettingsUiSnapshot
+        {
+            Tier = settings.Search.Tier,
+            AutoEnableFullAuto = settings.Automation.AutoEnableFullAuto,
+            MemoryBudgetBytes = budget.Bytes,
+            MemoryBudgetSource = budget.Source,
+        };
+    }
+
+    internal static MemoryUiSnapshot Memory(SearchMemoryBudgetResolution budget)
+        => new()
+        {
+            BudgetBytes = budget.Bytes,
+            BudgetSource = budget.Source,
+            ManagedHeapBytes = GC.GetTotalMemory(forceFullCollection: false),
+            WorkingSetBytes = Environment.WorkingSet,
+            GcAvailableBytes = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
+            SampledAtMilliseconds = Environment.TickCount64,
+        };
+
+    internal static SearchUiSnapshot SearchStarted(int turn, string reason, SearchPerformanceTier tier,
+        SearchPerformanceProfile profile)
+        => new()
+        {
+            Phase = SearchUiPhase.Running,
+            Tier = tier,
+            Turn = turn,
+            Reason = reason,
+            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
+            Status = "running",
+        };
+
+    internal static SearchUiSnapshot SearchFailed(string errorCode, int turn, string reason,
+        SearchPerformanceTier tier, SearchPerformanceProfile profile)
+        => new()
+        {
+            Phase = SearchUiPhase.Completed,
+            Tier = tier,
+            Turn = turn,
+            Reason = reason,
+            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
+            Status = "failed",
+            SearchStatus = "invalid",
+            ErrorCode = errorCode,
+            Victory = false,
+        };
+
+    internal static SearchUiSnapshot SearchCancelled(int turn, string reason,
+        SearchPerformanceTier tier, SearchPerformanceProfile profile)
+        => new()
+        {
+            Phase = SearchUiPhase.Completed,
+            Tier = tier,
+            Turn = turn,
+            Reason = reason,
+            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
+            Status = "cancelled",
+            SearchStatus = "cancelled",
+            ErrorCode = "cancelled",
+            Victory = false,
+        };
+
+    internal static SearchUiSnapshot SearchFinished(CombatSearchResult outcome,
+        SearchMemberRunUi[] memberRuns, int turn, string reason, SearchPerformanceTier tier,
+        SearchPerformanceProfile profile, string? errorCode)
+    {
+        string status = outcome.Status == CombatSearchStatus.Cancelled
+            ? "cancelled"
+            : outcome.Beam != null ? "ok" : "failed";
+        string? stopReason = null;
+        string[] stops = outcome.Members
+            .Where(static member => member.Ran && member.StopReason.Length > 0)
+            .Select(static member => member.StopReason)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static stop => stop, StringComparer.Ordinal)
+            .ToArray();
+        if (stops.Length > 0)
+            stopReason = string.Join(",", stops);
+        return new SearchUiSnapshot
+        {
+            Phase = SearchUiPhase.Completed,
+            Tier = tier,
+            Turn = turn,
+            Reason = reason,
+            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
+            ElapsedMilliseconds = outcome.ElapsedMilliseconds,
+            ExpandedNodes = outcome.TotalExpandedNodes,
+            Transitions = memberRuns.Sum(static run => (long)run.Transitions),
+            RouteActions = outcome.Beam?.BestRoute.Length ?? 0,
+            Victory = outcome.Beam?.BestIsVictory ?? false,
+            Status = status,
+            SearchStatus = outcome.Status.ToString().ToLowerInvariant(),
+            StopReason = stopReason,
+            ErrorCode = errorCode,
+            SelectedMember = outcome.SelectedMember,
+            MembersRun = outcome.MembersRun,
+            MembersSkippedByTime = outcome.MembersSkippedByTime,
+            SoftTimeRisk = outcome.SoftTimeRisk,
+            MemoryBudgetExceeded = outcome.MemoryBudgetExceeded,
+            SearchMemoryUsedBytes = outcome.SearchMemoryUsedBytes,
+            SearchMemoryPeakBytes = outcome.SearchMemoryPeakBytes,
+            ManagedHeapPeakBytes = outcome.ManagedHeapPeakBytes,
+            WorkingSetPeakBytes = outcome.WorkingSetPeakBytes,
+            Members = outcome.Members.Select(static (member, index) => new SearchMemberUi
+            {
+                Index = index,
+                Width = member.Member.Width,
+                Evaluation = member.Member.Evaluation.ToString(),
+                Retention = member.Member.Retention.ToString(),
+                Potions = member.Member.Potions.ToString(),
+                Ran = member.Ran,
+                SkippedReason = member.SkippedReason,
+                StopReason = member.StopReason,
+                ElapsedMilliseconds = member.ElapsedMilliseconds,
+                ExpandedNodes = member.ExpandedNodes,
+                Victory = member.Victory,
+                Adopted = member.Adopted,
+                MemoryPeakBytes = member.MemoryPeakBytes,
+                ManagedHeapPeakBytes = member.ManagedHeapPeakBytes,
+                WorkingSetPeakBytes = member.WorkingSetPeakBytes,
+                HpLost = member.HpLost,
+                PotionUses = member.PotionUses,
+            }).ToArray(),
+            MemberRuns = memberRuns,
+        };
+    }
+
+    internal static RouteUiSnapshot Route(ReplayedRoute route, CombatDisplayNames names,
+        int currentTurn, int currentActionIndex, int completedActions, bool reused)
+    {
+        List<RouteTurnUi> turns = [];
+        List<RouteActionUi>? actions = null;
+        int turnNumber = 0;
+        int startIndex = 0;
+        int hpBefore = 0;
+        int hpAfter = 0;
+        int enemyHpLost = 0;
+        bool combatEnded = false;
+        for (int index = 0; index < route.Count; index++)
+        {
+            ReplayedAction action = route[index];
+            if (actions == null || turnNumber != action.Before.PlayerTurn)
+            {
+                if (actions != null)
+                {
+                    turns.Add(new RouteTurnUi
+                    {
+                        Turn = turnNumber,
+                        StartActionIndex = startIndex,
+                        HpBefore = hpBefore,
+                        HpAfter = hpAfter,
+                        EnemyHpLost = enemyHpLost,
+                        CombatEnded = combatEnded,
+                        Actions = [.. actions],
+                    });
+                }
+                actions = [];
+                turnNumber = action.Before.PlayerTurn;
+                startIndex = action.Index;
+                hpBefore = action.Before.Player.CurrentHp;
+                enemyHpLost = 0;
+                combatEnded = false;
+            }
+            hpAfter = action.After.Player.CurrentHp;
+            enemyHpLost += EnemyHpLost(action.Before, action.After);
+            combatEnded = action.After.Outcome != Outcome.None;
+            actions.Add(Action(action, names));
+        }
+        if (actions != null)
+        {
+            turns.Add(new RouteTurnUi
+            {
+                Turn = turnNumber,
+                StartActionIndex = startIndex,
+                HpBefore = hpBefore,
+                HpAfter = hpAfter,
+                EnemyHpLost = enemyHpLost,
+                CombatEnded = combatEnded,
+                Actions = [.. actions],
+            });
+        }
+        return new RouteUiSnapshot
+        {
+            StartTurn = route.Count > 0 ? route[0].Before.PlayerTurn : 0,
+            CurrentTurn = currentTurn,
+            CurrentActionIndex = currentActionIndex,
+            CompletedActions = completedActions,
+            ActionCount = route.Count,
+            Victory = route.Victory,
+            Reused = reused,
+            Turns = [.. turns],
+        };
+    }
+
+    private static RouteActionUi Action(ReplayedAction action, CombatDisplayNames names)
+    {
+        PlayerAction kind = action.Action;
+        string? cardId = null;
+        int upgrade = 0;
+        string? potionId = null;
+        if (kind.Kind == PlayerActionKind.PlayCard && kind.HandIndex < action.Before.HandCount)
+        {
+            Card card = action.Before.Cards[kind.HandIndex];
+            cardId = Registry.Card(card.Id).NativeId;
+            upgrade = card.Upgrade;
+        }
+        else if (kind.Kind == PlayerActionKind.UsePotion && kind.PotionSlot < action.Before.PotionSlotCount)
+        {
+            ushort stored = action.Before.Potions[kind.PotionSlot];
+            if (stored != 0)
+                potionId = Registry.Potion((ushort)(stored - 1)).NativeId;
+        }
+        string? targetName = null;
+        uint? targetCombatId = null;
+        if (kind.Target == Limits.PlayerOwner)
+        {
+            targetName = names.PlayerName;
+        }
+        else if (kind.Target == Limits.OstyOwner)
+        {
+            targetName = names.OstyName;
+        }
+        else if (kind.Target >= Limits.FirstEnemyOwner)
+        {
+            int enemy = kind.Target - Limits.FirstEnemyOwner;
+            if (enemy < action.Before.EnemyCount)
+            {
+                targetCombatId = action.Before.Enemies[enemy].CombatId;
+                targetName = names.Enemy(action.Before, enemy);
+            }
+        }
+        return new RouteActionUi
+        {
+            Index = action.Index,
+            Kind = kind.Kind switch
+            {
+                PlayerActionKind.PlayCard => "play_card",
+                PlayerActionKind.UsePotion => "use_potion",
+                PlayerActionKind.EndTurn => "end_turn",
+                _ => throw new ArgumentOutOfRangeException(nameof(action)),
+            },
+            CardId = cardId,
+            Upgrade = upgrade,
+            PotionId = potionId,
+            TargetCombatId = targetCombatId,
+            TargetName = targetName,
+            Choices = action.Choices.Select(names.Choice).ToArray(),
+            Kills = Kills(action.Before, action.After, names),
+            HpBefore = action.Before.Player.CurrentHp,
+            HpAfter = action.After.Player.CurrentHp,
+            EnergyAfter = action.After.Energy,
+            EndsTurn = kind.Kind == PlayerActionKind.EndTurn,
+        };
+    }
+
+    private static int EnemyHpLost(in Battle before, in Battle after)
+    {
+        int lost = 0;
+        int count = Math.Min(before.EnemyCount, after.EnemyCount);
+        for (int index = 0; index < count; index++)
+            lost += Math.Max(0, before.Enemies[index].Creature.CurrentHp
+                - after.Enemies[index].Creature.CurrentHp);
+        return lost;
+    }
+
+    private static string[] Kills(in Battle before, in Battle after, CombatDisplayNames names)
+    {
+        List<string> kills = [];
+        int count = Math.Min(before.EnemyCount, after.EnemyCount);
+        for (int index = 0; index < count; index++)
+        {
+            if (before.Enemies[index].Creature.IsAlive && !after.Enemies[index].Creature.IsAlive)
+                kills.Add(names.Enemy(before, index));
+        }
+        return [.. kills];
+    }
+}

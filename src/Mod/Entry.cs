@@ -46,11 +46,20 @@ public static class ModEntry
 #else
         ModLog.Initialize(null);
 #endif
+        SolverSettings.Initialize();
+        SolverText.Initialize();
+        if (NGame.IsMainThread())
+            CombatUiStore.Reset(CombatUiProjection.Idle(SearchMemoryBudget.Resolve()));
+        else
+            ModLog.Warn("[Sts2Solver] UI_STORE_DEFERRED reason=not_main_thread");
         ModLog.Info($"[Sts2Solver] INIT id={ModId} version={Version} name={DisplayName} english={EnglishName} test_mode={TestMode}");
 
         // 战斗结束或退出时取消后台搜索和自动执行。
-        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(
-            static _ => SearchSession.OnCombatStarting());
+        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(static _ =>
+        {
+            SearchSession.OnCombatStarting();
+            AutoCombatSession.OnCombatStarting();
+        });
         RitsuLibFramework.SubscribeLifecycle<CombatEndedEvent>(static _ =>
         {
             SearchSession.OnCombatEnded();
@@ -72,6 +81,8 @@ public static class ModEntry
         else
         {
             host.AddChild(new SearchHotkeyNode());
+            host.AddChild(new CombatUiMemorySampler());
+            host.AddChild(new CombatUiAutoStartNode());
             host.TreeExiting += static () =>
             {
                 AutoCombatSession.Cancel("tree_exiting");

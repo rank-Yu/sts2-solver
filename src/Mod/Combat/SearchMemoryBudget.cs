@@ -1,40 +1,113 @@
+using System.Globalization;
+
 namespace Sts2Solver;
+
+internal enum SearchMemoryBudgetSource
+{
+    Default,
+    Settings,
+    Environment,
+}
+
+internal readonly record struct SearchMemoryBudgetResolution(
+    long Bytes,
+    SearchMemoryBudgetSource Source,
+    long? SettingsBytes,
+    string? EnvironmentValue)
+{
+    internal string SourceName => Source switch
+    {
+        SearchMemoryBudgetSource.Default => "default",
+        SearchMemoryBudgetSource.Settings => "settings",
+        SearchMemoryBudgetSource.Environment => "environment",
+        _ => throw new ArgumentOutOfRangeException(nameof(Source)),
+    };
+}
 
 /// <summary>
 /// Resolves the Mod's search-memory ceiling. The search core only receives the resulting byte count;
 /// it never reads process or GC state, so the same request still produces the same route offline.
-/// Default: 15% of the total memory the runtime may use, i.e. physical memory or the container or
-/// job-object limit as reported by <see cref="GC.GetGCMemoryInfo"/>. It is a fixed per-machine value,
-/// not the momentary free memory, so one machine keeps one ceiling. 1 GiB floor, no upper cap.
+/// Priority: <c>STS2_SOLVER_SEARCH_MEMORY_MB</c>, then the settings override, then 15% of the total
+/// memory the runtime may use (<see cref="GC.GetGCMemoryInfo"/>), with a 1 GiB floor. The value is a
+/// fixed per-machine ceiling, not the momentary free memory.
 /// </summary>
 internal static class SearchMemoryBudget
 {
     /// <summary>Optional override in MiB. Documented in <c>docs/mod.md</c>.</summary>
     internal const string OverrideVariable = "STS2_SOLVER_SEARCH_MEMORY_MB";
 
-    private static readonly Lazy<long> Resolved = new(Resolve, isThreadSafe: true);
+    private const long Mebibyte = 1024L * 1024L;
+    private const long FloorBytes = 1L << 30;
 
-    internal static long Bytes => Resolved.Value;
+    private static readonly object Gate = new();
+    private static string? _cachedKey;
+    private static SearchMemoryBudgetResolution _cached;
 
-    private static long Resolve()
+    internal static long Bytes => Resolve().Bytes;
+
+    internal static SearchMemoryBudgetResolution Resolve()
     {
-        string? configured = Environment.GetEnvironmentVariable(OverrideVariable);
-        if (!string.IsNullOrWhiteSpace(configured))
+        long? settingsBytes = SolverSettings.Current.Search.MemoryBudgetBytes;
+        string? environment = Environment.GetEnvironmentVariable(OverrideVariable);
+        lock (Gate)
         {
-            if (long.TryParse(configured, out long mebibytes) && mebibytes > 0)
+            string key = $"{settingsBytes?.ToString(CultureInfo.InvariantCulture) ?? "-"}|{environment ?? "-"}";
+            if (_cachedKey == key)
+                return _cached;
+            SearchMemoryBudgetResolution resolution = ResolveCore(settingsBytes, environment,
+                DefaultBytes(), out bool ignoredEnvironment);
+            if (ignoredEnvironment)
             {
-                const long scale = 1024L * 1024L;
-                return mebibytes > long.MaxValue / scale ? long.MaxValue : mebibytes * scale;
+                ModLog.Error(
+                    $"[Sts2Solver] SEARCH_MEMORY_IGNORED value={environment} " +
+                    $"reason=not_positive_integer variable={OverrideVariable}");
             }
-            ModLog.Error(
-                $"[Sts2Solver] SEARCH_MEMORY_IGNORED value={configured} " +
-                $"reason=not_positive_integer variable={OverrideVariable}");
+            ModLog.Info(
+                $"[Sts2Solver] SEARCH_MEMORY source={resolution.SourceName} bytes={resolution.Bytes} " +
+                $"mib={Megabytes(resolution.Bytes)} setting_bytes={resolution.SettingsBytes?.ToString(CultureInfo.InvariantCulture) ?? "-"} " +
+                $"env={resolution.EnvironmentValue ?? "-"}");
+            _cachedKey = key;
+            _cached = resolution;
+            return resolution;
         }
-        const long floor = 1L << 30;
+    }
+
+    /// <summary>Pure resolution used by tests; invalid environment values fall through to settings.</summary>
+    internal static SearchMemoryBudgetResolution Resolve(long? settingsBytes, string? environmentValue,
+        long fallbackBytes)
+        => ResolveCore(settingsBytes, environmentValue, fallbackBytes, out _);
+
+    internal static long DefaultBytes()
+    {
         long available = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         if (available <= 0)
-            return floor;
+            return FloorBytes;
         // Integer arithmetic avoids overflowing the 15% product on very large machines.
-        return Math.Max(floor, available / 100 * 15 + available % 100 * 15 / 100);
+        return Math.Max(FloorBytes, available / 100 * 15 + available % 100 * 15 / 100);
     }
+
+    private static SearchMemoryBudgetResolution ResolveCore(long? settingsBytes, string? environmentValue,
+        long fallbackBytes, out bool ignoredEnvironment)
+    {
+        ignoredEnvironment = false;
+        if (!string.IsNullOrWhiteSpace(environmentValue))
+        {
+            if (long.TryParse(environmentValue, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out long mebibytes)
+                && mebibytes > 0)
+            {
+                long bytes = mebibytes > long.MaxValue / Mebibyte
+                    ? long.MaxValue
+                    : mebibytes * Mebibyte;
+                return new(bytes, SearchMemoryBudgetSource.Environment, settingsBytes, environmentValue);
+            }
+            ignoredEnvironment = true;
+        }
+        if (settingsBytes is > 0)
+            return new(settingsBytes.Value, SearchMemoryBudgetSource.Settings, settingsBytes, environmentValue);
+        return new(fallbackBytes, SearchMemoryBudgetSource.Default, settingsBytes, environmentValue);
+    }
+
+    private static string Megabytes(long bytes)
+        => (bytes / (double)Mebibyte).ToString("0.0", CultureInfo.InvariantCulture);
 }

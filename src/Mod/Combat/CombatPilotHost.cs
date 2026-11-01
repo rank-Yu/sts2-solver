@@ -6,6 +6,7 @@ using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Ai.Combat;
+using Sts2Solver.Ai.Combat.Policy;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -20,7 +21,7 @@ internal sealed class CombatPilotHost(
     Rules rules,
     LiveCombatTracker tracker,
     Func<SearchPolicy, Player, SearchPolicy>? configurePolicy,
-    SearchPerformanceTier tier,
+    SearchPerformanceTier? tierOverride,
     string root,
     CombatState combat,
     Player player) : ICombatPilotHost
@@ -36,6 +37,16 @@ internal sealed class CombatPilotHost(
     private int _lastMaxHp = player.Creature.MaxHp;
     private readonly int _combatStartHp = player.Creature.CurrentHp;
     private readonly int _combatStartMaxHp = player.Creature.MaxHp;
+    private ReplayedRoute? _route;
+    private CombatDisplayNames? _names;
+    private int _completedActions;
+    private int _currentActionIndex;
+    private bool _routeReused;
+    private int _searches;
+    private int _reusedTurns;
+    private int _deviations;
+    private int _deploymentFailures;
+    private List<SearchMemberRunUi> _memberRuns = [];
 
     public async ValueTask<CombatPilotTurn?> WaitForTurnAsync(CancellationToken token)
     {
@@ -65,6 +76,7 @@ internal sealed class CombatPilotHost(
                 _lastTurn = turn;
                 _lastHp = livePlayer.Creature.CurrentHp;
                 _lastMaxHp = livePlayer.Creature.MaxHp;
+                PublishWaiting();
                 return new CombatPilotTurn(turn, _lastHp, _lastMaxHp);
             }
             if (_settledTurn != turn)
@@ -84,6 +96,9 @@ internal sealed class CombatPilotHost(
             _lastTurn = turn;
             _lastHp = livePlayer.Creature.CurrentHp;
             _lastMaxHp = livePlayer.Creature.MaxHp;
+            if (_route != null)
+                _currentActionIndex = Math.Min(_completedActions, _route.Count);
+            PublishWaiting();
             return new CombatPilotTurn(turn, _lastHp, _lastMaxHp);
         }
     }
@@ -92,17 +107,28 @@ internal sealed class CombatPilotHost(
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        SearchPerformanceTier tier = AutoCombatSession.ResolveSearchTier(tierOverride);
+        SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
+        _searches++;
+        _route = null;
+        _completedActions = 0;
+        _currentActionIndex = 0;
+        _routeReused = false;
+        _memberRuns = [];
+        PublishSearchStarted(turn, reason, tier, profile);
         Battle searchRoot;
         SearchCase searchCase;
         CombatPilotSearch Rejected(string kind, string detail)
         {
             ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {detail}");
+            PublishSearchFailed(kind, turn, reason, tier, profile);
             return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, detail, kind, detail, 0, 0);
         }
         CombatPilotSearch RouteRejected(CombatSearchResult result, BeamResult resultBeam,
             string kind, string detail)
         {
             ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {detail}");
+            PublishSearchFinished(result, kind, turn, reason, tier, profile);
             return InvalidRoute(result, resultBeam, "invalid", kind, detail);
         }
         try
@@ -122,13 +148,21 @@ internal sealed class CombatPilotHost(
         { return Rejected("request_invalid", error.Message); }
         catch (InvalidOperationException error)
         { return Rejected("request_invalid", error.Message); }
-        SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
         SearchPlan plan = profile.ToSearchPlan(searchCase.Options.SearchMemoryBudgetBytes,
             _combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Boss,
             _combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Elite, _combat.RunState.CurrentActIndex);
         SearchStorage storage = new();
-        CombatSearchResult outcome = await CombatSearchCoordinator.RunAsync(
-            new(searchCase, plan), storage, RunMember, token);
+        CombatSearchResult outcome;
+        try
+        {
+            outcome = await CombatSearchCoordinator.RunAsync(
+                new(searchCase, plan), storage, RunMember, token);
+        }
+        catch (OperationCanceledException)
+        {
+            PublishSearchCancelled(turn, reason, tier, profile);
+            throw;
+        }
         if (outcome.Beam is not { } beam)
         {
             string status = outcome.FailureStatus.Length > 0 ? outcome.FailureStatus : "failed";
@@ -137,6 +171,7 @@ internal sealed class CombatPilotHost(
             ModLog.Error(
                 $"[Sts2Solver] AUTO_SEARCH_FAILED turn={turn} reason={reason} " +
                 $"status={status} error={error} members={outcome.Members.Length}");
+            PublishSearchFinished(outcome, "search_failed", turn, reason, tier, profile);
             return new CombatPilotSearch(null, status, outcome.ElapsedMs,
                 outcome.TotalExpandedNodes, 0, false, error, "search_failed", detail,
                 outcome.ManagedHeapPeakBytes, outcome.WorkingSetPeakBytes, outcome.SoftTimeRisk,
@@ -166,6 +201,8 @@ internal sealed class CombatPilotHost(
         catch (CapacityException error)
         { return RouteRejected(outcome, beam, "route_capacity", $"region={error.Region} {error.Message}"); }
         tracker.Observe(searchRoot);
+        _names = CombatDisplayNames.Capture(_combat);
+        PublishSearchFinished(outcome, null, turn, reason, tier, profile);
         ModLog.Info(
             $"[Sts2Solver] AUTO_SEARCH turn={turn} reason={reason} ms={outcome.ElapsedMs} " +
             $"expanded={outcome.TotalExpandedNodes} route={beam.BestRoute.Length} " +
@@ -193,6 +230,19 @@ internal sealed class CombatPilotHost(
             SearchRunResult result = await SearchSession.RunAsync(
                 host, _root, member, deterministic: false, tier, resultDirectory: null,
                 cancelAfterMilliseconds: null, shared, ct);
+            _memberRuns.Add(new SearchMemberRunUi
+            {
+                Index = _memberRuns.Count,
+                Status = result.Status,
+                ErrorKind = result.ErrorKind.Length == 0 ? null : result.ErrorKind,
+                ElapsedMilliseconds = result.ElapsedMilliseconds,
+                ExpandedNodes = result.ExpandedNodes,
+                Transitions = result.Transitions,
+                ManagedHeapPeakBytes = result.ManagedHeapPeakBytes,
+                WorkingSetPeakBytes = result.WorkingSetPeakBytes,
+                AllocatedBytes = result.AllocatedBytes,
+                PacerYields = result.PacerYields,
+            });
             ModLog.Info($"[Sts2Solver] AUTO_SEARCH_MEMBER turn={turn} reason={reason} " +
                 $"width={member.Options.BeamWidth} status={result.Status} " +
                 $"ms={result.ElapsedMilliseconds} expanded={result.ExpandedNodes}");
@@ -223,21 +273,31 @@ internal sealed class CombatPilotHost(
     {
         token.ThrowIfCancellationRequested();
         Battle live = tracker.ImportForComparison(_combat, _player, rules, expected.Before);
+        _currentActionIndex = index;
+        _routeReused = true;
         if (BattleReconciler.Same(expected.Before, live))
         {
+            _reusedTurns++;
             ModLog.Info($"[Sts2Solver] TURN_REUSE turn={turn} index={index}");
+            PublishRoute(CombatUiPhase.WaitingTurn);
             return ValueTask.FromResult(new CombatPilotBoundary(true, CombatPilotAction.Describe(expected), []));
         }
         string[] diff = BattleReconciler.Diff(expected.Before, live);
         ModLog.Error(
             $"[Sts2Solver] TURN_DEVIATION turn={turn} index={index} " +
             $"action={CombatPilotAction.Describe(expected)} diff={string.Join(" | ", diff)}");
+        _deviations++;
+        _route = null;
+        PublishError("boundary_deviation", string.Join(" | ", diff), CombatUiPhase.WaitingTurn);
         return ValueTask.FromResult(new CombatPilotBoundary(false, CombatPilotAction.Describe(expected), diff));
     }
 
     public void BeginDeployment(int turn)
     {
+        _lastTurn = turn;
+        _currentActionIndex = Math.Min(_completedActions, _route?.Count ?? _completedActions);
         _deployer = new ActionDeployer(host, _combat, _player, rules, tracker);
+        PublishRoute(CombatUiPhase.Deploying);
     }
 
     public async ValueTask<CombatPilotDeployment> DeployAsync(ReplayedAction action, int turn,
@@ -245,6 +305,8 @@ internal sealed class CombatPilotHost(
     {
         ActionDeployer deployer = _deployer
             ?? throw new InvalidOperationException("行动部署前没有建立部署器。");
+        _currentActionIndex = action.Index;
+        PublishRoute(CombatUiPhase.Deploying);
         Battle actual;
         try
         {
@@ -255,6 +317,9 @@ internal sealed class CombatPilotHost(
             ModLog.Error(
                 $"[Sts2Solver] DEPLOY_FAILURE turn={turn} index={action.Index} " +
                 $"action={CombatPilotAction.Describe(action)} reason={error.Reason} detail={error.Message}");
+            _deploymentFailures++;
+            _route = null;
+            PublishError("deploy_failed", error.Reason, CombatUiPhase.WaitingTurn);
             return new CombatPilotDeployment(false, false, error.Reason, error.Message,
                 CombatPilotAction.Describe(action), []);
         }
@@ -265,6 +330,10 @@ internal sealed class CombatPilotHost(
             ModLog.Error(
                 $"[Sts2Solver] ACTION_DEVIATION turn={turn} index={action.Index} " +
                 $"action={CombatPilotAction.Describe(action)} diff={string.Join(" | ", diff)}");
+            _deviations++;
+            _completedActions = action.Index + 1;
+            _route = null;
+            PublishError("action_deviation", string.Join(" | ", diff), CombatUiPhase.WaitingTurn);
             return new CombatPilotDeployment(true, false, null, null, CombatPilotAction.Describe(action), diff);
         }
         return new CombatPilotDeployment(true, true, null, null, CombatPilotAction.Describe(action), []);
@@ -279,6 +348,16 @@ internal sealed class CombatPilotHost(
             if (stored != 0)
                 _potionsUsed.Add(Registry.Potion((ushort)(stored - 1)).NativeId);
         }
+        _completedActions = action.Index + 1;
+        _currentActionIndex = action.Index;
+        _lastTurn = action.After.PlayerTurn;
+        _lastHp = action.After.Player.CurrentHp;
+        _lastMaxHp = action.After.Player.MaxHp;
+        bool turnEnded = action.Action.Kind == PlayerActionKind.EndTurn
+            || action.After.PlayerTurn > action.Before.PlayerTurn;
+        if (turnEnded && _route != null)
+            _currentActionIndex = Math.Min(_completedActions, _route.Count);
+        PublishRoute(turnEnded ? CombatUiPhase.WaitingTurn : CombatUiPhase.Deploying);
         ModLog.Info(
             $"[Sts2Solver] DEPLOY_OK turn={action.Before.PlayerTurn} index={action.Index} " +
             $"action={CombatPilotAction.Describe(action)} outcome={action.After.Outcome} " +
@@ -294,6 +373,15 @@ internal sealed class CombatPilotHost(
     public void OnRouteAccepted(ReplayedRoute route)
     {
         tracker.Observe(route[0].Before);
+        _route = route;
+        _completedActions = 0;
+        _currentActionIndex = 0;
+        _routeReused = false;
+        _lastTurn = route[0].Before.PlayerTurn;
+        _lastHp = route[0].Before.Player.CurrentHp;
+        _lastMaxHp = route[0].Before.Player.MaxHp;
+        _names ??= CombatDisplayNames.Capture(_combat);
+        PublishRoute(CombatUiPhase.WaitingTurn);
     }
 
     public CombatPilotFinal Final(bool cancelled)
@@ -326,9 +414,152 @@ internal sealed class CombatPilotHost(
             outcome = "in_progress";
             status = "paused";
         }
+        CombatUiPhase phase = status switch
+        {
+            "victory" or "defeat" => CombatUiPhase.Completed,
+            "cancelled" => CombatUiPhase.Cancelled,
+            "paused" => CombatUiPhase.Paused,
+            _ => CombatUiPhase.Failed,
+        };
+        if (CombatUiStore.Initialized)
+        {
+            CombatUiStore.Update(snapshot => snapshot with
+            {
+                Phase = phase,
+                Turn = _lastTurn,
+                PlayerHp = _lastHp,
+                PlayerMaxHp = _lastMaxHp,
+                EndReason = status,
+                Searches = _searches,
+                ReusedTurns = _reusedTurns,
+                Deviations = _deviations,
+                DeploymentFailures = _deploymentFailures,
+                Route = BuildRoute(),
+            });
+        }
         return new CombatPilotFinal(outcome, status, _lastTurn, _lastHp, _lastMaxHp,
             [.. _potionsUsed]);
     }
 
+    private void PublishWaiting()
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        RouteUiSnapshot? route = BuildRoute();
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = CombatUiPhase.WaitingTurn,
+            Turn = _lastTurn,
+            PlayerHp = _lastHp,
+            PlayerMaxHp = _lastMaxHp,
+            Route = route,
+            ErrorCode = null,
+            ErrorDetail = null,
+        });
+    }
 
+    private void PublishSearchStarted(int turn, string reason, SearchPerformanceTier tier,
+        SearchPerformanceProfile profile)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        SearchUiSnapshot search = CombatUiProjection.SearchStarted(turn, reason, tier, profile);
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = CombatUiPhase.Searching,
+            Turn = _lastTurn,
+            PlayerHp = _lastHp,
+            PlayerMaxHp = _lastMaxHp,
+            Search = search,
+            Route = null,
+            ErrorCode = null,
+            ErrorDetail = null,
+        });
+    }
+
+    private void PublishSearchFailed(string code, int turn, string reason, SearchPerformanceTier tier,
+        SearchPerformanceProfile profile)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        SearchUiSnapshot search = CombatUiProjection.SearchFailed(code, turn, reason, tier, profile);
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = CombatUiPhase.WaitingTurn,
+            Search = search,
+            ErrorCode = code,
+            ErrorDetail = null,
+        });
+    }
+
+    private void PublishSearchCancelled(int turn, string reason, SearchPerformanceTier tier,
+        SearchPerformanceProfile profile)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        SearchUiSnapshot search = CombatUiProjection.SearchCancelled(turn, reason, tier, profile);
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = CombatUiPhase.WaitingTurn,
+            Search = search,
+            ErrorCode = "cancelled",
+            ErrorDetail = null,
+        });
+    }
+
+    private void PublishSearchFinished(CombatSearchResult outcome, string? errorCode, int turn,
+        string reason, SearchPerformanceTier tier, SearchPerformanceProfile profile)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        SearchUiSnapshot search = CombatUiProjection.SearchFinished(outcome, [.. _memberRuns],
+            turn, reason, tier, profile, errorCode);
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = CombatUiPhase.WaitingTurn,
+            Search = search,
+            ErrorCode = errorCode,
+            ErrorDetail = null,
+        });
+    }
+
+    private void PublishRoute(CombatUiPhase phase)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = phase,
+            Turn = _lastTurn,
+            PlayerHp = _lastHp,
+            PlayerMaxHp = _lastMaxHp,
+            Route = BuildRoute(),
+            ErrorCode = null,
+            ErrorDetail = null,
+        });
+    }
+
+    private void PublishError(string code, string? detail, CombatUiPhase phase)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        CombatUiStore.Update(snapshot => snapshot with
+        {
+            Phase = phase,
+            Turn = _lastTurn,
+            PlayerHp = _lastHp,
+            PlayerMaxHp = _lastMaxHp,
+            Route = BuildRoute(),
+            ErrorCode = code,
+            ErrorDetail = detail,
+        });
+    }
+
+    private RouteUiSnapshot? BuildRoute()
+    {
+        if (_route == null || _names == null)
+            return null;
+        return CombatUiProjection.Route(_route, _names, _lastTurn, _currentActionIndex,
+            _completedActions, _routeReused);
+    }
 }

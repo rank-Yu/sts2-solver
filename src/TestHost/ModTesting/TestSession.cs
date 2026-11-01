@@ -28,6 +28,9 @@ internal static class TestSession
 
     public static bool Active { get; private set; }
 
+    /// <summary>Lets the auto-start node run during the explicit settings-driven scenario.</summary>
+    internal static bool AllowAutoStartForTest { get; set; }
+
     public static void Start()
     {
         if (_started || !ModEntry.Enabled || !ModEntry.TestMode)
@@ -77,6 +80,16 @@ internal static class TestSession
         Stopwatch total = Stopwatch.StartNew();
         int ok = 0;
         int failed = 0;
+        UiLogicChecks.UiLogicCheckResult logic = UiLogicChecks.Run(testRoot);
+        WriteJson(Path.Combine(resultRoot, "ui-checks.json"), logic);
+        if (logic.Failed > 0)
+        {
+            failed++;
+            results.Add(new ResultEntry("ui-logic-checks", "failed", "ui_checks", 0,
+                string.Join("; ", logic.Checks.Where(static check => check.Status != "ok")
+                    .Select(static check => check.Name + ":" + check.Error)),
+                [], false, "skipped", 0));
+        }
         foreach (string file in files)
         {
             string root = Path.GetFileNameWithoutExtension(file);
@@ -84,6 +97,9 @@ internal static class TestSession
             Directory.CreateDirectory(resultDirectory);
             Stopwatch stopwatch = Stopwatch.StartNew();
             string stage = "load";
+            SolverSettingsData previousSettings = SolverSettings.Current;
+            bool settingsChanged = false;
+            bool recordSnapshots = false;
             void CaptureFailed(string resultDetail, string logDetail)
             {
                 failed++;
@@ -96,6 +112,10 @@ internal static class TestSession
                     File.ReadAllText(file), OfflineJson.Options)
                     ?? throw new InvalidDataException("请求为空。");
                 Validate(request);
+                settingsChanged = ApplyTestSettings(request);
+                SearchPerformanceTier tier = request.SearchTierFromSettingsForTest
+                    ? AutoCombatSession.ResolveSearchTier(null)
+                    : SearchPerformanceProfile.ParseTier(request.SearchTier);
                 FirstChoiceCardSelector.LastSelections.Clear();
                 if (request.FlashTurnSetupRootForTest)
                     TurnSetupRootCapture.BeginBuild();
@@ -108,18 +128,28 @@ internal static class TestSession
                 stage = "settle";
                 await CombatFrameWaiter.SettleAsync(host);
                 stage = "capture";
-                CapturedSearch? captured = Capture(resultDirectory, root, request, combat);
-                SearchPerformanceTier tier = SearchPerformanceProfile.ParseTier(request.SearchTier);
+                CapturedSearch? captured = Capture(resultDirectory, root, request, combat, tier);
+                if (request.UiSnapshotForTest)
+                {
+                    CombatUiStore.ClearHistory();
+                    CombatUiStore.RecordHistory = true;
+                    recordSnapshots = true;
+                }
                 string? failure = null;
                 if (request.FullCombatForTest)
                 {
                     if (captured == null)
                         throw new InvalidDataException("整场测试不支持回合准备根。");
                     stage = "full_combat";
-                    CombatPilotResult auto = await RunFullCombatAsync(
-                        host, root, request, combat, tier,
-                        request.SearchCancelAfterMillisecondsForTest);
+                    CombatPilotResult auto = request.AutoStartFullCombatForTest
+                        ? await RunAutoStartedCombatAsync(host, request, tier, resultDirectory)
+                        : await RunFullCombatAsync(
+                            host, root, request, combat,
+                            request.SearchTierFromSettingsForTest ? null : tier,
+                            request.SearchCancelAfterMillisecondsForTest);
                     WriteJson(Path.Combine(resultDirectory, "full-combat.json"), auto);
+                    if (request.UiSnapshotForTest)
+                        UiSnapshotChecks.Run(resultDirectory, auto, CombatUiStore.History);
                     bool expectedCancel = request.SearchCancelAfterMillisecondsForTest is not null;
                     bool ended = auto.Status is "victory" or "defeat"
                         || expectedCancel && auto.Status == "cancelled";
@@ -240,6 +270,14 @@ internal static class TestSession
             { CaptureFailed(error.Message, $"json {error.Message}"); }
             catch (UnauthorizedAccessException error)
             { CaptureFailed(error.Message, $"access {error.Message}"); }
+            finally
+            {
+                AllowAutoStartForTest = false;
+                if (recordSnapshots)
+                    CombatUiStore.RecordHistory = false;
+                if (settingsChanged && !SolverSettings.Update(_ => previousSettings))
+                    ModLog.Error($"[Sts2Solver] SETTINGS_RESTORE_FAILED root={root}");
+            }
 
             bool breakAfterCleanup = false;
             try
@@ -294,7 +332,7 @@ internal static class TestSession
     }
 
     private static CapturedSearch? Capture(string directory, string root, OfflineRequest request,
-        CombatState combat)
+        CombatState combat, SearchPerformanceTier tier)
     {
         Player player = LocalContext.GetMe(combat)
             ?? throw new InvalidOperationException("找不到本地玩家。");
@@ -327,12 +365,22 @@ internal static class TestSession
         NativeStateDump.Write(combat, Path.Combine(directory, "native.txt"));
         if (request.FlashTurnSetupRootForTest)
             return null;
-        SearchPerformanceTier tier = SearchPerformanceProfile.ParseTier(request.SearchTier);
         SearchCase searchCase = SearchRequestCompiler.CompileRequest(
             combat, player, rules, battle, policy, facts,
             SearchPerformanceProfile.For(tier), request.DeterministicSearchForTest,
             SearchMemoryBudget.Bytes);
-        return new CapturedSearch(searchCase, request.DeterministicSearchForTest, tier);
+        // SearchSession writes SREQ from this case; the budget fields are host-only and are not
+        // encoded, so attaching them keeps the request bytes identical while giving the single
+        // search the same pool budget the offline replay uses.
+        SearchCase runCase = request.DeterministicSearchForTest
+            ? searchCase with { Options = SearchBudgetPolicy.ApplyRegression(searchCase.Options) }
+            : searchCase with
+            {
+                Options = SearchBudgetPolicy.Apply(searchCase.Options,
+                    SearchBudgetPolicy.RegressionEndedKeepWidths,
+                    SearchBudgetPolicy.RegressionEndedTriggerWidths, SearchMemoryBudget.Bytes),
+            };
+        return new CapturedSearch(runCase, request.DeterministicSearchForTest, tier);
     }
 
     private static ResultEntry Failure(string root, string stage, Stopwatch stopwatch,
@@ -342,8 +390,64 @@ internal static class TestSession
             selections ?? [], turnSetupRoot, "failed", 0);
     }
 
+    private static bool ApplyTestSettings(OfflineRequest request)
+    {
+        if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null)
+            return false;
+        SearchPerformanceTier? tier = request.SettingsTierForTest is { } text
+            ? SearchPerformanceProfile.ParseTier(text)
+            : null;
+        if (!SolverSettings.Update(current => current with
+            {
+                Search = tier is { } value ? current.Search with { Tier = value } : current.Search,
+                Automation = request.SettingsAutoEnableFullAutoForTest is { } auto
+                    ? current.Automation with { AutoEnableFullAuto = auto }
+                    : current.Automation,
+            }))
+        {
+            throw new InvalidOperationException("无法应用测试设置。");
+        }
+        return true;
+    }
+
+    private static async Task<CombatPilotResult> RunAutoStartedCombatAsync(NGame host,
+        OfflineRequest request, SearchPerformanceTier tier, string resultDirectory)
+    {
+        FastModeType original = SaveManager.Instance.PrefsSave.FastMode;
+        FastModeType instant = ParseFastMode(request.HeadlessFastModeForTest);
+        try
+        {
+            SaveManager.Instance.PrefsSave.FastMode = instant;
+            AutoCombatSession.ClearLastRunForTesting();
+            AllowAutoStartForTest = true;
+            ModLog.Info($"[Sts2Solver] AUTO_START_SCENARIO root=auto tier={tier}");
+            long deadline = Environment.TickCount64 + 15_000;
+            while (AutoCombatSession.LastRunForTesting == null)
+            {
+                if (Environment.TickCount64 >= deadline)
+                    throw new TimeoutException("等待设置自动开启全自动超时。");
+                await CombatFrameWaiter.NextFrameAsync(host);
+            }
+            if (AutoCombatSession.LastStartSourceForTesting != AutoCombatStartSource.Auto)
+                throw new InvalidDataException("全自动不是由设置自动开启的。");
+            Task<CombatPilotResult?> task = AutoCombatSession.LastRunForTesting;
+            CombatPilotResult? result = await task;
+            if (result == null)
+                throw new InvalidDataException("自动开启的全自动没有返回结果。");
+            WriteJson(Path.Combine(resultDirectory, "auto-start.json"), new AutoStartEntry(
+                1, "auto", true, tier.ToString(), SolverSettings.Current.Automation.AutoEnableFullAuto));
+            return result;
+        }
+        finally
+        {
+            SaveManager.Instance.PrefsSave.FastMode = original;
+            ModLog.Info(
+                $"[Sts2Solver] AUTO_START_SCENARIO_FAST_MODE_RESTORED root=auto mode={original}");
+        }
+    }
+
     private static async Task<CombatPilotResult> RunFullCombatAsync(NGame host, string root,
-        OfflineRequest request, CombatState combat, SearchPerformanceTier tier,
+        OfflineRequest request, CombatState combat, SearchPerformanceTier? tier,
         int? cancelAfterMilliseconds)
     {
         FastModeType original = SaveManager.Instance.PrefsSave.FastMode;
@@ -352,7 +456,8 @@ internal static class TestSession
         {
             SaveManager.Instance.PrefsSave.FastMode = instant;
             ModLog.Info(
-                $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} tier={tier}");
+                $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +
+                $"tier={tier?.ToString() ?? "settings"}");
             return await AutoCombatSession.RunAsync(host, combat,
                 (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player), root, tier,
                 CancellationToken.None, cancelAfterMilliseconds);
@@ -390,11 +495,21 @@ internal static class TestSession
         if (request.GeneratedScenarioPath is { Length: > 0 } path && !Path.IsPathRooted(path))
             throw new NotSupportedException($"generatedScenarioPath 必须是绝对路径：{path}");
         _ = SearchPerformanceProfile.ParseTier(request.SearchTier);
+        if (request.SettingsTierForTest is { } settingsTier)
+            _ = SearchPerformanceProfile.ParseTier(settingsTier);
         if (request.SearchCancelAfterMillisecondsForTest is <= 0)
             throw new NotSupportedException(
                 $"searchCancelAfterMillisecondsForTest 必须为正：{request.SearchCancelAfterMillisecondsForTest}");
         if (request.FullCombatForTest && request.FlashTurnSetupRootForTest)
             throw new NotSupportedException("整场测试不支持回合准备根。");
+        if (request.UiSnapshotForTest && !request.FullCombatForTest)
+            throw new NotSupportedException("uiSnapshotForTest 需要 fullCombatForTest。");
+        if (request.AutoStartFullCombatForTest && !request.FullCombatForTest)
+            throw new NotSupportedException("autoStartFullCombatForTest 需要 fullCombatForTest。");
+        if (request.AutoStartFullCombatForTest && request.FlashTurnSetupRootForTest)
+            throw new NotSupportedException("自动开启场景不支持回合准备根。");
+        if (request.AutoStartFullCombatForTest && request.SearchCancelAfterMillisecondsForTest is not null)
+            throw new NotSupportedException("自动开启场景不支持 searchCancelAfterMillisecondsForTest。");
     }
 
     private static async Task WaitForMainMenuReadyAsync(NGame host)
@@ -444,6 +559,13 @@ internal static class TestSession
         File.WriteAllText(temporary, JsonSerializer.Serialize(value, OfflineJson.Options));
         File.Move(temporary, path, true);
     }
+
+    private sealed record AutoStartEntry(
+        int SchemaVersion,
+        string Source,
+        bool StartedBySetting,
+        string Tier,
+        bool SettingEnabled);
 
     private sealed record CapturedSearch(
         SearchCase SearchCase,

@@ -1,0 +1,228 @@
+using System.Text.Json;
+using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Import;
+
+namespace Sts2Solver;
+
+/// <summary>
+/// Pure settings/localization checks. They use a temporary directory and never touch the live
+/// settings file, so the headless request suite starts from the same defaults.
+/// </summary>
+internal static class UiLogicChecks
+{
+    internal static UiLogicCheckResult Run(string testRoot)
+    {
+        string directory = Path.Combine(testRoot, "ui-checks-tmp-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        List<UiLogicCheck> checks = [];
+        int passed = 0;
+        int failed = 0;
+        void Check(string name, Action body)
+        {
+            try
+            {
+                body();
+                passed++;
+                checks.Add(new UiLogicCheck(name, "ok", null));
+            }
+            catch (InvalidDataException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", exception.Message));
+            }
+            catch (JsonException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", "json:" + exception.Message));
+            }
+            catch (IOException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", "io:" + exception.Message));
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", "access:" + exception.Message));
+            }
+            catch (NotSupportedException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", "unsupported:" + exception.Message));
+            }
+            catch (InvalidOperationException exception)
+            {
+                failed++;
+                checks.Add(new UiLogicCheck(name, "failed", "invalid_operation:" + exception.Message));
+            }
+        }
+
+        Check("settings_defaults", Defaults);
+        Check("settings_round_trip", () => RoundTrip(directory));
+        Check("settings_corrupt_fallback", () => CorruptFallback(directory));
+        Check("search_memory_priority", MemoryPriority);
+        Check("english_catalog_placeholders", LocaleCatalog);
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // The test result is already recorded; a leftover temporary directory is harmless.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Same.
+        }
+        UiLogicCheckResult result = new(1, failed == 0 ? "ok" : "failed", passed, failed, [.. checks]);
+        ModLog.Info(
+            $"[Sts2Solver] UI_LOGIC_CHECKS status={result.Status} passed={passed} failed={failed}");
+        foreach (UiLogicCheck check in checks.Where(static check => check.Status != "ok"))
+            ModLog.Error($"[Sts2Solver] UI_LOGIC_CHECK_FAILED name={check.Name} reason={check.Error}");
+        return result;
+    }
+
+    private static void Defaults()
+    {
+        SolverSettingsData data = new();
+        data.Validate();
+        Require(data.SchemaVersion == SolverSettingsData.CurrentSchemaVersion, "schema_version");
+        Require(data.Search.Tier == SearchPerformanceTier.Medium, "tier_default");
+        Require(data.Search.MemoryBudgetBytes is null, "memory_override_default");
+        Require(data.Search.Potions.DefaultMode == PotionUseMode.Smart, "potion_mode_default");
+        Require(data.Search.Potions.Preset == SolverPotionPreset.Smart, "potion_preset_default");
+        Require(data.Search.Potions.Directives.Length == 0, "potion_directives_default");
+        Require(data.Search.GrowthBudgets == default, "growth_default");
+        Require(!data.Search.IgnoreLongTermRewards, "ignore_long_term_default");
+        Require(data.Search.RelicTargets.Length == 0, "relic_targets_default");
+        Require(data.Search.ActTransitionBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
+            "act_boss_default");
+        Require(data.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
+            "final_boss_default");
+        Require(data.Search.Theft == SolverTheftMode.Auto, "theft_default");
+        Require(!data.Automation.AutoEnableFullAuto, "auto_start_default");
+        Require(data.Ui.PanelX is null && data.Ui.PanelY is null, "panel_position_default");
+        Require(data.Ui.PanelWidth is null && data.Ui.PanelHeight is null, "panel_size_default");
+        Require(!data.Ui.Collapsed, "collapsed_default");
+        Require(Math.Abs(data.Ui.Opacity - 0.65f) < 0.0001f, "opacity_default");
+        Require(data.Ui.Theme == SolverUiTheme.Dark, "theme_default");
+    }
+
+    private static void RoundTrip(string directory)
+    {
+        string path = Path.Combine(directory, "settings.json");
+        List<string> logs = [];
+        SolverSettingsStore store = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        SolverSettingsData changed = new()
+        {
+            Search = new SolverSearchSettings
+            {
+                Tier = SearchPerformanceTier.High,
+                MemoryBudgetBytes = 2L << 30,
+                Potions = new SolverPotionSettings
+                {
+                    DefaultMode = PotionUseMode.Disabled,
+                    Preset = SolverPotionPreset.ForceAll,
+                    Directives = [new PotionSlotDirective(0, "FIRE_POTION", PotionDirective.Force)],
+                },
+                GrowthBudgets = new SearchGrowthBudget(HandOfGreed: 5, Feed: 3),
+                IgnoreLongTermRewards = true,
+                RelicTargets =
+                [
+                    new SearchRelicCounterTarget(SearchRelicCounter.HappyFlower, 2, 4, 6, 3, 2),
+                ],
+                ActTransitionBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
+                FinalBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
+                Theft = SolverTheftMode.LetEscape,
+            },
+            Automation = new SolverAutomationSettings { AutoEnableFullAuto = true },
+            Ui = new SolverUiSettings
+            {
+                PanelX = 12.5f,
+                PanelY = 24.5f,
+                PanelWidth = 800f,
+                PanelHeight = 600f,
+                Collapsed = true,
+                Opacity = 0.8f,
+                Theme = SolverUiTheme.Light,
+            },
+        };
+        bool updated = store.Update(_ => changed, out string? error);
+        Require(updated, "update_failed:" + error);
+        Require(File.Exists(path), "file_missing");
+        Require(!File.Exists(path + ".tmp"), "temp_file_left");
+        SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        string expected = JsonSerializer.Serialize(changed, SolverSettingsStore.JsonOptions);
+        string actual = JsonSerializer.Serialize(loaded.Current, SolverSettingsStore.JsonOptions);
+        Require(string.Equals(expected, actual, StringComparison.Ordinal), "round_trip_mismatch");
+        Require(logs.Any(static line => line.Contains("SETTINGS_SAVED", StringComparison.Ordinal)),
+            "save_log_missing");
+    }
+
+    private static void CorruptFallback(string directory)
+    {
+        string path = Path.Combine(directory, "corrupt.json");
+        File.WriteAllText(path, "{ this is not json");
+        List<string> logs = [];
+        SolverSettingsStore store = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        Require(store.Current.Search.Tier == SearchPerformanceTier.Medium, "corrupt_not_default");
+        Require(Directory.GetFiles(directory, "corrupt.bad-*.json").Length == 1, "backup_missing");
+        Require(logs.Any(static line => line.Contains("SETTINGS_CORRUPT", StringComparison.Ordinal)),
+            "corrupt_log_missing");
+
+        string invalidPath = Path.Combine(directory, "invalid.json");
+        File.WriteAllText(invalidPath,
+            "{\"schemaVersion\":1,\"ui\":{\"opacity\":0.1}}");
+        List<string> invalidLogs = [];
+        SolverSettingsStore invalid = SolverSettingsStore.Load(invalidPath, invalidLogs.Add,
+            invalidLogs.Add);
+        Require(invalid.Current.Ui.Opacity > 0.24f, "invalid_not_default");
+        Require(Directory.GetFiles(directory, "invalid.bad-*.json").Length == 1,
+            "invalid_backup_missing");
+        Require(invalidLogs.Any(static line =>
+                line.Contains("SETTINGS_CORRUPT", StringComparison.Ordinal)),
+            "invalid_log_missing");
+    }
+
+    private static void MemoryPriority()
+    {
+        const long gib = 1L << 30;
+        const long mib = 1L << 20;
+        SearchMemoryBudgetResolution environment =
+            SearchMemoryBudget.Resolve(2 * gib, "4096", gib);
+        Require(environment.Source == SearchMemoryBudgetSource.Environment, "env_source");
+        Require(environment.Bytes == 4096 * mib, "env_bytes");
+        SearchMemoryBudgetResolution settings = SearchMemoryBudget.Resolve(2 * gib, null, gib);
+        Require(settings.Source == SearchMemoryBudgetSource.Settings, "settings_source");
+        Require(settings.Bytes == 2 * gib, "settings_bytes");
+        SearchMemoryBudgetResolution fallback = SearchMemoryBudget.Resolve(null, null, gib);
+        Require(fallback.Source == SearchMemoryBudgetSource.Default, "default_source");
+        Require(fallback.Bytes == gib, "default_bytes");
+        SearchMemoryBudgetResolution invalid = SearchMemoryBudget.Resolve(2 * gib, "0", gib);
+        Require(invalid.Source == SearchMemoryBudgetSource.Settings, "invalid_env_fallthrough");
+        Require(invalid.Bytes == 2 * gib, "invalid_env_bytes");
+        SearchMemoryBudgetResolution unparseable =
+            SearchMemoryBudget.Resolve(null, "nope", gib);
+        Require(unparseable.Source == SearchMemoryBudgetSource.Default, "unparseable_env_source");
+        Require(unparseable.Bytes == gib, "unparseable_env_bytes");
+    }
+
+    private static void LocaleCatalog()
+    {
+        string[] problems = SolverText.ValidateEnglishCatalog();
+        Require(problems.Length == 0, "catalog:" + string.Join(",", problems));
+        Require(SolverText.EnglishCatalogForTesting.Count > 0, "catalog_empty");
+        Require(SolverText.EnglishCatalogForTesting.ContainsKey("尖塔求解器"), "catalog_title_key");
+    }
+
+    private static void Require(bool condition, string code)
+    {
+        if (!condition)
+            throw new InvalidDataException(code);
+    }
+
+    internal sealed record UiLogicCheckResult(int SchemaVersion, string Status, int Passed, int Failed,
+        UiLogicCheck[] Checks);
+
+    internal sealed record UiLogicCheck(string Name, string Status, string? Error);
+}

@@ -83,6 +83,14 @@ internal sealed record OfflineRequest
     // the combat animation speed (Instant by default for this mode).
     public bool FullCombatForTest { get; init; }
 
+    // UI infrastructure scenarios. These only change the test entry point, never the production
+    // request or search semantics.
+    public bool UiSnapshotForTest { get; init; }
+    public bool AutoStartFullCombatForTest { get; init; }
+    public bool SearchTierFromSettingsForTest { get; init; }
+    public string? SettingsTierForTest { get; init; }
+    public bool? SettingsAutoEnableFullAutoForTest { get; init; }
+
     // Search/deployment fields present in frozen fixture JSON. They do not affect root construction;
     // ValidateSupported rejects the values this batch does not understand.
     // Policy fields the evaluation-config compiler reads. The frozen corpus uses the fixed M0

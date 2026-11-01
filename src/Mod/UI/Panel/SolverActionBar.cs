@@ -1,7 +1,7 @@
 // Adapted from CombatSolver src/UI/SolverActionBar.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Only the wired full-auto command is shown. Per-turn commands (execute this turn, adopt, freeze,
-// recalculate) get their own row in TurnCommands once ICombatUiCommands exposes them.
+// Only the mode switch is shown. Per-turn commands (execute this turn, adopt, recalculate) get
+// their own row in TurnCommands once the panel is replaced in P3.
 using Godot;
 
 namespace Sts2Solver;
@@ -11,14 +11,14 @@ internal sealed partial class SolverActionBar : VBoxContainer
 {
     private const long NoticeMilliseconds = 3500;
 
-    private readonly Button _fullAuto;
+    private readonly Button _mode;
     private readonly Label _hint;
     private readonly Label _notice;
     private SolverButtonStyle? _renderedStyle;
     private long _noticeUntil;
 
-    /// <summary>Raised when the player presses the full-auto button; the shell sends the command.</summary>
-    public event Action? FullAutoPressed;
+    /// <summary>Raised when the player presses the mode button; the shell sends the command.</summary>
+    public event Action? ModePressed;
 
     /// <summary>
     /// Reserved for per-turn command buttons. It stays empty and hidden; buttons are only added
@@ -37,14 +37,15 @@ internal sealed partial class SolverActionBar : VBoxContainer
 
         HBoxContainer actions = new() { Name = "ActionRow", MouseFilter = MouseFilterEnum.Pass };
         actions.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
-        _fullAuto = SolverUiTokens.CreateButton("", SolverButtonStyle.Positive);
-        _fullAuto.Name = "FullAutoButton";
-        _fullAuto.CustomMinimumSize = new Vector2(148, SolverUiTokens.Size.ButtonHeight);
-        _fullAuto.TooltipText = SolverText.Get("开始或停止本场战斗的全自动；F8 同样可以开关。停止时已经开始的动作会执行完。");
-        _fullAuto.Pressed += () => FullAutoPressed?.Invoke();
-        actions.AddChild(_fullAuto);
-        _hint = SolverUiTokens.CreateLabel("F8", SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextMuted, SolverFontWeight.Normal);
+        _mode = SolverUiTokens.CreateButton("", SolverButtonStyle.Positive);
+        _mode.Name = "ModeButton";
+        _mode.CustomMinimumSize = new Vector2(148, SolverUiTokens.Size.ButtonHeight);
+        _mode.TooltipText = SolverText.Get("切换手动、自动搜索和全自动三档；切换不会打断正在进行的搜索或本回合执行。");
+        _mode.Pressed += () => ModePressed?.Invoke();
+        actions.AddChild(_mode);
+        _hint = SolverUiTokens.CreateLabel(SolverText.Get("模式"),
+            SolverUiTokens.Type.Caption, SolverUiTokens.Palette.TextMuted,
+            SolverFontWeight.Normal);
         actions.AddChild(_hint);
         _notice = SolverUiTokens.CreateLabel("", SolverUiTokens.Type.Caption, SolverUiTokens.Palette.Warning);
         _notice.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -67,24 +68,19 @@ internal sealed partial class SolverActionBar : VBoxContainer
         AddChild(Memory);
     }
 
-    public bool FullAutoRunning { get; private set; }
-
     public void Apply(CombatUiSnapshot snapshot, bool collapsed)
     {
-        bool running = SolverPanelText.IsRunning(snapshot.Phase);
-        bool stopping = running && snapshot.PauseReason != null;
-        FullAutoRunning = running;
-        string text = stopping ? SolverText.Get("正在停止…")
-            : running ? SolverText.Get("停止全自动")
-            : SolverText.Get("开始全自动");
-        if (_fullAuto.Text != text)
-            _fullAuto.Text = text;
-        _fullAuto.Disabled = stopping;
-        SolverButtonStyle style = running ? SolverButtonStyle.Danger : SolverButtonStyle.Positive;
+        string text = SolverPanelText.Mode(snapshot.Mode);
+        if (_mode.Text != text)
+            _mode.Text = text;
+        _mode.Disabled = snapshot.SolverDisabled;
+        SolverButtonStyle style = snapshot.Mode == SolverMode.FullAuto
+            ? SolverButtonStyle.Positive
+            : SolverButtonStyle.Secondary;
         if (_renderedStyle != style)
         {
             _renderedStyle = style;
-            SolverUiTokens.ApplyButtonStyle(_fullAuto, style);
+            SolverUiTokens.ApplyButtonStyle(_mode, style);
         }
         _hint.Visible = !collapsed;
         Memory.Visible = !collapsed;
@@ -105,6 +101,6 @@ internal sealed partial class SolverActionBar : VBoxContainer
     }
 
 #if STS2_SOLVER_TESTING
-    internal Button FullAutoButtonForTest => _fullAuto;
+    internal Button ModeButtonForTest => _mode;
 #endif
 }

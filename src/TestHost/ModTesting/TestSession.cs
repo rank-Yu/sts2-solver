@@ -115,41 +115,97 @@ internal static class TestSession
                 Validate(request);
                 settingsChanged = ApplyTestSettings(request);
                 SearchPerformanceTier tier = request.SearchTierFromSettingsForTest
-                    ? AutoCombatSession.ResolveSearchTier(null)
+                    ? SolverSettings.Current.Search.Tier
                     : SearchPerformanceProfile.ParseTier(request.SearchTier);
-                FirstChoiceCardSelector.LastSelections.Clear();
-                if (request.FlashTurnSetupRootForTest)
-                    TurnSetupRootCapture.BeginBuild();
-                stage = "build";
-                ModLog.Info($"[Sts2Solver] BUILD_STARTED root={root}");
-                CombatState combat = await ScenarioBuilder.BuildAsync(
-                    new GodotCombatWaiter(host), request,
-                    skipInitialInjection: request.FlashTurnSetupRootForTest);
-                ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
-                stage = "settle";
-                await CombatFrameWaiter.SettleAsync(host);
-                stage = "capture";
-                CapturedSearch? captured = Capture(resultDirectory, root, request, combat, tier);
-                if (request.UiSnapshotForTest)
+                CombatSessionController.SetTestRoot(root);
+                SearchSession.ConfigureProgress(true,
+                    request.ControllerScenarioForTest is { Length: > 0 } ? 0 : 200);
+                bool turnSetupScenario =
+                    request.ControllerScenarioForTest == "turn_setup_wait";
+                TurnSetupCardSelector? setupSelector = null;
+                if (turnSetupScenario)
+                {
+                    CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
+                    setupSelector = new TurnSetupCardSelector(0, static () =>
+                    {
+                        if (CombatControllerTestHooks.TurnSetupSearchCountAtSelection < 0)
+                        {
+                            CombatControllerTestHooks.TurnSetupSearchCountAtSelection =
+                                CombatSessionController.SearchCountForTest;
+                        }
+                    });
+                }
+                if (request.UiSnapshotForTest || request.ControllerScenarioForTest != null)
                 {
                     CombatUiStore.ClearHistory();
                     CombatUiStore.RecordHistory = true;
                     recordSnapshots = true;
                 }
+                FirstChoiceCardSelector.LastSelections.Clear();
+                if (request.FlashTurnSetupRootForTest)
+                    TurnSetupRootCapture.BeginBuild();
+                stage = "build";
+                CombatSessionController.HoldAutoSearchForTest = !turnSetupScenario;
+                ModLog.Info($"[Sts2Solver] BUILD_STARTED root={root}");
+                CombatState combat = await ScenarioBuilder.BuildAsync(
+                    new GodotCombatWaiter(host), request,
+                    skipInitialInjection: request.FlashTurnSetupRootForTest,
+                    turnSetupSelector: setupSelector);
+                ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
+                stage = "settle";
+                await CombatFrameWaiter.SettleAsync(host);
+                if (request.FullCombatForTest || request.ControllerScenarioForTest != null)
+                    CombatSessionController.ResumeAutoSearchForTest();
+                stage = "capture";
+                CapturedSearch? captured = request.ControllerScenarioForTest is { Length: > 0 }
+                    ? null
+                    : Capture(resultDirectory, root, request, combat, tier);
                 string? failure = null;
-                if (request.FullCombatForTest)
+                if (request.ControllerScenarioForTest is { Length: > 0 } scenario)
+                {
+                    stage = "controller";
+                    CombatControllerScenarioResult scenarioResult =
+                        await CombatControllerChecks.RunAsync(host, request, scenario, root,
+                            resultDirectory);
+                    WriteJson(Path.Combine(resultDirectory, "controller.json"), scenarioResult);
+                    failure = scenarioResult.Status == "ok" ? null : scenarioResult.Error;
+                    stage = "status";
+                    WriteJson(Path.Combine(resultDirectory, "status.json"), new StatusEntry(
+                        2, root, "ok", stage, stopwatch.ElapsedMilliseconds, failure,
+                        [.. FirstChoiceCardSelector.LastSelections],
+                        request.FlashTurnSetupRootForTest, 0, "skipped", tier.ToString(), false,
+                        0, 0, 0, 0, 0, 0, 0, false, 0, 0, true, null,
+                        scenarioResult.Status, scenarioResult.Outcome, scenarioResult.Turns,
+                        scenarioResult.PlayerHp, scenarioResult.PlayerMaxHp,
+                        scenarioResult.Searches, scenarioResult.ReusedTurns,
+                        scenarioResult.Deviations, scenarioResult.DeploymentFailures));
+                    if (failure == null)
+                    {
+                        ok++;
+                        results.Add(new ResultEntry(root, "ok", stage,
+                            stopwatch.ElapsedMilliseconds, null,
+                            [.. FirstChoiceCardSelector.LastSelections],
+                            request.FlashTurnSetupRootForTest, scenarioResult.Status, 0));
+                    }
+                    else
+                    {
+                        failed++;
+                        results.Add(new ResultEntry(root, "failed", stage,
+                            stopwatch.ElapsedMilliseconds, failure,
+                            [.. FirstChoiceCardSelector.LastSelections],
+                            request.FlashTurnSetupRootForTest, "failed", 0));
+                        ModLog.Error($"[Sts2Solver] CONTROLLER_SCENARIO_FAILED root={root} {failure}");
+                    }
+                }
+                else if (request.FullCombatForTest)
                 {
                     if (captured == null)
                         throw new InvalidDataException("整场测试不支持回合准备根。");
                     stage = "ui_panel";
                     panelChecks = await UiPanelChecks.BeginAsync(host);
                     stage = "full_combat";
-                    CombatPilotResult auto = request.AutoStartFullCombatForTest
-                        ? await RunAutoStartedCombatAsync(host, request, tier, resultDirectory)
-                        : await RunFullCombatAsync(
-                            host, root, request, combat,
-                            request.SearchTierFromSettingsForTest ? null : tier,
-                            request.SearchCancelAfterMillisecondsForTest);
+                    CombatPilotResult auto = await RunControllerCombatAsync(
+                        host, root, request, tier, resultDirectory);
                     WriteJson(Path.Combine(resultDirectory, "full-combat.json"), auto);
                     if (request.UiSnapshotForTest)
                         UiSnapshotChecks.Run(resultDirectory, auto, CombatUiStore.History);
@@ -282,6 +338,9 @@ internal static class TestSession
                 AllowAutoStartForTest = false;
                 if (recordSnapshots)
                     CombatUiStore.RecordHistory = false;
+                CombatSessionController.HoldAutoSearchForTest = false;
+                CombatControllerTestHooks.ForceDeploymentFailure = null;
+                CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
                 if (settingsChanged && !SolverSettings.Update(_ => previousSettings))
                     ModLog.Error($"[Sts2Solver] SETTINGS_RESTORE_FAILED root={root}");
             }
@@ -289,10 +348,11 @@ internal static class TestSession
             bool breakAfterCleanup = false;
             try
             {
-                if (!await AutoCombatSession.CancelAndWaitAsync(host, "request_cleanup", 10_000))
-                    throw new TimeoutException("全自动取消后仍未退出。");
+                if (!await CombatSessionController.CancelAndWaitAsync(host, "request_cleanup", 10_000))
+                    throw new TimeoutException("控制器取消后仍未退出。");
                 if (!await SearchSession.CancelAndWaitAsync(host, "request_cleanup", 10_000))
                     throw new TimeoutException("搜索取消后仍未退出。");
+                CombatSessionController.Reset("request_cleanup");
                 await ResetToMainMenuAsync(host);
             }
             catch (TimeoutException error)
@@ -313,11 +373,11 @@ internal static class TestSession
                 break;
             }
         }
-        if (!await AutoCombatSession.CancelAndWaitAsync(host, "test_done", 10_000))
+        if (!await CombatSessionController.CancelAndWaitAsync(host, "test_done", 10_000))
         {
             failed++;
-            results.Add(Failure("all-done-auto-cancel", "cleanup", total,
-                "测试结束时全自动仍未退出", null, false));
+            results.Add(Failure("all-done-controller-cancel", "cleanup", total,
+                "测试结束时控制器仍未退出", null, false));
         }
         if (!await SearchSession.CancelAndWaitAsync(host, "test_done", 10_000))
         {
@@ -399,25 +459,39 @@ internal static class TestSession
 
     private static bool ApplyTestSettings(OfflineRequest request)
     {
-        if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null)
+        if (request.ControllerScenarioForTest is { Length: > 0 } || request.FullCombatForTest)
+        {
+            CombatSessionController.SearchPolicyOverrideForTest =
+                (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player);
+        }
+        if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null
+            && !request.FullCombatForTest)
+        {
             return false;
+        }
         SearchPerformanceTier? tier = request.SettingsTierForTest is { } text
             ? SearchPerformanceProfile.ParseTier(text)
             : null;
-        if (!SolverSettings.Update(current => current with
-            {
-                Search = tier is { } value ? current.Search with { Tier = value } : current.Search,
-                Automation = request.SettingsAutoEnableFullAutoForTest is { } auto
-                    ? current.Automation with { AutoEnableFullAuto = auto }
-                    : current.Automation,
-            }))
+        SolverSettingsData current = SolverSettings.Current;
+        SolverMode mode = request.FullCombatForTest
+            ? SolverMode.FullAuto
+            : request.SettingsAutoEnableFullAutoForTest is { } auto
+                ? auto ? SolverMode.FullAuto : SolverMode.AutoSearch
+                : current.Automation.Mode;
+        SolverSettingsData next = current with
         {
+            Search = tier is { } value ? current.Search with { Tier = value } : current.Search,
+            Automation = current.Automation with { Mode = mode },
+        };
+        if (next == current)
+            return false;
+        if (!SolverSettings.Update(_ => next))
             throw new InvalidOperationException("无法应用测试设置。");
-        }
+        CombatSessionController.OnSettingsChanged();
         return true;
     }
 
-    private static async Task<CombatPilotResult> RunAutoStartedCombatAsync(NGame host,
+    private static async Task<CombatPilotResult> RunControllerCombatAsync(NGame host, string root,
         OfflineRequest request, SearchPerformanceTier tier, string resultDirectory)
     {
         FastModeType original = SaveManager.Instance.PrefsSave.FastMode;
@@ -425,52 +499,54 @@ internal static class TestSession
         try
         {
             SaveManager.Instance.PrefsSave.FastMode = instant;
-            AutoCombatSession.ClearLastRunForTesting();
-            AllowAutoStartForTest = true;
-            ModLog.Info($"[Sts2Solver] AUTO_START_SCENARIO root=auto tier={tier}");
-            long deadline = Environment.TickCount64 + 15_000;
-            while (AutoCombatSession.LastRunForTesting == null)
+            for (int frame = 0; frame < 120 && !CombatSessionController.IsActiveForTest; frame++)
+                await CombatFrameWaiter.NextFrameAsync(host);
+            if (!CombatSessionController.IsActiveForTest)
+                throw new TimeoutException("控制器没有进入战斗。");
+            ModLog.Info(
+                $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +
+                $"tier={tier} mode={SolverSettings.Current.Automation.Mode} " +
+                $"auto_start={request.AutoStartFullCombatForTest}");
+            if (request.AutoStartFullCombatForTest)
+            {
+                long startDeadline = Environment.TickCount64 + 15_000;
+                while (!CombatSessionController.FullAutoEnabled)
+                {
+                    if (Environment.TickCount64 >= startDeadline)
+                        throw new TimeoutException("等待全自动模式武装超时。");
+                    await CombatFrameWaiter.NextFrameAsync(host);
+                }
+                WriteJson(Path.Combine(resultDirectory, "auto-start.json"), new AutoStartEntry(
+                    1, "mode", true, tier.ToString(),
+                    SolverSettings.Current.Automation.Mode == SolverMode.FullAuto));
+            }
+            long deadline = Environment.TickCount64
+                + (long)Math.Max(request.TimeoutSeconds, 480d) * 1000L;
+            while (CombatManager.Instance.IsInProgress && !CombatSessionController.IsPaused)
             {
                 if (Environment.TickCount64 >= deadline)
-                    throw new TimeoutException("等待设置自动开启全自动超时。");
+                    throw new TimeoutException("等待控制器整场结束超时。");
                 await CombatFrameWaiter.NextFrameAsync(host);
             }
-            if (AutoCombatSession.LastStartSourceForTesting != AutoCombatStartSource.Auto)
-                throw new InvalidDataException("全自动不是由设置自动开启的。");
-            Task<CombatPilotResult?> task = AutoCombatSession.LastRunForTesting;
-            CombatPilotResult? result = await task;
-            if (result == null)
-                throw new InvalidDataException("自动开启的全自动没有返回结果。");
-            WriteJson(Path.Combine(resultDirectory, "auto-start.json"), new AutoStartEntry(
-                1, "auto", true, tier.ToString(), SolverSettings.Current.Automation.AutoEnableFullAuto));
+            for (int frame = 0; frame < 120
+                && CombatSessionController.LastCompletedResultForTesting == null; frame++)
+            {
+                await CombatFrameWaiter.NextFrameAsync(host);
+            }
+            CombatPilotResult result =
+                CombatSessionController.LastCompletedResultForTesting
+                ?? CombatSessionController.CapturePilotResultForTest();
+            ModLog.Info(
+                $"[Sts2Solver] FULL_COMBAT_CONTROLLER root={root} status={result.Status} " +
+                $"outcome={result.Outcome} turns={result.Turns} hp={result.PlayerHp}/{result.PlayerMaxHp} " +
+                $"searches={result.Searches} reused={result.ReusedTurns} " +
+                $"deviations={result.Deviations} failures={result.DeploymentFailures} " +
+                $"elapsed_ms={result.ElapsedMs}");
             return result;
         }
         finally
         {
-            SaveManager.Instance.PrefsSave.FastMode = original;
-            ModLog.Info(
-                $"[Sts2Solver] AUTO_START_SCENARIO_FAST_MODE_RESTORED root=auto mode={original}");
-        }
-    }
-
-    private static async Task<CombatPilotResult> RunFullCombatAsync(NGame host, string root,
-        OfflineRequest request, CombatState combat, SearchPerformanceTier? tier,
-        int? cancelAfterMilliseconds)
-    {
-        FastModeType original = SaveManager.Instance.PrefsSave.FastMode;
-        FastModeType instant = ParseFastMode(request.HeadlessFastModeForTest);
-        try
-        {
-            SaveManager.Instance.PrefsSave.FastMode = instant;
-            ModLog.Info(
-                $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +
-                $"tier={tier?.ToString() ?? "settings"}");
-            return await AutoCombatSession.RunAsync(host, combat,
-                (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player), root, tier,
-                CancellationToken.None, cancelAfterMilliseconds);
-        }
-        finally
-        {
+            CombatSessionController.SearchPolicyOverrideForTest = null;
             SaveManager.Instance.PrefsSave.FastMode = original;
             ModLog.Info(
                 $"[Sts2Solver] FULL_COMBAT_FAST_MODE_RESTORED root={root} mode={original}");
@@ -518,6 +594,13 @@ internal static class TestSession
             throw new NotSupportedException("autoStartFullCombatForTest 需要 fullCombatForTest。");
         if (request.AutoStartFullCombatForTest && request.FlashTurnSetupRootForTest)
             throw new NotSupportedException("自动开启场景不支持回合准备根。");
+        if (request.ControllerScenarioForTest is { } scenario)
+        {
+            if (scenario.Length == 0)
+                throw new NotSupportedException("controllerScenarioForTest 不能为空。");
+            if (request.FullCombatForTest)
+                throw new NotSupportedException("控制器场景不能与 fullCombatForTest 同时使用。");
+        }
         if (request.AutoStartFullCombatForTest && request.SearchCancelAfterMillisecondsForTest is not null)
             throw new NotSupportedException("自动开启场景不支持 searchCancelAfterMillisecondsForTest。");
     }

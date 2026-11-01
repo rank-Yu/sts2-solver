@@ -1,3 +1,4 @@
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Nodes;
 using STS2RitsuLib;
@@ -48,6 +49,7 @@ public static class ModEntry
 #endif
         SolverSettings.Initialize();
         SolverText.Initialize();
+        CombatSessionController.Initialize();
         if (NGame.IsMainThread())
         {
             SearchThreadCount.Resolve();
@@ -58,19 +60,23 @@ public static class ModEntry
         ModLog.Info($"[Sts2Solver] INIT id={ModId} version={Version} name={DisplayName} english={EnglishName} test_mode={TestMode}");
 
         // 战斗结束或退出时取消后台搜索和自动执行。
-        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(static _ =>
+        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(static evt =>
         {
             SearchSession.OnCombatStarting();
-            AutoCombatSession.OnCombatStarting();
+            CombatSessionController.BeginCombat(evt.CombatState as CombatState);
         });
         RitsuLibFramework.SubscribeLifecycle<CombatEndedEvent>(static _ =>
         {
             SearchSession.OnCombatEnded();
-            AutoCombatSession.OnCombatEnded();
+            CombatSessionController.OnCombatEnded();
 #if STS2_SOLVER_TESTING
             TestSession.OnCombatEnded();
 #endif
         });
+        if (CombatManager.Instance != null)
+            CombatManager.Instance.TurnStarted += CombatSessionController.OnTurnStarted;
+        else
+            ModLog.Error("[Sts2Solver] TURN_EVENT_UNAVAILABLE reason=CombatManager_missing");
 #if STS2_SOLVER_TESTING
         if (TestMode)
             RitsuLibFramework.SubscribeLifecycle<GameReadyEvent>(static _ => TestSession.Start());
@@ -79,20 +85,19 @@ public static class ModEntry
         NGame? host = NGame.Instance;
         if (host == null)
         {
-            ModLog.Warn("[Sts2Solver] HOTKEY_DISABLED reason=NGame_instance_missing");
+            ModLog.Warn("[Sts2Solver] CONTROLLER_NODE_DISABLED reason=NGame_instance_missing");
         }
         else
         {
-            host.AddChild(new SearchHotkeyNode());
             host.AddChild(new CombatUiMemorySampler());
-            host.AddChild(new CombatUiAutoStartNode());
+            host.AddChild(new CombatSessionNode());
             host.AddChild(new SolverPanelNode());
             host.TreeExiting += static () =>
             {
-                AutoCombatSession.Cancel("tree_exiting");
+                CombatSessionController.Reset("tree_exiting");
                 SearchSession.Cancel("tree_exiting");
             };
-            ModLog.Info("[Sts2Solver] HOTKEY_READY key=F8 action=toggle_full_auto");
+            ModLog.Info("[Sts2Solver] CONTROLLER_READY hotkey=none mode_switch=panel");
         }
     }
 

@@ -2,7 +2,7 @@
   "id": "Sts2Solver",
   "name": "尖塔求解器",
   "author": "rank-Yu",
-  "description": "尖塔求解器（STS2 Solver）：面向 SL 模式的战斗求解器。按 F8 开关本场战斗全自动：整场搜索、自动出牌用药，并逐动作核对。",
+  "description": "尖塔求解器（STS2 Solver）：面向 SL 模式的战斗求解器。用底栏模式按钮切换手动、自动搜索和全自动：搜索整场路线、自动出牌用药，并逐动作核对。",
   "version": "0.1.0",
   "has_pck": false,
   "has_dll": true,

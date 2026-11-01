@@ -16,7 +16,7 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
     private const ulong OpacitySaveDelayMilliseconds = 400;
 
     private readonly Label _status;
-    private readonly CheckButton _autoStart;
+    private readonly OptionButton _mode;
     private readonly OptionButton _tier;
     private readonly Label _tierDescription;
     private readonly LineEdit _memory;
@@ -94,12 +94,14 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
 
         // Automation.
         VBoxContainer automation = SolverSettingsControls.CreateSection(SolverText.Get("自动执行"),
-            SolverText.Get("进入可操作的单人战斗时自动开始全自动，效果与按 F8 相同。本场手动停止后不会再次自动开始。"));
+            SolverText.Get("档位持久保存。手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。"));
         GridContainer automationGrid = SolverSettingsControls.CreateGrid();
-        _autoStart = SolverSettingsControls.CreateToggle();
-        _autoStart.Name = "AutoStartToggle";
-        _autoStart.Toggled += OnAutoStartToggled;
-        SolverSettingsControls.AddRow(automationGrid, SolverText.Get("每场自动开启全自动"), _autoStart);
+        _mode = SolverSettingsControls.CreateOption();
+        _mode.Name = "ModeOption";
+        foreach (SolverMode mode in Enum.GetValues<SolverMode>())
+            _mode.AddItem(SolverPanelText.Mode(mode), (int)mode);
+        _mode.ItemSelected += OnModeSelected;
+        SolverSettingsControls.AddRow(automationGrid, SolverText.Get("模式"), _mode);
         automation.AddChild(automationGrid);
         content.AddChild(automation);
 
@@ -179,7 +181,7 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
     {
         _loading = true;
         SolverSettingsData data = SolverSettings.Current;
-        _autoStart.SetPressedNoSignal(data.Automation.AutoEnableFullAuto);
+        _mode.Select(_mode.GetItemIndex((int)data.Automation.Mode));
         _tier.Select(_tier.GetItemIndex((int)data.Search.Tier));
         _tierDescription.Text = SolverPanelText.TierDescription(data.Search.Tier);
         _memory.Text = data.Search.MemoryBudgetBytes is { } bytes
@@ -252,16 +254,19 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
     internal OptionButton ThemeOptionForTest => _theme;
 #endif
 
-    private void OnAutoStartToggled(bool enabled)
+    private void OnModeSelected(long index)
     {
         if (_loading)
             return;
-        Save(current => current with
+        SolverMode mode = (SolverMode)_mode.GetItemId((int)index);
+        if (!CombatUiCommands.Instance.SetMode(mode))
         {
-            Automation = current.Automation with { AutoEnableFullAuto = enabled },
-        }, enabled
-            ? SolverText.Get("已开启，下一场战斗自动开始全自动")
-            : SolverText.Get("已关闭每场自动开启"));
+            SetStatus(SolverText.Get("模式保存失败，详情已写入游戏日志"),
+                SolverUiTokens.Palette.Danger);
+            Reload();
+            return;
+        }
+        SetStatus(SolverText.Get("模式已保存"), SolverUiTokens.Palette.Success);
     }
 
     private void OnTierSelected(long index)
@@ -363,6 +368,7 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         {
             return;
         }
+        CombatSessionController.OnSettingsChanged();
         Reload();
         SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
         DefaultsRestored?.Invoke();

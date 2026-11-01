@@ -26,11 +26,11 @@ internal static class UiPanelChecks
         session.Check("panel_visible_in_combat", visible, Describe(panel));
 
         PushCtrlF9(host);
-        bool hidden = await WaitAsync(host, () => !panel.ProbeForTest().Visible, 20);
-        session.Check("shortcut_hides_panel", hidden && panel.ProbeForTest().HiddenByShortcut, Describe(panel));
+        await Frames(host, 5);
+        session.Check("shortcut_ignored_stays_visible", panel.ProbeForTest().Visible, Describe(panel));
         PushCtrlF9(host);
-        bool shown = await WaitAsync(host, () => panel.ProbeForTest().Visible, 20);
-        session.Check("shortcut_shows_panel", shown && !panel.ProbeForTest().HiddenByShortcut, Describe(panel));
+        await Frames(host, 5);
+        session.Check("shortcut_ignored_repeat", panel.ProbeForTest().Visible, Describe(panel));
 
         string language = LocManager.Instance.Language;
         bool english = language != "eng";

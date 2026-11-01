@@ -122,13 +122,13 @@ internal static class UiSnapshotChecks
                 if (result.ReusedTurns == 0)
                     return true;
                 Require("route_reuse_flag", history.Any(static snapshot => snapshot.Route is { Reused: true }));
-                Require("route_reuse_turns", route.Turns.Length > 1);
-                int currentTurns = history.Select(static snapshot => snapshot.Route)
-                    .Where(value => value != null && value.ActionCount == route.ActionCount)
-                    .Select(static value => value!.CurrentTurn)
+                Require("route_reuse_turns", route.Turns.Length >= 1);
+                int reusedTurns = history.Select(static snapshot => snapshot.Route)
+                    .Where(static value => value is { Reused: true })
+                    .Select(static value => value!.StartTurn)
                     .Distinct()
                     .Count();
-                Require("route_reuse_turn_advance", currentTurns > 1);
+                Require("route_reuse_turn_advance", reusedTurns > 1);
                 return true;
             });
         }

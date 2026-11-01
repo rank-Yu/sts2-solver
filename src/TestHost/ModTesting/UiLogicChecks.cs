@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 
 namespace Sts2Solver;
@@ -60,6 +61,8 @@ internal static class UiLogicChecks
         Check("settings_defaults", Defaults);
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
+        Check("settings_v1_migration", () => MigrateV1(directory));
+        Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
         Check("search_thread_count", ThreadCount);
         Check("english_catalog_placeholders", LocaleCatalog);
@@ -102,7 +105,8 @@ internal static class UiLogicChecks
         Require(data.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "final_boss_default");
         Require(data.Search.Theft == SolverTheftMode.Auto, "theft_default");
-        Require(!data.Automation.AutoEnableFullAuto, "auto_start_default");
+        Require(data.Automation.Mode == SolverMode.AutoSearch, "mode_default");
+        Require(!data.Automation.SolverDisabled, "solver_enabled_default");
         Require(data.Ui.PanelX is null && data.Ui.PanelY is null, "panel_position_default");
         Require(data.Ui.PanelWidth is null && data.Ui.PanelHeight is null, "panel_size_default");
         Require(!data.Ui.Collapsed, "collapsed_default");
@@ -137,7 +141,11 @@ internal static class UiLogicChecks
                 FinalBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
                 Theft = SolverTheftMode.LetEscape,
             },
-            Automation = new SolverAutomationSettings { AutoEnableFullAuto = true },
+            Automation = new SolverAutomationSettings
+            {
+                Mode = SolverMode.FullAuto,
+                SolverDisabled = false,
+            },
             Ui = new SolverUiSettings
             {
                 PanelX = 12.5f,
@@ -184,6 +192,64 @@ internal static class UiLogicChecks
         Require(invalidLogs.Any(static line =>
                 line.Contains("SETTINGS_CORRUPT", StringComparison.Ordinal)),
             "invalid_log_missing");
+    }
+
+    private static void MigrateV1(string directory)
+    {
+        string fullAuto = Path.Combine(directory, "v1-full-auto.json");
+        File.WriteAllText(fullAuto,
+            "{\"schemaVersion\":1,\"automation\":{\"autoEnableFullAuto\":true}," +
+            "\"search\":{\"tier\":\"High\"}," +
+            "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
+        List<string> logs = [];
+        SolverSettingsStore migrated = SolverSettingsStore.Load(fullAuto, logs.Add, logs.Add);
+        Require(migrated.Current.SchemaVersion == 2, "migration_schema");
+        Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "migration_full_auto");
+        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "migration_search");
+        Require(logs.Any(static line => line.Contains("SETTINGS_MIGRATED", StringComparison.Ordinal)),
+            "migration_log");
+
+        string autoSearch = Path.Combine(directory, "v1-auto-search.json");
+        File.WriteAllText(autoSearch,
+            "{\"schemaVersion\":1,\"automation\":{\"autoEnableFullAuto\":false}," +
+            "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
+        SolverSettingsStore migratedAuto = SolverSettingsStore.Load(autoSearch, logs.Add, logs.Add);
+        Require(migratedAuto.Current.Automation.Mode == SolverMode.AutoSearch,
+            "migration_auto_search");
+        SolverSettingsData defaults = new();
+        Require(defaults.Automation.Mode == SolverMode.AutoSearch, "migration_default");
+    }
+
+    private static void PausePolicy()
+    {
+        CombatRouteOutcome death = new(3, null, 20, 0, false, false,
+            new Dictionary<int, int> { [3] = 5 });
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, false, 0,
+                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+            == CombatPauseCode.DeathTurn, "death_pause");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, false, 0,
+                stopOnCombatEnd: false, stopOnDeathTurn: false, stopOnWorseRecalculation: true)
+            == null, "death_disabled");
+        CombatRouteOutcome end = new(null, 3, 20, 0, true, false,
+            new Dictionary<int, int> { [3] = 5 });
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 0,
+                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+            == null, "combat_end_default_off");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 0,
+                stopOnCombatEnd: true, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+            == CombatPauseCode.CombatEndTurn, "combat_end_on");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 4,
+                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+            == CombatPauseCode.WorseRecalculation, "worse_recalculation");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, true, 4,
+                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+            == null, "reuse_skips_worse");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, false, true, true) == null,
+            "live_equal");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 6, false, true, true)
+            == CombatPauseCode.LiveEndTurnRisk, "live_worse");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, true, true, true)
+            == CombatPauseCode.LiveEndTurnRisk, "live_death");
     }
 
     private static void MemoryPriority()

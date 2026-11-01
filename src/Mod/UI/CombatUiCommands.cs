@@ -1,17 +1,28 @@
-using MegaCrit.Sts2.Core.Nodes;
-
 namespace Sts2Solver;
 
 /// <summary>
-/// The UI's only command surface. The overlay never calls <see cref="SearchSession"/> or the game
-/// action executor directly; single-turn commands will be added here with their session state machine.
+/// The UI's only command surface. The panel never calls <see cref="SearchSession"/> or the game
+/// action executor directly; every command is validated and executed on the main thread by
+/// <see cref="CombatSessionController"/>.
 /// </summary>
 internal interface ICombatUiCommands
 {
-    /// <summary>Starts full auto; false when it was rejected (already running, not the play phase, ...).</summary>
-    bool StartAuto();
+    /// <summary>Cycles Manual → AutoSearch → FullAuto. The new mode is published in the snapshot.</summary>
+    bool CycleMode();
 
-    void StopAuto(string reason);
+    bool SetMode(SolverMode mode);
+
+    bool SetSolverEnabled(bool enabled);
+
+    bool StartOrRecalculateSearch();
+
+    bool StopSearch();
+
+    bool AdoptCurrentRoute();
+
+    bool ExecuteOrApplyCurrentTurn();
+
+    bool SetFullAuto(bool enabled);
 }
 
 internal static class CombatUiCommands
@@ -20,18 +31,27 @@ internal static class CombatUiCommands
 
     private sealed class Commands : ICombatUiCommands
     {
-        public bool StartAuto()
+        public bool CycleMode()
         {
-            NGame? host = NGame.Instance;
-            if (host == null)
-            {
-                ModLog.Error("[Sts2Solver] AUTO_REJECTED reason=NGame_instance_missing");
-                return false;
-            }
-            return AutoCombatSession.StartAuto(host, AutoCombatStartSource.Command);
+            CombatSessionController.CycleMode();
+            return true;
         }
 
-        public void StopAuto(string reason)
-            => AutoCombatSession.Cancel(string.IsNullOrEmpty(reason) ? "ui" : reason);
+        public bool SetMode(SolverMode mode) => CombatSessionController.SetMode(mode);
+
+        public bool SetSolverEnabled(bool enabled)
+            => CombatSessionController.SetSolverEnabled(enabled);
+
+        public bool StartOrRecalculateSearch()
+            => CombatSessionController.StartOrRecalculateSearch();
+
+        public bool StopSearch() => CombatSessionController.StopSearch();
+
+        public bool AdoptCurrentRoute() => CombatSessionController.AdoptCurrentRoute();
+
+        public bool ExecuteOrApplyCurrentTurn()
+            => CombatSessionController.ExecuteOrApplyCurrentTurn();
+
+        public bool SetFullAuto(bool enabled) => CombatSessionController.SetFullAuto(enabled);
     }
 }

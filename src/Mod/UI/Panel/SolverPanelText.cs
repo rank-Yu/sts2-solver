@@ -142,6 +142,13 @@ internal static class SolverPanelText
             "turn_limit" => SolverText.Get("回合数超过上限，已暂停全自动"),
             "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停全自动"),
             "repeated_failures" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停全自动"),
+            "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停全自动"),
+            "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停全自动"),
+            "worse_recalculation" => SolverText.Get("重算后预计战损增加，已暂停全自动"),
+            "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停全自动"),
+            "combat_end_turn" => SolverText.Format($"第 {turn} 回合预计结束战斗，已暂停全自动"),
+            "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停全自动"),
+            "stopped" => SolverText.Get("搜索已停止"),
             null => SolverText.Get("全自动已暂停"),
             _ => SolverText.Format($"全自动已暂停：{code}"),
         };
@@ -173,6 +180,14 @@ internal static class SolverPanelText
 
     internal static string SearchReason(string code)
         => SearchReasonNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
+
+    internal static string Mode(SolverMode mode) => mode switch
+    {
+        SolverMode.Manual => SolverText.Get("手动"),
+        SolverMode.AutoSearch => SolverText.Get("自动搜索"),
+        SolverMode.FullAuto => SolverText.Get("全自动"),
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
+    };
 
     internal static string Tier(SearchPerformanceTier tier) => tier switch
     {

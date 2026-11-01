@@ -10,8 +10,8 @@ using MegaCrit.Sts2.Core.Localization;
 namespace Sts2Solver;
 
 /// <summary>
-/// The in-combat panel. Shown during single-player combat and hidden otherwise; Ctrl+F9 hides it
-/// for the rest of the session. Main thread only: it never touches search or game actions.
+/// The in-combat panel. Shown during single-player combat and hidden otherwise; there is no
+/// hide shortcut. Main thread only: it never touches search or game actions.
 /// </summary>
 internal sealed partial class SolverPanelNode : CanvasLayer
 {
@@ -49,7 +49,6 @@ internal sealed partial class SolverPanelNode : CanvasLayer
     private bool _collapsed;
     private bool _settingsVisible;
     private bool _detailsVisible;
-    private bool _hiddenByShortcut;
     private bool _rebuildQueued;
     private string? _builtLanguage;
     private int _buildCount;
@@ -74,7 +73,7 @@ internal sealed partial class SolverPanelNode : CanvasLayer
         _collapsed = SolverSettings.Current.Ui.Collapsed;
         Build();
         GetViewport().SizeChanged += QueueLayout;
-        ModLog.Info("[Sts2Solver] UI_PANEL_READY toggle=Ctrl+F9 layer=120");
+        ModLog.Info("[Sts2Solver] UI_PANEL_READY shortcut=none layer=120");
     }
 
     public override void _ExitTree()
@@ -85,7 +84,7 @@ internal sealed partial class SolverPanelNode : CanvasLayer
 
     public override void _Process(double delta)
     {
-        bool show = InSinglePlayerCombat() && !_hiddenByShortcut;
+        bool show = InSinglePlayerCombat();
         if (Visible != show)
         {
             Visible = show;
@@ -109,23 +108,14 @@ internal sealed partial class SolverPanelNode : CanvasLayer
             Tick(now);
     }
 
-    /// <summary>Ctrl+F9. Only acts during single-player combat, like the original shortcut.</summary>
-    internal bool ToggleFromShortcut()
-    {
-        if (!InSinglePlayerCombat())
-            return false;
-        _hiddenByShortcut = !_hiddenByShortcut;
-        ModLog.Info($"[Sts2Solver] UI_PANEL_TOGGLE source=shortcut visible={!_hiddenByShortcut}");
-        return true;
-    }
-
     private static bool InSinglePlayerCombat()
     {
         CombatManager manager = CombatManager.Instance;
         if (manager == null || !manager.IsInProgress)
             return false;
         CombatState? state = manager.DebugOnlyGetState();
-        return state != null && state.Players.Count == 1;
+        return state != null && state.Players.Count == 1
+            && !CombatSessionController.IsMultiplayerSession;
     }
 
     private void Build()
@@ -181,7 +171,7 @@ internal sealed partial class SolverPanelNode : CanvasLayer
         _footerDivider = SolverUiTokens.CreateDivider();
         _mainStack.AddChild(_footerDivider);
         _actionBar = new SolverActionBar();
-        _actionBar.FullAutoPressed += OnFullAutoPressed;
+        _actionBar.ModePressed += OnModePressed;
         _mainStack.AddChild(_actionBar);
 
         _settings = new SolverSettingsPanel { Visible = false };
@@ -241,7 +231,7 @@ internal sealed partial class SolverPanelNode : CanvasLayer
         _collapseButton = SolverUiTokens.CreateButton("", SolverButtonStyle.Ghost);
         _collapseButton.Name = "CollapseButton";
         _collapseButton.CustomMinimumSize = new Vector2(64, 28);
-        _collapseButton.TooltipText = SolverText.Get("收起或展开面板内容；Ctrl+F9 显示或隐藏整个面板。");
+        _collapseButton.TooltipText = SolverText.Get("收起或展开面板内容。");
         _collapseButton.Pressed += ToggleCollapsed;
         header.AddChild(_collapseButton);
         return header;
@@ -289,19 +279,14 @@ internal sealed partial class SolverPanelNode : CanvasLayer
         _actionBar?.Memory.Advance(delta);
     }
 
-    private void OnFullAutoPressed()
+    private void OnModePressed()
     {
         if (_actionBar == null)
             return;
-        if (_actionBar.FullAutoRunning)
-        {
-            ModLog.Info("[Sts2Solver] UI_ACTION action=stop_full_auto");
-            CombatUiCommands.Instance.StopAuto("ui");
-            return;
-        }
-        ModLog.Info("[Sts2Solver] UI_ACTION action=start_full_auto");
-        if (!CombatUiCommands.Instance.StartAuto())
-            _actionBar.ShowNotice(SolverText.Get("现在不能开始：请在自己的出牌阶段再试。"), System.Environment.TickCount64);
+        if (!CombatUiCommands.Instance.CycleMode())
+            _actionBar.ShowNotice(SolverText.Get("现在不能切换模式，请稍后再试。"),
+                System.Environment.TickCount64);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=cycle_mode mode={CombatSessionController.Mode}");
     }
 
     private void ToggleDetails()
@@ -431,7 +416,7 @@ internal sealed partial class SolverPanelNode : CanvasLayer
     internal SolverPanelProbe ProbeForTest() => new(
         _panel != null,
         Visible && _panel != null && _panel.Visible,
-        _hiddenByShortcut,
+        false,
         _appliedSequence,
         _status?.PhaseKey ?? "",
         _collapsed,

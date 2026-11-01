@@ -93,6 +93,7 @@ internal sealed record OfflineRequest
     // request or search semantics.
     public bool UiSnapshotForTest { get; init; }
     public bool AutoStartFullCombatForTest { get; init; }
+    public string? ControllerScenarioForTest { get; init; }
     public bool SearchTierFromSettingsForTest { get; init; }
     public string? SettingsTierForTest { get; init; }
     public bool? SettingsAutoEnableFullAutoForTest { get; init; }

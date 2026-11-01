@@ -166,7 +166,6 @@ internal interface ICombatPilotHost
 /// </summary>
 internal static class CombatPilot
 {
-    internal const int MaximumConsecutiveFailures = 3;
     internal const int MaximumTurns = 200;
 
     public static async Task<CombatPilotResult> RunAsync(ICombatPilotHost host, string root,
@@ -208,7 +207,7 @@ internal static class CombatPilot
                     consecutiveFailures = 0;
                 }
 
-                if (route == null || index >= route.Count || route[index].Before.PlayerTurn != turn.Turn)
+                if (route == null || CombatRouteDecision.NeedsSearch(route.Actions, index, turn.Turn))
                 {
                     string reason = route == null ? "initial" : "turn_start";
                     CombatPilotSearch search = await host.SearchAsync(turn.Turn, reason, token);
@@ -242,7 +241,7 @@ internal static class CombatPilot
                             pauseReason = $"第 {turn.Turn} 回合搜索超出战斗状态容量";
                             break;
                         }
-                        if (consecutiveFailures >= MaximumConsecutiveFailures)
+                        if (CombatFailureLimit.Reached(consecutiveFailures))
                         {
                             pauseReason = $"第 {turn.Turn} 回合连续 {consecutiveFailures} 次搜索/部署失败";
                             break;
@@ -258,7 +257,7 @@ internal static class CombatPilot
                         failureLog.Add(new CombatPilotFailureEntry(turn.Turn, "route_turn",
                             $"路线首动作回合 {(route.Count == 0 ? 0 : route[0].Before.PlayerTurn)} 与当前 {turn.Turn} 不符。"));
                         route = null;
-                        if (consecutiveFailures >= MaximumConsecutiveFailures)
+                        if (CombatFailureLimit.Reached(consecutiveFailures))
                         {
                             pauseReason = $"第 {turn.Turn} 回合连续 {consecutiveFailures} 次搜索/部署失败";
                             break;
@@ -279,7 +278,7 @@ internal static class CombatPilot
                         deviationLog.Add(new CombatPilotDeviationEntry(turn.Turn, index,
                             boundary.Action, boundary.Diff));
                         route = null;
-                        if (consecutiveFailures >= MaximumConsecutiveFailures)
+                        if (CombatFailureLimit.Reached(consecutiveFailures))
                         {
                             pauseReason = $"第 {turn.Turn} 回合连续 {consecutiveFailures} 次预测偏差/部署失败";
                             break;
@@ -292,7 +291,7 @@ internal static class CombatPilot
                 bool turnEnded = false;
                 bool finished = false;
                 host.BeginDeployment(turn.Turn);
-                while (index < route.Count && route[index].Before.PlayerTurn == turn.Turn)
+                while (index < route.Count && CombatRouteDecision.IsActionInTurn(route[index], turn.Turn))
                 {
                     token.ThrowIfCancellationRequested();
                     ReplayedAction action = route[index];
@@ -327,14 +326,14 @@ internal static class CombatPilot
                         finished = true;
                         break;
                     }
-                    if (index >= route.Count || route[index].Before.PlayerTurn != turn.Turn)
+                    if (CombatRouteDecision.NeedsSearch(route.Actions, index, turn.Turn))
                         break;
                 }
                 if (finished)
                     break;
                 if (route == null)
                 {
-                    if (consecutiveFailures >= MaximumConsecutiveFailures)
+                    if (CombatFailureLimit.Reached(consecutiveFailures))
                     {
                         pauseReason = $"第 {turn.Turn} 回合连续 {consecutiveFailures} 次预测偏差/部署失败";
                         break;
@@ -348,7 +347,7 @@ internal static class CombatPilot
                 failureLog.Add(new CombatPilotFailureEntry(turn.Turn, "turn_plan_exhausted",
                     $"第 {turn.Turn} 回合路线用完但没有结束回合动作。"));
                 route = null;
-                if (consecutiveFailures >= MaximumConsecutiveFailures)
+                if (CombatFailureLimit.Reached(consecutiveFailures))
                 {
                     pauseReason = $"第 {turn.Turn} 回合连续 {consecutiveFailures} 次预测偏差/部署失败";
                     break;

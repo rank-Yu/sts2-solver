@@ -2,9 +2,7 @@
 // the native game (its move state machine is reset and the monster leaves CombatState.Enemies), so
 // their action-machine fields are normalized on both sides before the byte comparison. This is a
 // state-surface normalization, not a tolerance: every other byte must match.
-using Sts2Solver.Simulation.Combat;
-
-namespace Sts2Solver.Import;
+namespace Sts2Solver.Simulation.Combat;
 
 internal static class BattleReconciler
 {

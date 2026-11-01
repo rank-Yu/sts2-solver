@@ -2,6 +2,7 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The data source is the Sts2Solver ReplayedRoute and coordinator result, not the old engine.
 using Sts2Solver.Ai.Combat;
+using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
 
@@ -14,6 +15,10 @@ internal static class CombatUiProjection
         => new()
         {
             Phase = CombatUiPhase.Idle,
+            Mode = SolverSettings.Current.Automation.Mode,
+            SolverDisabled = SolverSettings.Current.Automation.SolverDisabled,
+            AutomaticCalculationEnabled = SolverSettings.Current.Automation.Mode
+                is SolverMode.AutoSearch or SolverMode.FullAuto,
             Memory = Memory(budget),
             Settings = Settings(budget),
         };
@@ -37,7 +42,8 @@ internal static class CombatUiProjection
         return new SettingsUiSnapshot
         {
             Tier = settings.Search.Tier,
-            AutoEnableFullAuto = settings.Automation.AutoEnableFullAuto,
+            Mode = settings.Automation.Mode,
+            SolverDisabled = settings.Automation.SolverDisabled,
             MemoryBudgetBytes = budget.Bytes,
             MemoryBudgetSource = budget.Source,
         };
@@ -181,9 +187,20 @@ internal static class CombatUiProjection
 
     internal static RouteUiSnapshot Route(ReplayedRoute route, CombatDisplayNames names,
         int currentTurn, int currentActionIndex, int completedActions, bool reused)
+        => Route(route.Actions, route.Rules, route.Victory, names, currentTurn,
+            currentActionIndex, completedActions, reused);
+
+    internal static RouteUiSnapshot Route(CombatRoutePlan plan, CombatDisplayNames names,
+        int currentTurn, int currentActionIndex, int completedActions, bool reused)
+        => Route(plan.Actions, plan.Rules, plan.Victory, names, currentTurn,
+            currentActionIndex, completedActions, reused);
+
+    private static RouteUiSnapshot Route(ReplayedAction[] routeActions, Rules rules, bool victory,
+        CombatDisplayNames names, int currentTurn, int currentActionIndex, int completedActions,
+        bool reused)
     {
         List<RouteTurnUi> turns = [];
-        List<RouteActionUi>? actions = null;
+        List<RouteActionUi>? turnActions = null;
         int turnNumber = 0;
         int startIndex = 0;
         int hpBefore = 0;
@@ -191,12 +208,12 @@ internal static class CombatUiProjection
         int enemyHpLost = 0;
         bool combatEnded = false;
         int? energyLeft = null;
-        for (int index = 0; index < route.Count; index++)
+        for (int index = 0; index < routeActions.Length; index++)
         {
-            ReplayedAction action = route[index];
-            if (actions == null || turnNumber != action.Before.PlayerTurn)
+            ReplayedAction action = routeActions[index];
+            if (turnActions == null || turnNumber != action.Before.PlayerTurn)
             {
-                if (actions != null)
+                if (turnActions != null)
                 {
                     turns.Add(new RouteTurnUi
                     {
@@ -207,10 +224,10 @@ internal static class CombatUiProjection
                         EnemyHpLost = enemyHpLost,
                         CombatEnded = combatEnded,
                         EnergyLeft = energyLeft,
-                        Actions = [.. actions],
+                        Actions = [.. turnActions],
                     });
                 }
-                actions = [];
+                turnActions = [];
                 energyLeft = null;
                 turnNumber = action.Before.PlayerTurn;
                 startIndex = action.Index;
@@ -223,9 +240,9 @@ internal static class CombatUiProjection
             combatEnded = action.After.Outcome != Outcome.None;
             if (action.Action.Kind == PlayerActionKind.EndTurn)
                 energyLeft = action.Before.Energy;
-            actions.Add(Action(action, names, route.Rules));
+            turnActions.Add(Action(action, names, rules));
         }
-        if (actions != null)
+        if (turnActions != null)
         {
             turns.Add(new RouteTurnUi
             {
@@ -236,17 +253,17 @@ internal static class CombatUiProjection
                 EnemyHpLost = enemyHpLost,
                 CombatEnded = combatEnded,
                 EnergyLeft = energyLeft,
-                Actions = [.. actions],
+                Actions = [.. turnActions],
             });
         }
         return new RouteUiSnapshot
         {
-            StartTurn = route.Count > 0 ? route[0].Before.PlayerTurn : 0,
+            StartTurn = routeActions.Length > 0 ? routeActions[0].Before.PlayerTurn : 0,
             CurrentTurn = currentTurn,
             CurrentActionIndex = currentActionIndex,
             CompletedActions = completedActions,
-            ActionCount = route.Count,
-            Victory = route.Victory,
+            ActionCount = routeActions.Length,
+            Victory = victory,
             Reused = reused,
             Turns = [.. turns],
         };

@@ -1,6 +1,7 @@
 // Snapshot shape adapted from CombatSolver src/UI/SolverOverlaySnapshot.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The Sts2Solver records carry only frozen route/search/session data and no engine types.
+using Sts2Solver.Ai.Combat;
 using Sts2Solver.Import;
 
 namespace Sts2Solver;
@@ -19,14 +20,19 @@ internal enum CombatUiPhase
 
 internal enum SearchUiPhase
 {
+    Idle,
     Running,
+    Stopping,
+    Adopting,
     Completed,
+    Cancelled,
+    Failed,
 }
 
 /// <summary>Immutable main-thread projection of the current combat session. No live game object or search node is retained.</summary>
 internal sealed record CombatUiSnapshot
 {
-    internal const int CurrentSchemaVersion = 1;
+    internal const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -36,6 +42,46 @@ internal sealed record CombatUiSnapshot
     public CombatUiPhase Phase { get; init; } = CombatUiPhase.Idle;
 
     public string Root { get; init; } = "";
+
+    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+
+    public bool SolverDisabled { get; init; }
+
+    public bool FullAutoEnabled { get; init; }
+
+    public bool AutomaticCalculationEnabled { get; init; }
+
+    public bool AutomaticSearchPaused { get; init; }
+
+    public int? AutomaticSearchPausedTurn { get; init; }
+
+    public bool DeployWhenReady { get; init; }
+
+    public bool IsSearching { get; init; }
+
+    public bool IsDeploying { get; init; }
+
+    public bool IsApplyingCurrentTurn { get; init; }
+
+    public bool IsAdoptingRoute { get; init; }
+
+    public bool CanStartSearch { get; init; }
+
+    public bool CanStopSearch { get; init; }
+
+    public bool CanExecuteCurrentTurn { get; init; }
+
+    public bool CanApplyCurrentTurn { get; init; }
+
+    public bool CanAdoptCurrentRoute { get; init; }
+
+    public bool StoppedRouteAvailable { get; init; }
+
+    public bool HasRetainedRoute { get; init; }
+
+    public int? LastSolverDeployedTurn { get; init; }
+
+    public CombatResultUiSnapshot? Result { get; init; }
 
     public int Turn { get; init; }
 
@@ -50,15 +96,19 @@ internal sealed record CombatUiSnapshot
     public string? PauseReason { get; init; }
 
     /// <summary>
-    /// Stable code behind a pause or stop: <c>turn_limit</c>, <c>capacity_bounded</c> or
-    /// <c>repeated_failures</c> for a pause, the cancel reason (<c>hotkey</c>, <c>ui</c>, ...) for a
-    /// stop; null otherwise. The panel localizes this instead of <see cref="PauseReason"/>.
+    /// Stable code behind a pause or stop: <c>worse_recalculation</c>, <c>death_turn</c>,
+    /// <c>combat_end_turn</c>, <c>live_end_turn_risk</c>, <c>repeated_failure</c>,
+    /// <c>choice_mismatch</c> or <c>stopped</c>; null otherwise. Rejected commands use
+    /// <see cref="RejectCode"/>. The panel localizes this instead of <see cref="PauseReason"/>.
     /// </summary>
     public string? PauseCode { get; init; }
 
     public string? ErrorCode { get; init; }
 
     public string? ErrorDetail { get; init; }
+
+    /// <summary>Stable reason a command/search request was rejected without pausing.</summary>
+    public string? RejectCode { get; init; }
 
     public SearchUiSnapshot? Search { get; init; }
 
@@ -81,11 +131,44 @@ internal sealed record SettingsUiSnapshot
 {
     public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
 
-    public bool AutoEnableFullAuto { get; init; }
+    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+
+    public bool SolverDisabled { get; init; }
 
     public long MemoryBudgetBytes { get; init; }
 
     public SearchMemoryBudgetSource MemoryBudgetSource { get; init; }
+}
+
+/// <summary>The projected values of the most recent complete search result.</summary>
+internal sealed record CombatResultUiSnapshot
+{
+    public int StartTurn { get; init; }
+
+    public int? DeathTurn { get; init; }
+
+    public int? CombatEndedTurn { get; init; }
+
+    public int ProjectedBattleHpLost { get; init; }
+
+    public int ProjectedBattlePotionCount { get; init; }
+
+    public int PreviousProjectedBattleHpLost { get; init; }
+
+    public int ProjectedBattleHpLossIncrease { get; init; }
+
+    public bool WasReused { get; init; }
+
+    public bool Victory { get; init; }
+
+    public bool OnlyDeathRoutes { get; init; }
+
+    /// <summary>Stable outcome code: <c>victory</c>, <c>defeat</c>, <c>incomplete</c> or <c>event_defeat</c>.</summary>
+    public string Outcome { get; init; } = "";
+
+    public SearchAdoptionKind? AdoptionKind { get; init; }
+
+    public int CandidateVersion { get; init; }
 }
 
 internal sealed record MemoryUiSnapshot
@@ -152,6 +235,19 @@ internal sealed record SearchUiSnapshot
     public string? StopReason { get; init; }
 
     public string? ErrorCode { get; init; }
+
+    /// <summary>Latest published candidate version, or zero before the first snapshot.</summary>
+    public int CandidateVersion { get; init; }
+
+    /// <summary>Candidate version the panel last rendered; the stop command adopts this version.</summary>
+    public int RenderedCandidateVersion { get; init; }
+
+    /// <summary>True when the panel has a rendered candidate that can be preserved on stop.</summary>
+    public bool StopCandidateAvailable { get; init; }
+
+    public SearchRoutePreviewUi? RoutePreview { get; init; }
+
+    public SearchCurrentTurnPreviewUi? CurrentTurnPreview { get; init; }
 
     public int SelectedMember { get; init; } = -1;
 
@@ -329,4 +425,62 @@ internal sealed record RouteActionUi
     public int EnergyAfter { get; init; }
 
     public bool EndsTurn { get; init; }
+}
+
+/// <summary>An immutable speculative route published by the search thread and read on the main thread.</summary>
+internal sealed record SearchRoutePreviewUi
+{
+    public int CandidateVersion { get; init; }
+
+    public int StartTurn { get; init; }
+
+    public int ThroughTurn { get; init; }
+
+    public int ActionCount { get; init; }
+
+    public bool Victory { get; init; }
+
+    public bool OnlyDeathRoutes { get; init; }
+
+    public int ProjectedBattleHpLost { get; init; }
+
+    public int ProjectedBattlePotionCount { get; init; }
+
+    public SearchTurnPreviewUi[] Turns { get; init; } = [];
+}
+
+internal sealed record SearchTurnPreviewUi
+{
+    public int Turn { get; init; }
+
+    public int ActionCount { get; init; }
+
+    public int HpLost { get; init; }
+
+    public int HpRecovered { get; init; }
+
+    public int EnemyHpLost { get; init; }
+
+    public int EnergyLeft { get; init; }
+
+    public bool CombatEnded { get; init; }
+}
+
+internal sealed record SearchCurrentTurnPreviewUi
+{
+    public int CandidateVersion { get; init; }
+
+    public int Turn { get; init; }
+
+    public int ActionCount { get; init; }
+
+    public int HpLost { get; init; }
+
+    public int HpRecovered { get; init; }
+
+    public int EnemyHpLost { get; init; }
+
+    public int EnergyLeft { get; init; }
+
+    public bool CombatEnded { get; init; }
 }

@@ -1,6 +1,6 @@
 // In-game worker for a single member of the combat search portfolio. The main-thread capture / background worker / main-thread completion
 // split and the cancellation lifecycle are adapted from CombatSolver src/Runtime/SolverController.cs
-// at commit a62f1850 (MIT, Copyright (c) 2026 Torch1230 and contributors); each call runs one search member; CombatPilotHost owns portfolio scheduling and deployment.
+// at commit a62f1850 (MIT, Copyright (c) 2026 Torch1230 and contributors); each call runs one search member; CombatSearchRunner owns portfolio scheduling and the controller owns deployment.
 using System.Diagnostics;
 using System.Text.Json;
 using Sts2Solver.Simulation.Combat;
@@ -49,6 +49,8 @@ internal static class SearchSession
     }
 
     public static bool IsRunning => Volatile.Read(ref _running) != 0;
+
+    internal static bool ProgressSubscribed => Volatile.Read(ref _progressSubscribed) != 0;
 
     /// <summary>The newest immutable search snapshot; the main thread may poll it every frame.</summary>
     internal static SearchProgressSnapshot? LatestProgress => Volatile.Read(ref _latestProgress);

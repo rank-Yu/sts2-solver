@@ -57,9 +57,9 @@ internal sealed class NativePilotHost(
             using (measure?.Invoke("import_check"))
             {
             Battle liveRoot = tracker.ImportForComparison(live, livePlayer, rules, _current);
-            if (!BattleReconciler.Same(_current, liveRoot))
+            if (!CombatRouteDecision.BoundaryMatches(_current, liveRoot))
             {
-                string[] rootDiff = BattleReconciler.Diff(_current, liveRoot);
+                string[] rootDiff = CombatRouteDecision.BoundaryDiff(_current, liveRoot);
                 return ValueTask.FromResult(new CombatPilotSearch(null, "diff", 0, 0, 0, false,
                     string.Join(" | ", rootDiff.Take(8)), "root_deviation",
                     string.Join('\n', rootDiff), 0, 0));
@@ -127,10 +127,10 @@ internal sealed class NativePilotHost(
         Player livePlayer = LocalContext.GetMe(live)
             ?? throw new OfflineDeploymentException("live_player_missing", "边界检查时找不到本地玩家。");
         Battle liveRoot = tracker.ImportForComparison(live, livePlayer, rules, expected.Before);
-        bool same = BattleReconciler.Same(expected.Before, liveRoot);
+        bool same = CombatRouteDecision.BoundaryMatches(expected.Before, liveRoot);
         return ValueTask.FromResult(new CombatPilotBoundary(same,
             CombatPilotAction.Describe(expected),
-            same ? [] : BattleReconciler.Diff(expected.Before, liveRoot)));
+            same ? [] : CombatRouteDecision.BoundaryDiff(expected.Before, liveRoot)));
     }
 
     public void BeginDeployment(int turn)
@@ -158,10 +158,10 @@ internal sealed class NativePilotHost(
                         CombatPilotAction.Describe(action), terminalDiff.Split('\n')));
                 }
             }
-            else if (!BattleReconciler.Same(action.After, live))
+            else if (!CombatRouteDecision.ActionMatches(action, live))
             {
                 onDifference?.Invoke(action.After, live);
-                string[] diff = BattleReconciler.Diff(action.After, live);
+                string[] diff = CombatRouteDecision.BoundaryDiff(action.After, live);
                 return ValueTask.FromResult(new CombatPilotDeployment(false, false,
                     "boundary_diff", string.Join('\n', diff),
                     CombatPilotAction.Describe(action), diff));

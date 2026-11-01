@@ -26,6 +26,14 @@ internal enum SolverUiTheme
     Light,
 }
 
+/// <summary>The persisted three-position automation mode.</summary>
+internal enum SolverMode
+{
+    Manual,
+    AutoSearch,
+    FullAuto,
+}
+
 /// <summary>
 /// The complete persisted player configuration. Values are immutable; the store replaces one whole
 /// record at a time. Search settings are stored here but only the tier and memory override are wired
@@ -33,7 +41,7 @@ internal enum SolverUiTheme
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 1;
+    internal const int CurrentSchemaVersion = 2;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -54,7 +62,14 @@ internal sealed record SolverSettingsData
         if (Ui is null)
             throw new InvalidDataException("设置缺少 ui 分区。");
         Search.Validate();
+        ValidateAutomation();
         Ui.Validate();
+    }
+
+    private void ValidateAutomation()
+    {
+        if (!Enum.IsDefined(Automation.Mode))
+            throw new InvalidDataException($"未知自动化模式：{Automation.Mode}");
     }
 }
 
@@ -165,8 +180,11 @@ internal sealed record SolverPotionSettings
 
 internal sealed record SolverAutomationSettings
 {
-    /// <summary>Start the ordinary full-auto session when a playable single-player combat appears.</summary>
-    public bool AutoEnableFullAuto { get; init; }
+    /// <summary>Manual, automatic search or full automatic; persisted across combats and restarts.</summary>
+    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+
+    /// <summary>The solver-wide off switch; disabling it also drops full auto back to automatic search.</summary>
+    public bool SolverDisabled { get; init; }
 }
 
 /// <summary>Panel geometry and appearance for the overlay; the panel itself is built separately.</summary>

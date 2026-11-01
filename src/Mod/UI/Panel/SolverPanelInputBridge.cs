@@ -6,7 +6,7 @@ using Godot;
 
 namespace Sts2Solver;
 
-/// <summary>Global input for the panel: Ctrl+F9 shows/hides it, a left-button release ends a drag or resize.</summary>
+/// <summary>Global input for the panel: a left-button release ends a drag or resize. There is no hide shortcut.</summary>
 internal sealed partial class SolverPanelInputBridge : Node
 {
     internal SolverPanelNode? Panel { get; set; }
@@ -17,19 +17,5 @@ internal sealed partial class SolverPanelInputBridge : Node
             return;
         if (inputEvent is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
             Panel.CompletePointerGesture();
-        if (IsToggleShortcut(inputEvent) && Panel.ToggleFromShortcut())
-            GetViewport().SetInputAsHandled();
     }
-
-    internal static bool IsToggleShortcut(InputEvent inputEvent)
-        => inputEvent is InputEventKey
-        {
-            Pressed: true,
-            Echo: false,
-            CtrlPressed: true,
-            AltPressed: false,
-            ShiftPressed: false,
-            MetaPressed: false,
-            Keycode: Key.F9,
-        };
 }

@@ -34,7 +34,7 @@ internal static class ModBoundary
             if (name.StartsWith("Sts2Solver", StringComparison.Ordinal))
                 errors.Add("external solver assembly " + name);
         }
-        if (!types.Contains("Sts2Solver.AutoCombatSession") || !types.Contains("Sts2Solver.ModEntry"))
+        if (!types.Contains("Sts2Solver.CombatSessionController") || !types.Contains("Sts2Solver.ModEntry"))
             errors.Add("missing production combat entry");
         foreach (string error in errors)
             Console.Error.WriteLine("MOD_BOUNDARY_FAILED " + error);

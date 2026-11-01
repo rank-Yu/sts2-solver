@@ -7,7 +7,8 @@ using MegaCrit.Sts2.Core.TestSupport;
 
 namespace Sts2Solver.TestHost;
 
-internal sealed class TurnSetupCardSelector(int requestedIndex) : ICardSelector
+internal sealed class TurnSetupCardSelector(int requestedIndex, Action? beforeSelect = null)
+    : ICardSelector
 {
     public int RequestedIndex { get; } = requestedIndex;
     public List<(string CardId, int Upgrade)> LastOptions { get; } = [];
@@ -17,6 +18,7 @@ internal sealed class TurnSetupCardSelector(int requestedIndex) : ICardSelector
     public Task<IEnumerable<CardModel>> GetSelectedCards(
         IEnumerable<CardModel> options, int minSelect, int maxSelect)
     {
+        beforeSelect?.Invoke();
         List<CardModel> remaining = options.ToList();
         if (Calls++ == 0)
         {

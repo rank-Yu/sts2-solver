@@ -199,7 +199,7 @@ internal sealed partial class SolverStatusSection : PanelContainer
         if (snapshot.Turn > 0 && snapshot.PlayerMaxHp > 0)
             return SolverText.Format($"第 {snapshot.Turn} 回合 · 生命 {snapshot.PlayerHp}/{snapshot.PlayerMaxHp}");
         return snapshot.Phase == CombatUiPhase.Idle
-            ? SolverText.Get("按 F8 或点击“开始全自动”")
+            ? SolverText.Get("用底栏按钮选择手动、自动搜索或全自动")
             : "";
     }
 

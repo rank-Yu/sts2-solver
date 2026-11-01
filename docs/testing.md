@@ -327,9 +327,11 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 ### 9.3 实机整场自动战斗
 
-请求带 `fullCombatForTest`（`--emit-live-requests --full-combat` 会置位并关闭确定性）时，测试模式捕获根后立刻进入 `AutoCombatSession`，由共享的 `CombatPilot` 每回合搜索或沿用路线、逐动作核对、回合对账，直到胜利、失败、暂停或取消。结果写 `full-combat.json`，并在 `status.json` 里加 `fullCombatStatus/outcome/turns/playerHp/playerMaxHp/searches/reusedTurns/deviations/deploymentFailures`。
+请求带 `fullCombatForTest`（`--emit-live-requests --full-combat` 会置位并关闭确定性）时，测试模式在进入战斗前把档位设为全自动，由 `CombatSessionController` 每回合搜索或沿用路线、逐动作核对、回合对账，直到胜利、失败、暂停或取消。结果写 `full-combat.json`，并在 `status.json` 里加 `fullCombatStatus/outcome/turns/playerHp/playerMaxHp/searches/reusedTurns/deviations/deploymentFailures`。
 
-每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`：开战后面板存在且可见；`Ctrl+F9`（经视口输入管线注入）能隐藏再显示面板；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次，拉丁字体资源能解析，英文目录不缺键；状态详情、设置页、收起与展开、主题切换后的重建都能来回切换；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数与回合号等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段；战斗结束后面板隐藏。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。测试期间 `src/Mod` 把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
+每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`（22 项）：开战后面板存在且可见；经视口输入管线注入 `Ctrl+F9` 后面板不隐藏（没有快捷键）；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次，拉丁字体资源能解析，英文目录不缺键；状态详情、设置页、收起与展开、主题切换后的重建都能来回切换；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数与回合号等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段；战斗结束后面板隐藏。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。测试期间测试入口把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
+
+请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖手动开始/停止、自动搜索每回合、停止后下一回合/采用/重搜、采用、执行本回合的三种情况、模式切换、全自动开局、死亡回合暂停、重算战损增加暂停、求解器开关、战斗结束和多人门禁。控制器场景与 `fullCombatForTest` 互斥。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \

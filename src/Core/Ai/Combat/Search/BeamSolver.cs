@@ -450,7 +450,6 @@ internal sealed partial class BeamSolver
     private readonly PowerCommitmentCatalog? _powerCommitments;
     private readonly bool _aggressivePowerCommitment;
     private readonly bool _preserveReplayAllocatorOpening;
-    private readonly PlayerAction[] _actions = new PlayerAction[Kernel.MaxLegalActions];
     private readonly ushort[] _rootPotions = new ushort[Limits.PotionSlots];
     private readonly BoundFeatures? _bound;
     private readonly bool _pruneEqualHp;
@@ -481,37 +480,11 @@ internal sealed partial class BeamSolver
     private int _endedCompactionTarget;
     private readonly Dictionary<string, int> _capacityDropped = new(StringComparer.Ordinal);
 
-    // Shared end-turn prefix. A prefix is keyed by the expansion generation (one per expanded parent,
-    // also advanced when a fetched-power successor batch starts) and by the parent route node, so a
-    // recursive selection expansion of the same parent reuses it while any other parent cannot.
-    private int _expandGeneration;
-    private int _endTurnPrefixAttemptGeneration = -1;
-    private int _endTurnPrefixAttemptNode = -1;
-    private int _endTurnPrefixGeneration = -1;
-    private int _endTurnPrefixNode = -1;
-    private bool _endTurnPrefixValid;
-    private int _endTurnPrefixShared;
-    private int _endTurnPrefixUnshared;
-    private int _endTurnPrefixVerified;
-    private int _endTurnPrefixReusedLeaves;
-    private int _endTurnPrefixChoiceUnshared;
-    private int _endTurnPrefixExtraTurnUnshared;
-    private int _endTurnPrefixNotInProgress;
     private bool _verifySearchEquivalence;
     private bool _dedupePlayActions;
     private bool _dedupeChoicesByClass;
     private bool _choiceFillVariants;
-    private long _playDeduped;
-    private long _playVerifiedExact;
-    private long _playVerifiedApprox;
-    private long _playVerifiedApproxEqual;
-    private long _playVerifiedUnresolved;
-    private long _choiceByClassRequests;
-    private long _choiceVerifiedExact;
-    private long _choiceVerifiedApprox;
-    private long _choiceVerifiedApproxEqual;
-    private long _choiceVerifiedUnresolved;
-    private EndTurnPrefix _endTurnPrefix;
+    private ExpansionWorkspace _workspace = null!;
 
     /// <summary>Offline route trace (null in production) and the pool phase it reports.</summary>
     private readonly BeamTrace? _trace;
@@ -523,12 +496,6 @@ internal sealed partial class BeamSolver
     /// <summary>The existing search's HP-target stop, so a commitment batch stops like its parent layer.</summary>
 
     private CancellationToken _cancellationToken;
-
-    /// <summary>
-    /// Separate action buffer for the commitment expansion: the outer layer loop still iterates its
-    /// own <see cref="_actions"/> span while <see cref="ExpandAction"/> runs.
-    /// </summary>
-    private readonly PlayerAction[] _commitmentActions = new PlayerAction[Kernel.MaxLegalActions];
 
     private readonly int _initialPlayerTurn;
     private readonly int _initialSearchTurn;
@@ -609,17 +576,8 @@ internal sealed partial class BeamSolver
         _dedupePlayActions = SearchVerificationHooks.DedupeExactPlayActions;
         _dedupeChoicesByClass = SearchVerificationHooks.DedupeEquivalentChoicesByClass;
         _choiceFillVariants = SearchVerificationHooks.ChoiceFillPhysicalVariants;
-        _playDeduped = 0;
-        _playVerifiedExact = 0;
-        _playVerifiedApprox = 0;
-        _playVerifiedApproxEqual = 0;
-        _playVerifiedUnresolved = 0;
-        _choiceByClassRequests = 0;
-        _choiceVerifiedExact = 0;
-        _choiceVerifiedApprox = 0;
-        _choiceVerifiedApproxEqual = 0;
-        _choiceVerifiedUnresolved = 0;
         _scorer.VerifyThreatProjection = _verifySearchEquivalence;
+        _workspace = new ExpansionWorkspace(this);
         Stopwatch watch = Stopwatch.StartNew();
         _cancellationToken = cancellationToken;
         _solveWatch = watch;
@@ -632,18 +590,6 @@ internal sealed partial class BeamSolver
         _bestPotionFree = null;
         _auditBestByPotionCount = null;
         _anyAuditedVictory = false;
-        _endTurnPrefixNode = -1;
-        _endTurnPrefixAttemptNode = -1;
-        _endTurnPrefixGeneration = -1;
-        _endTurnPrefixAttemptGeneration = -1;
-        _endTurnPrefixValid = false;
-        _endTurnPrefixShared = 0;
-        _endTurnPrefixUnshared = 0;
-        _endTurnPrefixVerified = 0;
-        _endTurnPrefixReusedLeaves = 0;
-        _endTurnPrefixChoiceUnshared = 0;
-        _endTurnPrefixExtraTurnUnshared = 0;
-        _endTurnPrefixNotInProgress = 0;
         _bestFeatures = default;
         _bestFeaturesNode = -1;
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
@@ -733,10 +679,9 @@ internal sealed partial class BeamSolver
                 Consider(state, node, key, features);
             TightenIncumbent(state, node, features, key);
         }
-        void ConsiderTerminal(in Battle state, int node, double score)
+        void ConsiderTerminal(in Battle state, int node, in ScoreFeatures features, double score)
         {
             int actionCount = Depth(node);
-            ScoreFeatures features = _scorer.Features(state, actionCount, includeRetentionOnly: false);
             RouteKey key = Key(state, features, actionCount);
             ConsiderCandidate(state, node, features, key);
             if (!features.AllEnemiesDead)
@@ -811,33 +756,11 @@ internal sealed partial class BeamSolver
                 {
                     SearchCheckpoint();
                     CountExpanded();
-                    _expandGeneration++;
                     ref readonly Battle parent = ref current.State(index);
-                    int parentNode = current.Node(index);
-                    int count = Kernel.LegalActions(parent, _rules, _actions);
-                    scoped ReadOnlySpan<PlayerAction> legal = _actions.AsSpan(0, count);
-                    for (int actionIndex = 0; actionIndex < count; actionIndex++)
-                    {
-                        _cancellationToken.ThrowIfCancellationRequested();
-                        if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
-                        ref readonly PlayerAction action = ref legal[actionIndex];
-                        if (action.Kind == PlayerActionKind.UsePotion && !PotionAllowed(parent, action.PotionSlot))
-                            continue;
-                        if (_dedupePlayActions
-                            && TryFindEarlierEquivalentPlay(in parent, legal, actionIndex,
-                                out int representative, out bool exact)
-                            && exact)
-                        {
-                            _playDeduped++;
-                            if (_verifySearchEquivalence)
-                            {
-                                VerifySkippedPlay(in parent, legal[representative], action, exact);
-                            }
-                            continue;
-                        }
-                        ExpandAction(in parent, parentNode, action, next, ended, terminal,
-                            current.Facts(index), current.RankPosition(index), current.Rank(index));
-                    }
+                    ParentExpansionContext context = CaptureParentContext(current, index);
+                    _workspace.BeginParent();
+                    _workspace.Expand(in parent, in context, _cancellationToken);
+                    _workspace.Commit(in parent, in context, next, ended, terminal);
                 }
                 current.Clear();
                 _tracePhase = "next";
@@ -898,14 +821,14 @@ internal sealed partial class BeamSolver
                 _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
             {
                 CapacityPruned = _capacityPruned,
-                EndTurnPrefixShared = _endTurnPrefixShared,
-                EndTurnPrefixUnshared = _endTurnPrefixUnshared,
-                EndTurnPrefixVerified = _endTurnPrefixVerified,
+                EndTurnPrefixShared = _workspace.EndTurnPrefixShared,
+                EndTurnPrefixUnshared = _workspace.EndTurnPrefixUnshared,
+                EndTurnPrefixVerified = _workspace.EndTurnPrefixVerified,
                 ThreatProjectionVerified = _scorer.ThreatProjectionChecks,
-                EndTurnPrefixReusedLeaves = _endTurnPrefixReusedLeaves,
-                EndTurnPrefixChoiceUnshared = _endTurnPrefixChoiceUnshared,
-                EndTurnPrefixExtraTurnUnshared = _endTurnPrefixExtraTurnUnshared,
-                EndTurnPrefixNotInProgress = _endTurnPrefixNotInProgress,
+                EndTurnPrefixReusedLeaves = _workspace.EndTurnPrefixReusedLeaves,
+                EndTurnPrefixChoiceUnshared = _workspace.EndTurnPrefixChoiceUnshared,
+                EndTurnPrefixExtraTurnUnshared = _workspace.EndTurnPrefixExtraTurnUnshared,
+                EndTurnPrefixNotInProgress = _workspace.EndTurnPrefixNotInProgress,
                 CapacityDroppedChildren = _capacityDropped.Count == 0
                     ? BeamResult.NoCapacityDrops
                     : _capacityDropped,
@@ -968,14 +891,14 @@ internal sealed partial class BeamSolver
             _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
         {
             CapacityPruned = _capacityPruned,
-            EndTurnPrefixShared = _endTurnPrefixShared,
-            EndTurnPrefixUnshared = _endTurnPrefixUnshared,
-            EndTurnPrefixVerified = _endTurnPrefixVerified,
+            EndTurnPrefixShared = _workspace.EndTurnPrefixShared,
+            EndTurnPrefixUnshared = _workspace.EndTurnPrefixUnshared,
+            EndTurnPrefixVerified = _workspace.EndTurnPrefixVerified,
             ThreatProjectionVerified = _scorer.ThreatProjectionChecks,
-            EndTurnPrefixReusedLeaves = _endTurnPrefixReusedLeaves,
-            EndTurnPrefixChoiceUnshared = _endTurnPrefixChoiceUnshared,
-            EndTurnPrefixExtraTurnUnshared = _endTurnPrefixExtraTurnUnshared,
-            EndTurnPrefixNotInProgress = _endTurnPrefixNotInProgress,
+            EndTurnPrefixReusedLeaves = _workspace.EndTurnPrefixReusedLeaves,
+            EndTurnPrefixChoiceUnshared = _workspace.EndTurnPrefixChoiceUnshared,
+            EndTurnPrefixExtraTurnUnshared = _workspace.EndTurnPrefixExtraTurnUnshared,
+            EndTurnPrefixNotInProgress = _workspace.EndTurnPrefixNotInProgress,
             CapacityDroppedChildren = _capacityDropped.Count == 0
                 ? BeamResult.NoCapacityDrops
                 : _capacityDropped,
@@ -1211,7 +1134,8 @@ internal sealed partial class BeamSolver
 
     private static int RightSurvives(in Candidate candidate) => candidate.Key.Survives ? 1 : 0;
 
-    private delegate void TerminalSink(in Battle state, int node, double score);
+    private delegate void TerminalSink(in Battle state, int node, in ScoreFeatures features,
+        double score);
 
     /// <summary>
     /// The keys of the existing final ordering (<c>FinalPlanOrdering.Select</c>) that the admitted requests
@@ -1412,6 +1336,21 @@ internal sealed partial class BeamSolver
     {
         if (_expanded < int.MaxValue) _expanded++;
         _expandedTotal++;
+    }
+
+    /// <summary>
+    /// Snapshots the parent route data fixed before this layer. The expansion half receives it and
+    /// never reads the live route stores; the commit half remains on the search thread.
+    /// </summary>
+    private ParentExpansionContext CaptureParentContext(Pool pool, int index)
+    {
+        int node = pool.Node(index);
+        int commitmentIndex = _nodes.CommitmentAt(node);
+        PowerCommitmentState commitment = commitmentIndex > 0
+            ? _commitments[commitmentIndex - 1]
+            : default;
+        return new ParentExpansionContext(node, _nodes.View(node).Depth, pool.Facts(index),
+            pool.RankPosition(index), pool.Rank(index), commitmentIndex > 0, commitment);
     }
 
     private bool NodeBudgetAvailable => _options.UnlimitedNodes || _expanded < _options.MaxExpandedNodes;
@@ -1644,28 +1583,25 @@ internal sealed partial class BeamSolver
     /// <see cref="Battle"/>, the fingerprint or the state key.
     /// </summary>
     /// <summary>
-    /// <c>the existing search's AttachPowerCommitment</c> over a Sts2Solver route node. Returns the 1-based
-    /// <see cref="_commitments"/> index, or 0 when the child carries no commitment. A child whose parent
-    /// has no commitment and that does not play a registered power returns immediately, so the lane
-    /// costs nothing on ordinary transitions.
+    /// <c>the existing search's AttachPowerCommitment</c> over the fixed parent commitment snapshot.
+    /// Returns null when the child carries no commitment; the commit half adds a non-null value to
+    /// <see cref="_commitments"/> and records its 1-based index. A child whose parent has no
+    /// commitment and that does not play a registered power returns immediately.
     /// </summary>
-    private int AttachPowerCommitment(int parentNode, in Battle parent, in Battle child,
+    private PowerCommitmentState? ComputePowerCommitment(bool hasParentCommitment,
+        in PowerCommitmentState parentState, in Battle parent, in Battle child,
         in PlayerAction action, in RetentionFacts parentFacts, in ScoreFeatures childFeatures,
         int depth)
     {
         if (_powerCommitments is not { } catalog)
-            return 0;
-        int parentIndex = _nodes.CommitmentAt(parentNode);
-        PowerCommitmentState parentState = parentIndex > 0
-            ? _commitments[parentIndex - 1]
-            : default;
+            return null;
         bool powerPlay = action.Kind == PlayerActionKind.PlayCard
             && action.HandIndex < parent.HandCount;
         PowerCommitmentRule rule = default;
         if (powerPlay)
             powerPlay = TryRegisteredPower(parent, parent.Cards[action.HandIndex], catalog, out rule);
-        if (!powerPlay && parentIndex == 0)
-            return 0;
+        if (!powerPlay && !hasParentCommitment)
+            return null;
 
         int progress = 0, realized = 0;
         RetentionFacts childFacts = default;
@@ -1673,7 +1609,7 @@ internal sealed partial class BeamSolver
         ushort playedCardId = powerPlay && action.HandIndex < parent.HandCount
             ? parent.Cards[action.HandIndex].Id
             : ushort.MaxValue;
-        if (parentIndex > 0)
+        if (hasParentCommitment)
         {
             (int reachableHandValue, int zeroCostPlayableCount, _) = _scorer.ReachableHandPotential(child);
             childFacts = RetentionFacts.From(childFeatures, depth,
@@ -1719,7 +1655,7 @@ internal sealed partial class BeamSolver
             if (admission.Admitted)
             {
                 int cardBit = rule.Index;
-                if (parentIndex == 0)
+                if (!hasParentCommitment)
                 {
                     commitment = new(rule.Family, rule.Priority,
                         cardBit < 64 ? 1UL << cardBit : 0UL,
@@ -1737,17 +1673,16 @@ internal sealed partial class BeamSolver
 
         if (!attached)
         {
-            if (parentIndex == 0)
-                return 0;
+            if (!hasParentCommitment)
+                return null;
             PowerCommitmentState? advanced = AdvancePowerCommitment(parentState,
                 parent.PlayerTurn, child.PlayerTurn,
                 _aggressivePowerCommitment ? 3 : 2, progress, realized);
             if (advanced is not { } next)
-                return 0;
+                return null;
             commitment = next;
         }
-        _commitments.Add(commitment);
-        return _commitments.Count;
+        return commitment;
     }
 
     private bool TryRegisteredPower(in Battle battle, in Card card,

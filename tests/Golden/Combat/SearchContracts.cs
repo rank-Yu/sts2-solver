@@ -147,8 +147,10 @@ internal static class SearchContracts
             {
                 BeamResult limited = new BeamSolver(original.Rules, batched with { SearchMemoryBudgetBytes = limit })
                     .Solve(original.Battles, CancellationToken.None);
-                if (!limited.SearchMemoryBudgetExceeded) continue;
+                if (!limited.SearchMemoryBudgetExceeded || limited.ExpandedNodesTotal == 0) continue;
                 Assert(limited.SearchMemoryUsedBytes <= limit, "low-memory allocation stays within ledger");
+                Assert(limited.ExpandedNodesTotal > 0,
+                    "memory refusal during expansion keeps the completed parent count");
                 _ = ReplayedRoute.Build(original.Battles[limited.BestRootIndex], original.Rules,
                     limited.BestRoute, limited.BestIsVictory);
                 fallback = true;
@@ -158,6 +160,20 @@ internal static class SearchContracts
         Assert(fallback, "low-memory search returns a replayable fallback");
         Assert(new BeamSolver(original.Rules, legacy).TryCompareResultQuality(original.Battles,
             first, uncompressed, out int compactionComparison), "batch comparison replays both routes");
+        BeamOptions tinyNext = batched with
+        {
+            MaxExpandedNodes = 20_000,
+            StatePoolBudgetBytes = SearchMemoryBudget.PlanningStateBytes * 64,
+            EndedBatchTrigger = 1_000_000,
+            EndedBatchTarget = 1_000_000,
+        };
+        BeamResult reserveDropped = new BeamSolver(original.Rules, tinyNext)
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(reserveDropped.CapacityPruned > 0
+            && reserveDropped.CapacityDroppedChildren.TryGetValue("Beam.Pool", out int poolDrops)
+            && poolDrops > 0,
+            "full per-action pool drops children at Reserve and counts the boundary");
+
         PotionStageContracts.Run(original, plan);
         Console.WriteLine($"COMBAT_SEARCH compaction comparison={compactionComparison} " +
             $"batched={first.BestIsVictory} uncompressed={uncompressed.BestIsVictory}");

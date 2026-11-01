@@ -339,41 +339,58 @@ internal sealed partial class BeamSolver
         /// </summary>
         public ref Battle Reserve()
         {
+            if (!TryReserve())
+                throw new CapacityException("Beam.Pool", _maxCapacity);
+            return ref _states.ReservedState;
+        }
+
+        /// <summary>
+        /// Reserves the tail slot when a seat is still free. The commit half checks this before it
+        /// creates a route node, so a full pool drops the child before any transition is counted.
+        /// </summary>
+        public bool TryReserve()
+        {
             // The per-action-layer pool reaches this bound only through a choice/commitment
             // expansion that multiplies one parent action into many children. Each unique child that
             // cannot get a seat is dropped and counted as a capacity boundary; the cumulative
             // end-turn pool is compacted in AddEndTurnChild instead.
             if (Count >= _maxCapacity)
-                throw new CapacityException("Beam.Pool", _maxCapacity);
+                return false;
             _states.Reserve();
-            return ref _states.ReservedState;
+            return true;
         }
 
-        /// <summary>Adds the state built in the reserved slot; returns false when an identical state was already present.</summary>
+        /// <summary>The state built in the reserved slot, after <see cref="TryReserve"/> succeeded.</summary>
+        public ref Battle ReservedState => ref _states.ReservedState;
+
+        /// <summary>
+        /// Adds the state built in the reserved slot; returns false when an identical state was already
+        /// present. The expansion workspace already computed the packed hash and retention facts.
+        /// </summary>
         public bool CommitReserved(int node, double score, double rank, int potionCost,
             in ScoreFeatures features, int depth, ulong lineage, int commitment,
             SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
-            int parentStrategicResourcePotential)
+            int parentStrategicResourcePotential, ulong hash, in RetentionFacts facts)
         {
             return Insert(ref _states.ReservedState, inPlace: true,
-                node, score, rank, potionCost, features, default, factsReady: false, depth,
+                node, score, rank, potionCost, features, facts, traceInsertion: true, depth,
                 lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
-                parentStrategicResourcePotential);
+                parentStrategicResourcePotential, hash);
         }
 
-        /// <summary>Adds a scored state and computes its retention-only values when it is stored.</summary>
+        /// <summary>Adds a scored state with its precomputed retention-only facts.</summary>
         public bool AddScored(in Battle state, int node, double score, double rank,
             int potionCost, in ScoreFeatures features, int depth, ulong lineage,
             int commitment, SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
-            int parentStrategicResourcePotential)
+            int parentStrategicResourcePotential, ulong hash, in RetentionFacts facts)
             => Insert(ref Unsafe.AsRef(in state), inPlace: false,
-                node, score, rank, potionCost, features, default, factsReady: false, depth,
+                node, score, rank, potionCost, features, facts, traceInsertion: true, depth,
                 lineage, commitment, traits, pocketwatchThreshold, pocketwatchPlayed,
                 pocketwatchLastTurn, parentEnemyBlock, parentEnemyHp, parentFutureResourceValue,
-                parentStrategicResourcePotential);
+                parentStrategicResourcePotential, hash);
 
         /// <summary>Adds a state whose retention facts are already computed (pool-to-pool copies).</summary>
         public bool Add(in Battle state, int node, double score, double rank,
@@ -381,9 +398,10 @@ internal sealed partial class BeamSolver
             List<PoolLabel>? labels = null)
         {
             bool added = Insert(ref Unsafe.AsRef(in state), inPlace: false,
-                node, score, rank, potionCost, default, facts, factsReady: true, facts.Depth,
+                node, score, rank, potionCost, default, facts, traceInsertion: false, facts.Depth,
                 lineage, commitment, facts.Traits, facts.PocketwatchCardThreshold,
-                facts.PocketwatchCardsPlayedThisTurn, facts.PocketwatchCardsPlayedLastTurn, 0, 0, 0, 0);
+                facts.PocketwatchCardsPlayedThisTurn, facts.PocketwatchCardsPlayedLastTurn, 0, 0, 0, 0,
+                Fingerprint.Hash(state));
             if (added && labels is { Count: > 0 })
             {
                 _labels[Count - 1] = new List<PoolLabel>(labels);
@@ -471,12 +489,11 @@ internal sealed partial class BeamSolver
 
         private bool Insert(ref Battle state, bool inPlace, int node, double score, double rank,
             int potionCost, in ScoreFeatures features, in RetentionFacts knownFacts,
-            bool factsReady, int depth, ulong lineage, int commitment,
+            bool traceInsertion, int depth, ulong lineage, int commitment,
             SearchRouteTraits traits, int pocketwatchThreshold, int pocketwatchPlayed,
             int pocketwatchLastTurn, int parentEnemyBlock, int parentEnemyHp, int parentFutureResourceValue,
-            int parentStrategicResourcePotential)
+            int parentStrategicResourcePotential, ulong hash)
         {
-            ulong hash = Fingerprint.Hash(state);
             int mask = _table.Length - 1;
             int slot = (int)(hash & (ulong)mask);
             while (_table[slot] != 0)
@@ -511,7 +528,7 @@ internal sealed partial class BeamSolver
                     }
                     if (dominated)
                     {
-                        if (_trace != null && !factsReady)
+                        if (_trace != null && traceInsertion)
                         {
                             TraceRouteInfo targetInfo = TargetTraceInfo(node, potionCost, features,
                                 depth, score, nextLabel, _facts[existing].SetupValue, _facts[existing].SetupComboValue);
@@ -535,21 +552,14 @@ internal sealed partial class BeamSolver
                         _ranks[existing] = rank;
                         _nodes[existing] = node;
                         _potionCosts[existing] = potionCost;
-                        _facts[existing] = factsReady
-                            ? knownFacts
-                            // The byte-identical state has the same retention-only hand values; only
-                            // the depth-dependent fields move with the better-ranked representative.
-                            : RetentionFacts.From(features, depth,
-                                _facts[existing].ReachableHandValue, _facts[existing].ZeroCostPlayableCount,
-                                traits, pocketwatchThreshold, pocketwatchPlayed, pocketwatchLastTurn,
-                                _scorer.InitialRetainedAttackValue, parentEnemyBlock, parentEnemyHp,
-                                parentFutureResourceValue, parentStrategicResourcePotential,
-                                _facts[existing].RetentionProjection());
+                        // The byte-identical state has the same retention-only hand values, so the
+                        // expansion workspace's precomputed facts apply to the retained representative.
+                        _facts[existing] = knownFacts;
                         _lineages[existing] = lineage;
                         _commitment[existing] = commitment;
                         _hasCommitments |= commitment > 0;
                     }
-                    if (_trace != null && !factsReady)
+                    if (_trace != null && traceInsertion)
                     {
                         TraceRouteInfo targetInfo = TargetTraceInfo(node, potionCost, features,
                             depth, score, nextLabel, _facts[existing].SetupValue, _facts[existing].SetupComboValue);
@@ -570,17 +580,6 @@ internal sealed partial class BeamSolver
             if (Count >= _maxCapacity)
                 throw new CapacityException("Beam.Pool", _maxCapacity);
             RetentionFacts facts = knownFacts;
-            if (!factsReady)
-            {
-                (int reachableHandValue, int zeroCostPlayableCount, _) =
-                    _scorer.ReachableHandPotential(state);
-                facts = RetentionFacts.From(
-                    features, depth, reachableHandValue, zeroCostPlayableCount,
-                    traits, pocketwatchThreshold, pocketwatchPlayed, pocketwatchLastTurn,
-                    _scorer.InitialRetainedAttackValue, parentEnemyBlock, parentEnemyHp,
-                    parentFutureResourceValue, parentStrategicResourcePotential,
-                    _scorer.CaptureRetentionValues(state));
-            }
             if ((Count + 1) * 2 > _table.Length)
                 GrowTable();
             _nodes[Count] = node;
@@ -599,7 +598,7 @@ internal sealed partial class BeamSolver
             _table[FreeSlot(hash, _table.Length - 1)] = Count + 1;
             Count++;
             PeakCount = Math.Max(PeakCount, Count);
-            if (_trace != null && !factsReady)
+            if (_trace != null && traceInsertion)
             {
                 TraceRouteInfo targetInfo = TargetTraceInfo(node, potionCost, features,
                     depth, score, new PoolLabel(features.PotionUseCount, features.PotionStrategicCost,

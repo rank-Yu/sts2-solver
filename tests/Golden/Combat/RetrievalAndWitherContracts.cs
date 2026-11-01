@@ -91,13 +91,13 @@ internal static class RetrievalAndWitherContracts
         int position = Enumerable.Range(0, root.DrawCount).Single(i => root.Cards[start + i].Id == powerId);
         Card power = Piles.RemoveAt(ref root, Pile.Draw, position);
         Piles.Append(ref root, Pile.Draw, power); // Still available to fetch after the next draw.
-        Trace Run(bool enabled, int turns, bool noEnergy = false)
+        Trace Run(bool enabled, int turns, bool noEnergy = false, int maxExpandedNodes = 100_000)
         {
             Battle battle = root; if (noEnergy) battle.Energy = 0;
             Trace trace = new(battle, item.Rules, powerId);
             BeamOptions options = SearchBudgetPolicy.ApplyRegression(item.Options) with
             {
-                BeamWidth = 64, MaxTurns = turns, MaxExpandedNodes = 100_000, UnlimitedNodes = false,
+                BeamWidth = 64, MaxTurns = turns, MaxExpandedNodes = maxExpandedNodes, UnlimitedNodes = false,
                 SoftTimeBudget = TimeSpan.MaxValue, Act3BossStrategy = enabled, Trace = trace,
                 Bound = null,
                 Ordering = new(battle.Player.CurrentHp, battle.Player.MaxHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
@@ -112,6 +112,8 @@ internal static class RetrievalAndWitherContracts
         Assert(active.OrdinaryEndTurn > 0, "ordinary fetched state still expands EndTurn");
         Assert(Run(false, 1).Direct == 0, "disabled encounter has no direct continuation");
         Assert(Run(true, 1, noEnergy: true).Direct == 0, "unpayable power has no direct continuation");
+        Assert(Run(true, 2, maxExpandedNodes: 1).Direct == 0,
+            "exhausted commitment budget keeps the ordinary fetched state only");
     }
 
     private sealed class Trace : BeamTrace

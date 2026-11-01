@@ -264,8 +264,8 @@ internal sealed partial class BeamSolver
         turnFrontier?.AppendNodes(roots);
         AddRoot(roots, bestNode);
         AddRoot(roots, _bestFeaturesNode);
-        AddRoot(roots, _endTurnPrefixNode);
-        AddRoot(roots, _endTurnPrefixAttemptNode);
+        AddRoot(roots, _workspace.EndTurnPrefixNode);
+        AddRoot(roots, _workspace.EndTurnPrefixAttemptNode);
         if (_bestPotionFree is { } potionFree)
             AddRoot(roots, potionFree.Node);
         if (_auditBestByPotionCount is { } audited)
@@ -324,8 +324,8 @@ internal sealed partial class BeamSolver
         turnFrontier?.RemapNodes(map);
         bestNode = RemapNode(map, bestNode);
         _bestFeaturesNode = RemapNode(map, _bestFeaturesNode);
-        _endTurnPrefixNode = RemapNode(map, _endTurnPrefixNode);
-        _endTurnPrefixAttemptNode = RemapNode(map, _endTurnPrefixAttemptNode);
+        _workspace.EndTurnPrefixNode = RemapNode(map, _workspace.EndTurnPrefixNode);
+        _workspace.EndTurnPrefixAttemptNode = RemapNode(map, _workspace.EndTurnPrefixAttemptNode);
         if (_bestPotionFree is { } bestFree)
             _bestPotionFree = bestFree with { Node = RemapNode(map, bestFree.Node) };
         if (_auditBestByPotionCount is { } bestByCount)

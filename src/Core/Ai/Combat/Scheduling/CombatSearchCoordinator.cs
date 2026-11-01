@@ -102,6 +102,7 @@ internal static class CombatSearchCoordinator
                 BeamWidth = member.Width,
                 MaxTurns = int.MaxValue,
                 UnlimitedNodes = true,
+                SearchThreads = initial.Options.SearchThreads,
                 DeadlineExpired = DeadlineExpired,
                 SoftTimeBudget = TimeSpan.FromMilliseconds(searchMs),
                 Scorer = new Scorer(scorer.RulesForCodec,

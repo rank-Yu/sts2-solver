@@ -77,6 +77,9 @@ internal static class Program
         bool offlineCombat = false;
         int? memoryBudgetMb = null;
         long? memoryBudgetBytes = null;
+        int searchThreads = 1;
+        int workspaceBufferBytes = 0;
+        bool workspaceStats = false;
         int jobs = 1;
 
         for (int index = 0; index < args.Length; index++)
@@ -147,6 +150,15 @@ internal static class Program
                 case "--offline-combat":
                     offlineCombat = true;
                     break;
+                case "--search-threads" when index + 1 < args.Length:
+                    searchThreads = int.Parse(args[++index]);
+                    break;
+                case "--workspace-buffer-bytes" when index + 1 < args.Length:
+                    workspaceBufferBytes = int.Parse(args[++index]);
+                    break;
+                case "--workspace-stats":
+                    workspaceStats = true;
+                    break;
                 case "--memory-budget-mb" when index + 1 < args.Length:
                     memoryBudgetMb = int.Parse(args[++index]);
                     break;
@@ -184,11 +196,13 @@ internal static class Program
                 return 2;
             }
             return RunOfflineCombat(data, corpora, output, searchTier, memoryBudgetMb,
-                memoryBudgetBytes, fullCombat, jobs, root, liveRootsFile);
+                memoryBudgetBytes, searchThreads, workspaceBufferBytes, workspaceStats,
+                fullCombat, jobs, root, liveRootsFile);
         }
-        if (memoryBudgetMb != null || memoryBudgetBytes != null)
+        if (memoryBudgetMb != null || memoryBudgetBytes != null || searchThreads != 1)
         {
-            Console.Error.WriteLine("--memory-budget-mb 只能与 --offline-combat 一起使用。");
+            Console.Error.WriteLine("--memory-budget-mb/--memory-budget-bytes/--search-threads "
+                + "只能与 --offline-combat 一起使用。");
             return 2;
         }
         if (compareOnlyNew != null)
@@ -812,7 +826,8 @@ internal static class Program
 
     private static int RunOfflineCombat(string data, string corpora, string output,
         string? searchTier, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
-        bool fullCombat, int jobs, string? root, string? rootsFile)
+        int searchThreads, int workspaceBufferBytes, bool workspaceStats, bool fullCombat,
+        int jobs, string? root, string? rootsFile)
     {
         if (fullCombat)
         {
@@ -835,6 +850,16 @@ internal static class Program
             Console.Error.WriteLine("--memory-budget-bytes 必须是正整数。");
             return 2;
         }
+        if (searchThreads is < 1 or > 8)
+        {
+            Console.Error.WriteLine("--search-threads 必须在 1 到 8 之间。");
+            return 2;
+        }
+        if (workspaceBufferBytes < 0)
+        {
+            Console.Error.WriteLine("--workspace-buffer-bytes 必须是非负整数。");
+            return 2;
+        }
         SearchPerformanceTier tier;
         try
         {
@@ -854,7 +879,7 @@ internal static class Program
             Environment.GetEnvironmentVariable("STS2_SOLVER_OFFLINE_WARMUP_NODES"), out int warmup)
             ? Math.Max(0, warmup) : 50_000;
         OfflineCombatSettings settings = new(data, corpora, output, tier, profile,
-            memoryBudgetBytes, warmupNodes);
+            memoryBudgetBytes, warmupNodes, searchThreads, workspaceBufferBytes, workspaceStats);
         return OfflineCombat.Run(settings, root, rootsFile, jobs);
     }
 
@@ -978,7 +1003,9 @@ internal static class Program
                   [--search-cancel-after-ms N] [--full-combat]
               dotnet Differential.dll --list-quality-roots [--corpora <dir>]
               dotnet Differential.dll --offline-combat [--root <name> | --roots-file <file> | --corpora <dir>]
-                  [--search-tier Low|Medium|High|ExtraHigh] [--jobs 1..8] [--out <dir>]
+                  [--search-tier Low|Medium|High|ExtraHigh] [--search-threads 1..8]
+                  [--workspace-buffer-bytes N] [--workspace-stats]
+                  [--jobs 1..8] [--out <dir>]
                   [--memory-budget-mb N]
             """);
     }

@@ -15,6 +15,9 @@ internal sealed class SearchWorkPacer(SearchFramePressureSignal framePressureSig
     private int _observedFramePressureEpoch;
     private long _frameRecoveryWaitTicks;
 
+    /// <summary>The shared signal a worker pacer joins so every thread yields together.</summary>
+    internal SearchFramePressureSignal FramePressureSignal => framePressureSignal;
+
     public int YieldCount { get; private set; }
     public TimeSpan MaxObservedGcPause { get; private set; }
     public int FrameRecoveryWaitCount { get; private set; }

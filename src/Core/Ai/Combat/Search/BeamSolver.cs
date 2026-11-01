@@ -156,11 +156,34 @@ internal sealed record BeamOptions(
     public SearchWorkPacer? Pacer { get; init; }
 
     /// <summary>
+    /// Total threads that may expand one action layer at the same time. Host-only, like
+    /// <see cref="Pacer"/> and <see cref="DeadlineExpired"/>: it never changes the result, so it is
+    /// not encoded in SREQ. One keeps the single-thread path.
+    /// </summary>
+    public int SearchThreads { get; init; } = 1;
+
+    /// <summary>
+    /// Test/offline-only cap on one workspace's growable expansion buffers. Zero uses the
+    /// production default. Like <see cref="SearchThreads"/> it is host-only and never enters SREQ.
+    /// </summary>
+    public int WorkspaceBufferLimitBytes { get; init; }
+
+    /// <summary>
     /// Offline route trace for test diagnostics only. Production never sets it; the solver only
     /// reports the points it already evaluates.
     /// </summary>
     public BeamTrace? Trace { get; init; }
 }
+
+/// <summary>One parent's workspace shape, reported only when a test observer is installed.</summary>
+internal readonly record struct ParentWorkspaceMeasurement(
+    long PeakUsedBytes,
+    long PeakAllocatedBytes,
+    int Children,
+    int Terminals,
+    int Choices,
+    int Duplicates,
+    bool Direct);
 
 /// <summary>One registered power card's existing commitment descriptor.</summary>
 internal readonly record struct PowerCommitmentRule(
@@ -277,6 +300,24 @@ internal sealed record BeamResult(
     /// <summary>Highest route-node count observed during the solve, before boundary cleanup.</summary>
     public int RouteNodePeakCount { get; init; }
 
+    /// <summary>
+    /// Highest total bytes retained by all expansion workspaces. Workspace memory is outside the
+    /// search ledger; this is a diagnostic for sizing the thread/window choice.
+    /// </summary>
+    public long SearchWorkspacePeakBytes { get; init; }
+
+    /// <summary>Highest total growable (capped) bytes retained by all expansion workspaces.</summary>
+    public long SearchWorkspaceGrowablePeakBytes { get; init; }
+
+    /// <summary>Parents whose buffered expansion exceeded the workspace limit and streamed instead.</summary>
+    public int WorkspaceOverflowParents { get; init; }
+
+    /// <summary>Total action-layer parents expanded by this solve.</summary>
+    public int WorkspaceParents { get; init; }
+
+    /// <summary>Wall time spent in straight-through expansion for over-limit parents.</summary>
+    public TimeSpan WorkspaceDirectDuration { get; init; }
+
     /// Which root of the solve the selected route started from: 0 for an ordinary root, or the
     /// turn-setup root candidate index (the coordinator maps it back to the setup choices).
     /// </summary>
@@ -372,11 +413,15 @@ internal sealed partial class BeamSolver
     /// <summary>Dictionary/bucket allowance charged once per unique routing signature.</summary>
     private const int RoutingSignatureDictionaryBytes = 64;
 
+    /// <summary>Production cap for one workspace's growable expansion buffers.</summary>
+    internal const int DefaultWorkspaceBufferLimitBytes = 8 << 20;
+
     private readonly Rules _rules;
     private readonly BeamOptions _options;
     private readonly Scorer _scorer;
     private readonly bool _zeroGrowthBudget;
     private readonly RouteOrdering _ordering;
+    private readonly int _workspaceBufferLimit;
     private RouteNodeStore _nodes = null!;
     private PotionLineageKeyStore _potionLineageKeys = null!;
     private RoutingMetaStore _routingMetas = null!;
@@ -486,6 +531,26 @@ internal sealed partial class BeamSolver
     private bool _choiceFillVariants;
     private ExpansionWorkspace _workspace = null!;
 
+    /// <summary>One workspace per in-flight parent slot; a single element on the single-thread path.</summary>
+    private ExpansionWorkspace[] _workspaces = null!;
+    private ParallelExpansion? _parallelExpansion;
+    private bool _parallelSearch;
+    private long _workspacePeakBytes;
+    private long _workspaceGrowablePeakBytes;
+    private int _workspaceOverflowParents;
+    private int _workspaceParents;
+    private long _workspaceDirectTicks;
+    internal static Action<ParentWorkspaceMeasurement>? ParentWorkspaceObserver;
+    private ParentExpansionContext[] _layerContexts = [];
+    private int _workspacePrefixShared;
+    private int _workspacePrefixUnshared;
+    private int _workspacePrefixVerified;
+    private int _workspacePrefixReusedLeaves;
+    private int _workspacePrefixChoiceUnshared;
+    private int _workspacePrefixExtraTurnUnshared;
+    private int _workspacePrefixNotInProgress;
+    private SearchEquivalenceDiagnostics _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
+
     /// <summary>Offline route trace (null in production) and the pool phase it reports.</summary>
     private readonly BeamTrace? _trace;
     private string _tracePhase = "next";
@@ -535,6 +600,8 @@ internal sealed partial class BeamSolver
         _aggressivePowerCommitment = options.AggressivePowerCommitment;
         _preserveReplayAllocatorOpening = options.PreserveReplayAllocatorOpening;
         _trace = options.Trace;
+        _workspaceBufferLimit = options.WorkspaceBufferLimitBytes > 0
+            ? options.WorkspaceBufferLimitBytes : DefaultWorkspaceBufferLimitBytes;
     }
 
     /// <summary>
@@ -558,6 +625,9 @@ internal sealed partial class BeamSolver
             throw new ArgumentOutOfRangeException(nameof(roots), "至少需要一个搜索根。");
         if (_scorer.QueenPolicy is { } queen)
             foreach (Battle root in roots) queen.ValidateRoot(root);
+        if (_options.SearchThreads < 1)
+            throw new ArgumentOutOfRangeException(nameof(_options.SearchThreads),
+                "搜索线程数必须至少为 1。");
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
         _deadlineReached = false;
         _storage = storage;
@@ -577,7 +647,31 @@ internal sealed partial class BeamSolver
         _dedupeChoicesByClass = SearchVerificationHooks.DedupeEquivalentChoicesByClass;
         _choiceFillVariants = SearchVerificationHooks.ChoiceFillPhysicalVariants;
         _scorer.VerifyThreatProjection = _verifySearchEquivalence;
-        _workspace = new ExpansionWorkspace(this);
+        // Trace and the equivalence probes carry mutable diagnostics (and trace state) that are not
+        // shared between threads, so those modes keep the single-thread path.
+        int searchThreads = Math.Max(1, _options.SearchThreads);
+        if (_trace != null || _verifySearchEquivalence)
+            searchThreads = 1;
+        _parallelSearch = searchThreads > 1;
+        bool directOnly = searchThreads == 1;
+        int workspaceCount = searchThreads > 1 ? 2 * searchThreads : 1;
+        _workspaces = new ExpansionWorkspace[workspaceCount];
+        for (int index = 0; index < _workspaces.Length; index++)
+            _workspaces[index] = new ExpansionWorkspace(this, directOnly && index == 0);
+        _workspace = _workspaces[0];
+        _workspacePrefixShared = 0;
+        _workspacePrefixUnshared = 0;
+        _workspacePrefixVerified = 0;
+        _workspacePrefixReusedLeaves = 0;
+        _workspacePrefixChoiceUnshared = 0;
+        _workspacePrefixExtraTurnUnshared = 0;
+        _workspacePrefixNotInProgress = 0;
+        _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
+        _workspacePeakBytes = 0;
+        _workspaceGrowablePeakBytes = 0;
+        _workspaceOverflowParents = 0;
+        _workspaceParents = 0;
+        _workspaceDirectTicks = 0;
         Stopwatch watch = Stopwatch.StartNew();
         _cancellationToken = cancellationToken;
         _solveWatch = watch;
@@ -727,6 +821,8 @@ internal sealed partial class BeamSolver
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
         TerminalSink terminal = ConsiderTerminal;
         int turns = 0;
+        if (_parallelSearch)
+            _parallelExpansion = new ParallelExpansion(this, searchThreads);
         try
         {
         while (turnFrontier.Count > 0 && turns < _options.MaxTurns && !OutOfBudget(watch))
@@ -752,15 +848,30 @@ internal sealed partial class BeamSolver
                     CompactRouteNodes(ref bestNode, current, next, ended, turnFrontier);
                     _nodeCleanupThreshold = Math.Max(_nodeCleanupThreshold, _nodes.Count * 2);
                 }
-                for (int index = 0; index < current.Count && !OutOfBudget(watch); index++)
+                if (_parallelExpansion is null)
                 {
-                    SearchCheckpoint();
-                    CountExpanded();
-                    ref readonly Battle parent = ref current.State(index);
-                    ParentExpansionContext context = CaptureParentContext(current, index);
-                    _workspace.BeginParent();
-                    _workspace.Expand(in parent, in context, _cancellationToken);
-                    _workspace.Commit(in parent, in context, next, ended, terminal);
+                    for (int index = 0; index < current.Count && !OutOfBudget(watch); index++)
+                    {
+                        SearchCheckpoint();
+                        CountExpanded();
+                        ref readonly Battle parent = ref current.State(index);
+                        ParentExpansionContext context = CaptureParentContext(current, index);
+                        int duplicatesBefore = _duplicates;
+                        long directStarted = Stopwatch.GetTimestamp();
+                        _workspace.ExpandDirect(in parent, in context, next, ended, terminal,
+                            _cancellationToken);
+                        _workspaceDirectTicks += Stopwatch.GetTimestamp() - directStarted;
+                        ObserveParent(_workspace, duplicatesBefore);
+                        AccumulateWorkspaceDiagnostics(_workspace);
+                    }
+                    ObserveWorkspacePeak();
+                }
+                else
+                {
+                    CaptureLayerContexts(current);
+                    _parallelExpansion.RunLayer(current, next, ended, terminal,
+                        _layerContexts, current.Count);
+                    ObserveWorkspacePeak();
                 }
                 current.Clear();
                 _tracePhase = "next";
@@ -789,6 +900,11 @@ internal sealed partial class BeamSolver
         {
             _memoryBudgetExceeded = true;
             _memoryBudgetExceededAtBytes = error.UsedBytes;
+        }
+        finally
+        {
+            _parallelExpansion?.Dispose();
+            _parallelExpansion = null;
         }
         if (_auditPotionPolicy)
         {
@@ -821,14 +937,14 @@ internal sealed partial class BeamSolver
                 _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
             {
                 CapacityPruned = _capacityPruned,
-                EndTurnPrefixShared = _workspace.EndTurnPrefixShared,
-                EndTurnPrefixUnshared = _workspace.EndTurnPrefixUnshared,
-                EndTurnPrefixVerified = _workspace.EndTurnPrefixVerified,
+                EndTurnPrefixShared = EndTurnPrefixSharedTotal,
+                EndTurnPrefixUnshared = EndTurnPrefixUnsharedTotal,
+                EndTurnPrefixVerified = EndTurnPrefixVerifiedTotal,
                 ThreatProjectionVerified = _scorer.ThreatProjectionChecks,
-                EndTurnPrefixReusedLeaves = _workspace.EndTurnPrefixReusedLeaves,
-                EndTurnPrefixChoiceUnshared = _workspace.EndTurnPrefixChoiceUnshared,
-                EndTurnPrefixExtraTurnUnshared = _workspace.EndTurnPrefixExtraTurnUnshared,
-                EndTurnPrefixNotInProgress = _workspace.EndTurnPrefixNotInProgress,
+                EndTurnPrefixReusedLeaves = EndTurnPrefixReusedLeavesTotal,
+                EndTurnPrefixChoiceUnshared = EndTurnPrefixChoiceUnsharedTotal,
+                EndTurnPrefixExtraTurnUnshared = EndTurnPrefixExtraTurnUnsharedTotal,
+                EndTurnPrefixNotInProgress = EndTurnPrefixNotInProgressTotal,
                 CapacityDroppedChildren = _capacityDropped.Count == 0
                     ? BeamResult.NoCapacityDrops
                     : _capacityDropped,
@@ -854,6 +970,11 @@ internal sealed partial class BeamSolver
             RouteNodeStorageBytes = _nodes.StorageBytes,
             RouteNodeCount = _nodes.Count,
             RouteNodePeakCount = _nodes.PeakCount,
+            SearchWorkspacePeakBytes = _workspacePeakBytes,
+            SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
+            WorkspaceOverflowParents = _workspaceOverflowParents,
+            WorkspaceParents = _workspaceParents,
+            WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
             };
             return audited;
         }
@@ -891,14 +1012,14 @@ internal sealed partial class BeamSolver
             _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
         {
             CapacityPruned = _capacityPruned,
-            EndTurnPrefixShared = _workspace.EndTurnPrefixShared,
-            EndTurnPrefixUnshared = _workspace.EndTurnPrefixUnshared,
-            EndTurnPrefixVerified = _workspace.EndTurnPrefixVerified,
+            EndTurnPrefixShared = EndTurnPrefixSharedTotal,
+            EndTurnPrefixUnshared = EndTurnPrefixUnsharedTotal,
+            EndTurnPrefixVerified = EndTurnPrefixVerifiedTotal,
             ThreatProjectionVerified = _scorer.ThreatProjectionChecks,
-            EndTurnPrefixReusedLeaves = _workspace.EndTurnPrefixReusedLeaves,
-            EndTurnPrefixChoiceUnshared = _workspace.EndTurnPrefixChoiceUnshared,
-            EndTurnPrefixExtraTurnUnshared = _workspace.EndTurnPrefixExtraTurnUnshared,
-            EndTurnPrefixNotInProgress = _workspace.EndTurnPrefixNotInProgress,
+            EndTurnPrefixReusedLeaves = EndTurnPrefixReusedLeavesTotal,
+            EndTurnPrefixChoiceUnshared = EndTurnPrefixChoiceUnsharedTotal,
+            EndTurnPrefixExtraTurnUnshared = EndTurnPrefixExtraTurnUnsharedTotal,
+            EndTurnPrefixNotInProgress = EndTurnPrefixNotInProgressTotal,
             CapacityDroppedChildren = _capacityDropped.Count == 0
                 ? BeamResult.NoCapacityDrops
                 : _capacityDropped,
@@ -923,6 +1044,11 @@ internal sealed partial class BeamSolver
             RouteNodeStorageBytes = _nodes.StorageBytes,
             RouteNodeCount = _nodes.Count,
             RouteNodePeakCount = _nodes.PeakCount,
+            SearchWorkspacePeakBytes = _workspacePeakBytes,
+            SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
+            WorkspaceOverflowParents = _workspaceOverflowParents,
+            WorkspaceParents = _workspaceParents,
+            WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
         };
         return result;
     }
@@ -1336,6 +1462,18 @@ internal sealed partial class BeamSolver
     {
         if (_expanded < int.MaxValue) _expanded++;
         _expandedTotal++;
+    }
+
+    /// <summary>Publishes one parent's workspace shape to the optional test observer.</summary>
+    private void ObserveParent(ExpansionWorkspace workspace, int duplicatesBefore)
+    {
+        _workspaceParents++;
+        if (ParentWorkspaceObserver is not { } observer)
+            return;
+        observer(new ParentWorkspaceMeasurement(
+            workspace.ParentPeakUsedBytes, workspace.ParentPeakAllocatedBytes,
+            workspace.ParentChildren, workspace.ParentTerminals, workspace.ParentChoices,
+            _duplicates - duplicatesBefore, workspace.ParentDirect));
     }
 
     /// <summary>

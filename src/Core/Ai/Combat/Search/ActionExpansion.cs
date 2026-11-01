@@ -207,7 +207,7 @@ internal sealed partial class BeamSolver
     }
 
     private SearchEquivalenceDiagnostics EquivalenceDiagnostics()
-        => _workspace.EquivalenceDiagnostics();
+        => _workspaceEquivalence;
 
     /// <summary>
     /// Default-off differential check: runs the complete step from the parent and compares every

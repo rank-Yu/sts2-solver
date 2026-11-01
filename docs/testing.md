@@ -87,7 +87,11 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/data --only search --jobs 8 --shard 0/4
 ```
 
-`--jobs N` 控制并行度，默认是处理器数。`--shard i/n` 只跑第 i 片：
+`--jobs N` 控制并行度，默认是处理器数。`--search-threads N` 控制每个搜索请求内部同时展开的线程数，默认 1；它不改变确定性结果，只改展开速度。验证总并行度时两者相乘不要超过机器的可用核数。
+
+`--workspace-buffer-bytes N` 把每个工作区的可变展开缓冲上限设成 N 字节（默认 8 MiB）。设成 1 会让所有父节点走直通模式，用于压测内存上界。`--workspace-stats` 收集每个父节点的缓冲峰值，打印分位数、超过 1/2/4/8/16 MiB 的个数和最大父节点的子节点构成；只在验证工具里使用。
+
+`--shard i/n` 只跑第 i 片：
 
 - 模拟回归按排好序的根目录做 `index % n == i`。
 - 搜索回归按工作量均分。每个请求的权重是期望结果里记录的展开节点数（`ExpandedNodes`），这个数和机器无关。请求从重到轻依次分给当前最轻的分片，片内也是先跑最重的，所以各片耗时接近，分法也不受目录枚举顺序影响。平局时权重相同按请求哈希排序，分片总量相同取编号小的。
@@ -162,6 +166,7 @@ dotnet run --project tests/Golden -c Release --no-build -- \
 
 - `--config none|play|choice|all|choice-fill|all-fill`：`none` 关闭两项去重；`play` 只开完全等价的出牌去重；`choice` 只开旧的选牌等价类（每个类向量一个代表）；`all` 是 `play + choice`；`choice-fill` 是类优先、再补位置变体；`all-fill` 是 `play + choice-fill`，也是正式默认。
 - `--shard i/n`：与 `verify` 相同的权重分片；全量对照按 4 片运行。
+- `--search-threads N`：每个请求内部的展开线程数，默认 1；结果应与单线程逐字节相同。
 - `--out`：逐请求的 CSV，含质量分类、路线是否逐动作相同、展开/转移、分数、胜负、耗时和等价计数。
 - `--verify`：对照时打开 `STS2_SOLVER_VERIFY_SEARCH_EQUIVALENCE` 的全部检查；精确等价断言失败仍以 `GOLDEN_FAILED` 退出，近似项只统计。
 - 质量用 `BeamSolver.TryCompareResultQuality` 判断：把冻结路线和当前路线分别从同一根重放，按求解器自己的终局比较键（胜负、存活、死亡保护、战略失血、成长、回合、资源、可选药水、敌人生命、分数、动作数）分成更好、相同、更差；无法重放时计 `unknown`。
@@ -261,7 +266,7 @@ git diff --exit-code -- tests/Golden/data/manifest.json
 
 ### 7.1 离线整场自动战斗
 
-离线工具从质量语料导入根，用与 Mod 相同的组合协调器和请求级时间、内存预算，在内核里执行搜索出的路线，用于质量评估。每根一个子进程，`--jobs` 控制并发。
+离线工具从质量语料导入根，用与 Mod 相同的组合协调器和请求级时间、内存预算，在内核里执行搜索出的路线，用于质量评估。每根一个子进程，`--jobs` 控制并发，`--search-threads N` 控制每个成员内部的展开线程数（默认 1）；`--workspace-buffer-bytes N` 和 `--workspace-stats` 与 Golden 验证工具含义相同。
 
 每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值）；父进程的 `summary.json` 汇总档位、四种宽度、时间和内存预算。墙钟控制的成员在不同机器上可能截断在不同位置，不能当确定性的回归来比较。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
 

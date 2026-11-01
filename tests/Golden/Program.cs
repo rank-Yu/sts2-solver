@@ -60,8 +60,11 @@ catch (AggregateException error)
 
 static void PrintUsage()
     => Console.Error.WriteLine(
-        "用法：Golden verify <data-dir> [--jobs N] [--only simulation|search] [--shard i/n] | "
-        + "compare <data-dir> [--jobs N] [--config none|play|choice|all|choice-fill|all-fill] "
+        "用法：Golden verify <data-dir> [--jobs N] [--search-threads N] "
+        + "[--workspace-buffer-bytes N] [--workspace-stats] [--only simulation|search] "
+        + "[--shard i/n] | "
+        + "compare <data-dir> [--jobs N] [--search-threads N] "
+        + "[--config none|play|choice|all|choice-fill|all-fill] "
         + "[--out csv] [--shard i/n] "
         + "[--only hash-prefix] [--verify] | refreeze <source-dir> <target-dir> [--jobs N] | "
         + "rerecord <source-dir> <target-dir> --roots <file> --reason text "
@@ -79,6 +82,9 @@ internal static class VerifyCommand
         }
         string dataDirectory = args[0];
         int jobs = Environment.ProcessorCount;
+        int searchThreads = 1;
+        int workspaceBufferBytes = 0;
+        bool workspaceStats = false;
         string only = "all";
         int shard = 0, shards = 1;
         for (int index = 1; index < args.Length; index++)
@@ -87,6 +93,18 @@ internal static class VerifyCommand
             {
                 case "--jobs":
                     jobs = ParsePositiveInt(Next(args, ref index, "--jobs"), "--jobs");
+                    break;
+                case "--search-threads":
+                    searchThreads = ParsePositiveInt(
+                        Next(args, ref index, "--search-threads"), "--search-threads");
+                    break;
+                case "--workspace-buffer-bytes":
+                    workspaceBufferBytes = ParsePositiveInt(
+                        Next(args, ref index, "--workspace-buffer-bytes"),
+                        "--workspace-buffer-bytes");
+                    break;
+                case "--workspace-stats":
+                    workspaceStats = true;
                     break;
                 case "--only":
                     only = Next(args, ref index, "--only") switch
@@ -130,7 +148,8 @@ internal static class VerifyCommand
         if (only != "simulation")
         {
             Stopwatch watch = Stopwatch.StartNew();
-            d2 = SearchVerifier.Run(dataDirectory, jobs, shard, shards);
+            d2 = SearchVerifier.Run(dataDirectory, jobs, shard, shards, searchThreads,
+                workspaceBufferBytes, workspaceStats);
             watch.Stop();
             Console.WriteLine($"SEARCH_OK selected={d2.Selected} equal={d2.Equal} mismatch={d2.Mismatch} "
                 + $"expanded={d2.Expanded} prefixChecks={d2.PrefixChecks} threatChecks={d2.ThreatChecks} "
@@ -146,8 +165,15 @@ internal static class VerifyCommand
                 + $"choiceVerifiedApprox={d2.ChoiceVerifiedApprox} "
                 + $"choiceVerifiedApproxEqual={d2.ChoiceVerifiedApproxEqual} "
                 + $"choiceVerifiedUnresolved={d2.ChoiceVerifiedUnresolved} "
-                + $"wall={watch.Elapsed.TotalSeconds:F1}s jobs={jobs}");
-            Console.WriteLine($"SEARCH_TIME wall={watch.Elapsed.TotalSeconds:F3}s jobs={jobs} selected={d2.Selected}");
+                + $"workspacePeak={d2.WorkspacePeak} "
+                + $"workspaceGrowablePeak={d2.WorkspaceGrowablePeak} "
+                + $"workspaceParents={d2.WorkspaceParents} "
+                + $"overflowParents={d2.WorkspaceOverflowParents} "
+                + $"directMs={d2.WorkspaceDirectMilliseconds} "
+                + $"wall={watch.Elapsed.TotalSeconds:F1}s jobs={jobs} "
+                + $"searchThreads={searchThreads}");
+            Console.WriteLine($"SEARCH_TIME wall={watch.Elapsed.TotalSeconds:F3}s jobs={jobs} "
+                + $"searchThreads={searchThreads} selected={d2.Selected}");
         }
 
         string totals = (d1, d2) switch

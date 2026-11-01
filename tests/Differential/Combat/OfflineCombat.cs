@@ -23,7 +23,10 @@ internal sealed record OfflineCombatSettings(
     SearchPerformanceTier Tier,
     SearchPerformanceProfile Profile,
     long MemoryBudgetBytes,
-    int WarmupNodes)
+    int WarmupNodes,
+    int SearchThreads,
+    int WorkspaceBufferBytes,
+    bool WorkspaceStats)
 {
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
@@ -176,9 +179,22 @@ internal static class OfflineCombat
             SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
                 SearchPolicyCapture.Capture(combat, player), request, player);
             DifferentialCombat host = new(combat, player, rules, policy, settings.Profile,
-                settings.MemoryBudgetBytes, settings.WarmupNodes, opening);
-            CombatPilotResult result = CombatPilot.RunAsync(host, root, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                settings.MemoryBudgetBytes, settings.WarmupNodes, settings.SearchThreads,
+                settings.WorkspaceBufferBytes, opening);
+            WorkspaceStatsCollector? stats = settings.WorkspaceStats
+                ? new WorkspaceStatsCollector() : null;
+            BeamSolver.ParentWorkspaceObserver = stats is null ? null : stats.Add;
+            CombatPilotResult result;
+            try
+            {
+                result = CombatPilot.RunAsync(host, root, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+            }
+            finally
+            {
+                BeamSolver.ParentWorkspaceObserver = null;
+            }
+            stats?.Print(root);
             long wallMs = stopwatch.ElapsedMilliseconds;
             CheckQualityExpectation(settings.Corpora, root, settings.Tier, result);
             WriteResult(settings.Output, root, result);
@@ -276,6 +292,12 @@ internal static class OfflineCombat
         start.ArgumentList.Add(settings.MemoryBudgetBytes.ToString());
         start.ArgumentList.Add("--jobs");
         start.ArgumentList.Add("1");
+        start.ArgumentList.Add("--search-threads");
+        start.ArgumentList.Add(settings.SearchThreads.ToString());
+        start.ArgumentList.Add("--workspace-buffer-bytes");
+        start.ArgumentList.Add(settings.WorkspaceBufferBytes.ToString());
+        if (settings.WorkspaceStats)
+            start.ArgumentList.Add("--workspace-stats");
         using Process process = Process.Start(start)
             ?? throw new InvalidOperationException("无法启动离线整场子进程。");
         Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
@@ -319,6 +341,9 @@ internal static class OfflineCombat
             offensiveWidth = settings.Profile.OffensiveWidth,
             millisecondsPerWidth = settings.Profile.MillisecondsPerWidth,
             memoryBudgetBytes = settings.MemoryBudgetBytes,
+            searchThreads = settings.SearchThreads,
+            workspaceBufferBytes = settings.WorkspaceBufferBytes,
+            workspaceStats = settings.WorkspaceStats,
             roots,
             failed,
             wallMs,
@@ -409,6 +434,8 @@ internal static class OfflineCombat
         SearchPerformanceProfile profile,
         long MemoryBudgetBytes,
         int WarmupNodes,
+        int SearchThreads,
+        int WorkspaceBufferBytes,
         Battle opening) : ICombatPilotHost
     {
         private readonly List<string> _potionsUsed = [];
@@ -500,6 +527,14 @@ internal static class OfflineCombat
                     "request_invalid", error.Message));
             }
 
+            searchCase = searchCase with
+            {
+                Options = searchCase.Options with
+                {
+                    SearchThreads = SearchThreads,
+                    WorkspaceBufferLimitBytes = WorkspaceBufferBytes,
+                },
+            };
             if (!_warmedUp)
             {
                 _warmedUp = true;
@@ -811,5 +846,83 @@ internal static class OfflineCombat
         long workingSet = Environment.WorkingSet;
         if (workingSet > workingSetPeak)
             workingSetPeak = workingSet;
+    }
+}
+
+internal sealed class WorkspaceStatsCollector
+{
+    private readonly List<ParentWorkspaceMeasurement> _measurements = [];
+    private readonly object _gate = new();
+    private ParentWorkspaceMeasurement _largest;
+    private int _direct;
+
+    internal void Add(ParentWorkspaceMeasurement measurement)
+    {
+        lock (_gate)
+        {
+            if (measurement.Direct)
+            {
+                _direct++;
+                return;
+            }
+            _measurements.Add(measurement);
+            if (measurement.PeakUsedBytes > _largest.PeakUsedBytes)
+                _largest = measurement;
+        }
+    }
+
+    internal void Print(string root)
+    {
+        ParentWorkspaceMeasurement[] all;
+        ParentWorkspaceMeasurement largest;
+        int direct;
+        lock (_gate)
+        {
+            all = [.. _measurements];
+            largest = _largest;
+            direct = _direct;
+        }
+        if (all.Length == 0)
+        {
+            Console.WriteLine($"WORKSPACE_STATS root={root} parents=0 direct={direct}");
+            return;
+        }
+        long[] sorted = [.. all.Select(static measurement => measurement.PeakUsedBytes)];
+        Array.Sort(sorted);
+        static long Percentile(long[] values, double percentile)
+        {
+            int rank = Math.Max(0, (int)Math.Ceiling(percentile / 100d * values.Length) - 1);
+            return values[Math.Min(rank, values.Length - 1)];
+        }
+        static int Over(long[] values, long threshold)
+        {
+            int low = 0, high = values.Length;
+            while (low < high)
+            {
+                int middle = (low + high) >> 1;
+                if (values[middle] <= threshold)
+                    low = middle + 1;
+                else
+                    high = middle;
+            }
+            return values.Length - low;
+        }
+        double Percent(int count) => 100d * count / sorted.Length;
+        Console.WriteLine(
+            $"WORKSPACE_STATS root={root} parents={sorted.Length} direct={direct} "
+            + $"p50={Percentile(sorted, 50)} p99={Percentile(sorted, 99)} "
+            + $"p999={Percentile(sorted, 99.9)} max={sorted[^1]}");
+        Console.WriteLine(
+            $"WORKSPACE_STATS root={root} over1m={Over(sorted, 1 << 20)} "
+            + $"({Percent(Over(sorted, 1 << 20)):F3}%) "
+            + $"over2m={Over(sorted, 2 << 20)} ({Percent(Over(sorted, 2 << 20)):F3}%) "
+            + $"over4m={Over(sorted, 4 << 20)} ({Percent(Over(sorted, 4 << 20)):F3}%) "
+            + $"over8m={Over(sorted, 8 << 20)} ({Percent(Over(sorted, 8 << 20)):F3}%) "
+            + $"over16m={Over(sorted, 16 << 20)} ({Percent(Over(sorted, 16 << 20)):F3}%)");
+        Console.WriteLine(
+            $"WORKSPACE_STATS root={root} largest children={largest.Children} "
+            + $"terminals={largest.Terminals} choices={largest.Choices} "
+            + $"duplicates={largest.Duplicates} peakUsed={largest.PeakUsedBytes} "
+            + $"peakAllocated={largest.PeakAllocatedBytes}");
     }
 }

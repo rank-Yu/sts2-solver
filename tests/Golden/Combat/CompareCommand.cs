@@ -51,6 +51,7 @@ internal static class CompareCommand
         }
         string dataDirectory = args[0];
         int jobs = Environment.ProcessorCount;
+        int searchThreads = 1;
         string config = "all";
         string? output = null;
         string? only = null;
@@ -63,6 +64,10 @@ internal static class CompareCommand
             {
                 case "--jobs":
                     jobs = ParsePositiveInt(Next(args, ref index, "--jobs"), "--jobs");
+                    break;
+                case "--search-threads":
+                    searchThreads = ParsePositiveInt(
+                        Next(args, ref index, "--search-threads"), "--search-threads");
                     break;
                 case "--config":
                     config = Next(args, ref index, "--config");
@@ -117,7 +122,7 @@ internal static class CompareCommand
                     || Path.GetFileName(path).StartsWith(only, StringComparison.Ordinal))
                 .ToArray();
         Console.WriteLine($"COMPARE_START config={config} requests={paths.Length} jobs={jobs} "
-            + $"verify={verify} shard={shard}/{shards}");
+            + $"searchThreads={searchThreads} verify={verify} shard={shard}/{shards}");
         ConcurrentBag<Row> rows = new();
         Stopwatch watch = Stopwatch.StartNew();
         Parallel.ForEach(paths, new ParallelOptions { MaxDegreeOfParallelism = jobs }, path =>
@@ -129,6 +134,7 @@ internal static class CompareCommand
                 SoftTimeBudget = TimeSpan.MaxValue,
                 Pacer = null,
                 Trace = null,
+                SearchThreads = searchThreads,
             });
             BeamResult expected = SearchCodec.DecodeResult(
                 GoldenFiles.ReadCompressed(Path.Combine(expectedDirectory, hash + ".result.br")));
@@ -232,7 +238,8 @@ internal static class CompareCommand
             + $"expandedPct={Percent(newExpanded - oldExpanded, oldExpanded):F3} "
             + $"oldTransitions={oldTransitions} newTransitions={newTransitions} "
             + $"transitionsPct={Percent(newTransitions - oldTransitions, oldTransitions):F3} "
-            + $"solveMsSum={sumMs:F0} wall={watch.Elapsed.TotalSeconds:F1}s jobs={jobs}");
+            + $"solveMsSum={sumMs:F0} wall={watch.Elapsed.TotalSeconds:F1}s jobs={jobs} "
+            + $"searchThreads={searchThreads}");
         Console.WriteLine($"COMPARE_EQUIVALENCE config={config} playDeduped={equivalence.PlayDeduped} "
             + $"playVerifiedExact={equivalence.PlayVerifiedExact} "
             + $"playVerifiedApprox={equivalence.PlayVerifiedApprox} "

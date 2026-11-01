@@ -55,6 +55,31 @@ internal static class SearchContracts
         BeamResult second = new BeamSolver(original.Rules, batched).Solve(original.Battles, storage, CancellationToken.None);
         Assert(SearchCodec.EncodeResult(first).AsSpan().SequenceEqual(SearchCodec.EncodeResult(second)),
             "compacted pools and route references survive storage reuse");
+        BeamResult parallel = new BeamSolver(original.Rules, batched with { SearchThreads = 3 })
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(SearchCodec.EncodeResult(first).AsSpan().SequenceEqual(SearchCodec.EncodeResult(parallel)),
+            "parallel expansion commits in parent order with the same result");
+        Assert(first.EndTurnPrefixShared == parallel.EndTurnPrefixShared
+            && first.EndTurnPrefixUnshared == parallel.EndTurnPrefixUnshared
+            && first.EndTurnPrefixReusedLeaves == parallel.EndTurnPrefixReusedLeaves
+            && first.EndTurnPrefixChoiceUnshared == parallel.EndTurnPrefixChoiceUnshared
+            && first.EndTurnPrefixExtraTurnUnshared == parallel.EndTurnPrefixExtraTurnUnshared
+            && first.EndTurnPrefixNotInProgress == parallel.EndTurnPrefixNotInProgress,
+            "parallel prefix diagnostics aggregate to the single-thread totals");
+        Assert(first.Equivalence == parallel.Equivalence,
+            "parallel equivalence diagnostics aggregate to the single-thread totals");
+        BeamResult streamed = new BeamSolver(original.Rules,
+            batched with { WorkspaceBufferLimitBytes = 1 })
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(SearchCodec.EncodeResult(first).AsSpan().SequenceEqual(SearchCodec.EncodeResult(streamed)),
+            "the straight-through expansion produces the same result");
+        BeamResult parallelStreamed = new BeamSolver(original.Rules,
+            batched with { SearchThreads = 3, WorkspaceBufferLimitBytes = 1 })
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(SearchCodec.EncodeResult(first).AsSpan()
+                .SequenceEqual(SearchCodec.EncodeResult(parallelStreamed))
+            && parallelStreamed.WorkspaceOverflowParents > 0,
+            "parallel over-limit parents fall back to the same straight-through expansion");
 
         long clock = 0;
         int delayedCalls = 0;
@@ -149,8 +174,6 @@ internal static class SearchContracts
                     .Solve(original.Battles, CancellationToken.None);
                 if (!limited.SearchMemoryBudgetExceeded || limited.ExpandedNodesTotal == 0) continue;
                 Assert(limited.SearchMemoryUsedBytes <= limit, "low-memory allocation stays within ledger");
-                Assert(limited.ExpandedNodesTotal > 0,
-                    "memory refusal during expansion keeps the completed parent count");
                 _ = ReplayedRoute.Build(original.Battles[limited.BestRootIndex], original.Rules,
                     limited.BestRoute, limited.BestIsVictory);
                 fallback = true;

@@ -360,7 +360,7 @@ internal sealed partial class BeamSolver
                 }
                 return;
             }
-            int depth = _nodes[parentNode].Depth + 1;
+            int depth = _nodes.View(parentNode).Depth + 1;
             bool isTerminal = !Kernel.IsInProgress(child);
             int traceStep = _trace?.Match(parentNode, action) ?? 0;
             (double score, double rank, double pureRank, int potionCost, ScoreFeatures features) =
@@ -381,7 +381,7 @@ internal sealed partial class BeamSolver
             int node = _nodes.Count;
             ulong lineage = NextLineage(parentNode, parent, action, node,
                 out ulong rootActionKey, out ushort firstCardId, out int firstCardTarget);
-            RouteNode parentRoute = _nodes[parentNode];
+            int parentMetaId = _nodes.RoutingMetaIdAt(parentNode);
             int routingSignature = routingChoice?.SignatureId ?? 0;
             RoutingMeta routingMeta;
             int routingMetaId;
@@ -394,11 +394,11 @@ internal sealed partial class BeamSolver
             }
             else
             {
-                RoutingMeta parentMeta = _routingMetas[parentRoute.RoutingMetaId];
+                RoutingMeta parentMeta = _routingMetas[parentMetaId];
                 if (parentMeta.SignatureId == 0)
                 {
                     routingMeta = parentMeta;
-                    routingMetaId = parentRoute.RoutingMetaId;
+                    routingMetaId = parentMetaId;
                 }
                 else
                 {
@@ -410,11 +410,15 @@ internal sealed partial class BeamSolver
             }
             int actionCardId = action.Kind == PlayerActionKind.PlayCard && action.HandIndex < parent.HandCount
                 ? parent.Cards[action.HandIndex].Id : 0;
+            int potionLineageKey = action.Kind == PlayerActionKind.UsePotion
+                ? _potionLineageKeys.Extend(_nodes.PotionLineageKeyAt(parentNode), usedPotion)
+                : _nodes.PotionLineageKeyAt(parentNode);
             _nodes.Add(new RouteNode(parentNode, depth, action, rootActionKey, lineage,
                 usedPotion, firstCardId, firstCardTarget, commitment, actionCardId,
                 TargetCombatId(parent, action), routingMeta.SignatureId, routingMeta.Turn,
                 routingMeta.ChoiceDepth, routingMeta.ParentRank, routingMeta.ParentScore,
-                routingMeta.ParentEnergy, parentFacts.Turn, routingMetaId), routingMetaId);
+                routingMeta.ParentEnergy, parentFacts.Turn, routingMetaId, potionLineageKey),
+                routingMetaId);
             if (traceStep > 0)
                 _trace!.NodeCreated(node, traceStep);
             if (isTerminal)
@@ -652,7 +656,7 @@ internal sealed partial class BeamSolver
             // bucket headroom, the only signature allocation outside the chunk store.
             _storage.Memory.Charge(RoutingSignatureDictionaryBytes, "routing-signature");
         }
-        choice = new RoutingChoice(id, turn, _nodes[parentNode].Depth + 1, parentRank, parentScore,
+        choice = new RoutingChoice(id, turn, _nodes.View(parentNode).Depth + 1, parentRank, parentScore,
             parentFacts.Energy);
         return true;
     }
@@ -679,7 +683,7 @@ internal sealed partial class BeamSolver
     private ulong NextLineage(int parentNode, in Battle parent, in PlayerAction action, int node,
         out ulong rootActionKey, out ushort firstCardId, out int firstCardTarget)
     {
-        RouteNode entry = _nodes[parentNode];
+        RouteNodeStore.RouteNodeView entry = _nodes.View(parentNode);
         rootActionKey = entry.RootActionKey;
         firstCardId = entry.FirstCardId;
         firstCardTarget = entry.FirstCardTarget;
@@ -824,7 +828,7 @@ internal sealed partial class BeamSolver
             commitmentReachable, commitmentZeroCost, traits, pocketwatchThreshold, pocketwatchPlayed,
             _scorer.InitialRetainedAttackValue, parentEnemyBlock, parentEnemyHp,
             parentFutureResourceValue, parentStrategicResourcePotential);
-        RouteNode route = _nodes[commitmentNode];
+        RouteNodeStore.RouteNodeView route = _nodes.View(commitmentNode);
         if (!next.CommitReserved(commitmentNode, score, rank, potionCost,
                 commitmentFeatures, commitmentDepth, route.Lineage,
                 route.Commitment, traits, pocketwatchThreshold, pocketwatchPlayed, pocketwatchLastTurn,

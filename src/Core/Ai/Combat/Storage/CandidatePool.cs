@@ -79,10 +79,8 @@ internal sealed partial class BeamSolver
         /// <summary>The solver phase label used by the offline trace (only read when <see cref="_trace"/> is set).</summary>
         public string TracePhase { get; set; } = "next";
         private readonly HashSet<int> _potionReservations = new();
-        private readonly List<ushort> _potionLineageScratch = new();
-        private readonly Dictionary<string, PotionLineageLeaders> _potionLineageGroups =
-            new(StringComparer.Ordinal);
-        private readonly List<string> _potionLineageOrder = new();
+        private readonly Dictionary<int, PotionLineageLeaders> _potionLineageGroups = new();
+        private readonly List<int> _potionLineageOrder = new();
         private const int RoutingChoiceLimit = 96;
         private readonly record struct RoutingFamilyKey(int Turn, int SourceId, int Effect, int Pile);
         private readonly record struct RoutingOptionKey(int CardId, int Upgrade, int StateKey, int CardCount);
@@ -394,9 +392,40 @@ internal sealed partial class BeamSolver
             return added;
         }
 
+        /// <summary>
+        /// Appends an entry copied from an already-deduplicated pool. The source hash travels with
+        /// the record; the destination is empty, so no hash or equality probe is needed.
+        /// </summary>
+        private void AddCopiedFrom(Pool source, int index)
+        {
+            if (Count >= _maxCapacity)
+                throw new CapacityException("Beam.Pool", _maxCapacity);
+            if ((Count + 1) * 2 > _table.Length)
+                GrowTable();
+            ulong hash = source._hashes[index];
+            _nodes[Count] = source._nodes[index];
+            _lineages[Count] = source._lineages[index];
+            _scores[Count] = source._scores[index];
+            _ranks[Count] = source._ranks[index];
+            _hashes[Count] = hash;
+            _facts[Count] = source._facts[index];
+            _potionCosts[Count] = source._potionCosts[index];
+            _commitment[Count] = source._commitment[index];
+            _hasCommitments |= source._commitment[index] > 0;
+            _states.Add(source._states[index]);
+            _table[FreeSlot(hash, _table.Length - 1)] = Count + 1;
+            Count++;
+            PeakCount = Math.Max(PeakCount, Count);
+            if (source._labels[index] is { Count: > 0 } labels)
+            {
+                _labels[Count - 1] = new List<PoolLabel>(labels);
+                _storage.Memory.Charge(labels.Count * (long)PoolLabelBytes, "pool-labels");
+            }
+        }
+
         private TraceRouteInfo TraceInfo(int node, int poolSlot, in PoolLabel label)
         {
-            RouteNode route = _routeNodes[node];
+            RouteNodeStore.RouteNodeView route = _routeNodes.View(node);
             RetentionFacts facts = _facts[poolSlot];
             return new TraceRouteInfo(
                 route.RootActionKey, route.Lineage, route.Commitment, _potionCosts[poolSlot],
@@ -410,7 +439,7 @@ internal sealed partial class BeamSolver
         private TraceRouteInfo TargetTraceInfo(int node, int potionCost, in ScoreFeatures features,
             int depth, double score, in PoolLabel label, int setupValue, int setupCombo)
         {
-            RouteNode route = _routeNodes[node];
+            RouteNodeStore.RouteNodeView route = _routeNodes.View(node);
             return new TraceRouteInfo(
                 route.RootActionKey, route.Lineage, route.Commitment, potionCost,
                 features.PotionUseCount, route.PotionId, route.RoutingSignatureId,

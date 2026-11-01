@@ -135,9 +135,8 @@ public static partial class Kernel
         // A replacement is a new native card: Dampen's per-card original upgrade belongs to the object
         // that was downgraded, not to a generated/transformed value.
         entered.DampenOriginalUpgrade = 0;
-        Piles.RemoveAt(ref x.B, pile, index);
-        int insert = Math.Min(index, Piles.Count(x.B, pile));
-        Piles.Insert(ref x.B, pile, insert, entered);
+        Piles.At(ref x.B, pile, index) = entered;
+        int insert = index;
         x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
         EnteredCombat(ref x, replacement, pile, insert);
         if (!x.NeedsChoice)

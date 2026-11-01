@@ -72,6 +72,7 @@ internal sealed partial class BeamSolver
         private readonly ChunkedList<int> _targetCombatId;
         private readonly ChunkedList<int> _routingMetaId;
         private readonly ChunkedList<int> _parentTurn;
+        private readonly ChunkedList<int> _potionLineageKeyId;
         private readonly RoutingMetaStore _metas;
 
         internal RouteNodeStore(SearchStorage storage, RoutingMetaStore metas)
@@ -89,6 +90,7 @@ internal sealed partial class BeamSolver
             _targetCombatId = new ChunkedList<int>(storage);
             _routingMetaId = new ChunkedList<int>(storage);
             _parentTurn = new ChunkedList<int>(storage);
+            _potionLineageKeyId = new ChunkedList<int>(storage);
             _metas = metas;
         }
 
@@ -106,7 +108,7 @@ internal sealed partial class BeamSolver
                     + Unsafe.SizeOf<ulong>() + Unsafe.SizeOf<ulong>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
-                    + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>());
+                    + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>());
                 long chunks = ((long)PeakCount + ChunkSize - 1) >> ChunkShift;
                 return chunks * chunkBytes;
             }
@@ -127,6 +129,7 @@ internal sealed partial class BeamSolver
             _targetCombatId.Clear();
             _routingMetaId.Clear();
             _parentTurn.Clear();
+            _potionLineageKeyId.Clear();
             PeakCount = 0;
         }
 
@@ -145,24 +148,12 @@ internal sealed partial class BeamSolver
             _targetCombatId.Add(node.TargetCombatId);
             _routingMetaId.Add(routingMetaId);
             _parentTurn.Add(node.ParentTurn);
+            _potionLineageKeyId.Add(node.PotionLineageKeyId);
             if (Count > PeakCount)
                 PeakCount = Count;
         }
 
-        internal RouteNode this[int index]
-        {
-            get
-            {
-                RoutingMeta meta = _metas[_routingMetaId[index]];
-                return new RouteNode(
-                    _parent[index], _depth[index], _action[index], _rootActionKey[index],
-                    _lineage[index], _potionId[index], _firstCardId[index], _firstCardTarget[index],
-                    _commitment[index], _actionCardId[index],
-                    _targetCombatId[index], meta.SignatureId, meta.Turn, meta.ChoiceDepth,
-                    meta.ParentRank, meta.ParentScore, meta.ParentEnergy, _parentTurn[index],
-                    _routingMetaId[index]);
-            }
-        }
+        internal RouteNodeView View(int index) => new(this, index);
 
         internal int ParentAt(int index) => _parent[index];
 
@@ -175,6 +166,45 @@ internal sealed partial class BeamSolver
         internal int RoutingMetaIdAt(int index) => _routingMetaId[index];
 
         internal void SetRoutingMetaId(int index, int value) => _routingMetaId[index] = value;
+
+        internal int PotionLineageKeyAt(int index) => _potionLineageKeyId[index];
+
+        /// <summary>
+        /// Read-only field view of one route node. The store is structure-of-arrays, so this avoids
+        /// rebuilding and copying the whole <see cref="RouteNode"/> for a caller that reads a few fields.
+        /// </summary>
+        internal readonly ref struct RouteNodeView
+        {
+            private readonly RouteNodeStore _store;
+            private readonly int _index;
+
+            internal RouteNodeView(RouteNodeStore store, int index)
+            {
+                _store = store;
+                _index = index;
+            }
+
+            internal int Parent => _store._parent[_index];
+            internal int Depth => _store._depth[_index];
+            internal PlayerAction Action => _store._action[_index];
+            internal ulong RootActionKey => _store._rootActionKey[_index];
+            internal ulong Lineage => _store._lineage[_index];
+            internal ushort PotionId => _store._potionId[_index];
+            internal ushort FirstCardId => _store._firstCardId[_index];
+            internal int FirstCardTarget => _store._firstCardTarget[_index];
+            internal int Commitment => _store._commitment[_index];
+            internal int ActionCardId => _store._actionCardId[_index];
+            internal int TargetCombatId => _store._targetCombatId[_index];
+            internal int RoutingSignatureId => _store._metas[_store._routingMetaId[_index]].SignatureId;
+            internal int RoutingChoiceTurn => _store._metas[_store._routingMetaId[_index]].Turn;
+            internal int RoutingChoiceDepth => _store._metas[_store._routingMetaId[_index]].ChoiceDepth;
+            internal int RoutingParentRank => _store._metas[_store._routingMetaId[_index]].ParentRank;
+            internal double RoutingParentScore => _store._metas[_store._routingMetaId[_index]].ParentScore;
+            internal int RoutingParentEnergy => _store._metas[_store._routingMetaId[_index]].ParentEnergy;
+            internal int ParentTurn => _store._parentTurn[_index];
+            internal int RoutingMetaId => _store._routingMetaId[_index];
+            internal int PotionLineageKeyId => _store._potionLineageKeyId[_index];
+        }
 
         internal void Move(int from, int to)
         {
@@ -191,6 +221,7 @@ internal sealed partial class BeamSolver
             _targetCombatId.Move(from, to);
             _routingMetaId.Move(from, to);
             _parentTurn.Move(from, to);
+            _potionLineageKeyId.Move(from, to);
         }
 
         internal void Truncate(int count)
@@ -208,6 +239,7 @@ internal sealed partial class BeamSolver
             _targetCombatId.Truncate(count);
             _routingMetaId.Truncate(count);
             _parentTurn.Truncate(count);
+            _potionLineageKeyId.Truncate(count);
         }
     }
 
@@ -452,7 +484,7 @@ internal sealed partial class BeamSolver
             for (int index = 0; index < pool.Count; index++)
             {
                 int node = pool.Node(index);
-                int depth = _nodes[node].Depth - _options.InitialActionCount;
+                int depth = _nodes.View(node).Depth - _options.InitialActionCount;
                 if (depth <= 0)
                     continue;
                 double score = pool.Score(index);
@@ -467,7 +499,96 @@ internal sealed partial class BeamSolver
     }
 
     /// <summary>
-    /// Boundary cleanup trigger. One node costs 126 logical bytes; keeping the trigger near a third of
+    /// Exact interning of the sorted explicit-potion-id multiset along a route. A node inherits its
+    /// parent's key id; a potion use inserts one id and looks the canonical multiset up by a
+    /// commutative hash, confirming equality by comparing the stored ids. Equal multisets therefore
+    /// share one id, and different multisets never do.
+    /// </summary>
+    private sealed class PotionLineageKeyStore
+    {
+        private readonly List<ushort> _ids = [];
+        private readonly List<int> _start = [];
+        private readonly List<int> _length = [];
+        private readonly List<ulong> _hash = [];
+        private readonly Dictionary<ulong, List<int>> _buckets = new();
+        private readonly List<ushort> _scratch = [];
+
+        internal void Clear()
+        {
+            _ids.Clear();
+            _start.Clear();
+            _length.Clear();
+            _hash.Clear();
+            _buckets.Clear();
+            _scratch.Clear();
+            AddKey(_scratch, 0);
+        }
+
+        internal int Extend(int parent, ushort potionId)
+        {
+            _scratch.Clear();
+            int start = _start[parent];
+            int length = _length[parent];
+            for (int index = 0; index < length; index++)
+                _scratch.Add(_ids[start + index]);
+            int insert = 0;
+            while (insert < _scratch.Count && _scratch[insert] <= potionId)
+                insert++;
+            _scratch.Insert(insert, potionId);
+            ulong hash = unchecked(_hash[parent] + ItemHash(potionId));
+            if (_buckets.TryGetValue(hash, out List<int>? bucket))
+            {
+                for (int index = 0; index < bucket.Count; index++)
+                {
+                    int candidate = bucket[index];
+                    if (SequenceEquals(candidate))
+                        return candidate;
+                }
+            }
+            return AddKey(_scratch, hash);
+        }
+
+        private bool SequenceEquals(int key)
+        {
+            if (_length[key] != _scratch.Count)
+                return false;
+            int start = _start[key];
+            for (int index = 0; index < _scratch.Count; index++)
+            {
+                if (_ids[start + index] != _scratch[index])
+                    return false;
+            }
+            return true;
+        }
+
+        private int AddKey(List<ushort> ids, ulong hash)
+        {
+            int key = _start.Count;
+            _start.Add(_ids.Count);
+            _length.Add(ids.Count);
+            _hash.Add(hash);
+            for (int index = 0; index < ids.Count; index++)
+                _ids.Add(ids[index]);
+            if (!_buckets.TryGetValue(hash, out List<int>? bucket))
+            {
+                bucket = [];
+                _buckets.Add(hash, bucket);
+            }
+            bucket.Add(key);
+            return key;
+        }
+
+        private static ulong ItemHash(ushort id)
+        {
+            ulong value = id + 0x9E3779B97F4A7C15UL;
+            value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
+            value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
+            return value ^ (value >> 31);
+        }
+    }
+
+    /// <summary>
+    /// Boundary cleanup trigger. One node costs 130 logical bytes; keeping the trigger near a third of
     /// a small budget leaves room for the pools and the transient mark map. Large/unlimited runs keep
     /// a one-million-node ceiling so dead route history never accumulates without a sweep.
     /// </summary>

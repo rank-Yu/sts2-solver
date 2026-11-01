@@ -118,8 +118,8 @@ public static partial class Kernel
                 return;
             if (x.B.DrawCount == 0)
                 break;
-            Card card = Piles.RemoveAt(ref x.B, Pile.Draw, 0);
-            Piles.Append(ref x.B, Pile.Play, card);
+            Card card = Piles.At(ref x.B, Pile.Draw, 0);
+            Piles.MoveToEnd(ref x.B, Pile.Draw, 0, Pile.Play);
             captured[moved++] = card;
         }
         if (moved == 0)

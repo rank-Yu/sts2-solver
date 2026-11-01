@@ -64,9 +64,8 @@ public static partial class Kernel
         }
 
         // OnPlayWrapper's isAutoPlay branch moves the card to the play pile.
-        Card moved = Piles.RemoveAt(ref x.B, pile, index);
-        int playPosition = x.B.PlayCount;
-        Piles.Append(ref x.B, Pile.Play, moved);
+        Card moved = Piles.At(ref x.B, pile, index);
+        int playPosition = Piles.MoveToEnd(ref x.B, pile, index, Pile.Play);
         x.Card = moved;
         x.Stats = stats;
         x.Target = target;
@@ -137,9 +136,8 @@ public static partial class Kernel
         // may have mutated the value in place (the one-time affliction check and normalization), so an
         // exact value lookup can fail; fall back to the slot the card was appended to.
         int index = PlayIndexOf(ref x.B, card, enteredPosition);
-        Card moved = Piles.RemoveAt(ref x.B, Pile.Play, index);
-        int playPosition = x.B.PlayCount;
-        Piles.Append(ref x.B, Pile.Play, moved);
+        Card moved = Piles.At(ref x.B, Pile.Play, index);
+        int playPosition = Piles.MoveToEnd(ref x.B, Pile.Play, index, Pile.Play);
         x.Card = moved;
         x.Stats = stats;
         x.Target = target;
@@ -190,8 +188,8 @@ public static partial class Kernel
                 return;
             if (x.B.DrawCount == 0)
                 break;
-            Card card = Piles.RemoveAt(ref x.B, Pile.Draw, 0);
-            Piles.Append(ref x.B, Pile.Play, card);
+            Card card = Piles.At(ref x.B, Pile.Draw, 0);
+            Piles.MoveToEnd(ref x.B, Pile.Draw, 0, Pile.Play);
             cards[moved++] = card;
         }
         for (int index = 0; index < moved; index++)
@@ -257,9 +255,7 @@ public static partial class Kernel
         int position;
         if (inPile)
         {
-            Card moved = Piles.RemoveAt(ref x.B, pile, index);
-            position = x.B.PlayCount;
-            Piles.Append(ref x.B, Pile.Play, moved);
+            position = Piles.MoveToEnd(ref x.B, pile, index, Pile.Play);
         }
         else
         {

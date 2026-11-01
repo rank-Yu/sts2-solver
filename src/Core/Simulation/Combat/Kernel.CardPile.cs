@@ -29,9 +29,13 @@ public static partial class Kernel
         toIndex = -1;
         if (IsEnding(battle) || battle.Player.IsDead)
             return false;
+        int sourceCount = Piles.Count(battle, from);
+        if ((uint)index >= (uint)sourceCount)
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"{from} 牌堆没有这个位置。");
         Pile target = to == Pile.Hand && battle.HandCount >= battle.MaxHandSize ? Pile.Discard : to;
-        Card card = Piles.RemoveAt(ref battle, from, index);
-        int count = Piles.Count(battle, target);
+        // The target count and the Random insertion index are read after the source removal, as the
+        // RemoveAt/Insert pair did. The move itself is a single rotation.
+        int count = Piles.Count(battle, target) - (target == from ? 1 : 0);
         int insert = position switch
         {
             PilePosition.Bottom => count,
@@ -39,7 +43,7 @@ public static partial class Kernel
             PilePosition.Random => battle.RngStream(RngStream.Shuffle).NextInt(count + 1),
             _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
         };
-        Piles.Insert(ref battle, target, insert, card);
+        Piles.Move(ref battle, from, index, target, insert);
         toPile = target;
         toIndex = insert;
         return true;

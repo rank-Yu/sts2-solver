@@ -378,6 +378,7 @@ internal sealed partial class BeamSolver
     private readonly bool _zeroGrowthBudget;
     private readonly RouteOrdering _ordering;
     private RouteNodeStore _nodes = null!;
+    private PotionLineageKeyStore _potionLineageKeys = null!;
     private RoutingMetaStore _routingMetas = null!;
     private SearchStorage _storage = null!;
     private int _nodeCleanupThreshold = 1_000_000;
@@ -437,7 +438,8 @@ internal sealed partial class BeamSolver
         double RoutingParentScore,
         int RoutingParentEnergy,
         int ParentTurn,
-        int RoutingMetaId);
+        int RoutingMetaId,
+        int PotionLineageKeyId);
 
     /// <summary>
     /// Route-node power-commitment metadata (1-based node field; 0 means no commitment). The existing
@@ -596,6 +598,8 @@ internal sealed partial class BeamSolver
         _routingMetas = new RoutingMetaStore(storage);
         _routingMetas.Clear();
         _nodes = new RouteNodeStore(storage, _routingMetas);
+        _potionLineageKeys = new PotionLineageKeyStore();
+        _potionLineageKeys.Clear();
         _routingSignatures = new ChunkedList<RoutingSignature>(storage);
         _commitments = new ChunkedList<PowerCommitmentState>(storage);
         _nodeCleanupThreshold = NodeCleanupThreshold(_options.SearchMemoryBudgetBytes);
@@ -763,7 +767,7 @@ internal sealed partial class BeamSolver
                 Score(root, _options.InitialActionCount, terminal: false, isEndTurn: false);
             _nodes.Add(new RouteNode(-1, Math.Max(0, _options.InitialActionCount), default, 0, 0,
                 ushort.MaxValue, ushort.MaxValue, int.MinValue, 0,
-                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0), 0);
+                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0), 0);
             (int rootReachable, int rootZeroCost, _) = _scorer.ReachableHandPotential(root);
             PocketwatchState(root, out int rootPocketwatchThreshold, out int rootPocketwatchPlayed,
                 out int rootPocketwatchLastTurn);
@@ -1427,14 +1431,15 @@ internal sealed partial class BeamSolver
                 || _options.SoftTimeBudget != TimeSpan.MaxValue
                     && watch.Elapsed >= _options.SoftTimeBudget);
 
-    private int Depth(int node) => _nodes[node].Depth;
+    private int Depth(int node) => _nodes.View(node).Depth;
 
     private int ExplicitPotionUses(int node)
     {
         int uses = _initialExplicitPotionUses;
-        for (int cursor = node; _nodes[cursor].Parent >= 0; cursor = _nodes[cursor].Parent)
+        for (int cursor = node; _nodes.View(cursor).Parent >= 0;
+             cursor = _nodes.View(cursor).Parent)
         {
-            if (_nodes[cursor].Action.Kind == PlayerActionKind.UsePotion)
+            if (_nodes.View(cursor).Action.Kind == PlayerActionKind.UsePotion)
                 uses++;
         }
         return uses;
@@ -1445,12 +1450,13 @@ internal sealed partial class BeamSolver
         if (_ambergrisPotionId == ushort.MaxValue)
             return 0;
         int uses = _initialAmbergrisUses;
-        for (int cursor = node; _nodes[cursor].Parent >= 0; cursor = _nodes[cursor].Parent)
+        for (int cursor = node; _nodes.View(cursor).Parent >= 0;
+             cursor = _nodes.View(cursor).Parent)
         {
-            PlayerAction action = _nodes[cursor].Action;
+            PlayerAction action = _nodes.View(cursor).Action;
             if (action.Kind != PlayerActionKind.UsePotion)
                 continue;
-            if (_nodes[cursor].PotionId == _ambergrisPotionId)
+            if (_nodes.View(cursor).PotionId == _ambergrisPotionId)
                 uses++;
         }
         return uses;
@@ -1459,8 +1465,11 @@ internal sealed partial class BeamSolver
     private PlayerAction[] Route(int node)
     {
         List<PlayerAction> route = [];
-        for (int cursor = node; _nodes[cursor].Parent >= 0; cursor = _nodes[cursor].Parent)
-            route.Add(_nodes[cursor].Action);
+        for (int cursor = node; _nodes.View(cursor).Parent >= 0;
+             cursor = _nodes.View(cursor).Parent)
+        {
+            route.Add(_nodes.View(cursor).Action);
+        }
         route.Reverse();
         return [.. route];
     }
@@ -1469,8 +1478,8 @@ internal sealed partial class BeamSolver
     private int RootIndex(int node)
     {
         int cursor = node;
-        while (_nodes[cursor].Parent >= 0)
-            cursor = _nodes[cursor].Parent;
+        while (_nodes.View(cursor).Parent >= 0)
+            cursor = _nodes.View(cursor).Parent;
         return cursor;
     }
 
@@ -1646,7 +1655,7 @@ internal sealed partial class BeamSolver
     {
         if (_powerCommitments is not { } catalog)
             return 0;
-        int parentIndex = _nodes[parentNode].Commitment;
+        int parentIndex = _nodes.CommitmentAt(parentNode);
         PowerCommitmentState parentState = parentIndex > 0
             ? _commitments[parentIndex - 1]
             : default;

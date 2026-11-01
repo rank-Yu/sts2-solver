@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Sts2Solver.Simulation.Combat;
 
 public static partial class Kernel
@@ -474,20 +476,8 @@ public static partial class Kernel
         BeforeFlush(ref x);
         // A refused flush keeps the whole hand.
         bool flush = ShouldFlush(ref x);
-        for (int index = 0; flush && index < x.B.HandCount;)
-        {
-            ref Card card = ref x.B.Cards[index];
-            bool retain = HasKeyword(x.B, card, Keywords.Retain) || (card.Flags & CardFlags.RetainThisTurn) != 0;
-            if (retain)
-            {
-                index++;
-                continue;
-            }
-            if (IsEnding(x.B) || x.B.Player.IsDead)
-                break;
-            Card flushed = Piles.RemoveAt(ref x.B, Pile.Hand, index);
-            Piles.Append(ref x.B, Pile.Discard, flushed);
-        }
+        if (flush && !IsEnding(x.B) && !x.B.Player.IsDead)
+            FlushNonRetainedHand(ref x);
         // CorePowerSupport.FlushPlayerHandAtTurnEnd runs the AfterFlush relics after the non-retained
         // hand moved and before the end-of-turn card cleanup (Bookmark).
         AfterFlushPass(ref x);
@@ -497,6 +487,49 @@ public static partial class Kernel
         int total = x.B.CardCount;
         for (int position = 0; position < total; position++)
             EndOfTurnCleanup(ref x.B.Cards[position]);
+    }
+
+    /// <summary>
+    /// Appends every non-retained hand card to the discard pile in hand order with one compaction:
+    /// the retained hand and the draw pile move left, the old discard follows them, and the flushed
+    /// cards fill the gap before the exhaust/play tail, which stays in place. Equivalent to removing
+    /// each card and appending it, without the per-card suffix shift.
+    /// </summary>
+    private static void FlushNonRetainedHand(ref Exec x)
+    {
+        int handCount = x.B.HandCount;
+        if (handCount == 0)
+            return;
+        Span<Card> flushed = stackalloc Card[handCount];
+        int keep = 0;
+        int count = 0;
+        for (int index = 0; index < handCount; index++)
+        {
+            ref readonly Card card = ref x.B.Cards[index];
+            if (HasKeyword(x.B, card, Keywords.Retain) || (card.Flags & CardFlags.RetainThisTurn) != 0)
+            {
+                if (keep != index)
+                    x.B.Cards[keep] = card;
+                keep++;
+            }
+            else
+            {
+                flushed[count++] = card;
+            }
+        }
+        if (count == 0)
+            return;
+        int drawCount = x.B.DrawCount;
+        int discardCount = x.B.DiscardCount;
+        Span<Card> all = MemoryMarshal.CreateSpan(ref x.B.Cards[0], x.B.CardCount);
+        if (keep != handCount)
+            all.Slice(handCount, drawCount).CopyTo(all.Slice(keep));
+        int discardStart = keep + drawCount;
+        int oldDiscardStart = handCount + drawCount;
+        all.Slice(oldDiscardStart, discardCount).CopyTo(all.Slice(discardStart));
+        flushed[..count].CopyTo(all.Slice(discardStart + discardCount));
+        x.B.HandCount = checked((byte)keep);
+        x.B.DiscardCount = checked((byte)(discardCount + count));
     }
 
     /// <summary>

@@ -486,6 +486,47 @@ public static class Piles
         return card;
     }
 
+    /// <summary>
+    /// Moves the card at <paramref name="index"/> of <paramref name="from"/> to
+    /// <paramref name="insert"/> of <paramref name="to"/>, exactly like <see cref="RemoveAt"/> followed
+    /// by <see cref="Insert"/>. Only the cards between the two positions rotate; the rest of the
+    /// storage stays in place. <paramref name="insert"/> is the pile-local index after the removal.
+    /// </summary>
+    public static void Move(ref Battle battle, Pile from, int index, Pile to, int insert)
+    {
+        int fromCount = Count(battle, from);
+        if ((uint)index >= (uint)fromCount)
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"{from} 牌堆没有这个位置。");
+        int toCount = Count(battle, to) - (to == from ? 1 : 0);
+        if ((uint)insert > (uint)toCount)
+            throw new ArgumentOutOfRangeException(nameof(insert), insert, $"{to} 牌堆插入位置越界。");
+        int total = battle.CardCount;
+        int source = Start(battle, from) + index;
+        SetCount(ref battle, from, fromCount - 1);
+        int destination = Start(battle, to) + insert;
+        SetCount(ref battle, to, toCount + 1);
+        if (destination == source)
+            return;
+        Span<Card> all = MemoryMarshal.CreateSpan(ref battle.Cards[0], total);
+        Card card = all[source];
+        if (destination > source)
+            all.Slice(source + 1, destination - source).CopyTo(all.Slice(source));
+        else
+            all.Slice(destination, source - destination).CopyTo(all.Slice(destination + 1));
+        all[destination] = card;
+    }
+
+    /// <summary>
+    /// Moves a card to the bottom of <paramref name="to"/>, adjusting for same-pile removal, and
+    /// returns its pile-local index after the move.
+    /// </summary>
+    public static int MoveToEnd(ref Battle battle, Pile from, int index, Pile to)
+    {
+        int insert = Count(battle, to) - (to == from ? 1 : 0);
+        Move(ref battle, from, index, to, insert);
+        return insert;
+    }
+
     /// <summary>Inserts <paramref name="card"/> at <paramref name="index"/>; later cards shift right.</summary>
     public static void Insert(ref Battle battle, Pile pile, int index, in Card card)
     {

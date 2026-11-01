@@ -20,6 +20,14 @@ internal sealed partial class BeamSolver
         public void CopyTopTo(Pool target, int width, bool turnBoundary = false)
         {
             List<int> selected = SelectTop(width, turnBoundary);
+            // Every production target is empty: the source is already deduplicated, so copying its
+            // hash and metadata cannot conflict and needs neither a rehash nor an equality probe.
+            if (target.Count == 0 && !ReferenceEquals(target, this))
+            {
+                for (int index = 0; index < selected.Count; index++)
+                    target.AddCopiedFrom(this, selected[index]);
+                return;
+            }
             for (int index = 0; index < selected.Count; index++)
             {
                 int source = selected[index];
@@ -1062,7 +1070,7 @@ internal sealed partial class BeamSolver
         /// </summary>
         private bool IsRetainedRoutingChoice(int slot)
         {
-            RouteNode route = _routeNodes[_nodes[slot]];
+            RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[slot]);
             RetentionFacts facts = _facts[slot];
             if (route.RoutingSignatureId == 0 || route.RoutingChoiceTurn > facts.Turn)
                 return false;
@@ -1089,7 +1097,7 @@ internal sealed partial class BeamSolver
             for (int position = 0; position < Count; position++)
             {
                 int slot = _rankOrder[position];
-                RouteNode route = _routeNodes[_nodes[slot]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[slot]);
                 int signatureId = route.RoutingSignatureId;
                 if (signatureId == 0 || !IsRetainedRoutingChoice(slot))
                     continue;
@@ -1199,7 +1207,7 @@ internal sealed partial class BeamSolver
                         {
                             int slot = group.Nodes[nodeIndex];
                             _routingOptionNodes.Add(slot);
-                            RouteNode route = _routeNodes[_nodes[slot]];
+                            RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[slot]);
                             actionsSinceChoice = Math.Min(actionsSinceChoice,
                                 _facts[slot].Depth - route.RoutingChoiceDepth);
                         }
@@ -1405,7 +1413,7 @@ internal sealed partial class BeamSolver
             int actionsSince = int.MaxValue;
             for (int index = 0; index < nodes.Count; index++)
             {
-                RouteNode route = _routeNodes[_nodes[nodes[index]]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[nodes[index]]);
                 actionsSince = Math.Min(actionsSince, _facts[nodes[index]].Depth - route.RoutingChoiceDepth);
             }
             int bestTarget = PreferMostVulnerableTargetVariant(nodes, FindBestTargetPressure(nodes));
@@ -1468,7 +1476,7 @@ internal sealed partial class BeamSolver
             for (int position = 0; position < Count; position++)
             {
                 int slot = _rankOrder[position];
-                RouteNode route = _routeNodes[_nodes[slot]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[slot]);
                 RetentionFacts facts = _facts[slot];
                 if (route.RoutingSignatureId == 0 || route.Parent < 0
                     || route.RoutingParentEnergy != 0
@@ -1514,7 +1522,7 @@ internal sealed partial class BeamSolver
                 for (int index = 0; index < familyNodes.Count; index++)
                 {
                     int slot = familyNodes[index];
-                    if (_directByParent[_routeNodes[_nodes[slot]].Parent] == slot)
+                    if (_directByParent[_routeNodes.View(_nodes[slot]).Parent] == slot)
                         perParent.Add(slot);
                 }
                 perParent.Sort(new DirectParentComparer(this));
@@ -1530,7 +1538,7 @@ internal sealed partial class BeamSolver
         {
             int candidateCardinality = signature.CardCount > 1 ? signature.CardCount : 1;
             RoutingSignature currentSignature =
-                _routingSignatures[_routeNodes[_nodes[current]].RoutingSignatureId - 1];
+                _routingSignatures[_routeNodes.View(_nodes[current]).RoutingSignatureId - 1];
             int currentCardinality = currentSignature.CardCount > 1 ? currentSignature.CardCount : 1;
             if (candidateCardinality != currentCardinality)
                 return candidateCardinality > currentCardinality;
@@ -1565,8 +1573,8 @@ internal sealed partial class BeamSolver
 
             public int Compare(int left, int right)
             {
-                RouteNode a = _pool._routeNodes[_pool._nodes[left]];
-                RouteNode b = _pool._routeNodes[_pool._nodes[right]];
+                RouteNodeStore.RouteNodeView a = _pool._routeNodes.View(_pool._nodes[left]);
+                RouteNodeStore.RouteNodeView b = _pool._routeNodes.View(_pool._nodes[right]);
                 int comparison = a.RoutingParentRank.CompareTo(b.RoutingParentRank);
                 return comparison != 0 ? comparison : b.RoutingParentScore.CompareTo(a.RoutingParentScore);
             }
@@ -1580,8 +1588,8 @@ internal sealed partial class BeamSolver
 
             public int Compare(int left, int right)
             {
-                RouteNode a = _pool._routeNodes[_pool._nodes[left]];
-                RouteNode b = _pool._routeNodes[_pool._nodes[right]];
+                RouteNodeStore.RouteNodeView a = _pool._routeNodes.View(_pool._nodes[left]);
+                RouteNodeStore.RouteNodeView b = _pool._routeNodes.View(_pool._nodes[right]);
                 int comparison = a.RoutingParentRank.CompareTo(b.RoutingParentRank);
                 return comparison != 0 ? comparison : b.RoutingParentScore.CompareTo(a.RoutingParentScore);
             }
@@ -1600,7 +1608,7 @@ internal sealed partial class BeamSolver
             {
                 int node = nodes[index];
                 RetentionFacts facts = _facts[node];
-                RouteNode route = _routeNodes[_nodes[node]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[node]);
                 if (facts.AllEnemiesDead || facts.PlayerDead || route.Parent < 0
                     || route.Action.Kind != PlayerActionKind.PlayCard
                     || facts.Turn != route.ParentTurn
@@ -1691,14 +1699,14 @@ internal sealed partial class BeamSolver
         {
             if (candidate < 0)
                 return candidate;
-            RouteNode candidateRoute = _routeNodes[_nodes[candidate]];
+            RouteNodeStore.RouteNodeView candidateRoute = _routeNodes.View(_nodes[candidate]);
             if (candidateRoute.TargetCombatId == int.MinValue)
                 return candidate;
             int preferred = -1;
             for (int index = 0; index < nodes.Count; index++)
             {
                 int node = nodes[index];
-                RouteNode route = _routeNodes[_nodes[node]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[node]);
                 if (route.Action.Kind != candidateRoute.Action.Kind
                     || route.ActionCardId != candidateRoute.ActionCardId
                     || route.PotionId != candidateRoute.PotionId)
@@ -1951,7 +1959,7 @@ internal sealed partial class BeamSolver
             {
                 int node = nodes[index];
                 RetentionFacts facts = _facts[node];
-                RouteNode route = _routeNodes[_nodes[node]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[node]);
                 if (facts.AllEnemiesDead || facts.PlayerDead || route.Parent < 0
                     || route.Action.Kind != PlayerActionKind.PlayCard
                     || facts.EnemyBlock >= facts.ParentEnemyBlock
@@ -1980,7 +1988,7 @@ internal sealed partial class BeamSolver
             {
                 int node = nodes[index];
                 RetentionFacts facts = _facts[node];
-                RouteNode route = _routeNodes[_nodes[node]];
+                RouteNodeStore.RouteNodeView route = _routeNodes.View(_nodes[node]);
                 if (route.Parent < 0
                     || (facts.FutureResourceValue <= facts.ParentFutureResourceValue
                         && facts.StrategicResourcePotential <= facts.ParentStrategicResourcePotential))
@@ -2645,7 +2653,7 @@ internal sealed partial class BeamSolver
                     int source = _rankOrder[position];
                     if (_facts[source].PotionCount != potionCount)
                         continue;
-                    string key = PotionUseLineageKey(_nodes[source]);
+                    int key = PotionUseLineageKey(_nodes[source]);
                     if (!_potionLineageGroups.TryGetValue(key, out PotionLineageLeaders? leader))
                     {
                         leader = new PotionLineageLeaders { Position = position };
@@ -2656,7 +2664,7 @@ internal sealed partial class BeamSolver
                 }
                 if (_potionLineageOrder.Count == 0)
                     continue;
-                foreach (string key in _potionLineageOrder)
+                foreach (int key in _potionLineageOrder)
                 {
                     PotionLineageLeaders leader = _potionLineageGroups[key];
                     double maxRank = double.NegativeInfinity;
@@ -2682,47 +2690,25 @@ internal sealed partial class BeamSolver
             public double MaxRank;
         }
 
-        private readonly struct PotionLineageOrderComparer : IComparer<string>
+        private readonly struct PotionLineageOrderComparer : IComparer<int>
         {
-            private readonly Dictionary<string, PotionLineageLeaders> _groups;
+            private readonly Dictionary<int, PotionLineageLeaders> _groups;
 
-            public PotionLineageOrderComparer(Dictionary<string, PotionLineageLeaders> groups)
+            public PotionLineageOrderComparer(Dictionary<int, PotionLineageLeaders> groups)
                 => _groups = groups;
 
-            public int Compare(string? left, string? right)
+            public int Compare(int left, int right)
             {
-                PotionLineageLeaders a = _groups[left!];
-                PotionLineageLeaders b = _groups[right!];
+                PotionLineageLeaders a = _groups[left];
+                PotionLineageLeaders b = _groups[right];
                 int comparison = b.MaxRank.CompareTo(a.MaxRank);
                 return comparison != 0 ? comparison : a.Position.CompareTo(b.Position);
             }
         }
 
         /// <summary><c>BeamRetentionPolicy.Ranking.PotionUseLineageKey</c>: the sorted explicit potion
-        /// id multiset along the route, ordinal. The route chain is the Sts2Solver node chain (prefix actions
-        /// are not Sts2Solver nodes and were already excluded from the existing search's chain too).</summary>
-        private string PotionUseLineageKey(int node)
-        {
-            _potionLineageScratch.Clear();
-            int actions = 0;
-            for (int cursor = node; _routeNodes[cursor].Parent >= 0;
-                 cursor = _routeNodes[cursor].Parent)
-            {
-                actions++;
-                if (_routeNodes[cursor].Action.Kind == PlayerActionKind.UsePotion)
-                    _potionLineageScratch.Add(_routeNodes[cursor].PotionId);
-            }
-            if (actions != _routeNodes[node].Depth - _initialActionCount)
-            {
-                throw new InvalidOperationException(
-                    $"Sts2Solver 路线节点动作链长度不一致：actions={actions} "
-                    + $"depth={_routeNodes[node].Depth} initial={_initialActionCount}。");
-            }
-            if (_potionLineageScratch.Count == 0)
-                return string.Empty;
-            _potionLineageScratch.Sort();
-            return string.Join(',', _potionLineageScratch);
-        }
+        /// id multiset along the route, interned exactly when the node is created.</summary>
+        private int PotionUseLineageKey(int node) => _routeNodes.PotionLineageKeyAt(node);
 
         /// <summary><c>BeamRetentionPolicy.Ranking.FindBestPotionLineage</c>.</summary>
         private int FindBestPotionLineage(List<int> nodes)

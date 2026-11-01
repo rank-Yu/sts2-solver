@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Sts2Solver.Simulation.Combat;
 
 public static partial class Kernel
@@ -197,9 +199,7 @@ public static partial class Kernel
         // OnPlayWrapper: AddDuringManualCardPlay.
         if (IsOverOrEnding(battle))
             return;
-        Card removed = Piles.RemoveAt(ref battle, Pile.Hand, handIndex);
-        int playPosition = battle.PlayCount;
-        Piles.Append(ref battle, Pile.Play, removed);
+        int playPosition = Piles.MoveToEnd(ref battle, Pile.Hand, handIndex, Pile.Play);
 
         x.Card = card;
         x.Stats = stats;
@@ -295,8 +295,13 @@ public static partial class Kernel
         // The existing engine captures a fresh history start for every CardPlay of a replay/Echo Form
         // series, so a compensation on a later play must not see an earlier play's damage.
         x.EffectDepth++;
-        GeneratedChoiceOptions savedOptionCards = x.GeneratedOptions;
+        // Entries at and after the count are never read, so only an outer play with live options
+        // needs the whole table saved and restored around nested plays.
         int savedGeneratedOptions = x.GeneratedOptionCount;
+        GeneratedChoiceOptions savedOptionCards;
+        Unsafe.SkipInit(out savedOptionCards);
+        if (savedGeneratedOptions != 0)
+            savedOptionCards = x.GeneratedOptions;
         bool completed = true;
         for (int index = 0; index < playCount; index++)
         {
@@ -494,7 +499,8 @@ public static partial class Kernel
             }
         }
         x.EffectDepth--;
-        x.GeneratedOptions = savedOptionCards;
+        if (savedGeneratedOptions != 0)
+            x.GeneratedOptions = savedOptionCards;
         x.GeneratedOptionCount = savedGeneratedOptions;
         if (x.NeedsChoice || !completed)
             return;

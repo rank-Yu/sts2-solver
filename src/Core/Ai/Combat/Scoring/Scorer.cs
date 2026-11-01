@@ -1376,8 +1376,14 @@ internal sealed class Scorer
                 }
             }
         }
-        int savedPowerCount = mayConsumeBuffer ? probe.PowerCount : 0;
-        PowerArray savedPowers = mayConsumeBuffer ? probe.Powers : default;
+        int savedPowerCount = 0;
+        PowerArray savedPowers;
+        Unsafe.SkipInit(out savedPowers);
+        if (mayConsumeBuffer)
+        {
+            savedPowerCount = probe.PowerCount;
+            savedPowers = probe.Powers;
+        }
         probe.Flags = savedFlags | BattleFlags.PlayerHooksActive;
         try
         {

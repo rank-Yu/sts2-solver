@@ -62,6 +62,7 @@ internal static class UiLogicChecks
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("search_memory_priority", MemoryPriority);
         Check("english_catalog_placeholders", LocaleCatalog);
+        Check("panel_text_catalog", PanelTextCatalog);
         try
         {
             Directory.Delete(directory, recursive: true);
@@ -213,6 +214,14 @@ internal static class UiLogicChecks
         Require(problems.Length == 0, "catalog:" + string.Join(",", problems));
         Require(SolverText.EnglishCatalogForTesting.Count > 0, "catalog_empty");
         Require(SolverText.EnglishCatalogForTesting.ContainsKey("尖塔求解器"), "catalog_title_key");
+    }
+
+    private static void PanelTextCatalog()
+    {
+        string[] missing = SolverPanelText.MappedSourceStrings
+            .Where(static source => !SolverText.EnglishCatalogForTesting.ContainsKey(source))
+            .ToArray();
+        Require(missing.Length == 0, "missing:" + string.Join("|", missing));
     }
 
     private static void Require(bool condition, string code)

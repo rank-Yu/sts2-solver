@@ -338,6 +338,7 @@ internal static class AutoCombatSession
             PlayerMaxHp = result.PlayerMaxHp,
             EndReason = result.Status,
             PauseReason = result.PauseReason,
+            PauseCode = PauseCodeFor(result),
             ErrorCode = phase == CombatUiPhase.Failed ? "pilot_failed" : null,
             ErrorDetail = null,
             Searches = result.Searches,
@@ -349,6 +350,27 @@ internal static class AutoCombatSession
         });
     }
 
+    /// <summary>
+    /// Stable code for the panel: why the pilot paused (from its failure and search logs), or the
+    /// cancel reason for a stop. Victory, defeat and failures have no pause code.
+    /// </summary>
+    private static string? PauseCodeFor(CombatPilotResult result)
+    {
+        if (result.Status == "cancelled")
+            return Reason() ?? "cancel";
+        if (result.Status != "paused")
+            return null;
+        if (result.FailureLog.Length > 0 && result.FailureLog[^1].Reason == "turn_limit")
+            return "turn_limit";
+        if (result.SearchLog.Length > 0
+            && result.SearchLog[^1] is { SearchStatus: CombatSearchStatus.CapacityBounded } last
+            && last.Status != "ok")
+        {
+            return "capacity_bounded";
+        }
+        return "repeated_failures";
+    }
+
     private static void PublishFailure(string code)
     {
         if (!CombatUiStore.Initialized)
@@ -357,6 +379,7 @@ internal static class AutoCombatSession
         {
             Phase = CombatUiPhase.Failed,
             EndReason = code,
+            PauseCode = null,
             ErrorCode = code,
             ErrorDetail = null,
         });
@@ -366,11 +389,13 @@ internal static class AutoCombatSession
     {
         if (!CombatUiStore.Initialized)
             return;
-        string reason = Reason() ?? "cancel";        CombatUiStore.Update(snapshot => snapshot with
+        string reason = Reason() ?? "cancel";
+        CombatUiStore.Update(snapshot => snapshot with
         {
             Phase = CombatUiPhase.Cancelled,
             EndReason = "cancelled",
             PauseReason = reason,
+            PauseCode = reason,
             ErrorCode = null,
             ErrorDetail = null,
         });

@@ -78,7 +78,10 @@ internal sealed class CombatDisplayNames
         return new CombatDisplayNames(creatures, playerName, ostyName);
     }
 
-    internal string Card(string nativeId, int upgrade)
+    internal string Card(string nativeId, int upgrade) => CardTitle(nativeId, upgrade);
+
+    /// <summary>Card title in the current language; the panel re-resolves it after a language change.</summary>
+    internal static string CardTitle(string nativeId, int upgrade)
     {
         if (string.IsNullOrEmpty(nativeId))
             return nativeId;
@@ -86,6 +89,13 @@ internal sealed class CombatDisplayNames
         return _cardNames.TryGetValue((nativeId, upgrade), out string? name)
             ? name
             : upgrade == 0 ? nativeId : $"{nativeId}+{upgrade}";
+    }
+
+    /// <summary>Potion title in the current language, by native id.</summary>
+    internal static string PotionTitle(string nativeId)
+    {
+        EnsureCache();
+        return _potionNames.TryGetValue(nativeId, out string? name) ? name : nativeId;
     }
 
     internal string Card(Card card) => Card(Registry.Card(card.Id).NativeId, card.Upgrade);

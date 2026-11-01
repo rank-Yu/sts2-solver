@@ -23,6 +23,16 @@ internal static partial class SolverText
 
     internal static IReadOnlyDictionary<string, string> EnglishCatalogForTesting => English;
 
+    /// <summary>Source strings that were requested in English but have no catalog entry.</summary>
+    internal static string[] MissingKeysForTesting
+    {
+        get
+        {
+            lock (Gate)
+                return [.. MissingKeys];
+        }
+    }
+
     internal static void Initialize()
         => ModLog.Info($"[Sts2Solver] LOCALE_CATALOG entries={English.Count}");
 

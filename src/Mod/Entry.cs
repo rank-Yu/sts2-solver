@@ -83,6 +83,7 @@ public static class ModEntry
             host.AddChild(new SearchHotkeyNode());
             host.AddChild(new CombatUiMemorySampler());
             host.AddChild(new CombatUiAutoStartNode());
+            host.AddChild(new SolverPanelNode());
             host.TreeExiting += static () =>
             {
                 AutoCombatSession.Cancel("tree_exiting");

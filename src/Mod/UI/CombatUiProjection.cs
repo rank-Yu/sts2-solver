@@ -55,25 +55,28 @@ internal static class CombatUiProjection
         };
 
     internal static SearchUiSnapshot SearchStarted(int turn, string reason, SearchPerformanceTier tier,
-        SearchPerformanceProfile profile)
+        SearchPerformanceProfile profile, long startedAtMilliseconds)
         => new()
         {
             Phase = SearchUiPhase.Running,
             Tier = tier,
             Turn = turn,
             Reason = reason,
+            StartedAtMilliseconds = startedAtMilliseconds,
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "running",
         };
 
     internal static SearchUiSnapshot SearchFailed(string errorCode, int turn, string reason,
-        SearchPerformanceTier tier, SearchPerformanceProfile profile)
+        SearchPerformanceTier tier, SearchPerformanceProfile profile, long startedAtMilliseconds)
         => new()
         {
             Phase = SearchUiPhase.Completed,
             Tier = tier,
             Turn = turn,
             Reason = reason,
+            StartedAtMilliseconds = startedAtMilliseconds,
+            ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - startedAtMilliseconds),
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "failed",
             SearchStatus = "invalid",
@@ -82,13 +85,19 @@ internal static class CombatUiProjection
         };
 
     internal static SearchUiSnapshot SearchCancelled(int turn, string reason,
-        SearchPerformanceTier tier, SearchPerformanceProfile profile)
+        SearchPerformanceTier tier, SearchPerformanceProfile profile, long startedAtMilliseconds,
+        SearchMemberRunUi[] memberRuns)
         => new()
         {
             Phase = SearchUiPhase.Completed,
             Tier = tier,
             Turn = turn,
             Reason = reason,
+            StartedAtMilliseconds = startedAtMilliseconds,
+            ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - startedAtMilliseconds),
+            ExpandedNodes = memberRuns.Sum(static run => (long)run.ExpandedNodes),
+            Transitions = memberRuns.Sum(static run => (long)run.Transitions),
+            MemberRuns = memberRuns,
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "cancelled",
             SearchStatus = "cancelled",
@@ -98,7 +107,7 @@ internal static class CombatUiProjection
 
     internal static SearchUiSnapshot SearchFinished(CombatSearchResult outcome,
         SearchMemberRunUi[] memberRuns, int turn, string reason, SearchPerformanceTier tier,
-        SearchPerformanceProfile profile, string? errorCode)
+        SearchPerformanceProfile profile, string? errorCode, long startedAtMilliseconds)
     {
         string status = outcome.Status == CombatSearchStatus.Cancelled
             ? "cancelled"
@@ -118,6 +127,7 @@ internal static class CombatUiProjection
             Tier = tier,
             Turn = turn,
             Reason = reason,
+            StartedAtMilliseconds = startedAtMilliseconds,
             BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             ElapsedMilliseconds = outcome.ElapsedMilliseconds,
             ExpandedNodes = outcome.TotalExpandedNodes,
@@ -172,6 +182,7 @@ internal static class CombatUiProjection
         int hpAfter = 0;
         int enemyHpLost = 0;
         bool combatEnded = false;
+        int? energyLeft = null;
         for (int index = 0; index < route.Count; index++)
         {
             ReplayedAction action = route[index];
@@ -187,10 +198,12 @@ internal static class CombatUiProjection
                         HpAfter = hpAfter,
                         EnemyHpLost = enemyHpLost,
                         CombatEnded = combatEnded,
+                        EnergyLeft = energyLeft,
                         Actions = [.. actions],
                     });
                 }
                 actions = [];
+                energyLeft = null;
                 turnNumber = action.Before.PlayerTurn;
                 startIndex = action.Index;
                 hpBefore = action.Before.Player.CurrentHp;
@@ -200,7 +213,9 @@ internal static class CombatUiProjection
             hpAfter = action.After.Player.CurrentHp;
             enemyHpLost += EnemyHpLost(action.Before, action.After);
             combatEnded = action.After.Outcome != Outcome.None;
-            actions.Add(Action(action, names));
+            if (action.Action.Kind == PlayerActionKind.EndTurn)
+                energyLeft = action.Before.Energy;
+            actions.Add(Action(action, names, route.Rules));
         }
         if (actions != null)
         {
@@ -212,6 +227,7 @@ internal static class CombatUiProjection
                 HpAfter = hpAfter,
                 EnemyHpLost = enemyHpLost,
                 CombatEnded = combatEnded,
+                EnergyLeft = energyLeft,
                 Actions = [.. actions],
             });
         }
@@ -228,10 +244,11 @@ internal static class CombatUiProjection
         };
     }
 
-    private static RouteActionUi Action(ReplayedAction action, CombatDisplayNames names)
+    private static RouteActionUi Action(ReplayedAction action, CombatDisplayNames names, Rules rules)
     {
         PlayerAction kind = action.Action;
         string? cardId = null;
+        string? cardType = null;
         int upgrade = 0;
         string? potionId = null;
         if (kind.Kind == PlayerActionKind.PlayCard && kind.HandIndex < action.Before.HandCount)
@@ -239,6 +256,7 @@ internal static class CombatUiProjection
             Card card = action.Before.Cards[kind.HandIndex];
             cardId = Registry.Card(card.Id).NativeId;
             upgrade = card.Upgrade;
+            cardType = CardTypeName(Kernel.ResolveCardType(action.Before, rules, card));
         }
         else if (kind.Kind == PlayerActionKind.UsePotion && kind.PotionSlot < action.Before.PotionSlotCount)
         {
@@ -277,6 +295,7 @@ internal static class CombatUiProjection
             },
             CardId = cardId,
             Upgrade = upgrade,
+            CardType = cardType,
             PotionId = potionId,
             TargetCombatId = targetCombatId,
             TargetName = targetName,
@@ -284,10 +303,23 @@ internal static class CombatUiProjection
             Kills = Kills(action.Before, action.After, names),
             HpBefore = action.Before.Player.CurrentHp,
             HpAfter = action.After.Player.CurrentHp,
+            EnergyBefore = action.Before.Energy,
             EnergyAfter = action.After.Energy,
             EndsTurn = kind.Kind == PlayerActionKind.EndTurn,
         };
     }
+
+    private static string? CardTypeName(CardType type) => type switch
+    {
+        CardType.None => null,
+        CardType.Attack => "attack",
+        CardType.Skill => "skill",
+        CardType.Power => "power",
+        CardType.Status => "status",
+        CardType.Curse => "curse",
+        CardType.Quest => "quest",
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "未知卡牌类型。"),
+    };
 
     private static int EnemyHpLost(in Battle before, in Battle after)
     {

@@ -47,6 +47,7 @@ internal sealed class CombatPilotHost(
     private int _deviations;
     private int _deploymentFailures;
     private List<SearchMemberRunUi> _memberRuns = [];
+    private long _searchStartedAt;
 
     public async ValueTask<CombatPilotTurn?> WaitForTurnAsync(CancellationToken token)
     {
@@ -115,12 +116,14 @@ internal sealed class CombatPilotHost(
         _currentActionIndex = 0;
         _routeReused = false;
         _memberRuns = [];
+        _searchStartedAt = Environment.TickCount64;
         PublishSearchStarted(turn, reason, tier, profile);
         Battle searchRoot;
         SearchCase searchCase;
         CombatPilotSearch Rejected(string kind, string detail)
         {
             ModLog.Error($"[Sts2Solver] AUTO_IMPORT_FAILED turn={turn} reason={reason} {detail}");
+            _deploymentFailures++;
             PublishSearchFailed(kind, turn, reason, tier, profile);
             return new CombatPilotSearch(null, "rejected", 0, 0, 0, false, detail, kind, detail, 0, 0);
         }
@@ -128,6 +131,7 @@ internal sealed class CombatPilotHost(
             string kind, string detail)
         {
             ModLog.Error($"[Sts2Solver] AUTO_ROUTE_INVALID turn={turn} reason={reason} {detail}");
+            _deploymentFailures++;
             PublishSearchFinished(result, kind, turn, reason, tier, profile);
             return InvalidRoute(result, resultBeam, "invalid", kind, detail);
         }
@@ -171,6 +175,7 @@ internal sealed class CombatPilotHost(
             ModLog.Error(
                 $"[Sts2Solver] AUTO_SEARCH_FAILED turn={turn} reason={reason} " +
                 $"status={status} error={error} members={outcome.Members.Length}");
+            _deploymentFailures++;
             PublishSearchFinished(outcome, "search_failed", turn, reason, tier, profile);
             return new CombatPilotSearch(null, status, outcome.ElapsedMs,
                 outcome.TotalExpandedNodes, 0, false, error, "search_failed", detail,
@@ -227,6 +232,8 @@ internal sealed class CombatPilotHost(
         async ValueTask<SearchMemberMeasurement> RunMember(SearchCase member, SearchStorage shared, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            PublishMemberStarted(member.Options.BeamWidth,
+                checked((long)member.Options.BeamWidth * profile.MillisecondsPerWidth));
             SearchRunResult result = await SearchSession.RunAsync(
                 host, _root, member, deterministic: false, tier, resultDirectory: null,
                 cancelAfterMilliseconds: null, shared, ct);
@@ -243,6 +250,7 @@ internal sealed class CombatPilotHost(
                 AllocatedBytes = result.AllocatedBytes,
                 PacerYields = result.PacerYields,
             });
+            PublishMemberFinished();
             ModLog.Info($"[Sts2Solver] AUTO_SEARCH_MEMBER turn={turn} reason={reason} " +
                 $"width={member.Options.BeamWidth} status={result.Status} " +
                 $"ms={result.ElapsedMilliseconds} expanded={result.ExpandedNodes}");
@@ -441,12 +449,62 @@ internal sealed class CombatPilotHost(
             [.. _potionsUsed]);
     }
 
+    /// <summary>Live session counters; the terminal publish replaces them with the pilot's own totals.</summary>
+    private CombatUiSnapshot WithCounters(CombatUiSnapshot snapshot) => snapshot with
+    {
+        Searches = _searches,
+        ReusedTurns = _reusedTurns,
+        Deviations = _deviations,
+        DeploymentFailures = _deploymentFailures,
+    };
+
+    private void PublishMemberStarted(int width, long budgetMilliseconds)
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        int run = _memberRuns.Count;
+        long now = Environment.TickCount64;
+        CombatUiStore.Update(snapshot => snapshot.Search is { Phase: SearchUiPhase.Running } search
+            ? snapshot with
+            {
+                Search = search with
+                {
+                    ActiveMemberRun = run,
+                    ActiveMemberWidth = width,
+                    ActiveMemberBudgetMilliseconds = budgetMilliseconds,
+                    ActiveMemberStartedAtMilliseconds = now,
+                },
+            }
+            : snapshot);
+    }
+
+    private void PublishMemberFinished()
+    {
+        if (!CombatUiStore.Initialized)
+            return;
+        SearchMemberRunUi[] runs = [.. _memberRuns];
+        long now = Environment.TickCount64;
+        CombatUiStore.Update(snapshot => snapshot.Search is { Phase: SearchUiPhase.Running } search
+            ? snapshot with
+            {
+                Search = search with
+                {
+                    ActiveMemberRun = -1,
+                    MemberRuns = runs,
+                    ElapsedMilliseconds = Math.Max(0, now - search.StartedAtMilliseconds),
+                    ExpandedNodes = runs.Sum(static item => (long)item.ExpandedNodes),
+                    Transitions = runs.Sum(static item => (long)item.Transitions),
+                },
+            }
+            : snapshot);
+    }
+
     private void PublishWaiting()
     {
         if (!CombatUiStore.Initialized)
             return;
         RouteUiSnapshot? route = BuildRoute();
-        CombatUiStore.Update(snapshot => snapshot with
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,
             Turn = _lastTurn,
@@ -463,8 +521,8 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        SearchUiSnapshot search = CombatUiProjection.SearchStarted(turn, reason, tier, profile);
-        CombatUiStore.Update(snapshot => snapshot with
+        SearchUiSnapshot search = CombatUiProjection.SearchStarted(turn, reason, tier, profile, _searchStartedAt);
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.Searching,
             Turn = _lastTurn,
@@ -482,8 +540,9 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        SearchUiSnapshot search = CombatUiProjection.SearchFailed(code, turn, reason, tier, profile);
-        CombatUiStore.Update(snapshot => snapshot with
+        SearchUiSnapshot search = CombatUiProjection.SearchFailed(code, turn, reason, tier, profile,
+            _searchStartedAt);
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,
             Search = search,
@@ -497,8 +556,9 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        SearchUiSnapshot search = CombatUiProjection.SearchCancelled(turn, reason, tier, profile);
-        CombatUiStore.Update(snapshot => snapshot with
+        SearchUiSnapshot search = CombatUiProjection.SearchCancelled(turn, reason, tier, profile,
+            _searchStartedAt, [.. _memberRuns]);
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,
             Search = search,
@@ -513,8 +573,8 @@ internal sealed class CombatPilotHost(
         if (!CombatUiStore.Initialized)
             return;
         SearchUiSnapshot search = CombatUiProjection.SearchFinished(outcome, [.. _memberRuns],
-            turn, reason, tier, profile, errorCode);
-        CombatUiStore.Update(snapshot => snapshot with
+            turn, reason, tier, profile, errorCode, _searchStartedAt);
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = CombatUiPhase.WaitingTurn,
             Search = search,
@@ -527,7 +587,7 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        CombatUiStore.Update(snapshot => snapshot with
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = phase,
             Turn = _lastTurn,
@@ -543,7 +603,7 @@ internal sealed class CombatPilotHost(
     {
         if (!CombatUiStore.Initialized)
             return;
-        CombatUiStore.Update(snapshot => snapshot with
+        CombatUiStore.Update(snapshot => WithCounters(snapshot) with
         {
             Phase = phase,
             Turn = _lastTurn,

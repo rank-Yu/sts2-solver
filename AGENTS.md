@@ -12,7 +12,7 @@
 - `src/Core/Content`、`src/Core/Ai/Combat`：内容与搜索，各自只依赖 Simulation；Ai 不引用 Content。
 - `src/Core/Autoplay`：`CombatPilot`，通过宿主接口驱动整场战斗；依赖 Simulation 与 Ai。
 - `src/Import/Combat`：只读游戏模型和私有字段，生成 `Battle`、`Rules` 与搜索配置。
-- `src/Mod`：主线程捕获、执行、核对，后台搜索；UI 暂时只有 F8 快捷键。
+- `src/Mod`：主线程捕获、执行、核对，后台搜索；战斗面板只读 UI 快照，操作经 `CombatUiCommands`。
 - `src/TestHost/Combat`：战斗测试场景、注入与转储。`src/TestHost/ModTesting`：测试版 Mod 专用的入口与补丁。
 - `tests/Differential`：原版差分与离线评测；不包含局外执行。
 

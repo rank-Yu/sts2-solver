@@ -322,7 +322,9 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 ### 9.3 实机整场自动战斗
 
-请求带 `fullCombatForTest`（`--emit-live-requests --full-combat` 会置位并关闭确定性）时，测试模式捕获根后立刻进入 `AutoCombatSession`，由共享的 `CombatPilot` 每回合搜索或沿用路线、逐动作核对、回合对账，直到胜利、失败、暂停或取消。结果写 `full-combat.json`，并在 `status.json` 里加 `fullCombatStatus/outcome/turns/playerHp/playerMaxHp/searches/reusedTurns/deviations/deploymentFailures`。测试期间 `src/Mod` 把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
+请求带 `fullCombatForTest`（`--emit-live-requests --full-combat` 会置位并关闭确定性）时，测试模式捕获根后立刻进入 `AutoCombatSession`，由共享的 `CombatPilot` 每回合搜索或沿用路线、逐动作核对、回合对账，直到胜利、失败、暂停或取消。结果写 `full-combat.json`，并在 `status.json` 里加 `fullCombatStatus/outcome/turns/playerHp/playerMaxHp/searches/reusedTurns/deviations/deploymentFailures`。
+
+每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`：开战后面板存在且可见；`Ctrl+F9`（经视口输入管线注入）能隐藏再显示面板；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次，拉丁字体资源能解析，英文目录不缺键；状态详情、设置页、收起与展开、主题切换后的重建都能来回切换；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数与回合号等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段；战斗结束后面板隐藏。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。测试期间 `src/Mod` 把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \
@@ -336,7 +338,7 @@ tools/testing/run-headless.sh --instance full-combat \
 ## 10. 适用边界
 
 - **覆盖范围**：每次运行只覆盖命令选定的根与配置，不能从局部样本推断全部普通根、全部质量语料或整局都已验证。
-- **界面**：没有设置页、进度、路线预览或失败提示；普通玩家只有 F8 开关和日志。
+- **界面**：无头测试只检查面板的结构和状态（见 9.3），不证明可见渲染、字体、排版、拖动与缩放手感；这些要在可见游戏里看。
 - **非选牌模态**：选择驱动只覆盖 `CardSelectCmd` 的 `ICardSelector` 路径，没有验证未来或第三方 Mod 的其它模态请求。
 - **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖。
 - **回合准备多根**：实机只捕获第一个准备选项；完整 `config.br` 的多根排序只在差分宿主里验证。

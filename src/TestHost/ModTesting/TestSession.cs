@@ -100,6 +100,7 @@ internal static class TestSession
             SolverSettingsData previousSettings = SolverSettings.Current;
             bool settingsChanged = false;
             bool recordSnapshots = false;
+            UiPanelChecks.Session? panelChecks = null;
             void CaptureFailed(string resultDetail, string logDetail)
             {
                 failed++;
@@ -140,6 +141,8 @@ internal static class TestSession
                 {
                     if (captured == null)
                         throw new InvalidDataException("整场测试不支持回合准备根。");
+                    stage = "ui_panel";
+                    panelChecks = await UiPanelChecks.BeginAsync(host);
                     stage = "full_combat";
                     CombatPilotResult auto = request.AutoStartFullCombatForTest
                         ? await RunAutoStartedCombatAsync(host, request, tier, resultDirectory)
@@ -150,6 +153,9 @@ internal static class TestSession
                     WriteJson(Path.Combine(resultDirectory, "full-combat.json"), auto);
                     if (request.UiSnapshotForTest)
                         UiSnapshotChecks.Run(resultDirectory, auto, CombatUiStore.History);
+                    stage = "ui_panel";
+                    await UiPanelChecks.FinishAsync(host, panelChecks, resultDirectory);
+                    panelChecks = null;
                     bool expectedCancel = request.SearchCancelAfterMillisecondsForTest is not null;
                     bool ended = auto.Status is "victory" or "defeat"
                         || expectedCancel && auto.Status == "cancelled";
@@ -272,6 +278,7 @@ internal static class TestSession
             { CaptureFailed(error.Message, $"access {error.Message}"); }
             finally
             {
+                panelChecks?.Stop();
                 AllowAutoStartForTest = false;
                 if (recordSnapshots)
                     CombatUiStore.RecordHistory = false;

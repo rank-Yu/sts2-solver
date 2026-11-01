@@ -8,7 +8,8 @@ namespace Sts2Solver;
 /// </summary>
 internal interface ICombatUiCommands
 {
-    void StartAuto();
+    /// <summary>Starts full auto; false when it was rejected (already running, not the play phase, ...).</summary>
+    bool StartAuto();
 
     void StopAuto(string reason);
 }
@@ -19,15 +20,15 @@ internal static class CombatUiCommands
 
     private sealed class Commands : ICombatUiCommands
     {
-        public void StartAuto()
+        public bool StartAuto()
         {
             NGame? host = NGame.Instance;
             if (host == null)
             {
                 ModLog.Error("[Sts2Solver] AUTO_REJECTED reason=NGame_instance_missing");
-                return;
+                return false;
             }
-            AutoCombatSession.StartAuto(host, AutoCombatStartSource.Command);
+            return AutoCombatSession.StartAuto(host, AutoCombatStartSource.Command);
         }
 
         public void StopAuto(string reason)

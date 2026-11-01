@@ -27,7 +27,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | `src/Core/Ai/Combat` | 搜索调度、评分、分支保留、去重与预算 |
 | `src/Core/Autoplay` | `CombatPilot`：整场决策、路线续用与重搜 |
 | `src/Import/Combat` | 只读导入游戏状态，编译规则与搜索配置 |
-| `src/Mod` | 游戏入口、F8、设置存储、只读快照、后台搜索、动作执行与实际结果核对 |
+| `src/Mod` | 游戏入口、F8、战斗面板与设置页、设置存储、只读快照、后台搜索、动作执行与实际结果核对 |
 | `src/TestHost/Combat` | 测试场景创建、注入、原生状态转储 |
 | `src/TestHost/ModTesting` | 只编入测试版 Mod 的实机测试入口与补丁 |
 | `tests` | 内核合同、架构检查、冻结回归、原版差分与质量语料 |
@@ -63,7 +63,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 
 | 文档 | 什么时候读 |
 | --- | --- |
-| [Mod 安装与构建](mod.md) | 安装发布包、构建正式版或测试版、检查包边界、查看设置文件与线程分工 |
+| [Mod 安装与构建](mod.md) | 安装发布包、构建正式版或测试版、检查包边界、查看设置文件、战斗面板与线程分工 |
 | [战斗自动执行与核对](autoplay.md) | 想知道按 F8 之后怎么搜、怎么执行、什么时候停 |
 | [战斗搜索](combat-ai.md) | 改搜索调度、评分或预算；想知道一次决策跑了哪些成员 |
 | [战斗状态布局](combat-state-layout.md) | 改 `Battle`、`Card` 等结构的字段或容量之前 |

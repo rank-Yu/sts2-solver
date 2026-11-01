@@ -49,6 +49,13 @@ internal sealed record CombatUiSnapshot
     /// <summary>Human-readable detail from the pilot; tests must assert <see cref="EndReason"/> instead.</summary>
     public string? PauseReason { get; init; }
 
+    /// <summary>
+    /// Stable code behind a pause or stop: <c>turn_limit</c>, <c>capacity_bounded</c> or
+    /// <c>repeated_failures</c> for a pause, the cancel reason (<c>hotkey</c>, <c>ui</c>, ...) for a
+    /// stop; null otherwise. The panel localizes this instead of <see cref="PauseReason"/>.
+    /// </summary>
+    public string? PauseCode { get; init; }
+
     public string? ErrorCode { get; init; }
 
     public string? ErrorDetail { get; init; }
@@ -106,6 +113,19 @@ internal sealed record SearchUiSnapshot
     public int Turn { get; init; }
 
     public string Reason { get; init; } = "";
+
+    /// <summary><see cref="Environment.TickCount64"/> at search start; the panel derives the live elapsed time.</summary>
+    public long StartedAtMilliseconds { get; init; }
+
+    /// <summary>Run-order index of the member searching right now; -1 between members and after the search.</summary>
+    public int ActiveMemberRun { get; init; } = -1;
+
+    public int ActiveMemberWidth { get; init; }
+
+    /// <summary>The active member's time share (width × milliseconds per width).</summary>
+    public long ActiveMemberBudgetMilliseconds { get; init; }
+
+    public long ActiveMemberStartedAtMilliseconds { get; init; }
 
     public long BudgetMilliseconds { get; init; }
 
@@ -252,6 +272,9 @@ internal sealed record RouteTurnUi
 
     public bool CombatEnded { get; init; }
 
+    /// <summary>Energy left when the end-turn action starts; null when the turn has no end-turn action.</summary>
+    public int? EnergyLeft { get; init; }
+
     public RouteActionUi[] Actions { get; init; } = [];
 }
 
@@ -265,6 +288,9 @@ internal sealed record RouteActionUi
     public string? CardId { get; init; }
 
     public int Upgrade { get; init; }
+
+    /// <summary>Resolved type of the played card: <c>attack</c>, <c>skill</c>, <c>power</c>, <c>status</c>, <c>curse</c> or <c>quest</c>.</summary>
+    public string? CardType { get; init; }
 
     public string? PotionId { get; init; }
 
@@ -280,6 +306,8 @@ internal sealed record RouteActionUi
     public int HpBefore { get; init; }
 
     public int HpAfter { get; init; }
+
+    public int EnergyBefore { get; init; }
 
     public int EnergyAfter { get; init; }
 

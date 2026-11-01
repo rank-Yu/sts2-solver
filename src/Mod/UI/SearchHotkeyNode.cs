@@ -4,8 +4,8 @@ using MegaCrit.Sts2.Core.Nodes;
 namespace Sts2Solver;
 
 /// <summary>
-/// The ordinary-game trigger: F8 toggles whole-combat automation. The UI and per-turn controls are
-/// later batches; this node only owns the key edge.
+/// The ordinary-game trigger: F8 toggles whole-combat automation. The panel's full-auto button goes
+/// through <see cref="CombatUiCommands"/>; this node only owns the key edge.
 /// </summary>
 internal sealed partial class SearchHotkeyNode : Node
 {

@@ -2,7 +2,7 @@ namespace Sts2Solver.Simulation.Combat;
 
 /// <summary>
 /// Snapshot of every <see cref="Exec"/> field that the player-turn-start half can read after an
-/// <see cref="Kernel.TryPrepareEndTurn"/> prefix. The prefix is an immutable image of the execution
+/// <see cref="Kernel.TryPrepareEndTurn"/> prefix. The prefix is an image of the execution
 /// context at the point where the full step would enter <c>AdvanceRoundPlayerStart</c>; restoring it
 /// into a fresh <see cref="Exec"/> is equivalent to continuing the original stack frame.
 ///

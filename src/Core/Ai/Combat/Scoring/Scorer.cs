@@ -683,6 +683,10 @@ internal sealed class Scorer
         StrategicEffectContext? strategicContext = null;
         int refundSpend = 0, refundCapacity = 0, refundDraws = 0;
         bool refundCaptured = false;
+        // The resource probes copy the battle only when a matching listener exists. One score reads
+        // the same battle throughout, so the first probe's result serves every branch below.
+        int modifiedMaxEnergy = -1;
+        int modifiedHandDraw = -1;
         for (int index = 0; index < battle.PowerCount; index++)
         {
             ref readonly Power power = ref battle.Powers[index];
@@ -701,12 +705,14 @@ internal sealed class Scorer
                     {
                         Act3BossInteractions = true,
                         FirstAttackDamage = needsFirstAttackDamage
-                            ? CaptureFirstAttackDamage(battle) : 0,
+                            ? CaptureFirstAttackDamage(battle, ref modifiedMaxEnergy) : 0,
                     };
                     if (hasPagestorm || danseMacabreEnergyThreshold > 0 || demesneAmount > 0)
                     {
                         var interactions = CaptureAct3BossInteractionPotential(
                             battle,
+                            ref modifiedMaxEnergy,
+                            ref modifiedHandDraw,
                             context.RemainingTurns,
                             context.ReachableCards,
                             hasPagestorm,
@@ -729,7 +735,8 @@ internal sealed class Scorer
             StrategicEffectContext effectContext = strategicContext.Value;
             if (needsRecurringEnergy && !refundCaptured)
             {
-                (refundSpend, refundCapacity) = CaptureEnergyRefundWindow(battle, effectContext, skillsExhaust);
+                (refundSpend, refundCapacity) = CaptureEnergyRefundWindow(
+                    battle, effectContext, skillsExhaust, ref modifiedMaxEnergy);
                 refundDraws = Math.Max(0, effectContext.ReachableCards - battle.HandCount);
                 refundCaptured = true;
             }
@@ -2133,7 +2140,7 @@ internal sealed class Scorer
     /// current energy plus future turn resets. <c>liveCards</c> is every combat card in pile order.
     /// </summary>
     private (int Spend, int Capacity) CaptureEnergyRefundWindow(in Battle battle,
-        StrategicEffectContext context, bool skillsExhaust)
+        StrategicEffectContext context, bool skillsExhaust, ref int cachedMaxEnergy)
     {
         // the existing search's CaptureEnergyRefundWindow's liveCards are Discard, Draw and Hand only;
         // the played and exhausted piles do not participate in the projected cycle.
@@ -2141,12 +2148,8 @@ internal sealed class Scorer
         if (liveCount == 0 || context.ReachableCards == 0)
             return (0, 0);
         // PersistentPowerSupport.GetModifiedMaxEnergy: WasteAway and other ModifyMaxEnergy listeners
-        // reduce the future-turn energy supply. Probe a copy because the evaluation must not mutate
-        // the battle being scored.
-        Unsafe.SkipInit(out Battle probe);
-        Battle.CopyPacked(in battle, ref probe);
-        Exec probeExec = new(ref probe, Rules, default);
-        int maxEnergy = Math.Max(0, Kernel.ModifiedMaxEnergy(ref probeExec));
+        // reduce the future-turn energy supply. The evaluation never mutates the battle being scored.
+        int maxEnergy = ModifiedMaxEnergy(battle, ref cachedMaxEnergy);
         int handCount = battle.HandCount;
         int futureTurns = Math.Min(Math.Max(0, context.RemainingTurns - 1),
             (Math.Max(0, context.ReachableCards - handCount) + 5 - 1) / 5);
@@ -2182,32 +2185,38 @@ internal sealed class Scorer
     }
 
     /// <summary>
-    /// <c>PersistentPowerSupport.GetModifiedMaxEnergy</c> through a copy, so the evaluation never mutates
-    /// the battle being scored. <c>WasteAway</c> and other listeners lower the future-turn supply.
+    /// <c>PersistentPowerSupport.GetModifiedMaxEnergy</c>. A battle with no matching listener returns
+    /// the same base value without a copy; <c>WasteAway</c> and other listeners lower the supply.
     /// </summary>
     private int ModifiedMaxEnergy(in Battle battle)
     {
+        int cached = -1;
+        return ModifiedMaxEnergy(battle, ref cached);
+    }
+
+    /// <summary>The first call in one score copies the battle and every later call reuses the result.</summary>
+    private int ModifiedMaxEnergy(in Battle battle, ref int cached)
+    {
+        if (cached >= 0)
+            return cached;
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        if (HookDispatch.CollectListeners(battle, HookMask.ModifyMaxEnergy, listeners) == 0)
+            return cached = Math.Max(0, (int)(decimal)Rules.BaseMaxEnergy);
         Unsafe.SkipInit(out Battle probe);
         Battle.CopyPacked(in battle, ref probe);
         Exec probeExec = new(ref probe, Rules, default);
-        return Math.Max(0, Kernel.ModifiedMaxEnergy(ref probeExec));
+        return cached = Math.Max(0, Kernel.ModifiedMaxEnergy(ref probeExec));
     }
 
     /// <summary>
-    /// <c>PersistentPowerSupport.GetModifiedHandDraw</c> through a copy. The base draw is the game's
-    /// <c>CombatManager.baseHandDrawCount</c> (5), the same literal the existing capture uses.
+    /// <c>PersistentPowerSupport.GetModifiedHandDraw</c> for the commitment evidence port. The base
+    /// draw is the game's <c>CombatManager.baseHandDrawCount</c> (5), the same literal the existing
+    /// capture uses.
     /// </summary>
-    /// <summary><c>PersistentPowerSupport.GetModifiedHandDraw</c> for the commitment evidence port.</summary>
     internal int ModifiedHandDrawForEvidence(in Battle battle) => ModifiedHandDraw(battle);
 
     /// <summary><c>PersistentPowerSupport.GetModifiedMaxEnergy</c> for the commitment evidence port.</summary>
-    internal int ModifiedMaxEnergyForEvidence(in Battle battle)
-    {
-        Unsafe.SkipInit(out Battle probe);
-        Battle.CopyPacked(in battle, ref probe);
-        Exec probeExec = new(ref probe, Rules, default);
-        return Math.Max(0, Kernel.ModifiedMaxEnergy(ref probeExec));
-    }
+    internal int ModifiedMaxEnergyForEvidence(in Battle battle) => ModifiedMaxEnergy(battle);
 
     /// <summary><c>CardChoiceSupport.CardValue</c> of a live card, with its current variables.</summary>
     internal double CardValueForEvidence(in Battle battle, in Card card)
@@ -2249,10 +2258,25 @@ internal sealed class Scorer
 
     private int ModifiedHandDraw(in Battle battle)
     {
+        int cached = -1;
+        return ModifiedHandDraw(battle, ref cached);
+    }
+
+    /// <summary>The first call in one score copies the battle and every later call reuses the result.</summary>
+    private int ModifiedHandDraw(in Battle battle, ref int cached)
+    {
+        if (cached >= 0)
+            return cached;
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        int count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDraw, listeners);
+        if (count == 0)
+            count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDrawLate, listeners);
+        if (count == 0)
+            return cached = Math.Max(0, (int)(decimal)5);
         Unsafe.SkipInit(out Battle probe);
         Battle.CopyPacked(in battle, ref probe);
         Exec probeExec = new(ref probe, Rules, default);
-        return Math.Max(0, Kernel.ModifiedHandDraw(ref probeExec, 5));
+        return cached = Math.Max(0, Kernel.ModifiedHandDraw(ref probeExec, 5));
     }
 
     /// <summary>
@@ -2260,9 +2284,9 @@ internal sealed class Scorer
     /// Attack in the live piles, counting every <c>Eradicate</c> hit the available energy pays for.
     /// The energy ceiling is the current energy or the modified maximum, whichever is larger.
     /// </summary>
-    private int CaptureFirstAttackDamage(in Battle battle)
+    private int CaptureFirstAttackDamage(in Battle battle, ref int cachedMaxEnergy)
     {
-        int energy = Math.Max(battle.Energy, ModifiedMaxEnergy(battle));
+        int energy = Math.Max(battle.Energy, ModifiedMaxEnergy(battle, ref cachedMaxEnergy));
         int best = 0;
         for (int pile = 0; pile < 3; pile++)
         {
@@ -2304,6 +2328,8 @@ internal sealed class Scorer
     private (int EtherealDrawTriggers, int PagestormBonusDrawCapacity, int HighEnergyPlays,
         int DemesneEnergyGain, int DemesneDrawGain) CaptureAct3BossInteractionPotential(
             in Battle battle,
+            ref int cachedMaxEnergy,
+            ref int cachedHandDraw,
             int remainingTurns,
             int reachableCards,
             bool hasPagestorm,
@@ -2333,7 +2359,7 @@ internal sealed class Scorer
                         futureEtherealCards++;
                 }
             }
-            int drawPerTurn = ModifiedHandDraw(battle);
+            int drawPerTurn = ModifiedHandDraw(battle, ref cachedHandDraw);
             if (futurePileCards > 0 && futureEtherealCards > 0 && drawPerTurn > 0)
             {
                 int reachableFutureDraws = (int)Math.Min(
@@ -2405,7 +2431,7 @@ internal sealed class Scorer
                 costCount,
                 ((long)highEnergyCards * boundedReachableCards
                     + liveCount - 1) / liveCount);
-            int futureMaxEnergy = ModifiedMaxEnergy(battle);
+            int futureMaxEnergy = ModifiedMaxEnergy(battle, ref cachedMaxEnergy);
             Span<int> turnEnergy = stackalloc int[boundedTurns];
             turnEnergy[0] = Math.Max(0, battle.Energy);
             turnEnergy[1..].Fill(Math.Max(0, futureMaxEnergy));
@@ -2450,11 +2476,11 @@ internal sealed class Scorer
             }
             long reachableEnergyDemand = (deckEnergyDemand * boundedReachableCards
                 + liveCount - 1) / liveCount;
-            int baseEnergy = Math.Max(0, ModifiedMaxEnergy(battle) - demesneAmount);
+            int baseEnergy = Math.Max(0, ModifiedMaxEnergy(battle, ref cachedMaxEnergy) - demesneAmount);
             long baseEnergySupply = Math.Max(0, battle.Energy) + (long)baseEnergy * futureTurns;
             demesneEnergyGain = (int)Math.Clamp(reachableEnergyDemand - baseEnergySupply,
                 0L, (long)demesneAmount * futureTurns);
-            int baseDraw = Math.Max(0, ModifiedHandDraw(battle) - demesneAmount);
+            int baseDraw = Math.Max(0, ModifiedHandDraw(battle, ref cachedHandDraw) - demesneAmount);
             int retained = 0;
             for (int offset = 0; offset < battle.HandCount; offset++)
             {

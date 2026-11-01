@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace Sts2Solver.Simulation.Combat;
 
 /// <summary>Why an end-turn action did or did not expose a shareable player-turn-start prefix.</summary>
@@ -22,26 +20,31 @@ public enum EndTurnPrefixStatus
 }
 
 /// <summary>
-/// Immutable image of an end-turn action stopped immediately before
-/// <c>AdvanceRoundPlayerStart</c>. It carries the battle and every <see cref="Exec"/> transient that
-/// the player-turn-start half can read, so <see cref="Kernel.StepEndTurnFromPrefix"/> is equivalent to
-/// replaying the whole action from the parent.
+/// Image of an end-turn action stopped immediately before <c>AdvanceRoundPlayerStart</c>. It carries
+/// the battle and every <see cref="Exec"/> transient that the player-turn-start half can read, so
+/// <see cref="Kernel.StepEndTurnFromPrefix"/> is equivalent to replaying the whole action from the
+/// parent. Capture writes straight into the caller's storage: the battle bytes are copied once and
+/// the rest of the image is never cleared or copied as a whole.
 /// </summary>
-public readonly struct EndTurnPrefix
+public struct EndTurnPrefix
 {
-    internal readonly Battle _battle;
-    internal readonly ExecContinuation _continuation;
-    internal readonly EndTurnPrefixStatus _status;
-    internal readonly bool _playerStartPending;
+    internal Battle _battle;
+    internal ExecContinuation _continuation;
+    internal EndTurnPrefixStatus _status;
+    internal bool _playerStartPending;
 
-    internal EndTurnPrefix(in Battle battle, in ExecContinuation continuation,
-        EndTurnPrefixStatus status, bool playerStartPending)
+    /// <summary>
+    /// Replaces <paramref name="target"/> with the image at <paramref name="battle"/>. The status is
+    /// written last, so a target that is not <see cref="EndTurnPrefixStatus.Prepared"/> never exposes
+    /// these bytes to a caller.
+    /// </summary>
+    internal static void Capture(ref EndTurnPrefix target, in Battle battle,
+        in ExecContinuation continuation, EndTurnPrefixStatus status, bool playerStartPending)
     {
-        Unsafe.SkipInit(out _battle);
-        Battle.CopyPacked(in battle, ref _battle);
-        _continuation = continuation;
-        _status = status;
-        _playerStartPending = playerStartPending;
+        Battle.CopyPacked(in battle, ref target._battle);
+        target._continuation = continuation;
+        target._playerStartPending = playerStartPending;
+        target._status = status;
     }
 
     internal readonly bool IsPrepared => _status == EndTurnPrefixStatus.Prepared;
@@ -60,29 +63,28 @@ public static partial class Kernel
     /// shareable the caller must run the ordinary complete <see cref="Step"/> instead.
     /// </summary>
     public static EndTurnPrefixStatus TryPrepareEndTurn(ref Battle parent, Rules rules,
-        out EndTurnPrefix prefix)
+        ref EndTurnPrefix prefix)
     {
-        prefix = default;
+        prefix._status = EndTurnPrefixStatus.NotPrepared;
         if (!IsInProgress(parent))
-            return EndTurnPrefixStatus.NotInProgress;
-        Unsafe.SkipInit(out Battle state);
-        Battle.CopyPacked(in parent, ref state);
-        Exec x = new(ref state, rules, PlayerAction.EndTurn());
+            return prefix._status = EndTurnPrefixStatus.NotInProgress;
+        Battle.CopyPacked(in parent, ref prefix._battle);
+        Exec x = new(ref prefix._battle, rules, PlayerAction.EndTurn());
         if (!AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn))
         {
             if (x.NeedsChoice)
-                return EndTurnPrefixStatus.ChoiceBeforePlayerStart;
+                return prefix._status = EndTurnPrefixStatus.ChoiceBeforePlayerStart;
             // The round ended before the player turn start. The continuation has no player-start
             // half to run; it still reuses the exact post-enemy-turn image for the final settlement.
-            prefix = new EndTurnPrefix(in state, x.CaptureContinuation(),
-                EndTurnPrefixStatus.Prepared, playerStartPending: false);
-            return EndTurnPrefixStatus.Prepared;
+            prefix._continuation = x.CaptureContinuation();
+            prefix._playerStartPending = false;
+            return prefix._status = EndTurnPrefixStatus.Prepared;
         }
         if (takingExtraTurn)
-            return EndTurnPrefixStatus.ExtraTurn;
-        prefix = new EndTurnPrefix(in state, x.CaptureContinuation(),
-            EndTurnPrefixStatus.Prepared, playerStartPending: true);
-        return EndTurnPrefixStatus.Prepared;
+            return prefix._status = EndTurnPrefixStatus.ExtraTurn;
+        prefix._continuation = x.CaptureContinuation();
+        prefix._playerStartPending = true;
+        return prefix._status = EndTurnPrefixStatus.Prepared;
     }
 
     /// <summary>
@@ -92,39 +94,35 @@ public static partial class Kernel
     /// selection leaf pays for the first half once and its siblings reuse the returned image.
     /// </summary>
     public static StepResult StepEndTurnSharingPrefix(ref Battle battle, in PlayerAction action,
-        Rules rules, out ChoiceRequest request, out bool historyRisk, out EndTurnPrefix prefix,
-        out EndTurnPrefixStatus prefixStatus)
+        Rules rules, out ChoiceRequest request, out bool historyRisk, ref EndTurnPrefix prefix)
     {
         if (!IsInProgress(battle))
             throw new InvalidOperationException("战斗已经结束，不能再执行动作。");
         if (action.Kind != PlayerActionKind.EndTurn)
             throw new ArgumentOutOfRangeException(nameof(action), action.Kind, "前缀捕获只接受 EndTurn 动作。");
-        prefix = default;
-        prefixStatus = EndTurnPrefixStatus.NotPrepared;
+        prefix._status = EndTurnPrefixStatus.NotPrepared;
         Exec x = new(ref battle, rules, action);
         if (AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn))
         {
             if (!takingExtraTurn)
             {
-                prefix = new EndTurnPrefix(in battle, x.CaptureContinuation(),
+                EndTurnPrefix.Capture(ref prefix, in battle, x.CaptureContinuation(),
                     EndTurnPrefixStatus.Prepared, playerStartPending: true);
-                prefixStatus = EndTurnPrefixStatus.Prepared;
             }
             else
             {
-                prefixStatus = EndTurnPrefixStatus.ExtraTurn;
+                prefix._status = EndTurnPrefixStatus.ExtraTurn;
             }
             AdvanceRoundPlayerStart(ref x, takingExtraTurn);
         }
         else if (!x.NeedsChoice)
         {
-            prefix = new EndTurnPrefix(in battle, x.CaptureContinuation(),
+            EndTurnPrefix.Capture(ref prefix, in battle, x.CaptureContinuation(),
                 EndTurnPrefixStatus.Prepared, playerStartPending: false);
-            prefixStatus = EndTurnPrefixStatus.Prepared;
         }
         else
         {
-            prefixStatus = EndTurnPrefixStatus.ChoiceBeforePlayerStart;
+            prefix._status = EndTurnPrefixStatus.ChoiceBeforePlayerStart;
         }
         if (!x.NeedsChoice)
             x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;

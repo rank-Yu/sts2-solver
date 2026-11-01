@@ -239,9 +239,9 @@ internal sealed partial class BeamSolver
         {
             // The child is built in next's first free slot and stepped in place: one copy of the parent per
             // transition. It is committed to next, copied to ended, or dropped as a terminal; the slot is not
-            // touched by anything else until then (a choice re-expansion reuses it from the start).
+            // touched by anything else until then (a choice re-expansion reuses it from the start). A leaf
+            // that continues a shared prefix starts from that image instead of copying the parent first.
             ref Battle child = ref next.Reserve();
-            Battle.CopyPacked(in parent, ref child);
             _transitions++;
             StepResult stepResult;
             ChoiceRequest request;
@@ -254,15 +254,19 @@ internal sealed partial class BeamSolver
                 if (_verifySearchEquivalence)
                     VerifyPreparedEndTurn(in parent, action, ref child, stepResult, in request, historyRisk);
             }
-            else if (action.Kind == PlayerActionKind.EndTurn && IsFirstEndTurnLeaf(parentNode))
-            {
-                stepResult = Kernel.StepEndTurnSharingPrefix(ref child, action, _rules, out request,
-                    out historyRisk, out EndTurnPrefix prefix, out EndTurnPrefixStatus prefixStatus);
-                StoreEndTurnPrefix(in prefix, prefixStatus, parentNode);
-            }
             else
             {
-                stepResult = Kernel.Step(ref child, action, _rules, out request, out historyRisk);
+                Battle.CopyPacked(in parent, ref child);
+                if (action.Kind == PlayerActionKind.EndTurn && IsFirstEndTurnLeaf(parentNode))
+                {
+                    stepResult = Kernel.StepEndTurnSharingPrefix(ref child, action, _rules, out request,
+                        out historyRisk, ref _endTurnPrefix);
+                    StoreEndTurnPrefix(parentNode);
+                }
+                else
+                {
+                    stepResult = Kernel.Step(ref child, action, _rules, out request, out historyRisk);
+                }
             }
             if (stepResult == StepResult.NeedsChoice)
             {
@@ -482,11 +486,10 @@ internal sealed partial class BeamSolver
             && _endTurnPrefixGeneration == _expandGeneration
             && _endTurnPrefixNode == parentNode;
 
-    private void StoreEndTurnPrefix(in EndTurnPrefix prefix, EndTurnPrefixStatus status, int parentNode)
+    private void StoreEndTurnPrefix(int parentNode)
     {
-        if (prefix.IsPrepared)
+        if (_endTurnPrefix.IsPrepared)
         {
-            _endTurnPrefix = prefix;
             _endTurnPrefixValid = true;
             _endTurnPrefixGeneration = _expandGeneration;
             _endTurnPrefixNode = parentNode;
@@ -495,7 +498,7 @@ internal sealed partial class BeamSolver
         }
         _endTurnPrefixValid = false;
         _endTurnPrefixUnshared++;
-        switch (status)
+        switch (_endTurnPrefix.Status)
         {
             case EndTurnPrefixStatus.ChoiceBeforePlayerStart:
                 _endTurnPrefixChoiceUnshared++;

@@ -22,7 +22,7 @@
 
 ### 1.1 结束回合的前缀共享
 
-搜索时，同一个父状态下很多叶子都要执行结束回合，而其中“玩家回合结束 + 敌方回合”这一段对它们完全一样。所以内核把 `EndTurn` 拆成两段：第一次完整执行时（`Kernel.StepEndTurnSharingPrefix`），在进入 `AdvanceRoundPlayerStart` 之前拍一张不可变快照 `EndTurnPrefix`；之后的叶子各自从快照续跑后半段（`Kernel.StepEndTurnFromPrefix`）。这只复用计算结果，不改变转移序列：每个叶子仍然逐一经过原来的池、去重和计数路径。
+搜索时，同一个父状态下很多叶子都要执行结束回合，而其中“玩家回合结束 + 敌方回合”这一段对它们完全一样。所以内核把 `EndTurn` 拆成两段：第一次完整执行时（`Kernel.StepEndTurnSharingPrefix`），在进入 `AdvanceRoundPlayerStart` 之前把快照 `EndTurnPrefix` 直接写进调用方的存储，续跑期间不再改动；之后的叶子各自从快照续跑后半段（`Kernel.StepEndTurnFromPrefix`）。这只复用计算结果，不改变转移序列：每个叶子仍然逐一经过原来的池、去重和计数路径。
 
 - 快照包含当时的 `Battle`，以及后半段可能读取的全部 `Exec` 瞬态：力量变化队列、伤害、击杀与溢出暂存、出牌身份与来源序号、手牌与生成选项、Monologue、Vambrace、Lamp 等。
 - 拍快照时，选择游标、效果深度和嵌套 Sly 标记区间都必须为空，逐项断言。

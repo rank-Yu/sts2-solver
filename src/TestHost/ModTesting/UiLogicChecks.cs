@@ -62,9 +62,12 @@ internal static class UiLogicChecks
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("settings_v1_migration", () => MigrateV1(directory));
+        Check("settings_v2_migration", () => MigrateV2(directory));
+        Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
         Check("search_thread_count", ThreadCount);
+        Check("result_summary_speed", ResultSummarySpeed);
         Check("english_catalog_placeholders", LocaleCatalog);
         Check("panel_text_catalog", PanelTextCatalog);
         try
@@ -94,6 +97,7 @@ internal static class UiLogicChecks
         Require(data.SchemaVersion == SolverSettingsData.CurrentSchemaVersion, "schema_version");
         Require(data.Search.Tier == SearchPerformanceTier.Medium, "tier_default");
         Require(data.Search.MemoryBudgetBytes is null, "memory_override_default");
+        Require(data.Search.Threads is null, "threads_default");
         Require(data.Search.Potions.DefaultMode == PotionUseMode.Smart, "potion_mode_default");
         Require(data.Search.Potions.Preset == SolverPotionPreset.Smart, "potion_preset_default");
         Require(data.Search.Potions.Directives.Length == 0, "potion_directives_default");
@@ -107,6 +111,10 @@ internal static class UiLogicChecks
         Require(data.Search.Theft == SolverTheftMode.Auto, "theft_default");
         Require(data.Automation.Mode == SolverMode.AutoSearch, "mode_default");
         Require(!data.Automation.SolverDisabled, "solver_enabled_default");
+        Require(data.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
+            "deployment_speed_default");
+        Require(data.Automation.InterActionDelaySeconds == 0d, "inter_action_delay_default");
+        Require(data.Ui.ShowBattleDamagePerformanceHint, "performance_hint_default");
         Require(data.Ui.PanelX is null && data.Ui.PanelY is null, "panel_position_default");
         Require(data.Ui.PanelWidth is null && data.Ui.PanelHeight is null, "panel_size_default");
         Require(!data.Ui.Collapsed, "collapsed_default");
@@ -125,6 +133,7 @@ internal static class UiLogicChecks
             {
                 Tier = SearchPerformanceTier.High,
                 MemoryBudgetBytes = 2L << 30,
+                Threads = 3,
                 Potions = new SolverPotionSettings
                 {
                     DefaultMode = PotionUseMode.Disabled,
@@ -145,6 +154,8 @@ internal static class UiLogicChecks
             {
                 Mode = SolverMode.FullAuto,
                 SolverDisabled = false,
+                DeploymentSpeed = SolverDeploymentSpeed.Fast,
+                InterActionDelaySeconds = 0.5,
             },
             Ui = new SolverUiSettings
             {
@@ -203,7 +214,7 @@ internal static class UiLogicChecks
             "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(fullAuto, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 2, "migration_schema");
+        Require(migrated.Current.SchemaVersion == 3, "migration_schema");
         Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "migration_full_auto");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "migration_search");
         Require(logs.Any(static line => line.Contains("SETTINGS_MIGRATED", StringComparison.Ordinal)),
@@ -218,6 +229,52 @@ internal static class UiLogicChecks
             "migration_auto_search");
         SolverSettingsData defaults = new();
         Require(defaults.Automation.Mode == SolverMode.AutoSearch, "migration_default");
+    }
+
+    private static void MigrateV2(string directory)
+    {
+        string path = Path.Combine(directory, "v2.json");
+        File.WriteAllText(path,
+            "{\"schemaVersion\":2,\"search\":{\"tier\":\"High\"},\"automation\":{\"mode\":\"FullAuto\"}," +
+            "\"ui\":{\"opacity\":0.5,\"theme\":\"Light\"}}");
+        List<string> logs = [];
+        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        Require(migrated.Current.SchemaVersion == 3, "v2_migration_schema");
+        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v2_migration_search");
+        Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "v2_migration_mode");
+        Require(migrated.Current.Search.Threads is null, "v2_migration_threads");
+        Require(migrated.Current.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
+            "v2_migration_speed");
+        Require(migrated.Current.Ui.ShowBattleDamagePerformanceHint, "v2_migration_performance_hint");
+        Require(logs.Any(static line => line.Contains("from=2", StringComparison.Ordinal)),
+            "v2_migration_log");
+    }
+
+    private static void DeploymentTiming()
+    {
+        Require(CombatDeploymentTiming.ResolveFastMode(SolverDeploymentSpeed.FollowGame) is null,
+            "speed_follow_game");
+        Require(CombatDeploymentTiming.ResolveFastMode(SolverDeploymentSpeed.Normal)
+            == MegaCrit.Sts2.Core.Settings.FastModeType.Normal, "speed_normal");
+        Require(CombatDeploymentTiming.ResolveFastMode(SolverDeploymentSpeed.Fast)
+            == MegaCrit.Sts2.Core.Settings.FastModeType.Fast, "speed_fast");
+        SolverAutomationSettings settings = new();
+        Require(settings.DeploymentSpeed == SolverDeploymentSpeed.FollowGame, "speed_default");
+        Require(settings.InterActionDelaySeconds == 0d, "delay_default");
+        SolverAutomationSettings valid = settings with { DeploymentSpeed = SolverDeploymentSpeed.Fast,
+            InterActionDelaySeconds = 3d };
+        (new SolverSettingsData { Automation = valid }).Validate();
+        SolverAutomationSettings invalid = settings with { InterActionDelaySeconds = 3.01 };
+        bool rejected = false;
+        try
+        {
+            (new SolverSettingsData { Automation = invalid }).Validate();
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
+        Require(rejected, "delay_out_of_range");
     }
 
     private static void PausePolicy()
@@ -296,6 +353,25 @@ internal static class UiLogicChecks
         SearchThreadCountResolution unparseable = SearchThreadCount.Resolve("nope", 4);
         Require(unparseable.Threads == 2 && unparseable.Source == SearchThreadCountSource.Default,
             "unparseable_env_fallthrough");
+        SearchThreadCountResolution settings = SearchThreadCount.Resolve(null, 24, 3);
+        Require(settings.Threads == 3 && settings.Source == SearchThreadCountSource.Settings,
+            "settings_source");
+        SearchThreadCountResolution settingsClamped = SearchThreadCount.Resolve(null, 24, 99);
+        Require(settingsClamped.Threads == 8 && settingsClamped.Source == SearchThreadCountSource.Settings,
+            "settings_clamp");
+        SearchThreadCountResolution environmentWins = SearchThreadCount.Resolve("2", 24, 3);
+        Require(environmentWins.Threads == 2
+            && environmentWins.Source == SearchThreadCountSource.Environment,
+            "environment_beats_settings");
+    }
+
+    private static void ResultSummarySpeed()
+    {
+        string review = SolverOverlay.FormatSearchReview(1000, 100, 1000, reused: false);
+        Require(review.Contains("（100 条/s）", StringComparison.Ordinal), review);
+        Require(!review.Contains("1,000 条/s", StringComparison.Ordinal), review);
+        Require(SolverOverlay.FormatResultSummary(2, endsThisTurn: true)
+            .Contains("本回合结束战斗", StringComparison.Ordinal), "combat_end_summary");
     }
 
     private static void LocaleCatalog()
@@ -312,6 +388,12 @@ internal static class UiLogicChecks
             .Where(static source => !SolverText.EnglishCatalogForTesting.ContainsKey(source))
             .ToArray();
         Require(missing.Length == 0, "missing:" + string.Join("|", missing));
+        string[] oldCalculation = SolverText.EnglishCatalogForTesting.Keys
+            .Concat(SolverPanelText.MappedSourceStrings)
+            .Where(static source => source.Contains("计算", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        Require(oldCalculation.Length == 0, "calculation:" + string.Join("|", oldCalculation));
     }
 
     private static void Require(bool condition, string code)

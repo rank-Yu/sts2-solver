@@ -17,6 +17,8 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (!Enum.IsDefined(mode))
             return false;
+        if (mode == SolverMode.FullAuto && IsMultiplayerSession)
+            return false;
         if (persist && SolverSettings.Current.Automation.Mode != mode
             && !SolverSettings.Update(current => current with
             {

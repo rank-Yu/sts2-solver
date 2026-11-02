@@ -43,6 +43,10 @@ internal sealed class CombatDisplayNames
 
     internal string OstyName => _ostyName;
 
+    /// <summary>Empty name table for a snapshot applied while no native combat state is available.</summary>
+    internal static CombatDisplayNames CaptureEmpty()
+        => new([], "玩家", "Osty");
+
     internal static CombatDisplayNames Capture(CombatState state)
     {
         if (!NGame.IsMainThread())
@@ -153,6 +157,21 @@ internal sealed class CombatDisplayNames
         }
         string baseName = Monster(enemy.MonsterId);
         return total > 1 ? $"{baseName} #{ordinal}" : baseName;
+    }
+
+    /// <summary>Frozen enemy name from stable identity; falls back to the monster table and ordinal.</summary>
+    internal string Enemy(uint combatId, string monsterId, int ordinal)
+    {
+        if (_creatures.TryGetValue(combatId, out string? captured))
+            return captured;
+        string name = MonsterById(monsterId);
+        return ordinal > 0 ? $"{name} #{ordinal}" : name;
+    }
+
+    private string MonsterById(string nativeId)
+    {
+        EnsureCache();
+        return _monsterNames.GetValueOrDefault(nativeId, nativeId);
     }
 
     private static void EnsureCache()

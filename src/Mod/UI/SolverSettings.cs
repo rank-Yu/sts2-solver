@@ -8,6 +8,10 @@ namespace Sts2Solver;
 /// </summary>
 internal static class SolverSettings
 {
+    internal const float MinimumOverlayWidth = 400f;
+
+    internal const float MinimumOverlayHeight = 300f;
+
     internal const string RelativePath = "user://sts2solver/settings.json";
 
     private static SolverSettingsStore? _store;

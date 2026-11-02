@@ -9,7 +9,7 @@ namespace Sts2Solver;
 /// <summary>Global input for the panel: a left-button release ends a drag or resize. There is no hide shortcut.</summary>
 internal sealed partial class SolverPanelInputBridge : Node
 {
-    internal SolverPanelNode? Panel { get; set; }
+    internal SolverOverlay? Panel { get; set; }
 
     public override void _Input(InputEvent inputEvent)
     {

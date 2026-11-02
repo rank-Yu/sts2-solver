@@ -195,7 +195,7 @@ internal sealed partial class BeamSolver
                 current = new ProgressTurnBuilder(turn);
                 builders.Add(current);
             }
-            current.Actions.Add(action);
+            current.Actions.Add(ProgressAction(before, state, action));
             current.HpLost += Math.Max(0,
                 state.Counter(Counter.CumulativeHpLost) - before.Counter(Counter.CumulativeHpLost));
             current.HpRecovered += Math.Max(0,
@@ -213,6 +213,123 @@ internal sealed partial class BeamSolver
             turns[index] = builders[index].Build();
         int throughTurn = turns.Length == 0 ? _initialSearchTurn : turns[^1].Turn;
         return new ProgressReplay(state, throughTurn, turns);
+    }
+
+    private SearchProgressAction ProgressAction(in Battle before, in Battle after, PlayerAction action)
+    {
+        string? cardId = null;
+        string? cardType = null;
+        string? potionId = null;
+        int upgrade = 0;
+        int replayCount = 0;
+        if (action.Kind == PlayerActionKind.PlayCard)
+        {
+            if (action.HandIndex >= before.HandCount)
+            {
+                throw new InvalidDataException(
+                    $"推演动作的手牌下标 {action.HandIndex} 越界（n={before.HandCount}）。");
+            }
+            Card card = before.Cards[action.HandIndex];
+            cardId = Registry.Card(card.Id).NativeId;
+            upgrade = card.Upgrade;
+            replayCount = card.ReplayCount;
+            cardType = Kernel.ResolveCardType(before, _rules, card) switch
+            {
+                CardType.Attack => "attack",
+                CardType.Skill => "skill",
+                CardType.Power => "power",
+                CardType.Status => "status",
+                CardType.Curse => "curse",
+                CardType.Quest => "quest",
+                _ => throw new InvalidDataException(
+                    $"推演动作的卡牌类型未知：{card.Id}。"),
+            };
+        }
+        else if (action.Kind == PlayerActionKind.UsePotion)
+        {
+            if (action.PotionSlot >= before.PotionSlotCount)
+            {
+                throw new InvalidDataException(
+                    $"推演动作的药水槽 {action.PotionSlot} 越界（n={before.PotionSlotCount}）。");
+            }
+            ushort stored = before.Potions[action.PotionSlot];
+            if (stored == 0)
+                throw new InvalidDataException($"推演动作的药水槽 {action.PotionSlot} 为空。");
+            potionId = Registry.Potion((ushort)(stored - 1)).NativeId;
+        }
+        SearchProgressTargetKind targetKind = SearchProgressTargetKind.None;
+        uint? targetCombatId = null;
+        string? targetMonsterId = null;
+        int targetOrdinal = 0;
+        if (action.Target == Limits.PlayerOwner)
+        {
+            targetKind = SearchProgressTargetKind.Player;
+        }
+        else if (action.Target == Limits.OstyOwner)
+        {
+            targetKind = SearchProgressTargetKind.Osty;
+        }
+        else if (action.Target >= Limits.FirstEnemyOwner)
+        {
+            int enemyIndex = action.Target - Limits.FirstEnemyOwner;
+            if (enemyIndex < before.EnemyCount)
+            {
+                Enemy enemy = before.Enemies[enemyIndex];
+                targetKind = SearchProgressTargetKind.Enemy;
+                targetCombatId = enemy.CombatId;
+                targetMonsterId = Registry.Monster(enemy.MonsterId).NativeId;
+                targetOrdinal = MonsterOrdinal(before, enemyIndex);
+            }
+        }
+        return new SearchProgressAction(
+            action.Kind,
+            cardId,
+            upgrade,
+            potionId,
+            cardType,
+            targetKind,
+            targetCombatId,
+            targetMonsterId,
+            targetOrdinal,
+            ProgressKills(before, after),
+            before.Player.CurrentHp,
+            after.Player.CurrentHp,
+            before.Energy,
+            after.Energy,
+            replayCount);
+    }
+
+    private static int MonsterOrdinal(in Battle battle, int enemyIndex)
+    {
+        ushort monsterId = battle.Enemies[enemyIndex].MonsterId;
+        int total = 0;
+        int ordinal = 0;
+        for (int index = 0; index < battle.EnemyCount; index++)
+        {
+            if (battle.Enemies[index].MonsterId != monsterId)
+                continue;
+            total++;
+            if (index == enemyIndex)
+                ordinal = total;
+        }
+        return total > 1 ? ordinal : 0;
+    }
+
+    private static SearchProgressKill[] ProgressKills(in Battle before, in Battle after)
+    {
+        List<SearchProgressKill> kills = [];
+        int count = Math.Min(before.EnemyCount, after.EnemyCount);
+        for (int index = 0; index < count; index++)
+        {
+            if (!before.Enemies[index].Creature.IsAlive || after.Enemies[index].Creature.IsAlive)
+                continue;
+            Enemy enemy = before.Enemies[index];
+            kills.Add(new SearchProgressKill(
+                enemy.CombatId,
+                Registry.Monster(enemy.MonsterId).NativeId,
+                MonsterOrdinal(before, index)));
+        }
+        return [.. kills];
     }
 
     /// <summary>
@@ -307,7 +424,7 @@ internal sealed partial class BeamSolver
     private sealed class ProgressTurnBuilder(int turn)
     {
         internal int Turn { get; } = turn;
-        internal List<PlayerAction> Actions { get; } = [];
+        internal List<SearchProgressAction> Actions { get; } = [];
         internal int HpLost;
         internal int HpRecovered;
         internal int EnemyHpLost;

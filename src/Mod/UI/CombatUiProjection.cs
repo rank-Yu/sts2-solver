@@ -131,6 +131,11 @@ internal static class CombatUiProjection
             .ToArray();
         if (stops.Length > 0)
             stopReason = string.Join(",", stops);
+        string? boundaryCode = outcome.Members.Any(static member => member.StopReason == "time")
+            ? "time"
+            : outcome.Members.Any(static member => member.StopReason is "budget" or "max-turns")
+                ? "node"
+                : null;
         return new SearchUiSnapshot
         {
             Phase = SearchUiPhase.Completed,
@@ -148,6 +153,7 @@ internal static class CombatUiProjection
             Status = status,
             SearchStatus = outcome.Status.ToString().ToLowerInvariant(),
             StopReason = stopReason,
+            BoundaryCode = boundaryCode,
             ErrorCode = errorCode,
             SelectedMember = outcome.SelectedMember,
             MembersRun = outcome.MembersRun,
@@ -205,6 +211,8 @@ internal static class CombatUiProjection
         int startIndex = 0;
         int hpBefore = 0;
         int hpAfter = 0;
+        int hpLoss = 0;
+        int hpRecovered = 0;
         int enemyHpLost = 0;
         bool combatEnded = false;
         int? energyLeft = null;
@@ -221,6 +229,8 @@ internal static class CombatUiProjection
                         StartActionIndex = startIndex,
                         HpBefore = hpBefore,
                         HpAfter = hpAfter,
+                        HpLoss = hpLoss,
+                        HpRecovered = hpRecovered,
                         EnemyHpLost = enemyHpLost,
                         CombatEnded = combatEnded,
                         EnergyLeft = energyLeft,
@@ -232,10 +242,16 @@ internal static class CombatUiProjection
                 turnNumber = action.Before.PlayerTurn;
                 startIndex = action.Index;
                 hpBefore = action.Before.Player.CurrentHp;
+                hpLoss = 0;
+                hpRecovered = 0;
                 enemyHpLost = 0;
                 combatEnded = false;
             }
             hpAfter = action.After.Player.CurrentHp;
+            hpLoss += Math.Max(0, action.After.Counter(Counter.CumulativeHpLost)
+                - action.Before.Counter(Counter.CumulativeHpLost));
+            hpRecovered += Math.Max(0, action.After.Counter(Counter.RecoveredHp)
+                - action.Before.Counter(Counter.RecoveredHp));
             enemyHpLost += EnemyHpLost(action.Before, action.After);
             combatEnded = action.After.Outcome != Outcome.None;
             if (action.Action.Kind == PlayerActionKind.EndTurn)
@@ -250,6 +266,8 @@ internal static class CombatUiProjection
                 StartActionIndex = startIndex,
                 HpBefore = hpBefore,
                 HpAfter = hpAfter,
+                HpLoss = hpLoss,
+                HpRecovered = hpRecovered,
                 EnemyHpLost = enemyHpLost,
                 CombatEnded = combatEnded,
                 EnergyLeft = energyLeft,
@@ -275,12 +293,14 @@ internal static class CombatUiProjection
         string? cardId = null;
         string? cardType = null;
         int upgrade = 0;
+        int replayCount = 0;
         string? potionId = null;
         if (kind.Kind == PlayerActionKind.PlayCard && kind.HandIndex < action.Before.HandCount)
         {
             Card card = action.Before.Cards[kind.HandIndex];
             cardId = Registry.Card(card.Id).NativeId;
             upgrade = card.Upgrade;
+            replayCount = card.ReplayCount;
             cardType = CardTypeName(Kernel.ResolveCardType(action.Before, rules, card));
         }
         else if (kind.Kind == PlayerActionKind.UsePotion && kind.PotionSlot < action.Before.PotionSlotCount)
@@ -289,23 +309,27 @@ internal static class CombatUiProjection
             if (stored != 0)
                 potionId = Registry.Potion((ushort)(stored - 1)).NativeId;
         }
-        string? targetName = null;
+        string targetKind = "";
         uint? targetCombatId = null;
+        string? targetMonsterId = null;
+        int targetOrdinal = 0;
         if (kind.Target == Limits.PlayerOwner)
         {
-            targetName = names.PlayerName;
+            targetKind = "player";
         }
         else if (kind.Target == Limits.OstyOwner)
         {
-            targetName = names.OstyName;
+            targetKind = "osty";
         }
         else if (kind.Target >= Limits.FirstEnemyOwner)
         {
             int enemy = kind.Target - Limits.FirstEnemyOwner;
             if (enemy < action.Before.EnemyCount)
             {
+                targetKind = "enemy";
                 targetCombatId = action.Before.Enemies[enemy].CombatId;
-                targetName = names.Enemy(action.Before, enemy);
+                targetMonsterId = Registry.Monster(action.Before.Enemies[enemy].MonsterId).NativeId;
+                targetOrdinal = MonsterOrdinal(action.Before, enemy);
             }
         }
         return new RouteActionUi
@@ -323,15 +347,35 @@ internal static class CombatUiProjection
             CardType = cardType,
             PotionId = potionId,
             TargetCombatId = targetCombatId,
-            TargetName = targetName,
-            Choices = action.Choices.Select(names.Choice).ToArray(),
-            Kills = Kills(action.Before, action.After, names),
+            TargetKind = targetKind,
+            TargetMonsterId = targetMonsterId,
+            TargetOrdinal = targetOrdinal,
+            Choices = action.Choices.Select(Choice).ToArray(),
+            Kills = Kills(action.Before, action.After),
             HpBefore = action.Before.Player.CurrentHp,
             HpAfter = action.After.Player.CurrentHp,
             EnergyBefore = action.Before.Energy,
             EnergyAfter = action.After.Energy,
+            ReplayCount = replayCount,
             EndsTurn = kind.Kind == PlayerActionKind.EndTurn,
         };
+    }
+
+    private static ChoiceCardUi[] Choice(PlannedChoice choice)
+    {
+        List<ChoiceCardUi> cards = [];
+        foreach (int index in choice.SelectedIndexes())
+        {
+            Card card = choice.OptionsAreGenerated
+                ? choice.GeneratedOptions[index]
+                : choice.PileOptions[index];
+            cards.Add(new ChoiceCardUi
+            {
+                CardId = Registry.Card(card.Id).NativeId,
+                Upgrade = card.Upgrade,
+            });
+        }
+        return [.. cards];
     }
 
     private static string? CardTypeName(CardType type) => type switch
@@ -356,14 +400,47 @@ internal static class CombatUiProjection
         return lost;
     }
 
-    private static string[] Kills(in Battle before, in Battle after, CombatDisplayNames names)
+    private static int MonsterOrdinal(in Battle battle, int enemyIndex)
     {
-        List<string> kills = [];
+        ushort monsterId = battle.Enemies[enemyIndex].MonsterId;
+        int total = 0;
+        int ordinal = 0;
+        for (int index = 0; index < battle.EnemyCount; index++)
+        {
+            if (battle.Enemies[index].MonsterId != monsterId)
+                continue;
+            total++;
+            if (index == enemyIndex)
+                ordinal = total;
+        }
+        return total > 1 ? ordinal : 0;
+    }
+
+    private static KillUi[] Kills(in Battle before, in Battle after)
+    {
+        List<KillUi> kills = [];
         int count = Math.Min(before.EnemyCount, after.EnemyCount);
         for (int index = 0; index < count; index++)
         {
-            if (before.Enemies[index].Creature.IsAlive && !after.Enemies[index].Creature.IsAlive)
-                kills.Add(names.Enemy(before, index));
+            if (!before.Enemies[index].Creature.IsAlive || after.Enemies[index].Creature.IsAlive)
+                continue;
+            Enemy enemy = before.Enemies[index];
+            int ordinal = 0;
+            int sameType = 0;
+            for (int other = 0; other < before.EnemyCount; other++)
+            {
+                if (before.Enemies[other].MonsterId != enemy.MonsterId)
+                    continue;
+                sameType++;
+                if (other == index)
+                    ordinal = sameType;
+            }
+            kills.Add(new KillUi
+            {
+                CombatId = enemy.CombatId,
+                MonsterId = Registry.Monster(enemy.MonsterId).NativeId,
+                Ordinal = sameType > 1 ? ordinal : 0,
+            });
         }
         return [.. kills];
     }

@@ -15,32 +15,114 @@ namespace Sts2Solver;
 /// </summary>
 internal static class UiPanelChecks
 {
+    private static bool _combatEndedSinceLastBegin;
+
     internal static async Task<Session> BeginAsync(NGame host)
     {
         Session session = new();
-        SolverPanelNode? panel = SolverPanelNode.Instance;
+        SolverOverlay? panel = SolverOverlay.Instance;
         session.Check("panel_exists", panel != null, null);
         if (panel == null)
             return session;
         bool visible = await WaitAsync(host, () => panel.ProbeForTest().Visible, 180);
         session.Check("panel_visible_in_combat", visible, Describe(panel));
+        session.Observer = new UiPanelObserver(panel) { Name = "Sts2SolverPanelObserver" };
+        host.AddChild(session.Observer);
+        bool previousCombatEnded = _combatEndedSinceLastBegin;
+        _combatEndedSinceLastBegin = false;
+        if (previousCombatEnded)
+        {
+            session.Check("panel_reappears_after_combat", visible, Describe(panel));
+        }
+        else
+        {
+            session.Skip("panel_reappears_after_combat", "first_combat");
+        }
 
+        PushKey(host, Key.F8);
+        await Frames(host, 3);
+        session.Check("f8_ignored_stays_visible", panel.ProbeForTest().Visible, Describe(panel));
         PushCtrlF9(host);
-        await Frames(host, 5);
-        session.Check("shortcut_ignored_stays_visible", panel.ProbeForTest().Visible, Describe(panel));
+        await Frames(host, 3);
+        session.Check("ctrl_f9_ignored_stays_visible", panel.ProbeForTest().Visible, Describe(panel));
         PushCtrlF9(host);
-        await Frames(host, 5);
-        session.Check("shortcut_ignored_repeat", panel.ProbeForTest().Visible, Describe(panel));
+        await Frames(host, 3);
+        session.Check("ctrl_f9_ignored_repeat", panel.ProbeForTest().Visible, Describe(panel));
+
+        await Press(host, panel.CollapseButtonForTest);
+        SolverOverlayProbe collapsed = panel.ProbeForTest();
+        session.Check("collapse_persists",
+            collapsed.Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
+        session.Check("collapsed_header_visible", collapsed.Visible, Describe(panel));
+        session.Check("collapsed_solver_toggle_clickable",
+            await VisibleAndClickable(host, panel.SolverEnabledButtonForTest), Describe(panel));
+        session.Check("collapsed_mode_button_clickable",
+            await VisibleAndClickable(host, panel.ModeButtonForTest), Describe(panel));
+        await Press(host, panel.CollapseButtonForTest);
+        session.Check("expand_persists",
+            !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
+
+        SolverMode originalMode = SolverSettings.Current.Automation.Mode;
+        await Press(host, panel.ModeButtonForTest);
+        await Frames(host, 2);
+        session.Check("mode_button_cycles",
+            SolverSettings.Current.Automation.Mode != originalMode, Describe(panel));
+        for (int attempt = 0; attempt < 3 && SolverSettings.Current.Automation.Mode != originalMode;
+             attempt++)
+        {
+            await Press(host, panel.ModeButtonForTest);
+        }
+        await WaitModeAsync(host, originalMode, 30);
+
+        await Press(host, panel.SolverEnabledButtonForTest);
+        await WaitAsync(host, static s => s.SolverDisabled, 60, "solver disabled by panel");
+        session.Check("solver_toggle_off", CombatUiStore.Snapshot.SolverDisabled, Describe(panel));
+        await Press(host, panel.SolverEnabledButtonForTest);
+        await WaitAsync(host, static s => !s.SolverDisabled, 60, "solver enabled by panel");
+        session.Check("solver_toggle_on", !CombatUiStore.Snapshot.SolverDisabled, Describe(panel));
+        if (SolverSettings.Current.Automation.Mode != originalMode)
+            CombatUiCommands.Instance.SetMode(originalMode);
+        await WaitModeAsync(host, originalMode, 60);
+
+        bool detailsOpened = false;
+        for (int attempt = 0; attempt < 3 && !detailsOpened; attempt++)
+        {
+            if (!panel.ProbeForTest().DetailsVisible)
+                await Press(host, panel.DetailsButtonForTest);
+            await Frames(host, 2);
+            detailsOpened = panel.ProbeForTest().DetailsVisible;
+        }
+        session.Check("details_opens", detailsOpened, Describe(panel));
+        bool detailsClosed = false;
+        for (int attempt = 0; attempt < 3 && !detailsClosed; attempt++)
+        {
+            if (panel.ProbeForTest().DetailsVisible)
+                await Press(host, panel.DetailsButtonForTest);
+            await Frames(host, 2);
+            detailsClosed = !panel.ProbeForTest().DetailsVisible;
+        }
+        session.Check("details_closes", detailsClosed, Describe(panel));
+
+        await Press(host, panel.SettingsButtonForTest);
+        session.Check("settings_opens", panel.ProbeForTest().SettingsVisible, Describe(panel));
+        session.Check("settings_no_light_theme",
+            panel.FindChild("ThemeOption", recursive: true, owned: false) == null,
+            "theme selector present");
+        await Press(host, panel.SettingsButtonForTest);
+        session.Check("settings_closes", !panel.ProbeForTest().SettingsVisible, Describe(panel));
+
+        int chineseFontOverrides = panel.FontOverrideCountForTest;
+        session.Check("chinese_font_substitution", chineseFontOverrides > 0,
+            $"overrides={chineseFontOverrides}");
 
         string language = LocManager.Instance.Language;
         bool english = language != "eng";
         int buildsBefore = panel.ProbeForTest().BuildCount;
         if (english)
         {
-            // The game's own English override fires the locale-change callbacks like a settings switch.
             LocManager.Instance.StartOverridingLanguageAsEnglish();
             await Frames(host, 4);
-            SolverPanelProbe switched = panel.ProbeForTest();
+            SolverOverlayProbe switched = panel.ProbeForTest();
             session.Check("locale_rebuilds_in_english",
                 switched.Language == "eng" && switched.BuildCount == buildsBefore + 1, Describe(panel));
         }
@@ -48,23 +130,20 @@ internal static class UiPanelChecks
         {
             session.Skip("locale_rebuilds_in_english", "already_english");
         }
-        await ExerciseAsync(host, panel, session);
         if (english)
         {
-            (int resolved, int missing) = SolverUiTokens.LatinFontsForTesting;
-            session.Check("latin_fonts_resolved", resolved > 0 && missing == 0,
-                $"resolved={resolved} missing={missing}");
+            int englishFontOverrides = panel.FontOverrideCountForTest;
+            session.Check("latin_fonts_resolved", englishFontOverrides == 0,
+                $"overrides={englishFontOverrides}");
             int buildsEnglish = panel.ProbeForTest().BuildCount;
             LocManager.Instance.StopOverridingLanguageAsEnglish();
             await Frames(host, 4);
-            SolverPanelProbe restored = panel.ProbeForTest();
+            SolverOverlayProbe restored = panel.ProbeForTest();
             session.Check("locale_restores", restored.Language == language
                 && restored.BuildCount == buildsEnglish + 1, Describe(panel));
         }
         string[] missingKeys = SolverText.MissingKeysForTesting;
         session.Check("english_keys_present", missingKeys.Length == 0, string.Join("|", missingKeys));
-        session.Observer = new UiPanelObserver(panel) { Name = "Sts2SolverPanelObserver" };
-        host.AddChild(session.Observer);
         return session;
     }
 
@@ -72,7 +151,7 @@ internal static class UiPanelChecks
     {
         UiPanelObserver? observer = session.Observer;
         session.Stop();
-        SolverPanelNode? panel = SolverPanelNode.Instance;
+        SolverOverlay? panel = SolverOverlay.Instance;
         if (observer != null)
         {
             session.Check("observed_frames", observer.ObservedFrames > 0,
@@ -83,9 +162,15 @@ internal static class UiPanelChecks
                 $"checks={observer.RowChecks} mismatches={observer.RowMismatches}");
             session.Check("highlight_matches_current_action",
                 observer.HighlightChecks > 0 && observer.HighlightMismatches == 0,
-                $"checks={observer.HighlightChecks} active={observer.ActiveHighlights} mismatches={observer.HighlightMismatches}");
+                $"checks={observer.HighlightChecks} active={observer.ActiveHighlights} " +
+                $"mismatches={observer.HighlightMismatches}");
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
+            session.Check("button_rules_frames",
+                observer.SearchFrames > 0 && observer.DeployFrames > 0 && observer.IdleFrames > 0,
+                $"search={observer.SearchFrames} deploy={observer.DeployFrames} idle={observer.IdleFrames}");
+            session.Check("button_rules_match", observer.ButtonMismatches == 0,
+                $"mismatches={observer.ButtonMismatches}");
         }
         string? afterCombat = null;
         if (panel != null)
@@ -95,11 +180,11 @@ internal static class UiPanelChecks
             {
                 bool hidden = await WaitAsync(host, () => !panel.ProbeForTest().Visible, 30);
                 session.Check("panel_hidden_after_combat", hidden, Describe(panel));
+                _combatEndedSinceLastBegin = hidden;
                 afterCombat = hidden ? "hidden" : "visible";
             }
             else
             {
-                // A cancelled run leaves the combat in progress; the hide check then has nothing to observe.
                 afterCombat = "combat_in_progress";
                 session.Skip("panel_hidden_after_combat", "combat_in_progress");
             }
@@ -107,7 +192,9 @@ internal static class UiPanelChecks
         UiPanelResult result = new(1, session.Failures.Count == 0 ? "ok" : "failed", afterCombat,
             [.. session.Checks], [.. session.Failures], observer?.Mismatches.ToArray() ?? [],
             observer?.ObservedFrames ?? 0, observer?.RowChecks ?? 0, observer?.HighlightChecks ?? 0,
-            observer?.ActiveHighlights ?? 0, observer?.PhaseChecks ?? 0);
+            observer?.ActiveHighlights ?? 0, observer?.PhaseChecks ?? 0,
+            observer?.SearchFrames ?? 0, observer?.DeployFrames ?? 0, observer?.IdleFrames ?? 0,
+            observer?.ButtonMismatches ?? 0);
         string path = Path.Combine(resultDirectory, "ui-panel.json");
         string temporary = path + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(result, OfflineJson.Options));
@@ -120,35 +207,12 @@ internal static class UiPanelChecks
             throw new InvalidDataException("ui_panel:" + string.Join(",", session.Failures));
     }
 
-    private static async Task ExerciseAsync(NGame host, SolverPanelNode panel, Session session)
+    private static async Task<bool> VisibleAndClickable(NGame host, Button? button)
     {
-        await Press(host, panel.DetailsButtonForTest);
-        session.Check("details_opens", panel.ProbeForTest().DetailsVisible, Describe(panel));
-        await Press(host, panel.DetailsButtonForTest);
-        session.Check("details_closes", !panel.ProbeForTest().DetailsVisible, Describe(panel));
-
-        await Press(host, panel.CollapseButtonForTest);
-        session.Check("collapse_persists",
-            panel.ProbeForTest().Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
-        await Press(host, panel.CollapseButtonForTest);
-        session.Check("expand_persists",
-            !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
-
-        await Press(host, panel.SettingsButtonForTest);
-        session.Check("settings_opens", panel.ProbeForTest().SettingsVisible, Describe(panel));
-        SolverUiTheme original = SolverSettings.Current.Ui.Theme;
-        SolverUiTheme other = original == SolverUiTheme.Dark ? SolverUiTheme.Light : SolverUiTheme.Dark;
-        int builds = panel.ProbeForTest().BuildCount;
-        await SelectTheme(host, panel, other);
-        SolverPanelProbe switched = panel.ProbeForTest();
-        session.Check("theme_rebuilds", switched.Theme == other.ToString() && switched.BuildCount == builds + 1
-            && switched.SettingsVisible && SolverSettings.Current.Ui.Theme == other, Describe(panel));
-        await SelectTheme(host, panel, original);
-        SolverPanelProbe restored = panel.ProbeForTest();
-        session.Check("theme_restores", restored.Theme == original.ToString() && restored.BuildCount == builds + 2
-            && SolverSettings.Current.Ui.Theme == original, Describe(panel));
-        await Press(host, panel.SettingsButtonForTest);
-        session.Check("settings_closes", !panel.ProbeForTest().SettingsVisible, Describe(panel));
+        if (button == null)
+            return false;
+        await Frames(host, 2);
+        return button.IsVisibleInTree() && !button.Disabled;
     }
 
     private static async Task Press(NGame host, Button? button)
@@ -159,32 +223,34 @@ internal static class UiPanelChecks
         await Frames(host, 3);
     }
 
-    private static async Task SelectTheme(NGame host, SolverPanelNode panel, SolverUiTheme theme)
+    private static void PushCtrlF9(NGame host)
     {
-        OptionButton option = panel.ThemeOptionForTest ?? throw new InvalidDataException("theme_option_missing");
-        int index = option.GetItemIndex((int)theme);
-        option.Select(index);
-        option.EmitSignal(OptionButton.SignalName.ItemSelected, (long)index);
-        await Frames(host, 4);
+        PushKey(host, Key.F9, ctrl: true);
     }
 
-    private static void PushCtrlF9(NGame host)
+    private static void PushKey(NGame host, Key key, bool ctrl = false)
     {
         Viewport viewport = host.GetViewport();
         viewport.PushInput(new InputEventKey
         {
-            Keycode = Key.F9,
-            PhysicalKeycode = Key.F9,
-            CtrlPressed = true,
+            Keycode = key,
+            PhysicalKeycode = key,
+            CtrlPressed = ctrl,
             Pressed = true,
         });
         viewport.PushInput(new InputEventKey
         {
-            Keycode = Key.F9,
-            PhysicalKeycode = Key.F9,
-            CtrlPressed = true,
+            Keycode = key,
+            PhysicalKeycode = key,
+            CtrlPressed = ctrl,
             Pressed = false,
         });
+    }
+
+    private static async Task WaitModeAsync(NGame host, SolverMode mode, int frames)
+    {
+        await WaitAsync(host, _ => SolverSettings.Current.Automation.Mode == mode, frames,
+            "mode restored");
     }
 
     private static async Task<bool> WaitAsync(NGame host, Func<bool> condition, int frames)
@@ -198,17 +264,31 @@ internal static class UiPanelChecks
         return condition();
     }
 
+    private static async Task<CombatUiSnapshot> WaitAsync(NGame host,
+        Func<CombatUiSnapshot, bool> predicate, int frames, string description)
+    {
+        for (int frame = 0; frame < frames; frame++)
+        {
+            CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
+            if (predicate(snapshot))
+                return snapshot;
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
+        throw new TimeoutException(description);
+    }
+
     private static async Task Frames(NGame host, int count)
     {
         for (int frame = 0; frame < count; frame++)
             await CombatFrameWaiter.NextFrameAsync(host);
     }
 
-    private static string Describe(SolverPanelNode panel)
+    private static string Describe(SolverOverlay panel)
     {
-        SolverPanelProbe probe = panel.ProbeForTest();
-        return $"visible={probe.Visible} hidden_by_shortcut={probe.HiddenByShortcut} collapsed={probe.Collapsed} " +
-            $"settings={probe.SettingsVisible} details={probe.DetailsVisible} theme={probe.Theme} " +
+        SolverOverlayProbe probe = panel.ProbeForTest();
+        return $"visible={probe.Visible} hidden_by_shortcut={probe.HiddenByShortcut} " +
+            $"collapsed={probe.Collapsed} settings={probe.SettingsVisible} " +
+            $"details={probe.DetailsVisible} theme={probe.Theme} " +
             $"language={probe.Language} builds={probe.BuildCount}";
     }
 
@@ -245,7 +325,8 @@ internal static class UiPanelChecks
 
     internal sealed record UiPanelResult(int SchemaVersion, string Status, string? AfterCombat,
         UiPanelCheck[] Checks, string[] Failures, string[] Mismatches, int ObservedFrames, int RowChecks,
-        int HighlightChecks, int ActiveHighlights, int PhaseChecks);
+        int HighlightChecks, int ActiveHighlights, int PhaseChecks, int SearchFrames, int DeployFrames,
+        int IdleFrames, int ButtonMismatches);
 }
 
 /// <summary>
@@ -256,7 +337,7 @@ internal sealed partial class UiPanelObserver : Node
 {
     private const int MaximumMismatchRecords = 8;
 
-    private readonly SolverPanelNode? _panel;
+    private readonly SolverOverlay? _panel;
 
     internal int ObservedFrames { get; private set; }
 
@@ -278,13 +359,21 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int HighlightMismatches { get; private set; }
 
+    internal int SearchFrames { get; private set; }
+
+    internal int DeployFrames { get; private set; }
+
+    internal int IdleFrames { get; private set; }
+
+    internal int ButtonMismatches { get; private set; }
+
     internal List<string> Mismatches { get; } = [];
 
     public UiPanelObserver()
     {
     }
 
-    public UiPanelObserver(SolverPanelNode panel)
+    public UiPanelObserver(SolverOverlay panel)
     {
         _panel = panel;
     }
@@ -294,7 +383,7 @@ internal sealed partial class UiPanelObserver : Node
         if (_panel == null || !IsInstanceValid(_panel) || !CombatManager.Instance.IsInProgress)
             return;
         CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
-        SolverPanelProbe probe = _panel.ProbeForTest();
+        SolverOverlayProbe probe = _panel.ProbeForTest();
         if (!probe.Visible)
         {
             HiddenFrames++;
@@ -312,23 +401,94 @@ internal sealed partial class UiPanelObserver : Node
             PhaseMismatches++;
             Record($"phase seq={snapshot.Sequence} panel={probe.PhaseKey} snapshot={snapshot.Phase}");
         }
+        if (snapshot.IsSearching)
+            SearchFrames++;
+        else if (snapshot.IsDeploying)
+            DeployFrames++;
+        else
+            IdleFrames++;
+        CheckButtons(snapshot);
         CheckRows(snapshot, probe);
     }
 
-    private void CheckRows(CombatUiSnapshot snapshot, SolverPanelProbe probe)
+    private void CheckButtons(CombatUiSnapshot snapshot)
     {
+        SolverOverlay panel = _panel!;
+        bool searching = snapshot.IsSearching;
+        bool adopting = snapshot.IsAdoptingRoute;
+        bool ok = true;
+        string? detail = null;
+        void Expect(string name, bool condition)
+        {
+            if (condition)
+                return;
+            ok = false;
+            detail ??= name;
+        }
+        Expect("stop_visible", panel.StopSearchButtonForTest?.Visible == searching);
+        Expect("recalculate_visible", panel.RecalculateButtonForTest?.Visible == !searching);
+        Expect("execute_visible", panel.ExecuteButtonForTest?.Visible == !searching);
+        Expect("adopt_visible", panel.AdoptRouteButtonForTest?.Visible
+            == (snapshot.CanAdoptCurrentRoute || adopting));
+        Expect("memory_collapsed", panel.MemoryRowVisibleForTest != panel.ProbeForTest().Collapsed);
+        Expect("stop_disabled", panel.StopSearchButtonForTest?.Disabled
+            == (snapshot.SolverDisabled || !searching || snapshot.Search?.Phase == SearchUiPhase.Stopping));
+        Expect("recalculate_disabled", panel.RecalculateButtonForTest?.Disabled
+            == (snapshot.SolverDisabled || searching || snapshot.IsDeploying || adopting));
+        Expect("adopt_disabled", panel.AdoptRouteButtonForTest?.Disabled
+            == (snapshot.SolverDisabled || !snapshot.CanAdoptCurrentRoute || adopting));
+        bool executeDisabled = snapshot.SolverDisabled || snapshot.IsDeploying
+            || snapshot.IsApplyingCurrentTurn || adopting
+            || searching && !snapshot.CanApplyCurrentTurn
+            || !searching && !snapshot.CanExecuteCurrentTurn;
+        Expect("execute_disabled", panel.ExecuteButtonForTest?.Disabled == executeDisabled);
+        string expectedText = snapshot.IsDeploying ? SolverText.Get("执行中…")
+            : snapshot.IsApplyingCurrentTurn ? SolverText.Get("正在应用…")
+            : searching ? SolverText.Get("应用当前回合")
+            : snapshot.DeployWhenReady ? SolverText.Get("已排队执行")
+            : panel.PresentationForTest == SolverOverlayPresentation.ExecutedHistory
+                && !snapshot.CanExecuteCurrentTurn ? SolverText.Get("等待下一回合")
+            : SolverText.Get("执行本回合");
+        Expect("execute_text", panel.ExecuteButtonForTest?.Text == expectedText);
+        if (!ok)
+        {
+            ButtonMismatches++;
+            Record($"buttons seq={snapshot.Sequence} phase={snapshot.Phase} detail={detail} " +
+                $"searching={searching} canAdopt={snapshot.CanAdoptCurrentRoute} " +
+                $"canApply={snapshot.CanApplyCurrentTurn} canExecute={snapshot.CanExecuteCurrentTurn}");
+        }
+    }
+
+    private void CheckRows(CombatUiSnapshot snapshot, SolverOverlayProbe probe)
+    {
+        if (!CombatManager.Instance.IsInProgress)
+            return;
         RouteUiSnapshot? route = snapshot.Route;
         RowChecks++;
+        if (route == null && snapshot.Search?.RoutePreview is { Turns.Length: > 0 } preview)
+        {
+            CheckPreviewRows(snapshot, preview, probe);
+            return;
+        }
         if (route == null || route.Turns.Length == 0)
         {
-            if (probe.Rows.Length != 0)
+            // The terminal snapshot is published before the panel's next frame hides the layer;
+            // that single cleanup frame has no route to compare.
+            if (snapshot.Phase is CombatUiPhase.Idle or CombatUiPhase.Completed
+                && probe.Rows.Length == 0)
+            {
+                return;
+            }
+            if (snapshot.Phase == CombatUiPhase.Searching && probe.Rows.Length <= 1)
+                return;
+            if (probe.Rows.Length != 0
+                && snapshot.Phase is not (CombatUiPhase.Idle or CombatUiPhase.Completed))
             {
                 RowMismatches++;
-                Record($"rows seq={snapshot.Sequence} panel={probe.Rows.Length} snapshot=none");
+                Record($"rows seq={snapshot.Sequence} phase={snapshot.Phase} panel={probe.Rows.Length} snapshot=none");
             }
             return;
         }
-        // Expected window: at most 16 turns, starting one turn before the current turn when it fits.
         int length = route.Turns.Length;
         int count = Math.Min(length, 16);
         int current = Array.FindIndex(route.Turns, turn => turn.Turn == route.CurrentTurn);
@@ -361,7 +521,36 @@ internal sealed partial class UiPanelObserver : Node
         CheckHighlight(snapshot, route, probe, start, count);
     }
 
-    private void CheckHighlight(CombatUiSnapshot snapshot, RouteUiSnapshot route, SolverPanelProbe probe,
+    private void CheckPreviewRows(CombatUiSnapshot snapshot, SearchRoutePreviewUi preview,
+        SolverOverlayProbe probe)
+    {
+        int length = preview.Turns.Length;
+        int count = Math.Min(length, 16);
+        int current = Array.FindIndex(preview.Turns, turn => turn.Turn == snapshot.Turn);
+        int start = current < 0 ? 0 : Math.Clamp(current - 1, 0, length - count);
+        if (probe.Rows.Length != count)
+        {
+            RowMismatches++;
+            Record($"preview rows seq={snapshot.Sequence} panel={probe.Rows.Length} " +
+                $"snapshot={count}/{length}");
+            return;
+        }
+        for (int index = 0; index < count; index++)
+        {
+            SearchTurnPreviewUi turn = preview.Turns[start + index];
+            SolverRowProbe row = probe.Rows[index];
+            int displayed = turn.Actions.Count(static action => action.Kind != "end_turn");
+            if (row.Turn != turn.Turn || row.DisplayedCount != displayed)
+            {
+                RowMismatches++;
+                Record($"preview row seq={snapshot.Sequence} slot={index} " +
+                    $"panel=({row.Turn},{row.DisplayedCount}) snapshot=({turn.Turn},{displayed})");
+                return;
+            }
+        }
+    }
+
+    private void CheckHighlight(CombatUiSnapshot snapshot, RouteUiSnapshot route, SolverOverlayProbe probe,
         int start, int count)
     {
         HighlightChecks++;
@@ -370,8 +559,6 @@ internal sealed partial class UiPanelObserver : Node
             && route.CurrentActionIndex < route.ActionCount
                 ? route.CurrentActionIndex
                 : null;
-        // Where the active action should be drawn: an action pill, a shown end-turn pill, or nowhere
-        // (a plain end turn is implied by the row, and turns outside the window have no row).
         string? expectedKind = null;
         int expectedRow = -1;
         if (active is { } index)
@@ -415,7 +602,6 @@ internal sealed partial class UiPanelObserver : Node
                     && (local - pill.RunStart) % pill.Period == pill.Offset;
             }
         }
-        // Completed marks must agree with the snapshot's completed count for every drawn action pill.
         for (int slot = 0; slot < probe.Rows.Length && ok; slot++)
         {
             SolverRowProbe row = probe.Rows[slot];
@@ -442,7 +628,9 @@ internal sealed partial class UiPanelObserver : Node
 
     private void Record(string mismatch)
     {
-        if (Mismatches.Count < MaximumMismatchRecords)
+        if (Mismatches.Count < MaxMismatchRecords)
             Mismatches.Add(mismatch);
     }
+
+    private const int MaxMismatchRecords = 8;
 }

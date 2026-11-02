@@ -182,7 +182,7 @@ internal static class SearchProgressContracts
         Assert(snapshot.CurrentTurn is { } current
             && current.Turn == route.StartTurn
             && current.CandidateVersion == route.CandidateVersion
-            && Equal(current.Actions, start.Actions)
+            && EqualPreview(current.Actions, start.Actions)
             && current.HpLost == start.HpLost
             && current.HpRecovered == start.HpRecovered
             && current.EnemyHpLost == start.EnemyHpLost
@@ -238,6 +238,31 @@ internal static class SearchProgressContracts
         _ = new BeamSolver(original.Rules, ForThreads(baseline, threads, channel))
             .Solve(original.Battles, CancellationToken.None);
         Assert(seen, $"{threads}t snapshot carries the coordinator's best complete victory");
+    }
+
+    private static bool EqualPreview(SearchProgressAction[] left, SearchProgressAction[] right)
+    {
+        if (left.Length != right.Length)
+            return false;
+        for (int index = 0; index < left.Length; index++)
+        {
+            SearchProgressAction a = left[index];
+            SearchProgressAction b = right[index];
+            if (a.Kind != b.Kind || a.CardId != b.CardId || a.Upgrade != b.Upgrade
+                || a.PotionId != b.PotionId || a.CardType != b.CardType
+                || a.TargetKind != b.TargetKind || a.TargetCombatId != b.TargetCombatId
+                || a.TargetMonsterId != b.TargetMonsterId || a.TargetOrdinal != b.TargetOrdinal
+                || a.HpBefore != b.HpBefore || a.HpAfter != b.HpAfter
+                || a.EnergyBefore != b.EnergyBefore || a.EnergyAfter != b.EnergyAfter
+                || a.ReplayCount != b.ReplayCount || a.Kills.Length != b.Kills.Length)
+                return false;
+            for (int kill = 0; kill < a.Kills.Length; kill++)
+            {
+                if (a.Kills[kill] != b.Kills[kill])
+                    return false;
+            }
+        }
+        return true;
     }
 
     private static bool Equal(PlayerAction[] left, PlayerAction[] right)

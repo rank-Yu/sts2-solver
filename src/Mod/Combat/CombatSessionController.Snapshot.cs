@@ -4,6 +4,7 @@
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
+using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Nodes;
@@ -77,6 +78,8 @@ internal static partial class CombatSessionController
             ReusedTurns = _reusedTurns,
             Deviations = _deviations,
             DeploymentFailures = _deploymentFailures,
+            ReviewedWorldlines = SearchLog.Sum(static entry => entry.ExpandedNodes)
+                + (_search != null ? _lastProgress?.ExpandedNodes ?? 0 : 0),
         };
         CombatUiStore.Publish(next);
     }
@@ -96,6 +99,9 @@ internal static partial class CombatSessionController
         DeathTurn = result.Outcome.DeathTurn,
         CombatEndedTurn = result.Outcome.CombatEndedTurn,
         ProjectedBattleHpLost = result.Outcome.ProjectedBattleHpLost,
+        BattleHpLostSoFar = result.BattleHpLostSoFar,
+        SearchExpandedNodes = result.SearchExpandedNodes,
+        SearchElapsedMilliseconds = result.SearchElapsedMilliseconds,
         ProjectedBattlePotionCount = result.Outcome.ProjectedBattlePotionCount,
         PreviousProjectedBattleHpLost = result.PreviousProjectedBattleHpLost,
         ProjectedBattleHpLossIncrease = result.ProjectedBattleHpLossIncrease,
@@ -135,6 +141,7 @@ internal static partial class CombatSessionController
             Turn = _search.StartTurn,
             Reason = ReasonName(_search.Reason),
             SearchThreads = _searchThreads,
+            ReviewedWorldlinesBeforeSearch = _search.ReviewedWorldlinesBeforeSearch,
             StartedAtMilliseconds = _searchStartedAt,
             ActiveMemberRun = _activeMemberRun,
             ActiveMemberWidth = _activeMemberWidth,
@@ -176,7 +183,44 @@ internal static partial class CombatSessionController
             EnemyHpLost = turn.EnemyHpLost,
             EnergyLeft = turn.EnergyLeft,
             CombatEnded = turn.CombatEnded,
+            Actions = turn.Actions.Select(PreviewAction).ToArray(),
         }).ToArray(),
+    };
+
+    private static SearchActionPreviewUi PreviewAction(SearchProgressAction action) => new()
+    {
+        Kind = action.Kind switch
+        {
+            PlayerActionKind.PlayCard => "play_card",
+            PlayerActionKind.UsePotion => "use_potion",
+            PlayerActionKind.EndTurn => "end_turn",
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        },
+        CardId = action.CardId,
+        Upgrade = action.Upgrade,
+        PotionId = action.PotionId,
+        CardType = action.CardType,
+        TargetKind = action.TargetKind switch
+        {
+            SearchProgressTargetKind.Player => "player",
+            SearchProgressTargetKind.Osty => "osty",
+            SearchProgressTargetKind.Enemy => "enemy",
+            _ => "",
+        },
+        TargetCombatId = action.TargetCombatId,
+        TargetMonsterId = action.TargetMonsterId,
+        TargetOrdinal = action.TargetOrdinal,
+        Kills = action.Kills.Select(static kill => new KillUi
+        {
+            CombatId = kill.CombatId,
+            MonsterId = kill.MonsterId,
+            Ordinal = kill.Ordinal,
+        }).ToArray(),
+        HpBefore = action.HpBefore,
+        HpAfter = action.HpAfter,
+        EnergyBefore = action.EnergyBefore,
+        EnergyAfter = action.EnergyAfter,
+        ReplayCount = action.ReplayCount,
     };
 
     private static SearchCurrentTurnPreviewUi CurrentTurnPreview(SearchCurrentTurnPreview preview)
@@ -190,6 +234,7 @@ internal static partial class CombatSessionController
             EnemyHpLost = preview.EnemyHpLost,
             EnergyLeft = preview.EnergyLeft,
             CombatEnded = preview.CombatEnded,
+            Actions = preview.Actions.Select(PreviewAction).ToArray(),
         };
 
     private static SearchUiSnapshot BuildFinishedSearch(CombatSearchSession session,
@@ -237,6 +282,7 @@ internal static partial class CombatSessionController
             CandidateVersion = final?.CandidateVersion ?? 0,
             RenderedCandidateVersion = session.RenderedCandidateVersion,
             StopCandidateAvailable = session.RenderedCandidateVersion > 0,
+            ReviewedWorldlinesBeforeSearch = session.ReviewedWorldlinesBeforeSearch,
             RoutePreview = final?.Route == null ? null : RoutePreview(final.Route),
             CurrentTurnPreview = final?.CurrentTurn == null
                 ? null

@@ -33,10 +33,43 @@ internal sealed record SearchAdoptionInfo(
     SearchAdoptionKind Kind,
     Outcome Outcome);
 
+/// <summary>Stable target kind of a speculative action.</summary>
+internal enum SearchProgressTargetKind : byte
+{
+    None,
+    Player,
+    Osty,
+    Enemy,
+}
+
+/// <summary>An enemy a speculative action kills, frozen by stable identity.</summary>
+internal sealed record SearchProgressKill(uint CombatId, string MonsterId, int Ordinal);
+
+/// <summary>
+/// One speculative action with the stable ids and numbers the panel needs. Names are resolved on
+/// the UI thread; the search thread never reads localization.
+/// </summary>
+internal sealed record SearchProgressAction(
+    PlayerActionKind Kind,
+    string? CardId,
+    int Upgrade,
+    string? PotionId,
+    string? CardType,
+    SearchProgressTargetKind TargetKind,
+    uint? TargetCombatId,
+    string? TargetMonsterId,
+    int TargetOrdinal,
+    SearchProgressKill[] Kills,
+    int HpBefore,
+    int HpAfter,
+    int EnergyBefore,
+    int EnergyAfter,
+    int ReplayCount);
+
 /// <summary>One replay turn of a speculative route.</summary>
 internal sealed record SearchProgressTurn(
     int Turn,
-    PlayerAction[] Actions,
+    SearchProgressAction[] Actions,
     int HpLost,
     int HpRecovered,
     int EnemyHpLost,
@@ -61,7 +94,7 @@ internal sealed record SearchRoutePreview(
 internal sealed record SearchCurrentTurnPreview(
     int CandidateVersion,
     int Turn,
-    PlayerAction[] Actions,
+    SearchProgressAction[] Actions,
     int HpLost,
     int HpRecovered,
     int EnemyHpLost,

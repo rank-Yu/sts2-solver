@@ -1,34 +1,31 @@
-// Adapted from CombatSolver src/UI/SolverActionPill.cs at 5c773caa
+// Ported from CombatSolver src/UI/SolverActionPill.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The pill reads Sts2Solver's frozen RouteActionUi (native ids, frozen target/choice/kill names)
-// instead of the old overlay snapshot; relic labels and replay counts have no source here and are
-// not shown. The layout (type marker, title, target, choice, kills, tooltip) is kept.
+// The action text is already resolved from stable ids by SolverOverlaySnapshot on the UI thread;
+// the pill keeps the original type marker, title, target, choice, relic, kill and replay layout.
 using Godot;
 
 namespace Sts2Solver;
 
 internal static class SolverActionPill
 {
-    internal const string ActionPillName = "ActionPill";
-
-    public static Control Create(RouteActionUi action)
+    public static Control Create(SolverOverlayActionSnapshot action)
     {
-        bool killed = action.Kills.Length > 0;
-        Color marker = killed ? SolverUiTokens.Palette.Success : MarkerColor(action);
+        bool killed = action.Kills.Count > 0;
+        Color marker = killed ? SolverUiTokens.Palette.Success : ActionColor(action.VisualKind);
 
         PanelContainer pill = new()
         {
-            Name = ActionPillName,
+            Name = "ActionPill",
             CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight),
             MouseFilter = Control.MouseFilterEnum.Pass,
-            TooltipText = Tooltip(action),
+            TooltipText = action.Tooltip,
         };
         pill.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
             SolverUiTokens.Palette.SurfaceRaised,
             killed ? new Color(SolverUiTokens.Palette.Success, 0.55f) : SolverUiTokens.Palette.BorderSubtle,
             SolverUiTokens.Radius.Small,
             SolverUiTokens.Spacing.Sm,
-            SolverUiTokens.Spacing.Xxs));
+            SolverUiTokens.Spacing.Xs));
 
         HBoxContainer content = new()
         {
@@ -36,7 +33,7 @@ internal static class SolverActionPill
             Alignment = BoxContainer.AlignmentMode.Begin,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
-        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs + 1);
+        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
         content.AddChild(new ColorRect
         {
             Color = marker,
@@ -45,28 +42,52 @@ internal static class SolverActionPill
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
         content.AddChild(SolverUiTokens.CreateLabel(
-            Title(action),
+            action.Title,
             SolverUiTokens.Type.Body,
             SolverUiTokens.Palette.TextPrimary));
+        if (action.ReplayCount > 0)
+        {
+            content.AddChild(SolverUiTokens.CreateLabel(
+                SolverText.Format($"重放×{action.ReplayCount}"),
+                SolverUiTokens.Type.Caption,
+                SolverUiTokens.Palette.Warning));
+        }
         if (!string.IsNullOrEmpty(action.TargetName))
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                "→ " + action.TargetName,
-                SolverUiTokens.Type.Caption,
-                SolverUiTokens.Palette.TextSecondary,
-                SolverFontWeight.Normal));
+                $"➔  {action.TargetName}",
+                SolverUiTokens.Type.Body,
+                SolverUiTokens.Palette.TextPrimary));
         }
-        if (ChoiceText(action) is { } choice)
+        if (action.ChoiceText != null)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                choice,
-                SolverUiTokens.Type.Caption,
+                action.ChoiceText,
+                SolverUiTokens.Type.Body,
                 SolverUiTokens.Palette.Accent));
+        }
+        if (action.RelicLabels.Count > 0)
+        {
+            const int maxVisibleRelics = 2;
+            for (int index = 0; index < Math.Min(action.RelicLabels.Count, maxVisibleRelics); index++)
+            {
+                content.AddChild(SolverUiTokens.CreateLabel(
+                    action.RelicLabels[index],
+                    SolverUiTokens.Type.Caption,
+                    SolverUiTokens.Palette.Warning));
+            }
+            if (action.RelicLabels.Count > maxVisibleRelics)
+            {
+                content.AddChild(SolverUiTokens.CreateLabel(
+                    $"+{action.RelicLabels.Count - maxVisibleRelics}",
+                    SolverUiTokens.Type.Caption,
+                    SolverUiTokens.Palette.Warning));
+            }
         }
         if (killed)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                SolverText.Format($"击杀 {string.Join(SolverText.Get("、"), action.Kills)}"),
+                SolverText.Format($"击杀：{string.Join(SolverText.Get("、"), action.Kills)}"),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Success));
         }
@@ -74,101 +95,77 @@ internal static class SolverActionPill
         return pill;
     }
 
-    public static Control CreateStatus(string text, Color color, string? tooltip = null)
+    public static Control CreateChoice(string text)
+    {
+        PanelContainer pill = new()
+        {
+            Name = "ChoicePill",
+            CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight),
+            MouseFilter = Control.MouseFilterEnum.Pass,
+            TooltipText = text,
+        };
+        pill.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.SurfaceRaised,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+
+        HBoxContainer content = new()
+        {
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Alignment = BoxContainer.AlignmentMode.Begin,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
+        content.AddChild(new ColorRect
+        {
+            Color = SolverUiTokens.Palette.Choice,
+            CustomMinimumSize = new Vector2(3, 14),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
+        content.AddChild(SolverUiTokens.CreateLabel(
+            text,
+            SolverUiTokens.Type.Body,
+            SolverUiTokens.Palette.TextPrimary));
+        pill.AddChild(content);
+        return pill;
+    }
+
+    public static Control CreateStatus(string text, Color color)
     {
         PanelContainer pill = new()
         {
             Name = "StatusPill",
             CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight),
-            MouseFilter = tooltip == null ? Control.MouseFilterEnum.Ignore : Control.MouseFilterEnum.Pass,
-            TooltipText = tooltip ?? "",
+            MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         pill.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.Surface,
+            SolverUiTokens.Palette.SurfaceRaised,
             SolverUiTokens.Palette.BorderSubtle,
             SolverUiTokens.Radius.Small,
             SolverUiTokens.Spacing.Sm,
-            SolverUiTokens.Spacing.Xxs));
-        pill.AddChild(SolverUiTokens.CreateLabel(text, SolverUiTokens.Type.Caption, color));
+            SolverUiTokens.Spacing.Xs));
+        pill.AddChild(SolverUiTokens.CreateLabel(text, SolverUiTokens.Type.Body, color));
         return pill;
     }
 
-    /// <summary>Equality used by loop folding; the global index is deliberately not compared.</summary>
-    public static bool HasSamePresentation(RouteActionUi left, RouteActionUi right)
-        => left.Kind == right.Kind
-            && left.CardId == right.CardId
-            && left.Upgrade == right.Upgrade
-            && left.PotionId == right.PotionId
-            && left.CardType == right.CardType
-            && left.TargetCombatId == right.TargetCombatId
-            && left.TargetName == right.TargetName
-            && left.EndsTurn == right.EndsTurn
-            && left.Kills.SequenceEqual(right.Kills)
-            && left.Choices.Length == right.Choices.Length
-            && left.Choices.Zip(right.Choices).All(static pair => pair.First.SequenceEqual(pair.Second));
-
-    /// <summary>Same displayed content, including the per-action HP numbers shown in the tooltip.</summary>
-    public static bool HasSameContent(RouteActionUi left, RouteActionUi right)
-        => HasSamePresentation(left, right)
-            && left.Index == right.Index
-            && left.HpBefore == right.HpBefore
-            && left.HpAfter == right.HpAfter
-            && left.EnergyBefore == right.EnergyBefore
-            && left.EnergyAfter == right.EnergyAfter;
-
-    public static string Title(RouteActionUi action) => action.Kind switch
+    public static SolverLoopGroup CreateCycle(SolverActionRun run, out HFlowContainer actions)
     {
-        "play_card" => action.CardId is { } card
-            ? CombatDisplayNames.CardTitle(card, action.Upgrade)
-            : SolverText.Get("未知卡牌"),
-        "use_potion" => action.PotionId is { } potion
-            ? CombatDisplayNames.PotionTitle(potion)
-            : SolverText.Get("未知药水"),
-        "end_turn" => SolverText.Get("结束回合"),
-        _ => throw new ArgumentOutOfRangeException(nameof(action), action.Kind, "未知路线动作类型。"),
-    };
-
-    private static string? ChoiceText(RouteActionUi action)
-    {
-        if (action.Choices.Length == 0)
-            return null;
-        string separator = SolverText.Get("、");
-        string[] layers = action.Choices
-            .Select(layer => layer.Length == 0 ? SolverText.Get("不选") : string.Join(separator, layer))
-            .ToArray();
-        return SolverText.Format($"选 {string.Join(" / ", layers)}");
+        SolverLoopGroup group = new(run);
+        actions = group.Actions;
+        return group;
     }
 
-    private static string Tooltip(RouteActionUi action)
-    {
-        List<string> lines = [Title(action)];
-        if (action.Kind == "use_potion")
-            lines[0] += SolverText.Get("（药水）");
-        if (!string.IsNullOrEmpty(action.TargetName))
-            lines.Add(SolverText.Format($"目标：{action.TargetName}"));
-        if (ChoiceText(action) is { } choice)
-            lines.Add(choice);
-        if (action.Kills.Length > 0)
-            lines.Add(SolverText.Format($"击杀：{string.Join(SolverText.Get("、"), action.Kills)}"));
-        lines.Add(SolverText.Format($"生命 {action.HpBefore} → {action.HpAfter}"));
-        if (!action.EndsTurn)
-            lines.Add(SolverText.Format($"能量 {action.EnergyBefore} → {action.EnergyAfter}"));
-        return string.Join("\n", lines);
-    }
-
-    private static Color MarkerColor(RouteActionUi action)
-    {
-        if (action.Kind == "use_potion")
-            return SolverUiTokens.Palette.Potion;
-        if (action.Kind == "end_turn")
-            return SolverUiTokens.Palette.TextMuted;
-        return action.CardType switch
+    private static Color ActionColor(SolverOverlayActionVisualKind kind)
+        => kind switch
         {
-            "attack" => SolverUiTokens.Palette.Attack,
-            "skill" => SolverUiTokens.Palette.Skill,
-            "power" => SolverUiTokens.Palette.Power,
-            "status" or "curse" => SolverUiTokens.Palette.Negative,
+            SolverOverlayActionVisualKind.Attack => SolverUiTokens.Palette.Attack,
+            SolverOverlayActionVisualKind.Skill => SolverUiTokens.Palette.Skill,
+            SolverOverlayActionVisualKind.Power => SolverUiTokens.Palette.Power,
+            SolverOverlayActionVisualKind.Negative => SolverUiTokens.Palette.Negative,
+            SolverOverlayActionVisualKind.Potion => SolverUiTokens.Palette.Potion,
             _ => SolverUiTokens.Palette.Border,
         };
-    }
 }

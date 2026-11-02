@@ -13,6 +13,7 @@ using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Settings;
+using MegaCrit.Sts2.Core.Localization;
 
 namespace Sts2Solver;
 
@@ -100,6 +101,7 @@ internal static class TestSession
             SolverSettingsData previousSettings = SolverSettings.Current;
             bool settingsChanged = false;
             bool recordSnapshots = false;
+            bool englishForTest = false;
             UiPanelChecks.Session? panelChecks = null;
             void CaptureFailed(string resultDetail, string logDetail)
             {
@@ -114,6 +116,11 @@ internal static class TestSession
                     ?? throw new InvalidDataException("请求为空。");
                 Validate(request);
                 settingsChanged = ApplyTestSettings(request);
+                if (request.EnglishForTest)
+                {
+                    LocManager.Instance.StartOverridingLanguageAsEnglish();
+                    englishForTest = true;
+                }
                 SearchPerformanceTier tier = request.SearchTierFromSettingsForTest
                     ? SolverSettings.Current.Search.Tier
                     : SearchPerformanceProfile.ParseTier(request.SearchTier);
@@ -202,16 +209,27 @@ internal static class TestSession
                     if (captured == null)
                         throw new InvalidDataException("整场测试不支持回合准备根。");
                     stage = "ui_panel";
-                    panelChecks = await UiPanelChecks.BeginAsync(host);
+                    if (!request.EnglishForTest)
+                        panelChecks = await UiPanelChecks.BeginAsync(host);
                     stage = "full_combat";
                     CombatPilotResult auto = await RunControllerCombatAsync(
                         host, root, request, tier, resultDirectory);
                     WriteJson(Path.Combine(resultDirectory, "full-combat.json"), auto);
                     if (request.UiSnapshotForTest)
                         UiSnapshotChecks.Run(resultDirectory, auto, CombatUiStore.History);
-                    stage = "ui_panel";
-                    await UiPanelChecks.FinishAsync(host, panelChecks, resultDirectory);
-                    panelChecks = null;
+                    if (request.EnglishForTest)
+                    {
+                        string[] missing = SolverText.MissingKeysForTesting;
+                        ModLog.Info($"[Sts2Solver] ENGLISH_RUN missing_keys={missing.Length}");
+                        if (missing.Length > 0)
+                            failure = "english_missing:" + string.Join("|", missing);
+                    }
+                    else
+                    {
+                        stage = "ui_panel";
+                        await UiPanelChecks.FinishAsync(host, panelChecks!, resultDirectory);
+                        panelChecks = null;
+                    }
                     bool expectedCancel = request.SearchCancelAfterMillisecondsForTest is not null;
                     bool ended = auto.Status is "victory" or "defeat"
                         || expectedCancel && auto.Status == "cancelled";
@@ -335,6 +353,8 @@ internal static class TestSession
             finally
             {
                 panelChecks?.Stop();
+                if (englishForTest)
+                    LocManager.Instance.StopOverridingLanguageAsEnglish();
                 AllowAutoStartForTest = false;
                 if (recordSnapshots)
                     CombatUiStore.RecordHistory = false;
@@ -592,6 +612,8 @@ internal static class TestSession
             throw new NotSupportedException("uiSnapshotForTest 需要 fullCombatForTest。");
         if (request.AutoStartFullCombatForTest && !request.FullCombatForTest)
             throw new NotSupportedException("autoStartFullCombatForTest 需要 fullCombatForTest。");
+        if (request.EnglishForTest && !request.FullCombatForTest)
+            throw new NotSupportedException("englishForTest 需要 fullCombatForTest。");
         if (request.AutoStartFullCombatForTest && request.FlashTurnSetupRootForTest)
             throw new NotSupportedException("自动开启场景不支持回合准备根。");
         if (request.ControllerScenarioForTest is { } scenario)

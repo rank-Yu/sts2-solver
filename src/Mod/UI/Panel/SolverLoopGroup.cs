@@ -1,7 +1,7 @@
-// Adapted from CombatSolver src/UI/SolverLoopGroup.cs at 5c773caa
+// Ported from CombatSolver src/UI/SolverLoopGroup.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Implements ISolverFlowGroup so the ported SolverRouteActionFlow can wrap it; the badge text is
-// set once per build because the whole panel is rebuilt on a language change.
+// Implements ISolverFlowGroup so SolverRouteActionFlow can wrap the loop; the panel is rebuilt on a
+// language change, so the badge text is set once per build.
 using Godot;
 
 namespace Sts2Solver;
@@ -12,6 +12,7 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
     private const float ExpandMarginV = 2f;
 
     private readonly PanelContainer _badge;
+    private readonly Label _badgeLabel;
 
     public HFlowContainer Actions { get; } = new()
     {
@@ -23,6 +24,8 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
 
     public PanelContainer Badge => _badge;
 
+    public Label BadgeLabel => _badgeLabel;
+
     public SolverLoopGroup(SolverActionRun run)
     {
         Name = "LoopGroup";
@@ -31,7 +34,7 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
             $"框内 {run.Period} 个动作按顺序重复 {run.Repetitions} 次，共 {run.Count} 个动作");
 
         StyleBoxFlat box = SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.Surface,
+            new Color(0.12f, 0.14f, 0.17f, 0.50f),
             SolverUiTokens.Palette.BorderSubtle,
             SolverUiTokens.Radius.Medium,
             0,
@@ -54,17 +57,19 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
             MouseFilter = MouseFilterEnum.Ignore,
         };
         _badge.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.AccentSoft,
-            new Color(SolverUiTokens.Palette.Accent, 0.45f),
+            SolverUiTokens.Palette.Accent.Darkened(0.70f),
+            SolverUiTokens.Palette.Accent.Darkened(0.35f),
             SolverUiTokens.Radius.Small,
             horizontalPadding: 8,
-            verticalPadding: 2));
-        Label badgeLabel = SolverUiTokens.CreateLabel(
+            verticalPadding: 3,
+            borderWidth: 1));
+        _badgeLabel = SolverUiTokens.CreateLabel(
             SolverText.Format($"循环 ×{run.Repetitions}"),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.Accent);
-        badgeLabel.Name = "LoopCount";
-        _badge.AddChild(badgeLabel);
+        _badgeLabel.Name = "LoopCount";
+        _badgeLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        _badge.AddChild(_badgeLabel);
 
         Actions.AddChild(_badge);
         Actions.ChildEnteredTree += child =>
@@ -81,6 +86,7 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
     {
         get
         {
+            float contentMargin = ContentMarginH * 2f;
             int visibleCount = 0;
             float itemsWidth = 0;
             foreach (Control child in Actions.GetChildren().OfType<Control>().Where(static c => c.Visible))
@@ -89,25 +95,26 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
                 visibleCount++;
             }
             float separation = Mathf.Max(0, visibleCount - 1) * Actions.GetThemeConstant("h_separation");
-            return ContentMarginH * 2f + itemsWidth + separation;
+            return contentMargin + itemsWidth + separation;
         }
     }
 
-    public Vector2 GetWrappedDimensions(float availableWidth)
+    public Vector2 GetWrappedDimensions(float maxAvailableWidth)
     {
-        float margin = ContentMarginH * 2f;
-        float maxInnerWidth = float.IsPositiveInfinity(availableWidth)
+        float contentMarginH = ContentMarginH * 2f;
+        float maxInnerWidth = float.IsPositiveInfinity(maxAvailableWidth)
             ? float.PositiveInfinity
-            : Mathf.Max(0, availableWidth - margin);
+            : Mathf.Max(0, maxAvailableWidth - contentMarginH);
         float hSep = Actions.GetThemeConstant("h_separation");
         float vSep = Actions.GetThemeConstant("v_separation");
         float currentLineWidth = 0;
         float maxLineWidth = 0;
         int lineCount = 1;
         bool hasChildren = false;
-        IEnumerable<Control> items = Actions.GetChildren().OfType<Control>()
+
+        IEnumerable<Control> cards = Actions.GetChildren().OfType<Control>()
             .Where(child => child != _badge && child.Visible);
-        foreach (Control child in items.Append(_badge))
+        foreach (Control child in cards.Append(_badge))
         {
             hasChildren = true;
             float itemWidth = child.GetCombinedMinimumSize().X;
@@ -124,12 +131,14 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
                 currentLineWidth += itemWidth;
             }
         }
+
         if (!hasChildren)
-            return new Vector2(margin, SolverUiTokens.Size.ActionPillHeight);
+            return new Vector2(contentMarginH, SolverUiTokens.Size.ActionPillHeight);
+
         maxLineWidth = Mathf.Max(maxLineWidth, currentLineWidth);
-        return new Vector2(
-            maxLineWidth + margin + 1f,
-            lineCount * SolverUiTokens.Size.ActionPillHeight + (lineCount - 1) * vSep);
+        float totalWidth = maxLineWidth + contentMarginH + 1f;
+        float totalHeight = lineCount * SolverUiTokens.Size.ActionPillHeight + (lineCount - 1) * vSep;
+        return new Vector2(totalWidth, totalHeight);
     }
 
     public override Vector2 _GetMinimumSize()

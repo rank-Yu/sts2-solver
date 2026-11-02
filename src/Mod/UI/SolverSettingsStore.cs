@@ -80,6 +80,14 @@ internal sealed class SolverSettingsStore
                     },
                 };
                 migrated = true;
+                schema = 1;
+            }
+            else if (schema == 2)
+            {
+                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
+                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
+                    ?? throw new InvalidDataException("设置文件为空。");
+                migrated = true;
             }
             else
             {
@@ -89,7 +97,7 @@ internal sealed class SolverSettingsStore
             data.Validate();
             info($"[Sts2Solver] SETTINGS_LOADED path={path} schema={data.SchemaVersion}");
             if (migrated)
-                TryWriteMigrated(path, data, info, error);
+                TryWriteMigrated(path, schema, data, info, error);
             return new SolverSettingsStore(path, data, info, error);
         }
         catch (FileNotFoundException)
@@ -170,7 +178,7 @@ internal sealed class SolverSettingsStore
         }
     }
 
-    private static void TryWriteMigrated(string path, SolverSettingsData data,
+    private static void TryWriteMigrated(string path, int fromSchema, SolverSettingsData data,
         Action<string> info, Action<string> error)
     {
         try
@@ -178,7 +186,7 @@ internal sealed class SolverSettingsStore
             string temporary = path + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(data, JsonOptions));
             File.Move(temporary, path, overwrite: true);
-            info($"[Sts2Solver] SETTINGS_MIGRATED path={path} from=1 to={data.SchemaVersion} " +
+            info($"[Sts2Solver] SETTINGS_MIGRATED path={path} from={fromSchema} to={data.SchemaVersion} " +
                 $"mode={data.Automation.Mode}");
         }
         catch (IOException exception)

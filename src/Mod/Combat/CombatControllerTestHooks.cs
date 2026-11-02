@@ -16,6 +16,30 @@ internal static class CombatControllerTestHooks
     /// <summary>Search count observed when the native turn-setup selector was asked to choose.</summary>
     internal static int TurnSetupSearchCountAtSelection { get; set; } = -1;
 
+    /// <summary>Stop the search as soon as a candidate is rendered, for stop-candidate text tests.</summary>
+    internal static bool AutoStopOnCandidate { get; set; }
+
+    /// <summary>Completion times of deployed actions in the current scenario, in tick milliseconds.</summary>
+    internal static List<long> DeploymentCompletionTimes { get; } = [];
+
+    internal static List<(long Start, long End)> DeploymentWaits { get; } = [];
+
+    internal static int DeploymentPlayableActionCount { get; set; }
+
+    internal static void RecordDeploymentAction()
+        => DeploymentCompletionTimes.Add(Environment.TickCount64);
+
+    internal static void RecordDeploymentWaitStart(long startedAt)
+        => DeploymentWaits.Add((startedAt, 0L));
+
+    internal static void RecordDeploymentWaitEnd()
+    {
+        if (DeploymentWaits.Count == 0)
+            return;
+        (long start, _) = DeploymentWaits[^1];
+        DeploymentWaits[^1] = (start, Environment.TickCount64);
+    }
+
     internal static async Task BeforeAutoSearchAsync(CombatState state, int turn,
         CancellationToken token)
     {

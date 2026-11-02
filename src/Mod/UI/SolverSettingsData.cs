@@ -34,6 +34,14 @@ internal enum SolverMode
     FullAuto,
 }
 
+/// <summary>How deployment overrides the game's battle speed; <see cref="FollowGame"/> keeps it.</summary>
+internal enum SolverDeploymentSpeed
+{
+    FollowGame,
+    Normal,
+    Fast,
+}
+
 /// <summary>
 /// The complete persisted player configuration. Values are immutable; the store replaces one whole
 /// record at a time. Search settings are stored here but only the tier and memory override are wired
@@ -41,7 +49,7 @@ internal enum SolverMode
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 2;
+    internal const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -70,6 +78,12 @@ internal sealed record SolverSettingsData
     {
         if (!Enum.IsDefined(Automation.Mode))
             throw new InvalidDataException($"未知自动化模式：{Automation.Mode}");
+        if (!Enum.IsDefined(Automation.DeploymentSpeed))
+            throw new InvalidDataException($"未知自动出牌速度：{Automation.DeploymentSpeed}");
+        if (!double.IsFinite(Automation.InterActionDelaySeconds)
+            || Automation.InterActionDelaySeconds is < 0d or > 3d)
+            throw new InvalidDataException(
+                $"牌间额外停顿必须在 0..3 秒：{Automation.InterActionDelaySeconds}");
     }
 }
 
@@ -80,6 +94,9 @@ internal sealed record SolverSearchSettings
 
     /// <summary>Explicit search ceiling; null means environment variable then the 15% default.</summary>
     public long? MemoryBudgetBytes { get; init; }
+
+    /// <summary>Explicit thread count for one member; null means the logical-core default.</summary>
+    public int? Threads { get; init; }
 
     public SolverPotionSettings Potions { get; init; } = new();
 
@@ -107,6 +124,8 @@ internal sealed record SolverSearchSettings
             throw new InvalidDataException("设置缺少 search.relicTargets。");
         if (MemoryBudgetBytes is <= 0)
             throw new InvalidDataException($"搜索内存上限必须为正：{MemoryBudgetBytes}");
+        if (Threads is < 1 or > 8)
+            throw new InvalidDataException($"搜索线程数必须在 1..8：{Threads}");
         Potions.Validate();
         GrowthBudgets.ToCore().ValidateBudgets();
         if (!Enum.IsDefined(ActTransitionBossHpStrategy))
@@ -185,6 +204,12 @@ internal sealed record SolverAutomationSettings
 
     /// <summary>The solver-wide off switch; disabling it also drops full auto back to automatic search.</summary>
     public bool SolverDisabled { get; init; }
+
+    /// <summary>Battle speed override while the solver plays cards; follow the game by default.</summary>
+    public SolverDeploymentSpeed DeploymentSpeed { get; init; } = SolverDeploymentSpeed.FollowGame;
+
+    /// <summary>Extra pause between two played cards, 0..3 seconds.</summary>
+    public double InterActionDelaySeconds { get; init; }
 }
 
 /// <summary>Panel geometry and appearance for the overlay; the panel itself is built separately.</summary>
@@ -203,6 +228,9 @@ internal sealed record SolverUiSettings
     public float Opacity { get; init; } = 0.65f;
 
     public SolverUiTheme Theme { get; init; } = SolverUiTheme.Dark;
+
+    /// <summary>Show the significant-battle-damage hint until the player dismisses it.</summary>
+    public bool ShowBattleDamagePerformanceHint { get; init; } = true;
 
     internal void Validate()
     {

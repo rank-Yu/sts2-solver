@@ -51,6 +51,9 @@ internal static partial class CombatSessionController
     private static int? _lastSolverDeployedTurn;
     private static string? _pauseCode;
     private static string? _pauseReason;
+    private static int? _pausePlannedHpLost;
+    private static int? _pauseLiveHpLost;
+    private static bool _pausePlayerDead;
     private static string? _errorCode;
     private static string? _errorDetail;
     private static string? _importErrorCode;
@@ -186,6 +189,9 @@ internal static partial class CombatSessionController
         _lastSolverDeployedTurn = null;
         _pauseCode = null;
         _pauseReason = null;
+        _pausePlannedHpLost = null;
+        _pauseLiveHpLost = null;
+        _pausePlayerDead = false;
         _errorCode = null;
         _errorDetail = null;
         _importErrorCode = null;
@@ -364,6 +370,9 @@ internal static partial class CombatSessionController
         _fullAutoEnabled = false;
         _pauseCode = null;
         _pauseReason = null;
+        _pausePlannedHpLost = null;
+        _pauseLiveHpLost = null;
+        _pausePlayerDead = false;
         _consecutiveFailures = 0;
         _consecutiveFailureTurn = null;
         _errorCode = null;
@@ -514,6 +523,13 @@ internal static partial class CombatSessionController
         _lastProgress = progress;
         if (progress.Route != null && progress.CandidateVersion > _search.RenderedCandidateVersion)
             _search.RenderedCandidateVersion = progress.CandidateVersion;
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.AutoStopOnCandidate
+            && _search.RenderedCandidateVersion > 0 && !_search.StopRequested)
+        {
+            StopSearch();
+        }
+#endif
         if (progress.CandidateVersion > _lastCandidateVersion)
             _lastCandidateVersion = progress.CandidateVersion;
         _activeMemberRun = progress.MemberIndex;

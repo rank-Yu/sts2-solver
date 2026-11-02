@@ -50,6 +50,8 @@ internal sealed class CombatSearchSession(
     internal int RenderedCandidateVersion { get; set; }
 
     internal int CandidateVersion { get; set; }
+
+    internal long ReviewedWorldlinesBeforeSearch { get; set; }
 }
 
 internal sealed class CombatDeploymentSession(
@@ -98,7 +100,8 @@ internal sealed record CombatControllerResult(
     long SearchExpandedNodes,
     CombatSearchResult? SearchOutcome,
     SearchMemberRunUi[] MemberRuns,
-    string Reason)
+    string Reason,
+    int BattleHpLostSoFar = 0)
 {
     internal bool WasReused => Plan.WasReused;
 

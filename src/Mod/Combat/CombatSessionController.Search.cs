@@ -114,6 +114,7 @@ internal static partial class CombatSessionController
             CancellationTokenSource.CreateLinkedTokenSource(_combatCancellation.Token);
         CombatSearchSession session = new(++_nextSearchGeneration, _state, root, stamp, turn,
             reason, deployWhenReady, cancellation);
+        session.ReviewedWorldlinesBeforeSearch = SearchLog.Sum(static entry => entry.ExpandedNodes);
         _search = session;
         _latestResult = null;
         _latestStamp = null;
@@ -397,7 +398,8 @@ internal static partial class CombatSessionController
         CombatControllerResult result = new(run.Plan, run.Plan.Outcome, session.Stamp,
             run.FinalProgress?.CandidateVersion ?? 0, run.Outcome.Adoption, 0, 0, false,
             run.Tier, run.Outcome.ElapsedMilliseconds, run.Outcome.TotalExpandedNodes,
-            run.Outcome, run.MemberRuns, ReasonName(session.Reason));
+            run.Outcome, run.MemberRuns, ReasonName(session.Reason),
+            run.Plan.Root.Counter(Sts2Solver.Simulation.Combat.Counter.CumulativeHpLost));
         if (session.StopRequested
             && run.Outcome.Completion is SearchCompletionKind.Adopted
                 or SearchCompletionKind.StoppedWithCandidate)

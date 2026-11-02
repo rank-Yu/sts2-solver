@@ -103,6 +103,12 @@ internal sealed record CombatUiSnapshot
     /// </summary>
     public string? PauseCode { get; init; }
 
+    public int? PausePlannedHpLost { get; init; }
+
+    public int? PauseLiveHpLost { get; init; }
+
+    public bool PausePlayerDead { get; init; }
+
     public string? ErrorCode { get; init; }
 
     public string? ErrorDetail { get; init; }
@@ -125,6 +131,9 @@ internal sealed record CombatUiSnapshot
     public int Deviations { get; init; }
 
     public int DeploymentFailures { get; init; }
+
+    /// <summary>Worldlines reviewed by completed searches in this combat.</summary>
+    public long ReviewedWorldlines { get; init; }
 }
 
 internal sealed record SettingsUiSnapshot
@@ -150,6 +159,12 @@ internal sealed record CombatResultUiSnapshot
     public int? CombatEndedTurn { get; init; }
 
     public int ProjectedBattleHpLost { get; init; }
+
+    public int BattleHpLostSoFar { get; init; }
+
+    public long SearchExpandedNodes { get; init; }
+
+    public long SearchElapsedMilliseconds { get; init; }
 
     public int ProjectedBattlePotionCount { get; init; }
 
@@ -233,6 +248,11 @@ internal sealed record SearchUiSnapshot
     public string? SearchStatus { get; init; }
 
     public string? StopReason { get; init; }
+
+    /// <summary>Stable limit code: <c>time</c>, <c>node</c>, or null when no limit was hit.</summary>
+    public string? BoundaryCode { get; init; }
+
+    public long ReviewedWorldlinesBeforeSearch { get; init; }
 
     public string? ErrorCode { get; init; }
 
@@ -381,6 +401,12 @@ internal sealed record RouteTurnUi
 
     public int HpAfter { get; init; }
 
+    /// <summary>HP lost during the turn, summed from the route's cumulative loss counter.</summary>
+    public int HpLoss { get; init; }
+
+    /// <summary>HP recovered during the turn, summed from the route's cumulative recovery counter.</summary>
+    public int HpRecovered { get; init; }
+
     public int EnemyHpLost { get; init; }
 
     public bool CombatEnded { get; init; }
@@ -388,7 +414,73 @@ internal sealed record RouteTurnUi
     /// <summary>Energy left when the end-turn action starts; null when the turn has no end-turn action.</summary>
     public int? EnergyLeft { get; init; }
 
+    /// <summary>Turn-start card choices; empty until turn-setup roots are captured.</summary>
+    public TurnStartChoiceUi[] TurnStartChoices { get; init; } = [];
+
     public RouteActionUi[] Actions { get; init; } = [];
+}
+
+/// <summary>One turn-start selection, with stable source/effect codes and card identities.</summary>
+internal sealed record TurnStartChoiceUi
+{
+    public string Source { get; init; } = "";
+
+    public string Effect { get; init; } = "";
+
+    public ChoiceCardUi[] Cards { get; init; } = [];
+}
+
+/// <summary>A card identity resolved to a localized name on the UI thread.</summary>
+internal sealed record ChoiceCardUi
+{
+    public string CardId { get; init; } = "";
+
+    public int Upgrade { get; init; }
+}
+
+/// <summary>An enemy killed by one action, frozen by stable identity.</summary>
+internal sealed record KillUi
+{
+    public uint CombatId { get; init; }
+
+    public string MonsterId { get; init; } = "";
+
+    public int Ordinal { get; init; }
+}
+
+/// <summary>One speculative route action published by the search thread.</summary>
+internal sealed record SearchActionPreviewUi
+{
+    public string Kind { get; init; } = "";
+
+    public string? CardId { get; init; }
+
+    public int Upgrade { get; init; }
+
+    public string? PotionId { get; init; }
+
+    public string? CardType { get; init; }
+
+    /// <summary>Stable target kind: <c>player</c>, <c>osty</c>, <c>enemy</c> or empty.</summary>
+    public string TargetKind { get; init; } = "";
+
+    public uint? TargetCombatId { get; init; }
+
+    public string? TargetMonsterId { get; init; }
+
+    public int TargetOrdinal { get; init; }
+
+    public KillUi[] Kills { get; init; } = [];
+
+    public int HpBefore { get; init; }
+
+    public int HpAfter { get; init; }
+
+    public int EnergyBefore { get; init; }
+
+    public int EnergyAfter { get; init; }
+
+    public int ReplayCount { get; init; }
 }
 
 internal sealed record RouteActionUi
@@ -409,12 +501,17 @@ internal sealed record RouteActionUi
 
     public uint? TargetCombatId { get; init; }
 
-    public string? TargetName { get; init; }
+    /// <summary>Stable target kind: <c>player</c>, <c>osty</c>, <c>enemy</c> or empty.</summary>
+    public string TargetKind { get; init; } = "";
 
-    /// <summary>One entry per carried choice; each entry lists the selected card names.</summary>
-    public string[][] Choices { get; init; } = [];
+    public string? TargetMonsterId { get; init; }
 
-    public string[] Kills { get; init; } = [];
+    public int TargetOrdinal { get; init; }
+
+    /// <summary>One entry per carried choice; each entry lists the selected card identities.</summary>
+    public ChoiceCardUi[][] Choices { get; init; } = [];
+
+    public KillUi[] Kills { get; init; } = [];
 
     public int HpBefore { get; init; }
 
@@ -423,6 +520,9 @@ internal sealed record RouteActionUi
     public int EnergyBefore { get; init; }
 
     public int EnergyAfter { get; init; }
+
+    /// <summary>Card replay count before the action; zero for potions and end turn.</summary>
+    public int ReplayCount { get; init; }
 
     public bool EndsTurn { get; init; }
 }
@@ -464,6 +564,8 @@ internal sealed record SearchTurnPreviewUi
     public int EnergyLeft { get; init; }
 
     public bool CombatEnded { get; init; }
+
+    public SearchActionPreviewUi[] Actions { get; init; } = [];
 }
 
 internal sealed record SearchCurrentTurnPreviewUi
@@ -483,4 +585,6 @@ internal sealed record SearchCurrentTurnPreviewUi
     public int EnergyLeft { get; init; }
 
     public bool CombatEnded { get; init; }
+
+    public SearchActionPreviewUi[] Actions { get; init; } = [];
 }

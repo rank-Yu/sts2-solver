@@ -122,6 +122,9 @@ internal static partial class CombatSessionController
                 _continuationSource = null;
                 _pauseCode = pause.CodeName;
                 _pauseReason = pause.Detail;
+                _pausePlannedHpLost = pause.PlannedHpLost;
+                _pauseLiveHpLost = pause.LiveHpLost;
+                _pausePlayerDead = pause.PlayerDead;
                 _phase = CombatUiPhase.Paused;
                 PublishSnapshot();
                 ModLog.Warn(

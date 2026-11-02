@@ -5,6 +5,7 @@ namespace Sts2Solver;
 internal enum SearchThreadCountSource
 {
     Default,
+    Settings,
     Environment,
 }
 
@@ -17,6 +18,7 @@ internal readonly record struct SearchThreadCountResolution(
     internal string SourceName => Source switch
     {
         SearchThreadCountSource.Default => "default",
+        SearchThreadCountSource.Settings => "settings",
         SearchThreadCountSource.Environment => "environment",
         _ => throw new ArgumentOutOfRangeException(nameof(Source)),
     };
@@ -25,8 +27,8 @@ internal readonly record struct SearchThreadCountResolution(
 /// <summary>
 /// Resolves how many threads one search member may use. The search core only receives the resulting
 /// count; it never reads processor or environment state, so the same request still produces the same
-/// route offline. The default is <c>clamp(ProcessorCount - 2, 1, 8)</c>;
-/// <c>STS2_SOLVER_SEARCH_THREADS</c> overrides it and is clamped to the same range. The value is
+/// route offline. Priority is <c>STS2_SOLVER_SEARCH_THREADS</c>, then the persisted setting, then
+/// <c>clamp(ProcessorCount - 2, 1, 8)</c>; both explicit values are clamped to 1..8. The value is
 /// resolved once on the game main thread because it is a fixed per-machine setting.
 /// </summary>
 internal static class SearchThreadCount
@@ -37,47 +39,66 @@ internal static class SearchThreadCount
     internal const int Maximum = 8;
 
     private static readonly object Gate = new();
-    private static bool _resolved;
-    private static SearchThreadCountResolution _resolution;
+    private static SearchThreadCountResolution? _lastLogged;
 
-    internal static int Value => Resolve().Threads;
+    internal static int Value => ResolveForSearch().Threads;
 
     internal static SearchThreadCountResolution Resolve()
     {
         lock (Gate)
+            return ResolveForSearchLocked();
+    }
+
+    /// <summary>Reads the environment and the current setting; the setting can change between searches.</summary>
+    internal static SearchThreadCountResolution ResolveForSearch()
+    {
+        lock (Gate)
+            return ResolveForSearchLocked();
+    }
+
+    private static SearchThreadCountResolution ResolveForSearchLocked()
+    {
+        string? environment = Environment.GetEnvironmentVariable(OverrideVariable);
+        int? settings = SolverSettings.Current.Search.Threads;
+        SearchThreadCountResolution resolution = ResolveCore(environment, Environment.ProcessorCount,
+            settings, out bool ignoredEnvironment, out bool clampedEnvironment);
+        if (_lastLogged is { } previous
+            && previous.Threads == resolution.Threads
+            && previous.Source == resolution.Source
+            && previous.LogicalProcessors == resolution.LogicalProcessors)
         {
-            if (_resolved)
-                return _resolution;
-            string? environment = Environment.GetEnvironmentVariable(OverrideVariable);
-            SearchThreadCountResolution resolution = ResolveCore(environment, Environment.ProcessorCount,
-                out bool ignoredEnvironment, out bool clampedEnvironment);
-            if (ignoredEnvironment)
-            {
-                ModLog.Error(
-                    $"[Sts2Solver] SEARCH_THREADS_IGNORED value={environment} " +
-                    $"reason=not_positive_integer variable={OverrideVariable}");
-            }
-            else if (clampedEnvironment)
-            {
-                ModLog.Info(
-                    $"[Sts2Solver] SEARCH_THREADS_CLAMPED value={environment} " +
-                    $"clamped={resolution.Threads} range=1..{Maximum} variable={OverrideVariable}");
-            }
-            ModLog.Info(
-                $"[Sts2Solver] SEARCH_THREADS value={resolution.Threads} source={resolution.SourceName} " +
-                $"logical={resolution.LogicalProcessors}");
-            _resolved = true;
-            _resolution = resolution;
             return resolution;
         }
+        if (ignoredEnvironment)
+        {
+            ModLog.Error(
+                $"[Sts2Solver] SEARCH_THREADS_IGNORED value={environment} " +
+                $"reason=not_positive_integer variable={OverrideVariable}");
+        }
+        else if (clampedEnvironment)
+        {
+            ModLog.Info(
+                $"[Sts2Solver] SEARCH_THREADS_CLAMPED value={environment} " +
+                $"clamped={resolution.Threads} range=1..{Maximum} variable={OverrideVariable}");
+        }
+        ModLog.Info(
+            $"[Sts2Solver] SEARCH_THREADS value={resolution.Threads} source={resolution.SourceName} " +
+            $"logical={resolution.LogicalProcessors}");
+        _lastLogged = resolution;
+        return resolution;
     }
 
     /// <summary>Pure resolution used by tests; invalid environment values fall back to the default.</summary>
     internal static SearchThreadCountResolution Resolve(string? environmentValue, int logicalProcessors)
-        => ResolveCore(environmentValue, logicalProcessors, out _, out _);
+        => ResolveCore(environmentValue, logicalProcessors, null, out _, out _);
+
+    /// <summary>Pure resolution with the persisted setting between environment and default.</summary>
+    internal static SearchThreadCountResolution Resolve(string? environmentValue, int logicalProcessors,
+        int? settingsThreads)
+        => ResolveCore(environmentValue, logicalProcessors, settingsThreads, out _, out _);
 
     private static SearchThreadCountResolution ResolveCore(string? environmentValue, int logicalProcessors,
-        out bool ignoredEnvironment, out bool clampedEnvironment)
+        int? settingsThreads, out bool ignoredEnvironment, out bool clampedEnvironment)
     {
         ignoredEnvironment = false;
         clampedEnvironment = false;
@@ -95,6 +116,9 @@ internal static class SearchThreadCount
             }
             ignoredEnvironment = true;
         }
+        if (settingsThreads is { } configured)
+            return new(Math.Clamp(configured, 1, Maximum), SearchThreadCountSource.Settings,
+                logical, environmentValue);
         return new(fallback, SearchThreadCountSource.Default, logical, environmentValue);
     }
 }

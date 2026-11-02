@@ -91,7 +91,7 @@ public static class ModEntry
         {
             host.AddChild(new CombatUiMemorySampler());
             host.AddChild(new CombatSessionNode());
-            host.AddChild(new SolverPanelNode());
+            host.AddChild(new SolverOverlay());
             host.TreeExiting += static () =>
             {
                 CombatSessionController.Reset("tree_exiting");

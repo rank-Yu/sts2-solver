@@ -35,6 +35,8 @@ internal sealed partial class SolverDetailsPanel : PanelContainer
             CustomMinimumSize = new Vector2(0, 80),
         };
         _text = SolverUiTokens.CreateRichText(SolverUiTokens.Type.Caption);
+        _text.AddThemeConstantOverride("table_h_separation", SolverUiTokens.Spacing.Md);
+        _text.AddThemeConstantOverride("table_v_separation", SolverUiTokens.Spacing.Xxs);
         _scroll.AddChild(_text);
         AddChild(_scroll);
     }

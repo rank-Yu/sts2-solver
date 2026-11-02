@@ -22,7 +22,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
     private readonly LineEdit _memory;
     private readonly Label _memoryEffective;
     private readonly Label _memoryNote;
-    private readonly OptionButton _theme;
     private readonly HSlider _opacity;
     private readonly Label _opacityValue;
     private bool _loading;
@@ -31,9 +30,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
 
     /// <summary>Opacity changes are previewed on every slider step and saved after a short pause.</summary>
     public event Action<float>? OpacityPreview;
-
-    /// <summary>The theme was saved; the shell rebuilds the panel with the new palette.</summary>
-    public event Action? ThemeSaved;
 
     /// <summary>Defaults were restored, including the panel geometry.</summary>
     public event Action? DefaultsRestored;
@@ -143,12 +139,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         // Appearance.
         VBoxContainer appearance = SolverSettingsControls.CreateSection(SolverText.Get("外观"), null);
         GridContainer appearanceGrid = SolverSettingsControls.CreateGrid();
-        _theme = SolverSettingsControls.CreateOption();
-        _theme.Name = "ThemeOption";
-        _theme.AddItem(SolverText.Get("深色（默认）"), (int)SolverUiTheme.Dark);
-        _theme.AddItem(SolverText.Get("浅色"), (int)SolverUiTheme.Light);
-        _theme.ItemSelected += OnThemeSelected;
-        SolverSettingsControls.AddRow(appearanceGrid, SolverText.Get("主题"), _theme);
         HBoxContainer opacityRow = new()
         {
             MouseFilter = MouseFilterEnum.Pass,
@@ -187,7 +177,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         _memory.Text = data.Search.MemoryBudgetBytes is { } bytes
             ? (bytes / MebiByte).ToString(CultureInfo.InvariantCulture)
             : "";
-        _theme.Select(_theme.GetItemIndex((int)data.Ui.Theme));
         _opacity.SetValueNoSignal(data.Ui.Opacity);
         _opacityValue.Text = Percent(data.Ui.Opacity);
         _pendingOpacity = null;
@@ -250,10 +239,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         }
     }
 
-#if STS2_SOLVER_TESTING
-    internal OptionButton ThemeOptionForTest => _theme;
-#endif
-
     private void OnModeSelected(long index)
     {
         if (_loading)
@@ -313,20 +298,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         return Math.Max(MinimumMemoryMiB, available > 0 ? available : 1L << 20);
     }
 
-    private void OnThemeSelected(long index)
-    {
-        if (_loading)
-            return;
-        SolverUiTheme theme = (SolverUiTheme)_theme.GetItemId((int)index);
-        if (theme == SolverSettings.Current.Ui.Theme)
-            return;
-        if (Save(current => current with { Ui = current.Ui with { Theme = theme } },
-                SolverText.Get("主题已保存")))
-        {
-            ThemeSaved?.Invoke();
-        }
-    }
-
     private void OnOpacityChanged(double value)
     {
         float opacity = (float)value;
@@ -352,7 +323,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
 
     private void ResetDefaults()
     {
-        SolverUiTheme previousTheme = SolverSettings.Current.Ui.Theme;
         _pendingOpacity = null;
         SolverSearchSettings defaults = new();
         if (!Save(current => current with
@@ -361,6 +331,7 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
                 {
                     Tier = defaults.Tier,
                     MemoryBudgetBytes = defaults.MemoryBudgetBytes,
+                    Threads = defaults.Threads,
                 },
                 Automation = new SolverAutomationSettings(),
                 Ui = new SolverUiSettings(),
@@ -373,8 +344,6 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
         DefaultsRestored?.Invoke();
         OpacityPreview?.Invoke(SolverSettings.Current.Ui.Opacity);
-        if (previousTheme != SolverSettings.Current.Ui.Theme)
-            ThemeSaved?.Invoke();
     }
 
     private bool Save(Func<SolverSettingsData, SolverSettingsData> change, string message)

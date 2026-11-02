@@ -2,6 +2,7 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // Control factories only; validation and saving live in SolverSettingsPanel.
 using Godot;
+using MegaCrit.Sts2.Core.Localization.Fonts;
 
 namespace Sts2Solver;
 
@@ -36,7 +37,7 @@ internal static class SolverSettingsControls
     public static Label CreateHint(string text)
     {
         Label hint = SolverUiTokens.CreateLabel(text, SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextMuted, SolverFontWeight.Normal);
+            SolverUiTokens.Palette.TextMuted, FontType.Regular);
         hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         hint.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         return hint;
@@ -107,7 +108,7 @@ internal static class SolverSettingsControls
         input.AddThemeColorOverride("font_uneditable_color", SolverUiTokens.Palette.TextMuted);
         input.AddThemeColorOverride("font_placeholder_color", SolverUiTokens.Palette.TextMuted);
         input.AddThemeColorOverride("caret_color", SolverUiTokens.Palette.Accent);
-        input.AddThemeColorOverride("selection_color", SolverUiTokens.Palette.AccentSoft);
+        input.AddThemeColorOverride("selection_color", new Color(SolverUiTokens.Palette.Accent, 0.18f));
         StyleInput(input, "normal", "focus", "read_only");
         input.AddThemeStyleboxOverride("focus", SolverUiTokens.CreateBox(
             SolverUiTokens.Palette.SurfaceRaised, SolverUiTokens.Palette.Accent,
@@ -189,7 +190,7 @@ internal static class SolverSettingsControls
             SolverUiTokens.Spacing.Xs,
             SolverUiTokens.Spacing.Xs));
         popup.AddThemeStyleboxOverride("hover", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.AccentSoft, Colors.Transparent, SolverUiTokens.Radius.Small, 0, 0, borderWidth: 0));
+            new Color(SolverUiTokens.Palette.Accent, 0.18f), Colors.Transparent, SolverUiTokens.Radius.Small, 0, 0, borderWidth: 0));
         popup.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextPrimary);
         popup.AddThemeColorOverride("font_hover_color", SolverUiTokens.Palette.TextPrimary);
         popup.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Body);

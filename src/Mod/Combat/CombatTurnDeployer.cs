@@ -1,7 +1,8 @@
 // Main-thread deployment of one planned turn. The controller owns mode/pause policy; this class
 // only trims the route to the current turn, executes each action through ActionDeployer and
 // reports drift. The boundary comparison is shared with the offline loop through
-// CombatRouteDecision.
+// CombatRouteDecision. Deployment speed and inter-action waits follow CombatSolver
+// src/Runtime/SolverController.cs at 5c773caa (MIT, Copyright (c) 2026 Torch1230 and contributors).
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
@@ -9,6 +10,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Settings;
 
 namespace Sts2Solver;
 
@@ -43,9 +45,22 @@ internal sealed class CombatTurnDeployer(
         Player livePlayer = LocalContext.GetMe(live) ?? player;
         _deployer = new ActionDeployer(host, live, livePlayer, rules, tracker);
         ReplayedAction[] actions = CombatRouteDecision.CurrentTurnActions(plan.Actions, turn);
+        int playableCount = actions.Count(static action =>
+            action.Action.Kind != PlayerActionKind.EndTurn);
+        int playableIndex = 0;
+#if STS2_SOLVER_TESTING
+        CombatControllerTestHooks.DeploymentPlayableActionCount = playableCount;
+#endif
         ReplayedAction? endTurn = plan.EndTurnAction(turn);
-        foreach (ReplayedAction action in actions)
+        SolverAutomationSettings automation = SolverSettings.Current.Automation;
+        FastModeType originalFastMode = CombatDeploymentTiming.CaptureFastMode();
+        CombatDeploymentTiming.ApplyFastMode(
+            CombatDeploymentTiming.ResolveFastMode(automation.DeploymentSpeed));
+        try
         {
+        for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
+        {
+            ReplayedAction action = actions[actionIndex];
             token.ThrowIfCancellationRequested();
             if (action.Action.Kind == PlayerActionKind.EndTurn)
                 continue;
@@ -82,8 +97,22 @@ internal sealed class CombatTurnDeployer(
                 $"index={action.Index} action={CombatPilotAction.Describe(action)} " +
                 $"outcome={action.After.Outcome} next_turn={action.After.PlayerTurn}");
             actionCompleted?.Invoke(action);
+#if STS2_SOLVER_TESTING
+            CombatControllerTestHooks.RecordDeploymentAction();
+#endif
             if (action.After.Outcome != Outcome.None)
                 return new CombatTurnDeployment(false, true, null, null, [], false, null);
+            if (playableIndex + 1 < playableCount && automation.InterActionDelaySeconds > 0d)
+            {
+#if STS2_SOLVER_TESTING
+                CombatControllerTestHooks.RecordDeploymentWaitStart(Environment.TickCount64);
+#endif
+                await CombatDeploymentTiming.WaitAsync(host, automation.InterActionDelaySeconds, token);
+#if STS2_SOLVER_TESTING
+                CombatControllerTestHooks.RecordDeploymentWaitEnd();
+#endif
+            }
+            playableIndex++;
         }
 
         if (!CombatManager.Instance.IsInProgress || !IsSamePlayableTurn(turn))
@@ -131,8 +160,16 @@ internal sealed class CombatTurnDeployer(
             $"index={endTurn.Index} action={CombatPilotAction.Describe(endTurn)} " +
             $"outcome={endTurn.After.Outcome} next_turn={endTurn.After.PlayerTurn}");
         actionCompleted?.Invoke(endTurn);
+#if STS2_SOLVER_TESTING
+        CombatControllerTestHooks.RecordDeploymentAction();
+#endif
         return new CombatTurnDeployment(true, endTurn.After.Outcome != Outcome.None, null, null,
             [], false, null);
+        }
+        finally
+        {
+            CombatDeploymentTiming.RestoreFastMode(originalFastMode);
+        }
 
         static CombatTurnDeployment Failure(string reason, string detail)
             => new(false, false, reason, detail, [], false, null);

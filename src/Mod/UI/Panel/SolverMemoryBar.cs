@@ -1,147 +1,129 @@
-// Adapted from CombatSolver src/UI/SolverMemoryUsageBar.cs at 5c773caa
-// (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Sts2Solver has no NoGC region, Server GC or reclaim service, so those states are gone; the bar
-// reads the 4 Hz MemoryUiSnapshot and keeps the original segment layout and eased motion. The
-// search budget is a separate ceiling for the solver's own storage and is never drawn as RSS.
+// Ported from CombatSolver src/UI/SolverMemoryUsageBar.cs at 5c773caa
+// (MIT License, Copyright (c) 2026 Torch1230 and contributors). The NoGC/Server GC states and the
+// cleanup pulse are not ported; the original label, segment bar and eased motion remain. The bar
+// reads the controller's 4 Hz sample and the search ledger peak, never the process RSS as a limit.
+using System.Globalization;
 using Godot;
+using MegaCrit.Sts2.Core.Localization.Fonts;
 
 namespace Sts2Solver;
 
-/// <summary>Process memory (working set, managed heap) against runtime memory, plus the search ceiling.</summary>
 internal sealed partial class SolverMemoryBar : PanelContainer
 {
-    private readonly Label _processLabel;
-    private readonly Label _searchLabel;
-    private readonly ColorRect _managedSegment;
-    private readonly ColorRect _nativeSegment;
+    private const double Gigabyte = 1_000_000_000d;
+
+    private readonly Label _label;
+    private readonly PanelContainer _progress;
+    private readonly ColorRect _otherSegment;
+    private readonly ColorRect _processSegment;
     private readonly ColorRect _remainingSegment;
-    private MemoryUiSnapshot? _lastMemory;
-    private SearchUiSnapshot? _lastSearch;
-    private double _targetManaged;
-    private double _targetNative;
-    private double _shownManaged;
-    private double _shownNative;
+    private double _shownOtherRatio;
+    private double _shownProcessRatio;
+    private double _targetOtherRatio;
+    private double _targetProcessRatio;
     private bool _hasShown;
 
     public SolverMemoryBar()
     {
         Name = "MemoryUsage";
+        CustomMinimumSize = new Vector2(0f, SolverUiTokens.Size.ButtonHeight);
         MouseFilter = MouseFilterEnum.Pass;
-        SizeFlagsHorizontal = SizeFlags.ExpandFill;
         AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.Surface,
+            SolverUiTokens.Palette.SurfaceRaised,
             SolverUiTokens.Palette.BorderSubtle,
             SolverUiTokens.Radius.Medium,
             SolverUiTokens.Spacing.Sm,
             SolverUiTokens.Spacing.Xs));
 
         VBoxContainer content = new() { MouseFilter = MouseFilterEnum.Ignore };
-        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs + 1);
+        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs);
         AddChild(content);
+        _label = SolverUiTokens.CreateLabel(
+            SolverText.Get("当前内存 --"),
+            SolverUiTokens.Type.Caption,
+            SolverUiTokens.Palette.TextSecondary,
+            FontType.Regular);
+        _label.HorizontalAlignment = HorizontalAlignment.Right;
+        _label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        _label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        content.AddChild(_label);
 
-        HBoxContainer labels = new() { MouseFilter = MouseFilterEnum.Ignore };
-        labels.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
-        _processLabel = SolverUiTokens.CreateLabel("", SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextSecondary, SolverFontWeight.Normal);
-        _processLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        _processLabel.ClipText = true;
-        labels.AddChild(_processLabel);
-        _searchLabel = SolverUiTokens.CreateLabel("", SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextSecondary, SolverFontWeight.Normal);
-        _searchLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        labels.AddChild(_searchLabel);
-        content.AddChild(labels);
-
-        PanelContainer track = new()
+        _progress = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(0, 6),
+            CustomMinimumSize = new Vector2(0f, 8f),
             MouseFilter = MouseFilterEnum.Ignore,
             ClipContents = true,
         };
-        track.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.ProgressBackground, Colors.Transparent, 3, 0, 0, borderWidth: 0));
+        _progress.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.ProgressBackground,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Small,
+            0,
+            0));
         HBoxContainer segments = new() { MouseFilter = MouseFilterEnum.Ignore };
         segments.AddThemeConstantOverride("separation", 0);
-        _managedSegment = CreateSegment(SolverUiTokens.Palette.Accent);
-        _nativeSegment = CreateSegment(new Color(SolverUiTokens.Palette.TextMuted, 0.55f));
+        _otherSegment = CreateSegment(SolverUiTokens.Palette.TextMuted.Darkened(0.3f));
+        _processSegment = CreateSegment(SolverUiTokens.Palette.Accent);
         _remainingSegment = CreateSegment(Colors.Transparent);
-        segments.AddChild(_managedSegment);
-        segments.AddChild(_nativeSegment);
+        segments.AddChild(_otherSegment);
+        segments.AddChild(_processSegment);
         segments.AddChild(_remainingSegment);
-        track.AddChild(segments);
-        content.AddChild(track);
+        _progress.AddChild(segments);
+        content.AddChild(_progress);
     }
 
     public void Apply(MemoryUiSnapshot memory, SearchUiSnapshot? search)
     {
-        if (ReferenceEquals(memory, _lastMemory) && ReferenceEquals(search, _lastSearch))
-            return;
-        _lastMemory = memory;
-        _lastSearch = search;
-        string workingSet = SolverPanelText.Bytes(memory.WorkingSetBytes);
-        string managed = SolverPanelText.Bytes(memory.ManagedHeapBytes);
-        SetText(_processLabel, SolverText.Format($"游戏工作集 {workingSet} · 托管堆 {managed}"));
-        string budget = SolverPanelText.Bytes(memory.BudgetBytes);
-        string source = SolverPanelText.MemorySource(memory.BudgetSource);
-        string searchText = search is { Phase: SearchUiPhase.Completed, SearchMemoryPeakBytes: > 0 }
-            ? SolverText.Format($"搜索峰值 {SolverPanelText.Bytes(search.SearchMemoryPeakBytes)} / 上限 {budget}（{source}）")
-            : SolverText.Format($"搜索上限 {budget}（{source}）");
-        SetText(_searchLabel, searchText);
-        TooltipText = Tooltip(memory);
-
-        double total = memory.GcAvailableBytes;
-        if (total > 0)
+        long process = Math.Max(0, memory.WorkingSetBytes);
+        long managed = Math.Max(0, memory.ManagedHeapBytes);
+        long available = Math.Max(0, memory.GcAvailableBytes);
+        long other = Math.Max(0, process - managed);
+        long total = Math.Max(1, other + managed + available);
+        _targetOtherRatio = other / (double)total;
+        _targetProcessRatio = managed / (double)total;
+        string text = SolverText.Format(
+            $"游戏占用 {Gigabytes(process)} GB · 系统可用 {Gigabytes(available)} GB");
+        if (search is { SearchMemoryPeakBytes: > 0 })
         {
-            double workingSetRatio = Math.Clamp(memory.WorkingSetBytes / total, 0d, 1d);
-            _targetManaged = Math.Clamp(memory.ManagedHeapBytes / total, 0d, workingSetRatio);
-            _targetNative = Math.Max(0d, workingSetRatio - _targetManaged);
+            text += SolverText.Format(
+                $"  ·  搜索峰值 {Gigabytes(search.SearchMemoryPeakBytes)} GB / 上限 {Gigabytes(memory.BudgetBytes)} GB");
         }
-        else
-        {
-            _targetManaged = 0d;
-            _targetNative = 0d;
-        }
+        _label.Text = text;
+        TooltipText = SolverText.Get("求解器内存与性能监视") + "\n"
+            + SolverText.Get("- 游戏占用是进程工作集，包含求解器和其他 Mod；系统可用是运行时可用内存，两者不是用量与上限。") + "\n"
+            + SolverText.Get("- 整条表示可用内存；灰色为其他占用估计，彩色为托管堆，空白为剩余可用；数字取自同一轮采样。") + "\n"
+            + SolverText.Format($"搜索内存上限：{Gigabytes(memory.BudgetBytes)} GB（{SolverPanelText.MemorySource(memory.BudgetSource)}）。这不是游戏进程的 RSS 上限。");
         if (!_hasShown)
         {
             _hasShown = true;
-            _shownManaged = _targetManaged;
-            _shownNative = _targetNative;
+            _shownOtherRatio = _targetOtherRatio;
+            _shownProcessRatio = _targetProcessRatio;
             ApplyShown();
         }
     }
 
     public void Advance(double delta)
     {
-        if (!_hasShown || !IsVisibleInTree())
+        if (!IsVisibleInTree())
+        {
+            _hasShown = false;
             return;
+        }
         double blend = SolverUiMotion.Blend(delta, SolverUiMotion.ReadoutTimeConstantSeconds);
-        double managed = SolverUiMotion.Approach(_shownManaged, _targetManaged, blend, 0.0005d);
-        double native = SolverUiMotion.Approach(_shownNative, _targetNative, blend, 0.0005d);
-        if (managed == _shownManaged && native == _shownNative)
-            return;
-        _shownManaged = managed;
-        _shownNative = native;
+        _shownOtherRatio = SolverUiMotion.Approach(_shownOtherRatio, _targetOtherRatio, blend, 0.0005d);
+        _shownProcessRatio = SolverUiMotion.Approach(_shownProcessRatio, _targetProcessRatio, blend, 0.0005d);
         ApplyShown();
     }
 
     private void ApplyShown()
     {
-        SetSegmentRatio(_managedSegment, _shownManaged);
-        SetSegmentRatio(_nativeSegment, _shownNative);
-        SetSegmentRatio(_remainingSegment, Math.Max(0d, 1d - _shownManaged - _shownNative));
+        SetSegmentRatio(_otherSegment, _shownOtherRatio);
+        SetSegmentRatio(_processSegment, _shownProcessRatio);
+        SetSegmentRatio(_remainingSegment, Math.Max(0d, 1d - _shownOtherRatio - _shownProcessRatio));
     }
 
-    private static string Tooltip(MemoryUiSnapshot memory)
-    {
-        string total = memory.GcAvailableBytes > 0 ? SolverPanelText.Bytes(memory.GcAvailableBytes) : SolverText.Get("未知");
-        return SolverText.Get("内存")
-            + "\n" + SolverText.Get("- 游戏工作集：游戏进程占用的物理内存，包含游戏本体和所有 Mod。")
-            + "\n" + SolverText.Get("- 托管堆：.NET 托管对象当前占用，是工作集的一部分（彩色段）。")
-            + "\n" + SolverText.Format($"- 整条代表运行时可用内存 {total}；灰色段是工作集里托管堆以外的部分。")
-            + "\n" + SolverText.Get("- 搜索上限只约束求解器自己的搜索存储，不是游戏进程的内存上限。")
-            + "\n" + SolverText.Get("- 展开工作区按线程单独持有，不计入搜索上限；峰值在状态详情里单独显示。")
-            + "\n" + SolverText.Format($"- 搜索上限来源：{SolverPanelText.MemorySource(memory.BudgetSource)}（环境变量 > 设置 > 默认 15%，至少 1 GiB）。");
-    }
+    private static string Gigabytes(long bytes)
+        => (bytes / Gigabyte).ToString("F1", CultureInfo.InvariantCulture);
 
     private static ColorRect CreateSegment(Color color) => new()
     {
@@ -153,14 +135,8 @@ internal sealed partial class SolverMemoryBar : PanelContainer
 
     private static void SetSegmentRatio(Control segment, double ratio)
     {
-        float stretch = (float)Math.Clamp(ratio, 0d, 1d);
-        segment.Visible = stretch > 0f;
-        segment.SizeFlagsStretchRatio = stretch;
-    }
-
-    private static void SetText(Label label, string text)
-    {
-        if (label.Text != text)
-            label.Text = text;
+        float stretchRatio = (float)Math.Clamp(ratio, 0d, 1d);
+        segment.Visible = stretchRatio > 0f;
+        segment.SizeFlagsStretchRatio = stretchRatio;
     }
 }

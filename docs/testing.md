@@ -48,6 +48,14 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 
 注意：`dotnet run --no-build` 用的是该测试项目产物目录里的 `Sts2Solver.Core.dll` 副本。只构建 `tests/Differential` 不会刷新 Golden 或 KernelChecks 的副本，所以改了 Core 之后必须重新构建整个 solution，再跑单项命令，不能把旧产物的通过结果当作当前源码的验证。
 
+UI 文案键的静态检查单独运行：
+
+```bash
+python3 tools/testing/check-ui-keys.py
+```
+
+脚本按 C# 插值字符串规则解析 `SolverText.Get("…")` 和 `SolverText.Format($"…")`，同时读取 `SolverPanelText` 映射表的值；有键在用但 `English.json` 缺键，或目录键无人使用，都以非零退出。`ui-panel.json` 的运行时英文切换还会在缺键时记录 `LOCALE_KEY_MISSING`。
+
 ### 3.1 架构检查
 
 ```bash
@@ -329,9 +337,9 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 请求带 `fullCombatForTest`（`--emit-live-requests --full-combat` 会置位并关闭确定性）时，测试模式在进入战斗前把档位设为全自动，由 `CombatSessionController` 每回合搜索或沿用路线、逐动作核对、回合对账，直到胜利、失败、暂停或取消。结果写 `full-combat.json`，并在 `status.json` 里加 `fullCombatStatus/outcome/turns/playerHp/playerMaxHp/searches/reusedTurns/deviations/deploymentFailures`。
 
-每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`（22 项）：开战后面板存在且可见；经视口输入管线注入 `Ctrl+F9` 后面板不隐藏（没有快捷键）；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次，拉丁字体资源能解析，英文目录不缺键；状态详情、设置页、收起与展开、主题切换后的重建都能来回切换；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数与回合号等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段；战斗结束后面板隐藏。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。测试期间测试入口把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
+每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`（32 项）：开战后面板存在且可见；经视口输入管线注入 `F8`、`Ctrl+F9` 后面板都不隐藏也不改变状态（没有快捷键）；收起后标题栏、求解器开关和模式占位按钮仍然可见、可点，收起状态写入设置；模式按钮能循环三档并恢复，求解器开关能关闭再开启；状态详情和设置页能来回切换，设置页不提供浅色主题；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次；中文下面板控件有游戏替代字体覆盖，英文下没有字体覆盖，英文目录不缺键；动作栏每个可见按钮的可见性、可点性和执行按钮文字逐帧与快照的 `Can*`、阶段标志和呈现状态一致，按搜索/执行/空闲统计帧数；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数、回合号和动作下标等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段；战斗结束后面板隐藏，同一进程内下一场战斗重新出现（第一场跳过）。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。测试期间测试入口把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
 
-请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖手动开始/停止、自动搜索每回合、停止后下一回合/采用/重搜、采用、执行本回合的三种情况、模式切换、全自动开局、死亡回合暂停、重算战损增加暂停、求解器开关、战斗结束和多人门禁。控制器场景与 `fullCombatForTest` 互斥。
+请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖手动开始/停止、自动搜索每回合、停止后下一回合/采用/重搜、采用、执行本回合的三种情况、模式切换、全自动开局、死亡回合暂停、重算战损增加暂停、求解器开关、战斗结束和多人门禁。手动开始、停止、采用和执行本回合通过面板按钮的 `Pressed` 信号触发，另有搜索/执行/完成/等待/停止/手动等待/暂停文案和线程设置、出牌速度、牌间停顿、停顿取消场景。其余场景仍用命令驱动。控制器场景与 `fullCombatForTest` 互斥。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \

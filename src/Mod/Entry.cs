@@ -38,6 +38,7 @@ public static class ModEntry
 #endif
         ModPatcher patcher = RitsuLibFramework.CreatePatcher(ModId, "sts2solver", DisplayName);
         patcher.RegisterPatch<PlayerTurnSetupPatch>();
+        patcher.RegisterPatch<PlayerTurnAutoPrePlayPatch>();
         patcher.RegisterPatch<PlayerTurnSetupSceneExitPatch>();
         patcher.RegisterPatch<ChooseCardObservationPatch>();
         patcher.RegisterPatch<SimpleGridObservationPatch>();

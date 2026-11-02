@@ -53,7 +53,8 @@ internal sealed class ActionDeployer(
         PlannedChoice[] explicitChoices = [.. planned.Choices.Where(static choice => !choice.Implicit)];
         PlannedNativeSelector selector = new(explicitChoices, player,
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
-        using IDisposable selectorScope = PlannedNativeSelector.Activate(selector);
+        IDisposable? selectorScope = PlannedNativeSelector.Activate(selector);
+        bool endTurnSelectorReleased = false;
         try
         {
             switch (planned.Action.Kind)
@@ -71,18 +72,43 @@ internal sealed class ActionDeployer(
                     throw new DeploymentFailureException("action_kind",
                         $"未知动作 {planned.Action.Kind}");
             }
+            // The EndTurn action itself has completed. When the next turn may open a visible setup
+            // page, release the automated selector before waiting for Play: the native gate
+            // requires Selector == null, and the setup transaction (not this route) answers the
+            // next turn's PlayerTurnStart choices.
+            if (planned.Action.Kind == PlayerActionKind.EndTurn
+                && PlayerTurnSetupRuntime.MayNeedNextTurnSetup(player))
+            {
+                selectorScope?.Dispose();
+                selectorScope = null;
+                endTurnSelectorReleased = true;
+                ModLog.Info(
+                    $"[Sts2Solver] DEPLOY_END_TURN_SELECTOR_RELEASED turn={planned.Before.PlayerTurn} " +
+                    $"next={planned.Before.PlayerTurn + 1} pending_choices={selector.PendingCount}");
+            }
             await WaitForBoundaryAsync(planned.After, token);
             // Native selectors return an empty selection without asking once the combat is over or
             // ending (CardSelectCmd.FromHand), so an attack that kills the last enemy can leave a
             // planned post-damage choice unrequested. The predicted action is terminal, its choice
             // has no observable effect, and no later boundary compares it; do not turn that into a
             // deployment failure.
-            if (planned.After.Outcome == Outcome.None || CombatManager.Instance.IsInProgress)
+            if (endTurnSelectorReleased)
+            {
+                if (selector.PendingCount > 0)
+                    ModLog.Info(
+                        $"[Sts2Solver] DEPLOY_CHOICE_SUPERSEDED turn={planned.Before.PlayerTurn} " +
+                        $"index={planned.Index} action={planned.Action} pending={selector.PendingCount}");
+            }
+            else if (planned.After.Outcome == Outcome.None || CombatManager.Instance.IsInProgress)
+            {
                 selector.AssertConsumed();
+            }
             else if (selector.PendingCount > 0)
+            {
                 ModLog.Info(
                     $"[Sts2Solver] DEPLOY_CHOICE_SKIPPED_TERMINAL turn={planned.Before.PlayerTurn} " +
                     $"index={planned.Index} action={planned.Action} pending={selector.PendingCount}");
+            }
         }
         catch (ChoicePlanMismatchException error)
         {
@@ -90,7 +116,7 @@ internal sealed class ActionDeployer(
         }
         finally
         {
-            selectorScope.Dispose();
+            selectorScope?.Dispose();
         }
         if (planned.After.Outcome != Outcome.None)
         {

@@ -351,11 +351,33 @@ internal sealed class NativeChoiceSession : IDisposable
         }
         if (phaseTask.IsCompleted || !IsVisibleChoicePending)
             return false;
+        // CardSelectCmd.FromHand builds its candidate list after SignalPlayerChoiceBegun, so the
+        // hand observed by the Harmony prefix can be stale when a side-start effect (Crossbow) adds
+        // a card during the pause. Refresh the live candidates from the opened page.
+        RefreshHandOptions(request);
         RecordVisibleOnce(request);
         ModLog.Info(
             $"[Sts2Solver] NATIVE_CHOICE_VISIBLE owner={Owner} sequence={request.Sequence} " +
             $"surface={request.Surface}");
         return true;
+    }
+
+    private void RefreshHandOptions(NativeChoiceRequest request)
+    {
+        if (request.Surface is not (NativeChoiceSurfaceKind.Hand or NativeChoiceSurfaceKind.HandUpgrade))
+            return;
+        IReadOnlyList<CardModel> live = request.Surface == NativeChoiceSurfaceKind.Hand
+            ? HandCards(request)
+            : HandUpgradeCards(request);
+        int observed = request.LiveOptions.Count;
+        request.LiveOptions = live;
+        if (live.Count == observed)
+            return;
+        ModLog.Info(
+            $"[Sts2Solver] NATIVE_CHOICE_OPTIONS_REFRESHED owner={Owner} " +
+            $"sequence={request.Sequence} surface={request.Surface} " +
+            $"observed={observed} live={live.Count} " +
+            $"cards={string.Join(',', live.Select(CardName))}");
     }
 
     internal void RecordSearchStarted()
@@ -669,7 +691,7 @@ internal static class NativePlanMatcher
             int match = -1;
             for (int candidate = 0; candidate < request.LiveOptions.Count; candidate++)
             {
-                if (!used[candidate] && IdentityOf(request.Options[candidate]) == key)
+                if (!used[candidate] && IdentityOf(request.LiveOptions[candidate]) == key)
                 {
                     match = candidate;
                     break;

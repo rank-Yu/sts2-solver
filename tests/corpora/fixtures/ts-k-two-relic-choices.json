@@ -1,0 +1,34 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "FLASH-TS-K-TWO-RELIC-CHOICES",
+ "characterId": "IRONCLAD",
+ "encounterId": "NIBBITS_NORMAL",
+ "seed": "TSKTWORELICCHOICES",
+ "ascension": 0,
+ "initialPlayerMaxHp": 80,
+ "initialPlayerHp": 80,
+ "initialPlayerEnergy": 3,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "clearRunDeck": true,
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "GAMBLING_CHIP",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "orbs": [],
+ "runCards": [
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "pile": "Deck",
+   "count": 8
+  }
+ ]
+}

@@ -279,9 +279,14 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate qf-
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-g-multi-choice --setup-turn 2
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-h-choice-then-listener
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-i-plasma-pause --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-j-crossbow-one-card
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-j-crossbow-many
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-k-two-relic-choices
 ```
 
 `ts-g-multi-choice` 覆盖 `AfterPlayerTurnStart` 两段选择 + 熔炉侧回合开始；`ts-h-choice-then-listener` 覆盖同一轮选择之后还有遗物监听器；`ts-i-plasma-pause` 覆盖 Plasma 在暂停处触发。三者都是测试专用 fixture。
+
+逐计划重建原生准备页时还比较每一段页面的候选列表：牌的 id、升级、顺序，以及 `ICardSelector` 能表达的有效最少/最多选择数。不一致输出 `PLAN status=diff field=options` 并以非零退出；生成选项页来自 `FromChooseACardScreen` 时 `ICardSelector` 固定收到 0..1，`canSkip` 不经过这个接口，因此这类页面只比较候选，不比较边界。
 
 `--setup-turn 2` 先建到第 1 回合 Play、结束回合，在第二次 `SetupPlayerTurn` 入口重新抓 Start 根；用于后续回合、AutoPrePlay 和多段选择。Start 根和逐计划 Play 根用生产口径（`LiveCombatTracker.ImportSetupRoot` / `ImportForComparison`，`Reconciliation=true`）比较；冻结 `golden.br`/`config.br` 仍用冻结口径。输出 `SETUP_ENUM`/`ENUM`/`PLAN`/`SETUP_NATIVE` 之外，还会输出 `SETUP_START`（两种 Start 导入口径逐字节相同或第一处差异）、`SETUP_BUDGET`（测试用的更低根预算走同一条丢弃路径）；冻结 fixture 还会输出 `SETUP_CONFIG`（把枚举根按 `config.br` 顺序重排后的数据段逐字节比较）、`SETUP_BOUND`（带/不带 Bound、Start/Play 根 Bound）、`SETUP_PROD`（生产请求与 `config.br` 的子部件差异）、`SETUP_SEARCH`（短搜后用 `Battles[BestRootIndex]` 重放）和 `SETUP_GOLDEN`。
 
@@ -358,7 +363,9 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖手动开始/停止、自动搜索每回合、停止搜索留下路线、停止后下一回合/重搜、搜索中执行本回合、无路线时执行被拒、模式切换、回合中途切到自动搜索和手动、手动档回合开始沿用路线、全自动开局和中途武装、重算战损增加暂停、连续失败暂停后本场不再自动执行、停止执行、不能搜索的原因（敌方回合、动作结算中、回合开始结算中）、执行中偏离实机后重搜、搜索失败主面板（`search_failed` 与 `forced_potion_unusable`，重新搜索和下一回合清除）、战斗结束、多人门禁，以及策略命令：药水逐瓶/批量模式、成长额度、不考虑局外收益、Boss 血量策略和本场盗贼策略。策略场景同时断言命令不触发搜索、下一次请求带上新策略，盗贼策略在下一场战斗回到默认。`panel_strategy` 场景在手动档里只通过面板控件改策略：药水模式按钮按智能使用 → 禁用 / 保护 → 强制使用循环、四个批量按钮，成长页的两个开关、至亮之焰上限和额度输入（非法输入时侧栏不关闭），设置页的两项幕末 Boss 下拉和“恢复默认”，以及有盗贼的战斗里提示条的按钮；每一步断言命令生效、快照随之变化、页面显示与快照一致、状态行写“已保存，下次搜索生效”，全程不触发搜索，结束时恢复设置。药水用 `k3-basic-potions`，盗贼和空药栏用 `tw-gremlin-merc`。搜索、停止、执行和模式按钮通过面板按钮的 `Pressed` 信号触发；另有搜索/执行/完成/等待/停止/手动等待/暂停文案和线程设置、出牌速度、牌间停顿场景。控制器场景与 `fullCombatForTest` 互斥。死亡回合的端到端场景没有能稳定预测本回合死亡的实机根，暂停策略由 `UiLogicChecks` 的纯策略检查覆盖。
 
-回合准备接管场景用 `turnSetupTakeoverForTest` 显式打开测试构建里的正式接管，测试模式默认关闭；打开时测试入口不再安装 `TurnSetupCardSelector`，并让建局停在可见准备页或 `Play`。场景覆盖：自动搜索搜完后按“执行本回合”驱动页面并部署；全自动搜完直接驱动；Toolbox 三选一；Toasty 后监听器；停止搜索有候选（保留计划）与无候选（交还页面）；强制搜索失败显示 `turn_setup_failed` 且替换任务不 fault；全自动驱动中点“停止执行”；全自动在驱动前命中暂停条件；页面开着退出主菜单；手动档不接管；玩家在计划就绪后改选另一张牌使计划作废；纯隐式选择（`ts-j-toasty-one-card`，没有可见页面）不启动准备搜索、`Play` 后正常搜索。每个场景断言搜索次数、复用次数、偏差、错误码、遮挡是否释放和持久模式不变。现有 `turn_setup_wait` 仍作为“正式接管关闭”的回归。计划里出现 `AutoPrePlay` 阶段选择时本批不接管。`ts-g-multi-choice` 在当前注入顺序下第 1、2 回合都只有一个准备选择，未作为多段断言；多段请求队列由代码支持，但本批没有通过的实机多段 fixture。
+回合准备接管场景用 `turnSetupTakeoverForTest` 显式打开测试构建里的正式接管，测试模式默认关闭；打开时测试入口不再安装 `TurnSetupCardSelector`，并让建局停在可见准备页或 `Play`。场景覆盖：自动搜索搜完后按“执行本回合”驱动页面并部署；全自动搜完直接驱动；Toolbox 三选一；Toasty 后监听器；停止搜索有候选（保留计划）与无候选（交还页面）；强制搜索失败显示 `turn_setup_failed` 且替换任务不 fault；全自动驱动中点“停止执行”；全自动在驱动前命中暂停条件；页面开着退出主菜单；手动档不接管；玩家在计划就绪后改选另一张牌使计划作废；纯隐式选择（`ts-j-toasty-one-card`，没有可见页面）不启动准备搜索、`Play` 后正常搜索。每个场景断言搜索次数、复用次数、偏差、错误码、遮挡是否释放和持久模式不变。现有 `turn_setup_wait` 仍作为“正式接管关闭”的回归。
+
+后续回合和新页面的场景用 `turn_setup_turn2`（上一回合由求解器结束）、`turn_setup_manual_end`（自动搜索档，玩家用原生结束回合动作结束上一回合）、`turn_setup_autopreplay`（`ts-d-autopreplay-choice`，搜索在 AutoPrePlay 的第一个可见页启动、计划包含 AutoPrePlay 选择且只有一次搜索）、`turn_setup_plasma`（`ts-i-plasma-pause` 第 2 回合）、`turn_setup_multi`（`ts-k-two-relic-choices` 的两段准备选择）和 `turn_setup_carry`（第 1 回合强制使用血瓶使 `RecoveredHp` 非零，断言第 2 回合准备 Start 根、选中的 Play 根和部署边界都等于该值，且预测 Start 根与实机一致）。`turn_setup_crossbow` / `turn_setup_crossbow_many` 用 `ts-j-crossbow-one-card` / `ts-j-crossbow-many` 验证暂停后加入手牌的十字弓牌进入原生页面候选（分别 2 个和 4 个选项）。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`、下一次 setup 只搜索一次，并要求出牌阶段的精确状态戳一致。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \
@@ -375,7 +382,7 @@ tools/testing/run-headless.sh --instance full-combat \
 - **界面**：无头测试只检查面板的结构和状态（见 9.3），不证明可见渲染、字体、排版、拖动与缩放手感；这些要在可见游戏里看。
 - **非选牌模态**：选择驱动只覆盖 `CardSelectCmd` 的 `ICardSelector` 路径，没有验证未来或第三方 Mod 的其它模态请求。
 - **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖。
-- **回合准备多根**：实机 Mod 在自动搜索/全自动档接管第一张可见准备页，自动搜索只显示、全自动驱动；纯隐式选择不启动准备搜索；`ts-g-multi-choice` 当前没有产生第二个准备选择，多段驱动未在实机验证。差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合和多段选择。准备暂停时侧回合开始/球的触发如果自己请求选择，当前显式不支持。
+- **回合准备多根**：实机 Mod 在自动搜索/全自动档接管第一张可见准备页及其后的 AutoPrePlay 页，自动搜索只显示、全自动驱动；两者共用同一个页面会话和计划，只搜索一次。纯隐式选择不启动准备搜索。`ts-k-two-relic-choices` 在同一准备阶段产生两段可见选择，驱动按顺序消费；`ts-j-crossbow-one-card` / `ts-j-crossbow-many` 覆盖暂停后由侧回合开始加入手牌的候选。差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合和多段选择。准备暂停时侧回合开始或球的触发如果自己请求选择，当前显式不支持；额外回合也不支持。
 - **第三方 Mod**：没有实机 Mod 根；导入层只显式拒绝非 `sts2` 程序集的模型，没有兼容层。
 - **Windows/Steam**：当前的计时与验证都在 Linux 上，Windows 的 `.ps1` 启动脚本还没有。
 

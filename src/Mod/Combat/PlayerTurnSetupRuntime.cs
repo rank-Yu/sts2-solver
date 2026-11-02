@@ -35,8 +35,16 @@ internal static class PlayerTurnSetupRuntime
         [typeof(CombatTurnState), typeof(Player), typeof(HookPlayerChoiceContext)])
         ?? throw new MissingMethodException(typeof(CombatManager).FullName, "SetupPlayerTurn");
 
+    private static readonly MethodInfo RunAutoPrePlayPhaseMethod = AccessTools.Method(
+        typeof(CombatManager),
+        "RunAutoPrePlayPhase",
+        [typeof(CombatTurnState), typeof(HookPlayerChoiceContext), typeof(Task), typeof(Player)])
+        ?? throw new MissingMethodException(typeof(CombatManager).FullName, "RunAutoPrePlayPhase");
+
     [ThreadStatic]
     private static bool _invokingOriginalSetup;
+    [ThreadStatic]
+    private static bool _invokingOriginalAutoPrePlay;
     private static TurnSetupTransaction? _active;
     private static int _lastTurn;
     private static bool _lastDroveSelection;
@@ -106,10 +114,11 @@ internal static class PlayerTurnSetupRuntime
         CombatState combat = combatContext!;
         Rules rules = rulesContext!;
         LiveCombatTracker tracker = trackerContext!;
-        Battle startRoot;
+        int setupTurn = player.PlayerCombatState!.TurnNumber;
+        Battle liveStart;
         try
         {
-            startRoot = tracker.ImportSetupRoot(combat, player, rules);
+            liveStart = tracker.ImportSetupRoot(combat, player, rules);
         }
         catch (UnsupportedImportException error)
         {
@@ -138,6 +147,81 @@ internal static class PlayerTurnSetupRuntime
             LogSetupInvariantFailure("import", error);
             return false;
         }
+        NormalizeSetupStartRoot(ref liveStart, tracker);
+        Battle startRoot = liveStart;
+        bool compared = false;
+        bool matched = false;
+        if (CombatSessionController.TryGetVerifiedEndTurn(setupTurn - 1,
+                out Battle endTurnBefore, out PlayerAction endTurnAction))
+        {
+            compared = true;
+            try
+            {
+                if (Kernel.TryAdvanceToPlayerSetupStart(endTurnBefore, rules, endTurnAction,
+                        out Battle predicted))
+                {
+                    NormalizeSetupStartRoot(ref predicted, tracker);
+                    matched = Fingerprint.Equal(predicted, liveStart);
+                    if (matched)
+                    {
+                        startRoot = predicted;
+                    }
+                    else
+                    {
+                        List<string> diff = BattleDump.Diff(predicted, liveStart,
+                            "predicted", "live");
+                        ModLog.Warn(
+                            $"[Sts2Solver] TURN_SETUP_START_PREDICTION_MISMATCH " +
+                            $"turn={setupTurn} " +
+                            $"field={(diff.Count == 0 ? "<bytes>" : diff[0])}");
+                        foreach (string line in diff.Take(8))
+                            ModLog.Warn($"[Sts2Solver]   {line}");
+                    }
+                }
+                else
+                {
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_START_PREDICTION_SKIPPED " +
+                        $"turn={setupTurn} reason=end_turn_prefix");
+                }
+            }
+            catch (UnsupportedException error)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_START_PREDICTION_SKIPPED turn={setupTurn} " +
+                    $"reason={error.Message}");
+            }
+            catch (CapacityException error)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_START_PREDICTION_SKIPPED turn={setupTurn} " +
+                    $"region={error.Region} {error.Message}");
+            }
+            catch (InvalidDataException error)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_START_PREDICTION_SKIPPED turn={setupTurn} " +
+                    $"reason={error.Message}");
+            }
+            catch (InvalidOperationException error)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_START_PREDICTION_SKIPPED turn={setupTurn} " +
+                    $"reason={error.Message}");
+            }
+        }
+        if (tracker.HasPredictedBoundary)
+        {
+            ModLog.Info(
+                $"[Sts2Solver] TURN_SETUP_CARRY turn={setupTurn} " +
+                $"compared={compared} matched={matched} " +
+                $"recovered={startRoot.Counter(Counter.RecoveredHp)}");
+        }
+#if STS2_SOLVER_TESTING
+        TestPredictedStartCompared = compared;
+        TestPredictedStartMatched = matched;
+        TestSetupStartRecoveredHp = startRoot.Counter(Counter.RecoveredHp);
+#endif
         if (startRoot.Phase != PlayerPhase.Start || !Kernel.IsInProgress(startRoot))
         {
             ModLog.Info(
@@ -151,13 +235,61 @@ internal static class PlayerTurnSetupRuntime
             CancellationTokenSource.CreateLinkedTokenSource(CombatSessionController.CombatToken);
         TurnSetupTransaction transaction = new(
             combat, player, rules, tracker, turnState, choiceContext, startRoot, choices,
-            cancellation, player.PlayerCombatState.TurnNumber);
+            cancellation, setupTurn);
         _active = transaction;
-        _lastTurn = transaction.Turn;
+        _lastTurn = setupTurn;
         _lastDroveSelection = false;
         _lastDeployAfterSetup = false;
-        task = RunTurnSetupAsync(transaction);
+#if STS2_SOLVER_TESTING
+        TestInterceptCount++;
+        TestLastInterceptTurn = setupTurn;
+        TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
+#endif
+        CombatSessionController.OnTurnSetupIntercepted(setupTurn);
+        Task operation = RunTurnSetupAsync(transaction);
+        transaction.SetupTask = operation;
+        task = operation;
         return true;
+    }
+
+    /// <summary>
+    /// Intercepts the native <c>RunAutoPrePlayPhase</c> so the same page session and plan continue
+    /// into the auto-pre-play selections. The method is invoked while the setup task is still
+    /// paused, so the replacement task first awaits the setup replacement and only then decides
+    /// whether a new search must start at the first auto-pre-play page.
+    /// </summary>
+    internal static bool TryInterceptAutoPrePlay(CombatManager manager, CombatTurnState turnState,
+        HookPlayerChoiceContext choiceContext, Task setupTask, Player player, out Task? task)
+    {
+        task = null;
+        if (_invokingOriginalAutoPrePlay
+            || _active is not { Completed: false, AutoPrePlayIntercepted: false } transaction
+            || !ReferenceEquals(transaction.Player, player)
+            || !ReferenceEquals(transaction.Combat, manager.DebugOnlyGetState())
+            || !ReferenceEquals(transaction.SetupTask, setupTask))
+        {
+            return false;
+        }
+        transaction.AutoPrePlayIntercepted = true;
+#if STS2_SOLVER_TESTING
+        TestAutoPrePlayInterceptCount++;
+#endif
+        task = RunAutoPrePlayAsync(transaction, manager, turnState, choiceContext, setupTask, player);
+        return true;
+    }
+
+    /// <summary>
+    /// Applies the turn-setup root facts on top of a native or predicted root: Vital Spark is
+    /// normalized to zero at the native setup entry, there are no action-local shuffle events yet,
+    /// and ShufflesCrossed/risk come from the tracker's last verified boundary.
+    /// </summary>
+    private static void NormalizeSetupStartRoot(ref Battle root, LiveCombatTracker tracker)
+    {
+        root.SetCounter(Counter.VitalSparkNormalizedAmount, 0);
+        root.ShuffleEventCount = 0;
+        root.ShufflesCrossed = tracker.ShufflesCrossed;
+        root.Flags = (root.Flags & ~BattleFlags.HasRisk)
+            | (tracker.HasRisk ? BattleFlags.HasRisk : 0);
     }
 
     /// <summary>
@@ -221,6 +353,9 @@ internal static class PlayerTurnSetupRuntime
         t.PlanReady = true;
         t.Stopped = stopped;
         t.Choices.RecordPlanReady();
+#if STS2_SOLVER_TESTING
+        TestSetupPlayRecoveredHp = result.Plan.Root.Counter(Counter.RecoveredHp);
+#endif
         ModLog.Info(
             $"[Sts2Solver] TURN_SETUP_PLAN turn={t.Turn} choices={result.SetupChoices.Length} " +
             $"stopped={stopped} page={t.PageOpen}");
@@ -348,6 +483,37 @@ internal static class PlayerTurnSetupRuntime
     internal static bool TestFirstVisibleCanSkip
         => _active?.Choices.FirstVisibleRequest?.CanSkip ?? false;
 
+    internal static int TestInterceptCount { get; private set; }
+
+    internal static int TestLastInterceptTurn { get; private set; }
+
+    internal static bool TestSelectorNullAtLastIntercept { get; private set; }
+
+    internal static int TestAutoPrePlayInterceptCount { get; private set; }
+
+    internal static bool TestLastSearchStartedInAutoPrePlay { get; private set; }
+
+    internal static bool TestPredictedStartCompared { get; private set; }
+
+    internal static bool TestPredictedStartMatched { get; private set; }
+
+    internal static int TestSetupStartRecoveredHp { get; private set; } = -1;
+
+    internal static int TestSetupPlayRecoveredHp { get; private set; } = -1;
+
+    internal static void ResetTestState()
+    {
+        TestInterceptCount = 0;
+        TestLastInterceptTurn = 0;
+        TestSelectorNullAtLastIntercept = false;
+        TestAutoPrePlayInterceptCount = 0;
+        TestLastSearchStartedInAutoPrePlay = false;
+        TestPredictedStartCompared = false;
+        TestPredictedStartMatched = false;
+        TestSetupStartRecoveredHp = -1;
+        TestSetupPlayRecoveredHp = -1;
+    }
+
     internal static async Task SelectFirstVisibleForTesting(NGame host, int count,
         CancellationToken token)
     {
@@ -355,7 +521,7 @@ internal static class PlayerTurnSetupRuntime
             ?? throw new InvalidOperationException("没有活动的回合准备选牌会话。");
         NativeChoiceRequest request = choices.FirstVisibleRequest
             ?? throw new InvalidOperationException("回合准备页面还没有出现。");
-        IReadOnlyList<MegaCrit.Sts2.Core.Models.CardModel> selected = request.Options
+        IReadOnlyList<MegaCrit.Sts2.Core.Models.CardModel> selected = request.LiveOptions
             .Take(Math.Min(count, request.MaxSelect))
             .ToArray();
         await choices.SelectVisibleCardsForTesting(host, selected, token);
@@ -406,6 +572,7 @@ internal static class PlayerTurnSetupRuntime
         Task originalSetup = InvokeOriginalSetupAsync(t);
         Task<TurnSetupEnumeration> enumerationTask = Task.Run(
             () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules), t.Cancellation.Token);
+        t.EnumerationTask = enumerationTask;
         try
         {
             bool visible = await t.Choices.WaitForFirstVisibleSurfaceAsync(
@@ -413,87 +580,30 @@ internal static class PlayerTurnSetupRuntime
             ModLog.Info(
                 $"[Sts2Solver] TURN_SETUP_FIRST_VISIBLE turn={t.Turn} visible={visible} " +
                 $"original_done={originalSetup.IsCompleted} enum_done={enumerationTask.IsCompleted}");
-            if (!visible)
+            if (visible)
             {
-                _ = await AwaitEnumerationAsync(t, enumerationTask, "no_visible_surface");
-                return;
-            }
-            t.PageOpen = true;
-            CombatSessionController.NotifyTurnSetupChanged();
-            ModLog.Info(
-                $"[Sts2Solver] TURN_SETUP_PAGE turn={t.Turn} sequence={t.Choices.FirstVisibleSequence}");
-            while (!enumerationTask.IsCompleted && !originalSetup.IsCompleted)
-            {
-                ObservePlayerChoice(t, originalSetup);
-                if (t.PageOpen && t.Choices.DriverFaulted)
-                    HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
-                await CombatFrameWaiter.NextFrameAsync(host);
-            }
-            if (originalSetup.IsCompleted)
-            {
-                _ = await AwaitEnumerationAsync(t, enumerationTask, "original_completed");
-                return;
-            }
-            (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
-                await AwaitEnumerationAsync(t, enumerationTask, "visible_choice");
-            if (wait != EnumerationWait.Ok || enumerationValue == null)
-                return;
-            TurnSetupEnumeration enumeration = enumerationValue;
-            LogEnumeration(t, enumeration);
-            if (enumeration.Status is TurnSetupEnumerationStatus.NoChoice
-                or TurnSetupEnumerationStatus.Unsupported
-                or TurnSetupEnumerationStatus.Terminal)
-            {
+                t.PageOpen = true;
+                CombatSessionController.NotifyTurnSetupChanged();
                 ModLog.Info(
-                    $"[Sts2Solver] TURN_SETUP_SKIP reason=enumeration_" +
-                    $"{enumeration.Status.ToString().ToLowerInvariant()} turn={t.Turn} " +
-                    $"detail={enumeration.Reason ?? "-"}");
-                return;
-            }
-            if (enumeration.Branches.Any(static branch => branch.Choices.Any(
-                    static choice => choice.Request.Timing != ChoiceTiming.PlayerTurnStart)))
-            {
-                ModLog.Info(
-                    $"[Sts2Solver] TURN_SETUP_SKIP reason=autopreplay_choice turn={t.Turn} " +
-                    "detail=plan_contains_auto_preplay_stage");
-                return;
-            }
-            TurnSetupBranch[] branches = [.. enumeration.Branches.Where(static branch => !branch.Terminal)];
-            if (branches.Length == 0)
-            {
-                ModLog.Info($"[Sts2Solver] TURN_SETUP_SKIP reason=all_terminal turn={t.Turn}");
-                return;
-            }
-            if (!CombatSessionController.TryCompileTurnSetupCase(t.Combat, t.Player, t.Rules,
-                    t.StartRoot, branches, out SearchCase? setupCase, out string compileDetail,
-                    out bool fatalCompile))
-            {
-                if (fatalCompile)
+                    $"[Sts2Solver] TURN_SETUP_PAGE turn={t.Turn} sequence={t.Choices.FirstVisibleSequence}");
+                while (!enumerationTask.IsCompleted && !originalSetup.IsCompleted)
                 {
-                    ModLog.Warn(
-                        $"[Sts2Solver] TURN_SETUP_INVARIANT_FAILED stage=compile turn={t.Turn} " +
-                        $"{compileDetail}");
-                    CombatSessionController.FailTurnSetup($"compile {compileDetail}");
+                    ObservePlayerChoice(t, originalSetup);
+                    if (t.PageOpen && t.Choices.DriverFaulted)
+                        HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
+                    await CombatFrameWaiter.NextFrameAsync(host);
                 }
-                else
+                if (!originalSetup.IsCompleted)
                 {
-                    ModLog.Info(
-                        $"[Sts2Solver] TURN_SETUP_SKIP reason=compile_boundary turn={t.Turn} " +
-                        $"detail={compileDetail}");
+                    (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
+                        await AwaitEnumerationAsync(t, enumerationTask, "visible_choice");
+                    if (wait == EnumerationWait.Ok && enumerationValue != null)
+                        StartSearchFromEnumeration(t, enumerationValue, "setup");
                 }
-                return;
             }
-            t.Case = setupCase!;
-            t.SearchStarted = true;
-            t.Choices.RecordSearchStarted();
-            ModLog.Info(
-                $"[Sts2Solver] TURN_SETUP_SEARCH_START turn={t.Turn} roots={branches.Length} " +
-                $"dropped={enumeration.DroppedByBudget} after_native_choice_visible=true");
-            if (!CombatSessionController.StartTurnSetupSearch(setupCase!, t.StartRoot, t.Turn))
-            {
-                ModLog.Info($"[Sts2Solver] TURN_SETUP_SEARCH_SKIP turn={t.Turn}");
-                return;
-            }
+            // The setup task stays alive until the native setup body completes, even after the
+            // search has started: the page driver consumes the remaining setup choices and the
+            // AutoPrePlay prefix later continues the same session.
             while (!originalSetup.IsCompleted)
             {
                 ObservePlayerChoice(t, originalSetup);
@@ -545,14 +655,212 @@ internal static class PlayerTurnSetupRuntime
         }
         finally
         {
-            await originalSetup.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-            if (!t.EnumerationObserved)
-                _ = await AwaitEnumerationAsync(t, enumerationTask, "cleanup");
+            await originalSetup.ConfigureAwait(
+                ConfigureAwaitOptions.ContinueOnCapturedContext
+                | ConfigureAwaitOptions.SuppressThrowing);
+            if (ReferenceEquals(_active, t) && !t.Completed)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_SETUP_DONE turn={t.Turn} search={t.SearchStarted} " +
+                    $"plan={t.PlanReady} auto_pre_play={t.AutoPrePlayIntercepted}");
+            }
+        }
+        if (originalSetup.IsFaulted)
+            await originalSetup;
+    }
+
+    /// <summary>
+    /// Starts the one setup search from a completed enumeration if the plan is representable. The
+    /// setup phase and the auto-pre-play phase share this method, so at most one search starts; the
+    /// caller waits for the first visible native page before calling it.
+    /// </summary>
+    private static bool StartSearchFromEnumeration(TurnSetupTransaction t,
+        TurnSetupEnumeration enumeration, string phase)
+    {
+        LogEnumeration(t, enumeration);
+        if (enumeration.Status is TurnSetupEnumerationStatus.NoChoice
+            or TurnSetupEnumerationStatus.Unsupported
+            or TurnSetupEnumerationStatus.Terminal)
+        {
+            ModLog.Info(
+                $"[Sts2Solver] TURN_SETUP_SKIP reason=enumeration_" +
+                $"{enumeration.Status.ToString().ToLowerInvariant()} turn={t.Turn} phase={phase} " +
+                $"detail={enumeration.Reason ?? "-"}");
+            return false;
+        }
+        TurnSetupBranch[] branches = [.. enumeration.Branches.Where(static branch => !branch.Terminal)];
+        if (branches.Length == 0)
+        {
+            ModLog.Info($"[Sts2Solver] TURN_SETUP_SKIP reason=all_terminal turn={t.Turn} phase={phase}");
+            return false;
+        }
+        if (!CombatSessionController.TryCompileTurnSetupCase(t.Combat, t.Player, t.Rules,
+                t.StartRoot, branches, out SearchCase? setupCase, out string compileDetail,
+                out bool fatalCompile))
+        {
+            if (fatalCompile)
+            {
+                ModLog.Warn(
+                    $"[Sts2Solver] TURN_SETUP_INVARIANT_FAILED stage=compile turn={t.Turn} " +
+                    $"{compileDetail}");
+                CombatSessionController.FailTurnSetup($"compile {compileDetail}");
+            }
+            else
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_SKIP reason=compile_boundary turn={t.Turn} " +
+                    $"phase={phase} detail={compileDetail}");
+            }
+            return false;
+        }
+        t.Case = setupCase!;
+        t.SearchStarted = true;
+        t.Choices.RecordSearchStarted();
+#if STS2_SOLVER_TESTING
+        if (phase == "auto_pre_play")
+            TestLastSearchStartedInAutoPrePlay = true;
+#endif
+        ModLog.Info(
+            $"[Sts2Solver] TURN_SETUP_SEARCH_START turn={t.Turn} phase={phase} " +
+            $"roots={branches.Length} dropped={enumeration.DroppedByBudget} " +
+            "after_native_choice_visible=true");
+        if (!CombatSessionController.StartTurnSetupSearch(setupCase!, t.StartRoot, t.Turn))
+        {
+            ModLog.Info($"[Sts2Solver] TURN_SETUP_SEARCH_SKIP turn={t.Turn} phase={phase}");
+            return false;
+        }
+        return true;
+    }
+
+    private static async Task RunAutoPrePlayAsync(TurnSetupTransaction t, CombatManager manager,
+        CombatTurnState turnState, HookPlayerChoiceContext choiceContext, Task setupTask, Player player)
+    {
+        Task original = Task.CompletedTask;
+        try
+        {
+            original = InvokeOriginalAutoPrePlayAsync(
+                manager, turnState, choiceContext, setupTask, player);
+            // The native AutoPrePlay wrapper is invoked while the setup task is still paused; its
+            // body awaits that task. Wait for our setup replacement first, then continue the same
+            // session into the auto-pre-play pages.
+            await t.SetupTask.ConfigureAwait(
+                ConfigureAwaitOptions.ContinueOnCapturedContext
+                | ConfigureAwaitOptions.SuppressThrowing);
+            if (!ReferenceEquals(_active, t) || t.Completed)
+                return;
+            NGame? host = NGame.Instance
+                ?? throw new InvalidOperationException("回合准备自动出牌缺少游戏节点。");
+            if (!t.Choices.HasVisibleRequest)
+            {
+                bool visible = await t.Choices.WaitForFirstVisibleSurfaceAsync(
+                    host, original, t.Cancellation.Token);
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_AUTO_PRE_PLAY_FIRST_VISIBLE turn={t.Turn} " +
+                    $"visible={visible} original_done={original.IsCompleted} " +
+                    $"enum_done={t.EnumerationTask?.IsCompleted.ToString() ?? "-"}");
+                if (visible)
+                {
+                    t.PageOpen = true;
+                    CombatSessionController.NotifyTurnSetupChanged();
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_AUTO_PRE_PLAY_PAGE turn={t.Turn} " +
+                        $"sequence={t.Choices.FirstVisibleSequence}");
+                    if (t.EnumerationTask != null)
+                    {
+                        (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
+                            await AwaitEnumerationAsync(t, t.EnumerationTask, "auto_pre_play");
+                        if (wait == EnumerationWait.Ok && enumerationValue != null)
+                            StartSearchFromEnumeration(t, enumerationValue, "auto_pre_play");
+                    }
+                }
+            }
+            while (!original.IsCompleted)
+            {
+                ObservePlayerChoice(t, original);
+                if (t.Driving && t.Choices.DriverFaulted)
+                    HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
+                await CombatFrameWaiter.NextFrameAsync(host);
+            }
+            ObservePlayerChoice(t, original);
+        }
+        catch (OperationCanceledException) when (t.Cancellation.IsCancellationRequested)
+        {
+            ModLog.Info($"[Sts2Solver] TURN_SETUP_AUTO_PRE_PLAY_CANCELLED turn={t.Turn}");
+        }
+        catch (NativeChoiceSurfaceTimeoutException error)
+        {
+            CombatSessionController.FailTurnSetup(error.Message);
+        }
+        catch (NativeChoiceSurfaceMismatchException error)
+        {
+            CombatSessionController.FailTurnSetup(error.Message);
+        }
+        catch (NativeChoicePlanMismatchException error)
+        {
+            CombatSessionController.FailTurnSetup(error.Message);
+        }
+        catch (UnsupportedImportException error)
+        {
+            CombatSessionController.FailTurnSetup($"reason={error.Reason} {error.Detail}");
+        }
+        catch (UnsupportedException error)
+        {
+            CombatSessionController.FailTurnSetup(error.Message);
+        }
+        catch (CapacityException error)
+        {
+            CombatSessionController.FailTurnSetup($"region={error.Region} {error.Message}");
+        }
+        catch (InvalidDataException error)
+        {
+            LogSetupInvariantFailure("auto_pre_play", error);
+        }
+        catch (InvalidOperationException error)
+        {
+            LogSetupInvariantFailure("auto_pre_play", error);
+        }
+        catch (TimeoutException error)
+        {
+            CombatSessionController.FailTurnSetup(error.Message);
+        }
+        finally
+        {
+            await original.ConfigureAwait(
+                ConfigureAwaitOptions.ContinueOnCapturedContext
+                | ConfigureAwaitOptions.SuppressThrowing);
+            await CompleteTurnSetupAsync(t);
+        }
+        if (original.IsFaulted)
+            await original;
+    }
+
+    /// <summary>
+    /// Releases the single page session and the controller's setup result after the native
+    /// AutoPrePlay body has finished (its Play phase is set). The controller consumes the plan from
+    /// the subsequent <c>TurnStarted</c> event.
+    /// </summary>
+    private static async Task CompleteTurnSetupAsync(TurnSetupTransaction t)
+    {
+        if (t.Completed)
+            return;
+        try
+        {
+            if (t.EnumerationTask != null && !t.EnumerationObserved)
+                _ = await AwaitEnumerationAsync(t, t.EnumerationTask, "cleanup");
+            await t.Choices.CompleteAsync().ConfigureAwait(
+                ConfigureAwaitOptions.ContinueOnCapturedContext);
+            if (!t.PlayerAdvanced && t.Choices.DriverFaulted)
+                HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
+        }
+        catch (OperationCanceledException) when (t.Cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
             t.PageOpen = false;
             t.Driving = false;
             if (t.SearchStarted && !t.PlanReady && !t.PlayerAdvanced)
                 CombatSessionController.CancelTurnSetupSearch("setup_completed");
-            await t.Choices.CompleteAsync();
             t.Choices.Dispose();
             t.Completed = true;
             if (ReferenceEquals(_active, t))
@@ -564,10 +872,9 @@ internal static class PlayerTurnSetupRuntime
             CombatSessionController.OnTurnSetupCompleted();
             ModLog.Info(
                 $"[Sts2Solver] TURN_SETUP_DONE turn={t.Turn} plan={t.PlanReady} " +
-                $"drove={t.DroveSelection} advanced={t.PlayerAdvanced} deploy={t.DeployAfterSetup}");
+                $"drove={t.DroveSelection} advanced={t.PlayerAdvanced} " +
+                $"deploy={t.DeployAfterSetup} auto_pre_play={t.AutoPrePlayIntercepted}");
         }
-        if (originalSetup.IsFaulted)
-            await originalSetup;
     }
 
     private static void ObservePlayerChoice(TurnSetupTransaction t, Task phaseTask)
@@ -678,6 +985,24 @@ internal static class PlayerTurnSetupRuntime
         }
     }
 
+    private static Task InvokeOriginalAutoPrePlayAsync(CombatManager manager,
+        CombatTurnState turnState, HookPlayerChoiceContext choiceContext, Task setupTask,
+        Player player)
+    {
+        _invokingOriginalAutoPrePlay = true;
+        try
+        {
+            return (Task)(RunAutoPrePlayPhaseMethod.Invoke(
+                manager,
+                [turnState, choiceContext, setupTask, player])
+                ?? throw new InvalidOperationException("RunAutoPrePlayPhase 没有返回任务。"));
+        }
+        finally
+        {
+            _invokingOriginalAutoPrePlay = false;
+        }
+    }
+
     private static void LogEnumeration(TurnSetupTransaction t, TurnSetupEnumeration enumeration)
     {
         ModLog.Info(
@@ -686,9 +1011,12 @@ internal static class PlayerTurnSetupRuntime
             $"reason={enumeration.Reason ?? "-"}");
     }
 
+    /// <summary>Whether the next player turn could request a solver-visible setup selection.</summary>
     private static bool RequiresSolverChoice(Player player)
+        => RequiresSolverChoice(player, player.PlayerCombatState?.TurnNumber ?? 0);
+
+    private static bool RequiresSolverChoice(Player player, int turn)
     {
-        int turn = player.PlayerCombatState?.TurnNumber ?? 0;
         if (player.Relics.Any(relic => !relic.IsMelted
                 && (relic is ToastyMittens
                     || turn <= 1 && relic is Toolbox or ChoicesParadox or GamblingChip)))
@@ -713,6 +1041,24 @@ internal static class PlayerTurnSetupRuntime
             .Concat(state.ExhaustPile.Cards)
             .Concat(state.PlayPile.Cards)
             .Any(static card => card.Enchantment is Imbued);
+    }
+
+    /// <summary>
+    /// Fast gate for releasing the EndTurn <see cref="PlannedNativeSelector"/> before the next turn
+    /// boundary. It mirrors the setup interception gate (same automatic modes, same content
+    /// heuristic for the next turn number) so a combat without setup content keeps the selector
+    /// until Play exactly as before.
+    /// </summary>
+    internal static bool MayNeedNextTurnSetup(Player player)
+    {
+        if (!ModEntry.Enabled
+            || !TakeoverEnabled
+            || !CombatSessionController.NextTurnSetupTakeoverAllowed
+            || player.PlayerCombatState is not { } state)
+        {
+            return false;
+        }
+        return RequiresSolverChoice(player, state.TurnNumber + 1);
     }
 
     private sealed class TurnSetupTransaction(
@@ -747,6 +1093,9 @@ internal static class PlayerTurnSetupRuntime
         internal bool DeployAfterSetup { get; set; }
         internal bool Completed { get; set; }
         internal bool EnumerationObserved { get; set; }
+        internal bool AutoPrePlayIntercepted { get; set; }
+        internal Task SetupTask { get; set; } = Task.CompletedTask;
+        internal Task<TurnSetupEnumeration>? EnumerationTask { get; set; }
         internal SearchCase? Case { get; set; }
         internal CombatControllerResult? Result { get; set; }
     }

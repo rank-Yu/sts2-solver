@@ -123,7 +123,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 暂停码只有这些稳定值：`worse_recalculation`、`death_turn`、`combat_end_turn`、`live_end_turn_risk`、`repeated_failure`、`choice_mismatch`、`stopped`。不能搜索的原因写入快照的 `SearchBlockReason`：`enemy_turn`、`turn_start`、`actions_running`、`turn_setup`、`executing`，以及不在战斗、多人、不可玩等拒绝码。
 
-搜索或导入失败的阶段是 `Failed`，错误码写入快照的 `ErrorCode`，例如 `import_failed`、`import_unsupported`、`import_capacity`、`request_invalid`、`route_invalid`、`route_unsupported`、`route_capacity`、`search_failed`、`turn_setup_failed` 和 `forced_potion_unusable`。`turn_setup_failed` 只用于回合准备选牌，不是暂停码；失败后页面交还玩家，本批不把替换任务置为 fault。主面板显示“求解器消息”和对应文案；失败状态在下一次搜索开始、回合变化、模式切换或战斗结束时清除。
+搜索或导入失败的阶段是 `Failed`，错误码写入快照的 `ErrorCode`，例如 `import_failed`、`import_unsupported`、`import_capacity`、`request_invalid`、`route_invalid`、`route_unsupported`、`route_capacity`、`search_failed`、`turn_setup_failed` 和 `forced_potion_unusable`。`turn_setup_failed` 只用于回合准备选牌，不是暂停码；失败后页面交还玩家，替换任务正常完成，原生 `StartTurn` 不进入 fault。主面板显示“求解器消息”和对应文案；失败状态在下一次搜索开始、回合变化、模式切换或战斗结束时清除。
 
 ### 策略侧栏
 

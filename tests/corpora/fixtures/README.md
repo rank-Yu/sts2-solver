@@ -20,6 +20,8 @@
   - `ts-d-autopreplay-choice`：第 2 回合由 Mayhem 自动打出 Discovery，覆盖 AutoPrePlay 里的选择；
   - `ts-g-multi-choice`：第 2 回合 `AfterPlayerTurnStart` 两次选择（暴政 + 烤面包手套），并带熔炉的 `AfterSideTurnStart`；
   - `ts-h-choice-then-listener`：第 1 回合烤面包手套之后还有宝石面具和十字弓，覆盖同一轮选择后仍有监听器；
-  - `ts-i-plasma-pause`：第 2 回合等离子球与烤面包手套，覆盖准备暂停处的球触发。
+  - `ts-i-plasma-pause`：第 2 回合等离子球与烤面包手套，覆盖准备暂停处的球触发；
+  - `ts-j-crossbow-one-card` / `ts-j-crossbow-many`：烤面包手套 + 十字弓，覆盖暂停后由侧回合开始加入手牌的攻击牌（手牌 1 张和多张两种）；
+  - `ts-k-two-relic-choices`：烤面包手套 + 赌博芯片，同一准备阶段产生两段可见选择。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。

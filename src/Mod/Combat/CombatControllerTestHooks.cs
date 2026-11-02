@@ -44,6 +44,18 @@ internal static class CombatControllerTestHooks
     /// <summary>Runs before the live end-turn risk check, for the forced-execution scenario.</summary>
     internal static Func<CombatState, Player, Task>? BeforeLiveEndTurnCheck { get; set; }
 
+    /// <summary>First turn-two deployment boundary's RecoveredHp ledger; -1 before it is observed.</summary>
+    internal static int TurnSetupDeployedRecoveredHp { get; private set; } = -1;
+
+    internal static void RecordTurnSetupBoundary(in Battle battle)
+    {
+        if (TurnSetupDeployedRecoveredHp < 0)
+            TurnSetupDeployedRecoveredHp = battle.Counter(Counter.RecoveredHp);
+    }
+
+    internal static void ResetSetupCarryForTest()
+        => TurnSetupDeployedRecoveredHp = -1;
+
     /// <summary>Completion times of deployed actions in the current scenario, in tick milliseconds.</summary>
     internal static List<long> DeploymentCompletionTimes { get; } = [];
 

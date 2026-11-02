@@ -180,12 +180,12 @@ internal static partial class CombatSessionController
             return;
         for (int frame = 0; frame < 900; frame++)
         {
-            if (!SearchSession.IsRunning && _search == null && _deployment == null)
+            if (!SearchSession.IsRunning && _search == null && !HasBlockingDeployment)
                 break;
             await CombatFrameWaiter.NextFrameAsync(host);
         }
         if (!_combatActive || IsMultiplayerSession || _search != null
-            || _deployment != null || !CanSolve(out _))
+            || HasBlockingDeployment || !CanSolve(out _))
         {
             return;
         }

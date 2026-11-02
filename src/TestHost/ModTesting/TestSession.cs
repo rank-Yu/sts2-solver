@@ -133,9 +133,14 @@ internal static class TestSession
                     request.ControllerScenarioForTest is { Length: > 0 } ? 0 : 200);
                 string? scenarioName = request.ControllerScenarioForTest;
                 bool turnSetupWait = scenarioName == "turn_setup_wait";
+                bool turnSetupTurnTwo = TurnSetupTurnTwoScenario(scenarioName);
                 bool turnSetupTakeover = request.TurnSetupTakeoverForTest
                     && scenarioName is not null && IsTurnSetupScenario(scenarioName);
-                PlayerTurnSetupRuntime.TestEnabled = request.TurnSetupTakeoverForTest;
+                // Turn-two scenarios first build a normal turn-one Play state (with the native
+                // setup selector answering turn one) so the initial injection is applied, then
+                // enable the takeover before the player ends turn one.
+                PlayerTurnSetupRuntime.TestEnabled =
+                    request.TurnSetupTakeoverForTest && !turnSetupTurnTwo;
                 TurnSetupCardSelector? setupSelector = null;
                 if (turnSetupWait || scenarioName == "turn_setup_manual")
                 {
@@ -149,6 +154,12 @@ internal static class TestSession
                         }
                     });
                 }
+                else if (turnSetupTurnTwo)
+                {
+                    // Answer turn one's native setup pages; the scope is released before the test
+                    // enables the takeover for turn two.
+                    setupSelector = new TurnSetupCardSelector(0);
+                }
                 if (request.UiSnapshotForTest || request.ControllerScenarioForTest != null)
                 {
                     CombatUiStore.ClearHistory();
@@ -158,6 +169,9 @@ internal static class TestSession
                 FirstChoiceCardSelector.LastSelections.Clear();
                 NativeChoiceRuntime.ResetTraceForTesting();
                 TurnSetupRootCapture.Reset();
+                PlayerTurnSetupRuntime.ResetTestState();
+                CombatSessionController.ResetSetupTestState();
+                CombatControllerTestHooks.ResetSetupCarryForTest();
                 if (request.FlashTurnSetupRootForTest)
                     TurnSetupRootCapture.BeginBuild();
                 stage = "build";
@@ -181,13 +195,23 @@ internal static class TestSession
                 ModLog.Info($"[Sts2Solver] BUILD_STARTED root={root}");
                 CombatState combat = await ScenarioBuilder.BuildAsync(
                     new GodotCombatWaiter(host), request,
-                    skipInitialInjection: request.FlashTurnSetupRootForTest || turnSetupTakeover,
+                    skipInitialInjection: request.FlashTurnSetupRootForTest
+                        || (turnSetupTakeover && !turnSetupTurnTwo),
                     turnSetupSelector: setupSelector,
-                    waitForTurnSetupPage: turnSetupTakeover);
+                    waitForTurnSetupPage: turnSetupTakeover && !turnSetupTurnTwo);
                 ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
                 stage = "settle";
                 await CombatFrameWaiter.SettleAsync(host);
-                if (turnSetupTakeover)
+                if (turnSetupTurnTwo)
+                {
+                    // The build ran the native turn-one setup and initial injection. The controller
+                    // compiled its rules at combat start, before that injection; recompile from
+                    // the injected live state, then open the takeover for the player's turn end.
+                    CombatSessionController.RefreshImportForTest();
+                    PlayerTurnSetupRuntime.TestEnabled = true;
+                    CombatSessionController.ResumeAutoSearchForTest();
+                }
+                else if (turnSetupTakeover)
                 {
                     // The setup transaction may have completed before BuildAsync returned, so
                     // the native TurnStarted event could have been lost to the hold. Replaying
@@ -527,7 +551,14 @@ internal static class TestSession
         "turn_setup_auto_execute" or "turn_setup_auto_manual" or "turn_setup_full"
         or "turn_setup_stop_keep" or "turn_setup_stop_drop" or "turn_setup_stop_drive"
         or "turn_setup_fail" or "turn_setup_scene_exit"
-        or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause";
+        or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause"
+        or "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
+        or "turn_setup_manual_end" or "turn_setup_multi" or "turn_setup_crossbow"
+        or "turn_setup_crossbow_many" or "turn_setup_carry";
+
+    private static bool TurnSetupTurnTwoScenario(string? scenario) => scenario is
+        "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
+        or "turn_setup_manual_end" or "turn_setup_carry";
 
     private static bool ApplyTestSettings(OfflineRequest request)
     {

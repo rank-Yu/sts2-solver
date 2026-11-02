@@ -46,11 +46,11 @@ internal static partial class CombatSessionController
             }
             if (mode == SolverMode.Manual)
                 CancelTurnSchedule();
-            if (_search == null && _deployment == null && _pauseCode == null)
+            if (_search == null && !HasBlockingDeployment && _pauseCode == null)
                 _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
             if (mode == SolverMode.AutoSearch && changed
-                && _search == null && _deployment == null
+                && _search == null && !HasBlockingDeployment
                 && !_automaticSearchPaused)
             {
                 TrySearchOnModeSwitch(CombatSearchReason.AutoTurnStart);
@@ -95,7 +95,7 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return true;
         }
-        if (_search != null || _deployment != null)
+        if (_search != null || HasBlockingDeployment)
         {
             PublishSnapshot();
             return true;
@@ -109,7 +109,7 @@ internal static partial class CombatSessionController
         {
             TrySearchOnModeSwitch(CombatSearchReason.FullAuto);
         }
-        if (_search == null && _deployment == null && _phase != CombatUiPhase.Searching
+        if (_search == null && !HasBlockingDeployment && _phase != CombatUiPhase.Searching
             && _phase != CombatUiPhase.Deploying && _pauseCode == null)
         {
             _phase = CombatUiPhase.WaitingTurn;
@@ -121,7 +121,7 @@ internal static partial class CombatSessionController
     internal static bool StartOrRecalculateSearch()
     {
         RequireMainThread();
-        if (IsMultiplayerSession || _search is { IsTurnSetup: true } || _deployment != null
+        if (IsMultiplayerSession || _search is { IsTurnSetup: true } || HasBlockingDeployment
             || SearchSession.IsRunning)
             return false;
         if (PlayerTurnSetupRuntime.HasActivePage)
@@ -192,7 +192,7 @@ internal static partial class CombatSessionController
     internal static bool ExecuteCurrentTurn()
     {
         RequireMainThread();
-        if (IsMultiplayerSession || _deployment != null)
+        if (IsMultiplayerSession || HasBlockingDeployment)
             return false;
         if (PlayerTurnSetupRuntime.HasActivePage)
         {

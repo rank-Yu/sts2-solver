@@ -558,16 +558,11 @@ public sealed class ToastyMittens : RelicDef
     {
         if (x.B.HandCount > 0)
         {
-            if (x.B.HandCount == 1)
-            {
-                // CardSelectCmd.FromHand auto-selects when the hand has at most MinSelect cards
-                // (RequireManualConfirmation is false for the 1-of-1 prompt).
-                Span<int> only = stackalloc int[1];
-                Kernel.ExhaustSelected(ref x, Pile.Hand, only);
-                if (x.NeedsChoice)
-                    return;
-            }
-            else
+            // CardSelectCmd.FromHand signals the native setup pause before it builds the hand
+            // list. Run the pause first so a card added at side start (Crossbow) is a candidate;
+            // outside the setup preamble this is a no-op and the EndTurn path is unchanged.
+            bool setup = x.RunSetupPause();
+            if (setup || x.B.HandCount > 1)
             {
                 Span<int> options = stackalloc int[x.B.HandCount];
                 for (int index = 0; index < options.Length; index++)
@@ -579,6 +574,16 @@ public sealed class ToastyMittens : RelicDef
                     return;
                 }
                 Kernel.ExhaustSelected(ref x, Pile.Hand, selected[..chosen]);
+                if (x.NeedsChoice)
+                    return;
+            }
+            else
+            {
+                // CardSelectCmd.FromHand auto-selects when the hand has at most MinSelect cards
+                // (RequireManualConfirmation is false for the 1-of-1 prompt). The EndTurn path
+                // does not model the setup pause's candidate rebuild, so it keeps this shortcut.
+                Span<int> only = stackalloc int[1];
+                Kernel.ExhaustSelected(ref x, Pile.Hand, only);
                 if (x.NeedsChoice)
                     return;
             }

@@ -77,6 +77,12 @@ internal sealed class CombatDeploymentSession(
 
     /// <summary>Soft stop: no new action is started, the current one settles before the turn returns.</summary>
     internal bool StopRequested { get; set; }
+
+    /// <summary>
+    /// The next turn's setup page was taken over while this deployment waited for the boundary.
+    /// Its EndTurn prediction no longer describes the live turn and must not count as a deviation.
+    /// </summary>
+    internal bool SupersededByTurnSetup { get; set; }
 }
 
 /// <summary>One completed search, replayed and ready for the controller or deployment.</summary>

@@ -1,0 +1,39 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "FLASH-TS-J-CROSSBOW-ONE-CARD",
+ "characterId": "IRONCLAD",
+ "encounterId": "NIBBITS_WEAK",
+ "seed": "TSJCROSSBOWONE",
+ "ascension": 0,
+ "initialPlayerMaxHp": 80,
+ "initialPlayerHp": 80,
+ "initialPlayerEnergy": 3,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "clearRunDeck": true,
+ "initialEnemyMaxHps": [
+  2000
+ ],
+ "initialEnemyCurrentHps": [
+  2000
+ ],
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "CROSSBOW",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "orbs": [],
+ "runCards": [
+  {
+   "cardId": "STRIKE_IRONCLAD",
+   "pile": "Deck"
+  }
+ ]
+}

@@ -68,6 +68,7 @@ internal static class ExecCoverage
         nameof(Exec.TransientMarkBase),
         nameof(Exec.TakingExtraTurn),
         nameof(Exec.SetupPause),
+        nameof(Exec.SetupPreamble),
     ];
 
     /// <summary>

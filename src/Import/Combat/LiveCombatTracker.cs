@@ -74,6 +74,18 @@ internal sealed class LiveCombatTracker
 
     internal int RootEnemyCount => _rootEnemyCount;
 
+    /// <summary>Whether an <see cref="Observe"/>d route boundary is available for carrying.</summary>
+    internal bool HasPredictedBoundary => _hasPredicted;
+
+    /// <summary>The last observed route score key, taken from the verified boundary.</summary>
+    internal int ShufflesCrossed => _shufflesCrossed;
+
+    /// <summary>The last observed search risk flag, taken from the verified boundary.</summary>
+    internal bool HasRisk => _hasRisk;
+
+    /// <summary>Stops observing the combat; the tracker is replaced when the test host reinjects state.</summary>
+    internal void Detach(CombatState state) => state.CreaturesChanged -= OnCreaturesChanged;
+
     internal IReadOnlyList<NativeCreature> KnownEnemies => _known;
 
     /// <summary>Refreshes the known order with summons that appeared after the combat root.</summary>
@@ -202,8 +214,10 @@ internal sealed class LiveCombatTracker
 
     /// <summary>
     /// Imports the native <c>SetupPlayerTurn</c> entry state with the production reconciliation
-    /// semantics. The root is not in the play phase yet, and it is a turn-setup root (Vital Spark
-    /// normalized to zero). This is the production counterpart of the frozen setup-root import.
+    /// semantics. The root is not in the play phase yet, and it is a turn-setup root: the non-native
+    /// ledgers and reviving rows come from the last verified prediction boundary, while the setup
+    /// root's own facts (Vital Spark normalized to zero, no action-local shuffle events) are kept.
+    /// This is the production counterpart of the frozen setup-root import.
     /// </summary>
     internal Battle ImportSetupRoot(CombatState state, Player player, Rules rules)
     {
@@ -227,7 +241,12 @@ internal sealed class LiveCombatTracker
         Battle live = BattleImporter.Import(state, player, rules, options);
         AddEscapedLoot(ref live);
         if (_hasPredicted)
-            CarryNonNative(ref live, _predicted);
+            CarryNonNativeForSetup(ref live, _predicted);
+        live.SetCounter(Counter.VitalSparkNormalizedAmount, 0);
+        live.ShuffleEventCount = 0;
+        live.ShufflesCrossed = _shufflesCrossed;
+        live.Flags = (live.Flags & ~BattleFlags.HasRisk)
+            | (_hasRisk ? BattleFlags.HasRisk : 0);
         return live;
     }
 
@@ -286,6 +305,22 @@ internal sealed class LiveCombatTracker
         // lineage. Card piles and all nine RNG streams remain strictly compared.
         live.ShuffleEventCount = predicted.ShuffleEventCount;
         live.ShufflesCrossed = predicted.ShufflesCrossed;
+        live.Flags = (live.Flags & ~BattleFlags.HasRisk) | (predicted.Flags & BattleFlags.HasRisk);
+    }
+
+    /// <summary>
+    /// Carries the non-native ledgers into a turn-setup root. Vital Spark is a setup-root fact
+    /// (normalized to zero at the native setup entry), so it is deliberately not copied; the caller
+    /// zeroes the action-local shuffle counter and takes ShufflesCrossed/HasRisk from the tracker.
+    /// </summary>
+    private static void CarryNonNativeForSetup(ref Battle live, in Battle predicted)
+    {
+        foreach (Counter counter in CarriedCounters)
+        {
+            if (counter == Counter.VitalSparkNormalizedAmount)
+                continue;
+            live.SetCounter(counter, predicted.Counter(counter));
+        }
         live.Flags = (live.Flags & ~BattleFlags.HasRisk) | (predicted.Flags & BattleFlags.HasRisk);
     }
 

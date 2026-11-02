@@ -291,6 +291,15 @@ public ref struct Exec
     /// </summary>
     internal SetupPauseHandler? SetupPause;
 
+    /// <summary>
+    /// This action replays the native <c>SetupPlayerTurn</c> preamble. Unlike an ordinary action or
+    /// the EndTurn path, a pile-based choice must run <see cref="RunSetupPause"/> before it reads its
+    /// candidate list, because the native <c>CardSelectCmd</c> entry signals the pause first and
+    /// only then builds the candidates. <see cref="SetupPause"/> may already be null when a later
+    /// choice in the same preamble reads its candidates; this flag keeps the preamble semantics.
+    /// </summary>
+    internal bool SetupPreamble;
+
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
 
@@ -371,6 +380,7 @@ public ref struct Exec
         LastDamageOverkill = 0;
         TakingExtraTurn = false;
         SetupPause = null;
+        SetupPreamble = false;
     }
 
     /// <summary>
@@ -466,6 +476,8 @@ public ref struct Exec
             throw new InvalidOperationException("EndTurn 前缀处于额外回合。");
         if (SetupPause != null)
             throw new InvalidOperationException("EndTurn 前缀带有回合准备暂停回调。");
+        if (SetupPreamble)
+            throw new InvalidOperationException("EndTurn 前缀处于回合准备前奏。");
     }
 
     /// <summary>Set when an effect asked for a choice the action did not carry; callers unwind immediately.</summary>
@@ -736,6 +748,24 @@ public ref struct Exec
     public void ClearPowerAmountChanges() => PendingPowerChangeCount = 0;
 
     /// <summary>
+    /// Runs the pending native setup pause, if any, and returns whether this action is a
+    /// <c>SetupPlayerTurn</c> preamble. Pile-based choice call sites invoke it before building
+    /// candidates, mirroring <c>CardSelectCmd.FromHand</c>/<c>FromCombatPile</c>, which signal the
+    /// pause before they read the pile. Running it once clears the callback, so the request itself
+    /// and later choices in the same preamble do not run the side start again.
+    /// </summary>
+    internal bool RunSetupPause()
+    {
+        SetupPauseHandler? pause = SetupPause;
+        if (pause != null)
+        {
+            SetupPause = null;
+            pause(ref this);
+        }
+        return SetupPreamble;
+    }
+
+    /// <summary>
     /// Takes the next carried choice. When none is left, records <paramref name="request"/>, sets
     /// <see cref="NeedsChoice"/> and returns false; the caller must return without further effects.
     /// </summary>
@@ -751,15 +781,16 @@ public ref struct Exec
             // The first carried selection answers the native setup pause: run the side start and
             // the orb turn-start pass before the listener that asked resumes and applies it.
             if (_choicesTaken == 1)
-                SetupPause?.Invoke(ref this);
+                RunSetupPause();
             return true;
         }
         selection = 0;
         NeedsChoice = true;
         Request = request;
         // The request itself is the native pause point. Side start and orbs run now, while the
-        // choice is pending; the callback restores Request afterwards.
-        SetupPause?.Invoke(ref this);
+        // choice is pending; the callback restores Request afterwards. A pile-based call site may
+        // already have run this before building its candidates.
+        RunSetupPause();
         return false;
     }
 

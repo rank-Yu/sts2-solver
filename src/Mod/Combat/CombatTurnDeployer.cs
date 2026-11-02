@@ -22,7 +22,8 @@ internal sealed record CombatTurnDeployment(
     string[] Diff,
     bool PlanExhausted,
     CombatPause? Pause,
-    bool Stopped = false);
+    bool Stopped = false,
+    bool SupersededByTurnSetup = false);
 
 internal sealed class CombatTurnDeployer(
     NGame host,
@@ -40,6 +41,7 @@ internal sealed class CombatTurnDeployer(
         Action<ReplayedAction>? actionStarted,
         Action<ReplayedAction>? actionCompleted,
         Func<bool>? stopRequested,
+        Func<bool>? endTurnSuperseded,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -85,6 +87,10 @@ internal sealed class CombatTurnDeployer(
             {
                 return Failure(error.Reason, error.Message);
             }
+#if STS2_SOLVER_TESTING
+            if (turn == 2)
+                CombatControllerTestHooks.RecordTurnSetupBoundary(actual);
+#endif
             if (action.After.Outcome == Outcome.None
                 && !CombatRouteDecision.ActionMatches(action, actual))
             {
@@ -151,6 +157,21 @@ internal sealed class CombatTurnDeployer(
         catch (DeploymentFailureException error)
         {
             return Failure(error.Reason, error.Message);
+        }
+#if STS2_SOLVER_TESTING
+        if (turn == 2)
+            CombatControllerTestHooks.RecordTurnSetupBoundary(ended);
+#endif
+        // The next turn's setup page took over while this EndTurn was waiting for its boundary.
+        // The old route's Play prediction no longer describes the actual turn, so the end-turn
+        // comparison is skipped and the setup result owns the next turn.
+        if (endTurnSuperseded?.Invoke() == true)
+        {
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_DEPLOY_SUPERSEDED turn={turn} " +
+                $"action={CombatPilotAction.Describe(endTurn)}");
+            return new CombatTurnDeployment(false, false, null, null, [], false, null,
+                SupersededByTurnSetup: true);
         }
         if (endTurn.After.Outcome == Outcome.None
             && !CombatRouteDecision.ActionMatches(endTurn, ended))

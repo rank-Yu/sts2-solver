@@ -46,7 +46,7 @@ internal static partial class CombatSessionController
 
     private static void StartDeployment(CombatControllerResult result)
     {
-        if (_deployment != null || _state == null || _player == null || _rules == null
+        if (HasBlockingDeployment || _state == null || _player == null || _rules == null
             || _tracker == null)
         {
             return;
@@ -117,7 +117,9 @@ internal static partial class CombatSessionController
                     PublishSnapshot();
                 },
                 () => deployment.StopRequested,
+                () => deployment.SupersededByTurnSetup,
                 deployment.Cancellation.Token);
+            bool replaced = !ReferenceEquals(_deployment, deployment);
             ReleaseDeployment(deployment);
             if (outcome.Pause is { } pause)
             {
@@ -151,6 +153,21 @@ internal static partial class CombatSessionController
                 ModLog.Info($"[Sts2Solver] CONTROLLER_DEPLOY_STOPPED turn={turn}");
                 return;
             }
+            if (outcome.SupersededByTurnSetup)
+            {
+                // The next turn's setup page already owns the turn; do not compare the old
+                // EndTurn prediction, do not count a deviation and do not kick another search.
+                _lastSolverDeployedTurn = turn;
+                if (!replaced)
+                {
+                    _phase = CombatUiPhase.WaitingTurn;
+                    PublishSnapshot();
+                }
+                ModLog.Info(
+                    $"[Sts2Solver] CONTROLLER_DEPLOY_SUPERSEDED turn={turn} " +
+                    $"next_setup=true deviation=false replaced={replaced}");
+                return;
+            }
             if (outcome.FailureReason is { } failure)
             {
                 HandleDeploymentFailure(turn, failure, outcome.FailureDetail ?? "",
@@ -178,7 +195,8 @@ internal static partial class CombatSessionController
         finally
         {
             ReleaseDeployment(deployment);
-            _deploymentResult = null;
+            if (ReferenceEquals(_deploymentResult, result))
+                _deploymentResult = null;
             deployment.Cancellation.Dispose();
             ResumePendingTurnStarted();
             PublishSnapshot();

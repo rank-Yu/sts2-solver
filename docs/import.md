@@ -261,13 +261,13 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 `qf2-gradient-failure`、`ts-b-toolbox`、`ts-a-toasty` 是冻结的回合准备 fixture，`golden.br` 里分别有 4、3、4 个根。`ts-a-toasty` 和 `qf2-gradient-failure` 的 4 个根里各有一对 `Fingerprint.Equal` 的根：按内核去重规则，三个 fixture 的 Play 根数都是 3。原导入层在 `CombatManager.SetupPlayerTurn` 之前捕获 Start 根，再在影子引擎上枚举准备选择。离线宿主在同一个原生入口用 Harmony 前缀记录 Start 时刻的卡牌对象集合，并同时导入两份 Start 根：
 
 - 冻结口径：`ImportOptions{RequirePlayPhase=false, TurnSetupRoot=true, RootCards=...}`，不给 `golden.br`/`config.br` 对照使用；
-- 生产口径：`LiveCombatTracker.ImportSetupRoot`，`Reconciliation=true`、`RequirePlayPhase=false`、`TurnSetupRoot=true`，供 `TurnSetupRootEnumerator` 和生产比对使用。
+- 生产口径：`LiveCombatTracker.ImportSetupRoot`，`Reconciliation=true`、`RequirePlayPhase=false`、`TurnSetupRoot=true`，供 `TurnSetupRootEnumerator` 和生产比对使用。生产 setup 根携带最近一次已核对预测边界的非原生账本与复活行；`VitalSparkNormalizedAmount` 按准备根写 0，`ShuffleEventCount` 写 0，`ShufflesCrossed`/`HasRisk` 从 tracker 继承。原生 History 能重建的计数仍从实机读取。
 
 然后按原生准备页的每个枚举计划重建一次同一场战斗（每次跳过测试宿主的初始注入），Play 根用同一个 tracker 的 `ImportForComparison`（`Reconciliation=true`）导入，和内核枚举根比较。这样准备选择本身仍由原版执行，内核不需要重写 `SetupPlayerTurn`。现有第 1 回合 fixture 的 Start 根在两种口径下逐字节相同；第 2 回合起历史计数可能不同（例如 `CumulativeHpLost`、`OrbChannels`），生产口径从 History 重建，内核前奏也按同样的 History 语义累计。
 
 `TurnSetupRootEnumerator` 从 Start 根枚举 Play 根：`Kernel.PreparePlayerPlayPhase` 按原生 `SetupPlayerTurn`/`RunAutoPrePlayPhase` 的顺序重放选择前缀，遇到选择用 `ChoiceEnumerator.Enumerate` 展开物理选项，递归到 `Phase=Play`。分支按枚举顺序去重（`Fingerprint.Equal`，保留先出现的）；去重后的根数上限是 `BeamSolver.MaxChoiceBranches`（32），超出部分丢弃并计数。连续选择超过 `Limits.MaxChoices`（8）不截断，返回不支持；额外回合也不支持。准备过程中结束战斗的分支标记为终局根。
 
-原生 `SetupPlayerTurn` 是独立 task：第一次请求选择时任务暂停，`CombatManager.StartTurn` 先跑 `Hook.AfterSideTurnStart`，紧接着跑 `OrbQueue.AfterTurnStart`，然后才恢复 setup。前奏用 `Exec.SetupPause` 在第一次请求（或用前缀回答第一个选择）时插入这两步；没有暂停时侧回合开始仍在 `AfterPlayerTurnStart` 后，球的触发保持原来的位置。准备暂停时侧回合开始或球的触发如果自己请求选择，当前单前缀前奏显式返回不支持；`AfterPlayerTurnStart` 一轮里有多个选择是支持的（例如烤面包手套 + 暴政），侧回合开始和球在第一次选择处只跑一次。`ApplyEnemyDeathPowers` 与 `NormalizeCardAfflictions` 是内核照原引擎补的结算，不属于原生 `StartTurn`，仍放在 `AfterPlayerTurnStart` 之后、AutoPrePlay 之前；暂停时球已经在暂停处跑过，不再在它们后面重复。
+原生 `SetupPlayerTurn` 是独立 task：第一次请求选择时任务暂停，`CombatManager.StartTurn` 先跑 `Hook.AfterSideTurnStart`，紧接着跑 `OrbQueue.AfterTurnStart`，然后才恢复 setup。前奏用 `Exec.SetupPause` 在第一次请求（或用前缀回答第一个选择）时插入这两步；没有暂停时侧回合开始仍在 `AfterPlayerTurnStart` 后，球的触发保持原来的位置。原生 `CardSelectCmd.FromHand`/`FromCombatPile` 先发暂停信号、再读取牌堆，所以准备前奏里这些入口在构建候选之前调用 `Exec.RunSetupPause`；候选数量和选择边界仍按原生调用方在暂停前固定的值。普通动作和 EndTurn 路径不设置前奏标记，行为不变。准备暂停时侧回合开始或球的触发如果自己请求选择，当前单前缀前奏显式返回不支持；`AfterPlayerTurnStart` 一轮里有多个选择是支持的（例如烤面包手套 + 暴政），侧回合开始和球在第一次选择处只跑一次。`ApplyEnemyDeathPowers` 与 `NormalizeCardAfflictions` 是内核照原引擎补的结算，不属于原生 `StartTurn`，仍放在 `AfterPlayerTurnStart` 之后、AutoPrePlay 之前；暂停时球已经在暂停处跑过，不再在它们后面重复。
 
 `SearchRequestCompiler.CompileSetupRequest` 用 Start 根编译评分、下界与路线排序，把去重后的 Play 根作为 `SearchCase.Battles`；计划放在 host-only 的 `SearchCase.TurnSetupPlans`，按根下标对齐，不进入 SREQ。编译前校验每个 Play 根的阶段、回合、最大生命、药水槽和敌人数与 Start 根一致，不一致以 `turn-setup-root` 拒绝。
 
@@ -277,7 +277,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 - 冻结 `config.br` 的根顺序仍按 `golden.br` 的选择记录对齐；`--setup-enumerate` 已独立逐计划验证枚举，不再依赖 M0 选择记录来选取根。实机测试模式只捕获第一个准备选项，完整枚举只在差分宿主里验证。
 - 回合准备的多段选择、侧回合开始/球在暂停处的顺序已在离线差分里验证。生产 Mod 的 `SetupPlayerTurn` 接管使用 `ImportSetupRoot` 和 `CompileSetupRequest`，只对自动搜索/全自动档、门禁通过且有可见页面的准备执行；纯隐式选择不启动准备搜索。`--setup-enumerate` 仍只覆盖离线枚举，不证明可见页面驱动。
-- 准备暂停时侧回合开始或球的触发自己请求选择，当前显式不支持；属于第 2 批的并发选择建模。
+- 准备暂停时侧回合开始或球的触发自己请求选择，当前显式不支持。
 - `BeforeHandDraw`/`AfterPlayerTurnStart` 的遗物监听器在 rootSetup 下使用入口快照（按 id/occurrence）并在调用前复查仍存在；这和原生 `IterateHookListeners` 的“入口快照 + Contains 过滤”一致。同 id 遗物在暂停期间被移除/新增的极端情形没有独立 fixture。
 - 手牌上限读游戏的 `CardPile.MaxCardsInHand`（当前为 10）。RitsuLib 等 Mod 另行修改手牌上限的方式不在支持范围内。
 - 私有字段的读取绑定当前游戏版本；字段缺失、类型不符或内部数据为 null 都显式拒绝。

@@ -66,7 +66,8 @@ internal static partial class CombatSessionController
     {
         RequireMainThread();
         if (!_combatActive || _state == null || _player == null || _rules == null
-            || _tracker == null || IsMultiplayerSession || _search != null || _deployment != null)
+            || _tracker == null || IsMultiplayerSession || _search != null
+            || (_deployment != null && !_deployment.SupersededByTurnSetup))
         {
             return false;
         }

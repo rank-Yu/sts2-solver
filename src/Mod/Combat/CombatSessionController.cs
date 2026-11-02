@@ -149,6 +149,64 @@ internal static partial class CombatSessionController
             && CombatManager.Instance.IsInProgress
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
 
+    /// <summary>
+    /// Same capability gate as <see cref="TurnSetupInterceptionAllowed"/> without the current-turn
+    /// stop flag: the EndTurn selector release asks whether the next turn could be taken over.
+    /// </summary>
+    internal static bool NextTurnSetupTakeoverAllowed
+        => _combatActive
+            && _state != null
+            && _player != null
+            && _rules != null
+            && _tracker != null
+            && !IsMultiplayerSession
+            && _mode is SolverMode.AutoSearch or SolverMode.FullAuto
+            && CombatManager.Instance.IsInProgress
+            && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
+
+    /// <summary>A deployment is blocking only while it still owns the play phase.</summary>
+    private static bool HasBlockingDeployment
+        => _deployment is { SupersededByTurnSetup: false };
+
+    /// <summary>
+    /// The previous turn's EndTurn action from the deployment that is still waiting for its
+    /// boundary. Its <c>Before</c> is the last verified prediction boundary and its choices are the
+    /// old route's turn-start selections.
+    /// </summary>
+    internal static bool TryGetVerifiedEndTurn(int turn, out Battle before, out PlayerAction action)
+    {
+        if (_deploymentResult?.Plan.EndTurnAction(turn) is { } endTurn)
+        {
+            before = endTurn.Before;
+            action = endTurn.Action;
+            return true;
+        }
+        before = default;
+        action = default;
+        return false;
+    }
+
+    /// <summary>
+    /// The next turn's setup page was taken over while the previous turn's EndTurn deployment was
+    /// still waiting for the boundary. The old route's EndTurn prediction is superseded, not a
+    /// deviation; the setup result owns the turn from here.
+    /// </summary>
+    internal static void OnTurnSetupIntercepted(int turn)
+    {
+        if (_deployment is not { SupersededByTurnSetup: false } deployment
+            || deployment.Turn + 1 != turn)
+        {
+            return;
+        }
+        deployment.SupersededByTurnSetup = true;
+#if STS2_SOLVER_TESTING
+        SetupSupersededDeploymentCount++;
+#endif
+        ModLog.Info(
+            $"[Sts2Solver] CONTROLLER_TURN_SETUP_SUPERSEDES_DEPLOYMENT turn={turn} " +
+            $"deployment_turn={deployment.Turn}");
+    }
+
     internal static CombatPilotResult CapturePilotResultForTest() => BuildPilotResult();
 
     internal static SolverMode Mode => _mode;
@@ -169,11 +227,45 @@ internal static partial class CombatSessionController
 
     internal static bool HoldAutoSearchForTest { get; set; }
 
+    /// <summary>Deployments whose EndTurn boundary was taken over by the next turn's setup page.</summary>
+    internal static int SetupSupersededDeploymentCount { get; private set; }
+
+    internal static void ResetSetupTestState()
+    {
+        SetupSupersededDeploymentCount = 0;
+    }
+
     internal static void ResumeAutoSearchForTest()
     {
         HoldAutoSearchForTest = false;
         if (_combatActive && _state != null)
             OnTurnStarted(_state);
+    }
+
+    /// <summary>
+    /// Test-only: recompile the frozen rules and tracker after the host injected cards/powers into
+    /// a live turn-one Play state. Production imports happen before any injection.
+    /// </summary>
+    internal static void RefreshImportForTest()
+    {
+        RequireMainThread();
+        if (!_combatActive || _state == null || _player == null
+            || _state.RunState is not RunState runState)
+        {
+            throw new InvalidOperationException("刷新导入时没有可用的战斗状态。");
+        }
+        _tracker?.Detach(_state);
+        _rules = RulesCompiler.Compile(_state, _player, runState);
+        _tracker = new LiveCombatTracker(_state);
+        _trackerSeeded = false;
+        _names = null;
+        _importErrorCode = null;
+        _importErrorDetail = null;
+        _errorCode = null;
+        _errorDetail = null;
+        _phase = CombatUiPhase.WaitingTurn;
+        PublishSnapshot();
+        ModLog.Info($"[Sts2Solver] CONTROLLER_IMPORT_REFRESH_FOR_TEST turn={CurrentTurn()}");
     }
 #endif
 
@@ -866,7 +958,7 @@ internal static partial class CombatSessionController
             rejection = "not_playable";
             return false;
         }
-        if (_deployment != null && !allowDeployment)
+        if (_deployment != null && !allowDeployment && !_deployment.SupersededByTurnSetup)
         {
             rejection = "executing";
             return false;

@@ -618,6 +618,24 @@ public static partial class Kernel
     /// </summary>
     private static void AdvanceRoundPlayerStart(ref Exec x, bool takingExtraTurn = false)
     {
+        if (!AdvanceRoundPlayerStartPrefix(ref x, takingExtraTurn))
+            return;
+
+        // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish. The
+        // EndTurn path keeps its historical behavior (no relic BeforeHandDraw, no
+        // CheckForEmptyHand, ShufflesCrossed accounting on); PreparePlayerPlayPhase passes
+        // rootSetup=true for the native SetupPlayerTurn semantics. [GAME CombatManager.cs:903-925]
+        ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: false);
+    }
+
+    /// <summary>
+    /// The native <c>StartTurn</c> preparation before <c>SetupPlayerTurn</c>: round/turn increment,
+    /// the per-creature start, <c>BeforeSideTurnStart</c> and the side-start block clear. Returns
+    /// false when that prefix requested a choice. The caller either continues into
+    /// <c>ContinuePlayerPlayPhase</c> (the ordinary EndTurn path) or stops at the native setup entry.
+    /// </summary>
+    private static bool AdvanceRoundPlayerStartPrefix(ref Exec x, bool takingExtraTurn)
+    {
         // Enemy-turn damage is not part of any compensated history window.
         x.PendingBlockBreakOwners = 0;
         x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
@@ -638,17 +656,12 @@ public static partial class Kernel
         ReadOnlySpan<byte> player = [Limits.PlayerOwner];
         BeforeSideTurnStart(ref x, Side.Player, player);
         if (x.NeedsChoice)
-            return;
+            return false;
         ClearBlockAtSideStart(ref x, Limits.PlayerOwner);
         if (x.NeedsChoice)
-            return;
-
-        // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish. The
-        // EndTurn path keeps its historical behavior (no relic BeforeHandDraw, no
-        // CheckForEmptyHand, ShufflesCrossed accounting on); PreparePlayerPlayPhase passes
-        // rootSetup=true for the native SetupPlayerTurn semantics. [GAME CombatManager.cs:903-925]
+            return false;
         x.TakingExtraTurn = takingExtraTurn;
-        ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: false);
+        return true;
     }
 
     /// <summary>
@@ -881,6 +894,7 @@ public static partial class Kernel
         Exec x = new(ref battle, rules, action);
         x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
         x.TakingExtraTurn = false;
+        x.SetupPreamble = true;
         SetupPauseState setup = new();
         x.SetupPause = setup.OnPause;
         // GAME CombatManager.cs:906-908: the native turn-one draw order keys off the player's turn

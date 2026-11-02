@@ -24,6 +24,9 @@ public sealed class TyrannyPower : PowerDef
         int count = Math.Min(x.B.Powers[self.Index].Amount, x.B.HandCount);
         if (count <= 0)
             return;
+        // CardSelectCmd.FromHand pauses before it reads the hand; the prefs (Min=Max=count) are
+        // fixed by the caller before that pause.
+        x.RunSetupPause();
         Span<int> options = stackalloc int[x.B.HandCount];
         for (int index = 0; index < options.Length; index++)
             options[index] = index;
@@ -60,6 +63,9 @@ public sealed class ForegoneConclusionPower : PowerDef
                 return;
         }
         int count = Math.Min(x.B.Powers[self.Index].Amount, x.B.DrawCount);
+        // CardSelectCmd.FromCombatPile pauses before it reads the pile, and it pauses even when
+        // the pile is empty. The prefs are fixed by the caller before the pause.
+        x.RunSetupPause();
         if (count > 0)
         {
             Span<int> options = stackalloc int[x.B.DrawCount];

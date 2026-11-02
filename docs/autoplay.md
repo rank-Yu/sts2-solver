@@ -56,9 +56,9 @@
 
 原版在玩家回合开始时先执行 `SetupPlayerTurn`。需要选牌时，玩家 `PlayerTurnPhase` 保持 `Start`，设置页面等待一个玩家选择上下文；这段等待不是动作队列里的一个动作，所以 `FinishedExecutingActions()` 可能已经完成。暂停时原版先跑侧回合开始和球，选择结束后 `RunAutoPrePlayPhase` 把阶段推进到 `AutoPrePlay`，再进入 `Play`。`CombatManager.TurnStarted` 可能在暂停期间就触发，也可能在进入 `Play` 后触发，所以控制器把两种顺序都当作“回合开始事件”，在 `PlayerTurnPhase` 到 `Play` 后才处理计划。
 
-自动搜索档和全自动档会接管可见的回合准备页面；如果枚举出的计划包含 `AutoPrePlay` 阶段的选择，本批不接管（`RunAutoPrePlayPhase` 留给下一批）：`PlayerTurnSetupRuntime` 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举 Play 根，再用 `CompileSetupRequest` 编译多根请求。搜索不在入口启动，而是在第一张真正可见的 `CardSelectCmd` 页面出现后启动；页面在搜索期间不加输入遮挡，玩家可以自己选。没有可见页面的纯隐式选择（例如手里只剩一张牌的烤面包手套）不启动准备搜索，原生自动选完后在 `Play` 照常搜索。混合场景里如果某个隐式请求在侧回合开始后变成了可见页面，观察层会把它提升为可见请求；但内核枚举若因此返回 `NoChoice`，本批不接管，页面留给玩家。
+自动搜索档和全自动档会接管可见的回合准备页面，也会接管其后的 `RunAutoPrePlayPhase`。两段共用同一个页面会话和同一份计划，搜索只启动一次：setup 和 AutoPrePlay 谁先看到第一个可见页面，谁就启动搜索。`PlayerTurnSetupRuntime` 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举 Play 根，再用 `CompileSetupRequest` 编译多根请求；计划可以包含 AutoPrePlay 阶段的选择。搜索不在入口启动，而是在第一张真正可见的 `CardSelectCmd` 页面出现后启动；页面在搜索期间不加输入遮挡，玩家可以自己选。没有可见页面的纯隐式选择（例如手里只剩一张牌的烤面包手套）不启动准备搜索，原生自动选完后在 `Play` 照常搜索。混合场景里如果某个隐式请求在侧回合开始后变成了可见页面，观察层会把它提升为可见请求；手牌候选在暂停后重新读取，侧回合开始新增的牌（例如十字弓生成的攻击）会进入候选并参与枚举和计划匹配。
 
-自动搜索档搜完只发布路线和计划，不点页面；玩家可以自己选，或按“执行本回合”让求解器在页面上点完再部署。全自动档搜完直接驱动；驱动前先评估全自动暂停条件（`death_turn`、`worse_recalculation`、`combat_end_turn`、只有死亡路线），命中时不点页面、把页面交还玩家并暂停本场全自动，路线只作为建议显示。玩家在搜完前自己选了，本次搜索作废，进入 `Play` 后按普通流程处理。
+自动搜索档搜完只发布路线和计划，不点页面；玩家可以自己选，或按“执行本回合”让求解器在页面上点完再部署。全自动档搜完直接驱动；驱动前先评估全自动暂停条件（`death_turn`、`worse_recalculation`、`combat_end_turn`、只有死亡路线），命中时不点页面、把页面交还玩家并暂停本场全自动，路线只作为建议显示。玩家在搜完前自己选了，本次搜索作废，进入 `Play` 后按普通流程处理。AutoPrePlay 的页面按同一规则处理：自动搜索只显示，全自动在暂停条件未命中时驱动。
 
 驱动只在点击和确认期间加全屏输入遮挡，驱动结束、停止、失败、战斗结束或退出场景时释放。停止搜索时如果已有候选，保留计划并交还页面；没有候选就清掉计划。停止执行会在下一次点击或确认前停住。失败使用独立错误码 `turn_setup_failed`，替换任务正常结束，不把原生 `StartTurn` 弄成 fault，页面仍由原生代码等待。
 
@@ -73,6 +73,14 @@
 5. 路线没有当前回合动作时按“计划耗尽”重搜。
 
 逐动作执行前会核对回合、能量、星能、手牌数量与身份、药水和目标；选择的数量和选项必须和游戏当前请求一致，对不上就不猜。
+
+### 结束回合与下一回合的准备
+
+`ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会在等待下一回合边界之前释放 `PlannedNativeSelector`。之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。
+
+上一回合的部署被下一回合 setup 接管时标记 `SupersededByTurnSetup`：结束回合的实机边界不再和旧路线比较，不计偏差、不重搜，下一回合由 setup 的结果接手。下一回合做新的准备搜索并在页面上驱动；上一回合计划里的 `PlayerTurnStart` 选择暂时不沿用。
+
+下一回合的准备根携带最近一次已核对的预测边界（上一回合 EndTurn 动作的 `Before`）里的非原生账本：成长额度用量、自动/生成用药计数、免死计数与回血、`RecoveredHp`、`LongTermResourceValue` 和复活中的敌人行。准备接管时如果上一回合的部署结果还在，先用内核把这个 EndTurn（带旧路线的选择）推进到下一回合玩家 `Phase == Start`，和实机 `ImportSetupRoot` 逐字节比较：一致就用预测 Start 根，不一致记一条 `TURN_SETUP_START_PREDICTION_MISMATCH` 并退回实机导入（仍带同一份已验证账本）。两种口径都遵守回合准备根自己的事实：`VitalSparkNormalizedAmount = 0`、`ShuffleEventCount = 0`，`ShufflesCrossed`/`HasRisk` 从 tracker 继承。原生可重建的计数（例如 `CumulativeHpLost`、`OrbChannels`）仍从实机 History 读取。
 
 ### 停止执行
 

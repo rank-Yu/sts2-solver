@@ -228,8 +228,9 @@ internal static class SetupEnumerationCheck
         return 0;
     }
 
-    private static Battle BuildTurnOnePlan(MainLoopContext loop, OfflineRequest request, Rules rules,
-        TurnSetupBranch branch, IReadOnlyList<int[]> pages)
+    private static (Battle Root, IReadOnlyList<NativeSetupPage> Pages) BuildTurnOnePlan(
+        MainLoopContext loop, OfflineRequest request, Rules rules, TurnSetupBranch branch,
+        IReadOnlyList<int[]> pages)
     {
         RunManager.Instance.CleanUp(true);
         TurnSetupRootCapture.BeginBuild(captureStartBattle: true);
@@ -242,16 +243,18 @@ internal static class SetupEnumerationCheck
             ?? throw new InvalidOperationException("找不到本地玩家。");
         LiveCombatTracker tracker = TurnSetupRootCapture.StartTracker
             ?? throw new InvalidDataException("plan 没有捕获 Start tracker。");
-        return tracker.ImportForComparison(combat, player, rules, branch.Root);
+        return (tracker.ImportForComparison(combat, player, rules, branch.Root), selector.Pages);
     }
 
-    private static Battle BuildTurnTwoPlan(MainLoopContext loop, OfflineRequest request, Rules rules,
-        TurnSetupBranch branch, IReadOnlyList<int[]> pages)
+    private static (Battle Root, IReadOnlyList<NativeSetupPage> Pages) BuildTurnTwoPlan(
+        MainLoopContext loop, OfflineRequest request, Rules rules, TurnSetupBranch branch,
+        IReadOnlyList<int[]> pages)
     {
         RunManager.Instance.CleanUp(true);
         BuildToPlay(loop, request, turnOneSelector: 0);
         TurnSetupRootCapture.BeginBuild(captureStartBattle: true);
-        using (CardSelectCmd.PushSelector(new TurnSetupCardSelector(pages), localOnly: true))
+        TurnSetupCardSelector selector = new(pages);
+        using (CardSelectCmd.PushSelector(selector, localOnly: true))
             EndTurnAndWait(loop, expectedTurn: 2);
         CombatState secondCombat = CombatManager.Instance.DebugOnlyGetState()
             ?? throw new InvalidDataException("第二回合找不到战斗状态。");
@@ -259,7 +262,7 @@ internal static class SetupEnumerationCheck
             ?? throw new InvalidOperationException("第二回合找不到本地玩家。");
         LiveCombatTracker tracker = TurnSetupRootCapture.StartTracker
             ?? throw new InvalidDataException("第二回合 plan 没有捕获 Start tracker。");
-        return tracker.ImportForComparison(secondCombat, player, rules, branch.Root);
+        return (tracker.ImportForComparison(secondCombat, player, rules, branch.Root), selector.Pages);
     }
 
     private static CombatState BuildToPlay(MainLoopContext loop, OfflineRequest request,
@@ -576,7 +579,7 @@ internal static class SetupEnumerationCheck
     }
 
     private static int CompareNativePlans(string root, IReadOnlyList<TurnSetupBranch> branches,
-        Func<TurnSetupBranch, IReadOnlyList<int[]>, Battle> rebuild)
+        Func<TurnSetupBranch, IReadOnlyList<int[]>, (Battle Root, IReadOnlyList<NativeSetupPage> Pages)> rebuild)
     {
         int failures = 0;
         List<Battle> nativeRoots = [];
@@ -594,21 +597,25 @@ internal static class SetupEnumerationCheck
                 failures++;
                 continue;
             }
-            Battle native = rebuild(branch, pages);
+            (Battle native, IReadOnlyList<NativeSetupPage> nativePages) = rebuild(branch, pages);
             bool same = Fingerprint.Equal(branch.Root, native);
-            if (!same)
+            bool optionsSame = ComparePlanOptions(branch, nativePages, out string optionDetail);
+            if (!same || !optionsSame)
             {
                 failures++;
-                List<string> diff = BattleDump.Diff(branch.Root, native, "enumerated", "native");
-                Console.WriteLine($"PLAN index={index} status=diff field={FirstField(diff)} "
+                List<string> diff = same ? [] : BattleDump.Diff(branch.Root, native, "enumerated", "native");
+                string field = optionsSame ? FirstField(diff) : "options";
+                Console.WriteLine($"PLAN index={index} status=diff field={field} "
                     + $"choices={ChoiceLabels(branch)} indexes={FormatPages(pages)}");
+                if (!optionsSame)
+                    Console.WriteLine($"  {optionDetail}");
                 foreach (string line in diff.Take(12))
                     Console.WriteLine("  " + line);
             }
             else
             {
                 Console.WriteLine($"PLAN index={index} status=same choices={ChoiceLabels(branch)} "
-                    + $"indexes={FormatPages(pages)}");
+                    + $"indexes={FormatPages(pages)} options={nativePages.Count}");
             }
             if (!nativeRoots.Any(existing => Fingerprint.Equal(existing, native)))
                 nativeRoots.Add(native);
@@ -627,13 +634,72 @@ internal static class SetupEnumerationCheck
         return failures;
     }
 
+    /// <summary>
+    /// Compares every native setup page against the kernel request that produced it: option ids,
+    /// upgrade levels and order, plus the effective min/max selection bounds. Implicit choices do
+    /// not open a page and are skipped; a page/request count mismatch is reported.
+    /// </summary>
+    private static bool ComparePlanOptions(TurnSetupBranch branch,
+        IReadOnlyList<NativeSetupPage> pages, out string detail)
+    {
+        PlannedChoice[] choices = [.. branch.Choices.Where(static choice => !choice.Implicit)];
+        if (choices.Length != pages.Count)
+        {
+            detail = $"stages plan={choices.Length} native={pages.Count}";
+            return false;
+        }
+        for (int stage = 0; stage < choices.Length; stage++)
+        {
+            PlannedChoice planned = choices[stage];
+            NativeSetupPage page = pages[stage];
+            if (planned.OptionCount != page.Options.Count)
+            {
+                detail = $"stage={stage} options plan={planned.OptionCount} native={page.Options.Count}";
+                return false;
+            }
+            for (int option = 0; option < planned.OptionCount; option++)
+            {
+                Card card = planned.OptionsAreGenerated
+                    ? planned.GeneratedOptions[option]
+                    : planned.PileOptions[option];
+                string id = Registry.Card(card.Id).NativeId;
+                (string CardId, int Upgrade) nativeOption = page.Options[option];
+                if (!string.Equals(id, nativeOption.CardId, StringComparison.Ordinal)
+                    || card.Upgrade != nativeOption.Upgrade)
+                {
+                    detail = $"stage={stage} option={option} plan={id}+{card.Upgrade} " +
+                        $"native={nativeOption.CardId}+{nativeOption.Upgrade}";
+                    return false;
+                }
+            }
+            // FromChooseACardScreen (Toolbox, Discovery) always calls ICardSelector with 0..1 even
+            // when the page's canSkip is false; that flag is not visible through GetSelectedCards.
+            // Candidate identities/order are still compared for generated pages, but the native
+            // bounds there do not express the kernel's Min/Max.
+            if (!planned.OptionsAreGenerated)
+            {
+                int nativeMin = Math.Min(page.MinSelect, page.Options.Count);
+                int nativeMax = Math.Min(page.MaxSelect, page.Options.Count);
+                if (planned.Request.MinCount != nativeMin || planned.Request.MaxCount != nativeMax)
+                {
+                    detail = $"stage={stage} bounds plan={planned.Request.MinCount}..{planned.Request.MaxCount} " +
+                        $"native={nativeMin}..{nativeMax} raw={page.MinSelect}..{page.MaxSelect}";
+                    return false;
+                }
+            }
+        }
+        detail = "";
+        return true;
+    }
+
     /// <summary>Maps each plan selection to the native selector's option indexes.</summary>
     private static int[][] PlanPages(TurnSetupBranch branch)
     {
-        int[][] pages = new int[branch.Choices.Length][];
-        for (int choice = 0; choice < branch.Choices.Length; choice++)
+        PlannedChoice[] explicitChoices = [.. branch.Choices.Where(static choice => !choice.Implicit)];
+        int[][] pages = new int[explicitChoices.Length][];
+        for (int choice = 0; choice < explicitChoices.Length; choice++)
         {
-            PlannedChoice planned = branch.Choices[choice];
+            PlannedChoice planned = explicitChoices[choice];
             List<int> selected = new(planned.Request.OptionCount);
             for (int option = 0; option < planned.Request.OptionCount; option++)
             {

@@ -476,12 +476,16 @@ public sealed class GamblingChip : RelicDef
     {
         if (x.B.PlayerTurn > 1 || x.B.HandCount == 0)
             return;
+        // The native caller fixes MaxSelect from the hand size before FromHand pauses; only the
+        // candidate list is read after the pause.
+        int max = x.B.HandCount;
+        x.RunSetupPause();
         Span<int> options = stackalloc int[x.B.HandCount];
         for (int index = 0; index < options.Length; index++)
             options[index] = index;
         Span<int> selected = stackalloc int[x.B.HandCount];
         if (!Kernel.ChooseCardsInRange(ref x, ChoiceEffect.DiscardAndDraw, Pile.Hand, options,
-                0, options.Length, selected, out int chosen))
+                0, max, selected, out int chosen))
         {
             return;
         }

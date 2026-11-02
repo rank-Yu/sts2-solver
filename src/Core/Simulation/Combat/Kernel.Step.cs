@@ -70,7 +70,7 @@ public static partial class Kernel
     /// prepared-end-turn continuation, so both paths perform the identical post-boundary work.
     /// </summary>
     private static StepResult FinishStep(ref Exec x, in PlayerAction action, out ChoiceRequest request,
-        out bool historyRisk)
+        out bool historyRisk, bool requireAllChoices = true)
     {
         // SettleReplayActionBoundary: resolve the queued changes and renormalize card afflictions.
         // The existing engine skips SettleReplayActionBoundary for every non-None boundary, including
@@ -99,12 +99,43 @@ public static partial class Kernel
             request = x.Request;
             return StepResult.NeedsChoice;
         }
-        if (!x.AllChoicesConsumed)
+        if (requireAllChoices && !x.AllChoicesConsumed)
             throw new InvalidOperationException($"动作 {action} 携带了未使用的选择。");
         if (VerifyStableBoundaryInvariants)
             ValidateStableBoundary(x.B);
         request = default;
         return StepResult.Completed;
+    }
+
+    /// <summary>
+    /// Advances one carried EndTurn action from its verified <c>Before</c> boundary to the native
+    /// <c>SetupPlayerTurn</c> entry (player <c>Phase = Start</c>, before the energy reset) and stops.
+    /// This is the turn-setup prediction entry: the ordinary EndTurn path still runs
+    /// <c>ContinuePlayerPlayPhase</c> to Play. The action may carry more choices than the prefix
+    /// consumes (the next turn's setup choices), so the partial finish does not require all of them.
+    /// Returns false when the action needs a choice, ends the combat, or takes an extra turn.
+    /// </summary>
+    internal static bool TryAdvanceToPlayerSetupStart(in Battle endTurnBefore, Rules rules,
+        in PlayerAction endTurnAction, out Battle setupStart)
+    {
+        setupStart = default;
+        if (endTurnAction.Kind != PlayerActionKind.EndTurn)
+            throw new ArgumentOutOfRangeException(nameof(endTurnAction), endTurnAction.Kind,
+                "预测 Start 根只接受结束回合动作。");
+        Battle battle = endTurnBefore;
+        Exec x = new(ref battle, rules, endTurnAction);
+        if (!AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn) || takingExtraTurn)
+            return false;
+        if (!AdvanceRoundPlayerStartPrefix(ref x, takingExtraTurn: false))
+            return false;
+        x.B.Phase = PlayerPhase.Start;
+        x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
+        StepResult result = FinishStep(ref x, endTurnAction, out _, out _,
+            requireAllChoices: false);
+        if (result != StepResult.Completed)
+            return false;
+        setupStart = x.B;
+        return true;
     }
 
     /// <summary>

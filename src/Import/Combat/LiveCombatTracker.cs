@@ -200,6 +200,37 @@ internal sealed class LiveCombatTracker
         return live;
     }
 
+    /// <summary>
+    /// Imports the native <c>SetupPlayerTurn</c> entry state with the production reconciliation
+    /// semantics. The root is not in the play phase yet, and it is a turn-setup root (Vital Spark
+    /// normalized to zero). This is the production counterpart of the frozen setup-root import.
+    /// </summary>
+    internal Battle ImportSetupRoot(CombatState state, Player player, Rules rules)
+    {
+        Refresh(state);
+        ImportOptions options = new()
+        {
+            RequirePlayPhase = false,
+            TurnSetupRoot = true,
+            KnownEnemies = _known,
+            KnownEnemyRules = KnownRules(),
+            AllowDeadEnemies = true,
+            AllowEscapedEnemies = true,
+            RootEnemyCount = _rootEnemyCount,
+            ShufflesCrossed = _shufflesCrossed,
+            HasRisk = _hasRisk,
+            RootCards = _rootCards,
+            Reconciliation = true,
+        };
+        if (_hasPredicted)
+            options = options with { RevivingEnemies = RevivingEnemies(in _predicted) };
+        Battle live = BattleImporter.Import(state, player, rules, options);
+        AddEscapedLoot(ref live);
+        if (_hasPredicted)
+            CarryNonNative(ref live, _predicted);
+        return live;
+    }
+
     /// <summary>Imports a live boundary for comparison with the predicted route state.</summary>
     internal Battle ImportForComparison(CombatState state, Player player, Rules rules,
         in Battle expected, bool requirePlayPhase = true, bool allowDeadPlayer = false)

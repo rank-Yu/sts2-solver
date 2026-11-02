@@ -249,23 +249,33 @@ internal static class ChoiceEnumerator
     }
 
     /// <summary>Number of legal selections, saturating at <paramref name="cap"/>.</summary>
-    public static int Count(in ChoiceRequest request, int cap)
+    public static int Count(in ChoiceRequest request, int cap) => (int)Count(request, (long)cap);
+
+    /// <summary>
+    /// Number of legal selections, saturating at <paramref name="cap"/>. Uses 128-bit intermediates
+    /// so a large option set saturates instead of overflowing.
+    /// </summary>
+    public static long Count(in ChoiceRequest request, long cap)
     {
+        if (cap <= 0)
+            return 0;
         long total = 0;
         for (int size = request.MinCount; size <= request.MaxCount; size++)
         {
-            long combinations = 1;
+            Int128 combinations = 1;
             for (int index = 0; index < size; index++)
             {
                 combinations = combinations * (request.OptionCount - index) / (index + 1);
                 if (combinations > cap)
                     return cap;
             }
-            total += combinations;
+            if (total > cap - (long)combinations)
+                return cap;
+            total += (long)combinations;
             if (total >= cap)
                 return cap;
         }
-        return (int)total;
+        return total;
     }
 
     private static int BuildClasses(scoped ReadOnlySpan<Card> cards, Span<int> classOf,

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-G-MULTI-CHOICE",
+  "characterId": "REGENT",
+  "encounterId": "SHRINKER_BEETLE_WEAK",
+  "seed": "TSGMULTICHOICE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerHp": 500,
+  "initialPlayerEnergy": 3,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "initialEnemyMaxHps": [2000],
+  "initialEnemyCurrentHps": [2000],
+  "timeoutSeconds": 180,
+  "relics": [
+    { "relicId": "TOASTY_MITTENS", "addWithoutObtainedEffects": true }
+  ],
+  "powers": [
+    { "powerId": "FURNACE_POWER", "target": "Player", "amount": 7 },
+    { "powerId": "TYRANNY_POWER", "target": "Player", "amount": 1 }
+  ],
+  "cards": [
+    { "cardId": "DEFEND_REGENT", "pile": "Draw", "count": 6 }
+  ]
+}

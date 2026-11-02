@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-D-AUTOPREPLAY-CHOICE",
+  "characterId": "REGENT",
+  "encounterId": "SHRINKER_BEETLE_WEAK",
+  "seed": "TSDAUTOPREPLAY",
+  "ascension": 0,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerHp": 500,
+  "initialPlayerEnergy": 3,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "initialEnemyMaxHps": [2000],
+  "initialEnemyCurrentHps": [2000],
+  "timeoutSeconds": 180,
+  "powers": [
+    { "powerId": "MAYHEM_POWER", "target": "Player", "amount": 2 }
+  ],
+  "cards": [
+    { "cardId": "DEFEND_REGENT", "pile": "Draw", "count": 5 },
+    { "cardId": "DISCOVERY", "pile": "Draw" },
+    { "cardId": "SOVEREIGN_BLADE", "pile": "Draw", "upgradeLevels": 1 }
+  ]
+}

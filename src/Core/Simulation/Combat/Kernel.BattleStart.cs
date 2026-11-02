@@ -95,19 +95,7 @@ public static partial class Kernel
     }
 
     private static void RelicBeforeHandDraw(ref Exec x)
-    {
-        for (int index = 0; index < x.B.RelicCount; index++)
-        {
-            ref readonly Relic relic = ref x.B.Relics[index];
-            if ((relic.Flags & RelicFlags.Melted) != 0)
-                continue;
-            RelicDef def = Registry.Relic(relic.Id);
-            Listener self = new(ListenerKind.Relic, checked((byte)index), Limits.PlayerOwner);
-            def.BeforeHandDraw(ref x, self);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
+        => RelicPass(ref x, RelicPhase.BeforeHandDraw, Side.Player, snapshot: true);
 
     /// <summary>
     /// Native turn-one draw order: cards whose enchantment starts at the bottom move to the draw

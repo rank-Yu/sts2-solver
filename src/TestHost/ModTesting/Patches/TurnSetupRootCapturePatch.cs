@@ -22,5 +22,6 @@ internal sealed class TurnSetupRootCapturePatch : IPatchMethod
     ];
 
     [HarmonyPriority(Priority.First)]
-    public static bool Prefix(CombatManager __instance) => TurnSetupRootCapture.Prefix(__instance);
+    public static bool Prefix(CombatManager __instance, CombatTurnState turnState)
+        => TurnSetupRootCapture.Prefix(__instance, turnState);
 }

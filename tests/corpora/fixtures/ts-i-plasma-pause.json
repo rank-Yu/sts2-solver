@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-I-PLASMA-PAUSE",
+  "characterId": "DEFECT",
+  "encounterId": "SHRINKER_BEETLE_WEAK",
+  "seed": "TSIPLASMAPAUSE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerHp": 80,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [2000],
+  "initialEnemyCurrentHps": [2000],
+  "timeoutSeconds": 180,
+  "relics": [
+    { "relicId": "TOASTY_MITTENS", "addWithoutObtainedEffects": true }
+  ],
+  "orbs": [
+    { "orbId": "PLASMA_ORB", "count": 1 }
+  ]
+}

@@ -182,15 +182,60 @@ public sealed partial class SlingOfCourage : RelicDef;
 /// <summary>
 /// <c>Toolbox</c>: <c>BeforeHandDraw</c> offers its colourless card choice only on turn 1
 /// (<c>SimulatedCombatState.Relics.ContinueRelicsBeforeHandDraw</c>), i.e. at the player turn start
-/// before the play-phase root.
+/// before the play-phase root. Native <c>Toolbox.BeforeHandDraw</c> generates
+/// <c>DynamicVars.Cards.IntValue</c> distinct combat cards from
+/// <c>ColorlessCardPool.GetUnlockedCards(player.UnlockState, CardMultiplayerConstraint)</c> with the
+/// <c>CombatCardGeneration</c> RNG, asks for one, then adds it to hand
+/// [GAME MegaCrit/Sts2/Core/Models/Relics/Toolbox.cs:20-34].
 /// </summary>
 [ContentId("TOOLBOX")]
 public sealed class Toolbox : RelicDef
 {
+    /// <summary>
+    /// <c>Toolbox.CanonicalVars</c> is <c>new CardsVar(3)</c> (GAME Toolbox.cs:20). The value is not
+    /// exposed through <see cref="RelicDef.VarNames"/>: the frozen <c>config.br</c> for the setup
+    /// fixtures has <c>relicVars[TOOLBOX]=missing</c>, and adding the name would change every root's
+    /// <c>Rules</c> bytes. The native model has no runtime writer for this variable, so the
+    /// canonical value is exact.
+    /// </summary>
+    private const int Cards = 3;
+
+    // The pool row already exists in the frozen rules for TOOLBOX roots. It is compiled from the
+    // same GetUnlockedCards + FilterForCombat path that the native generation filters again.
     public override IReadOnlyList<string> GeneratedCardPools => [CardPools.ColorlessAll];
 
     public override bool MayGenerateIdentityContent => true;
 
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (self.Owner != Limits.PlayerOwner || x.B.PlayerTurn > 1)
+            return;
+        Span<Card> options = stackalloc Card[Cards];
+        // CardFactory.GetDistinctForCombat: FilterForPlayerCount + FilterForCombat then
+        // TakeRandom(CombatCardGeneration), which is a full Fisher-Yates over the filtered list.
+        int sampled = Kernel.SampleCardPool(ref x.B, x.R, CardPools.ColorlessAll, Cards,
+            distinct: true, RngStream.CombatCardGeneration, options);
+        if (sampled == 0)
+            return;
+        // CardSelectCmd.FromChooseACardScreen with min 0 / max 1. The existing engine records the
+        // supported one-of choice as min 1 / max 1 GenerateToHand (the frozen setup roots have one
+        // root per option), and auto-selects when only one card was generated.
+        int selected = 0;
+        if (sampled > 1)
+        {
+            Span<int> selectedIndexes = stackalloc int[1];
+            if (!Kernel.ChooseGeneratedCardsInRange(ref x, ChoiceEffect.GenerateToHand,
+                    options[..sampled], minCount: 1, maxCount: 1, selectedIndexes,
+                    out int selectedCount))
+            {
+                return;
+            }
+            if (selectedCount != 1)
+                throw new InvalidOperationException("Toolbox 的选牌没有选中一张。");
+            selected = selectedIndexes[0];
+        }
+        Kernel.AddGeneratedCard(ref x, options[selected], Pile.Hand, PilePosition.Bottom);
+    }
 }
 
 /// <summary><c>Cauldron</c>: <c>AfterObtained</c> potion rewards only.</summary>

@@ -1,5 +1,6 @@
 // Deterministic answer to the native turn-setup page. The harness builds the same rooted scenario
-// once per option; this selector records the option list and picks the requested occurrence.
+// once per option (or once per planned option sequence); this selector records the option lists and
+// picks the requested occurrences from each page.
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
@@ -7,10 +8,26 @@ using MegaCrit.Sts2.Core.TestSupport;
 
 namespace Sts2Solver.TestHost;
 
-internal sealed class TurnSetupCardSelector(int requestedIndex, Action? beforeSelect = null)
-    : ICardSelector
+internal sealed class TurnSetupCardSelector : ICardSelector
 {
-    public int RequestedIndex { get; } = requestedIndex;
+    private readonly int _requestedIndex;
+    private readonly IReadOnlyList<int[]>? _plan;
+    private readonly Action? _beforeSelect;
+
+    public TurnSetupCardSelector(int requestedIndex, Action? beforeSelect = null)
+    {
+        _requestedIndex = requestedIndex;
+        _beforeSelect = beforeSelect;
+    }
+
+    /// <summary>One page of selected option indexes per native page, in call order.</summary>
+    public TurnSetupCardSelector(IReadOnlyList<int[]> plan, Action? beforeSelect = null)
+    {
+        _plan = plan;
+        _beforeSelect = beforeSelect;
+    }
+
+    public int RequestedIndex => _plan == null ? _requestedIndex : -1;
     public List<(string CardId, int Upgrade)> LastOptions { get; } = [];
     public (string CardId, int Upgrade)? LastSelected { get; private set; }
     public int Calls { get; private set; }
@@ -18,25 +35,48 @@ internal sealed class TurnSetupCardSelector(int requestedIndex, Action? beforeSe
     public Task<IEnumerable<CardModel>> GetSelectedCards(
         IEnumerable<CardModel> options, int minSelect, int maxSelect)
     {
-        beforeSelect?.Invoke();
+        _beforeSelect?.Invoke();
         List<CardModel> remaining = options.ToList();
-        if (Calls++ == 0)
+        if (Calls == 0)
         {
             foreach (CardModel card in remaining)
                 LastOptions.Add((card.Id.Entry, card.CurrentUpgradeLevel));
         }
+        IReadOnlyList<int> page;
+        if (_plan == null)
+        {
+            page = [_requestedIndex];
+        }
+        else
+        {
+            if (Calls >= _plan.Count)
+            {
+                throw new InvalidDataException(
+                    $"回合准备计划只有 {_plan.Count} 段选择，原生请求了第 {Calls + 1} 段。");
+            }
+            page = _plan[Calls];
+        }
+        Calls++;
         if (remaining.Count == 0)
             return Task.FromResult<IEnumerable<CardModel>>([]);
-        if ((uint)RequestedIndex >= (uint)remaining.Count)
+        if (page.Count < minSelect || page.Count > maxSelect)
         {
             throw new InvalidDataException(
-                $"回合准备选项只有 {remaining.Count} 个，请求下标 {RequestedIndex}。");
+                $"回合准备计划选了 {page.Count} 张，原生要求 {minSelect}..{maxSelect}。");
         }
-        CardModel selected = remaining[RequestedIndex];
-        LastSelected = (selected.Id.Entry, selected.CurrentUpgradeLevel);
-        if (minSelect > 1 || maxSelect < 1)
-            throw new InvalidDataException($"回合准备选择数量 {minSelect}..{maxSelect} 不受支持。");
-        return Task.FromResult<IEnumerable<CardModel>>([selected]);
+        List<CardModel> selected = new(page.Count);
+        foreach (int index in page)
+        {
+            if ((uint)index >= (uint)remaining.Count)
+            {
+                throw new InvalidDataException(
+                    $"回合准备选项只有 {remaining.Count} 个，请求下标 {index}。");
+            }
+            CardModel card = remaining[index];
+            selected.Add(card);
+            LastSelected ??= (card.Id.Entry, card.CurrentUpgradeLevel);
+        }
+        return Task.FromResult<IEnumerable<CardModel>>(selected);
     }
 
     public CardRewardSelection GetSelectedCardReward(

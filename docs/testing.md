@@ -266,12 +266,28 @@ git diff --exit-code -- tests/Golden/data/manifest.json
 | 镜像覆盖率表 `--rules-table-check` | 静态表与 `ModelDb.All`、注册表 | 报告遗漏和多余的 id |
 | 评估配置对照 `--config-compare` | 重组的 `SREQ` 与 `config.br`，依次比较规则、根、评分表、下界与其余选项；并用 `GoldenHash` 检查 `scoreHash`、`boundHash` | 打印第一处差异 |
 | 负例 `--import-negative` | 在 `p8-c-rage-juggling-dark-embrace` 上制造三类问题：Power 内部数据置空、注入未认领的私有状态、挂上测试程序集里的 Power | 必须分别以 `missing-private-field`、`unclaimed-private-state`、`third-party-content` 拒绝，输出 `negative failures=0` |
+| 回合准备枚举 `--setup-enumerate <root> [--setup-turn 1\|2]` | 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举计划；对每个计划重建一次原生准备页，比较 Play 根和根集合；另比较 `golden.br` 根集合、`config.br` 的数据段、短搜与 `Battles[BestRootIndex]` 重放 | 每个计划 `PLAN status=same`、`SETUP_NATIVE status=same`；冻结 fixture 输出 `SETUP_CONFIG scope=frozen status=same`、`SETUP_GOLDEN status=same` |
 
 `--all` 汇总 `same/diff/reject`，并按首个差异字段或拒绝原因分组计数。前缀根通过“导入前缀之前的状态 + 内核回放”比较；回合准备 fixture 按原生准备选项逐个重建，比较整份请求及全部准备根（见 [原生导入](import.md#8-前缀根与回合准备根)）。
 
+回合准备枚举的单独入口（不启动 Godot，走同一个原生建局和准备页）：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-a-toasty
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-a-toasty --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate qf-turn-start-choice-forge --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-g-multi-choice --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-h-choice-then-listener
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-i-plasma-pause --setup-turn 2
+```
+
+`ts-g-multi-choice` 覆盖 `AfterPlayerTurnStart` 两段选择 + 熔炉侧回合开始；`ts-h-choice-then-listener` 覆盖同一轮选择之后还有遗物监听器；`ts-i-plasma-pause` 覆盖 Plasma 在暂停处触发。三者都是测试专用 fixture。
+
+`--setup-turn 2` 先建到第 1 回合 Play、结束回合，在第二次 `SetupPlayerTurn` 入口重新抓 Start 根；用于后续回合、AutoPrePlay 和多段选择。Start 根和逐计划 Play 根用生产口径（`LiveCombatTracker.ImportSetupRoot` / `ImportForComparison`，`Reconciliation=true`）比较；冻结 `golden.br`/`config.br` 仍用冻结口径。输出 `SETUP_ENUM`/`ENUM`/`PLAN`/`SETUP_NATIVE` 之外，还会输出 `SETUP_START`（两种 Start 导入口径逐字节相同或第一处差异）、`SETUP_BUDGET`（测试用的更低根预算走同一条丢弃路径）；冻结 fixture 还会输出 `SETUP_CONFIG`（把枚举根按 `config.br` 顺序重排后的数据段逐字节比较）、`SETUP_BOUND`（带/不带 Bound、Start/Play 根 Bound）、`SETUP_PROD`（生产请求与 `config.br` 的子部件差异）、`SETUP_SEARCH`（短搜后用 `Battles[BestRootIndex]` 重放）和 `SETUP_GOLDEN`。
+
 `NativeStateDump` 还记录跑局和幕的信息：`run.ascension`、`run.act.index/count/id`、`run.act.boss/secondBoss`、`run.room.type/id`、`run.tutorial.discoveryOrder`、`run.unlock.*` 和 `rng.UpFront` 的计数与状态（`SecondBossEncounter` 缺失时写 `-`）。这些字段只用来核对建局路径和 `BossHpRelief` 用到的幕结构，不参与导入判定。
 
-证明：不启动 Godot 时，冻结输入能建出与参考导出相同的原生战斗状态，导入后与冻结的 `BATL` 逐字节相同，编译出的 `Rules`、评分表与下界也与冻结数据相同；私有状态和第三方内容的负例会显式拒绝。不证明：实机部署、界面、准备阶段的多段选择，以及未捕获的第三方 Mod 内容。
+证明：不启动 Godot 时，冻结输入能建出与参考导出相同的原生战斗状态，导入后与冻结的 `BATL` 逐字节相同，编译出的 `Rules`、评分表与下界也与冻结数据相同；私有状态和第三方内容的负例会显式拒绝。不证明：实机部署、界面、实机选牌写回，以及未捕获的第三方 Mod 内容。
 
 ### 7.1 离线整场自动战斗
 
@@ -357,7 +373,7 @@ tools/testing/run-headless.sh --instance full-combat \
 - **界面**：无头测试只检查面板的结构和状态（见 9.3），不证明可见渲染、字体、排版、拖动与缩放手感；这些要在可见游戏里看。
 - **非选牌模态**：选择驱动只覆盖 `CardSelectCmd` 的 `ICardSelector` 路径，没有验证未来或第三方 Mod 的其它模态请求。
 - **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖。
-- **回合准备多根**：实机只捕获第一个准备选项；完整 `config.br` 的多根排序只在差分宿主里验证。
+- **回合准备多根**：实机 Mod 还没有接管选牌页面；差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合和多段选择。准备暂停时侧回合开始/球的触发如果自己请求选择，当前显式不支持。
 - **第三方 Mod**：没有实机 Mod 根；导入层只显式拒绝非 `sts2` 程序集的模型，没有兼容层。
 - **Windows/Steam**：当前的计时与验证都在 Linux 上，Windows 的 `.ps1` 启动脚本还没有。
 

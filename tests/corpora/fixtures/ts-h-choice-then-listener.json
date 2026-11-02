@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-H-CHOICE-THEN-LISTENER",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_WEAK",
+  "seed": "TSHCHOICELISTENER",
+  "ascension": 0,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerHp": 80,
+  "initialPlayerEnergy": 3,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "timeoutSeconds": 180,
+  "relics": [
+    { "relicId": "TOOLBOX", "addWithoutObtainedEffects": true },
+    { "relicId": "JEWELED_MASK", "addWithoutObtainedEffects": true },
+    { "relicId": "CROSSBOW", "addWithoutObtainedEffects": true }
+  ],
+  "runCards": [
+    { "cardId": "DEMON_FORM", "pile": "Deck" }
+  ]
+}

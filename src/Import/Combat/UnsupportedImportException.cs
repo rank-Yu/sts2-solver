@@ -24,6 +24,8 @@ public static class ImportReason
     public const string RulesMismatch = "rules-mismatch";
     public const string KnownEnemyHistory = "known-enemy-history";
     public const string PrefixPlan = "prefix-plan";
+    /// <summary>A turn-setup plan/root set cannot be assembled into one search request.</summary>
+    public const string TurnSetupRoot = "turn-setup-root";
     public const string RunDeckHook = "run-deck-hook";
     public const string TestContent = "test-content";
     public const string DeprecatedContent = "deprecated-content";

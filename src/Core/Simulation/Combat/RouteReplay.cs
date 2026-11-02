@@ -145,7 +145,12 @@ internal sealed class ReplayedRoute
         return new ReplayedRoute(root, [.. actions], victory, rules);
     }
 
-    private static PlannedChoice CaptureChoice(in Battle partial, ChoiceRequest request, ulong selection)
+    /// <summary>
+    /// Captures one request and the selection the route (or a turn-setup plan) made for it. The
+    /// option cards are copied out of <paramref name="partial"/> because <see cref="ChoiceRequest"/>
+    /// stores pile positions, not values. Shared by route replay and the turn-setup enumerator.
+    /// </summary>
+    internal static PlannedChoice CaptureChoice(in Battle partial, ChoiceRequest request, ulong selection)
     {
         Card[] generated = [];
         if (request.OptionsAreGenerated)

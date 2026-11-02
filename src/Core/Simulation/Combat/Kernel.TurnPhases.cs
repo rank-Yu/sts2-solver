@@ -274,6 +274,7 @@ public static partial class Kernel
         BeforeSideTurnStart,
         AfterEnergyReset,
         AfterEnergyResetLate,
+        BeforeHandDraw,
         AfterPlayerTurnStart,
         AfterPlayerTurnStartLate,
         AfterSideTurnStart,
@@ -282,31 +283,85 @@ public static partial class Kernel
         AfterBlockCleared,
     }
 
-    /// <summary>Relic pass in relic order over unmelted player relics (the player participates in the side).</summary>
-    private static void RelicPass(ref Exec x, RelicPhase phase, Side side)
+    /// <summary>
+    /// Relic pass in relic order over unmelted player relics (the player participates in the side).
+    /// <paramref name="snapshot"/> keeps the listener set fixed for a hook that may pause for a
+    /// choice: another listener can add or remove relics while the hook is suspended, and the
+    /// native <c>ICombatState.IterateHookListeners</c> snapshot does not call newly added models and
+    /// skips removed ones. The default live walk is unchanged for the EndTurn path.
+    /// </summary>
+    private static void RelicPass(ref Exec x, RelicPhase phase, Side side, bool snapshot = false)
     {
-        for (int index = 0; index < x.B.RelicCount; index++)
+        if (!snapshot)
+        {
+            for (int index = 0; index < x.B.RelicCount; index++)
+            {
+                ref Relic relic = ref x.B.Relics[index];
+                if ((relic.Flags & RelicFlags.Melted) != 0)
+                    continue;
+                InvokeRelicPhase(ref x, phase, index, side);
+                if (x.NeedsChoice)
+                    return;
+            }
+            return;
+        }
+        int relicCount = x.B.RelicCount;
+        Span<(ushort Id, int Occurrence)> entries = stackalloc (ushort, int)[relicCount];
+        int taken = 0;
+        for (int index = 0; index < relicCount; index++)
         {
             ref Relic relic = ref x.B.Relics[index];
             if ((relic.Flags & RelicFlags.Melted) != 0)
                 continue;
-            RelicDef def = Registry.Relic(relic.Id);
-            Listener self = new(ListenerKind.Relic, (byte)index, Limits.PlayerOwner);
-            switch (phase)
+            int occurrence = 0;
+            for (int prior = 0; prior < index; prior++)
             {
-                case RelicPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, side); break;
-                case RelicPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
-                case RelicPhase.AfterEnergyResetLate: def.AfterEnergyResetLate(ref x, self); break;
-                case RelicPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
-                case RelicPhase.AfterPlayerTurnStartLate: def.AfterPlayerTurnStartLate(ref x, self); break;
-                case RelicPhase.AfterSideTurnStart: def.AfterSideTurnStart(ref x, self, side); break;
-                case RelicPhase.PrepareBeforeSideTurnEnd: def.PrepareBeforeSideTurnEnd(ref x, self, side); break;
-                case RelicPhase.AfterSideTurnEnd: def.AfterSideTurnEnd(ref x, self, side); break;
-                case RelicPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
-                default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
+                if (x.B.Relics[prior].Id == relic.Id)
+                    occurrence++;
             }
+            entries[taken++] = (relic.Id, occurrence);
+        }
+        for (int entry = 0; entry < taken; entry++)
+        {
+            (ushort id, int occurrence) = entries[entry];
+            int index = FindRelicOccurrence(x.B, id, occurrence);
+            if (index < 0 || (x.B.Relics[index].Flags & RelicFlags.Melted) != 0)
+                continue;
+            InvokeRelicPhase(ref x, phase, index, side);
             if (x.NeedsChoice)
                 return;
+        }
+    }
+
+    private static int FindRelicOccurrence(in Battle battle, ushort id, int occurrence)
+    {
+        for (int index = 0; index < battle.RelicCount; index++)
+        {
+            if (battle.Relics[index].Id != id)
+                continue;
+            if (occurrence-- == 0)
+                return index;
+        }
+        return -1;
+    }
+
+    private static void InvokeRelicPhase(ref Exec x, RelicPhase phase, int index, Side side)
+    {
+        RelicDef def = Registry.Relic(x.B.Relics[index].Id);
+        Listener self = new(ListenerKind.Relic, (byte)index, Limits.PlayerOwner);
+        switch (phase)
+        {
+            case RelicPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, side); break;
+            case RelicPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
+            case RelicPhase.AfterEnergyResetLate: def.AfterEnergyResetLate(ref x, self); break;
+            case RelicPhase.BeforeHandDraw: def.BeforeHandDraw(ref x, self); break;
+            case RelicPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
+            case RelicPhase.AfterPlayerTurnStartLate: def.AfterPlayerTurnStartLate(ref x, self); break;
+            case RelicPhase.AfterSideTurnStart: def.AfterSideTurnStart(ref x, self, side); break;
+            case RelicPhase.PrepareBeforeSideTurnEnd: def.PrepareBeforeSideTurnEnd(ref x, self, side); break;
+            case RelicPhase.AfterSideTurnEnd: def.AfterSideTurnEnd(ref x, self, side); break;
+            case RelicPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
+            default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
         }
     }
 
@@ -650,10 +705,20 @@ public static partial class Kernel
     internal static void PowersAfterEnergyReset(ref Exec x)
         => PowerListenerPass(ref x, PowerPhase.AfterEnergyReset, Side.Player, default, Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
 
-    /// <summary><c>TurnStartPowerSupport.TriggerBeforeHandDraw</c> then the relic stage of <c>PrepareBeforeHandDraw</c>.</summary>
+    /// <summary><c>TurnStartPowerSupport.TriggerBeforeHandDraw</c>.</summary>
+    internal static void PowerBeforeHandDraw(ref Exec x)
+        => PowerListenerPass(ref x, PowerPhase.BeforeHandDraw, Side.Player, default, PlayerSideOwners,
+            ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
+
+    /// <summary>
+    /// <c>TurnStartPowerSupport.TriggerBeforeHandDraw</c> then the relic stage of
+    /// <c>PrepareBeforeHandDraw</c>. The rootSetup preamble calls the power and relic stages
+    /// separately in native listener order (powers, then relics) and runs the returning-card stage
+    /// afterwards; this combined form keeps the EndTurn path unchanged.
+    /// </summary>
     internal static void BeforeHandDraw(ref Exec x)
     {
-        PowerListenerPass(ref x, PowerPhase.BeforeHandDraw, Side.Player, default, PlayerSideOwners, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
+        PowerBeforeHandDraw(ref x);
         if (x.NeedsChoice)
             return;
         // Relic stage: the modelled BeforeHandDraw relics (Pendulum, PollinousCore) act through
@@ -732,15 +797,15 @@ public static partial class Kernel
     /// <c>Hook.AfterPlayerTurnStart</c> on the vanilla path: powers, then relics, each in the regular
     /// and late passes (native iterates the same listener list once per pass).
     /// </summary>
-    internal static void AfterPlayerTurnStart(ref Exec x)
+    internal static void AfterPlayerTurnStart(ref Exec x, bool snapshotRelics = false)
     {
         PowerListenerPass(ref x, PowerPhase.AfterPlayerTurnStart, Side.Player, default, Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterPlayerTurnStart, Side.Player);
+        RelicPass(ref x, RelicPhase.AfterPlayerTurnStart, Side.Player, snapshotRelics);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player);
+        RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player, snapshotRelics);
     }
 
     /// <summary><c>PersistentPowerSupport.GetModifiedMaxEnergy</c>: every combat listener's modifier.</summary>

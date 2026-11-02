@@ -84,6 +84,133 @@ internal static class SearchRequestCompiler
         SearchPerformanceProfile profile,
         bool deterministic,
         long searchMemoryBudgetBytes)
+        => CompileCase(state, player, rules, root, [root], plans: null, policy, facts, profile,
+            deterministic, searchMemoryBudgetBytes);
+
+    /// <summary>
+    /// Compiles a multi-root turn-setup request: the Start root supplies the frozen evaluation
+    /// (TurnSetupRoot, score table, bound and route ordering) and the enumerated Play roots are the
+    /// search roots. The host-only plans stay on <see cref="SearchCase.TurnSetupPlans"/>; they are
+    /// not part of SREQ.
+    /// </summary>
+    public static SearchCase CompileSetupRequest(
+        CombatState state,
+        Player player,
+        Rules rules,
+        Battle startRoot,
+        IReadOnlyList<TurnSetupBranch> branches,
+        SearchPolicy policy,
+        EvaluationRootFacts facts,
+        SearchPerformanceProfile profile,
+        bool deterministic,
+        long searchMemoryBudgetBytes)
+    {
+        if (startRoot.Phase != PlayerPhase.Start)
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备请求的 Start 根相位是 {startRoot.Phase}，不是 Start。");
+        if (branches.Count == 0)
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot, "准备枚举没有分支。");
+        Battle[] roots = new Battle[branches.Count];
+        PlannedChoice[][] plans = new PlannedChoice[branches.Count][];
+        for (int index = 0; index < branches.Count; index++)
+        {
+            TurnSetupBranch branch = branches[index];
+            if (branch.Terminal)
+            {
+                throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                    $"准备分支 {index} 在准备过程中结束了战斗；搜索请求不能表示终局准备根。");
+            }
+            ValidateSetupPlayRoot(startRoot, branch.Root, index);
+            roots[index] = branch.Root;
+            plans[index] = branch.Choices;
+        }
+        // Every Play root must agree on the facts the request freezes once: the search layer's
+        // ordering, initial HP and potion ledger are root-global.
+        for (int index = 1; index < roots.Length; index++)
+        {
+            if (roots[index].PlayerTurn != roots[0].PlayerTurn
+                || roots[index].Round != roots[0].Round)
+            {
+                throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                    $"准备根 {index} 的回合 {roots[index].PlayerTurn}/轮 {roots[index].Round} "
+                    + $"与根 0 的 {roots[0].PlayerTurn}/{roots[0].Round} 不一致。");
+            }
+            if (roots[index].Player.MaxHp != roots[0].Player.MaxHp
+                || roots[index].PotionSlotCount != roots[0].PotionSlotCount
+                || roots[index].EnemyCount != roots[0].EnemyCount)
+            {
+                throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                    $"准备根 {index} 的最大生命/药水槽/敌人数与根 0 不一致。");
+            }
+            if (!PotionSlotsEqual(in roots[index], in roots[0]))
+            {
+                throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                    $"准备根 {index} 的药水槽内容与根 0 不一致。");
+            }
+        }
+        EvaluationRootFacts setupFacts = facts with
+        {
+            TurnSetupRoot = true,
+            InitialActionCount = 0,
+        };
+        return CompileCase(state, player, rules, startRoot, roots, plans, policy, setupFacts,
+            profile, deterministic, searchMemoryBudgetBytes);
+    }
+
+    private static void ValidateSetupPlayRoot(in Battle start, in Battle root, int index)
+    {
+        if (root.Phase != PlayerPhase.Play)
+        {
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备根 {index} 的相位是 {root.Phase}，不是 Play。");
+        }
+        if (root.Outcome != Outcome.None)
+        {
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备根 {index} 已经终局（{root.Outcome}）。");
+        }
+        if (root.Player.MaxHp != start.Player.MaxHp
+            || root.PotionSlotCount != start.PotionSlotCount
+            || root.EnemyCount != start.EnemyCount)
+        {
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备根 {index} 的最大生命/药水槽/敌人数与 Start 根不一致。");
+        }
+        if (root.PlayerTurn != start.PlayerTurn || root.Round != start.Round)
+        {
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备根 {index} 的回合 {root.PlayerTurn}/轮 {root.Round} "
+                + $"与 Start 根的 {start.PlayerTurn}/{start.Round} 不一致。");
+        }
+        if (!PotionSlotsEqual(in root, in start))
+        {
+            throw new UnsupportedImportException(ImportReason.TurnSetupRoot,
+                $"准备根 {index} 的药水槽内容与 Start 根不一致。");
+        }
+    }
+
+    private static bool PotionSlotsEqual(in Battle left, in Battle right)
+    {
+        for (int slot = 0; slot < Limits.PotionSlots; slot++)
+        {
+            if (left.Potions[slot] != right.Potions[slot])
+                return false;
+        }
+        return true;
+    }
+
+    private static SearchCase CompileCase(
+        CombatState state,
+        Player player,
+        Rules rules,
+        Battle evaluationRoot,
+        Battle[] battles,
+        IReadOnlyList<PlannedChoice[]>? plans,
+        SearchPolicy policy,
+        EvaluationRootFacts facts,
+        SearchPerformanceProfile profile,
+        bool deterministic,
+        long searchMemoryBudgetBytes)
     {
         if (profile.BaselineWidth <= 0 || profile.NarrowWidth <= 0
             || profile.WideWidth <= 0 || profile.OffensiveWidth <= 0)
@@ -98,9 +225,9 @@ internal static class SearchRequestCompiler
         }
 
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(
-            state, player, rules, root, policy, facts);
+            state, player, rules, evaluationRoot, policy, facts);
         BoundFeatures bound = EvaluationConfigCompiler.CompileBound(
-            state, player, root, policy, facts);
+            state, player, evaluationRoot, policy, facts);
         ScoreRules score = scorer.RulesForCodec;
 
         // Deterministic test requests run only on the node cap. Zero would stop the solver before
@@ -114,13 +241,13 @@ internal static class SearchRequestCompiler
             profile.StartMaxExpandedNodes,
             SearchPerformanceProfile.MaxTurns,
             softTime,
-            root.Player.MaxHp)
+            evaluationRoot.Player.MaxHp)
         {
             Scorer = scorer,
             Bound = bound,
             Ordering = new RouteOrdering(
-                root.Player.CurrentHp,
-                root.Player.MaxHp,
+                evaluationRoot.Player.CurrentHp,
+                evaluationRoot.Player.MaxHp,
                 score.BossHpRelief,
                 score.PostCombatRelicHeal),
             Potions = potions,
@@ -131,18 +258,19 @@ internal static class SearchRequestCompiler
             InitialAutomaticPotionUses = facts.InitialAutomaticPotionUses,
             AmbergrisPotionId = score.AmbergrisPotionId,
             Act3BossStrategy = policy.Act3BossStrategy,
-            InitialPlayerTurn = root.PlayerTurn,
-            InitialSearchTurn = root.PlayerTurn,
+            InitialPlayerTurn = battles[0].PlayerTurn,
+            InitialSearchTurn = battles[0].PlayerTurn,
             SecondRankBandWidth = profile.BaselineWidth,
             PreserveReplayAllocatorOpening = HasUnusedCardReplayAllocator(player),
             SearchMemoryBudgetBytes = searchMemoryBudgetBytes,
-            PowerCommitments = PowerCatalogBuilder.Build(root, rules, scorer, state.RunState.TotalFloor),
+            PowerCommitments = PowerCatalogBuilder.Build(evaluationRoot, rules, scorer,
+                state.RunState.TotalFloor),
             HasUnboundedGrowthTargets = policy.HasUnboundedGrowthTargets && !policy.IgnoreLongTermRewards,
             BrightestFlameMaxHpLossLimit = policy.BrightestFlameMaxHpLossLimit,
             InitialBrightestFlameMaxHpSpent = policy.BrightestFlameMaxHpLossLimit.HasValue
                 ? NativeHistory.BrightestFlameMaxHpSpent() : 0,
         };
-        return new SearchCase(rules, [root], options);
+        return new SearchCase(rules, battles, options) { TurnSetupPlans = plans };
     }
 
     /// <summary>

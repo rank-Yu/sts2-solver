@@ -415,8 +415,11 @@ internal sealed record BeamResult(
 [System.Runtime.CompilerServices.SkipLocalsInit]
 internal sealed partial class BeamSolver
 {
-    /// <summary>Selections explored per choice request (lexicographic within each size).</summary>
-    private const int MaxChoiceBranches = 32;
+    /// <summary>
+    /// Selections explored per choice request (lexicographic within each size). The turn-setup root
+    /// enumerator shares the same per-choice bound for its deduplicated root budget.
+    /// </summary>
+    internal const int MaxChoiceBranches = 32;
 
     /// <summary>
     /// Cap on skipped physical choice alternatives checked per request by the verification switch.

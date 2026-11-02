@@ -643,9 +643,31 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
 
-        // Energy reset: PersistentRelicSupport.ShouldPlayerResetEnergy over every combat listener
-        // (Ice Cream keeps the previous turn's energy from turn 2 on). Modified max energy and energy
-        // next turn follow.
+        // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish. The
+        // EndTurn path keeps its historical behavior (no relic BeforeHandDraw, no
+        // CheckForEmptyHand, ShufflesCrossed accounting on); PreparePlayerPlayPhase passes
+        // rootSetup=true for the native SetupPlayerTurn semantics. [GAME CombatManager.cs:903-925]
+        x.TakingExtraTurn = takingExtraTurn;
+        ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: false);
+    }
+
+    /// <summary>
+    /// The <c>CombatBeamSolver.TurnExecutionContinuation.ContinuePlayerStart</c> stages from
+    /// <c>BeforeHand</c> through <c>Finish</c>: hand-draw preparation, the draw, the
+    /// <c>AfterPlayerTurnStart</c> pass, the player side start, deferred enemy deaths, orbs, the
+    /// auto-pre-play phase, then <c>Phase = Play</c>.
+    /// <paramref name="rootSetup"/> marks a turn-setup preamble built from a native Start root: the
+    /// native <c>Hook.BeforeHandDraw</c> relic stage runs on every turn [GAME CombatManager.cs:903],
+    /// <c>CheckForEmptyHand</c> runs after <c>Phase = AutoPrePlay</c> and before the auto-plays
+    /// [GAME CombatManager.cs:862-869], and <c>ShufflesCrossed</c> stays at the imported root value
+    /// (the original engine's <c>rootSetup</c> flag). The default EndTurn path leaves all three
+    /// unchanged.
+    /// </summary>
+    internal static void ContinuePlayerPlayPhase(ref Exec x, bool firstTurn, bool rootSetup,
+        SetupPauseState? setup = null)
+    {
+        // GAME CombatManager.cs:888-900: reset energy (or keep it when a listener says so), then
+        // Hook.AfterEnergyReset before Hook.BeforeHandDraw.
         if (HookDispatch.ShouldPlayerResetEnergy(x.B, x.R, Limits.PlayerOwner))
             x.B.Energy = 0;
         // CombatBeamSolver.RoundTransition: GainEnergy(modified max energy + ConsumeEnergyNextTurn).
@@ -655,60 +677,217 @@ public static partial class Kernel
         PowersAfterEnergyReset(ref x);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player);
+        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player, snapshot: rootSetup);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player);
+        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player, snapshot: rootSetup);
         if (x.NeedsChoice)
             return;
 
-        // ContinuePlayerStart. The full AfterPlayerTurnStart pass runs to completion (including any
-        // turn-start choice); the automatic-selector order starts the player side exactly here.
-        x.TakingExtraTurn = takingExtraTurn;
         int beforeHandShuffles = x.B.ShuffleEventCount;
         x.B.Phase = PlayerPhase.Start;
-        BeforeHandDraw(ref x);
-        if (x.NeedsChoice)
-            return;
+        if (rootSetup)
+        {
+            // GAME Hook.BeforeHandDraw iterates powers, then relics (CombatState.IterateHookListeners).
+            PowerBeforeHandDraw(ref x);
+            if (x.NeedsChoice)
+                return;
+            RelicBeforeHandDraw(ref x);
+            if (x.NeedsChoice)
+                return;
+            ReturnCardsToHand(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
+        else
+        {
+            BeforeHandDraw(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
         // CombatBeamSolver.TurnExecutionContinuation resolves BeforeHandDraw's power changes before
         // the pre-draw checkpoint.
         ResolvePowerAmountChanges(ref x);
         if (x.NeedsChoice)
             return;
-        x.B.ShufflesCrossed += x.B.ShuffleEventCount - beforeHandShuffles;
+        if (!rootSetup)
+            x.B.ShufflesCrossed += x.B.ShuffleEventCount - beforeHandShuffles;
         // ConsumeModifiedHandDraw: base + the not-yet-snapshotted DrawCardsNextTurn amount, then the
         // listener passes (DrawCardsNextTurnPower.ModifyHandDraw adds its snapshotted amount).
         int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount + DrawNextTurnNotYetSnapshotted(x.B));
+        if (firstTurn)
+        {
+            // GAME CombatManager.cs:908-924: on turn 1, enchantments that start at the bottom move
+            // first, then Innate cards move to the top; the draw is at least the Innate count and at
+            // most the hand size.
+            drawCount = ApplyFirstTurnDrawOrder(ref x.B, drawCount);
+        }
         int effectiveDraw = Math.Min(drawCount, x.B.MaxHandSize - x.B.HandCount);
         bool willShuffle = effectiveDraw > x.B.DrawCount && x.B.DiscardCount != 0;
         Draw(ref x, drawCount, fromHandDraw: true);
-        if (willShuffle)
+        if (willShuffle && !rootSetup)
             x.B.ShufflesCrossed++;
         if (x.NeedsChoice)
             return;
         // Draw history compensation: no supported sources.
-        AfterPlayerTurnStart(ref x);
+        AfterPlayerTurnStart(ref x, snapshotRelics: rootSetup);
         if (x.NeedsChoice)
             return;
-        StartPlayerSideTurn(ref x);
-        if (x.NeedsChoice)
-            return;
+        // GAME CombatManager.cs:777-790: StartTurn runs Hook.AfterSideTurnStart after the setup
+        // task pauses or completes. When it pauses, the callback in Exec already ran the side start
+        // plus the orb turn-start pass at that pause; otherwise run the side start here (the
+        // task-completed order). The EndTurn path keeps its fixed position and orb position.
+        if (setup != null)
+        {
+            if (!setup.SideStarted)
+                StartSetupSide(ref x, setup, runOrbs: false);
+            if (x.NeedsChoice)
+                return;
+        }
+        else
+        {
+            StartPlayerSideTurn(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
         ApplyEnemyDeathPowers(ref x);
         if (!x.NeedsChoice)
             NormalizeCardAfflictions(ref x);
         // EnchantmentLifecycleSupport.TriggerAfterTurnStartOrbs: Plasma's AfterTurnStartOrbTrigger
-        // (through TriggerPassive, so ModifyOrbPassiveTriggerCounts applies).
-        TriggerAfterTurnStartOrbs(ref x);
-        if (x.NeedsChoice)
-            return;
+        // (through TriggerPassive, so ModifyOrbPassiveTriggerCounts applies). A paused setup already
+        // ran it at the pause; an unpaused setup keeps the original position after the deferred
+        // enemy-death pass and affliction normalization.
+        if (setup == null || !setup.OrbsStarted)
+        {
+            TriggerAfterTurnStartOrbs(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
+        // GAME CombatManager.cs:862-869: the native loop sets AutoPrePlay, checks the empty hand,
+        // then fires AfterAutoPrePlayPhaseEntered. Sts2Solver has no AfterAutoPrePlayPhaseEntered
+        // listener, so the phase transition itself is the only remaining step.
+        x.B.Phase = PlayerPhase.AutoPrePlay;
+        if (rootSetup)
+        {
+            // CombatManager.CheckForEmptyHand: in progress, not inside a card/potion effect, and an
+            // empty hand. UnceasingTop is the only supported AfterHandEmptied listener.
+            AfterHandEmptied(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
         // TriggerAutoPrePlayEarly: Bombardment cards in the exhaust pile, then the scheduled Mayhem
         // auto-plays. The Imbued, HistoryCourse and WhisperingEarring definitions live in Content.
-        x.B.Phase = PlayerPhase.AutoPrePlay;
         AutoPrePlay(ref x);
         if (x.NeedsChoice)
             return;
         x.B.Phase = PlayerPhase.Play;
         CheckWinCondition(ref x.B);
+    }
+
+    /// <summary>
+    /// State of the rootSetup pause callback. The callback runs the player side start and, at a
+    /// pause, the orb turn-start pass in the native order before the setup listener resumes.
+    /// </summary>
+    internal sealed class SetupPauseState
+    {
+        internal bool SideStarted;
+        internal bool OrbsStarted;
+        internal bool PauseOccurred;
+
+        internal void OnPause(ref Exec x)
+        {
+            PauseOccurred = true;
+            StartSetupSide(ref x, this, runOrbs: true);
+        }
+    }
+
+    /// <summary>
+    /// Runs the player side start (and optionally the orb turn-start pass) at the native setup
+    /// pause. The pending choice request is saved while the side/orb hooks run and restored
+    /// afterwards. A side start or orb pass that itself requests a choice cannot be represented by
+    /// the single-prefix preamble and is an explicit unsupported boundary.
+    /// </summary>
+    private static void StartSetupSide(ref Exec x, SetupPauseState state, bool runOrbs)
+    {
+        if (state.SideStarted)
+            return;
+        ChoiceRequest pending = x.Request;
+        bool needsChoice = x.NeedsChoice;
+        int choicesTaken = x.ChoicesTaken;
+        SetupPauseHandler? savedPause = x.SetupPause;
+        x.NeedsChoice = false;
+        x.Request = default;
+        x.SetupPause = null;
+        state.SideStarted = true;
+        try
+        {
+            StartPlayerSideTurn(ref x);
+            if (x.NeedsChoice || x.ChoicesTaken != choicesTaken)
+            {
+                throw new UnsupportedException(
+                    "回合准备的侧回合开始阶段也请求选择；当前前奏不支持并发选择。");
+            }
+            if (runOrbs)
+            {
+                state.OrbsStarted = true;
+                TriggerAfterTurnStartOrbs(ref x);
+                if (x.NeedsChoice || x.ChoicesTaken != choicesTaken)
+                {
+                    throw new UnsupportedException(
+                        "回合准备的球的回合开始触发也请求选择；当前前奏不支持并发选择。");
+                }
+            }
+        }
+        finally
+        {
+            x.SetupPause = savedPause;
+        }
+        if (needsChoice)
+        {
+            x.Request = pending;
+            x.NeedsChoice = true;
+        }
+    }
+
+    /// <summary>
+    /// Runs the native <c>CombatManager.SetupPlayerTurn</c> and <c>RunAutoPrePlayPhase</c> sequence
+    /// from a root captured at the <c>SetupPlayerTurn</c> entry (<c>PlayerTurnPhase.Start</c>).
+    /// Energy reset, the relic/power <c>BeforeHandDraw</c> stage, the hand draw, the
+    /// <c>AfterPlayerTurnStart</c> pass, the player side start, orbs and the auto-pre-play phase all
+    /// match the native order; <paramref name="choices"/> is the prefix of selections for the
+    /// requests the preamble asks. Returns <see cref="StepResult.NeedsChoice"/> with the partial
+    /// battle when another selection is needed; the caller must discard it and replay from the Start
+    /// root with one more selection.
+    /// <para>GAME CombatManager.cs:880-925 (SetupPlayerTurn), 862-869 (RunAutoPrePlayPhase).</para>
+    /// <para>Taking an extra turn is not supported in this batch: the native turn loop skips part of
+    /// the start for <c>PlayersTakingExtraTurn</c>, and guessing the skipped pieces would produce a
+    /// different Play root.</para>
+    /// </summary>
+    public static StepResult PreparePlayerPlayPhase(ref Battle battle, Rules rules,
+        ReadOnlySpan<ulong> choices, out ChoiceRequest request, bool takingExtraTurn = false)
+    {
+        if (takingExtraTurn)
+            throw new UnsupportedException("回合准备前奏不支持额外回合。");
+        if (!IsInProgress(battle))
+            throw new InvalidOperationException("战斗已经结束，不能再准备玩家出牌阶段。");
+        if (battle.Phase != PlayerPhase.Start)
+            throw new InvalidOperationException(
+                $"回合准备前奏要求 Phase=Start，实际 {battle.Phase}。");
+        if (choices.Length > Limits.MaxChoices)
+            throw new CapacityException("Action.Choices", Limits.MaxChoices);
+        PlayerAction action = PlayerAction.EndTurn();
+        foreach (ulong selection in choices)
+            action = action.WithChoice(selection);
+        Exec x = new(ref battle, rules, action);
+        x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
+        x.TakingExtraTurn = false;
+        SetupPauseState setup = new();
+        x.SetupPause = setup.OnPause;
+        // GAME CombatManager.cs:906-908: the native turn-one draw order keys off the player's turn
+        // number, which is already 1 in the captured Start root.
+        ContinuePlayerPlayPhase(ref x, firstTurn: battle.PlayerTurn == 1, rootSetup: true, setup);
+        x.SetupPause = null;
+        return FinishStep(ref x, action, out request, out _);
     }
 
     /// <summary>

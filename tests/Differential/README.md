@@ -42,6 +42,14 @@ dotnet artifacts/bin/Differential/release/Differential.dll --import-negative
 - `--config-compare`：比较重组的请求与 `config.br`，并检查 `scoreHash`、`boundHash`。
 - `--import-negative`：验证私有字段缺失、未认领状态、第三方内容三类拒绝。
 
+## 回合准备枚举
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate <root> [--setup-turn 1|2]
+```
+
+在 `SetupPlayerTurn` 入口导入 Start 根，枚举全部准备计划，再按计划逐一重建原生准备页比较 Play 根；输出 `SETUP_ENUM`/`ENUM`/`PLAN`/`SETUP_NATIVE`。冻结 fixture 还会比较 `config.br` 的数据段、Bound 取舍、生产请求子部件、短搜重放与 `golden.br` 根集合。`--setup-turn 2` 先结束第 1 回合，用于后续回合、BeforeHandDraw/AfterPlayerTurnStart 多段和 AutoPrePlay 选择。
+
 ## 重新捕获根
 
 ```bash

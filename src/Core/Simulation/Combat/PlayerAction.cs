@@ -277,10 +277,19 @@ public struct LampInternalPowerTypes
 /// Stack-only execution context of one kernel step. Holds the battle by reference and the
 /// transient facts of the current action; nothing here survives the step.
 /// </summary>
+public delegate void SetupPauseHandler(ref Exec x);
+
 public ref struct Exec
 {
     public ref Battle B;
     public readonly Rules R;
+
+    /// <summary>
+    /// Turn-setup preamble callback. It runs at the first choice request (or when the first carried
+    /// selection is consumed) so the player side start and the orb turn-start pass happen while the
+    /// native setup task is paused. Null for every ordinary action.
+    /// </summary>
+    internal SetupPauseHandler? SetupPause;
 
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
@@ -361,6 +370,7 @@ public ref struct Exec
         LastDamageTotal = 0;
         LastDamageOverkill = 0;
         TakingExtraTurn = false;
+        SetupPause = null;
     }
 
     /// <summary>
@@ -454,6 +464,8 @@ public ref struct Exec
             throw new InvalidOperationException($"EndTurn 前缀的 TransientMarkBase={TransientMarkBase} 非零。");
         if (TakingExtraTurn)
             throw new InvalidOperationException("EndTurn 前缀处于额外回合。");
+        if (SetupPause != null)
+            throw new InvalidOperationException("EndTurn 前缀带有回合准备暂停回调。");
     }
 
     /// <summary>Set when an effect asked for a choice the action did not carry; callers unwind immediately.</summary>
@@ -736,11 +748,18 @@ public ref struct Exec
             int count = System.Numerics.BitOperations.PopCount(selection);
             if ((selection & ~valid) != 0 || count < request.MinCount || count > request.MaxCount)
                 throw new InvalidOperationException($"选择 {selection:X} 不符合选项规格（{request.OptionCount} 项，{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} timing={request.Timing} source={request.Source} choices={_choiceCount} taken={_choicesTaken}）。");
+            // The first carried selection answers the native setup pause: run the side start and
+            // the orb turn-start pass before the listener that asked resumes and applies it.
+            if (_choicesTaken == 1)
+                SetupPause?.Invoke(ref this);
             return true;
         }
         selection = 0;
         NeedsChoice = true;
         Request = request;
+        // The request itself is the native pause point. Side start and orbs run now, while the
+        // choice is pending; the callback restores Request afterwards.
+        SetupPause?.Invoke(ref this);
         return false;
     }
 

@@ -430,7 +430,7 @@ internal static class ConfigCompare
         return SearchCodec.EncodeRequest(new SearchCase(rules, [], options));
     }
 
-    private static string? DescribeRequestDifference(SearchCase expected, SearchCase actual,
+    internal static string? DescribeRequestDifference(SearchCase expected, SearchCase actual,
         out string detail)
     {
         if (!RulesCodec.Encode(expected.Rules).AsSpan().SequenceEqual(RulesCodec.Encode(actual.Rules)))
@@ -787,7 +787,7 @@ internal static class ConfigCompare
         return colon < 0 ? rest : rest[..colon];
     }
 
-    private static byte[] ReadBrotli(string path)
+    internal static byte[] ReadBrotli(string path)
     {
         using FileStream file = File.OpenRead(path);
         using BrotliStream brotli = new(file, CompressionMode.Decompress);

@@ -10,7 +10,15 @@ namespace Sts2Solver.Ai.Combat;
 /// One complete Sts2Solver search request: the frozen rules, every root battle and the exact
 /// <see cref="BeamOptions"/> the request compiler constructed.
 /// </summary>
-internal sealed record SearchCase(Rules Rules, Battle[] Battles, BeamOptions Options);
+internal sealed record SearchCase(Rules Rules, Battle[] Battles, BeamOptions Options)
+{
+    /// <summary>
+    /// Host-only turn-setup plans, aligned with <see cref="Battles"/> by root index. The plans carry
+    /// the native choice values the setup made; they are not part of SREQ and
+    /// <see cref="SearchCodec"/> never writes them. Null for ordinary single-root requests.
+    /// </summary>
+    internal IReadOnlyList<PlannedChoice[]>? TurnSetupPlans { get; init; }
+}
 
 /// <summary>
 /// Deterministic encoding of one <see cref="BeamSolver"/> request and result. The request

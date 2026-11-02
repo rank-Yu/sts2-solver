@@ -79,6 +79,8 @@ internal static class Program
         long? memoryBudgetBytes = null;
         int searchThreads = 1;
         int workspaceBufferBytes = 0;
+        string? setupEnumerateRoot = null;
+        int setupTurn = 1;
         bool workspaceStats = false;
         int jobs = 1;
 
@@ -150,6 +152,12 @@ internal static class Program
                 case "--offline-combat":
                     offlineCombat = true;
                     break;
+                case "--setup-enumerate" when index + 1 < args.Length:
+                    setupEnumerateRoot = args[++index];
+                    break;
+                case "--setup-turn" when index + 1 < args.Length:
+                    setupTurn = int.Parse(args[++index]);
+                    break;
                 case "--search-threads" when index + 1 < args.Length:
                     searchThreads = int.Parse(args[++index]);
                     break;
@@ -184,6 +192,23 @@ internal static class Program
             }
         }
 
+        if (setupEnumerateRoot != null)
+        {
+            if (all || root != null || importCompare || importNegative || rulesCompare
+                || rulesTableCheck || configCompare || recaptureRoot || compiledRules
+                || compareDir != null || emitLiveRequestsDir != null || liveCompareDir != null
+                || searchCompareDir != null || offlineCombat || fullCombat)
+            {
+                Console.Error.WriteLine("--setup-enumerate 不能与其它对照/发射模式同时使用。");
+                return 2;
+            }
+            return SetupEnumerationCheck.Run(data, corpora, setupEnumerateRoot, setupTurn);
+        }
+        if (setupTurn != 1)
+        {
+            Console.Error.WriteLine("--setup-turn 只能与 --setup-enumerate 一起使用。");
+            return 2;
+        }
         if (offlineCombat)
         {
             if (all || importCompare || importNegative || rulesCompare || rulesTableCheck
@@ -721,6 +746,27 @@ internal static class Program
             return quality with { GeneratedScenarioPath = spec };
         }
         string metaPath = Path.Combine(data, "d1", root, "meta.json");
+        if (!File.Exists(metaPath))
+        {
+            // Test-only fixtures that are not part of the frozen golden data can still be driven
+            // directly from tests/corpora/fixtures by the offline setup enumerator.
+            string directPath = Path.Combine(corpora, "fixtures", root + ".json");
+            if (!File.Exists(directPath))
+                throw new FileNotFoundException($"找不到根 {root} 的 meta.json 或 fixture。", metaPath);
+            OfflineRequest direct = JsonSerializer.Deserialize<OfflineRequest>(
+                File.ReadAllText(directPath), OfflineJson.Options)
+                ?? throw new InvalidDataException($"fixture 为空：{directPath}。");
+            if (direct.GeneratedScenarioPath is { Length: > 0 } generatedPath)
+            {
+                string specName = Path.GetFileName(generatedPath);
+                string specPath = Path.Combine(corpora, "fixtures", "specs", specName);
+                if (!File.Exists(specPath))
+                    throw new FileNotFoundException(
+                        $"fixture {root} 引用的生成场景配置不存在：{generatedPath}", specPath);
+                direct = direct with { GeneratedScenarioPath = specPath };
+            }
+            return direct;
+        }
         using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(metaPath));
         JsonElement inputElement = meta.RootElement.GetProperty("input");
         string inputText = inputElement.ValueKind == JsonValueKind.String
@@ -990,6 +1036,7 @@ internal static class Program
               dotnet Differential.dll --all --jobs 1..8 --config-compare
               dotnet Differential.dll --root <name> --recapture-root [--out <dir>]
               dotnet Differential.dll --all --jobs 1..8 --recapture-root [--out <dir>]
+              dotnet Differential.dll --setup-enumerate <root> [--setup-turn 1]
               dotnet Differential.dll --rules-table-check
               dotnet Differential.dll --import-negative [--root <name>]
               dotnet Differential.dll --combat-pilot-compare [--pilot-root <name>]

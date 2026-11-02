@@ -160,14 +160,6 @@ internal static class SolverPanelText
         _ => SolverText.Get("当前状态不能搜索。"),
     };
 
-    internal static string Mode(SolverMode mode) => mode switch
-    {
-        SolverMode.Manual => SolverText.Get("手动"),
-        SolverMode.AutoSearch => SolverText.Get("自动搜索"),
-        SolverMode.FullAuto => SolverText.Get("全自动"),
-        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
-    };
-
     internal static string Tier(SearchPerformanceTier tier) => tier switch
     {
         SearchPerformanceTier.Low => SolverText.Get("低档"),
@@ -176,15 +168,6 @@ internal static class SolverPanelText
         SearchPerformanceTier.ExtraHigh => SolverText.Get("极高"),
         _ => throw new ArgumentOutOfRangeException(nameof(tier), tier, null),
     };
-
-    /// <summary>Real Sts2Solver numbers for one tier, read from the same profile the search uses.</summary>
-    internal static string TierDescription(SearchPerformanceTier tier)
-    {
-        SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
-        double baselineSeconds = profile.BaselineWidth * (double)profile.MillisecondsPerWidth / 1000d;
-        return SolverText.Format(
-            $"基准宽度 {profile.BaselineWidth}（每轮 {baselineSeconds:0.##} 秒），窄 {profile.NarrowWidth}、宽 {profile.WideWidth}、进攻 {profile.OffensiveWidth}。每轮时限是宽度 × {profile.MillisecondsPerWidth} 毫秒；一次决策按顺序运行多轮。");
-    }
 
     internal static string MemorySource(SearchMemoryBudgetSource source) => source switch
     {

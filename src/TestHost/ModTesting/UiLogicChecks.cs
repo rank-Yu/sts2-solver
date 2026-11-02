@@ -67,6 +67,8 @@ internal static class UiLogicChecks
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
+        Check("search_memory_default", MemoryDefault);
+        Check("settings_untouched_null", UntouchedNull);
         Check("search_thread_count", ThreadCount);
         Check("result_summary_speed", ResultSummarySpeed);
         Check("english_catalog_placeholders", LocaleCatalog);
@@ -358,6 +360,49 @@ internal static class UiLogicChecks
             SearchMemoryBudget.Resolve(null, "nope", gib);
         Require(unparseable.Source == SearchMemoryBudgetSource.Default, "unparseable_env_source");
         Require(unparseable.Bytes == gib, "unparseable_env_bytes");
+    }
+
+    private static void MemoryDefault()
+    {
+        const long gib = 1L << 30;
+        Require(SearchMemoryBudget.DefaultBytes(16 * gib) == 3_435_973_836L, "twenty_percent");
+        Require(SearchMemoryBudget.DefaultBytes(4 * gib) == gib, "floor");
+        Require(SearchMemoryBudget.DefaultBytes(0) == gib, "unknown_available");
+        long available = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        Require(SearchMemoryBudget.DefaultBytes() == SearchMemoryBudget.DefaultBytes(available),
+            "runtime_available");
+    }
+
+    private static void UntouchedNull()
+    {
+        SolverSettingsData data = new();
+        Require(data.Search.Threads is null && data.Search.MemoryBudgetBytes is null, "defaults_null");
+        Require(SolverSettingsPage.TryParseThreads("6", 6, out int? same) && same is null,
+            "threads_default_null");
+        Require(SolverSettingsPage.TryParseThreads(" ", 6, out int? empty) && empty is null,
+            "threads_empty_null");
+        Require(SolverSettingsPage.TryParseThreads("4", 6, out int? four) && four == 4, "threads_value");
+        Require(!SolverSettingsPage.TryParseThreads("9", 6, out _)
+            && !SolverSettingsPage.TryParseThreads("0", 6, out _)
+            && !SolverSettingsPage.TryParseThreads("2.5", 6, out _), "threads_invalid");
+        const long defaultBytes = 5_100_000_000L;
+        const long maximumBytes = 32_000_000_000L;
+        Require(SolverSettingsPage.TryParseMemoryGigabytes(
+                SolverSettingsPage.FormatGigabytes(defaultBytes), defaultBytes, maximumBytes,
+                out long? sameMemory)
+            && sameMemory is null, "memory_default_null");
+        Require(SolverSettingsPage.TryParseMemoryGigabytes(string.Empty, defaultBytes, maximumBytes,
+                out long? emptyMemory)
+            && emptyMemory is null, "memory_empty_null");
+        Require(SolverSettingsPage.TryParseMemoryGigabytes("8", defaultBytes, maximumBytes, out long? eight)
+            && eight == 8_000_000_000L, "memory_value");
+        Require(SolverSettingsPage.TryParseMemoryGigabytes("6.25", defaultBytes, maximumBytes,
+                out long? rounded)
+            && rounded == 6_300_000_000L, "memory_tenth");
+        Require(!SolverSettingsPage.TryParseMemoryGigabytes("0.1", defaultBytes, maximumBytes, out _)
+            && !SolverSettingsPage.TryParseMemoryGigabytes("40", defaultBytes, maximumBytes, out _)
+            && !SolverSettingsPage.TryParseMemoryGigabytes("abc", defaultBytes, maximumBytes, out _),
+            "memory_invalid");
     }
 
     private static void ThreadCount()

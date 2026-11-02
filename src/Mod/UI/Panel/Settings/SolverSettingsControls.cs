@@ -1,49 +1,49 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.Controls.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Control factories only; validation and saving live in SolverSettingsPanel.
+// Dark palette only. Group descriptions are not shown; the slider is narrower and inputs keep their
+// height so the two columns fit the 390-wide sidebar, and a note row can sit under an input.
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
 namespace Sts2Solver;
 
+/// <summary>Control factories for sidebar pages; validation and saving live in the page.</summary>
 internal static class SolverSettingsControls
 {
-    public static VBoxContainer CreateSection(string title, string? description)
+    private const float RowLabelWidth = 170f;
+    private const float InputWidth = 126f;
+    private const float InputHeight = 32f;
+    private const float SliderWidth = 110f;
+
+    public static VBoxContainer CreatePageContent(string name)
     {
-        VBoxContainer section = new()
+        VBoxContainer content = new()
         {
-            Name = "SettingsSection",
+            Name = name,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             MouseFilter = Control.MouseFilterEnum.Pass,
         };
-        section.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        HBoxContainer heading = new()
-        {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        heading.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        heading.AddChild(SolverUiTokens.CreateLabel(title, SolverUiTokens.Type.Body, SolverUiTokens.Palette.Accent));
-        ColorRect divider = SolverUiTokens.CreateDivider();
-        divider.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        divider.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        heading.AddChild(divider);
-        section.AddChild(heading);
-        if (!string.IsNullOrWhiteSpace(description))
-            section.AddChild(CreateHint(description));
-        return section;
+        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Lg);
+        return content;
     }
 
-    public static Label CreateHint(string text)
+    public static ScrollContainer CreatePageScroll(Control content)
     {
-        Label hint = SolverUiTokens.CreateLabel(text, SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextMuted, FontType.Regular);
-        hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        hint.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        return hint;
+        ScrollContainer scroll = new()
+        {
+            Name = "PageScroll",
+            CustomMinimumSize = new Vector2(0, 120),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            MouseFilter = Control.MouseFilterEnum.Pass,
+        };
+        scroll.AddChild(content);
+        return scroll;
     }
 
-    public static GridContainer CreateGrid()
+    public static GridContainer CreateSettingsGrid()
     {
         GridContainer grid = new()
         {
@@ -56,86 +56,97 @@ internal static class SolverSettingsControls
         return grid;
     }
 
-    public static void AddRow(GridContainer grid, string label, Control input, string? tooltip = null)
+    public static void AddSettingsSection(VBoxContainer page, string title, Control content)
     {
-        Label rowLabel = SolverUiTokens.CreateLabel(label, SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextSecondary);
-        rowLabel.CustomMinimumSize = new Vector2(150, 32);
-        rowLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        rowLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (!string.IsNullOrEmpty(tooltip))
-        {
-            rowLabel.TooltipText = tooltip;
-            rowLabel.MouseFilter = Control.MouseFilterEnum.Pass;
-            input.TooltipText = tooltip;
-        }
-        grid.AddChild(rowLabel);
-        grid.AddChild(input);
+        VBoxContainer section = CreatePageContent("SettingsSection");
+        section.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        section.AddChild(CreateSectionHeading(title));
+        section.AddChild(content);
+        page.AddChild(section);
     }
 
-    public static OptionButton CreateOption()
+    public static OptionButton CreateOptionInput()
     {
         OptionButton input = new()
         {
             FocusMode = Control.FocusModeEnum.None,
-            CustomMinimumSize = new Vector2(200, 32),
+            CustomMinimumSize = new Vector2(InputWidth, InputHeight),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             MouseDefaultCursorShape = Control.CursorShape.PointingHand,
         };
         input.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Body);
         input.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextPrimary);
-        input.AddThemeColorOverride("font_hover_color", SolverUiTokens.Palette.TextPrimary);
-        input.AddThemeColorOverride("font_pressed_color", SolverUiTokens.Palette.TextPrimary);
-        input.AddThemeColorOverride("font_focus_color", SolverUiTokens.Palette.TextPrimary);
-        StyleInput(input, "normal", "hover", "pressed", "focus");
-        input.AddThemeIconOverride("arrow", SolverUiTokens.CreateChevronTexture(SolverUiTokens.Palette.TextSecondary));
-        SolverUiTokens.ApplyFont(input, SolverFontWeight.Strong, "font");
-        StylePopup(input.GetPopup());
+        input.AddThemeStyleboxOverride("normal", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.Background,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.AddThemeStyleboxOverride("hover", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.SurfaceRaised,
+            SolverUiTokens.Palette.Border,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.AddThemeStyleboxOverride("pressed", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.SurfaceRaised,
+            SolverUiTokens.Palette.Accent,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.AddThemeIconOverride(
+            "arrow",
+            SolverUiTokens.CreateChevronTexture(SolverUiTokens.Palette.TextSecondary));
+        input.ApplyLocaleFontSubstitution(FontType.Bold, "font");
         return input;
     }
 
-    public static LineEdit CreateLineEdit(string placeholder)
+    public static LineEdit CreateInput(string placeholder)
     {
         LineEdit input = new()
         {
             PlaceholderText = placeholder,
             ClearButtonEnabled = true,
             SelectAllOnFocus = true,
-            CustomMinimumSize = new Vector2(200, 32),
+            CustomMinimumSize = new Vector2(InputWidth, InputHeight),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
         input.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Body);
         input.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextPrimary);
-        input.AddThemeColorOverride("font_uneditable_color", SolverUiTokens.Palette.TextMuted);
         input.AddThemeColorOverride("font_placeholder_color", SolverUiTokens.Palette.TextMuted);
+        input.AddThemeColorOverride("font_uneditable_color", SolverUiTokens.Palette.TextMuted);
         input.AddThemeColorOverride("caret_color", SolverUiTokens.Palette.Accent);
-        input.AddThemeColorOverride("selection_color", new Color(SolverUiTokens.Palette.Accent, 0.18f));
-        StyleInput(input, "normal", "focus", "read_only");
+        input.AddThemeStyleboxOverride("normal", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.Background,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.AddThemeStyleboxOverride("read_only", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.Background,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.AddThemeStyleboxOverride("hover", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.SurfaceRaised,
+            SolverUiTokens.Palette.Border,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
         input.AddThemeStyleboxOverride("focus", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.SurfaceRaised, SolverUiTokens.Palette.Accent,
-            SolverUiTokens.Radius.Small, SolverUiTokens.Spacing.Sm, SolverUiTokens.Spacing.Xs));
-        SolverUiTokens.ApplyFont(input, SolverFontWeight.Input, "font");
+            SolverUiTokens.Palette.SurfaceRaised,
+            SolverUiTokens.Palette.Accent,
+            SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm,
+            SolverUiTokens.Spacing.Xs));
+        input.ApplyLocaleFontSubstitution(FontType.Regular, "font");
+        input.TextChanged += _ => input.AddThemeColorOverride(
+            "font_color",
+            SolverUiTokens.Palette.TextPrimary);
         return input;
-    }
-
-    public static CheckButton CreateToggle()
-    {
-        CheckButton toggle = new()
-        {
-            FocusMode = Control.FocusModeEnum.None,
-            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
-            CustomMinimumSize = new Vector2(38, 24),
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
-        };
-        Texture2D on = SolverUiTokens.CreateSwitchTexture(true);
-        Texture2D off = SolverUiTokens.CreateSwitchTexture(false);
-        toggle.AddThemeIconOverride("checked", on);
-        toggle.AddThemeIconOverride("unchecked", off);
-        toggle.AddThemeIconOverride("checked_disabled", on);
-        toggle.AddThemeIconOverride("unchecked_disabled", off);
-        StyleBoxEmpty empty = new();
-        foreach (string state in new[] { "normal", "hover", "pressed", "hover_pressed", "focus", "disabled" })
-            toggle.AddThemeStyleboxOverride(state, empty);
-        return toggle;
     }
 
     public static HSlider CreateSlider(double minimum, double maximum, double step)
@@ -147,55 +158,117 @@ internal static class SolverSettingsControls
             Step = step,
             FocusMode = Control.FocusModeEnum.None,
             MouseDefaultCursorShape = Control.CursorShape.PointingHand,
-            CustomMinimumSize = new Vector2(180, 24),
+            CustomMinimumSize = new Vector2(SliderWidth, 24),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
         Color track = SolverUiTokens.Palette.Border;
         slider.AddThemeStyleboxOverride("slider", SolverUiTokens.CreateBox(
-            track, track, 3, horizontalPadding: 0, verticalPadding: 2, borderWidth: 0));
+            track,
+            track,
+            SolverUiTokens.Radius.Pill,
+            horizontalPadding: 0,
+            verticalPadding: 3,
+            borderWidth: 0));
         slider.AddThemeStyleboxOverride("grabber_area", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.Accent, SolverUiTokens.Palette.Accent, 3, 0, 2, borderWidth: 0));
+            SolverUiTokens.Palette.Accent,
+            SolverUiTokens.Palette.Accent,
+            SolverUiTokens.Radius.Pill,
+            horizontalPadding: 0,
+            verticalPadding: 3,
+            borderWidth: 0));
         slider.AddThemeStyleboxOverride("grabber_area_highlight", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.AccentHover, SolverUiTokens.Palette.AccentHover, 3, 0, 2, borderWidth: 0));
+            SolverUiTokens.Palette.AccentHover,
+            SolverUiTokens.Palette.AccentHover,
+            SolverUiTokens.Radius.Pill,
+            horizontalPadding: 0,
+            verticalPadding: 3,
+            borderWidth: 0));
         slider.AddThemeConstantOverride("center_grabber", 1);
         slider.AddThemeIconOverride("grabber", SolverUiTokens.CreateCircleTexture(SolverUiTokens.Palette.Accent, 16));
-        slider.AddThemeIconOverride("grabber_highlight",
+        slider.AddThemeIconOverride(
+            "grabber_highlight",
             SolverUiTokens.CreateCircleTexture(SolverUiTokens.Palette.AccentHover, 16));
-        slider.AddThemeIconOverride("grabber_disabled",
+        slider.AddThemeIconOverride(
+            "grabber_disabled",
             SolverUiTokens.CreateCircleTexture(SolverUiTokens.Palette.TextMuted, 16));
         return slider;
     }
 
-    private static void StyleInput(Control input, params string[] states)
+    public static void AddBasicRow(GridContainer grid, string label, Control input, string? tooltip = null)
     {
-        foreach (string state in states)
+        Label rowLabel = SolverUiTokens.CreateLabel(
+            label,
+            SolverUiTokens.Type.Body,
+            SolverUiTokens.Palette.TextSecondary);
+        rowLabel.CustomMinimumSize = new Vector2(RowLabelWidth, InputHeight);
+        rowLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        rowLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        if (!string.IsNullOrEmpty(tooltip))
         {
-            bool hover = state is "hover" or "pressed";
-            input.AddThemeStyleboxOverride(state, SolverUiTokens.CreateBox(
-                hover ? SolverUiTokens.Palette.SurfaceHover : SolverUiTokens.Palette.SurfaceRaised,
-                hover ? SolverUiTokens.Palette.Border : SolverUiTokens.Palette.BorderSubtle,
-                SolverUiTokens.Radius.Small,
-                SolverUiTokens.Spacing.Sm,
-                SolverUiTokens.Spacing.Xs));
+            ApplyTooltip(rowLabel, tooltip);
+            ApplyTooltip(input, tooltip);
         }
+        grid.AddChild(rowLabel);
+        grid.AddChild(input);
     }
 
-    private static void StylePopup(PopupMenu popup)
+    /// <summary>A hidden caption under the previous row's input; both grid cells hide together.</summary>
+    public static SettingsNote AddNoteRow(GridContainer grid)
     {
-        popup.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
-            SolverUiTokens.IsLight ? Color.FromHtml("fbf7efff") : Color.FromHtml("1a212cff"),
-            SolverUiTokens.Palette.Border,
-            SolverUiTokens.Radius.Small,
-            SolverUiTokens.Spacing.Xs,
-            SolverUiTokens.Spacing.Xs));
-        popup.AddThemeStyleboxOverride("hover", SolverUiTokens.CreateBox(
-            new Color(SolverUiTokens.Palette.Accent, 0.18f), Colors.Transparent, SolverUiTokens.Radius.Small, 0, 0, borderWidth: 0));
-        popup.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextPrimary);
-        popup.AddThemeColorOverride("font_hover_color", SolverUiTokens.Palette.TextPrimary);
-        popup.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Body);
-        popup.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Sm);
-        if (SolverUiTokens.ResolveFont(SolverFontWeight.Strong) is { } font)
-            popup.AddThemeFontOverride("font", font);
+        Control spacer = new() { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        Label note = SolverUiTokens.CreateLabel(
+            string.Empty,
+            SolverUiTokens.Type.Caption,
+            SolverUiTokens.Palette.TextMuted);
+        note.Visible = false;
+        note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        note.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        grid.AddChild(spacer);
+        grid.AddChild(note);
+        return new SettingsNote(spacer, note);
+    }
+
+    private static void ApplyTooltip(Control control, string tooltip)
+    {
+        control.TooltipText = tooltip;
+        if (control is Label)
+            control.MouseFilter = Control.MouseFilterEnum.Pass;
+    }
+
+    private static Control CreateSectionHeading(string text)
+    {
+        HBoxContainer row = new()
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        row.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        row.AddChild(SolverUiTokens.CreateLabel(
+            text,
+            SolverUiTokens.Type.Body,
+            SolverUiTokens.Palette.TextPrimary));
+        ColorRect divider = new()
+        {
+            Color = SolverUiTokens.Palette.BorderSubtle,
+            CustomMinimumSize = new Vector2(0, 1),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        row.AddChild(divider);
+        return row;
+    }
+}
+
+/// <summary>A note row of a settings grid: the empty label cell and the caption under the input.</summary>
+internal sealed record SettingsNote(Control Spacer, Label Label)
+{
+    /// <summary>Shows the caption, or hides the whole row when the text is null.</summary>
+    public void Show(string? text)
+    {
+        Spacer.Visible = text != null;
+        Label.Visible = text != null;
+        if (text != null && Label.Text != text)
+            Label.Text = text;
     }
 }

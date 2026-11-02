@@ -139,15 +139,31 @@ internal sealed record CombatUiSnapshot
     public long ReviewedWorldlines { get; init; }
 }
 
+/// <summary>Resolved search settings the settings page shows next to the persisted values.</summary>
 internal sealed record SettingsUiSnapshot
 {
-    public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
+    /// <summary>Effective thread count of one search member (environment, setting or default).</summary>
+    public int SearchThreads { get; init; } = 1;
 
-    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+    public SearchThreadCountSource SearchThreadsSource { get; init; }
 
+    /// <summary>The machine default: logical processors minus two, clamped to 1..8.</summary>
+    public int SearchThreadsDefault { get; init; } = 1;
+
+    public bool SearchThreadsFromEnvironment => SearchThreadsSource == SearchThreadCountSource.Environment;
+
+    /// <summary>Effective search memory ceiling.</summary>
     public long MemoryBudgetBytes { get; init; }
 
     public SearchMemoryBudgetSource MemoryBudgetSource { get; init; }
+
+    /// <summary>The persisted override; null follows the machine default.</summary>
+    public long? MemoryBudgetSettingBytes { get; init; }
+
+    /// <summary>The machine default: 20% of the memory available to the runtime, at least 1 GiB.</summary>
+    public long MemoryBudgetDefaultBytes { get; init; }
+
+    public bool MemoryBudgetFromEnvironment => MemoryBudgetSource == SearchMemoryBudgetSource.Environment;
 }
 
 /// <summary>The projected values of the most recent complete search result.</summary>

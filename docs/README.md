@@ -27,7 +27,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | `src/Core/Ai/Combat` | 搜索调度、评分、分支保留、去重与预算 |
 | `src/Core/Autoplay` | 共享路线规则（续接、裁剪、偏差、暂停策略）与 `CombatPilot` 离线整场循环 |
 | `src/Import/Combat` | 只读导入游戏状态，编译规则与搜索配置 |
-| `src/Mod` | 游戏入口、控制器、战斗面板与设置页、设置存储、只读快照、后台搜索、动作执行与实际结果核对 |
+| `src/Mod` | 游戏入口、控制器、战斗面板与设置侧栏、设置存储、只读快照、后台搜索、动作执行与实际结果核对 |
 | `src/TestHost/Combat` | 测试场景创建、注入、原生状态转储 |
 | `src/TestHost/ModTesting` | 只编入测试版 Mod 的实机测试入口与补丁 |
 | `tests` | 内核合同、架构检查、冻结回归、原版差分与质量语料 |

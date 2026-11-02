@@ -88,6 +88,10 @@ internal static class SearchThreadCount
         return resolution;
     }
 
+    /// <summary>The machine default for <paramref name="logicalProcessors"/>: two fewer, clamped to 1..8.</summary>
+    internal static int DefaultFor(int logicalProcessors)
+        => Math.Clamp(Math.Max(1, logicalProcessors) - 2, 1, Maximum);
+
     /// <summary>Pure resolution used by tests; invalid environment values fall back to the default.</summary>
     internal static SearchThreadCountResolution Resolve(string? environmentValue, int logicalProcessors)
         => ResolveCore(environmentValue, logicalProcessors, null, out _, out _);
@@ -103,7 +107,7 @@ internal static class SearchThreadCount
         ignoredEnvironment = false;
         clampedEnvironment = false;
         int logical = Math.Max(1, logicalProcessors);
-        int fallback = Math.Clamp(logical - 2, 1, Maximum);
+        int fallback = DefaultFor(logical);
         if (!string.IsNullOrWhiteSpace(environmentValue))
         {
             if (int.TryParse(environmentValue, NumberStyles.Integer, CultureInfo.InvariantCulture,

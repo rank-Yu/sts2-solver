@@ -1,7 +1,8 @@
 // Layout, drag and resize ported from CombatSolver src/UI/SolverOverlay.cs
-// (ApplyResponsiveLayout through ResetOverlayPosition) at 5c773caa
-// (MIT License, Copyright (c) 2026 Torch1230 and contributors). Geometry is persisted through
-// Sts2Solver's SolverSettings on pointer release.
+// (ApplyResponsiveLayout through ResetOverlayPosition, ApplyStrategyBounds and StrategySidebarX) at
+// 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and contributors). Geometry is persisted
+// through Sts2Solver's SolverSettings on pointer release; the strategy-sidebar placement is used for
+// the settings sidebar.
 using Godot;
 
 namespace Sts2Solver;
@@ -119,8 +120,8 @@ internal sealed partial class SolverOverlay
         }
         else
         {
-            float maximumHeight = _settingsVisible ? 540f : SolverUiTokens.Size.ExpandedMaxHeight;
-            height = Math.Min(contentMinimum.Y, Math.Min(maximumHeight, availableHeight));
+            height = Math.Min(contentMinimum.Y,
+                Math.Min(SolverUiTokens.Size.ExpandedMaxHeight, availableHeight));
         }
 
         ApplyPanelBounds(viewportSize, width, height);
@@ -143,6 +144,47 @@ internal sealed partial class SolverOverlay
         _panel.OffsetRight = _panelPosition.X + width;
         _panel.OffsetBottom = _panelPosition.Y + height;
         ApplyResizeHandleBounds(width, height);
+        // The panel can end up taller than requested when its content needs more room; the sidebar
+        // follows the size the panel actually has.
+        ApplySidebarBounds(viewportSize, _panel.Size.X, _panel.Size.Y);
+    }
+
+    private void ApplySidebarBounds(Vector2 viewportSize, float panelWidth, float panelHeight)
+    {
+        if (_sidebar == null)
+            return;
+        float edge = SolverUiTokens.Size.ResizeEdgeThickness;
+        float width = Math.Min(SolverSidebar.PreferredWidth, Math.Max(0f, viewportSize.X - edge * 2f));
+        float height = Math.Min(panelHeight, Math.Max(0f, viewportSize.Y - edge * 2f));
+        float x = SidebarX(_panelPosition.X, panelWidth, width, viewportSize.X, edge,
+            SolverUiTokens.Spacing.Md);
+        float y = Math.Clamp(_panelPosition.Y, edge, Math.Max(edge, viewportSize.Y - height - edge));
+        _sidebar.OffsetLeft = x;
+        _sidebar.OffsetTop = y;
+        _sidebar.OffsetRight = x + width;
+        _sidebar.OffsetBottom = y + height;
+    }
+
+    // Prefer the right side, then the left side, so a panel docked near the right screen edge opens
+    // its sidebar outward instead of over its own route list. When neither side fits, the sidebar
+    // sits against the screen edge of the roomier side, which minimizes how much it covers.
+    internal static float SidebarX(
+        float panelX,
+        float panelWidth,
+        float sidebarWidth,
+        float viewportWidth,
+        float edge,
+        float gap)
+    {
+        float maximumX = Math.Max(edge, viewportWidth - sidebarWidth - edge);
+        float rightOfPanelX = panelX + panelWidth + gap;
+        if (rightOfPanelX <= maximumX)
+            return rightOfPanelX;
+        float leftOfPanelX = panelX - gap - sidebarWidth;
+        if (leftOfPanelX >= edge)
+            return leftOfPanelX;
+        float roomRight = viewportWidth - (panelX + panelWidth);
+        return roomRight >= panelX ? maximumX : edge;
     }
 
     private void ApplyResizeHandleBounds(float panelWidth, float panelHeight)

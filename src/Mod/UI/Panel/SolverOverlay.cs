@@ -2,7 +2,8 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The big floating-panel layout is kept: CanvasLayer 120, draggable header, right/bottom/corner
 // resize, summary, route rows, details and action footer. The presentation is driven by
-// CombatUiSnapshot and every command goes through ICombatUiCommands; the frozen route, shortcuts,
+// CombatUiSnapshot and every command goes through ICombatUiCommands. Settings open in a sidebar
+// docked beside the panel, placed like the original strategy sidebars; the frozen route, shortcuts,
 // online/bug-report surfaces, potion/growth/relic sidebars and the memory-release button are not
 // ported. Theme is always dark.
 using Godot;
@@ -43,13 +44,14 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private Button? _settingsButton;
     private Button? _collapseButton;
     private SolverDetailsPanel? _details;
-    private SolverSettingsPanel? _settings;
+    private SolverSidebar? _sidebar;
+    private SolverSettingsPage? _settingsPage;
     private CombatUiSnapshot? _lastSnapshot;
     private SolverOverlaySnapshot? _lastOverlay;
     private long _appliedSequence = -1;
     private long _nextTick;
     private bool _collapsed;
-    private bool _settingsVisible;
+    private SolverSidebarPageKind? _openSidebarPage;
     private bool _detailsVisible;
     private bool _rebuildQueued;
     private string? _builtLanguage;
@@ -92,12 +94,12 @@ internal sealed partial class SolverOverlay : CanvasLayer
             if (show)
             {
                 _appliedSequence = -1;
-                QueueLayout();
+                _openSidebarPage = null;
+                ApplyContentVisibility();
             }
             else
             {
                 CancelPointerGesture();
-                _settingsVisible = false;
                 _detailsVisible = false;
                 _presentation = SolverOverlayPresentation.Ready;
                 _waitingForNextTurnPlan = false;
@@ -130,7 +132,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     private void Build()
     {
-        SolverUiTokens.Configure(SolverUiTheme.Dark);
         _builtLanguage = LocManager.Instance?.Language;
         _buildCount++;
 
@@ -207,18 +208,19 @@ internal sealed partial class SolverOverlay : CanvasLayer
         footerArea.AddChild(CreateFooter());
         _mainStack.AddChild(footerArea);
 
-        _settings = new SolverSettingsPanel { Visible = false };
-        _settings.OpacityPreview += PreviewOpacity;
-        _settings.DefaultsRestored += OnDefaultsRestored;
-        primaryColumn.AddChild(_settings);
-
         AddChild(panel);
         _panel = panel;
+        _settingsPage = new SolverSettingsPage();
+        _settingsPage.OpacityPreview += PreviewOpacity;
+        _settingsPage.DefaultsRestored += OnDefaultsRestored;
+        _sidebar = new SolverSidebar(_settingsPage);
+        _sidebar.CloseRequested += CloseSidebar;
+        AddChild(_sidebar);
         BuildResizeHandles();
         PreviewOpacity(SolverSettings.Current.Ui.Opacity);
         panel.MinimumSizeChanged += QueueLayout;
-        if (_settingsVisible)
-            _settings.Reload();
+        if (_openSidebarPage is { } page)
+            _sidebar.Open(page);
         ApplyContentVisibility();
         _appliedSequence = -1;
         _lastSnapshot = null;
@@ -275,6 +277,10 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
         _settingsButton = CreateHeaderButton(SolverText.Get("设置"), 54);
         _settingsButton.Name = "SettingsButton";
+        _settingsButton.ToggleMode = true;
+        _settingsButton.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextSecondary);
+        _settingsButton.AddThemeColorOverride("font_pressed_color", SolverUiTokens.Palette.Accent);
+        _settingsButton.AddThemeColorOverride("font_hover_pressed_color", SolverUiTokens.Palette.Accent);
         _settingsButton.Pressed += ToggleSettings;
         header.AddChild(_settingsButton);
         _collapseButton = CreateHeaderButton(SolverText.Get("−  收起"), 64);
@@ -322,8 +328,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _lastOverlay = overlay;
         Present(overlay, snapshot, now);
         _details.Apply(snapshot);
-        if (_settingsVisible)
-            _settings?.ApplySnapshot(snapshot);
+        if (_openSidebarPage != null)
+            _sidebar?.Apply(snapshot);
         if (previous == null || !ReferenceEquals(previous.Route, snapshot.Route)
             || !ReferenceEquals(previous.Search, snapshot.Search) || previous.Phase != snapshot.Phase)
         {
@@ -382,26 +388,37 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     private void ToggleSettings()
     {
-        if (_settingsVisible && _settings?.CommitPending() == false)
-            return;
-        if (_collapsed)
-            SetCollapsed(false);
-        _settingsVisible = !_settingsVisible;
-        if (_settingsVisible)
-            _settings?.Reload();
+        if (_openSidebarPage == SolverSidebarPageKind.Settings)
+        {
+            CloseSidebar();
+        }
+        else
+        {
+            _openSidebarPage = SolverSidebarPageKind.Settings;
+            _sidebar?.Open(SolverSidebarPageKind.Settings);
+            ModLog.Info("[Sts2Solver] UI_ACTION action=sidebar page=Settings");
+        }
         ApplyContentVisibility();
-        SetPerformanceHintVisible(!_settingsVisible && _lastOverlay is { } overlay
-            && overlay.ProjectedBattleHpLossKnown
-            && IsSignificantBattleHpLoss(true, overlay.ProjectedBattleHpLost));
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=settings visible={_settingsVisible}");
+    }
+
+    /// <summary>Closes the sidebar unless its page holds an invalid input.</summary>
+    private void CloseSidebar()
+    {
+        if (_openSidebarPage == null || _sidebar?.CommitPending() == false)
+            return;
+        _openSidebarPage = null;
+        ApplyContentVisibility();
+        ModLog.Info("[Sts2Solver] UI_ACTION action=sidebar page=none");
     }
 
     private void ToggleCollapsed()
     {
-        if (_settingsVisible && _settings?.CommitPending() == false)
-            return;
         if (!_collapsed)
-            _settingsVisible = false;
+        {
+            CloseSidebar();
+            if (_openSidebarPage != null)
+                return;
+        }
         SetCollapsed(!_collapsed);
         ModLog.Info($"[Sts2Solver] UI_ACTION action=collapse collapsed={_collapsed}");
     }
@@ -423,17 +440,14 @@ internal sealed partial class SolverOverlay : CanvasLayer
     {
         if (_panel == null)
             return;
-        bool settings = _settingsVisible && !_collapsed;
-        if (_mainStack != null)
-            _mainStack.Visible = !settings || _collapsed;
         if (_body != null)
-            _body.Visible = !_collapsed && !_settingsVisible;
-        if (_settings != null)
-            _settings.Visible = settings;
+            _body.Visible = !_collapsed;
+        if (_sidebar != null)
+            _sidebar.Visible = _openSidebarPage != null && !_collapsed;
         if (_details != null)
-            _details.Visible = !_collapsed && !_settingsVisible && _detailsVisible;
+            _details.Visible = !_collapsed && _detailsVisible;
         if (_footerDivider != null)
-            _footerDivider.Visible = !_collapsed && !_settingsVisible;
+            _footerDivider.Visible = !_collapsed;
         if (_actionBar != null)
         {
             if (_lastSnapshot != null)
@@ -453,9 +467,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         if (_settingsButton != null)
         {
             _settingsButton.Visible = !_collapsed;
-            _settingsButton.Text = settings ? SolverText.Get("返回") : SolverText.Get("设置");
-            _settingsButton.AddThemeColorOverride("font_color",
-                settings ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextSecondary);
+            _settingsButton.SetPressedNoSignal(_openSidebarPage == SolverSidebarPageKind.Settings);
         }
         SetResizeHandlesVisible(!_collapsed);
         QueueLayout();
@@ -476,8 +488,9 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private void OnDefaultsRestored()
     {
         ResetOverlayPosition();
-        if (_collapsed)
-            SetCollapsed(false);
+        SetPerformanceHintVisible(_presentation == SolverOverlayPresentation.Ready
+            && _lastOverlay is { ProjectedBattleHpLossKnown: true } overlay
+            && IsSignificantBattleHpLoss(true, overlay.ProjectedBattleHpLost));
         QueueLayout();
     }
 
@@ -506,7 +519,13 @@ internal sealed partial class SolverOverlay : CanvasLayer
             _panel.QueueFree();
             _panel = null;
         }
-        _settings = null;
+        if (_sidebar != null)
+        {
+            RemoveChild(_sidebar);
+            _sidebar.QueueFree();
+            _sidebar = null;
+        }
+        _settingsPage = null;
         _summaryText = null;
         _summaryPanel = null;
         _summaryStateLabel = null;
@@ -551,9 +570,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _appliedSequence,
         _lastSnapshot?.Phase.ToString() ?? "",
         _collapsed,
-        _settingsVisible && !_collapsed,
+        _openSidebarPage == SolverSidebarPageKind.Settings && !_collapsed,
         _detailsVisible && !_collapsed,
-        SolverUiTokens.ActiveTheme.ToString(),
         _builtLanguage ?? "",
         _buildCount,
         ProbeRowsForTest());
@@ -574,7 +592,11 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal Button? ExecuteButtonForTest => _executeButton;
 
-    internal SolverSettingsPanel? SettingsPanelForTest => _settings;
+    internal SolverSidebar? SidebarForTest => _sidebar;
+
+    internal SolverSettingsPage? SettingsPageForTest => _settingsPage;
+
+    internal PanelContainer? PanelForTest => _panel;
 
     internal SolverOverlayPresentation PresentationForTest => _presentation;
 
@@ -606,7 +628,6 @@ internal sealed record SolverOverlayProbe(
     bool Collapsed,
     bool SettingsVisible,
     bool DetailsVisible,
-    string Theme,
     string Language,
     int BuildCount,
     SolverRowProbe[] Rows);

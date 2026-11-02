@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
@@ -37,6 +38,16 @@ internal static class UiPanelChecks
         else
         {
             session.Skip("panel_reappears_after_combat", "first_combat");
+        }
+        if (previousCombatEnded)
+        {
+            session.Check("sidebar_closed_at_combat_start",
+                !panel.ProbeForTest().SettingsVisible && panel.SidebarForTest is { Visible: false },
+                Describe(panel));
+        }
+        else
+        {
+            session.Skip("sidebar_closed_at_combat_start", "first_combat");
         }
 
         PushKey(host, Key.F8);
@@ -100,12 +111,41 @@ internal static class UiPanelChecks
         session.Check("details_closes", detailsClosed, Describe(panel));
 
         await Press(host, panel.SettingsButtonForTest);
-        session.Check("settings_opens", panel.ProbeForTest().SettingsVisible, Describe(panel));
-        session.Check("settings_no_light_theme",
-            panel.FindChild("ThemeOption", recursive: true, owned: false) == null,
-            "theme selector present");
+        SolverSidebar? sidebar = panel.SidebarForTest;
+        SolverSettingsPage? page = panel.SettingsPageForTest;
+        session.Check("sidebar_opens_from_settings",
+            panel.ProbeForTest().SettingsVisible && sidebar != null && sidebar.IsVisibleInTree(),
+            Describe(panel));
+        session.Check("settings_button_pressed", panel.SettingsButtonForTest?.ButtonPressed == true,
+            Describe(panel));
+        session.Check("sidebar_docked_beside_panel", SidebarDocked(panel, sidebar, out string geometry),
+            geometry);
+        session.Check("sidebar_single_page", sidebar is { TabBarVisibleForTest: false }, "tab bar shown");
+        session.Check("settings_no_light_theme", NoLightTheme(sidebar), "light surface or theme selector");
+        session.Check("settings_controls_present", ControlsPresent(sidebar, out string missing), missing);
+        session.Check("settings_environment_state", EnvironmentState(page, out string environment),
+            environment);
+        (bool resetOk, string resetDetail) = await ResetKeepsModeAsync(host, page);
+        session.Check("settings_reset_keeps_mode", resetOk, resetDetail);
         await Press(host, panel.SettingsButtonForTest);
-        session.Check("settings_closes", !panel.ProbeForTest().SettingsVisible, Describe(panel));
+        session.Check("sidebar_closes_from_settings",
+            !panel.ProbeForTest().SettingsVisible && sidebar is { Visible: false }
+            && panel.SettingsButtonForTest?.ButtonPressed == false, Describe(panel));
+        await Press(host, panel.SettingsButtonForTest);
+        await Press(host, sidebar?.CloseButtonForTest);
+        session.Check("sidebar_closes_from_close_button",
+            !panel.ProbeForTest().SettingsVisible && sidebar is { Visible: false }
+            && panel.SettingsButtonForTest?.ButtonPressed == false, Describe(panel));
+        await Press(host, panel.SettingsButtonForTest);
+        await Press(host, panel.CollapseButtonForTest);
+        session.Check("collapse_closes_sidebar",
+            panel.ProbeForTest().Collapsed && !panel.ProbeForTest().SettingsVisible
+            && sidebar is { Visible: false }, Describe(panel));
+        await Press(host, panel.CollapseButtonForTest);
+        session.Check("sidebar_stays_closed_after_expand",
+            !panel.ProbeForTest().Collapsed && !panel.ProbeForTest().SettingsVisible, Describe(panel));
+        // Left open through the locale rebuild and the combat; the next combat must start closed.
+        await Press(host, panel.SettingsButtonForTest);
 
         int chineseFontOverrides = panel.FontOverrideCountForTest;
         session.Check("chinese_font_substitution", chineseFontOverrides > 0,
@@ -121,10 +161,13 @@ internal static class UiPanelChecks
             SolverOverlayProbe switched = panel.ProbeForTest();
             session.Check("locale_rebuilds_in_english",
                 switched.Language == "eng" && switched.BuildCount == buildsBefore + 1, Describe(panel));
+            session.Check("locale_rebuild_keeps_sidebar",
+                switched.SettingsVisible && panel.SidebarForTest is { Visible: true }, Describe(panel));
         }
         else
         {
             session.Skip("locale_rebuilds_in_english", "already_english");
+            session.Skip("locale_rebuild_keeps_sidebar", "already_english");
         }
         if (english)
         {
@@ -201,6 +244,128 @@ internal static class UiPanelChecks
             $"highlights={result.HighlightChecks}/{result.ActiveHighlights}");
         if (session.Failures.Count > 0)
             throw new InvalidDataException("ui_panel:" + string.Join(",", session.Failures));
+    }
+
+    private static bool SidebarDocked(SolverOverlay panel, SolverSidebar? sidebar, out string detail)
+    {
+        PanelContainer? box = panel.PanelForTest;
+        if (sidebar == null || box == null)
+        {
+            detail = "sidebar or panel missing";
+            return false;
+        }
+        Rect2 main = box.GetGlobalRect();
+        Rect2 side = sidebar.GetGlobalRect();
+        Vector2 viewport = sidebar.GetViewportRect().Size;
+        float edge = SolverUiTokens.Size.ResizeEdgeThickness;
+        float width = Math.Min(SolverSidebar.PreferredWidth, viewport.X - edge * 2f);
+        float x = SolverOverlay.SidebarX(main.Position.X, main.Size.X, width, viewport.X, edge,
+            SolverUiTokens.Spacing.Md);
+        detail = $"panel={main} sidebar={side} viewport={viewport} expected_x={x:F1} expected_width={width:F1}";
+        return Math.Abs(side.Position.X - x) < 0.5f
+            && Math.Abs(side.Size.X - width) < 0.5f
+            && Math.Abs(side.Position.Y - main.Position.Y) < 0.5f
+            && Math.Abs(side.Size.Y - main.Size.Y) < 0.5f
+            && (side.Position.X >= main.End.X || side.End.X <= main.Position.X);
+    }
+
+    private static bool NoLightTheme(SolverSidebar? sidebar)
+        => sidebar != null
+            && sidebar.GetThemeStylebox("panel") is StyleBoxFlat box
+            && box.BgColor == SolverUiTokens.Palette.Surface
+            && sidebar.FindChild("ThemeOption", recursive: true, owned: false) == null;
+
+    private static bool ControlsPresent(SolverSidebar? sidebar, out string missing)
+    {
+        string[] names =
+        [
+            "DeploymentSpeedOption", "InterActionDelayInput", "TierOption", "ThreadsInput",
+            "MemoryInput", "OpacitySlider",
+        ];
+        string[] absent = names
+            .Where(name => sidebar?.FindChild(name, recursive: true, owned: false) is not Control control
+                || !control.IsVisibleInTree())
+            .ToArray();
+        missing = absent.Length == 0 ? "all present" : string.Join("|", absent);
+        return absent.Length == 0;
+    }
+
+    private static bool EnvironmentState(SolverSettingsPage? page, out string detail)
+    {
+        if (page == null)
+        {
+            detail = "page missing";
+            return false;
+        }
+        SettingsUiSnapshot settings = CombatUiStore.Snapshot.Settings;
+        string? threadsVariable = System.Environment.GetEnvironmentVariable(SearchThreadCount.OverrideVariable);
+        string? memoryVariable = System.Environment.GetEnvironmentVariable(SearchMemoryBudget.OverrideVariable);
+        bool threadsExpected = int.TryParse(threadsVariable, NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out int threads) && threads > 0;
+        bool memoryExpected = long.TryParse(memoryVariable, NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out long mebibytes) && mebibytes > 0;
+        LineEdit threadsInput = page.ThreadsInputForTest;
+        LineEdit memoryInput = page.MemoryInputForTest;
+        string threadsText = settings.SearchThreads.ToString(CultureInfo.InvariantCulture);
+        string memoryText = SolverSettingsPage.FormatGigabytes(settings.MemoryBudgetBytes);
+        detail = $"threads_env={threadsVariable ?? "-"} source={settings.SearchThreadsSource} " +
+            $"editable={threadsInput.Editable} note={page.ThreadsNoteForTest.Visible} " +
+            $"text={threadsInput.Text}/{threadsText} memory_env={memoryVariable ?? "-"} " +
+            $"source={settings.MemoryBudgetSource} editable={memoryInput.Editable} " +
+            $"note={page.MemoryNoteForTest.Visible} text={memoryInput.Text}/{memoryText}";
+        return settings.SearchThreadsFromEnvironment == threadsExpected
+            && threadsInput.Editable == !threadsExpected
+            && page.ThreadsNoteForTest.Visible == threadsExpected
+            && threadsInput.Text == threadsText
+            && settings.MemoryBudgetFromEnvironment == memoryExpected
+            && memoryInput.Editable == !memoryExpected
+            && page.MemoryNoteForTest.Visible == memoryExpected
+            && memoryInput.Text == memoryText;
+    }
+
+    /// <summary>
+    /// Changes the non-search fields on this page, presses 恢复默认 and expects the page defaults
+    /// with the mode untouched. Search fields are left at their run values so a search started in
+    /// these frames is unchanged; the previous settings are restored afterwards.
+    /// </summary>
+    private static async Task<(bool Ok, string Detail)> ResetKeepsModeAsync(NGame host,
+        SolverSettingsPage? page)
+    {
+        if (page == null)
+            return (false, "page missing");
+        SolverSettingsData before = SolverSettings.Current;
+        SolverMode mode = before.Automation.Mode;
+        SolverSettings.Update(current => current with
+        {
+            Automation = current.Automation with
+            {
+                DeploymentSpeed = SolverDeploymentSpeed.Fast,
+                InterActionDelaySeconds = 0.5d,
+            },
+            Ui = current.Ui with { Opacity = 0.5f, ShowBattleDamagePerformanceHint = false },
+        });
+        page.Opened();
+        await Press(host, page.ResetButtonForTest);
+        SolverSettingsData after = SolverSettings.Current;
+        SolverSettingsData defaults = new();
+        bool ok = after.Automation.Mode == mode
+            && after.Automation.DeploymentSpeed == defaults.Automation.DeploymentSpeed
+            && after.Automation.InterActionDelaySeconds.Equals(defaults.Automation.InterActionDelaySeconds)
+            && after.Search.Tier == defaults.Search.Tier
+            && after.Search.Threads == defaults.Search.Threads
+            && after.Search.MemoryBudgetBytes == defaults.Search.MemoryBudgetBytes
+            && Math.Abs(after.Ui.Opacity - defaults.Ui.Opacity) < 0.0001f
+            && after.Ui.ShowBattleDamagePerformanceHint
+            && after.Ui.PanelX is null && after.Ui.PanelWidth is null;
+        string detail = $"mode={after.Automation.Mode}/{mode} speed={after.Automation.DeploymentSpeed} " +
+            $"delay={after.Automation.InterActionDelaySeconds} tier={after.Search.Tier} " +
+            $"threads={after.Search.Threads?.ToString(CultureInfo.InvariantCulture) ?? "null"} " +
+            $"memory={after.Search.MemoryBudgetBytes?.ToString(CultureInfo.InvariantCulture) ?? "null"} " +
+            $"opacity={after.Ui.Opacity} hint={after.Ui.ShowBattleDamagePerformanceHint} " +
+            $"status={page.StatusTextForTest}";
+        SolverSettings.Update(_ => before);
+        page.Opened();
+        return (ok, detail);
     }
 
     private static async Task<bool> VisibleAndClickable(NGame host, Button? button)
@@ -284,7 +449,7 @@ internal static class UiPanelChecks
         SolverOverlayProbe probe = panel.ProbeForTest();
         return $"visible={probe.Visible} hidden_by_shortcut={probe.HiddenByShortcut} " +
             $"collapsed={probe.Collapsed} settings={probe.SettingsVisible} " +
-            $"details={probe.DetailsVisible} theme={probe.Theme} " +
+            $"details={probe.DetailsVisible} " +
             $"language={probe.Language} builds={probe.BuildCount}";
     }
 

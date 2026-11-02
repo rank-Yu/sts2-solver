@@ -92,7 +92,7 @@ internal sealed record SolverSearchSettings
 {
     public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
 
-    /// <summary>Explicit search ceiling; null means environment variable then the 15% default.</summary>
+    /// <summary>Explicit search ceiling; null means environment variable then the 20% default.</summary>
     public long? MemoryBudgetBytes { get; init; }
 
     /// <summary>Explicit thread count for one member; null means the logical-core default.</summary>

@@ -4,7 +4,6 @@
 // alpha follows the opacity setting); the spacing scale, box/label/button factories and the
 // procedural textures keep the original structure.
 using Godot;
-using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
 namespace Sts2Solver;
@@ -18,35 +17,9 @@ internal enum SolverButtonStyle
     Danger,
 }
 
-/// <summary>Text weight. CJK languages always use the game's bold serif substitute, as the original UI did.</summary>
-/// <summary>Text weight for the settings page helpers; panel controls use the game substitution.</summary>
-internal enum SolverFontWeight
-{
-    Strong,
-    Normal,
-    Input,
-}
-
 /// <summary>Design tokens and control factories for the combat panel. Main thread only.</summary>
 internal static class SolverUiTokens
 {
-    private const string LatinBoldFontPath = "res://themes/kreon_bold_shared.tres";
-    private const string LatinRegularFontPath = "res://themes/kreon_regular_shared.tres";
-    private static readonly Dictionary<string, Font?> LatinFonts = new(StringComparer.Ordinal);
-
-    private static SolverUiTheme _theme = SolverUiTheme.Dark;
-
-    internal static SolverUiTheme ActiveTheme => _theme;
-
-    internal static bool IsLight => _theme == SolverUiTheme.Light;
-
-    internal static void Configure(SolverUiTheme theme)
-    {
-        if (!Enum.IsDefined(theme))
-            throw new ArgumentOutOfRangeException(nameof(theme), theme, "未知界面主题。");
-        _theme = theme;
-    }
-
     internal static class Spacing
     {
         public const int Xxs = 2;
@@ -303,45 +276,12 @@ internal static class SolverUiTokens
         button.AddThemeColorOverride("font_disabled_color", Palette.TextMuted);
     }
 
-    /// <summary>Settings-page font helper retained for the next settings card rewrite.</summary>
-    public static void ApplyFont(Control control, SolverFontWeight weight, StringName slot)
-    {
-        if (ResolveFont(weight) is { } font)
-            control.AddThemeFontOverride(slot, font);
-    }
-
-    public static Font? ResolveFont(SolverFontWeight weight)
-    {
-        string language = LocManager.Instance?.Language ?? "";
-        if (FontManager.NeedsFontSubstitution(language))
-        {
-            FontType type = weight == SolverFontWeight.Input ? FontType.Regular : FontType.Bold;
-            return FontManager.GetSubstituteFont(language, type);
-        }
-        return LatinFont(weight == SolverFontWeight.Strong ? LatinBoldFontPath : LatinRegularFontPath);
-    }
-
-    private static Font? LatinFont(string path)
-    {
-        if (LatinFonts.TryGetValue(path, out Font? cached))
-            return cached;
-        Font? font = ResourceLoader.Exists(path)
-            ? ResourceLoader.Load<Font>(path, null, ResourceLoader.CacheMode.Reuse)
-            : null;
-        if (font == null)
-            ModLog.Warn($"[Sts2Solver] UI_FONT_MISSING path={path}");
-        LatinFonts[path] = font;
-        return font;
-    }
-
     /// <summary>Panel font override count, used by the headless locale check.</summary>
     internal static int FontOverrideCount(Control root)
     {
         int count = 0;
         foreach (Node child in root.GetChildren())
         {
-            if (child is SolverSettingsPanel)
-                continue;
             if (child is Control control)
             {
                 if (control.HasThemeFontOverride("font")
@@ -403,56 +343,6 @@ internal static class SolverUiTokens
                 image.SetPixel(x, y, color);
                 if (x > 0)
                     image.SetPixel(x - 1, y, color);
-            }
-        }
-        return ImageTexture.CreateFromImage(image);
-    }
-
-    public static Texture2D CreateSwitchTexture(bool isChecked)
-    {
-        const int width = 38;
-        const int height = 20;
-        Image image = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
-        const float radius = height / 2f;
-        const float cx1 = radius - 0.5f;
-        const float cx2 = width - radius - 0.5f;
-        const float cy = radius - 0.5f;
-        Color fill = isChecked
-            ? Palette.Accent
-            : IsLight ? Color.FromHtml("e2d9c6ff") : Color.FromHtml("2a313cff");
-        Color border = isChecked
-            ? Palette.Accent.Darkened(0.15f)
-            : IsLight ? Color.FromHtml("c3b597ff") : Color.FromHtml("434d5cff");
-        Color knob = isChecked && !IsLight ? Color.FromHtml("1b1f27ff") : Colors.White;
-        float knobX = isChecked ? cx2 : cx1;
-        const float knobRadius = 7f;
-        for (int y = 0; y < height; y++)
-        {
-            float dy = y - cy;
-            for (int x = 0; x < width; x++)
-            {
-                float dx = x < cx1 ? x - cx1 : x > cx2 ? x - cx2 : 0f;
-                float distance = MathF.Sqrt(dx * dx + dy * dy);
-                if (distance > radius + 0.5f)
-                    continue;
-                float edgeAlpha = Math.Clamp(radius + 0.5f - distance, 0f, 1f);
-                float borderFactor = Math.Clamp(distance - (radius - 1.2f), 0f, 1f);
-                Color track = fill.Lerp(border, borderFactor);
-                track.A *= edgeAlpha;
-                float kdx = x - knobX;
-                float kdy = y - cy;
-                float knobDistance = MathF.Sqrt(kdx * kdx + kdy * kdy);
-                if (knobDistance <= knobRadius + 0.5f)
-                {
-                    float knobAlpha = Math.Clamp(knobRadius + 0.5f - knobDistance, 0f, 1f);
-                    Color shown = track.Lerp(knob, knobAlpha);
-                    shown.A = Math.Max(track.A, knobAlpha * edgeAlpha);
-                    image.SetPixel(x, y, shown);
-                }
-                else
-                {
-                    image.SetPixel(x, y, track);
-                }
             }
         }
         return ImageTexture.CreateFromImage(image);

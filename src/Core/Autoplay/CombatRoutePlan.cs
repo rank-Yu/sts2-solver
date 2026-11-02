@@ -12,7 +12,7 @@ namespace Sts2Solver.Autoplay;
 internal sealed class CombatRoutePlan
 {
     private CombatRoutePlan(Battle root, ReplayedAction[] actions, Rules rules, bool victory,
-        bool wasReused, CombatRouteOutcome outcome)
+        bool wasReused, CombatRouteOutcome outcome, PlannedChoice[] rootSetupChoices)
     {
         Root = root;
         Actions = actions;
@@ -20,6 +20,7 @@ internal sealed class CombatRoutePlan
         Victory = victory;
         WasReused = wasReused;
         Outcome = outcome;
+        RootSetupChoices = rootSetupChoices;
     }
 
     internal Battle Root { get; }
@@ -34,13 +35,21 @@ internal sealed class CombatRoutePlan
 
     internal CombatRouteOutcome Outcome { get; }
 
+    /// <summary>
+    /// Turn-start selections that produced <see cref="Root"/> during <c>SetupPlayerTurn</c>.
+    /// Empty for an ordinary Play root. The UI shows them as the root turn's start-choice pills.
+    /// </summary>
+    internal PlannedChoice[] RootSetupChoices { get; }
+
     internal int StartTurn => Actions.Length == 0 ? 0 : Actions[0].Before.PlayerTurn;
 
-    internal static CombatRoutePlan FromReplay(ReplayedRoute route, bool onlyDeathRoutes = false)
+    internal static CombatRoutePlan FromReplay(ReplayedRoute route, bool onlyDeathRoutes = false,
+        PlannedChoice[]? rootSetupChoices = null)
     {
         CombatRouteOutcome outcome = CombatRouteOutcome.From(route.Actions, route.Root, route.Victory,
             onlyDeathRoutes);
-        return new CombatRoutePlan(route.Root, route.Actions, route.Rules, route.Victory, false, outcome);
+        return new CombatRoutePlan(route.Root, route.Actions, route.Rules, route.Victory, false,
+            outcome, rootSetupChoices ?? []);
     }
 
     /// <summary>
@@ -67,7 +76,7 @@ internal sealed class CombatRoutePlan
                 EnemySideTurnEndReached = source.EnemySideTurnEndReached,
             };
         }
-        return new CombatRoutePlan(Root, sliced, Rules, Victory, true, Outcome);
+        return new CombatRoutePlan(Root, sliced, Rules, Victory, true, Outcome, RootSetupChoices);
     }
 
     /// <summary>
@@ -88,7 +97,7 @@ internal sealed class CombatRoutePlan
             Choices = source.Choices,
             EnemySideTurnEndReached = source.EnemySideTurnEndReached,
         };
-        return new CombatRoutePlan(Root, [sliced], Rules, Victory, WasReused, Outcome);
+        return new CombatRoutePlan(Root, [sliced], Rules, Victory, WasReused, Outcome, RootSetupChoices);
     }
 
     internal ReplayedAction? EndTurnAction(int turn)

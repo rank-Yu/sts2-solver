@@ -14,4 +14,11 @@ internal interface ICombatHost
 
     /// <summary>Waits until the native combat reaches the local player's Play phase.</summary>
     Task<CombatState> WaitForPlayableCombatAsync();
+
+    /// <summary>
+    /// Waits until the local player reaches Play, or, for a visible take-over fixture, until the
+    /// setup page is open with the setup transaction still running. The offline host never takes
+    /// over setup pages, so its default is the ordinary Play wait.
+    /// </summary>
+    Task<CombatState> WaitForTurnSetupPageAsync() => WaitForPlayableCombatAsync();
 }

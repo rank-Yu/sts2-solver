@@ -115,6 +115,25 @@ internal static class SearchSession
     }
 
     /// <summary>
+    /// Compiles the multi-root setup request from the native Start root and the enumerated Play
+    /// branches. The evaluation facts match TS1's setup request: <c>TurnSetupRoot=true</c> and no
+    /// actions have been replayed yet.
+    /// </summary>
+    public static SearchCase CompileSetupCase(CombatState combat, Player player, Rules rules,
+        Battle startRoot, IReadOnlyList<TurnSetupBranch> branches,
+        SearchPolicyConfiguration policyConfiguration,
+        Func<SearchPolicy, Player, SearchPolicy>? configurePolicy, bool deterministic,
+        SearchPerformanceTier tier)
+    {
+        SearchPolicy policy = SearchPolicyCapture.Capture(combat, player, policyConfiguration);
+        if (configurePolicy != null)
+            policy = configurePolicy(policy, player);
+        return SearchRequestCompiler.CompileSetupRequest(
+            combat, player, rules, startRoot, branches, policy, EvaluationRootFacts.Default,
+            SearchPerformanceProfile.For(tier), deterministic, SearchMemoryBudget.Bytes);
+    }
+
+    /// <summary>
     /// Runs one already-assembled request. The request options must not contain host callbacks; the
     /// pacer is added only to the in-memory solve copy, never to the encoded SREQ.
     /// </summary>

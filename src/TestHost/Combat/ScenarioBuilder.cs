@@ -136,7 +136,8 @@ internal static class ScenarioBuilder
     }
 
     internal static async Task<CombatState> BuildAsync(ICombatHost waiter, OfflineRequest request,
-        bool skipInitialInjection = false, TurnSetupCardSelector? turnSetupSelector = null)
+        bool skipInitialInjection = false, TurnSetupCardSelector? turnSetupSelector = null,
+        bool waitForTurnSetupPage = false)
     {
         using PreparedRun prepared = await PrepareRunAsync(waiter, request, turnSetupSelector);
         request = prepared.Request;
@@ -158,12 +159,15 @@ internal static class ScenarioBuilder
             request.TargetRoomType, targetMapPointType, mutableEncounter);
         TestHostLog.Trace("scenario.wait_playable");
 
-        CombatState combat = await waiter.WaitForPlayableCombatAsync();
+        CombatState combat = waitForTurnSetupPage
+            ? await waiter.WaitForTurnSetupPageAsync()
+            : await waiter.WaitForPlayableCombatAsync();
         TestHostLog.Trace("scenario.playable");
         Player combatPlayer = LocalContext.GetMe(combat)
             ?? throw new InvalidOperationException("进入战斗后找不到本地玩家。");
         generatedSelector?.AssertConsumed();
-        if (!request.PreserveNativeCombatStateForTest && !skipInitialInjection)
+        bool atSetupPage = combatPlayer.PlayerCombatState?.Phase == PlayerTurnPhase.Start;
+        if (!atSetupPage && !request.PreserveNativeCombatStateForTest && !skipInitialInjection)
         {
             await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
             await InjectInitialStateAsync(combat, combatPlayer, request);

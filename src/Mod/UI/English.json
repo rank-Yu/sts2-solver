@@ -292,5 +292,17 @@
   "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索": "No route uses every potion set to Always use; change it under Potions and search again",
   "搜索初始化失败": "Search setup failed",
   "搜索失败": "Search failed",
-  "自动执行中止": "Automatic execution stopped"
+  "自动执行中止": "Automatic execution stopped",
+  "回合准备选牌失败": "Turn-start choice failed",
+  "等待回合开始选择": "Waiting for turn-start choice",
+  "起手选择": "Turn-start choice",
+  "升级": "Upgrade",
+  "变换": "Transform",
+  "复制": "Duplicate",
+  "弃": "Discard",
+  "耗尽": "Exhaust",
+  "选择": "Choose",
+  "选牌页面出现后自动开始搜索": "The search starts when the choice page appears",
+  "正在执行回合开始选择": "Making the turn-start choice",
+  "回合开始选择": "Turn-start choice"
 }

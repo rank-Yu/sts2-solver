@@ -55,12 +55,14 @@ internal sealed partial class SolverOverlay
     private void OnExecutePressed()
     {
         CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
-        bool accepted = snapshot.IsDeploying
+        bool stopping = snapshot.IsDeploying || snapshot.TurnSetupDriving;
+        bool accepted = stopping
             ? CombatUiCommands.Instance.StopDeployment()
             : snapshot.IsSearching && snapshot.DeployWhenReady
                 ? CombatUiCommands.Instance.StopSearch()
                 : CombatUiCommands.Instance.ExecuteCurrentTurn();
-        string action = snapshot.IsDeploying ? "stop_deployment"
+        string action = snapshot.TurnSetupDriving ? "stop_turn_setup_drive"
+            : snapshot.IsDeploying ? "stop_deployment"
             : snapshot.IsSearching && snapshot.DeployWhenReady ? "stop_queued_execution"
             : "execute";
         ModLog.Info($"[Sts2Solver] UI_ACTION action={action} accepted={accepted}");
@@ -73,6 +75,7 @@ internal sealed partial class SolverOverlay
         RefreshModeButtons(snapshot);
         bool searching = snapshot.IsSearching;
         bool deploying = snapshot.IsDeploying;
+        bool driving = snapshot.TurnSetupDriving;
         bool routeReady = snapshot.CurrentTurnRouteReady;
         bool searchingStopping = snapshot.Search?.Phase == SearchUiPhase.Stopping;
 
@@ -91,12 +94,16 @@ internal sealed partial class SolverOverlay
         else
         {
             searchText = SolverText.Get(
-                deploying || routeReady || snapshot.Phase == CombatUiPhase.Failed
+                deploying || driving || routeReady || snapshot.Phase == CombatUiPhase.Failed
                     ? "重新搜索"
                     : "开始搜索");
             searchDisabled = !snapshot.CanStartSearch;
             if (searchDisabled)
-                searchTooltip = SolverPanelText.SearchBlock(snapshot.SearchBlockReason);
+            {
+                searchTooltip = driving
+                    ? SolverText.Get("正在执行本回合；要重新搜索请先停止执行。")
+                    : SolverPanelText.SearchBlock(snapshot.SearchBlockReason);
+            }
         }
         SetButton(_searchButton, searchText, searchStyle, searchDisabled, searchTooltip,
             ref _renderedSearchText, ref _renderedSearchStyle, ref _renderedSearchTooltip);
@@ -106,7 +113,15 @@ internal sealed partial class SolverOverlay
         SolverButtonStyle executeStyle = SolverButtonStyle.Secondary;
         bool executeDisabled = false;
         string? executeTooltip = null;
-        if (deploying)
+        if (driving)
+        {
+            showExecute = true;
+            executeText = SolverText.Get("停止执行");
+            executeStyle = SolverButtonStyle.Danger;
+            executeDisabled = false;
+            executeTooltip = SolverText.Get("停止执行当前回合；已发出的动作会结算完。");
+        }
+        else if (deploying)
         {
             showExecute = true;
             executeText = SolverText.Get("停止执行");
@@ -115,6 +130,11 @@ internal sealed partial class SolverOverlay
             executeTooltip = snapshot.IsStoppingDeployment
                 ? SolverText.Get("当前动作完成后停止。")
                 : SolverText.Get("停止执行当前回合；已发出的动作会结算完。");
+        }
+        else if (searching && snapshot.TurnSetupSearchStarted)
+        {
+            showExecute = false;
+            executeText = SolverText.Get("执行本回合");
         }
         else if (searching && snapshot.DeployWhenReady)
         {

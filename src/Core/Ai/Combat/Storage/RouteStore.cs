@@ -276,6 +276,15 @@ internal sealed partial class BeamSolver
         next?.AppendNodes(roots);
         ended?.AppendNodes(roots);
         turnFrontier?.AppendNodes(roots);
+        // Multi-root requests must keep every original root node: a descendant whose parent root
+        // was compacted away would be rewritten to a new root and lose its true RootIndex. Keeping
+        // the few roots also keeps BestRootIndex meaningful after compaction. Single-root searches
+        // keep the previous pruning behavior bit for bit.
+        if (_rootNodeCount > 1)
+        {
+            for (int index = 0; index < _rootNodeCount; index++)
+                AddRoot(roots, index);
+        }
         AddRoot(roots, bestNode);
         AddRoot(roots, _bestFeaturesNode);
         foreach (ExpansionWorkspace workspace in _workspaces)

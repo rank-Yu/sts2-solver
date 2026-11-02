@@ -63,6 +63,21 @@ internal sealed record CombatUiSnapshot
 
     public bool IsDeploying { get; init; }
 
+    /// <summary>A visible native turn-setup choice page is open.</summary>
+    public bool TurnSetupPageOpen { get; init; }
+
+    /// <summary>A setup search returned a plan and the page is still waiting for the player or the driver.</summary>
+    public bool TurnSetupPlanReady { get; init; }
+
+    /// <summary>The solver is driving the visible setup page; the blocker is active.</summary>
+    public bool TurnSetupDriving { get; init; }
+
+    /// <summary>The setup search reached the first visible page and started a worker.</summary>
+    public bool TurnSetupSearchStarted { get; init; }
+
+    /// <summary>Number of setup selections in the current plan.</summary>
+    public int TurnSetupChoiceCount { get; init; }
+
     /// <summary>The running search will deploy its result when it finishes (drift continuation).</summary>
     public bool DeployWhenReady { get; init; }
 

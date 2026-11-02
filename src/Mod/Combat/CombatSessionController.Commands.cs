@@ -31,6 +31,8 @@ internal static partial class CombatSessionController
         bool changed = _mode != mode;
         _mode = mode;
         ClearFailureState();
+        if (mode != SolverMode.FullAuto && changed && PlayerTurnSetupRuntime.IsDriving)
+            PlayerTurnSetupRuntime.StopDriving();
         if (mode != SolverMode.FullAuto)
         {
             if (_fullAutoEnabled)
@@ -74,6 +76,25 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return true;
         }
+        if (PlayerTurnSetupRuntime.HasActivePage)
+        {
+            if (!_automaticSearchPaused)
+                PlayerTurnSetupRuntime.OnFullAutoResumed(skipPause: resumePaused);
+            PublishSnapshot();
+            return true;
+        }
+        if (_turnSetupResult != null)
+        {
+            if (TryActivateTurnSetup(CurrentTurn()))
+            {
+                PublishSnapshot();
+                return true;
+            }
+            // The pending TurnStarted / normal search owns the turn; do not start deployment from
+            // an unvalidated setup result.
+            PublishSnapshot();
+            return true;
+        }
         if (_search != null || _deployment != null)
         {
             PublishSnapshot();
@@ -100,8 +121,14 @@ internal static partial class CombatSessionController
     internal static bool StartOrRecalculateSearch()
     {
         RequireMainThread();
-        if (IsMultiplayerSession || _search != null || _deployment != null
+        if (IsMultiplayerSession || _search is { IsTurnSetup: true } || _deployment != null
             || SearchSession.IsRunning)
+            return false;
+        if (PlayerTurnSetupRuntime.HasActivePage)
+            return PlayerTurnSetupRuntime.TryRecalculate();
+        if (_turnSetupResult != null)
+            DiscardTurnSetupPlan("manual_search");
+        if (_search != null)
             return false;
         if (!CanSolve(out string rejection))
         {
@@ -133,14 +160,24 @@ internal static partial class CombatSessionController
             SearchSession.Cancel("user");
         }
         PublishSnapshot();
-        ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_REQUEST turn={search.StartTurn}");
+        ModLog.Info(
+            $"[Sts2Solver] CONTROLLER_STOP_REQUEST turn={search.StartTurn} " +
+            $"setup={search.IsTurnSetup}");
         return true;
     }
 
     internal static bool StopDeployment()
     {
         RequireMainThread();
-        if (IsMultiplayerSession || _deployment is not { } deployment || deployment.StopRequested)
+        if (IsMultiplayerSession)
+            return false;
+        if (PlayerTurnSetupRuntime.StopDriving())
+        {
+            PublishSnapshot();
+            ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_TURN_SETUP_DRIVE turn={CurrentTurn()}");
+            return true;
+        }
+        if (_deployment is not { } deployment || deployment.StopRequested)
             return false;
         deployment.StopRequested = true;
         _automaticSearchPaused = true;
@@ -157,6 +194,21 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (IsMultiplayerSession || _deployment != null)
             return false;
+        if (PlayerTurnSetupRuntime.HasActivePage)
+        {
+            if (_search != null)
+                return false;
+            if (!PlayerTurnSetupRuntime.TryStartDriving(deployAfterSetup: true))
+                return false;
+            _automaticSearchPaused = false;
+            _automaticSearchPausedTurn = null;
+            _pauseCode = null;
+            _pauseReason = null;
+            PublishSnapshot();
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_EXECUTE_TURN_SETUP turn={CurrentTurn()}");
+            return true;
+        }
         if (_search is { } search)
         {
             if (search.StopRequested || search.ApplyCurrentTurn
@@ -190,6 +242,12 @@ internal static partial class CombatSessionController
                 $"[Sts2Solver] CONTROLLER_EXECUTE_CURRENT_TURN turn={search.StartTurn} " +
                 $"candidate={search.RenderedCandidateVersion}");
             return true;
+        }
+        if (_turnSetupResult != null)
+        {
+            if (TryActivateTurnSetup(CurrentTurn()))
+                return true;
+            return false;
         }
         if (_latestResult is { } result && ResultStampMatches(result))
         {
@@ -442,6 +500,8 @@ internal static partial class CombatSessionController
     /// <summary>Starts the mode-switch search without replacing a route that is still current.</summary>
     private static void TrySearchOnModeSwitch(CombatSearchReason reason)
     {
+        if (PlayerTurnSetupRuntime.HasActivePage)
+            return;
         if (_latestResult is { } result && ResultStampMatches(result))
             return;
         if (!CanSolve(out _))

@@ -124,7 +124,7 @@ internal sealed record SolverOverlaySnapshot(
         }
         return new SolverOverlayTurnSnapshot(
             turn.Turn,
-            [],
+            turn.TurnStartChoices.Select(FormatStartChoice).ToArray(),
             actions,
             endTurn,
             turn.EnemyHpLost > 0 ? turn.EnemyHpLost : null,
@@ -135,6 +135,19 @@ internal sealed record SolverOverlaySnapshot(
         {
             StartActionIndex = turn.StartActionIndex,
         };
+    }
+
+    private static string FormatStartChoice(TurnStartChoiceUi choice)
+    {
+        string effect = SolverPanelText.ChoiceEffect(choice.Effect);
+        string separator = SolverText.IsEnglish ? ", " : "、";
+        string cards = string.Join(separator,
+            choice.Cards.Select(card => CombatDisplayNames.CardTitle(card.CardId, card.Upgrade)));
+        string source = choice.Source.Length == 0
+            ? SolverText.Get("起手选择")
+            : SolverText.Get(choice.Source);
+        string colon = SolverText.IsEnglish ? ": " : "：";
+        return $"{source}{colon}{effect} {cards}";
     }
 
     private static SolverOverlayActionSnapshot FromRouteAction(RouteActionUi action, CombatDisplayNames names)

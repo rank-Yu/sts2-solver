@@ -91,6 +91,7 @@ internal static partial class CombatSessionController
     private static bool _pumpObserved;
     private static CombatState? _pendingTurnStartedState;
     private static SearchTheftPolicy? _theftPolicy;
+    private static CombatControllerResult? _turnSetupResult;
 
 #if STS2_SOLVER_TESTING
     internal static Func<SearchPolicy, Player, SearchPolicy>? SearchPolicyOverrideForTest { get; set; }
@@ -112,7 +113,10 @@ internal static partial class CombatSessionController
         bool ActionsIdle,
         int Turn,
         CombatSide? Side,
-        PlayerTurnPhase? Phase);
+        PlayerTurnPhase? Phase,
+        bool TurnSetupPage,
+        bool TurnSetupPlan,
+        bool TurnSetupDriving);
 
     internal static bool HasActiveSearch => _search != null;
 
@@ -128,7 +132,22 @@ internal static partial class CombatSessionController
 
     internal static bool IsPaused => _phase == CombatUiPhase.Paused;
 
-    internal static bool IsBusy => _search != null || _deployment != null;
+    internal static bool IsBusy => _search != null || _deployment != null
+        || PlayerTurnSetupRuntime.IsBusy;
+
+    internal static CancellationToken CombatToken => _combatCancellation.Token;
+
+    internal static bool TurnSetupInterceptionAllowed
+        => _combatActive
+            && _state != null
+            && _player != null
+            && _rules != null
+            && _tracker != null
+            && !IsMultiplayerSession
+            && _mode is SolverMode.AutoSearch or SolverMode.FullAuto
+            && !(_automaticSearchPaused && _automaticSearchPausedTurn == CurrentTurn())
+            && CombatManager.Instance.IsInProgress
+            && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
 
     internal static CombatPilotResult CapturePilotResultForTest() => BuildPilotResult();
 
@@ -158,6 +177,47 @@ internal static partial class CombatSessionController
     }
 #endif
 
+    internal static bool TryGetTurnSetupContext(out CombatState? state, out Rules? rules,
+        out LiveCombatTracker? tracker)
+    {
+        state = _state;
+        rules = _rules;
+        tracker = _tracker;
+        return _combatActive && state != null && _player != null && rules != null && tracker != null;
+    }
+
+    internal static void NotifyTurnSetupChanged()
+    {
+        RequireMainThread();
+        PublishSnapshot();
+    }
+
+    internal static void OnTurnSetupCompleted()
+    {
+        if (_pendingTurnStartedState is { } state)
+        {
+            _pendingTurnStartedState = null;
+            OnTurnStarted(state);
+        }
+    }
+
+    internal static void OnTurnSetupDriveStarted()
+    {
+        _phase = CombatUiPhase.WaitingTurn;
+        PublishSnapshot();
+        ModLog.Info($"[Sts2Solver] CONTROLLER_TURN_SETUP_DRIVE turn={CurrentTurn()}");
+    }
+
+    internal static void OnTurnSetupDriveStopped()
+    {
+        _automaticSearchPaused = true;
+        _automaticSearchPausedTurn = CurrentTurn();
+        _pauseCode = "stopped";
+        _pauseReason = "stopped_by_user";
+        _phase = CombatUiPhase.WaitingTurn;
+        PublishSnapshot();
+    }
+
     private static bool ShouldAutomaticallySearchNextTurn
         => _fullAutoEnabled || _mode is SolverMode.AutoSearch or SolverMode.FullAuto;
 
@@ -179,6 +239,7 @@ internal static partial class CombatSessionController
     internal static void BeginCombat(CombatState? state)
     {
         RequireMainThread();
+        PlayerTurnSetupRuntime.Reset("begin_combat");
         CancellationTokenSource previousCombat = _combatCancellation;
         CancelTurnSchedule();
         CancelSearch();
@@ -304,6 +365,7 @@ internal static partial class CombatSessionController
     internal static async Task<bool> CancelAndWaitAsync(NGame host, string reason,
         int timeoutMilliseconds)
     {
+        PlayerTurnSetupRuntime.Reset(reason);
         CancelTurnSchedule();
         CancelSearch();
         CancelDeployment();
@@ -337,6 +399,7 @@ internal static partial class CombatSessionController
             $"[Sts2Solver] CONTROLLER_COMBAT_ENDED in_progress={CombatManager.Instance.IsInProgress} " +
             $"turn={CurrentTurn()} hp={_player?.Creature.CurrentHp.ToString() ?? "-"} " +
             $"enemies={_state?.Enemies.Count.ToString() ?? "-"}");
+        PlayerTurnSetupRuntime.Reset("combat_ended");
         CancelTurnSchedule();
         CancelSearch();
         CancelDeployment();
@@ -388,6 +451,7 @@ internal static partial class CombatSessionController
         _continuationSource = null;
         _latestStamp = null;
         _pendingCompleteBaseline = null;
+        _turnSetupResult = null;
         _fullAutoPausedThisCombat = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
@@ -422,6 +486,7 @@ internal static partial class CombatSessionController
         _combatGeneration++;
         if (_combatActive)
             CaptureCompletedSummary();
+        PlayerTurnSetupRuntime.Reset(reason);
         CancelTurnSchedule();
         CancelSearch();
         CancelDeployment();
@@ -438,6 +503,14 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (!_combatActive || !ReferenceEquals(state, _state))
             return;
+        if (PlayerTurnSetupRuntime.IsBusy)
+        {
+            // The native turn-start event can fire at the setup pause, before the page closes.
+            // Keep the state and resume once the setup transaction has released the page. Do not
+            // clear a setup failure here: the panel must keep showing it while the page is open.
+            _pendingTurnStartedState = state;
+            return;
+        }
         ClearFailureState();
 #if STS2_SOLVER_TESTING
         if (HoldAutoSearchForTest)
@@ -449,6 +522,11 @@ internal static partial class CombatSessionController
         if (player?.PlayerCombatState is not { } playerState)
             return;
         int turn = playerState.TurnNumber;
+        if (_search is { IsTurnSetup: true })
+        {
+            _pendingTurnStartedState = state;
+            return;
+        }
         if (_deployment != null)
         {
             _pendingTurnStartedState = state;
@@ -476,6 +554,8 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return;
         }
+        if (TryActivateTurnSetup(turn))
+            return;
         if (_search != null || _deployment != null)
             return;
         CancelTurnSchedule();
@@ -514,6 +594,8 @@ internal static partial class CombatSessionController
             await RunManager.Instance.ActionExecutor.FinishedExecutingActions().WaitAsync(token);
             await CombatFrameWaiter.SettleAsync(host);
             token.ThrowIfCancellationRequested();
+            if (TryActivateTurnSetup(turn))
+                return;
 #if STS2_SOLVER_TESTING
             await CombatControllerTestHooks.BeforeAutoSearchAsync(state, turn, token);
 #endif
@@ -569,6 +651,14 @@ internal static partial class CombatSessionController
 
     private static void PumpSearch(CombatSearchSession search)
     {
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.StopTurnSetupSearchOnStart
+            && search.IsTurnSetup && !search.StopRequested)
+        {
+            StopSearch();
+            return;
+        }
+#endif
         SearchProgressSnapshot? progress = SearchSession.LatestProgress;
         if (progress == null)
             return;
@@ -612,7 +702,9 @@ internal static partial class CombatSessionController
         int turn = CurrentTurn();
         bool playable = _state is { } state && IsPlayable(state, turn);
         bool actionsIdle = RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted;
-        PumpObservation observation = new(playable, actionsIdle, turn, side, phase);
+        PumpObservation observation = new(playable, actionsIdle, turn, side, phase,
+            PlayerTurnSetupRuntime.HasActivePage, _turnSetupResult != null,
+            PlayerTurnSetupRuntime.IsDriving);
         if (_pumpObserved && observation == _pumpObservation)
             return;
         _pumpObservation = observation;

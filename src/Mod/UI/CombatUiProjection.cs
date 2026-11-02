@@ -194,16 +194,16 @@ internal static class CombatUiProjection
     internal static RouteUiSnapshot Route(ReplayedRoute route, CombatDisplayNames names,
         int currentTurn, int currentActionIndex, int completedActions, bool reused)
         => Route(route.Actions, route.Rules, route.Victory, names, currentTurn,
-            currentActionIndex, completedActions, reused);
+            currentActionIndex, completedActions, reused, []);
 
     internal static RouteUiSnapshot Route(CombatRoutePlan plan, CombatDisplayNames names,
         int currentTurn, int currentActionIndex, int completedActions, bool reused)
         => Route(plan.Actions, plan.Rules, plan.Victory, names, currentTurn,
-            currentActionIndex, completedActions, reused);
+            currentActionIndex, completedActions, reused, plan.RootSetupChoices);
 
     private static RouteUiSnapshot Route(ReplayedAction[] routeActions, Rules rules, bool victory,
         CombatDisplayNames names, int currentTurn, int currentActionIndex, int completedActions,
-        bool reused)
+        bool reused, PlannedChoice[] rootSetupChoices)
     {
         List<RouteTurnUi> turns = [];
         List<RouteActionUi>? turnActions = null;
@@ -216,6 +216,8 @@ internal static class CombatUiProjection
         int enemyHpLost = 0;
         bool combatEnded = false;
         int? energyLeft = null;
+        int rootTurn = routeActions.Length > 0 ? routeActions[0].Before.PlayerTurn : 0;
+        TurnStartChoiceUi[] rootChoices = StartChoices(rootSetupChoices);
         for (int index = 0; index < routeActions.Length; index++)
         {
             ReplayedAction action = routeActions[index];
@@ -234,6 +236,7 @@ internal static class CombatUiProjection
                         EnemyHpLost = enemyHpLost,
                         CombatEnded = combatEnded,
                         EnergyLeft = energyLeft,
+                        TurnStartChoices = turnNumber == rootTurn ? rootChoices : [],
                         Actions = [.. turnActions],
                     });
                 }
@@ -271,6 +274,7 @@ internal static class CombatUiProjection
                 EnemyHpLost = enemyHpLost,
                 CombatEnded = combatEnded,
                 EnergyLeft = energyLeft,
+                TurnStartChoices = turnNumber == rootTurn ? rootChoices : [],
                 Actions = [.. turnActions],
             });
         }
@@ -285,6 +289,34 @@ internal static class CombatUiProjection
             Reused = reused,
             Turns = [.. turns],
         };
+    }
+
+    private static TurnStartChoiceUi[] StartChoices(PlannedChoice[] choices)
+    {
+        List<TurnStartChoiceUi> mapped = [];
+        foreach (PlannedChoice choice in choices)
+        {
+            if (choice.Request.Effect == ChoiceEffect.ApplyKnowledgeCurse)
+                continue;
+            Card[] options = choice.OptionsAreGenerated ? choice.GeneratedOptions : choice.PileOptions;
+            List<ChoiceCardUi> cards = [];
+            foreach (int index in choice.SelectedIndexes())
+            {
+                Card card = options[index];
+                cards.Add(new ChoiceCardUi
+                {
+                    CardId = Registry.Card(card.Id).NativeId,
+                    Upgrade = card.Upgrade,
+                });
+            }
+            mapped.Add(new TurnStartChoiceUi
+            {
+                Source = "起手选择",
+                Effect = choice.Request.Effect.ToString(),
+                Cards = [.. cards],
+            });
+        }
+        return [.. mapped];
     }
 
     private static RouteActionUi Action(ReplayedAction action, CombatDisplayNames names, Rules rules)

@@ -114,6 +114,10 @@ internal static class TestSession
                 OfflineRequest request = JsonSerializer.Deserialize<OfflineRequest>(
                     File.ReadAllText(file), OfflineJson.Options)
                     ?? throw new InvalidDataException("请求为空。");
+                // A production take-over fixture must not install the differential setup
+                // selector: the visible page would be answered before the driver could see it.
+                if (request.TurnSetupTakeoverForTest && request.FlashTurnSetupRootForTest)
+                    request = request with { FlashTurnSetupRootForTest = false };
                 Validate(request);
                 settingsChanged = ApplyTestSettings(request);
                 if (request.EnglishForTest)
@@ -127,10 +131,13 @@ internal static class TestSession
                 CombatSessionController.SetTestRoot(root);
                 SearchSession.ConfigureProgress(true,
                     request.ControllerScenarioForTest is { Length: > 0 } ? 0 : 200);
-                bool turnSetupScenario =
-                    request.ControllerScenarioForTest == "turn_setup_wait";
+                string? scenarioName = request.ControllerScenarioForTest;
+                bool turnSetupWait = scenarioName == "turn_setup_wait";
+                bool turnSetupTakeover = request.TurnSetupTakeoverForTest
+                    && scenarioName is not null && IsTurnSetupScenario(scenarioName);
+                PlayerTurnSetupRuntime.TestEnabled = request.TurnSetupTakeoverForTest;
                 TurnSetupCardSelector? setupSelector = null;
-                if (turnSetupScenario)
+                if (turnSetupWait || scenarioName == "turn_setup_manual")
                 {
                     CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
                     setupSelector = new TurnSetupCardSelector(0, static () =>
@@ -149,20 +156,49 @@ internal static class TestSession
                     recordSnapshots = true;
                 }
                 FirstChoiceCardSelector.LastSelections.Clear();
+                NativeChoiceRuntime.ResetTraceForTesting();
+                TurnSetupRootCapture.Reset();
                 if (request.FlashTurnSetupRootForTest)
                     TurnSetupRootCapture.BeginBuild();
                 stage = "build";
-                CombatSessionController.HoldAutoSearchForTest = !turnSetupScenario;
+                CombatSessionController.HoldAutoSearchForTest = !turnSetupWait;
+                if (scenarioName == "turn_setup_fail")
+                {
+                    CombatControllerTestHooks.ForceSearchFailure =
+                        static _ => "turn_setup_forced_failure";
+                }
+                if (scenarioName == "turn_setup_stop_drop")
+                    CombatControllerTestHooks.StopTurnSetupSearchOnStart = true;
+                if (scenarioName == "turn_setup_stop_keep")
+                    CombatControllerTestHooks.AutoStopOnCandidate = true;
+                if (scenarioName == "turn_setup_stop_drive")
+                    CombatControllerTestHooks.HoldTurnSetupDriverForTest = true;
+                if (scenarioName == "turn_setup_pause")
+                    CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = "death_turn";
+                CombatControllerTestHooks.ExpectedSetupOptionCount =
+                    scenarioName == "turn_setup_auto_execute" && root == "ts-b-toolbox-auto-execute"
+                        ? 3 : -1;
                 ModLog.Info($"[Sts2Solver] BUILD_STARTED root={root}");
                 CombatState combat = await ScenarioBuilder.BuildAsync(
                     new GodotCombatWaiter(host), request,
-                    skipInitialInjection: request.FlashTurnSetupRootForTest,
-                    turnSetupSelector: setupSelector);
+                    skipInitialInjection: request.FlashTurnSetupRootForTest || turnSetupTakeover,
+                    turnSetupSelector: setupSelector,
+                    waitForTurnSetupPage: turnSetupTakeover);
                 ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
                 stage = "settle";
                 await CombatFrameWaiter.SettleAsync(host);
-                if (request.FullCombatForTest || request.ControllerScenarioForTest != null)
+                if (turnSetupTakeover)
+                {
+                    // The setup transaction may have completed before BuildAsync returned, so
+                    // the native TurnStarted event could have been lost to the hold. Replaying
+                    // it is safe while the page is still open: OnTurnStarted stores it as the
+                    // pending event until the setup transaction releases the page.
                     CombatSessionController.ResumeAutoSearchForTest();
+                }
+                else if (request.FullCombatForTest || request.ControllerScenarioForTest != null)
+                {
+                    CombatSessionController.ResumeAutoSearchForTest();
+                }
                 stage = "capture";
                 CapturedSearch? captured = request.ControllerScenarioForTest is { Length: > 0 }
                     ? null
@@ -185,7 +221,10 @@ internal static class TestSession
                         scenarioResult.Status, scenarioResult.Outcome, scenarioResult.Turns,
                         scenarioResult.PlayerHp, scenarioResult.PlayerMaxHp,
                         scenarioResult.Searches, scenarioResult.ReusedTurns,
-                        scenarioResult.Deviations, scenarioResult.DeploymentFailures));
+                        scenarioResult.Deviations, scenarioResult.DeploymentFailures,
+                        scenarioResult.TurnSetupChoiceCount, scenarioResult.TurnSetupDriven,
+                        scenarioResult.TurnSetupPageVisible, scenarioResult.TurnSetupPlanReady,
+                        scenarioResult.TurnSetupSearchStarted, scenarioResult.TurnSetupError));
                     if (failure == null)
                     {
                         ok++;
@@ -361,6 +400,12 @@ internal static class TestSession
                 CombatSessionController.HoldAutoSearchForTest = false;
                 CombatControllerTestHooks.ForceDeploymentFailure = null;
                 CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
+                CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = null;
+                CombatControllerTestHooks.StopTurnSetupSearchOnStart = false;
+                CombatControllerTestHooks.HoldTurnSetupDriverForTest = false;
+                CombatControllerTestHooks.ExpectedSetupOptionCount = -1;
+                PlayerTurnSetupRuntime.TestEnabled = false;
+                TurnSetupRootCapture.Reset();
                 if (settingsChanged && !SolverSettings.Update(_ => previousSettings))
                     ModLog.Error($"[Sts2Solver] SETTINGS_RESTORE_FAILED root={root}");
             }
@@ -478,6 +523,12 @@ internal static class TestSession
             selections ?? [], turnSetupRoot, "failed", 0);
     }
 
+    private static bool IsTurnSetupScenario(string scenario) => scenario is
+        "turn_setup_auto_execute" or "turn_setup_auto_manual" or "turn_setup_full"
+        or "turn_setup_stop_keep" or "turn_setup_stop_drop" or "turn_setup_stop_drive"
+        or "turn_setup_fail" or "turn_setup_scene_exit"
+        or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause";
+
     private static bool ApplyTestSettings(OfflineRequest request)
     {
         if (request.ControllerScenarioForTest is { Length: > 0 } || request.FullCombatForTest)
@@ -486,7 +537,7 @@ internal static class TestSession
                 (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player);
         }
         if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null
-            && !request.FullCombatForTest)
+            && request.SettingsModeForTest is null && !request.FullCombatForTest)
         {
             return false;
         }
@@ -496,9 +547,11 @@ internal static class TestSession
         SolverSettingsData current = SolverSettings.Current;
         SolverMode mode = request.FullCombatForTest
             ? SolverMode.FullAuto
-            : request.SettingsAutoEnableFullAutoForTest is { } auto
-                ? auto ? SolverMode.FullAuto : SolverMode.AutoSearch
-                : current.Automation.Mode;
+            : request.SettingsModeForTest is { Length: > 0 } modeText
+                ? Enum.Parse<SolverMode>(modeText, ignoreCase: true)
+                : request.SettingsAutoEnableFullAutoForTest is { } auto
+                    ? auto ? SolverMode.FullAuto : SolverMode.AutoSearch
+                    : current.Automation.Mode;
         SolverSettingsData next = current with
         {
             Search = tier is { } value ? current.Search with { Tier = value } : current.Search,
@@ -721,7 +774,13 @@ internal static class TestSession
         int FullCombatSearches = 0,
         int FullCombatReusedTurns = 0,
         int FullCombatDeviations = 0,
-        int FullCombatDeploymentFailures = 0);
+        int FullCombatDeploymentFailures = 0,
+        int TurnSetupChoiceCount = 0,
+        bool TurnSetupDriven = false,
+        bool TurnSetupPageVisible = false,
+        bool TurnSetupPlanReady = false,
+        bool TurnSetupSearchStarted = false,
+        string? TurnSetupError = null);
 
     private sealed record ResultEntry(
         string Root,

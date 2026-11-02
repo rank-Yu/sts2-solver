@@ -95,8 +95,11 @@ internal sealed record OfflineRequest
     public bool AutoStartFullCombatForTest { get; init; }
     public bool EnglishForTest { get; init; }
     public string? ControllerScenarioForTest { get; init; }
+    /// <summary>Opens the production turn-setup takeover in the testing build; false by default.</summary>
+    public bool TurnSetupTakeoverForTest { get; init; }
     public bool SearchTierFromSettingsForTest { get; init; }
     public string? SettingsTierForTest { get; init; }
+    public string? SettingsModeForTest { get; init; }
     public bool? SettingsAutoEnableFullAutoForTest { get; init; }
 
     // Search/deployment fields present in frozen fixture JSON. They do not affect root construction;

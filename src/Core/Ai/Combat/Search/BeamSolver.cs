@@ -582,6 +582,7 @@ internal sealed partial class BeamSolver
     private readonly BeamTrace? _trace;
     private string _tracePhase = "next";
     private bool _singleRoot;
+    private int _rootNodeCount;
     private ScoreFeatures _bestFeatures;
     private int _bestFeaturesNode = -1;
 
@@ -677,6 +678,7 @@ internal sealed partial class BeamSolver
         _commitments = new ChunkedList<PowerCommitmentState>(storage);
         _nodeCleanupThreshold = NodeCleanupThreshold(_options.SearchMemoryBudgetBytes);
         _singleRoot = roots.Count == 1;
+        _rootNodeCount = roots.Count;
         _verifySearchEquivalence = SearchVerificationHooks.VerifySearchEquivalence;
         Kernel.VerifyStableBoundaryInvariants = _verifySearchEquivalence;
         _dedupePlayActions = SearchVerificationHooks.DedupeExactPlayActions;

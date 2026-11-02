@@ -16,6 +16,9 @@ internal enum CombatSearchReason
     FullAuto,
     DeploymentDrift,
     PlanExhausted,
+
+    /// <summary>A setup search started after the first visible native choice page.</summary>
+    TurnSetup,
 }
 
 internal sealed class CombatSearchSession(
@@ -51,6 +54,15 @@ internal sealed class CombatSearchSession(
     internal int CandidateVersion { get; set; }
 
     internal long ReviewedWorldlinesBeforeSearch { get; set; }
+
+    /// <summary>This session searches the Play roots enumerated from the setup Start root.</summary>
+    internal bool IsTurnSetup { get; init; }
+
+    /// <summary>The compiled multi-root setup request; null for an ordinary search.</summary>
+    internal SearchCase? SetupCase { get; init; }
+
+    /// <summary>The native <c>SetupPlayerTurn</c> entry root, imported before the page opened.</summary>
+    internal Battle? SetupStartRoot { get; init; }
 }
 
 internal sealed class CombatDeploymentSession(
@@ -85,6 +97,15 @@ internal sealed record CombatSearchRun(
     string? ErrorDetail)
 {
     internal int StartTurn => Plan?.StartTurn ?? Case?.Options.InitialPlayerTurn ?? 0;
+
+    /// <summary>The Start root a setup search was launched from; null for an ordinary search.</summary>
+    internal Battle? SetupStartRoot { get; init; }
+
+    /// <summary>Selections that produced <see cref="Root"/> in a setup search.</summary>
+    internal PlannedChoice[] TurnSetupChoices { get; init; } = [];
+
+    /// <summary>Exact native Play state the setup plan predicted for its Play root.</summary>
+    internal CombatStateStamp? SetupPlayStamp { get; init; }
 }
 
 /// <summary>The controller's owned result, with the projection baseline applied.</summary>
@@ -103,11 +124,18 @@ internal sealed record CombatControllerResult(
     CombatSearchResult? SearchOutcome,
     SearchMemberRunUi[] MemberRuns,
     string Reason,
-    int BattleHpLostSoFar = 0)
+    int BattleHpLostSoFar = 0,
+    PlannedChoice[]? TurnSetupChoices = null,
+    CombatStateStamp? SetupPlayStamp = null)
 {
     internal bool WasReused => Plan.WasReused;
 
     internal int StartTurn => Plan.StartTurn;
+
+    /// <summary>The setup selections this result must replay, or an empty array.</summary>
+    internal PlannedChoice[] SetupChoices => TurnSetupChoices ?? [];
+
+    internal bool IsTurnSetup => SetupPlayStamp.HasValue;
 }
 
 internal sealed record CombatPause(

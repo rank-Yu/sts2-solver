@@ -29,6 +29,18 @@ internal static class CombatControllerTestHooks
     /// <summary>Returns a search failure code for the request, or null to search normally.</summary>
     internal static Func<int, string?>? ForceSearchFailure { get; set; }
 
+    /// <summary>Forces the pre-drive full-auto pause code for the turn-setup takeover scenario.</summary>
+    internal static string? ForcedTurnSetupFullAutoPauseCode { get; set; }
+
+    /// <summary>Stops a setup search on its first frame, before a candidate exists.</summary>
+    internal static bool StopTurnSetupSearchOnStart { get; set; }
+
+    /// <summary>Holds the setup driver on its first frame so a scenario can press stop first.</summary>
+    internal static bool HoldTurnSetupDriverForTest { get; set; }
+
+    /// <summary>Expected visible option count for the Toolbox regression; -1 disables the check.</summary>
+    internal static int ExpectedSetupOptionCount { get; set; } = -1;
+
     /// <summary>Runs before the live end-turn risk check, for the forced-execution scenario.</summary>
     internal static Func<CombatState, Player, Task>? BeforeLiveEndTurnCheck { get; set; }
 

@@ -65,6 +65,19 @@ internal static class TurnSetupRootCapture
 
     public static void BeginBuild(bool captureStartBattle = false)
     {
+        Reset();
+        CaptureStartBattle = captureStartBattle;
+        Enabled = true;
+    }
+
+    /// <summary>
+    /// Drops the static capture state between requests. The tracker's event subscription is
+    /// released with the tracker reference; the native state itself is owned by the request.
+    /// </summary>
+    public static void Reset()
+    {
+        Enabled = false;
+        CaptureStartBattle = false;
         StartCards = null;
         StartBattle = null;
         ProductionStartBattle = null;
@@ -72,8 +85,6 @@ internal static class TurnSetupRootCapture
         StartRules = null;
         StartTakingExtraTurn = false;
         StartTurn = 0;
-        CaptureStartBattle = captureStartBattle;
-        Enabled = true;
     }
 
     internal static bool Prefix(CombatManager __instance, CombatTurnState turnState)

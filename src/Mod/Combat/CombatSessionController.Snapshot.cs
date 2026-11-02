@@ -23,16 +23,38 @@ internal static partial class CombatSessionController
         int turn = CurrentTurn();
         int hp = _player?.Creature.CurrentHp ?? current.PlayerHp;
         int maxHp = _player?.Creature.MaxHp ?? current.PlayerMaxHp;
-        bool canExecute = _deployment == null && _search == null
-            && _latestResult != null && ResultStampMatches(_latestResult);
+        bool turnSetupPage = PlayerTurnSetupRuntime.HasActivePage;
+        bool turnSetupPlanAvailable = _turnSetupResult != null;
+        bool turnSetupPlan = turnSetupPlanAvailable && turnSetupPage;
+        bool turnSetupDriving = PlayerTurnSetupRuntime.IsDriving;
+        bool canExecute = (_deployment == null && _search == null
+            && _latestResult != null && ResultStampMatches(_latestResult))
+            || (turnSetupPlan && !turnSetupDriving && _search == null
+                && _deployment == null);
         bool canStart = false;
         string? searchBlock = null;
         if (_search == null)
         {
-            if (_deployment == null && !SearchSession.IsRunning && CanSolve(out _))
+            if (turnSetupPage)
+            {
+                if (turnSetupPlan && !turnSetupDriving && _deployment == null
+                    && !SearchSession.IsRunning)
+                {
+                    canStart = true;
+                }
+                else
+                {
+                    searchBlock = "turn_setup";
+                }
+            }
+            else if (_deployment == null && !SearchSession.IsRunning && CanSolve(out _))
+            {
                 canStart = true;
+            }
             else
+            {
                 searchBlock = CanSolve(out string reason) ? "searching" : reason;
+            }
         }
         CombatControllerResult? routeSource = _search == null
             ? _latestResult ?? _deploymentResult
@@ -52,6 +74,11 @@ internal static partial class CombatSessionController
                 && _automaticSearchPausedTurn == turn,
             IsSearching = _search != null,
             IsDeploying = _deployment != null,
+            TurnSetupPageOpen = turnSetupPage,
+            TurnSetupPlanReady = turnSetupPlan,
+            TurnSetupDriving = turnSetupDriving,
+            TurnSetupSearchStarted = PlayerTurnSetupRuntime.SearchStarted,
+            TurnSetupChoiceCount = PlayerTurnSetupRuntime.ChoiceCount,
             DeployWhenReady = _search?.DeployWhenReady ?? false,
             IsStoppingDeployment = _deployment?.StopRequested ?? false,
             CanStartSearch = canStart,

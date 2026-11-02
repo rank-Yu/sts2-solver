@@ -21,6 +21,7 @@ internal static class SolverPanelText
         ["route_capacity"] = "路线回放超出状态容量",
         ["search_failed"] = "搜索失败",
         ["forced_potion_unusable"] = "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索",
+        ["turn_setup_failed"] = "回合准备选牌失败",
         ["boundary_deviation"] = "回合开始时实际状态与预测不同，将重新搜索",
         ["action_deviation"] = "动作结果与预测不同，将重新搜索",
         ["deploy_failed"] = "自动执行中止",
@@ -95,13 +96,36 @@ internal static class SolverPanelText
     {
         ["initial"] = "首次搜索",
         ["turn_start"] = "回合开始重新搜索",
+        ["turn_setup"] = "回合开始选择",
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> ChoiceEffectNames = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Discard"] = "弃",
+        ["DiscardAndDraw"] = "弃",
+        ["Exhaust"] = "耗尽",
+        ["Transform"] = "变换",
+        ["MoveToHand"] = "选择",
+        ["MoveToHandFreeThisTurn"] = "选择",
+        ["GenerateToHand"] = "选择",
+        ["Upgrade"] = "升级",
+        ["Duplicate"] = "复制",
+        ["SetFreeThisCombat"] = "选择",
+        ["AutoPlayRepeated"] = "选择",
+        ["ApplySly"] = "选择",
+        ["ApplyRetain"] = "选择",
+        ["ApplyEthereal"] = "选择",
+        ["Nightmare"] = "选择",
+        ["Modify"] = "选择",
+        ["ApplyKnowledgeCurse"] = "选择",
     };
 
     /// <summary>Every source string looked up through the maps above; the logic check requires an English entry for each.</summary>
     internal static IEnumerable<string> MappedSourceStrings
         => ErrorNames.Values.Concat(StopNames.Values)
             .Concat(SkipNames.Values).Concat(EvaluationNames.Values).Concat(RetentionNames.Values)
-            .Concat(PotionLimitNames.Values).Concat(SearchReasonNames.Values).Distinct(StringComparer.Ordinal);
+            .Concat(PotionLimitNames.Values).Concat(SearchReasonNames.Values)
+            .Concat(ChoiceEffectNames.Values).Distinct(StringComparer.Ordinal);
 
     internal static string Error(string code)
         => ErrorNames.TryGetValue(code, out string? source)
@@ -147,12 +171,16 @@ internal static class SolverPanelText
     internal static string SearchReason(string code)
         => SearchReasonNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
 
+    internal static string ChoiceEffect(string code)
+        => ChoiceEffectNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
+
     /// <summary>Why the search slot is disabled; codes come from the controller's CanSolve.</summary>
     internal static string SearchBlock(string? code) => code switch
     {
         "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
         "actions_running" => SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
         "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
+        "turn_setup" => SolverText.Get("等待回合开始选择"),
         "executing" => SolverText.Get("正在执行本回合；要重新搜索请先停止执行。"),
         "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
         "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),

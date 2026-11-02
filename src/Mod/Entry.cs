@@ -33,20 +33,30 @@ public static class ModEntry
         string? testDirectory = Environment.GetEnvironmentVariable(TestSession.DirectoryVariable);
         TestMode = !string.IsNullOrWhiteSpace(testDirectory);
         ModLog.Initialize(TestMode ? Path.Combine(testDirectory!, "mod.log") : null);
+#else
+        ModLog.Initialize(null);
+#endif
+        ModPatcher patcher = RitsuLibFramework.CreatePatcher(ModId, "sts2solver", DisplayName);
+        patcher.RegisterPatch<PlayerTurnSetupPatch>();
+        patcher.RegisterPatch<PlayerTurnSetupSceneExitPatch>();
+        patcher.RegisterPatch<ChooseCardObservationPatch>();
+        patcher.RegisterPatch<SimpleGridObservationPatch>();
+        patcher.RegisterPatch<RewardGridObservationPatch>();
+        patcher.RegisterPatch<CombatPileObservationPatch>();
+        patcher.RegisterPatch<HandObservationPatch>();
+        patcher.RegisterPatch<HandUpgradeObservationPatch>();
+#if STS2_SOLVER_TESTING
         if (TestMode)
         {
-            ModPatcher patcher = RitsuLibFramework.CreatePatcher(ModId, "sts2solver", DisplayName);
             patcher.RegisterPatch<UnattendedTestIsolationPatch>();
             patcher.RegisterPatch<UnattendedNoDiscoveryOrderPatch>();
             patcher.RegisterPatch<UnattendedHeadlessFtuePatch>();
             patcher.RegisterPatch<TurnSetupRootCapturePatch>();
-            RitsuLibFramework.ApplyRequiredPatcher(patcher, DisableMod);
-            if (!Enabled)
-                return;
         }
-#else
-        ModLog.Initialize(null);
 #endif
+        RitsuLibFramework.ApplyRequiredPatcher(patcher, DisableMod);
+        if (!Enabled)
+            return;
         SolverSettings.Initialize();
         SolverText.Initialize();
         CombatSessionController.Initialize();
@@ -57,6 +67,7 @@ public static class ModEntry
         else
             ModLog.Warn("[Sts2Solver] UI_STORE_DEFERRED reason=not_main_thread");
         ModLog.Info($"[Sts2Solver] INIT id={ModId} version={Version} name={DisplayName} english={EnglishName} test_mode={TestMode}");
+        ModLog.Info($"[Sts2Solver] TEST_MODE test_mode_is_on={MegaCrit.Sts2.Core.TestSupport.TestMode.IsOn}");
 
         // 战斗结束或退出时取消后台搜索和自动执行。
         RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(static evt =>

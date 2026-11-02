@@ -570,7 +570,8 @@ internal static partial class CombatSessionController
 
     private static bool SearchAlreadyOwned(int turn)
     {
-        if (_latestResult?.StartTurn == turn || _lastSolverDeployedTurn == turn)
+        if (_latestResult?.StartTurn == turn || _turnSetupResult?.StartTurn == turn
+            || _lastSolverDeployedTurn == turn)
             return true;
         if (_search is { } search && ReferenceEquals(search.State, _state) && search.StartTurn == turn)
             return true;
@@ -605,6 +606,7 @@ internal static partial class CombatSessionController
         CombatSearchReason.FullAuto => "full_auto",
         CombatSearchReason.DeploymentDrift => "deployment_drift",
         CombatSearchReason.PlanExhausted => "plan_exhausted",
+        CombatSearchReason.TurnSetup => "turn_setup",
         _ => throw new ArgumentOutOfRangeException(nameof(reason)),
     };
 

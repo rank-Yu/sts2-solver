@@ -54,9 +54,15 @@
 
 ### 回合开始的选牌
 
-原版在玩家回合开始时先执行 `SetupPlayerTurn`。需要选牌时，玩家 `PlayerTurnPhase` 保持 `Start`，设置页面等待一个玩家选择上下文；这段等待不是动作队列里的一个动作，所以 `FinishedExecutingActions()` 可能已经完成。选择结束后 `RunAutoPrePlayPhase` 把阶段推进到 `AutoPrePlay`，再进入 `Play`，最后才触发 `CombatManager.TurnStarted`。
+原版在玩家回合开始时先执行 `SetupPlayerTurn`。需要选牌时，玩家 `PlayerTurnPhase` 保持 `Start`，设置页面等待一个玩家选择上下文；这段等待不是动作队列里的一个动作，所以 `FinishedExecutingActions()` 可能已经完成。暂停时原版先跑侧回合开始和球，选择结束后 `RunAutoPrePlayPhase` 把阶段推进到 `AutoPrePlay`，再进入 `Play`。`CombatManager.TurnStarted` 可能在暂停期间就触发，也可能在进入 `Play` 后触发，所以控制器把两种顺序都当作“回合开始事件”，在 `PlayerTurnPhase` 到 `Play` 后才处理计划。
 
-Sts2Solver 订阅的是 `TurnStarted`，因此正常流程下选牌发生在事件之前，控制器不会在选牌期间开始搜索。`RunTurnStartedAsync` 仍不设帧数上限，会一直等到 `PlayerTurnPhase.Play`，再等动作队列和可视/计时协程；回合变化、战斗结束或离开场景会取消等待。当前没有接管回合准备选牌，选牌仍由玩家完成；等待期间快照的原因码是 `turn_start`。
+自动搜索档和全自动档会接管可见的回合准备页面；如果枚举出的计划包含 `AutoPrePlay` 阶段的选择，本批不接管（`RunAutoPrePlayPhase` 留给下一批）：`PlayerTurnSetupRuntime` 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举 Play 根，再用 `CompileSetupRequest` 编译多根请求。搜索不在入口启动，而是在第一张真正可见的 `CardSelectCmd` 页面出现后启动；页面在搜索期间不加输入遮挡，玩家可以自己选。没有可见页面的纯隐式选择（例如手里只剩一张牌的烤面包手套）不启动准备搜索，原生自动选完后在 `Play` 照常搜索。混合场景里如果某个隐式请求在侧回合开始后变成了可见页面，观察层会把它提升为可见请求；但内核枚举若因此返回 `NoChoice`，本批不接管，页面留给玩家。
+
+自动搜索档搜完只发布路线和计划，不点页面；玩家可以自己选，或按“执行本回合”让求解器在页面上点完再部署。全自动档搜完直接驱动；驱动前先评估全自动暂停条件（`death_turn`、`worse_recalculation`、`combat_end_turn`、只有死亡路线），命中时不点页面、把页面交还玩家并暂停本场全自动，路线只作为建议显示。玩家在搜完前自己选了，本次搜索作废，进入 `Play` 后按普通流程处理。
+
+驱动只在点击和确认期间加全屏输入遮挡，驱动结束、停止、失败、战斗结束或退出场景时释放。停止搜索时如果已有候选，保留计划并交还页面；没有候选就清掉计划。停止执行会在下一次点击或确认前停住。失败使用独立错误码 `turn_setup_failed`，替换任务正常结束，不把原生 `StartTurn` 弄成 fault，页面仍由原生代码等待。
+
+准备结果在进入 `Play` 时用搜索时保存的精确 `CombatStateStamp` 与实机状态比较；只有计划确实由求解器驱动、并且戳完全一致时才激活或复用，否则丢弃计划并按普通流程搜索。这样侧回合开始、球和监听器改变状态时不会部署一条从错误局面出发的路线。
 
 ## 一次执行
 

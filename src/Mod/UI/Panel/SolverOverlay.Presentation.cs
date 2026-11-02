@@ -13,6 +13,8 @@ internal enum SolverOverlayPresentation
     Deploying,
     ExecutedHistory,
     Searching,
+    TurnSetupPending,
+    TurnSetupDriving,
 }
 
 internal sealed partial class SolverOverlay
@@ -83,6 +85,14 @@ internal sealed partial class SolverOverlay
         else if (snapshot.Phase == CombatUiPhase.Failed)
         {
             ShowMessage(SolverText.Get("求解器消息"), SolverPanelText.Error(snapshot.ErrorCode ?? "search_failed"));
+        }
+        else if (snapshot.TurnSetupDriving)
+        {
+            ShowTurnSetupDriving(overlay, snapshot);
+        }
+        else if (snapshot.TurnSetupPageOpen && !snapshot.TurnSetupPlanReady)
+        {
+            ShowTurnSetupPending(snapshot);
         }
         else if (snapshot.Result is { } result)
         {
@@ -563,6 +573,39 @@ internal sealed partial class SolverOverlay
         if (_detailsButton != null)
             _detailsButton.Visible = false;
         SetDetailsVisible(false);
+        RefreshControls(snapshot);
+    }
+
+    private void ShowTurnSetupPending(CombatUiSnapshot snapshot)
+    {
+        _presentation = SolverOverlayPresentation.TurnSetupPending;
+        _waitingForNextTurnPlan = false;
+        _lastResultCandidate = -1;
+        SetStatus(SolverText.Get("等待回合开始选择"), SolverUiTokens.Palette.Accent,
+            SolverText.Format($"第 {snapshot.Turn} 回合"));
+        SetSummary(SolverText.Get("选牌页面出现后自动开始搜索"));
+        SetReviewText(null);
+        SetRouteVisibility(false);
+        if (_detailsButton != null)
+            _detailsButton.Visible = false;
+        SetDetailsVisible(false);
+        RefreshControls(snapshot);
+    }
+
+    private void ShowTurnSetupDriving(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
+    {
+        if (_presentation != SolverOverlayPresentation.TurnSetupDriving
+            && snapshot.Result is { } result)
+        {
+            ShowResult(overlay, snapshot, result);
+        }
+        _presentation = SolverOverlayPresentation.TurnSetupDriving;
+        _waitingForNextTurnPlan = false;
+        SetStatus(SolverText.Get("正在执行"), SolverUiTokens.Palette.Warning,
+            SolverText.Format($"第 {snapshot.Turn} 回合"));
+        SetSummary(SolverText.Get("正在执行回合开始选择"));
+        SetReviewText(null);
+        PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
 

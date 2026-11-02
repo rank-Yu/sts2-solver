@@ -98,6 +98,39 @@ internal static class CombatControllerChecks
                 case "turn_setup_wait":
                     await TurnSetupWaitAsync(host, Check, Action);
                     break;
+                case "turn_setup_auto_execute":
+                    await TurnSetupAutoExecuteAsync(host, Check, Action);
+                    break;
+                case "turn_setup_auto_manual":
+                    await TurnSetupAutoManualAsync(host, Check, Action);
+                    break;
+                case "turn_setup_full":
+                    await TurnSetupFullAsync(host, Check, Action);
+                    break;
+                case "turn_setup_stop_keep":
+                    await TurnSetupStopKeepAsync(host, Check, Action);
+                    break;
+                case "turn_setup_stop_drop":
+                    await TurnSetupStopDropAsync(host, Check, Action, forcedFailure: false);
+                    break;
+                case "turn_setup_fail":
+                    await TurnSetupStopDropAsync(host, Check, Action, forcedFailure: true);
+                    break;
+                case "turn_setup_stop_drive":
+                    await TurnSetupStopDriveAsync(host, Check, Action);
+                    break;
+                case "turn_setup_pause":
+                    await TurnSetupPauseAsync(host, Check, Action);
+                    break;
+                case "turn_setup_scene_exit":
+                    await TurnSetupSceneExitAsync(host, Check, Action);
+                    break;
+                case "turn_setup_implicit":
+                    await TurnSetupImplicitAsync(host, Check, Action);
+                    break;
+                case "turn_setup_manual":
+                    await TurnSetupManualAsync(host, Check, Action);
+                    break;
                 case "pause_worse_recalculation":
                     await PauseWorseRecalculationAsync(host, Check, Action);
                     break;
@@ -189,17 +222,22 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.ForceTurnStartForTest = false;
             CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
             CombatControllerTestHooks.ForceSearchFailure = null;
+            CombatControllerTestHooks.AutoStopOnCandidate = false;
             CombatSessionController.ForceMultiplayerForTest = false;
         }
         CombatPilotResult summary = CombatSessionController.LastCompletedResultForTesting
             ?? CombatSessionController.CapturePilotResultForTest();
         string status = failure == null ? "ok" : "failed";
+        CombatUiSnapshot final = Snapshot();
         return new CombatControllerScenarioResult(
             1, scenario, root, status, failure, [.. checks], [.. actions],
             [.. CombatUiStore.History.Select(SnapshotRecord)],
             summary.Turns, summary.PlayerHp, summary.PlayerMaxHp, summary.Searches,
             summary.ReusedTurns, summary.Deviations, summary.DeploymentFailures,
-            summary.Status, summary.Outcome);
+            summary.Status, summary.Outcome,
+            final.TurnSetupChoiceCount, final.TurnSetupDriving, final.TurnSetupPageOpen,
+            final.TurnSetupPlanReady, final.TurnSetupSearchStarted,
+            final.ErrorCode == "turn_setup_failed" ? final.ErrorDetail : null);
     }
 
     private static async Task ManualStartStopAsync(NGame host, Check check, Action action)
@@ -556,6 +594,324 @@ internal static class CombatControllerChecks
         action("setup_completed");
         check("searched_after_setup", after.Searches >= 1, after.Searches.ToString());
         await WaitIdleAsync(host, "setup search done");
+    }
+
+    private static async Task<CombatUiSnapshot> WaitSetupPageAsync(NGame host)
+        => await WaitAsync(host, static s => s.TurnSetupPageOpen, 2400, "turn setup page");
+
+    private static async Task<CombatUiSnapshot> WaitSetupSearchAsync(NGame host)
+        => await WaitAsync(host,
+            static s => s.TurnSetupSearchStarted && s.Search?.Reason == "turn_setup",
+            2400, "turn setup search");
+
+    private static async Task<CombatUiSnapshot> WaitSetupPlanAsync(NGame host)
+        => await WaitAsync(host,
+            static s => s.TurnSetupPlanReady && !s.IsSearching, 3600, "turn setup plan");
+
+    private static async Task WaitNativePlayAsync(NGame host, int frames = 2400)
+    {
+        for (int frame = 0; frame < frames; frame++)
+        {
+            CombatState? state = CombatManager.Instance.DebugOnlyGetState();
+            Player? player = state == null ? null : LocalContext.GetMe(state);
+            if (player?.PlayerCombatState is { Phase: PlayerTurnPhase.Play })
+                return;
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
+        throw new TimeoutException("等原生出牌阶段超时。");
+    }
+
+    private static async Task TurnSetupAutoExecuteAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        CombatUiSnapshot page = await WaitSetupPageAsync(host);
+        check("page_open", page.TurnSetupPageOpen);
+        check("page_no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        CombatUiSnapshot searching = await WaitSetupSearchAsync(host);
+        check("search_reason", searching.Search?.Reason == "turn_setup", searching.Search?.Reason);
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("plan_ready", plan.TurnSetupPlanReady);
+        check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("route_ready", plan.CurrentTurnRouteReady);
+        check("route_capsule",
+            plan.Route?.Turns.Length > 0
+            && plan.Route.Turns[0].TurnStartChoices.Length > 0);
+        if (CombatControllerTestHooks.ExpectedSetupOptionCount >= 0)
+        {
+            check("option_count",
+                PlayerTurnSetupRuntime.TestFirstVisibleOptionCount
+                    == CombatControllerTestHooks.ExpectedSetupOptionCount,
+                PlayerTurnSetupRuntime.TestFirstVisibleOptionCount.ToString());
+            check("can_skip", !PlayerTurnSetupRuntime.TestFirstVisibleCanSkip);
+        }
+        check("no_pause", plan.PauseCode == null, plan.PauseCode);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        int searches = plan.Searches;
+        int reused = plan.ReusedTurns;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_setup");
+        action("press_execute");
+        CombatUiSnapshot driving = await WaitAsync(host,
+            static s => s.TurnSetupDriving, 600, "turn setup driving");
+        check("driving", driving.TurnSetupDriving);
+        check("driving_blocker",
+            PlayerTurnSetupRuntime.TestBlockerActive
+            || PlayerTurnSetupRuntime.TestBlockerAcquisitionCount > 0,
+            $"active={PlayerTurnSetupRuntime.TestBlockerActive} " +
+            $"count={PlayerTurnSetupRuntime.TestBlockerAcquisitionCount}");
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying, 2400, "turn setup activated");
+        check("one_search", activated.Searches == searches,
+            $"{searches}->{activated.Searches}");
+        check("reused", activated.ReusedTurns > reused,
+            $"{reused}->{activated.ReusedTurns}");
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+    }
+
+    private static async Task TurnSetupAutoManualAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitSetupPageAsync(host);
+        await WaitSetupSearchAsync(host);
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        int searches = plan.Searches;
+        int reused = plan.ReusedTurns;
+        await PlayerTurnSetupRuntime.SelectPlannedOrDifferentForTesting(host, different: true,
+            CancellationToken.None);
+        action("select_different_card");
+        CombatUiSnapshot advanced = await WaitAsync(host,
+            static s => !s.TurnSetupPageOpen, 1200, "player advanced");
+        check("stale_plan", !advanced.TurnSetupPlanReady, "plan discarded");
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        await WaitNativePlayAsync(host);
+        CombatUiSnapshot after = await WaitAsync(host,
+            s => s.Searches > searches, 3600, "normal search after player choice");
+        check("searched_again", after.Searches > searches, $"{searches}->{after.Searches}");
+        check("not_reused", after.ReusedTurns == reused,
+            $"{reused}->{after.ReusedTurns}");
+        check("no_error", after.ErrorCode == null, after.ErrorCode);
+    }
+
+    private static async Task TurnSetupFullAsync(NGame host, Check check, Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying, 3600,
+            "full auto setup activated");
+        check("one_search", activated.Searches == 1, activated.Searches.ToString());
+        check("reused", activated.ReusedTurns == 1, activated.ReusedTurns.ToString());
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        bool visible = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Owner.StartsWith("turn_setup:", StringComparison.Ordinal)
+            && trace.Stage == "Visible");
+        bool searchStarted = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Owner.StartsWith("turn_setup:", StringComparison.Ordinal)
+            && trace.Stage == "SearchStarted");
+        bool selected = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Owner.StartsWith("turn_setup:", StringComparison.Ordinal)
+            && trace.Stage == "Selected");
+        check("native_visible", visible, "no Visible trace");
+        check("native_search_started", searchStarted, "no SearchStarted trace");
+        check("native_selected", selected, "no Selected trace");
+        action("wait_full_auto_setup");
+    }
+
+    private static async Task TurnSetupStopKeepAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitSetupPageAsync(host);
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        CombatControllerTestHooks.AutoStopOnCandidate = false;
+        action("auto_stop_on_candidate");
+        check("stopped", plan.PauseCode == "stopped", plan.PauseCode);
+        check("page_open", plan.TurnSetupPageOpen);
+        check("plan_ready", plan.TurnSetupPlanReady);
+        check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("not_driving", !plan.TurnSetupDriving);
+        int searches = plan.Searches;
+        int reused = plan.ReusedTurns;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_retained_plan");
+        action("press_execute_after_stop");
+        await WaitAsync(host, static s => s.TurnSetupDriving, 600, "retained plan driving");
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying, 2400, "retained plan activated");
+        check("one_search", activated.Searches == searches,
+            $"{searches}->{activated.Searches}");
+        check("reused", activated.ReusedTurns > reused,
+            $"{reused}->{activated.ReusedTurns}");
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+    }
+
+    private static async Task TurnSetupStopDropAsync(NGame host, Check check, Action action,
+        bool forcedFailure)
+    {
+        if (!forcedFailure)
+        {
+            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch),
+                "auto search");
+            action("set_mode:auto_search");
+        }
+        else
+        {
+            action("force_search_failure");
+        }
+        await WaitSetupPageAsync(host);
+        if (forcedFailure)
+        {
+            CombatUiSnapshot failed = await WaitAsync(host,
+                static s => s.ErrorCode == "turn_setup_failed", 2400, "turn setup failure");
+            check("error_code", failed.ErrorCode == "turn_setup_failed", failed.ErrorCode);
+            check("page_open", failed.TurnSetupPageOpen);
+            check("no_plan", !failed.TurnSetupPlanReady);
+            check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+            check("not_faulted", true, "replacement task completed");
+            CombatControllerTestHooks.ForceSearchFailure = null;
+        }
+        else
+        {
+            await WaitSetupPageAsync(host);
+            CombatUiSnapshot stopped = await WaitAsync(host,
+                static s => !s.IsSearching, 2400, "turn setup stopped");
+            check("stopped", stopped.PauseCode == "stopped", stopped.PauseCode);
+            check("page_open", stopped.TurnSetupPageOpen);
+            check("no_plan", !stopped.TurnSetupPlanReady);
+            check("choice_count", stopped.TurnSetupChoiceCount == 0,
+                stopped.TurnSetupChoiceCount.ToString());
+            check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        }
+        int before = Snapshot().Searches;
+        await PlayerTurnSetupRuntime.SelectFirstVisibleForTesting(host, 1, CancellationToken.None);
+        action("select_first_card");
+        await WaitNativePlayAsync(host);
+        CombatUiSnapshot played = Snapshot();
+        check("page_closed", !played.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        await PressPanelButtonAsync(host, PanelButton.Search, "search_after_setup");
+        action("press_search_after_setup");
+        CombatUiSnapshot searched = await WaitAsync(host,
+            s => s.Searches > before, 1200, "search after setup page");
+        check("normal_search", searched.Searches > before,
+            $"{before}->{searched.Searches}");
+        check("no_setup_error", searched.ErrorCode == null, searched.ErrorCode);
+    }
+
+    private static async Task TurnSetupStopDriveAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("set_mode:full_auto");
+        await WaitSetupPageAsync(host);
+        await WaitSetupSearchAsync(host);
+        await WaitSetupPlanAsync(host);
+        await WaitAsync(host, static s => s.TurnSetupDriving, 1200, "setup driving");
+        await PressPanelButtonAsync(host, PanelButton.Execute, "stop_turn_setup_drive");
+        action("press_stop_drive");
+        CombatUiSnapshot stopped = await WaitAsync(host,
+            static s => !s.TurnSetupDriving, 240, "turn setup drive stopped");
+        check("stopped", stopped.PauseCode == "stopped", stopped.PauseCode);
+        check("page_open", stopped.TurnSetupPageOpen);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        int searches = stopped.Searches;
+        int reused = stopped.ReusedTurns;
+        await PlayerTurnSetupRuntime.SelectFirstVisibleForTesting(host, 1, CancellationToken.None);
+        action("select_after_stop");
+        await WaitNativePlayAsync(host);
+        await Frames(host, 120);
+        CombatUiSnapshot after = Snapshot();
+        check("not_reused", after.ReusedTurns == reused,
+            $"{reused}->{after.ReusedTurns}");
+        check("no_deploy", !after.IsDeploying, "stopped drive must not deploy");
+        check("no_extra_search", after.Searches == searches,
+            $"{searches}->{after.Searches}");
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+    }
+
+    private static async Task TurnSetupPauseAsync(NGame host, Check check, Action action)
+    {
+        CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = "death_turn";
+        check("mode_set", Snapshot().Mode == SolverMode.FullAuto
+            || CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("force_full_auto_pause");
+        await WaitSetupPageAsync(host);
+        await WaitSetupSearchAsync(host);
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "death_turn",
+            2400, "setup full auto pause");
+        check("page_open", paused.TurnSetupPageOpen);
+        check("plan_ready", paused.TurnSetupPlanReady);
+        check("not_driving", !paused.TurnSetupDriving);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("full_auto_off", !paused.FullAutoEnabled);
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = null;
+        int reused = paused.ReusedTurns;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_setup_pause");
+        action("press_execute_after_pause");
+        await WaitAsync(host, static s => s.TurnSetupDriving, 600, "pause override driving");
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying, 2400, "pause override activated");
+        check("reused", activated.ReusedTurns > reused,
+            $"{reused}->{activated.ReusedTurns}");
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+    }
+
+    private static async Task TurnSetupSceneExitAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitSetupPageAsync(host);
+        await WaitSetupSearchAsync(host);
+        action("return_to_main_menu");
+        await host.ReturnToMainMenu();
+        await Frames(host, 30);
+        check("page_closed", !PlayerTurnSetupRuntime.TestPageVisible);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("not_in_progress", !RunManager.Instance.IsInProgress);
+    }
+
+    private static async Task TurnSetupImplicitAsync(NGame host, Check check, Action action)
+    {
+        check("no_setup_page", !PlayerTurnSetupRuntime.TestPageVisible);
+        check("no_setup_search", Snapshot().Searches == 0, Snapshot().Searches.ToString());
+        bool implicitRequested = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Surface == NativeChoiceSurfaceKind.Hand && trace.Stage == "Requested");
+        bool visible = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Stage == "Visible");
+        check("implicit_requested", implicitRequested, "no Hand request");
+        check("implicit_no_page", !visible, "implicit selection must not open a page");
+        bool selected = NativeChoiceRuntime.TraceSnapshotForTesting.Any(static trace =>
+            trace.Stage == "Selected");
+        check("no_driver", !selected);
+        CombatSessionController.ResumeAutoSearchForTest();
+        action("resume_auto_search");
+        CombatUiSnapshot searched = await WaitAsync(host,
+            static s => s.Searches >= 1, 1200, "play search after implicit setup");
+        check("play_search", searched.Searches >= 1, searched.Searches.ToString());
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+    }
+
+    private static async Task TurnSetupManualAsync(NGame host, Check check, Action action)
+    {
+        int atSelection = CombatControllerTestHooks.TurnSetupSearchCountAtSelection;
+        check("no_setup_search_at_selection", atSelection == 0, atSelection.ToString());
+        check("no_setup_search", Snapshot().Searches == 0, Snapshot().Searches.ToString());
+        check("no_setup_page", !Snapshot().TurnSetupPageOpen);
+        CombatSessionController.ResumeAutoSearchForTest();
+        await Frames(host, 120);
+        check("still_manual", Snapshot().Searches == 0, Snapshot().Searches.ToString());
+        await PressPanelButtonAsync(host, PanelButton.Search, "manual_search");
+        action("press_search");
+        CombatUiSnapshot searching = await WaitAsync(host,
+            static s => s.IsSearching, 600, "manual search after setup");
+        check("manual_search_started", searching.Search?.Reason == "manual",
+            searching.Search?.Reason);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
     }
 
     private static async Task PauseWorseRecalculationAsync(NGame host, Check check, Action action)
@@ -1791,4 +2147,10 @@ internal sealed record CombatControllerScenarioResult(
     int Deviations,
     int DeploymentFailures,
     string TerminalStatus,
-    string Outcome);
+    string Outcome,
+    int TurnSetupChoiceCount = 0,
+    bool TurnSetupDriven = false,
+    bool TurnSetupPageVisible = false,
+    bool TurnSetupPlanReady = false,
+    bool TurnSetupSearchStarted = false,
+    string? TurnSetupError = null);

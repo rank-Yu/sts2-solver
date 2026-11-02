@@ -110,7 +110,7 @@ internal static partial class CombatSessionController
         CancellationTokenSource cancellation =
             CancellationTokenSource.CreateLinkedTokenSource(_combatCancellation.Token);
         CombatSearchSession session = new(++_nextSearchGeneration, _state, root, stamp, turn,
-            reason, deployWhenReady, cancellation);
+            reason, SolverSearchPolicy.Capture(_theftPolicy), deployWhenReady, cancellation);
         session.ReviewedWorldlinesBeforeSearch = SearchLog.Sum(static entry => entry.ExpandedNodes);
         _search = session;
         _latestResult = null;
@@ -147,6 +147,30 @@ internal static partial class CombatSessionController
         _ = RunSearchAsync(session, root);
     }
 
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// Compiles the request the next search would run without starting it. Controller scenarios use
+    /// this to assert strategy plumbing on roots whose full search is too expensive.
+    /// </summary>
+    internal static SearchCase CompileRequestForTest()
+    {
+        RequireMainThread();
+        if (!_combatActive || _state == null || _player == null || _rules == null || _tracker == null)
+            throw new InvalidOperationException("没有可编译的战斗根。");
+        if (!_trackerSeeded)
+        {
+            Battle seed = _tracker.ImportRoot(_state, _player, _rules);
+            _tracker.Observe(seed);
+            _trackerSeeded = true;
+        }
+        _tracker.Refresh(_state);
+        Battle root = _tracker.ImportRoot(_state, _player, _rules);
+        return SearchSession.CompileCase(_state, _player, _rules, root,
+            SolverSearchPolicy.Capture(_theftPolicy), SearchPolicyOverrideForTest,
+            deterministic: false, SolverSettings.Current.Search.Tier);
+    }
+#endif
+
     private static async Task RequestSearchWhenIdleAsync(CombatSearchReason reason)
     {
         NGame? host = NGame.Instance;
@@ -175,7 +199,7 @@ internal static partial class CombatSessionController
         {
             CombatSearchRun run = await CombatSearchRunner.RunAsync(host, _testRoot ?? "manual",
                 _rules!, _tracker!, session.State, _player!, root, session.StartTurn, session.Reason,
-                _searchTier,
+                _searchTier, session.PolicyConfiguration,
 #if STS2_SOLVER_TESTING
                 SearchPolicyOverrideForTest,
 #else
@@ -185,6 +209,10 @@ internal static partial class CombatSessionController
             if (!ReferenceEquals(_search, session))
                 return;
             _search = null;
+#if STS2_SOLVER_TESTING
+            LastSearchCaseForTest = run.Case;
+            LastSearchRouteForTest = run.Beam?.BestRoute ?? [];
+#endif
             CompleteSearch(session, run);
         }
         catch (OperationCanceledException)

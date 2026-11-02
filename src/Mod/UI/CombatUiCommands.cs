@@ -1,3 +1,6 @@
+using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Import;
+
 namespace Sts2Solver;
 
 /// <summary>
@@ -16,6 +19,20 @@ internal interface ICombatUiCommands
     bool ExecuteCurrentTurn();
 
     bool StopDeployment();
+
+    bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode);
+
+    bool SetAllPotionDirectives(SolverPotionMode mode);
+
+    bool SetGrowthBudget(GrowthSource source, int value);
+
+    bool SetIgnoreLongTermRewards(bool ignore);
+
+    bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy);
+
+    bool SetFinalBossHpStrategy(SearchBossHpStrategy strategy);
+
+    bool SetTheftPolicy(SearchTheftPolicy policy);
 }
 
 internal static class CombatUiCommands
@@ -34,5 +51,26 @@ internal static class CombatUiCommands
         public bool ExecuteCurrentTurn() => CombatSessionController.ExecuteCurrentTurn();
 
         public bool StopDeployment() => CombatSessionController.StopDeployment();
+
+        public bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode)
+            => CombatSessionController.SetPotionDirective(slot, potionId, mode);
+
+        public bool SetAllPotionDirectives(SolverPotionMode mode)
+            => CombatSessionController.SetAllPotionDirectives(mode);
+
+        public bool SetGrowthBudget(GrowthSource source, int value)
+            => CombatSessionController.SetGrowthBudget(source, value);
+
+        public bool SetIgnoreLongTermRewards(bool ignore)
+            => CombatSessionController.SetIgnoreLongTermRewards(ignore);
+
+        public bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy)
+            => CombatSessionController.SetActTransitionBossHpStrategy(strategy);
+
+        public bool SetFinalBossHpStrategy(SearchBossHpStrategy strategy)
+            => CombatSessionController.SetFinalBossHpStrategy(strategy);
+
+        public bool SetTheftPolicy(SearchTheftPolicy policy)
+            => CombatSessionController.SetTheftPolicy(policy);
     }
 }

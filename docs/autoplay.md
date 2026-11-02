@@ -30,13 +30,16 @@
 
 ## 命令
 
-界面只使用五个命令：
+界面只使用这些命令：
 
 - `SetMode`：手动、自动搜索或全自动。
 - `StartOrRecalculateSearch`：开始或重新搜索。
 - `StopSearch`：停止搜索，把目前最好的路线留作本回合路线，不执行。
 - `ExecuteCurrentTurn`：执行本回合；搜索中调用时先停止搜索、留下最优路线，再执行本回合。
 - `StopDeployment`：软停止执行，不再发出新动作，当前动作结算完后停下。
+- 策略命令：设置某个药栏位置的智能/禁用、全部智能/全部禁用、某个成长来源的额度、不考虑局外收益、两项 Boss 血量策略，以及本场盗贼策略。
+
+策略命令只在主线程写设置或本场会话状态并发布快照，不触发搜索。设置类改动在下一次搜索开始时生效；盗贼策略每场战斗重置为“保牌保钱”，不写入设置文件。
 
 不能搜索的原因由控制器的 `CanSolve` 给出，写入快照的 `SearchBlockReason`：`enemy_turn`、`turn_start`、`actions_running`（动作队列未完成，含回合中的选牌界面）、`executing`，以及不在战斗、多人、不可玩等拒绝码。左槽据此变灰并显示悬停原因；`StartOrRecalculateSearch` 也检查同样的条件。没有路线时调用 `ExecuteCurrentTurn` 直接拒绝，不会先搜索。
 

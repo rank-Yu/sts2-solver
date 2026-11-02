@@ -110,6 +110,8 @@ internal sealed record OfflineRequest
     public string? ActTransitionBossHpStrategy { get; init; }
     public string? FinalBossHpStrategy { get; init; }
     public string? TheftPolicyForTest { get; init; }
+    public string? PotionDefaultModeForTest { get; init; }
+    public OfflinePotionDirective[] PotionDirectivesForTest { get; init; } = [];
     public bool? Act3BossStrategyForTest { get; init; }
     public bool? BaseScoreOnlyForTest { get; init; }
     public bool? ContinuousThreatRankingForTest { get; init; }
@@ -173,6 +175,14 @@ internal sealed class UnattendedOrbInjection
     public string OrbId { get; init; } = string.Empty;
     public int Count { get; init; } = 1;
     public Dictionary<string, decimal> DecimalMembers { get; init; } = new(StringComparer.Ordinal);
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+internal sealed class OfflinePotionDirective
+{
+    public int Slot { get; init; }
+    public string PotionId { get; init; } = string.Empty;
+    public string Mode { get; init; } = string.Empty;
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

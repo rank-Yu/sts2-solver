@@ -60,52 +60,56 @@ internal sealed class SolverSettingsStore
             int schema = root["schemaVersion"] is JsonValue value
                 && value.TryGetValue(out int parsed) ? parsed : 0;
             bool migrated = false;
+            int migratedFrom = schema;
             SolverSettingsData data;
-            if (schema == 1)
+            if (schema is >= 1 and < SolverSettingsData.CurrentSchemaVersion)
             {
-                bool fullAuto = root["automation"] is JsonObject automation
-                    && automation["autoEnableFullAuto"] is JsonValue autoValue
-                    && autoValue.TryGetValue(out bool enabled) && enabled;
-                root.Remove("automation");
-                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
-                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
-                    ?? throw new InvalidDataException("设置文件为空。");
-                if (data.Automation is null)
-                    throw new InvalidDataException("设置缺少 automation 分区。");
-                data = data with
+                bool fullAuto = false;
+                bool wasDisabled = false;
+                if (schema == 1)
                 {
-                    Automation = data.Automation with
+                    fullAuto = root["automation"] is JsonObject automation
+                        && automation["autoEnableFullAuto"] is JsonValue autoValue
+                        && autoValue.TryGetValue(out bool enabled) && enabled;
+                    root.Remove("automation");
+                }
+                else if (schema == 3)
+                {
+                    wasDisabled = root["automation"] is JsonObject automation
+                        && automation["solverDisabled"] is JsonValue disabledValue
+                        && disabledValue.TryGetValue(out bool disabled) && disabled;
+                    if (root["automation"] is JsonObject migratedAutomation)
+                        migratedAutomation.Remove("solverDisabled");
+                }
+                // The thief mode was never sent to the request and is replaced by per-combat
+                // session state. Drop the old field for every pre-5 file, including the chain
+                // from 1/2/3, so an old file does not fail on the removed member.
+                if (root["search"] is JsonObject search)
+                    search.Remove("theft");
+                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
+                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
+                    ?? throw new InvalidDataException("设置文件为空。");
+                if (schema == 1)
+                {
+                    if (data.Automation is null)
+                        throw new InvalidDataException("设置缺少 automation 分区。");
+                    data = data with
                     {
-                        Mode = fullAuto ? SolverMode.FullAuto : SolverMode.AutoSearch,
-                    },
-                };
-                migrated = true;
-                schema = 1;
-            }
-            else if (schema == 2)
-            {
-                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
-                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
-                    ?? throw new InvalidDataException("设置文件为空。");
-                migrated = true;
-            }
-            else if (schema == 3)
-            {
-                bool wasDisabled = root["automation"] is JsonObject automation
-                    && automation["solverDisabled"] is JsonValue disabledValue
-                    && disabledValue.TryGetValue(out bool disabled) && disabled;
-                if (root["automation"] is JsonObject migratedAutomation)
-                    migratedAutomation.Remove("solverDisabled");
-                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
-                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
-                    ?? throw new InvalidDataException("设置文件为空。");
-                if (data.Automation is null)
-                    throw new InvalidDataException("设置缺少 automation 分区。");
-                if (wasDisabled)
+                        Automation = data.Automation with
+                        {
+                            Mode = fullAuto ? SolverMode.FullAuto : SolverMode.AutoSearch,
+                        },
+                    };
+                }
+                else if (schema == 3 && wasDisabled)
+                {
+                    if (data.Automation is null)
+                        throw new InvalidDataException("设置缺少 automation 分区。");
                     data = data with
                     {
                         Automation = data.Automation with { Mode = SolverMode.Manual },
                     };
+                }
                 migrated = true;
             }
             else
@@ -116,7 +120,7 @@ internal sealed class SolverSettingsStore
             data.Validate();
             info($"[Sts2Solver] SETTINGS_LOADED path={path} schema={data.SchemaVersion}");
             if (migrated)
-                TryWriteMigrated(path, schema, data, info, error);
+                TryWriteMigrated(path, migratedFrom, data, info, error);
             return new SolverSettingsStore(path, data, info, error);
         }
         catch (FileNotFoundException)

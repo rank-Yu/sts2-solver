@@ -25,6 +25,7 @@ internal sealed class CombatSearchSession(
     CombatStateStamp stamp,
     int startTurn,
     CombatSearchReason reason,
+    SearchPolicyConfiguration policyConfiguration,
     bool deployWhenReady,
     CancellationTokenSource cancellation)
 {
@@ -34,6 +35,7 @@ internal sealed class CombatSearchSession(
     internal CombatStateStamp Stamp { get; } = stamp;
     internal int StartTurn { get; } = startTurn;
     internal CombatSearchReason Reason { get; } = reason;
+    internal SearchPolicyConfiguration PolicyConfiguration { get; } = policyConfiguration;
     internal CancellationTokenSource Cancellation { get; } = cancellation;
     internal bool DeployWhenReady { get; set; } = deployWhenReady;
 

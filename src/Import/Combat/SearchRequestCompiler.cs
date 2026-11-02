@@ -103,6 +103,7 @@ internal static class SearchRequestCompiler
         TimeSpan softTime = deterministic
             ? TimeSpan.MaxValue
             : TimeSpan.FromMilliseconds(checked(profile.BaselineWidth * profile.MillisecondsPerWidth));
+        PotionPolicy potions = BuildPotionPolicy(policy);
         BeamOptions options = new(
             profile.BaselineWidth,
             profile.StartMaxExpandedNodes,
@@ -117,8 +118,8 @@ internal static class SearchRequestCompiler
                 root.Player.MaxHp,
                 score.BossHpRelief,
                 score.PostCombatRelicHeal),
-            Potions = DefaultPotionPolicy(),
-            EffectivePotionPolicy = PotionUseMode.Smart,
+            Potions = potions,
+            EffectivePotionPolicy = ToUseMode(policy.PotionDefaultMode),
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             InitialActionCount = facts.InitialActionCount,
             InitialExplicitPotionUses = facts.InitialExplicitPotionUses,
@@ -135,6 +136,53 @@ internal static class SearchRequestCompiler
         };
         return new SearchCase(rules, [root], options);
     }
+
+    /// <summary>
+    /// The default path keeps the exact object the old compiler built. Non-default potion settings
+    /// only change the policy fields; the SREQ layout is untouched.
+    /// </summary>
+    private static PotionPolicy BuildPotionPolicy(SearchPolicy policy)
+    {
+        if (policy.PotionDefaultMode == SearchPotionMode.Smart
+            && policy.PotionDirectives.Count == 0)
+        {
+            return DefaultPotionPolicy();
+        }
+        PotionUseMode defaultMode = ToUseMode(policy.PotionDefaultMode);
+        List<PotionSlotDirective> directives = new(policy.PotionDirectives.Count);
+        foreach (SearchPotionDirective directive in policy.PotionDirectives)
+        {
+            if (!Enum.IsDefined(directive.Mode))
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    $"未知药水策略：{directive.Mode}");
+            }
+            directives.Add(new PotionSlotDirective(
+                directive.Slot, directive.PotionId, ToDirective(directive.Mode)));
+        }
+        return new PotionPolicy(
+            int.MinValue,
+            MaximumUses: null,
+            new PotionStrategySnapshot(defaultMode, directives),
+            defaultMode,
+            ForceAllDisabled: false);
+    }
+
+    private static PotionUseMode ToUseMode(SearchPotionMode mode) => mode switch
+    {
+        SearchPotionMode.Smart => PotionUseMode.Smart,
+        SearchPotionMode.Disabled => PotionUseMode.Disabled,
+        _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+            $"未知药水策略：{mode}"),
+    };
+
+    private static PotionDirective ToDirective(SearchPotionMode mode) => mode switch
+    {
+        SearchPotionMode.Smart => PotionDirective.Smart,
+        SearchPotionMode.Disabled => PotionDirective.Disabled,
+        _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+            $"未知药水策略：{mode}"),
+    };
 
     private static PotionPolicy DefaultPotionPolicy()
         => new(

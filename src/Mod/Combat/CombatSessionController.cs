@@ -90,9 +90,16 @@ internal static partial class CombatSessionController
     private static PumpObservation _pumpObservation;
     private static bool _pumpObserved;
     private static CombatState? _pendingTurnStartedState;
+    private static SearchTheftPolicy? _theftPolicy;
 
 #if STS2_SOLVER_TESTING
     internal static Func<SearchPolicy, Player, SearchPolicy>? SearchPolicyOverrideForTest { get; set; }
+
+    /// <summary>The last compiled request, for controller scenarios that assert policy plumbing.</summary>
+    internal static SearchCase? LastSearchCaseForTest { get; private set; }
+
+    /// <summary>The last accepted route, for controller scenarios that assert potion use.</summary>
+    internal static PlayerAction[] LastSearchRouteForTest { get; private set; } = [];
 #endif
 
     private sealed record CompleteProjectionBaseline(
@@ -194,6 +201,10 @@ internal static partial class CombatSessionController
         _fullAutoPausedThisCombat = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
+        _theftPolicy = state != null && SearchPolicyCapture.IsTheftApplicable(state)
+            ? SearchTheftPolicy.PreserveResources
+            : null;
+        ReconcilePersistedPotionDirectives();
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
@@ -377,6 +388,7 @@ internal static partial class CombatSessionController
         _fullAutoPausedThisCombat = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
+        _theftPolicy = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
@@ -826,6 +838,44 @@ internal static partial class CombatSessionController
         if (!schedule.IsCancellationRequested)
             schedule.Cancel();
         schedule.Dispose();
+    }
+
+    /// <summary>
+    /// Drops persisted potion directives whose slot no longer holds the same potion, matching
+    /// CombatSolver's <c>ReconcilePersistedPotionDirectives</c>. New potions therefore default to
+    /// Smart and a changed slot cannot inherit the previous potion's mode.
+    /// </summary>
+    private static void ReconcilePersistedPotionDirectives()
+    {
+        if (_player == null)
+            return;
+        SolverPotionSettings potions = SolverSettings.Current.Search.Potions;
+        if (potions.Directives.Length == 0)
+            return;
+        List<(int Slot, string PotionId)> current = [];
+        for (int slot = 0; slot < _player.PotionSlots.Count; slot++)
+        {
+            if (_player.GetPotionAtSlotIndex(slot) is { } potion)
+                current.Add((slot, potion.Id.Entry));
+        }
+        PotionSlotDirective[] retained = SolverPotionDirectives.Reconcile(
+            potions.Directives, current);
+        if (retained.Length == potions.Directives.Length)
+            return;
+        if (!SolverSettings.Update(settings => settings with
+            {
+                Search = settings.Search with
+                {
+                    Potions = settings.Search.Potions with { Directives = retained },
+                },
+            }))
+        {
+            ModLog.Error("[Sts2Solver] CONTROLLER_POTION_DIRECTIVES_RECONCILE_FAILED");
+            return;
+        }
+        ModLog.Info(
+            $"[Sts2Solver] CONTROLLER_POTION_DIRECTIVES_RECONCILED " +
+            $"previous={potions.Directives.Length} current={retained.Length}");
     }
 
     private static void CaptureCompletedSummary()

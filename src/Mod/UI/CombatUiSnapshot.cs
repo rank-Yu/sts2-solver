@@ -32,7 +32,7 @@ internal enum SearchUiPhase
 /// <summary>Immutable main-thread projection of the current combat session. No live game object or search node is retained.</summary>
 internal sealed record CombatUiSnapshot
 {
-    internal const int CurrentSchemaVersion = 2;
+    internal const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -127,6 +127,8 @@ internal sealed record CombatUiSnapshot
 
     public SettingsUiSnapshot Settings { get; init; } = new();
 
+    public StrategyUiSnapshot Strategy { get; init; } = new();
+
     public int Searches { get; init; }
 
     public int ReusedTurns { get; init; }
@@ -153,6 +155,49 @@ internal sealed record SettingsUiSnapshot
 
     /// <summary>The machine default: 20% of the memory available to the runtime, at least 1 GiB.</summary>
     public long MemoryBudgetDefaultBytes { get; init; }
+}
+
+/// <summary>
+/// Frozen strategy values for the next UI batch. Only stable codes, ids and numbers; display names
+/// are resolved from the game model by the panel.
+/// </summary>
+internal sealed record StrategyUiSnapshot
+{
+    public PotionSlotUi[] Potions { get; init; } = [];
+
+    public SearchGrowthBudget GrowthBudgets { get; init; }
+
+    public bool IgnoreLongTermRewards { get; init; }
+
+    public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
+        = SearchBossHpStrategy.ProgressionFirst;
+
+    public SearchBossHpStrategy FinalBossHpStrategy { get; init; }
+        = SearchBossHpStrategy.ProgressionFirst;
+
+    /// <summary>Stable native relief code: <c>none</c>, <c>act_clear_heal</c> or <c>run_ending</c>.</summary>
+    public string BossHpRelief { get; init; } = "none";
+
+    /// <summary>True for a boss whose HP carries into an act transition or ends the run.</summary>
+    public bool IsActEndingBoss { get; init; }
+
+    public bool TheftApplicable { get; init; }
+
+    /// <summary>Empty when the encounter has no theft policy; otherwise <c>preserve_resources</c> or <c>let_escape</c>.</summary>
+    public string? TheftPolicy { get; init; }
+}
+
+internal sealed record PotionSlotUi
+{
+    public int Slot { get; init; }
+
+    public string PotionId { get; init; } = "";
+
+    /// <summary>Stable code <c>smart</c>, <c>disabled</c> or <c>force</c>.</summary>
+    public string Mode { get; init; } = "smart";
+
+    /// <summary>False for potions the search never offers explicitly (for example Fairy in a Bottle).</summary>
+    public bool CanAssignPolicy { get; init; }
 }
 
 /// <summary>The projected values of the most recent complete search result.</summary>

@@ -4,6 +4,8 @@
 using System.Diagnostics;
 using Button = Godot.Button;
 using BaseButton = Godot.BaseButton;
+using Sts2Solver.Ai.Combat;
+using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 using MegaCrit.Sts2.Core.Combat;
@@ -143,6 +145,9 @@ internal static class CombatControllerChecks
                     break;
                 case "live_end_turn_risk_retained":
                     await LiveEndTurnRiskRetainedAsync(host, Check, Action);
+                    break;
+                case "strategy_commands":
+                    await StrategyCommandsAsync(host, Check, Action);
                     break;
                 default:
                     throw new NotSupportedException($"未知控制器场景：{scenario}");
@@ -894,6 +899,170 @@ internal static class CombatControllerChecks
         if (Snapshot().IsSearching)
             await WaitAsync(host, static s => s.IsDeploying, 1200, "resume deployment");
         await WaitIdleAsync(host, "resumed deployment done");
+    }
+
+    private static async Task StrategyCommandsAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        check("reset_settings", SolverSettings.Update(settings => settings with
+        {
+            Search = settings.Search with
+            {
+                Potions = settings.Search.Potions with { Directives = [] },
+                GrowthBudgets = new SolverGrowthBudgets(),
+                IgnoreLongTermRewards = false,
+                ActTransitionBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
+                FinalBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
+            },
+        }), "strategy settings reset");
+        await Frames(host, 4);
+
+        if (Snapshot().Strategy.TheftApplicable)
+        {
+            StrategyUiSnapshot theftStrategy = Snapshot().Strategy;
+            check("theft_default", theftStrategy.TheftPolicy == "preserve_resources",
+                theftStrategy.TheftPolicy ?? "-");
+            int before = Snapshot().Searches;
+            check("theft_cmd", CombatUiCommands.Instance.SetTheftPolicy(SearchTheftPolicy.LetEscape));
+            action("set_theft:let_escape");
+            await Frames(host, 30);
+            CombatUiSnapshot after = Snapshot();
+            check("theft_no_search", after.Searches == before && !after.IsSearching,
+                $"{before}->{after.Searches}");
+            SearchCase theft = CombatSessionController.CompileRequestForTest();
+            check("theft_request", theft.Options.TheftPolicy == TheftPolicy.LetEscape,
+                theft.Options.TheftPolicy?.ToString() ?? "-");
+            check("theft_snapshot", Snapshot().Strategy.TheftPolicy == "let_escape",
+                Snapshot().Strategy.TheftPolicy ?? "-");
+            return;
+        }
+
+        async Task<SearchCase> SearchAsync(string name)
+        {
+            int before = Snapshot().Searches;
+            check(name + "_start", CombatUiCommands.Instance.StartOrRecalculateSearch(), name);
+            CombatUiSnapshot done = await WaitAsync(host,
+                s => s.Searches > before && !s.IsSearching, 2400, name);
+            check(name + "_done", done.Searches == before + 1, $"{before}->{done.Searches}");
+            return CombatSessionController.LastSearchCaseForTest
+                ?? throw new InvalidDataException(name + ": request missing");
+        }
+
+        async Task NoSearchAsync(string name)
+        {
+            int before = Snapshot().Searches;
+            await Frames(host, 30);
+            CombatUiSnapshot after = Snapshot();
+            check(name, after.Searches == before && !after.IsSearching,
+                $"{before}->{after.Searches}");
+        }
+
+        SearchCase baseline = await SearchAsync("baseline");
+        StrategyUiSnapshot strategy = Snapshot().Strategy;
+        if (strategy.Potions.Length != 0)
+        {
+            PotionSlotUi? potion = strategy.Potions.FirstOrDefault(static item => item.CanAssignPolicy);
+            if (potion == null)
+            {
+                check("potion_searchable", false, "no searchable potion");
+            }
+            else
+            {
+                check("potion_single_cmd", CombatUiCommands.Instance.SetPotionDirective(
+                    potion.Slot, potion.PotionId, SolverPotionMode.Disabled));
+                action($"set_potion:{potion.Slot}:{potion.PotionId}:disabled");
+                await NoSearchAsync("potion_single_no_search");
+                check("potion_single_snapshot",
+                    Snapshot().Strategy.Potions.Any(item => item.Slot == potion.Slot
+                        && item.Mode == "disabled"), "snapshot mode");
+                SearchCase single = await SearchAsync("potion_single");
+                check("potion_single_request",
+                    single.Options.Potions.Strategy.Directives.Any(item =>
+                        item.Slot == potion.Slot && item.PotionId == potion.PotionId
+                        && item.Directive == PotionDirective.Disabled), "disabled directive");
+                check("potion_single_effective",
+                    single.Options.EffectivePotionPolicy == PotionUseMode.Smart, "effective smart");
+                check("potion_single_route",
+                    !CombatSessionController.LastSearchRouteForTest.Any(action =>
+                        action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.UsePotion
+                        && action.PotionSlot == potion.Slot), "disabled potion used");
+
+                check("potion_all_disabled_cmd",
+                    CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Disabled));
+                action("set_all_potions:disabled");
+                await NoSearchAsync("potion_all_disabled_no_search");
+                SearchCase allDisabled = await SearchAsync("potion_all_disabled");
+                int searchable = Snapshot().Strategy.Potions.Count(static item => item.CanAssignPolicy);
+                check("potion_all_disabled_request",
+                    allDisabled.Options.Potions.Strategy.Directives.Count == searchable,
+                    $"{allDisabled.Options.Potions.Strategy.Directives.Count}!={searchable}");
+
+                check("potion_all_smart_cmd",
+                    CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart));
+                action("set_all_potions:smart");
+                await NoSearchAsync("potion_all_smart_no_search");
+                SearchCase allSmart = await SearchAsync("potion_all_smart");
+                check("potion_all_smart_request",
+                    allSmart.Options.Potions.Strategy.Directives.Count == 0,
+                    allSmart.Options.Potions.Strategy.Directives.Count.ToString());
+            }
+        }
+
+        check("growth_cmd", CombatUiCommands.Instance.SetGrowthBudget(GrowthSource.Feed, 7));
+        action("set_growth:feed:7");
+        await NoSearchAsync("growth_no_search");
+        check("growth_snapshot", Snapshot().Strategy.GrowthBudgets.Feed == 7, "snapshot budget");
+        SearchCase growth = await SearchAsync("growth");
+        check("growth_request", growth.Options.Scorer?.RulesForCodec.GrowthBudgets.Feed == 7,
+            growth.Options.Scorer?.RulesForCodec.GrowthBudgets.Feed.ToString() ?? "-");
+        check("ignore_cmd", CombatUiCommands.Instance.SetIgnoreLongTermRewards(true));
+        action("set_ignore_long_term:true");
+        await NoSearchAsync("ignore_no_search");
+        check("ignore_snapshot", Snapshot().Strategy.IgnoreLongTermRewards, "snapshot ignore");
+        SearchCase ignore = await SearchAsync("ignore");
+        check("ignore_request", ignore.Options.Scorer?.RulesForCodec.IgnoreLongTermRewards == true,
+            "ignore flag");
+        check("ignore_effective_budget",
+            ignore.Options.Scorer?.RulesForCodec.GrowthBudgets.Total == 0,
+            ignore.Options.Scorer?.RulesForCodec.GrowthBudgets.Total.ToString() ?? "-");
+        check("ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
+        check("growth_reset", CombatUiCommands.Instance.SetGrowthBudget(GrowthSource.Feed, 0));
+
+        if (strategy.IsActEndingBoss)
+        {
+            check("boss_baseline_has_relief",
+                baseline.Options.Ordering?.BossHpRelief is BossHpRelief.ActClearHeal
+                    or BossHpRelief.RunEnding,
+                baseline.Options.Ordering?.BossHpRelief.ToString() ?? "-");
+            check("boss_snapshot_relief",
+                Snapshot().Strategy.BossHpRelief is "act_clear_heal" or "run_ending",
+                Snapshot().Strategy.BossHpRelief);
+            check("act_boss_cmd",
+                CombatUiCommands.Instance.SetActTransitionBossHpStrategy(
+                    SearchBossHpStrategy.MinimizeHpLoss));
+            check("final_boss_cmd",
+                CombatUiCommands.Instance.SetFinalBossHpStrategy(SearchBossHpStrategy.MinimizeHpLoss));
+            action("set_boss_hp:minimize");
+            await NoSearchAsync("boss_no_search");
+            check("boss_snapshot_strategy",
+                Snapshot().Strategy.ActTransitionBossHpStrategy
+                    == SearchBossHpStrategy.MinimizeHpLoss
+                && Snapshot().Strategy.FinalBossHpStrategy
+                    == SearchBossHpStrategy.MinimizeHpLoss, "snapshot strategy");
+            SearchCase boss = await SearchAsync("boss");
+            check("boss_request", boss.Options.Ordering?.BossHpRelief == BossHpRelief.None,
+                boss.Options.Ordering?.BossHpRelief.ToString() ?? "-");
+        }
+        else
+        {
+            check("boss_not_applicable", !strategy.IsActEndingBoss);
+        }
+
+        check("theft_reject", !CombatUiCommands.Instance.SetTheftPolicy(
+            SearchTheftPolicy.LetEscape));
+        check("theft_absent", strategy.TheftPolicy == null, strategy.TheftPolicy ?? "-");
     }
 
     private static async Task StopDeploymentAsync(NGame host, Check check, Action action)

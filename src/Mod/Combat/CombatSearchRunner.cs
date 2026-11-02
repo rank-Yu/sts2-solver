@@ -27,6 +27,7 @@ internal static class CombatSearchRunner
         int turn,
         CombatSearchReason reason,
         SearchPerformanceTier tier,
+        SearchPolicyConfiguration policyConfiguration,
         Func<SearchPolicy, Player, SearchPolicy>? configurePolicy,
         CancellationToken token)
     {
@@ -36,7 +37,8 @@ internal static class CombatSearchRunner
         try
         {
             searchCase = SearchSession.CompileCase(
-                combat, player, rules, searchRoot, configurePolicy, deterministic: false, tier);
+                combat, player, rules, searchRoot, policyConfiguration, configurePolicy,
+                deterministic: false, tier);
             searchCase = searchCase with
             {
                 Options = searchCase.Options with { SearchThreads = threads },

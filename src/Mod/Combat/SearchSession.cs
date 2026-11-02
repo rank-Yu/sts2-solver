@@ -103,9 +103,10 @@ internal static class SearchSession
     /// dead monsters, but the frozen rule table still describes the root's full monster closure.
     /// </summary>
     public static SearchCase CompileCase(CombatState combat, Player player, Rules rules, Battle battle,
+        SearchPolicyConfiguration policyConfiguration,
         Func<SearchPolicy, Player, SearchPolicy>? configurePolicy, bool deterministic, SearchPerformanceTier tier)
     {
-        SearchPolicy policy = SearchPolicyCapture.Capture(combat, player);
+        SearchPolicy policy = SearchPolicyCapture.Capture(combat, player, policyConfiguration);
         if (configurePolicy != null)
             policy = configurePolicy(policy, player);
         return SearchRequestCompiler.CompileRequest(

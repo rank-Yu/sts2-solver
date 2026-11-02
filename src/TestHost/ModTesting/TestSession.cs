@@ -438,7 +438,8 @@ internal static class TestSession
         byte[] battleBytes = BattleCodec.Encode(battle);
         byte[] rulesBytes = RulesCodec.Encode(rules);
         SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
-            SearchPolicyCapture.Capture(combat, player), request, player);
+            SearchPolicyCapture.Capture(combat, player, SolverSearchPolicy.Capture(theftPolicy: null)),
+            request, player);
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
             InitialActionCount = 0,

@@ -1,8 +1,9 @@
 // Ported semantics from CombatSolver src/Search/SearchPolicySnapshot.cs and
 // src/Runtime/SolverController.cs (CaptureSearchPolicy) at commit a62f1850
-// (MIT, Copyright (c) 2026 Torch1230 and contributors). Only the policy values the score and
-// bound bridges read are represented. The offline defaults are the fixed values the M0 harness
-// installed (ModRuntime.ApplyFixedBudgetSettings + SolverSettings defaults).
+// (MIT, Copyright (c) 2026 Torch1230 and contributors). Only the policy values the score, bound
+// and request compilers read are represented. The offline defaults are the fixed values the M0
+// harness installed (ModRuntime.ApplyFixedBudgetSettings + SolverSettings defaults); the in-game
+// Mod supplies SearchPolicyConfiguration captured on the main thread.
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -32,6 +33,42 @@ public enum SearchBossHpStrategy
 {
     ProgressionFirst,
     MinimizeHpLoss,
+}
+
+/// <summary>The per-potion modes the current search request understands.</summary>
+public enum SearchPotionMode
+{
+    Smart,
+    Disabled,
+}
+
+/// <summary>One persisted per-slot potion directive before root reconciliation.</summary>
+public readonly record struct SearchPotionDirective(int Slot, string PotionId, SearchPotionMode Mode);
+
+/// <summary>
+/// The player settings the in-game Mod captures on the main thread and passes to
+/// <see cref="SearchPolicyCapture"/>. Offline fixtures leave it null and keep the M0 defaults.
+/// </summary>
+public sealed record SearchPolicyConfiguration
+{
+    public static SearchPolicyConfiguration Default { get; } = new();
+
+    public SearchGrowthBudget GrowthBudgets { get; init; }
+
+    public bool IgnoreLongTermRewards { get; init; }
+
+    public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
+        = SearchBossHpStrategy.ProgressionFirst;
+
+    public SearchBossHpStrategy FinalBossHpStrategy { get; init; }
+        = SearchBossHpStrategy.ProgressionFirst;
+
+    public SearchPotionMode PotionDefaultMode { get; init; } = SearchPotionMode.Smart;
+
+    public IReadOnlyList<SearchPotionDirective> PotionDirectives { get; init; } = [];
+
+    /// <summary>Per-combat thief override; null keeps the root-derived default.</summary>
+    public SearchTheftPolicy? TheftPolicy { get; init; }
 }
 
 /// <summary>One intermediate Beam ranking term (<c>BeamWeightTerm</c>).</summary>
@@ -107,10 +144,10 @@ public readonly record struct SearchRelicCounterTarget(
 }
 
 /// <summary>
-/// Immutable policy values the score and bound compilation read. Root-derived fields
+/// Immutable policy values the score, bound and request compilation read. Root-derived fields
 /// (<see cref="Act3BossStrategy"/>, <see cref="TheftPolicy"/> and the growth targets) are captured
-/// by <see cref="SearchPolicyCapture"/>; the remaining fields are the player settings the M0
-/// offline host installed or a fixture request overrides.
+/// by <see cref="SearchPolicyCapture"/>; the remaining fields are the player settings the in-game
+/// Mod supplies, or the M0 offline defaults a fixture request overrides.
 /// </summary>
 public sealed record SearchPolicy
 {
@@ -160,6 +197,12 @@ public sealed record SearchPolicy
     /// <summary>A non-empty third-party half of <c>RequiredRewards</c> is rejected.</summary>
     public bool HasThirdPartyGrowthTargets { get; init; }
 
+    /// <summary>How a potion without a per-slot directive is treated (<c>PotionPolicy</c>).</summary>
+    public SearchPotionMode PotionDefaultMode { get; init; } = SearchPotionMode.Smart;
+
+    /// <summary>Per-slot directives already reconciled against the root potion belt.</summary>
+    public IReadOnlyList<SearchPotionDirective> PotionDirectives { get; init; } = [];
+
     /// <summary><c>SearchPolicySnapshot.EffectiveGrowthBudgets</c>.</summary>
     public SearchGrowthBudget EffectiveGrowthBudgets
         => IgnoreLongTermRewards ? default : GrowthBudgets;
@@ -173,17 +216,22 @@ public sealed record SearchPolicy
 }
 
 /// <summary>
-/// Reconstructs the M0 policy snapshot from the native root. The fixed settings mirror the M0
-/// offline host: <c>ModRuntime.ApplyFixedBudgetSettings</c> left growth budgets at zero, relic
-/// strategy enabled with no rules, both boss strategies <c>ProgressionFirst</c>,
-/// <c>IgnoreLongTermRewards=false</c>, and no development/third-party registrations. The profile
-/// flags default to the harness defaults (<c>ordering=baseline</c>, no continuous threat, no
-/// perturbation). Act-3/theft/growth fields are then derived exactly as
-/// <c>SolverController.CaptureSearchPolicy</c> does.
+/// Reconstructs the policy snapshot from the native root. When no configuration is passed, the
+/// fixed settings mirror the M0 offline host: <c>ModRuntime.ApplyFixedBudgetSettings</c> left growth
+/// budgets at zero, relic strategy enabled with no rules, both boss strategies
+/// <c>ProgressionFirst</c>, <c>IgnoreLongTermRewards=false</c>, no potion directives, and no
+/// development/third-party registrations. The profile flags default to the harness defaults
+/// (<c>ordering=baseline</c>, no continuous threat, no perturbation). Act-3/theft/growth fields are
+/// then derived exactly as <c>SolverController.CaptureSearchPolicy</c> does; potion directives are
+/// reconciled against the current belt.
 /// </summary>
 public static class SearchPolicyCapture
 {
     public static SearchPolicy Capture(CombatState state, Player player)
+        => Capture(state, player, configuration: null);
+
+    public static SearchPolicy Capture(CombatState state, Player player,
+        SearchPolicyConfiguration? configuration)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(player);
@@ -197,26 +245,97 @@ public static class SearchPolicyCapture
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 "玩家没有 PlayerCombatState");
         }
+        SearchPolicyConfiguration settings = configuration ?? SearchPolicyConfiguration.Default;
+        SearchTheftPolicy? theft = ResolveTheftPolicy(state);
+        if (settings.TheftPolicy is { } configuredTheft)
+        {
+            if (theft is null)
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    "本场战斗没有盗贼策略，不能应用盗贼策略覆盖。");
+            }
+            theft = configuredTheft;
+        }
+        IReadOnlyList<SearchPotionDirective> directives = ReconcilePotionDirectives(
+            settings.PotionDirectives, CurrentPotionSlots(player));
         GrowthTargets targets = GrowthTargets.Capture(state);
         return new SearchPolicy
         {
-            GrowthBudgets = default,
+            GrowthBudgets = settings.GrowthBudgets,
             RequiredGrowthRewards = SearchGrowthBudget.FromCore(targets.Required),
             HasUnboundedGrowthTargets = targets.Unbounded,
             RelicTargets = [],
             Act3BossStrategy = IsAct3BossEncounter(state),
-            ActTransitionBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
-            FinalBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
-            IgnoreLongTermRewards = false,
-            TheftPolicy = ResolveTheftPolicy(state),
+            ActTransitionBossHpStrategy = settings.ActTransitionBossHpStrategy,
+            FinalBossHpStrategy = settings.FinalBossHpStrategy,
+            IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
+            TheftPolicy = theft,
+            PotionDefaultMode = settings.PotionDefaultMode,
+            PotionDirectives = directives,
         };
+    }
+
+    /// <summary>
+    /// Keeps only directives whose slot still holds the same potion. Smart is equivalent to no
+    /// directive and is dropped, so a file with redundant Smart entries still has a default request.
+    /// </summary>
+    public static IReadOnlyList<SearchPotionDirective> ReconcilePotionDirectives(
+        IReadOnlyList<SearchPotionDirective> persisted,
+        IReadOnlyList<(int Slot, string PotionId)> current)
+    {
+        ArgumentNullException.ThrowIfNull(persisted);
+        ArgumentNullException.ThrowIfNull(current);
+        List<SearchPotionDirective> retained = [];
+        foreach (SearchPotionDirective directive in persisted)
+        {
+            if (directive.Mode == SearchPotionMode.Smart)
+                continue;
+            if (!Enum.IsDefined(directive.Mode))
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    $"未知药水策略：{directive.Mode}");
+            }
+            if (directive.Slot < 0 || string.IsNullOrEmpty(directive.PotionId))
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    $"非法药水策略：slot={directive.Slot} potion={directive.PotionId}");
+            }
+            bool matches = false;
+            foreach ((int slot, string potionId) in current)
+            {
+                if (slot == directive.Slot
+                    && string.Equals(potionId, directive.PotionId, StringComparison.Ordinal))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (matches)
+                retained.Add(directive);
+        }
+        retained.Sort(static (left, right) => left.Slot.CompareTo(right.Slot));
+        return retained;
+    }
+
+    private static List<(int Slot, string PotionId)> CurrentPotionSlots(Player player)
+    {
+        List<(int Slot, string PotionId)> slots = [];
+        for (int slot = 0; slot < player.PotionSlots.Count; slot++)
+        {
+            if (player.GetPotionAtSlotIndex(slot) is { } potion)
+                slots.Add((slot, potion.Id.Entry));
+        }
+        return slots;
     }
 
     private static bool IsAct3BossEncounter(CombatState state)
         => state.RunState.CurrentActIndex == 2
             && state.Encounter?.Id.Entry is "TEST_SUBJECT_BOSS" or "AEONGLASS_BOSS" or "QUEEN_BOSS";
 
-    private static SearchTheftPolicy? ResolveTheftPolicy(CombatState state)
+    public static bool IsTheftApplicable(CombatState state)
+        => ResolveTheftPolicy(state) is not null;
+
+    public static SearchTheftPolicy? ResolveTheftPolicy(CombatState state)
     {
         if (state.Encounter?.Id.Entry is "GREMLIN_MERC_NORMAL" or "THIEVING_HOPPER_WEAK")
             return SearchTheftPolicy.PreserveResources;

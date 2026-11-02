@@ -64,6 +64,8 @@ internal static class UiLogicChecks
         Check("settings_v1_migration", () => MigrateV1(directory));
         Check("settings_v2_migration", () => MigrateV2(directory));
         Check("settings_v3_migration", () => MigrateV3(directory));
+        Check("settings_v4_migration", () => MigrateV4(directory));
+        Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
@@ -104,14 +106,14 @@ internal static class UiLogicChecks
         Require(data.Search.Potions.DefaultMode == PotionUseMode.Smart, "potion_mode_default");
         Require(data.Search.Potions.Preset == SolverPotionPreset.Smart, "potion_preset_default");
         Require(data.Search.Potions.Directives.Length == 0, "potion_directives_default");
-        Require(data.Search.GrowthBudgets == default, "growth_default");
+        Require(data.Search.GrowthBudgets.ToPolicy() == default, "growth_default");
+        Require(data.Search.GrowthBudgets.ThirdParty.Count == 0, "growth_third_party_default");
         Require(!data.Search.IgnoreLongTermRewards, "ignore_long_term_default");
         Require(data.Search.RelicTargets.Length == 0, "relic_targets_default");
         Require(data.Search.ActTransitionBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "act_boss_default");
         Require(data.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "final_boss_default");
-        Require(data.Search.Theft == SolverTheftMode.Auto, "theft_default");
         Require(data.Automation.Mode == SolverMode.AutoSearch, "mode_default");
         Require(data.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
             "deployment_speed_default");
@@ -139,10 +141,18 @@ internal static class UiLogicChecks
                 Potions = new SolverPotionSettings
                 {
                     DefaultMode = PotionUseMode.Disabled,
-                    Preset = SolverPotionPreset.ForceAll,
-                    Directives = [new PotionSlotDirective(0, "FIRE_POTION", PotionDirective.Force)],
+                    Preset = SolverPotionPreset.ProtectAll,
+                    Directives = [new PotionSlotDirective(0, "FIRE_POTION", PotionDirective.Disabled)],
                 },
-                GrowthBudgets = new SearchGrowthBudget(HandOfGreed: 5, Feed: 3),
+                GrowthBudgets = new SolverGrowthBudgets
+                {
+                    HandOfGreed = 5,
+                    Feed = 3,
+                    ThirdParty = new Dictionary<string, System.Text.Json.JsonElement>
+                    {
+                        ["example_mod:growth"] = JsonSerializer.SerializeToElement(7),
+                    },
+                },
                 IgnoreLongTermRewards = true,
                 RelicTargets =
                 [
@@ -150,7 +160,6 @@ internal static class UiLogicChecks
                 ],
                 ActTransitionBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
                 FinalBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
-                Theft = SolverTheftMode.LetEscape,
             },
             Automation = new SolverAutomationSettings
             {
@@ -177,6 +186,9 @@ internal static class UiLogicChecks
         string expected = JsonSerializer.Serialize(changed, SolverSettingsStore.JsonOptions);
         string actual = JsonSerializer.Serialize(loaded.Current, SolverSettingsStore.JsonOptions);
         Require(string.Equals(expected, actual, StringComparison.Ordinal), "round_trip_mismatch");
+        Require(loaded.Current.Search.GrowthBudgets.ThirdParty.ContainsKey("example_mod:growth"),
+            "round_trip_third_party_growth");
+        Require(!actual.Contains("\"theft\"", StringComparison.Ordinal), "round_trip_theft_field");
         Require(logs.Any(static line => line.Contains("SETTINGS_SAVED", StringComparison.Ordinal)),
             "save_log_missing");
     }
@@ -211,15 +223,17 @@ internal static class UiLogicChecks
         string fullAuto = Path.Combine(directory, "v1-full-auto.json");
         File.WriteAllText(fullAuto,
             "{\"schemaVersion\":1,\"automation\":{\"autoEnableFullAuto\":true}," +
-            "\"search\":{\"tier\":\"High\"}," +
+            "\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
             "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(fullAuto, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 4, "migration_schema");
+        Require(migrated.Current.SchemaVersion == 5, "migration_schema");
         Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "migration_full_auto");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "migration_search");
         Require(logs.Any(static line => line.Contains("SETTINGS_MIGRATED", StringComparison.Ordinal)),
             "migration_log");
+        Require(!File.ReadAllText(fullAuto).Contains("theft", StringComparison.Ordinal),
+            "v1_migration_theft_removed");
 
         string autoSearch = Path.Combine(directory, "v1-auto-search.json");
         File.WriteAllText(autoSearch,
@@ -236,11 +250,12 @@ internal static class UiLogicChecks
     {
         string path = Path.Combine(directory, "v2.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":2,\"search\":{\"tier\":\"High\"},\"automation\":{\"mode\":\"FullAuto\"}," +
+            "{\"schemaVersion\":2,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
+            "\"automation\":{\"mode\":\"FullAuto\"}," +
             "\"ui\":{\"opacity\":0.5,\"theme\":\"Light\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 4, "v2_migration_schema");
+        Require(migrated.Current.SchemaVersion == 5, "v2_migration_schema");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v2_migration_search");
         Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "v2_migration_mode");
         Require(migrated.Current.Search.Threads is null, "v2_migration_threads");
@@ -249,23 +264,27 @@ internal static class UiLogicChecks
         Require(migrated.Current.Ui.ShowBattleDamagePerformanceHint, "v2_migration_performance_hint");
         Require(logs.Any(static line => line.Contains("from=2", StringComparison.Ordinal)),
             "v2_migration_log");
+        Require(!File.ReadAllText(path).Contains("theft", StringComparison.Ordinal),
+            "v2_migration_theft_removed");
     }
 
     private static void MigrateV3(string directory)
     {
         string path = Path.Combine(directory, "v3-disabled.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":3,\"search\":{\"tier\":\"High\"}," +
+            "{\"schemaVersion\":3,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
             "\"automation\":{\"mode\":\"AutoSearch\",\"solverDisabled\":true}," +
             "\"ui\":{\"opacity\":0.5,\"theme\":\"Dark\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 4, "v3_migration_schema");
+        Require(migrated.Current.SchemaVersion == 5, "v3_migration_schema");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v3_migration_search");
         Require(migrated.Current.Automation.Mode == SolverMode.Manual, "v3_migration_disabled");
         string rewritten = File.ReadAllText(path);
         Require(!rewritten.Contains("solverDisabled", StringComparison.Ordinal),
             "v3_migration_field_removed");
+        Require(!rewritten.Contains("theft", StringComparison.Ordinal),
+            "v3_migration_theft_removed");
         Require(logs.Any(static line => line.Contains("from=3", StringComparison.Ordinal)),
             "v3_migration_log");
 
@@ -274,10 +293,74 @@ internal static class UiLogicChecks
             "{\"schemaVersion\":3,\"automation\":{\"mode\":\"FullAuto\"," +
             "\"solverDisabled\":false},\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
         SolverSettingsStore enabled = SolverSettingsStore.Load(enabledPath, logs.Add, logs.Add);
-        Require(enabled.Current.SchemaVersion == 4, "v3_enabled_schema");
+        Require(enabled.Current.SchemaVersion == 5, "v3_enabled_schema");
         Require(enabled.Current.Automation.Mode == SolverMode.FullAuto, "v3_enabled_mode");
         Require(!File.ReadAllText(enabledPath).Contains("solverDisabled", StringComparison.Ordinal),
             "v3_enabled_field_removed");
+    }
+
+    private static void MigrateV4(string directory)
+    {
+        string path = Path.Combine(directory, "v4.json");
+        File.WriteAllText(path,
+            "{\"schemaVersion\":4,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"," +
+            "\"growthBudgets\":{\"handOfGreed\":4,\"example_mod:growth\":7}}," +
+            "\"automation\":{\"mode\":\"AutoSearch\"}," +
+            "\"ui\":{\"opacity\":0.5,\"theme\":\"Dark\"}}");
+        List<string> logs = [];
+        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        Require(migrated.Current.SchemaVersion == 5, "v4_migration_schema");
+        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v4_migration_search");
+        Require(migrated.Current.Search.GrowthBudgets.HandOfGreed == 4,
+            "v4_migration_growth");
+        Require(migrated.Current.Search.GrowthBudgets.ThirdParty.TryGetValue(
+            "example_mod:growth", out System.Text.Json.JsonElement thirdParty)
+            && thirdParty.GetInt32() == 7, "v4_migration_third_party");
+        string rewritten = File.ReadAllText(path);
+        Require(!rewritten.Contains("theft", StringComparison.Ordinal), "v4_migration_theft_removed");
+        Require(rewritten.Contains("example_mod:growth", StringComparison.Ordinal),
+            "v4_migration_third_party_preserved");
+        Require(logs.Any(static line => line.Contains("from=4", StringComparison.Ordinal)),
+            "v4_migration_log");
+    }
+
+    private static void PotionDirectiveReconcile()
+    {
+        SearchPotionDirective[] persisted =
+        [
+            new(0, "FIRE_POTION", SearchPotionMode.Disabled),
+            new(1, "BLOCK_POTION", SearchPotionMode.Disabled),
+            new(2, "STRENGTH_POTION", SearchPotionMode.Smart),
+        ];
+        IReadOnlyList<SearchPotionDirective> reconciled = SearchPolicyCapture.ReconcilePotionDirectives(
+            persisted,
+            [(0, "FIRE_POTION"), (1, "STRENGTH_POTION")]);
+        Require(reconciled.Count == 1, "reconcile_count");
+        Require(reconciled[0].Slot == 0 && reconciled[0].PotionId == "FIRE_POTION"
+            && reconciled[0].Mode == SearchPotionMode.Disabled, "reconcile_match");
+        IReadOnlyList<SearchPotionDirective> replaced = SearchPolicyCapture.ReconcilePotionDirectives(
+            persisted,
+            [(0, "BLOCK_POTION")]);
+        Require(replaced.Count == 0, "reconcile_slot_replaced");
+        IReadOnlyList<SearchPotionDirective> empty = SearchPolicyCapture.ReconcilePotionDirectives(
+            persisted, []);
+        Require(empty.Count == 0, "reconcile_empty_belt");
+
+        PotionSlotDirective[] settingsDirectives =
+        [
+            new(0, "FIRE_POTION", PotionDirective.Disabled),
+            new(1, "BLOCK_POTION", PotionDirective.Disabled),
+            new(2, "STRENGTH_POTION", PotionDirective.Smart),
+        ];
+        PotionSlotDirective[] settingsRetained = SolverPotionDirectives.Reconcile(
+            settingsDirectives, [(0, "FIRE_POTION"), (1, "STRENGTH_POTION")]);
+        Require(settingsRetained.Length == 1
+            && settingsRetained[0].Slot == 0
+            && settingsRetained[0].PotionId == "FIRE_POTION", "settings_reconcile_match");
+        Require(SolverPotionDirectives.Reconcile(settingsDirectives, [(0, "BLOCK_POTION")]).Length == 0,
+            "settings_reconcile_replaced");
+        Require(SolverPotionDirectives.Reconcile(settingsDirectives, []).Length == 0,
+            "settings_reconcile_empty");
     }
 
     private static void DeploymentTiming()

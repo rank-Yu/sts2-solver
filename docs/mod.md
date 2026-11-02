@@ -46,14 +46,15 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 设置文件
 
-设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `4`；写入先写 `.tmp` 再原子替换。
+设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `5`；写入先写 `.tmp` 再原子替换。
 
 迁移规则：
 
 - `schemaVersion=1` 按旧字段 `automation.autoEnableFullAuto` 迁移：`true` 对应“全自动”，否则“自动搜索”。
 - `schemaVersion=2` 补上后来新增字段的默认值。
 - `schemaVersion=3` 去掉 `automation.solverDisabled`；该字段为 `true` 时迁移成 `mode=Manual`，否则保留原模式。
-- 迁移后立即写回 schema 4。
+- `schemaVersion=4` 去掉 `search.theft`；盗贼策略改为每场战斗的会话状态，不再持久保存。
+- 迁移后立即写回 schema 5。
 
 文件在 Mod 初始化时读取，直接修改文件需要重启游戏；运行中通过面板的设置侧栏修改后，搜索设置在下一次搜索开始时生效。JSON 损坏或字段校验不通过时，文件会改名为同目录的 `settings.bad-<UTC 时间>.json`，记录 `SETTINGS_CORRUPT`，然后用默认值继续，不阻止游戏启动；其他读取失败记录 `SETTINGS_LOAD_FAILED`，同样用默认值继续。旧文件里的未知字段不会被静默忽略。
 
@@ -64,15 +65,14 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `search.tier` | `Medium` | 搜索档位：`Low`、`Medium`、`High`、`ExtraHigh`。下一次搜索开始时生效，已经开始的搜索不变。 |
 | `search.memoryBudgetBytes` | `null` | 搜索内存上限（字节）。`null` 表示按下面的优先级解析。 |
 | `search.threads` | `null` | 一个搜索成员的总线程数（含搜索线程本身）；`null` 表示按逻辑核数自动决定。 |
-| `search.potions.defaultMode` | `Smart` | 药水默认策略：`Smart`、`Disabled`、`RequireAtLeastOne`。 |
-| `search.potions.preset` | `Smart` | 药水预设：`Smart`、`ProtectAll`、`ForceAll`、`OnlyForced`。 |
-| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`，`directive` 为 `Smart`、`Force` 或 `Disabled`。 |
-| `search.growthBudgets` | 十个来源全为 `0` | 成长来源的额外战损预算。 |
+| `search.potions.defaultMode` | `Smart` | 药水默认策略；请求捕获只接受 `Smart` 和 `Disabled`。 |
+| `search.potions.preset` | `Smart` | 药水预设，只在批量命令中更新；不是搜索输入。 |
+| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索只读 `Smart` 和 `Disabled`；`Force` 留给后续批次，当前遇到会显式拒绝。 |
+| `search.growthBudgets` | 十个来源全为 `0` | 十个内置成长来源的额外战损预算。文件里的第三方来源条目原样保留，但不进入请求。 |
 | `search.ignoreLongTermRewards` | `false` | 不考虑局外收益。 |
 | `search.relicTargets` | `[]` | 遗物计数目标；每项包含 `id`、`minimum`、`maximum`、`hpAllowance`、`period`、`priority`。 |
 | `search.actTransitionBossHpStrategy` | `ProgressionFirst` | 幕末 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
 | `search.finalBossHpStrategy` | `ProgressionFirst` | 最终 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
-| `search.theft` | `Auto` | 盗贼策略：`Auto` 沿用按遭遇捕获的行为，`PreserveResources` 保资源，`LetEscape` 放走。 |
 | `automation.mode` | `AutoSearch` | 三档模式：`Manual`、`AutoSearch`、`FullAuto`。跨战斗、跨重启保留。 |
 | `automation.deploymentSpeed` | `FollowGame` | 自动出牌速度：`FollowGame`、`Normal`、`Fast`；执行期间临时覆盖游戏战斗速度，结束后恢复。 |
 | `automation.interActionDelaySeconds` | `0` | 两张牌之间的额外停顿，范围 0–3 秒。 |
@@ -83,7 +83,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `ui.showBattleDamagePerformanceHint` | `true` | 是否显示“本场战斗出现大战损”提示；玩家点击提示后写为 `false`，之后不再显示。 |
 | `ui.theme` | `Dark` | 旧文件的兼容字段；面板固定深色，不提供浅色主题。 |
 
-接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区和 `ui` 分区（由战斗面板读写）。药水、成长、遗物、Boss 血量和盗贼策略字段只保存，还没有送入搜索请求，修改它们不会改变搜索或执行结果。
+接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区、`ui` 分区，以及药水逐瓶策略、成长额度/不考虑局外收益和两项 Boss 血量策略。药水指令按 `(槽位, 药水 id)` 生效；进入战斗时对不上的旧项会从设置文件删除，新药默认智能。遗物计数目标仍然只保存，没有送入搜索请求。策略改动只影响下一次搜索，不会自动重搜。盗贼策略不写入设置文件，只在当前战斗的会话状态里存在。
 
 搜索内存上限按以下优先级解析：
 
@@ -139,7 +139,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 搜索并行度和搜索内存上限的输入框预填当前生效的值，没有设置过时就是本机默认值（并行度为逻辑核数 − 2，夹到 1..8；内存上限为运行时可用内存的 20%，至少 1 GiB）。没有改动的输入不写设置；输入等于本机默认值（内存上限按 0.1 GB 比较）或清空时写入 `null`，之后继续跟随本机默认。GB 按 10⁹ 字节计，与内存条一致。输入不合法时文字变红，底部状态行写出允许范围，输入框保持焦点，侧栏不关闭。保存后底部状态行写“已保存，下次搜索生效”“已保存，下次执行生效”或“已保存并立即生效”。只有性能预设、搜索并行度和搜索内存上限有悬停说明，各组不写说明文字。
 
-“恢复默认”只恢复本页各项（出牌速度、牌间停顿、档位、并行度、内存上限、透明度），同时把面板位置和尺寸恢复为默认，并重新打开大战损提示；模式不变，模式只在标题栏切换。面板和侧栏固定深色，没有主题选择；`ui.theme` 只为读取旧文件保留。药水、成长、遗物、Boss 血量和盗贼策略不在设置页里；大战损提示的持久字段没有控件，只由提示本身和“恢复默认”写入。
+“恢复默认”只恢复本页各项（出牌速度、牌间停顿、档位、并行度、内存上限、透明度），同时把面板位置和尺寸恢复为默认，并重新打开大战损提示；模式不变，模式只在标题栏切换。面板和侧栏固定深色，没有主题选择；`ui.theme` 只为读取旧文件保留。药水、成长、遗物和 Boss 血量策略不在设置页里；策略快照和命令已经可供下一批界面使用。大战损提示的持久字段没有控件，只由提示本身和“恢复默认”写入。
 
 ### 语言与字体
 
@@ -159,4 +159,4 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 尚未提供
 
-冻结路线、药水/成长/遗物/Boss 血量/盗贼策略的设置界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。药水、成长和遗物按钮不显示；策略字段已经保存，但还没有接入搜索请求。
+冻结路线、药水/成长/遗物/Boss 血量策略的设置界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。药水、成长和遗物按钮不显示；策略字段已经接入搜索请求，盗贼只在当前战斗的会话状态里存在。

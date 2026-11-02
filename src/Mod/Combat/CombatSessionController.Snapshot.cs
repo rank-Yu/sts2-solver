@@ -2,6 +2,7 @@
 // on the game main thread from controller state, a frozen search progress snapshot or a replayed
 // route.
 using Sts2Solver.Ai.Combat;
+using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
@@ -73,6 +74,7 @@ internal static partial class CombatSessionController
             Route = BuildRouteUi(routeSource),
             Memory = current.Memory,
             Settings = CombatUiProjection.Settings(budget),
+            Strategy = BuildStrategyUi(),
             Searches = _searches,
             ReusedTurns = _reusedTurns,
             Deviations = _deviations,
@@ -81,6 +83,56 @@ internal static partial class CombatSessionController
                 + (_search != null ? _lastProgress?.ExpandedNodes ?? 0 : 0),
         };
         CombatUiStore.Publish(next);
+    }
+
+    private static StrategyUiSnapshot BuildStrategyUi()
+    {
+        SolverSearchSettings search = SolverSettings.Current.Search;
+        List<PotionSlotUi> potions = [];
+        if (_player != null)
+        {
+            for (int slot = 0; slot < _player.PotionSlots.Count; slot++)
+            {
+                if (_player.GetPotionAtSlotIndex(slot) is not { } potion)
+                    continue;
+                PotionDirective directive = search.Potions
+                    .ResolveDirective(slot, potion.Id.Entry);
+                bool canAssign = Registry.TryPotion(potion.Id.Entry, out ushort id)
+                    && Registry.Potion(id).Searchable;
+                potions.Add(new PotionSlotUi
+                {
+                    Slot = slot,
+                    PotionId = potion.Id.Entry,
+                    Mode = directive.ToString().ToLowerInvariant(),
+                    CanAssignPolicy = canAssign,
+                });
+            }
+        }
+        BossHpRelief relief = _state == null
+            ? BossHpRelief.None
+            : ScoreCompiler.ResolveNativeHpRelief(_state);
+        return new StrategyUiSnapshot
+        {
+            Potions = [.. potions],
+            GrowthBudgets = search.GrowthBudgets.ToPolicy(),
+            IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            ActTransitionBossHpStrategy = search.ActTransitionBossHpStrategy,
+            FinalBossHpStrategy = search.FinalBossHpStrategy,
+            BossHpRelief = relief switch
+            {
+                BossHpRelief.ActClearHeal => "act_clear_heal",
+                BossHpRelief.RunEnding => "run_ending",
+                _ => "none",
+            },
+            IsActEndingBoss = relief != BossHpRelief.None,
+            TheftApplicable = _state != null && SearchPolicyCapture.IsTheftApplicable(_state),
+            TheftPolicy = _theftPolicy switch
+            {
+                SearchTheftPolicy.PreserveResources => "preserve_resources",
+                SearchTheftPolicy.LetEscape => "let_escape",
+                _ => null,
+            },
+        };
     }
 
     private static string? EndReason() => _phase switch

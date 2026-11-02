@@ -146,11 +146,11 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 ### 5.1 `SearchPolicy`
 
-`SearchPolicy` 是评分和下界编译要读的政策：一部分是玩家设置，一部分从根推出来，构造后不可变。Mod 里玩家设置都取默认值；离线对照时按 CombatSolver M0 宿主当年的固定设置重建，所以同样不需要读 `config.br`。
+`SearchPolicy` 是评分、下界和搜索请求编译要读的政策：一部分是玩家设置，一部分从根推出来，构造后不可变。Mod 在搜索请求开始时把持久设置和本场盗贼会话状态冻结进 `SearchPolicyConfiguration`，再交给 `SearchPolicyCapture`；离线对照不传配置，按 CombatSolver M0 宿主当年的固定设置重建，所以同样不需要读 `config.br`。
 
 | 字段 | 默认值 | 作用 | 对照（CombatSolver） |
 | --- | --- | --- | --- |
-| `GrowthBudgets` | 空 | 十项内置成长额度；`IgnoreLongTermRewards` 打开时有效额度归零 | `ModRuntime.ApplyFixedBudgetSettings` |
+| `GrowthBudgets` | 空 | 十项内置成长额度；`IgnoreLongTermRewards` 打开时有效额度归零。第三方额度不进入这里 | `ModRuntime.ApplyFixedBudgetSettings`、`SolverSettingsData` |
 | `RequiredGrowthRewards` | 从根推出 | 手牌和牌堆里的成长来源目标，不只看根快照 | `GrowthOpportunityPolicy.Capture` |
 | `HasUnboundedGrowthTargets` | 从根推出 | 有动态复制、重放来源时，目标无法证明 | 同上 |
 | `RelicTargets` | 遗物策略开启、规则为空 | 按拥有的遗物、范围和 id 排序过滤 | `SolverSettings.RelicStrategyEnabled` |
@@ -158,13 +158,15 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `ActTransitionBossHpStrategy` | `ProgressionFirst` | 是否保留幕间回血 `ActClearHeal` | `SolverSettingsData` |
 | `FinalBossHpStrategy` | `ProgressionFirst` | 是否保留 `RunEnding` | 同上 |
 | `IgnoreLongTermRewards` | false | 同时影响成长额度和目标 | — |
-| `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空 | `TheftEncounterStrategy.IsApplicable` |
+| `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
+| `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
+| `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；`Smart` 不入表 | `CapturePotionStrategy` |
 | `BaseScoreOnly` | false | 请求可以覆盖 | M0 宿主 `ordering=baseline` |
 | `ContinuousThreatRanking` | false | 请求可以覆盖 | M0 宿主默认 |
 | `BeamWeightPerturbation` | 空 | 请求覆盖时项和 scale 必须同时给出 | M0 宿主默认 |
 | `HasDevelopmentStrategy`、镜像登记标志、第三方成长标志 | 全空 | 非空且生效时以 `unsupported-policy` 拒绝 | — |
 
-评分和下界编译不读 `PotionPolicy`、`FixedBudget`、并行度、`IncludeTurnSetup` 这类搜索执行字段，所以它们不在 `SearchPolicy` 里。差分宿主的请求 DTO 可以覆盖会影响政策的字段（见 [Differential](../tests/Differential/README.md#输入)）；冻结 fixture 都没有覆盖，全部用默认值和根派生值。未知字段显式失败。
+评分和下界编译不读逐瓶药水指令，但请求编译会读；`PotionDefaultMode` 和 `PotionDirectives` 因此留在 `SearchPolicy` 里，再由 `SearchRequestCompiler` 转成 `PotionPolicy`。`FixedBudget`、并行度、`IncludeTurnSetup` 这类搜索执行字段仍然不在 `SearchPolicy` 里。差分宿主的请求 DTO 可以覆盖会影响政策的字段（见 [Differential](../tests/Differential/README.md#输入)）；冻结 fixture 都没有覆盖，全部用默认值和根派生值。未知字段显式失败。
 
 ### 5.2 `ScoreRules`
 
@@ -201,7 +203,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 ## 6. 搜索请求编译
 
-`SearchRequestCompiler` 只读原生根、已编译的规则和 `SearchPolicy`，冻结 `SearchCase` 需要的评分、下界、根生命、默认药水政策、失窃目标、遗物与成长目标以及回放状态。能力承诺目录根据根中已登记的能力牌和真实的 `RunState.TotalFloor` 编译；生成闭包里的已登记能力也有描述符。界面没有设置药水指令时使用 Smart。
+`SearchRequestCompiler` 只读原生根、已编译的规则和 `SearchPolicy`，冻结 `SearchCase` 需要的评分、下界、根生命、逐瓶药水政策、失窃目标、遗物与成长目标以及回放状态。能力承诺目录根据根中已登记的能力牌和真实的 `RunState.TotalFloor` 编译；生成闭包里的已登记能力也有描述符。默认的药水模式是 Smart；默认策略和空指令直接走原请求对象，不改变 SREQ 字节。
 
 `SearchPerformanceProfile` 给出基准、窄、宽、进攻四种宽度和每单位宽度的时限，并决定是否追加补搜（档位值见 [战斗搜索](combat-ai.md#2-档位与时间)）。Mod 和差分宿主再把宿主的内存预算放进 `CombatSearchRequest`，交给 `CombatSearchCoordinator` 构造成员。成员的宽度、评价、保留、用药限制和时限都在协调器里设置，全部受原请求的保护和强制指令约束；生产搜索没有展开节点上限。宿主回调和帧压力信号只在运行时传递，worker 不读实时战斗或全局搜索设置。
 

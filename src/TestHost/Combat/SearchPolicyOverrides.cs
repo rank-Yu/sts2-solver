@@ -21,6 +21,16 @@ internal static class SearchPolicyOverrides
             policy = policy with { FinalBossHpStrategy = ParseBossStrategy(finalStrategy) };
         if (request.TheftPolicyForTest is { Length: > 0 } theft)
             policy = policy with { TheftPolicy = ParseTheftPolicy(theft) };
+        if (request.PotionDefaultModeForTest is { Length: > 0 } potionMode)
+            policy = policy with { PotionDefaultMode = ParsePotionMode(potionMode) };
+        if (request.PotionDirectivesForTest.Length != 0)
+        {
+            policy = policy with
+            {
+                PotionDirectives = SearchPolicyCapture.ReconcilePotionDirectives(
+                    ParsePotionDirectives(request.PotionDirectivesForTest), CurrentPotionSlots(player)),
+            };
+        }
         if (request.Act3BossStrategyForTest is { } act3)
             policy = policy with { Act3BossStrategy = act3 };
         if (request.BaseScoreOnlyForTest is { } baseOnly)
@@ -62,6 +72,41 @@ internal static class SearchPolicyOverrides
             ? value
             : throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
                 $"未知偷窃策略：{text}");
+
+    private static SearchPotionMode ParsePotionMode(string text)
+        => Enum.TryParse(text, ignoreCase: true, out SearchPotionMode value)
+            ? value
+            : throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                $"未知药水策略：{text}");
+
+    private static List<(int Slot, string PotionId)> CurrentPotionSlots(Player player)
+    {
+        List<(int Slot, string PotionId)> slots = [];
+        for (int slot = 0; slot < player.PotionSlots.Count; slot++)
+        {
+            if (player.GetPotionAtSlotIndex(slot) is { } potion)
+                slots.Add((slot, potion.Id.Entry));
+        }
+        return slots;
+    }
+
+    private static SearchPotionDirective[] ParsePotionDirectives(
+        IReadOnlyList<OfflinePotionDirective> directives)
+    {
+        SearchPotionDirective[] parsed = new SearchPotionDirective[directives.Count];
+        for (int index = 0; index < directives.Count; index++)
+        {
+            OfflinePotionDirective directive = directives[index];
+            if (directive.Slot < 0 || string.IsNullOrEmpty(directive.PotionId))
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    $"非法药水策略：slot={directive.Slot} potion={directive.PotionId}");
+            }
+            parsed[index] = new SearchPotionDirective(directive.Slot, directive.PotionId,
+                ParsePotionMode(directive.Mode));
+        }
+        return parsed;
+    }
 
     private static IReadOnlyList<SearchRelicCounterTarget> ParseRelicTargets(
         IReadOnlyList<OfflineRelicCounterRule> rules, Player player)

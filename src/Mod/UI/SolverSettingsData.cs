@@ -1,16 +1,10 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver;
-
-/// <summary>How the player configured the thief encounter; <see cref="Auto"/> keeps the root capture.</summary>
-internal enum SolverTheftMode
-{
-    Auto,
-    PreserveResources,
-    LetEscape,
-}
 
 internal enum SolverPotionPreset
 {
@@ -18,6 +12,13 @@ internal enum SolverPotionPreset
     ProtectAll,
     ForceAll,
     OnlyForced,
+}
+
+/// <summary>The two per-potion modes wired into the search request.</summary>
+internal enum SolverPotionMode
+{
+    Smart,
+    Disabled,
 }
 
 internal enum SolverUiTheme
@@ -44,12 +45,11 @@ internal enum SolverDeploymentSpeed
 
 /// <summary>
 /// The complete persisted player configuration. Values are immutable; the store replaces one whole
-/// record at a time. Search settings are stored here but only the tier and memory override are wired
-/// into the request yet.
+/// record at a time. Search settings are captured into the request on the main thread at search start.
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 4;
+    internal const int CurrentSchemaVersion = 5;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -87,7 +87,7 @@ internal sealed record SolverSettingsData
     }
 }
 
-/// <summary>Search-side configuration, including strategy values that are not sent to the solver yet.</summary>
+/// <summary>Search-side configuration captured into the next search request.</summary>
 internal sealed record SolverSearchSettings
 {
     public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
@@ -100,7 +100,7 @@ internal sealed record SolverSearchSettings
 
     public SolverPotionSettings Potions { get; init; } = new();
 
-    public SearchGrowthBudget GrowthBudgets { get; init; }
+    public SolverGrowthBudgets GrowthBudgets { get; init; } = new();
 
     public bool IgnoreLongTermRewards { get; init; }
 
@@ -111,8 +111,6 @@ internal sealed record SolverSearchSettings
 
     public SearchBossHpStrategy FinalBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
-
-    public SolverTheftMode Theft { get; init; } = SolverTheftMode.Auto;
 
     internal void Validate()
     {
@@ -127,13 +125,13 @@ internal sealed record SolverSearchSettings
         if (Threads is < 1 or > 8)
             throw new InvalidDataException($"搜索线程数必须在 1..8：{Threads}");
         Potions.Validate();
-        GrowthBudgets.ToCore().ValidateBudgets();
+        if (GrowthBudgets is null)
+            throw new InvalidDataException("设置缺少 search.growthBudgets。");
+        GrowthBudgets.Validate();
         if (!Enum.IsDefined(ActTransitionBossHpStrategy))
             throw new InvalidDataException($"未知幕末 Boss 血量策略：{ActTransitionBossHpStrategy}");
         if (!Enum.IsDefined(FinalBossHpStrategy))
             throw new InvalidDataException($"未知最终 Boss 血量策略：{FinalBossHpStrategy}");
-        if (!Enum.IsDefined(Theft))
-            throw new InvalidDataException($"未知盗贼策略：{Theft}");
         HashSet<SearchRelicCounter> ids = [];
         foreach (SearchRelicCounterTarget target in RelicTargets)
         {
@@ -153,15 +151,83 @@ internal sealed record SolverSearchSettings
                 throw new InvalidDataException($"遗物计数目标 {target.Id} 的优先级必须在 1..8：{target.Priority}");
         }
     }
+}
 
-    internal SearchTheftPolicy? TheftPolicyOrAuto()
-        => Theft switch
+/// <summary>
+/// The ten built-in growth budgets plus any third-party entries read from the settings file. The
+/// third-party half is preserved verbatim so disabling a mod does not erase its budgets, but it is
+/// never sent to the solver: only the ten built-in fields are effective.
+/// </summary>
+internal sealed record SolverGrowthBudgets
+{
+    public int HandOfGreed { get; init; }
+
+    public int TheHunt { get; init; }
+
+    public int Feed { get; init; }
+
+    public int Royalties { get; init; }
+
+    public int Alchemize { get; init; }
+
+    public int GeneticAlgorithm { get; init; }
+
+    public int TheScythe { get; init; }
+
+    public int Goopy { get; init; }
+
+    public int ForbiddenGrimoire { get; init; }
+
+    public int MadScience { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> ThirdParty { get; init; } = new(StringComparer.Ordinal);
+
+    internal SearchGrowthBudget ToPolicy() => new(
+        HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
+        TheScythe, Goopy, ForbiddenGrimoire, MadScience);
+
+    internal SolverGrowthBudgets With(GrowthSource source, int value) => source switch
+    {
+        GrowthSource.HandOfGreed => this with { HandOfGreed = value },
+        GrowthSource.TheHunt => this with { TheHunt = value },
+        GrowthSource.Feed => this with { Feed = value },
+        GrowthSource.Royalties => this with { Royalties = value },
+        GrowthSource.Alchemize => this with { Alchemize = value },
+        GrowthSource.GeneticAlgorithm => this with { GeneticAlgorithm = value },
+        GrowthSource.TheScythe => this with { TheScythe = value },
+        GrowthSource.Goopy => this with { Goopy = value },
+        GrowthSource.ForbiddenGrimoire => this with { ForbiddenGrimoire = value },
+        GrowthSource.MadScience => this with { MadScience = value },
+        _ => throw new ArgumentOutOfRangeException(nameof(source)),
+    };
+
+    internal int Get(GrowthSource source) => source switch
+    {
+        GrowthSource.HandOfGreed => HandOfGreed,
+        GrowthSource.TheHunt => TheHunt,
+        GrowthSource.Feed => Feed,
+        GrowthSource.Royalties => Royalties,
+        GrowthSource.Alchemize => Alchemize,
+        GrowthSource.GeneticAlgorithm => GeneticAlgorithm,
+        GrowthSource.TheScythe => TheScythe,
+        GrowthSource.Goopy => Goopy,
+        GrowthSource.ForbiddenGrimoire => ForbiddenGrimoire,
+        GrowthSource.MadScience => MadScience,
+        _ => throw new ArgumentOutOfRangeException(nameof(source)),
+    };
+
+    internal void Validate()
+    {
+        if (ThirdParty is null)
+            throw new InvalidDataException("设置缺少 search.growthBudgets 的第三方来源表。");
+        foreach (GrowthSource source in Enum.GetValues<GrowthSource>())
         {
-            SolverTheftMode.Auto => null,
-            SolverTheftMode.PreserveResources => SearchTheftPolicy.PreserveResources,
-            SolverTheftMode.LetEscape => SearchTheftPolicy.LetEscape,
-            _ => throw new ArgumentOutOfRangeException(nameof(Theft)),
-        };
+            int value = Get(source);
+            if (value is < 0 or > 1000)
+                throw new InvalidDataException($"成长额度 {source} 必须在 0..1000：{value}");
+        }
+    }
 }
 
 internal sealed record SolverPotionSettings
@@ -194,6 +260,73 @@ internal sealed record SolverPotionSettings
                 throw new InvalidDataException(
                     $"重复的药水槽策略：slot={directive.Slot} potion={directive.PotionId}");
         }
+    }
+
+    /// <summary>Persisted directive for the exact potion identity; Smart when absent.</summary>
+    internal PotionDirective ResolveDirective(int slot, string potionId)
+    {
+        foreach (PotionSlotDirective directive in Directives)
+        {
+            if (directive.Slot == slot
+                && string.Equals(directive.PotionId, potionId, StringComparison.Ordinal))
+            {
+                return directive.Directive;
+            }
+        }
+        return PotionDirective.Smart;
+    }
+
+    /// <summary>
+    /// Replaces the directive for one slot. Smart removes the entry, matching the original
+    /// <c>ApplyPotionDirective</c>; only non-Smart states are persisted.
+    /// </summary>
+    internal SolverPotionSettings ApplyDirective(int slot, string potionId, SolverPotionMode mode)
+    {
+        if (slot is < 0 or >= Limits.PotionSlots)
+            throw new ArgumentOutOfRangeException(nameof(slot));
+        if (string.IsNullOrEmpty(potionId))
+            throw new ArgumentException("药水 id 不能为空。", nameof(potionId));
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode));
+        List<PotionSlotDirective> directives = Directives
+            .Where(item => item.Slot != slot)
+            .ToList();
+        if (mode == SolverPotionMode.Disabled)
+            directives.Add(new PotionSlotDirective(slot, potionId, PotionDirective.Disabled));
+        return this with
+        {
+            Directives = directives
+                .OrderBy(item => item.Slot)
+                .ThenBy(item => item.PotionId, StringComparer.Ordinal)
+                .ToArray(),
+        };
+    }
+}
+
+/// <summary>Pure filter shared by combat-start reconciliation and its checks.</summary>
+internal static class SolverPotionDirectives
+{
+    internal static PotionSlotDirective[] Reconcile(
+        IReadOnlyList<PotionSlotDirective> persisted,
+        IReadOnlyList<(int Slot, string PotionId)> current)
+    {
+        List<PotionSlotDirective> retained = [];
+        foreach (PotionSlotDirective directive in persisted)
+        {
+            bool matches = false;
+            foreach ((int slot, string potionId) in current)
+            {
+                if (slot == directive.Slot
+                    && string.Equals(potionId, directive.PotionId, StringComparison.Ordinal))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (matches)
+                retained.Add(directive);
+        }
+        return [.. retained];
     }
 }
 

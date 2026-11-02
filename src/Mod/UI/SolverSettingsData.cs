@@ -105,6 +105,9 @@ internal sealed record SolverSearchSettings
 
     public bool IgnoreLongTermRewards { get; init; }
 
+    /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
+
     public SearchRelicCounterTarget[] RelicTargets { get; init; } = [];
 
     public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
@@ -125,6 +128,9 @@ internal sealed record SolverSearchSettings
             throw new InvalidDataException($"搜索内存上限必须为正：{MemoryBudgetBytes}");
         if (Threads is < 1 or > 8)
             throw new InvalidDataException($"搜索线程数必须在 1..8：{Threads}");
+        if (BrightestFlameMaxHpLossLimit is < 0 or > 1000)
+            throw new InvalidDataException(
+                $"至亮之焰最大生命消耗上限必须在 0..1000 或 null：{BrightestFlameMaxHpLossLimit}");
         Potions.Validate();
         if (GrowthBudgets is null)
             throw new InvalidDataException("设置缺少 search.growthBudgets。");

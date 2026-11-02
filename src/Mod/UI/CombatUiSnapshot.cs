@@ -169,6 +169,12 @@ internal sealed record StrategyUiSnapshot
 
     public bool IgnoreLongTermRewards { get; init; }
 
+    /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
+
+    /// <summary>Max HP already spent on BrightestFlame in the current combat.</summary>
+    public int BrightestFlameMaxHpSpent { get; init; }
+
     public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
 

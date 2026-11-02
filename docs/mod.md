@@ -70,6 +70,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索接受 `Smart`、`Disabled` 和 `Force`；`Smart` 不入表。 |
 | `search.growthBudgets` | 十个来源全为 `0` | 十个内置成长来源的额外战损预算。文件里的第三方来源条目原样保留，但不进入请求。 |
 | `search.ignoreLongTermRewards` | `false` | 不考虑局外收益。 |
+| `search.brightestFlameMaxHpLossLimit` | `null` | 至亮之焰整场累计最大生命消耗上限；`null` 不限，`0` 表示不再打出，范围 0–1000。 |
 | `search.relicTargets` | `[]` | 遗物计数目标；每项包含 `id`、`minimum`、`maximum`、`hpAllowance`、`period`、`priority`。 |
 | `search.actTransitionBossHpStrategy` | `ProgressionFirst` | 幕末 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
 | `search.finalBossHpStrategy` | `ProgressionFirst` | 最终 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
@@ -83,7 +84,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `ui.showBattleDamagePerformanceHint` | `true` | 是否显示“本场战斗出现大战损”提示；玩家点击提示后写为 `false`，之后不再显示。 |
 | `ui.theme` | `Dark` | 旧文件的兼容字段；面板固定深色，不提供浅色主题。 |
 
-接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区、`ui` 分区，以及药水逐瓶策略、成长额度/不考虑局外收益和两项 Boss 血量策略。药水指令按 `(槽位, 药水 id)` 生效；进入战斗时对不上的旧项会从设置文件删除，新药默认智能。遗物计数目标仍然只保存，没有送入搜索请求。策略改动只影响下一次搜索，不会自动重搜。盗贼策略不写入设置文件，只在当前战斗的会话状态里存在。
+接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区、`ui` 分区，以及药水逐瓶策略、成长额度/不考虑局外收益、至亮之焰上限和两项 Boss 血量策略。药水指令按 `(槽位, 药水 id)` 生效；进入战斗时对不上的旧项会从设置文件删除，新药默认智能。遗物计数目标仍然只保存，没有送入搜索请求。策略改动只影响下一次搜索，不会自动重搜。盗贼策略不写入设置文件，只在当前战斗的会话状态里存在。
 
 搜索内存上限按以下优先级解析：
 
@@ -159,4 +160,4 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 尚未提供
 
-冻结路线、药水/成长/遗物/Boss 血量策略的设置界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。药水、成长和遗物按钮不显示；策略字段已经接入搜索请求，盗贼只在当前战斗的会话状态里存在。
+冻结路线、药水/成长/至亮之焰/遗物/Boss 血量策略的设置界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。药水、成长和遗物按钮不显示；策略字段和 `SetBrightestFlameLimit` 命令已经接入搜索请求与快照，盗贼只在当前战斗的会话状态里存在。

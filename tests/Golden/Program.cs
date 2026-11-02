@@ -21,6 +21,7 @@ try
             RulesCodecContract.Run();
             SearchContracts.Run();
             ForcedPotionContracts.Run();
+            BrightestFlameContracts.Run();
             SearchProgressContracts.Run();
             PowerEvidenceContracts.Run();
             RetrievalAndWitherContracts.Run();

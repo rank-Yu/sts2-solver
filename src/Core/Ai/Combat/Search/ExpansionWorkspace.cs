@@ -19,7 +19,8 @@ internal sealed partial class BeamSolver
         int Rank,
         double Score,
         bool HasCommitment,
-        PowerCommitmentState Commitment);
+        PowerCommitmentState Commitment,
+        int BrightestFlameSpent);
 
     private enum ExpansionEventKind : byte
     {
@@ -125,6 +126,7 @@ internal sealed partial class BeamSolver
 
         private ExpansionEvent[] _events = [];
         private ChildRecord[] _children = [];
+        private int[] _brightestFlameSpent = [];
         private RoutingEvent[] _routings = [];
         private FetchedRecord[] _fetched = [];
         private byte[] _stateBytes = [];
@@ -187,6 +189,8 @@ internal sealed partial class BeamSolver
                 return;
             ReserveInitial(ref _events, InitialEventCapacity);
             ReserveInitial(ref _children, InitialChildCapacity);
+            if (solver.TracksBrightestFlameSpent)
+                ReserveInitial(ref _brightestFlameSpent, InitialChildCapacity);
             ReserveInitial(ref _routings, InitialRoutingCapacity);
             ReserveInitial(ref _fetched, 16);
             ReserveInitial(ref _stateBytes, InitialStateBytes);
@@ -254,6 +258,7 @@ internal sealed partial class BeamSolver
                 _parentPeakAllocatedBytes = _growableBytes;
             long used = _stateBytesUsed
                 + (long)_childCount * Unsafe.SizeOf<ChildRecord>()
+                + (_solver.TracksBrightestFlameSpent ? (long)_childCount * Unsafe.SizeOf<int>() : 0)
                 + (long)_eventCount * Unsafe.SizeOf<ExpansionEvent>()
                 + (long)_routingCount * Unsafe.SizeOf<RoutingEvent>()
                 + (long)_fetchedCount * Unsafe.SizeOf<FetchedRecord>();
@@ -274,6 +279,7 @@ internal sealed partial class BeamSolver
                     + (long)_commitmentActions.Length * Unsafe.SizeOf<PlayerAction>()
                     + (long)_events.Length * Unsafe.SizeOf<ExpansionEvent>()
                     + (long)_children.Length * Unsafe.SizeOf<ChildRecord>()
+                    + (long)_brightestFlameSpent.Length * Unsafe.SizeOf<int>()
                     + (long)_routings.Length * Unsafe.SizeOf<RoutingEvent>()
                     + (long)_fetched.Length * Unsafe.SizeOf<FetchedRecord>()
                     + _stateBytes.Length
@@ -459,12 +465,14 @@ internal sealed partial class BeamSolver
 
         private ChildEmitResult EmitChild(in ChildRecord child, int childIndex,
             in Battle directState, in RoutingRef routing, int parentNode, in Battle parentState,
-            in RetentionFacts parentFacts, in FetchedRecord fetched)
+            in RetentionFacts parentFacts, in FetchedRecord fetched, int brightestFlameSpentDelta)
         {
             if (child.Terminal)
                 _parentTerminals++;
             if (!_direct)
             {
+                if (_solver.TracksBrightestFlameSpent)
+                    _brightestFlameSpent[childIndex] = brightestFlameSpentDelta;
                 int eventIndex = AddEvent(new ExpansionEvent
                 {
                     Kind = ExpansionEventKind.Child,
@@ -474,8 +482,8 @@ internal sealed partial class BeamSolver
                 return new ChildEmitResult(eventIndex, -1, false);
             }
             ChildCommitResult result = CommitChildCore(in child, in directState, in routing,
-                parentNode, in parentState, parentFacts, in fetched, _directNext, _directEnded,
-                _directTerminal);
+                parentNode, in parentState, parentFacts, in fetched, brightestFlameSpentDelta,
+                _directNext, _directEnded, _directTerminal);
             return new ChildEmitResult(-1, result.NodeId, result.ExpandSuccessors);
         }
 
@@ -562,8 +570,8 @@ internal sealed partial class BeamSolver
                 }
                 ExpandAction(in parent, -1, context.Node, context.Depth, context.Facts,
                     context.Rank, context.Score, context.HasCommitment, context.Commitment,
-                    action, null, default, default, allowFetchedPowerCommit: true,
-                    cancellationToken);
+                    context.BrightestFlameSpent, action, null, default, default,
+                    allowFetchedPowerCommit: true, cancellationToken);
             }
         }
 
@@ -574,6 +582,7 @@ internal sealed partial class BeamSolver
         private void ExpandAction(in Battle parent, int parentRecord, int parentNodeKey,
             int parentDepth, in RetentionFacts parentFacts, int parentRank, double parentScore,
             bool hasParentCommitment, in PowerCommitmentState parentCommitment,
+            int parentBrightestFlameSpent,
             PlayerAction action, ChoiceEffect? primaryEffect, scoped ReadOnlySpan<Card> selectedPowers,
             in RoutingRef routing, bool allowFetchedPowerCommit, CancellationToken cancellationToken)
         {
@@ -589,11 +598,13 @@ internal sealed partial class BeamSolver
                 StepResult stepResult;
                 ChoiceRequest request;
                 bool historyRisk;
+                int actionBrightestFlameSpent;
                 if (action.Kind == PlayerActionKind.EndTurn && CanReuseEndTurnPrefix(parentNodeKey))
                 {
                     EndTurnPrefixReusedLeaves++;
                     stepResult = Kernel.StepEndTurnFromPrefix(ref _draft, action, _solver._rules,
-                        in _endTurnPrefix, out request, out historyRisk);
+                        in _endTurnPrefix, out request, out historyRisk,
+                        out actionBrightestFlameSpent);
                     if (_solver._verifySearchEquivalence)
                     {
                         _solver.VerifyPreparedEndTurn(in parent, action, ref _draft, stepResult,
@@ -606,22 +617,35 @@ internal sealed partial class BeamSolver
                     if (action.Kind == PlayerActionKind.EndTurn && IsFirstEndTurnLeaf(parentNodeKey))
                     {
                         stepResult = Kernel.StepEndTurnSharingPrefix(ref _draft, action, _solver._rules,
-                            out request, out historyRisk, ref _endTurnPrefix);
+                            out request, out historyRisk, ref _endTurnPrefix,
+                            out actionBrightestFlameSpent);
                         StoreEndTurnPrefix(parentNodeKey);
                     }
                     else
                     {
                         stepResult = Kernel.Step(ref _draft, action, _solver._rules,
-                            out request, out historyRisk);
+                            out request, out historyRisk, out _, out actionBrightestFlameSpent);
                     }
                 }
                 if (stepResult == StepResult.NeedsChoice)
                 {
                     ExpandChoice(in parent, parentRecord, parentNodeKey, parentDepth, parentFacts,
-                        parentRank, parentScore, hasParentCommitment, parentCommitment, action,
+                        parentRank, parentScore, hasParentCommitment, parentCommitment,
+                        parentBrightestFlameSpent, action,
                         primaryEffect, selectedPowers, in routing, allowFetchedPowerCommit,
                         in request, cancellationToken);
                     return;
+                }
+                int spentAfterAction = 0;
+                if (_solver.TracksBrightestFlameSpent)
+                {
+                    spentAfterAction = checked(parentBrightestFlameSpent + actionBrightestFlameSpent);
+                    if (!GrowthCostPolicy.AllowsBrightestFlame(
+                            _solver._options.BrightestFlameMaxHpLossLimit,
+                            _solver._options.InitialBrightestFlameMaxHpSpent, spentAfterAction))
+                    {
+                        return;
+                    }
                 }
 
                 int depth = parentDepth + 1;
@@ -723,21 +747,22 @@ internal sealed partial class BeamSolver
                     fetchedChild.ParentRecord = parentRecord;
                     ChildEmitResult emitted = EmitChild(in fetchedChild, fetchedChildIndex,
                         in _fetchedState, in routing, parentNodeKey, in parent, parentFacts,
-                        in fetched);
+                        in fetched, actionBrightestFlameSpent);
                     if (_direct)
                     {
                         if (emitted.ExpandSuccessors)
                         {
                             ExpandFetchedPowerSuccessors(in _fetchedState, emitted.NodeId,
                                 emitted.NodeId, depth, fetchedParentFacts, parentRank, parentScore,
-                                hasCommitment, commitment, selectedPowers, cancellationToken);
+                                hasCommitment, commitment, selectedPowers, spentAfterAction,
+                                cancellationToken);
                         }
                     }
                     else
                     {
                         ExpandFetchedPowerSuccessors(in _fetchedState, emitted.EventIndex, -1,
                             depth, fetchedParentFacts, parentRank, parentScore, hasCommitment,
-                            commitment, selectedPowers, cancellationToken);
+                            commitment, selectedPowers, spentAfterAction, cancellationToken);
                         _children[fetchedChildIndex].SuccessorEnd = _eventCount - 1;
                         _events[emitted.EventIndex].EndEvent = _eventCount - 1;
                     }
@@ -780,7 +805,7 @@ internal sealed partial class BeamSolver
                 child.RoutingEvent = routing.EventIndex;
                 child.ParentRecord = parentRecord;
                 EmitChild(in child, childIndex, in _draft, in routing, parentNodeKey, in parent,
-                    parentFacts, in EmptyFetched);
+                    parentFacts, in EmptyFetched, actionBrightestFlameSpent);
             }
             catch (CapacityException ex)
             {
@@ -790,7 +815,8 @@ internal sealed partial class BeamSolver
 
         private void ExpandChoice(in Battle parent, int parentRecord, int parentNodeKey,
             int parentDepth, in RetentionFacts parentFacts, int parentRank, double parentScore,
-            bool hasParentCommitment, in PowerCommitmentState parentCommitment, PlayerAction action,
+            bool hasParentCommitment, in PowerCommitmentState parentCommitment,
+            int parentBrightestFlameSpent, PlayerAction action,
             ChoiceEffect? primaryEffect, scoped ReadOnlySpan<Card> selectedPowers, in RoutingRef routing,
             bool allowFetchedPowerCommit, in ChoiceRequest request, CancellationToken cancellationToken)
         {
@@ -911,7 +937,8 @@ internal sealed partial class BeamSolver
                     continue;
                 }
                 ExpandAction(in parent, parentRecord, parentNodeKey, parentDepth, parentFacts,
-                    parentRank, parentScore, hasParentCommitment, parentCommitment, withChoice,
+                    parentRank, parentScore, hasParentCommitment, parentCommitment,
+                    parentBrightestFlameSpent, withChoice,
                     effect, chosenPowers, in branchRouting, allowFetchedPowerCommit,
                     cancellationToken);
             }
@@ -921,7 +948,8 @@ internal sealed partial class BeamSolver
         private void ExpandFetchedPowerSuccessors(in Battle state, int fetchedEvent,
             int fetchedNode, int depth, in RetentionFacts fetchedFacts, int parentRank,
             double parentScore, bool hasCommitment, in PowerCommitmentState commitment,
-            scoped ReadOnlySpan<Card> selectedPowers, CancellationToken cancellationToken)
+            scoped ReadOnlySpan<Card> selectedPowers, int fetchedBrightestFlameSpent,
+            CancellationToken cancellationToken)
         {
             _generation++;
             int count = Kernel.LegalActions(in state, _solver._rules, _commitmentActions);
@@ -935,7 +963,8 @@ internal sealed partial class BeamSolver
                     continue;
                 }
                 ExpandAction(in state, fetchedEvent, fetchedNode, depth, fetchedFacts,
-                    parentRank, parentScore, hasCommitment, in commitment, action, null, default,
+                    parentRank, parentScore, hasCommitment, in commitment,
+                    fetchedBrightestFlameSpent, action, null, default,
                     default, allowFetchedPowerCommit: false, cancellationToken);
                 if (!EmitSuccessorActionEnd())
                     return;
@@ -1049,6 +1078,8 @@ internal sealed partial class BeamSolver
             int eventIndex = index;
             ExpansionEvent childEvent = _events[eventIndex];
             ref readonly ChildRecord child = ref _children[childEvent.ChildIndex];
+            int brightestFlameSpentDelta = _solver.TracksBrightestFlameSpent
+                ? _brightestFlameSpent[childEvent.ChildIndex] : 0;
             int parentNode = child.ParentRecord < 0
                 ? context.Node
                 : _events[child.ParentRecord].NodeId;
@@ -1071,13 +1102,14 @@ internal sealed partial class BeamSolver
             if (child.FetchedCandidate)
             {
                 result = CommitChildCore(in child, in EmptyBattle, in routing, parentNode,
-                    in parentState, parentFacts, in _fetched[child.FetchedIndex], next, ended,
-                    terminal);
+                    in parentState, parentFacts, in _fetched[child.FetchedIndex],
+                    brightestFlameSpentDelta, next, ended, terminal);
             }
             else
             {
                 result = CommitChildCore(in child, in EmptyBattle, in routing, parentNode,
-                    in parentState, parentFacts, in EmptyFetched, next, ended, terminal);
+                    in parentState, parentFacts, in EmptyFetched, brightestFlameSpentDelta,
+                    next, ended, terminal);
             }
             if (result.NodeId >= 0)
                 _events[eventIndex].NodeId = result.NodeId;
@@ -1104,7 +1136,8 @@ internal sealed partial class BeamSolver
         /// </summary>
         private ChildCommitResult CommitChildCore(in ChildRecord child, in Battle directState,
             in RoutingRef routing, int parentNode, in Battle parentState, in RetentionFacts parentFacts,
-            in FetchedRecord fetched, Pool next, Pool ended, TerminalSink terminal)
+            in FetchedRecord fetched, int brightestFlameSpentDelta, Pool next, Pool ended,
+            TerminalSink terminal)
         {
             if (!next.TryReserve())
             {
@@ -1149,12 +1182,18 @@ internal sealed partial class BeamSolver
                 _solver._commitments.Add(child.Commitment);
                 commitment = _solver._commitments.Count;
             }
+            int brightestFlameSpent = 0;
+            if (_solver.TracksBrightestFlameSpent)
+            {
+                brightestFlameSpent = checked(
+                    _solver._nodes.BrightestFlameSpentAt(parentNode) + brightestFlameSpentDelta);
+            }
             _solver._nodes.Add(new RouteNode(parentNode, child.Depth, child.Action, rootActionKey,
                 lineage, child.UsedPotion, firstCardId, firstCardTarget, commitment,
                 child.ActionCardId, child.TargetCombatId, routingMeta.SignatureId, routingMeta.Turn,
                 routingMeta.ChoiceDepth, routingMeta.ParentRank, routingMeta.ParentScore,
                 routingMeta.ParentEnergy, parentFacts.Turn, routingMetaId, potionLineageKey),
-                routingMetaId);
+                routingMetaId, brightestFlameSpent);
             if (traceStep > 0)
                 _solver._trace!.NodeCreated(node, traceStep);
 
@@ -1352,6 +1391,8 @@ internal sealed partial class BeamSolver
         private ref ChildRecord AddChild()
         {
             GrowArray(ref _children, _childCount + 1);
+            if (_solver.TracksBrightestFlameSpent)
+                GrowArray(ref _brightestFlameSpent, _childCount + 1);
             ref ChildRecord child = ref _children[_childCount++];
             NoteGrowableUse();
             return ref child;

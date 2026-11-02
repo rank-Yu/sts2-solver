@@ -17,6 +17,7 @@ internal static class SolverSearchPolicy
         {
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
             IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            BrightestFlameMaxHpLossLimit = search.BrightestFlameMaxHpLossLimit,
             ActTransitionBossHpStrategy = search.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = search.FinalBossHpStrategy,
             PotionDefaultMode = ToPolicy(search.Potions.DefaultMode),

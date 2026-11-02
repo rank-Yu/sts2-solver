@@ -916,6 +916,7 @@ internal static class CombatControllerChecks
                 Potions = settings.Search.Potions with { Directives = [] },
                 GrowthBudgets = new SolverGrowthBudgets(),
                 IgnoreLongTermRewards = false,
+                BrightestFlameMaxHpLossLimit = null,
                 ActTransitionBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
                 FinalBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
             },
@@ -1067,6 +1068,37 @@ internal static class CombatControllerChecks
             ignore.Options.Scorer?.RulesForCodec.GrowthBudgets.Total.ToString() ?? "-");
         check("ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
         check("growth_reset", CombatUiCommands.Instance.SetGrowthBudget(GrowthSource.Feed, 0));
+
+        check("flame_set_cmd", CombatUiCommands.Instance.SetBrightestFlameLimit(2));
+        action("set_brightest_flame:2");
+        await NoSearchAsync("flame_no_search");
+        check("flame_snapshot", Snapshot().Strategy.BrightestFlameMaxHpLossLimit == 2,
+            Snapshot().Strategy.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
+        SearchCase flame = CombatSessionController.CompileRequestForTest();
+        check("flame_request", flame.Options.BrightestFlameMaxHpLossLimit == 2,
+            flame.Options.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
+        check("flame_root_spent",
+            flame.Options.InitialBrightestFlameMaxHpSpent == Snapshot().Strategy.BrightestFlameMaxHpSpent,
+            $"{flame.Options.InitialBrightestFlameMaxHpSpent}!={Snapshot().Strategy.BrightestFlameMaxHpSpent}");
+
+        check("flame_zero_cmd", CombatUiCommands.Instance.SetBrightestFlameLimit(0));
+        action("set_brightest_flame:0");
+        await NoSearchAsync("flame_zero_no_search");
+        SearchCase flameZero = CombatSessionController.CompileRequestForTest();
+        check("flame_zero_request", flameZero.Options.BrightestFlameMaxHpLossLimit == 0,
+            flameZero.Options.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
+        check("flame_zero_snapshot", Snapshot().Strategy.BrightestFlameMaxHpLossLimit == 0,
+            Snapshot().Strategy.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
+
+        check("flame_invalid", !CombatUiCommands.Instance.SetBrightestFlameLimit(1001));
+        check("flame_clear_cmd", CombatUiCommands.Instance.SetBrightestFlameLimit(null));
+        action("set_brightest_flame:none");
+        await NoSearchAsync("flame_clear_no_search");
+        check("flame_clear_snapshot", Snapshot().Strategy.BrightestFlameMaxHpLossLimit is null,
+            Snapshot().Strategy.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
+        SearchCase flameClear = CombatSessionController.CompileRequestForTest();
+        check("flame_clear_request", flameClear.Options.BrightestFlameMaxHpLossLimit is null,
+            flameClear.Options.BrightestFlameMaxHpLossLimit?.ToString() ?? "null");
 
         if (strategy.IsActEndingBoss)
         {

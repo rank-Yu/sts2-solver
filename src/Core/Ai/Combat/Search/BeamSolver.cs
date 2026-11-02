@@ -179,6 +179,15 @@ internal sealed record BeamOptions(
     /// reports the points it already evaluates.
     /// </summary>
     public BeamTrace? Trace { get; init; }
+
+    /// <summary>
+    /// Combat-cumulative BrightestFlame max HP limit; null is unlimited and keeps the default path
+    /// free of the per-node ledger. Encoded only as a non-default SREQ extension.
+    /// </summary>
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
+
+    /// <summary>Max HP already spent on BrightestFlame before this root; root history, not policy.</summary>
+    public int InitialBrightestFlameMaxHpSpent { get; init; }
 }
 
 /// <summary>One parent's workspace shape, reported only when a test observer is installed.</summary>
@@ -543,6 +552,9 @@ internal sealed partial class BeamSolver
     private bool _choiceFillVariants;
     private ExpansionWorkspace _workspace = null!;
 
+    /// <summary>Only a non-null cap allocates and maintains the per-node spent ledger.</summary>
+    internal bool TracksBrightestFlameSpent => _options.BrightestFlameMaxHpLossLimit.HasValue;
+
     /// <summary>One workspace per in-flight parent slot; a single element on the single-thread path.</summary>
     private ExpansionWorkspace[] _workspaces = null!;
     private ParallelExpansion? _parallelExpansion;
@@ -589,6 +601,14 @@ internal sealed partial class BeamSolver
     {
         _rules = rules;
         _options = options;
+        if (options.BrightestFlameMaxHpLossLimit is < 0 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                options.BrightestFlameMaxHpLossLimit,
+                "至亮之焰最大生命消耗上限必须在 0..1000 或 null。");
+        if (options.InitialBrightestFlameMaxHpSpent < 0)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                options.InitialBrightestFlameMaxHpSpent,
+                "根上已消耗的最大生命不能为负。");
         _scorer = options.Scorer
             ?? throw new InvalidOperationException("BeamOptions.Scorer 未设置。");
         _zeroGrowthBudget = _scorer.RulesForCodec.GrowthBudgets.Total == 0;
@@ -646,7 +666,8 @@ internal sealed partial class BeamSolver
         _storage.BeginSolve(_options.SearchMemoryBudgetBytes);
         _routingMetas = new RoutingMetaStore(storage);
         _routingMetas.Clear();
-        _nodes = new RouteNodeStore(storage, _routingMetas);
+        _nodes = new RouteNodeStore(storage, _routingMetas,
+            _options.BrightestFlameMaxHpLossLimit.HasValue);
         _potionLineageKeys = new PotionLineageKeyStore();
         _potionLineageKeys.Clear();
         _routingSignatures = new ChunkedList<RoutingSignature>(storage);
@@ -820,7 +841,8 @@ internal sealed partial class BeamSolver
                 Score(root, _options.InitialActionCount, terminal: false, isEndTurn: false);
             _nodes.Add(new RouteNode(-1, Math.Max(0, _options.InitialActionCount), default, 0, 0,
                 ushort.MaxValue, ushort.MaxValue, int.MinValue, 0,
-                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0), 0);
+                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0), 0,
+                _options.InitialBrightestFlameMaxHpSpent);
             (int rootReachable, int rootZeroCost, _) = _scorer.ReachableHandPotential(root);
             PocketwatchState(root, out int rootPocketwatchThreshold, out int rootPocketwatchPlayed,
                 out int rootPocketwatchLastTurn);
@@ -1535,7 +1557,8 @@ internal sealed partial class BeamSolver
             ? _commitments[commitmentIndex - 1]
             : default;
         return new ParentExpansionContext(node, _nodes.View(node).Depth, pool.Facts(index),
-            pool.RankPosition(index), pool.Rank(index), commitmentIndex > 0, commitment);
+            pool.RankPosition(index), pool.Rank(index), commitmentIndex > 0, commitment,
+            _nodes.TracksBrightestFlameSpent ? _nodes.BrightestFlameSpentAt(node) : 0);
     }
 
     private bool NodeBudgetAvailable => _options.UnlimitedNodes || _expanded < _options.MaxExpandedNodes;

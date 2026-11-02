@@ -56,6 +56,16 @@ internal sealed class NativeHistory
 
     public static NativeHistory Capture(CombatState state) => new(state);
 
+    /// <summary>
+    /// <c>SimulatedCombatState.BrightestFlameMaxHpSpent</c>: the native
+    /// <c>CombatManager.History.CardPlaysStarted</c> entries whose card is BrightestFlame, summing the
+    /// card's dynamic <c>MaxHp</c> exactly as the existing root snapshot does.
+    /// </summary>
+    public static int BrightestFlameMaxHpSpent()
+        => CombatManager.Instance.History.CardPlaysStarted
+            .Where(entry => entry.CardPlay.Card is BrightestFlame)
+            .Sum(entry => entry.CardPlay.Card.DynamicVars.MaxHp.IntValue);
+
     private bool ThisTurn(CombatHistoryEntry entry) => entry.HappenedThisTurn(_state);
 
     public int CardsPlayedThisTurn(Creature owner)

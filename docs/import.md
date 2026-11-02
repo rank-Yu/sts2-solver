@@ -158,6 +158,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `ActTransitionBossHpStrategy` | `ProgressionFirst` | 是否保留幕间回血 `ActClearHeal` | `SolverSettingsData` |
 | `FinalBossHpStrategy` | `ProgressionFirst` | 是否保留 `RunEnding` | 同上 |
 | `IgnoreLongTermRewards` | false | 同时影响成长额度和目标 | — |
+| `BrightestFlameMaxHpLossLimit` | `null` | 至亮之焰整场累计最大生命消耗上限；`null` 不限，`0..1000` 为上限。根上已消耗量不算策略字段，由请求编译单独读原生历史 | `SolverSettingsData`、`GrowthCostPolicy` |
 | `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
 | `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
 | `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；接受 `Smart`、`Disabled`、`Force`，`Smart` 不入表 | `CapturePotionStrategy` |
@@ -204,6 +205,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 ## 6. 搜索请求编译
 
 `SearchRequestCompiler` 只读原生根、已编译的规则和 `SearchPolicy`，冻结 `SearchCase` 需要的评分、下界、根生命、逐瓶药水政策、失窃目标、遗物与成长目标以及回放状态。能力承诺目录根据根中已登记的能力牌和真实的 `RunState.TotalFloor` 编译；生成闭包里的已登记能力也有描述符。默认的药水模式是 Smart；默认策略和空指令直接走原请求对象，不改变 SREQ 字节。
+
+至亮之焰上限来自 `SearchPolicy.BrightestFlameMaxHpLossLimit`。设了上限时，请求编译再从原生 `CombatManager.History.CardPlaysStarted` 读本场已经打出的至亮之焰，按每张牌的动态 `MaxHp` 求和，作为根上的已消耗量；`null` 时不读历史，请求也不写扩展。上限和根上已消耗量只在设了上限时写进 SREQ 末尾的可选扩展（`FLM1`），旧请求没有该扩展时照常解码。
 
 `SearchPerformanceProfile` 给出基准、窄、宽、进攻四种宽度和每单位宽度的时限，并决定是否追加补搜（档位值见 [战斗搜索](combat-ai.md#2-档位与时间)）。Mod 和差分宿主再把宿主的内存预算放进 `CombatSearchRequest`，交给 `CombatSearchCoordinator` 构造成员。成员的宽度、评价、保留、用药限制和时限都在协调器里设置，全部受原请求的保护和强制指令约束；生产搜索没有展开节点上限。宿主回调和帧压力信号只在运行时传递，worker 不读实时战斗或全局搜索设置。
 

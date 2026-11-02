@@ -272,9 +272,10 @@
 | `CardDamageTotal`、`LastDamageTotal`、`LastDamageOverkill` | 本次出牌全部命中的伤害合计，以及最近一次伤害的结果（Fisticuffs、Omnislice 读；对应原引擎 `CombatPredictionDamageReceivedEntry.Result`）；每次出牌开始清零 |
 | `CurrentPlayIsHistoryCourseDupe` | 当前打出的是 HISTORY_COURSE 的复制品 |
 | `StarValue` | 本次出牌的星能 X 值（原版 `LastStarsSpent`） |
+| `BrightestFlameMaxHpSpent` | 本动作中至亮之焰请求消耗的最大生命合计：按每次打出（含自动打出和重放）卡牌的动态 `MaxHp` 累计；动作结束后由搜索读取，不进入 `Battle` |
 | `ChoiceRequest.GeneratedOptions` | 不在牌堆里的选项卡值：Discovery、Splash 的生成选项，Knowledge Demon 的两张诅咒；需要选择时整个动作从父状态重执行 |
 
-伤害来源直接放在栈上的 `DamageResult` 里。搜索容器（候选池、路线节点）不属于状态布局，见 [战斗搜索](combat-ai.md#7-内存与容量)。
+伤害来源直接放在栈上的 `DamageResult` 里。搜索容器（候选池、路线节点）不属于状态布局，见 [战斗搜索](combat-ai.md#7-内存与容量)。至亮之焰的路线累计消耗也只是搜索节点账本：只有请求设了上限才按路线节点保存，不进入 `Battle`、不进入状态指纹。
 
 ### 4.3 原引擎按对象记账的值
 

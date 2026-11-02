@@ -183,15 +183,27 @@ internal sealed partial class BeamSolver
     private ProgressReplay ReplayProgress(PlayerAction[] actions, int rootIndex)
     {
         Battle state = _progressRoots[rootIndex];
+        int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
         List<ProgressTurnBuilder> builders = [];
         ProgressTurnBuilder? current = null;
         for (int index = 0; index < actions.Length; index++)
         {
             PlayerAction action = actions[index];
             Battle before = state;
-            StepResult step = Kernel.Step(ref state, action, _rules, out _);
+            StepResult step = Kernel.Step(ref state, action, _rules, out _,
+                out _, out _, out int actionBrightestFlameSpent);
             if (step != StepResult.Completed)
                 throw new InvalidDataException("推演候选的路线无法从根回放。");
+            if (_options.BrightestFlameMaxHpLossLimit.HasValue)
+            {
+                brightestFlameSpent = checked(brightestFlameSpent + actionBrightestFlameSpent);
+                if (!GrowthCostPolicy.AllowsBrightestFlame(
+                        _options.BrightestFlameMaxHpLossLimit,
+                        _options.InitialBrightestFlameMaxHpSpent, brightestFlameSpent))
+                {
+                    throw new InvalidDataException("推演候选的路线超过至亮之焰最大生命消耗上限。");
+                }
+            }
             int turn = before.PlayerTurn;
             if (current is null || current.Turn != turn)
             {

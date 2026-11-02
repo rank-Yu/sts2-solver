@@ -27,6 +27,16 @@ public static partial class Kernel
     /// </summary>
     internal static StepResult Step(ref Battle battle, in PlayerAction action, Rules rules,
         out ChoiceRequest request, out bool historyRisk, out bool enemySideTurnEndReached)
+        => Step(ref battle, action, rules, out request, out historyRisk, out enemySideTurnEndReached,
+            out _);
+
+    /// <summary>
+    /// As the six-argument overload, also reporting the max HP requested by BrightestFlame plays in
+    /// this action. The search's per-route cap reads it; ordinary callers ignore it.
+    /// </summary>
+    internal static StepResult Step(ref Battle battle, in PlayerAction action, Rules rules,
+        out ChoiceRequest request, out bool historyRisk, out bool enemySideTurnEndReached,
+        out int brightestFlameMaxHpSpent)
     {
         if (!IsInProgress(battle))
             throw new InvalidOperationException("战斗已经结束，不能再执行动作。");
@@ -51,6 +61,7 @@ public static partial class Kernel
         }
         StepResult result = FinishStep(ref x, action, out request, out historyRisk);
         enemySideTurnEndReached = x.EnemySideTurnEndReached;
+        brightestFlameMaxHpSpent = x.BrightestFlameMaxHpSpent;
         return result;
     }
 

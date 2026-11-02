@@ -293,6 +293,13 @@ public ref struct Exec
     /// even when a kill there ends the combat; search does not read this flag.
     /// </summary>
     internal bool EnemySideTurnEndReached;
+
+    /// <summary>
+    /// Max HP requested by BrightestFlame plays in this action, including automatic and replayed
+    /// plays. Transient per action; never part of the battle state or fingerprint. The existing
+    /// engine records the same total in <c>SimulatedCombatState.BrightestFlameMaxHpSpent</c>.
+    /// </summary>
+    internal int BrightestFlameMaxHpSpent;
     private readonly ChoiceSelections _choices;
     private readonly int _choiceCount;
     private int _choicesTaken;
@@ -307,6 +314,7 @@ public ref struct Exec
         NeedsChoice = false;
         HistoryRisk = false;
         EnemySideTurnEndReached = false;
+        BrightestFlameMaxHpSpent = 0;
         Request = default;
         Card = default;
         Stats = null;
@@ -375,7 +383,7 @@ public ref struct Exec
             LampInternalTypes, VambraceTriggerActive, VambraceTriggerPosition,
             VambraceTriggerSerial, LastCardPowerSourceSerial, PlayIdentity, LastPlayIdentity,
             PlayIdentityCounter, MusicBoxPlayIdentity, CurrentPlayIsAutoPlay,
-            CurrentPlayIsHistoryCourseDupe, CurrentPlayEnergyValue);
+            CurrentPlayIsHistoryCourseDupe, CurrentPlayEnergyValue, BrightestFlameMaxHpSpent);
     }
 
     /// <summary>Restores a prefix snapshot into a freshly constructed action execution context.</summary>
@@ -424,6 +432,7 @@ public ref struct Exec
         CurrentPlayIsAutoPlay = continuation.CurrentPlayIsAutoPlay;
         CurrentPlayIsHistoryCourseDupe = continuation.CurrentPlayIsHistoryCourseDupe;
         CurrentPlayEnergyValue = continuation.CurrentPlayEnergyValue;
+        BrightestFlameMaxHpSpent = continuation.BrightestFlameMaxHpSpent;
     }
 
     /// <summary>

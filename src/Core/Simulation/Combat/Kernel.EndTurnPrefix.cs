@@ -94,7 +94,8 @@ public static partial class Kernel
     /// selection leaf pays for the first half once and its siblings reuse the returned image.
     /// </summary>
     public static StepResult StepEndTurnSharingPrefix(ref Battle battle, in PlayerAction action,
-        Rules rules, out ChoiceRequest request, out bool historyRisk, ref EndTurnPrefix prefix)
+        Rules rules, out ChoiceRequest request, out bool historyRisk, ref EndTurnPrefix prefix,
+        out int brightestFlameMaxHpSpent)
     {
         if (!IsInProgress(battle))
             throw new InvalidOperationException("战斗已经结束，不能再执行动作。");
@@ -126,7 +127,9 @@ public static partial class Kernel
         }
         if (!x.NeedsChoice)
             x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-        return FinishStep(ref x, action, out request, out historyRisk);
+        StepResult result = FinishStep(ref x, action, out request, out historyRisk);
+        brightestFlameMaxHpSpent = x.BrightestFlameMaxHpSpent;
+        return result;
     }
 
     /// <summary>
@@ -136,7 +139,8 @@ public static partial class Kernel
     /// identical to <see cref="Step"/> from the original parent.
     /// </summary>
     public static StepResult StepEndTurnFromPrefix(ref Battle battle, in PlayerAction action,
-        Rules rules, in EndTurnPrefix prefix, out ChoiceRequest request, out bool historyRisk)
+        Rules rules, in EndTurnPrefix prefix, out ChoiceRequest request, out bool historyRisk,
+        out int brightestFlameMaxHpSpent)
     {
         if (!prefix.IsPrepared)
             throw new InvalidOperationException("EndTurn 前缀尚未准备。");
@@ -149,6 +153,8 @@ public static partial class Kernel
             AdvanceRoundPlayerStart(ref x);
         if (!x.NeedsChoice)
             x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-        return FinishStep(ref x, action, out request, out historyRisk);
+        StepResult result = FinishStep(ref x, action, out request, out historyRisk);
+        brightestFlameMaxHpSpent = x.BrightestFlameMaxHpSpent;
+        return result;
     }
 }

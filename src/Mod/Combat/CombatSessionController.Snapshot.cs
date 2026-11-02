@@ -116,6 +116,8 @@ internal static partial class CombatSessionController
             Potions = [.. potions],
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
             IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            BrightestFlameMaxHpLossLimit = search.BrightestFlameMaxHpLossLimit,
+            BrightestFlameMaxHpSpent = _state == null ? 0 : NativeHistory.BrightestFlameMaxHpSpent(),
             ActTransitionBossHpStrategy = search.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = search.FinalBossHpStrategy,
             BossHpRelief = relief switch

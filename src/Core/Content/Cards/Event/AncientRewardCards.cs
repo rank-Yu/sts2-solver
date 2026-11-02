@@ -86,10 +86,14 @@ public sealed class BrightestFlame : CardDef
         Kernel.Draw(ref x, CardEffects.Var(x, 2), fromHandDraw: false);
         if (x.NeedsChoice)
             return;
+        int maxHpLoss = (int)CardEffects.Var(x, 0);
+        // Mirrors CombatSolver's CardEffectSpecRegistry BrightestFlame case: record the card's
+        // dynamic MaxHp before applying it, so the search can enforce the per-combat cap.
+        x.BrightestFlameMaxHpSpent = checked(x.BrightestFlameMaxHpSpent + maxHpLoss);
         Kernel.GainEnergy(ref x, CardEffects.Var(x, 1));
         if (x.NeedsChoice)
             return;
-        Kernel.LoseMaxHp(ref x, Limits.PlayerOwner, (int)CardEffects.Var(x, 0),
+        Kernel.LoseMaxHp(ref x, Limits.PlayerOwner, maxHpLoss,
             ValueProps.Unblockable | ValueProps.Unpowered | ValueProps.Move);
     }
 }

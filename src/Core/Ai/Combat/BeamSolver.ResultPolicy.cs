@@ -18,6 +18,7 @@ internal sealed partial class BeamSolver
         Battle end = root;
         int uses = _initialExplicitPotionUses;
         int ambergris = _initialAmbergrisUses;
+        int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
         List<PotionUse> potionUses = [];
         for (int i = 0; i < result.BestRoute.Length; i++)
         {
@@ -48,11 +49,25 @@ internal sealed partial class BeamSolver
                 Battle partial = before;
                 PlayerAction partialAction = action;
                 partialAction.ChoiceCount = (byte)prefix;
-                StepResult step = Kernel.Step(ref partial, partialAction, _rules, out _);
+                StepResult step = Kernel.Step(ref partial, partialAction, _rules, out _,
+                    out _, out _, out int actionBrightestFlameSpent);
                 if (prefix < action.ChoiceCount && step != StepResult.NeedsChoice
                     || prefix == action.ChoiceCount && step != StepResult.Completed)
                     throw new InvalidDataException("路线的选择无法回放。");
-                if (prefix == action.ChoiceCount) end = partial;
+                if (prefix == action.ChoiceCount)
+                {
+                    if (_options.BrightestFlameMaxHpLossLimit.HasValue)
+                    {
+                        brightestFlameSpent = checked(brightestFlameSpent + actionBrightestFlameSpent);
+                        if (!GrowthCostPolicy.AllowsBrightestFlame(
+                                _options.BrightestFlameMaxHpLossLimit,
+                                _options.InitialBrightestFlameMaxHpSpent, brightestFlameSpent))
+                        {
+                            throw new InvalidDataException("路线超过至亮之焰最大生命消耗上限。");
+                        }
+                    }
+                    end = partial;
+                }
             }
         }
         outcome = end.Outcome;

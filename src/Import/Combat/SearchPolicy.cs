@@ -58,6 +58,9 @@ public sealed record SearchPolicyConfiguration
 
     public bool IgnoreLongTermRewards { get; init; }
 
+    /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
+
     public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
 
@@ -175,6 +178,9 @@ public sealed record SearchPolicy
 
     public bool IgnoreLongTermRewards { get; init; }
 
+    /// <summary>Combat-cumulative BrightestFlame max HP limit; null leaves the default path.</summary>
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
+
     public SearchTheftPolicy? TheftPolicy { get; init; }
 
     public bool BaseScoreOnly { get; init; }
@@ -247,6 +253,11 @@ public static class SearchPolicyCapture
                 "玩家没有 PlayerCombatState");
         }
         SearchPolicyConfiguration settings = configuration ?? SearchPolicyConfiguration.Default;
+        if (settings.BrightestFlameMaxHpLossLimit is < 0 or > 1000)
+        {
+            throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                $"至亮之焰最大生命消耗上限必须在 0..1000 或 null：{settings.BrightestFlameMaxHpLossLimit}");
+        }
         SearchTheftPolicy? theft = ResolveTheftPolicy(state);
         if (settings.TheftPolicy is { } configuredTheft)
         {
@@ -270,6 +281,7 @@ public static class SearchPolicyCapture
             ActTransitionBossHpStrategy = settings.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = settings.FinalBossHpStrategy,
             IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
+            BrightestFlameMaxHpLossLimit = settings.BrightestFlameMaxHpLossLimit,
             TheftPolicy = theft,
             PotionDefaultMode = settings.PotionDefaultMode,
             PotionDirectives = directives,

@@ -57,6 +57,7 @@ internal readonly struct ExecContinuation
     internal readonly bool CurrentPlayIsAutoPlay;
     internal readonly bool CurrentPlayIsHistoryCourseDupe;
     internal readonly int CurrentPlayEnergyValue;
+    internal readonly int BrightestFlameMaxHpSpent;
 
     internal ExecContinuation(
         bool historyRisk, int attackUnblockedHits, int cardDamageTotal, bool cardKilledTarget,
@@ -71,7 +72,7 @@ internal readonly struct ExecContinuation
         bool vambraceTriggerActive, int vambraceTriggerPosition, int vambraceTriggerSerial,
         int lastCardPowerSourceSerial, int playIdentity, int lastPlayIdentity, int playIdentityCounter,
         int musicBoxPlayIdentity, bool currentPlayIsAutoPlay, bool currentPlayIsHistoryCourseDupe,
-        int currentPlayEnergyValue)
+        int currentPlayEnergyValue, int brightestFlameMaxHpSpent)
     {
         HistoryRisk = historyRisk;
         AttackUnblockedHits = attackUnblockedHits;
@@ -116,5 +117,6 @@ internal readonly struct ExecContinuation
         CurrentPlayIsAutoPlay = currentPlayIsAutoPlay;
         CurrentPlayIsHistoryCourseDupe = currentPlayIsHistoryCourseDupe;
         CurrentPlayEnergyValue = currentPlayEnergyValue;
+        BrightestFlameMaxHpSpent = brightestFlameMaxHpSpent;
     }
 }

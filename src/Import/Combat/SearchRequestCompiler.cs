@@ -91,6 +91,11 @@ internal static class SearchRequestCompiler
         if (!deterministic && profile.MillisecondsPerWidth <= 0)
             throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
                 $"单位宽度搜索时间必须为正：{profile.MillisecondsPerWidth}");
+        if (policy.BrightestFlameMaxHpLossLimit is < 0 or > 1000)
+        {
+            throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                $"至亮之焰最大生命消耗上限必须在 0..1000 或 null：{policy.BrightestFlameMaxHpLossLimit}");
+        }
 
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(
             state, player, rules, root, policy, facts);
@@ -133,6 +138,9 @@ internal static class SearchRequestCompiler
             SearchMemoryBudgetBytes = searchMemoryBudgetBytes,
             PowerCommitments = PowerCatalogBuilder.Build(root, rules, scorer, state.RunState.TotalFloor),
             HasUnboundedGrowthTargets = policy.HasUnboundedGrowthTargets && !policy.IgnoreLongTermRewards,
+            BrightestFlameMaxHpLossLimit = policy.BrightestFlameMaxHpLossLimit,
+            InitialBrightestFlameMaxHpSpent = policy.BrightestFlameMaxHpLossLimit.HasValue
+                ? NativeHistory.BrightestFlameMaxHpSpent() : 0,
         };
         return new SearchCase(rules, [root], options);
     }

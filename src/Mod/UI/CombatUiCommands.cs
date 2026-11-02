@@ -30,6 +30,8 @@ internal interface ICombatUiCommands
 
     bool SetIgnoreLongTermRewards(bool ignore);
 
+    bool SetBrightestFlameLimit(int? limit);
+
     bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy);
 
     bool SetFinalBossHpStrategy(SearchBossHpStrategy strategy);
@@ -68,6 +70,9 @@ internal static class CombatUiCommands
 
         public bool SetIgnoreLongTermRewards(bool ignore)
             => CombatSessionController.SetIgnoreLongTermRewards(ignore);
+
+        public bool SetBrightestFlameLimit(int? limit)
+            => CombatSessionController.SetBrightestFlameLimit(limit);
 
         public bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy)
             => CombatSessionController.SetActTransitionBossHpStrategy(strategy);

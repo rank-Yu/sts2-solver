@@ -56,6 +56,7 @@ internal static class ExecCoverage
         nameof(Exec.CurrentPlayIsAutoPlay),
         nameof(Exec.CurrentPlayIsHistoryCourseDupe),
         nameof(Exec.CurrentPlayEnergyValue),
+        nameof(Exec.BrightestFlameMaxHpSpent),
     ];
 
     private static readonly string[] AssertedEmpty =

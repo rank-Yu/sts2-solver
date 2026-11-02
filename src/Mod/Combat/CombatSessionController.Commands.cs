@@ -358,6 +358,24 @@ internal static partial class CombatSessionController
         return true;
     }
 
+    internal static bool SetBrightestFlameLimit(int? limit)
+    {
+        RequireMainThread();
+        if (limit is < 0 or > 1000)
+            return false;
+        if (SolverSettings.Current.Search.BrightestFlameMaxHpLossLimit == limit)
+            return true;
+        if (!SolverSettings.Update(settings => settings with
+            {
+                Search = settings.Search with { BrightestFlameMaxHpLossLimit = limit },
+            }))
+        {
+            return false;
+        }
+        StrategySettingsChanged($"brightest_flame_limit={limit?.ToString() ?? "none"}");
+        return true;
+    }
+
     internal static bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy)
     {
         RequireMainThread();

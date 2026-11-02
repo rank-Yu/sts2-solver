@@ -73,9 +73,11 @@ internal sealed partial class BeamSolver
         private readonly ChunkedList<int> _routingMetaId;
         private readonly ChunkedList<int> _parentTurn;
         private readonly ChunkedList<int> _potionLineageKeyId;
+        private readonly ChunkedList<int>? _brightestFlameSpent;
         private readonly RoutingMetaStore _metas;
 
-        internal RouteNodeStore(SearchStorage storage, RoutingMetaStore metas)
+        internal RouteNodeStore(SearchStorage storage, RoutingMetaStore metas,
+            bool trackBrightestFlameSpent)
         {
             _parent = new ChunkedList<int>(storage);
             _depth = new ChunkedList<int>(storage);
@@ -91,12 +93,19 @@ internal sealed partial class BeamSolver
             _routingMetaId = new ChunkedList<int>(storage);
             _parentTurn = new ChunkedList<int>(storage);
             _potionLineageKeyId = new ChunkedList<int>(storage);
+            _brightestFlameSpent = trackBrightestFlameSpent
+                ? new ChunkedList<int>(storage) : null;
             _metas = metas;
         }
 
         internal int Count => _parent.Count;
 
         internal int PeakCount { get; private set; }
+
+        /// <summary>True only when the request carries a BrightestFlame cap; the default path is free.</summary>
+        internal bool TracksBrightestFlameSpent => _brightestFlameSpent is not null;
+
+        internal int BrightestFlameSpentAt(int index) => _brightestFlameSpent![index];
 
         /// <summary>Logical bytes of the node chunks at the high-water node count.</summary>
         internal long StorageBytes
@@ -108,7 +117,8 @@ internal sealed partial class BeamSolver
                     + Unsafe.SizeOf<ulong>() + Unsafe.SizeOf<ulong>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
-                    + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>());
+                    + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>()
+                    + (_brightestFlameSpent is null ? 0 : Unsafe.SizeOf<int>()));
                 long chunks = ((long)PeakCount + ChunkSize - 1) >> ChunkShift;
                 return chunks * chunkBytes;
             }
@@ -130,10 +140,11 @@ internal sealed partial class BeamSolver
             _routingMetaId.Clear();
             _parentTurn.Clear();
             _potionLineageKeyId.Clear();
+            _brightestFlameSpent?.Clear();
             PeakCount = 0;
         }
 
-        internal void Add(in RouteNode node, int routingMetaId)
+        internal void Add(in RouteNode node, int routingMetaId, int brightestFlameSpent)
         {
             _parent.Add(node.Parent);
             _depth.Add(node.Depth);
@@ -149,6 +160,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Add(routingMetaId);
             _parentTurn.Add(node.ParentTurn);
             _potionLineageKeyId.Add(node.PotionLineageKeyId);
+            _brightestFlameSpent?.Add(brightestFlameSpent);
             if (Count > PeakCount)
                 PeakCount = Count;
         }
@@ -222,6 +234,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Move(from, to);
             _parentTurn.Move(from, to);
             _potionLineageKeyId.Move(from, to);
+            _brightestFlameSpent?.Move(from, to);
         }
 
         internal void Truncate(int count)
@@ -240,6 +253,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Truncate(count);
             _parentTurn.Truncate(count);
             _potionLineageKeyId.Truncate(count);
+            _brightestFlameSpent?.Truncate(count);
         }
     }
 

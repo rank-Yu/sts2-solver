@@ -109,6 +109,20 @@ internal static class UiLogicChecks
         Require(data.Search.GrowthBudgets.ToPolicy() == default, "growth_default");
         Require(data.Search.GrowthBudgets.ThirdParty.Count == 0, "growth_third_party_default");
         Require(!data.Search.IgnoreLongTermRewards, "ignore_long_term_default");
+        Require(data.Search.BrightestFlameMaxHpLossLimit is null, "brightest_flame_default");
+        bool flameRejected = false;
+        try
+        {
+            (new SolverSettingsData
+            {
+                Search = new SolverSearchSettings { BrightestFlameMaxHpLossLimit = 1001 },
+            }).Validate();
+        }
+        catch (InvalidDataException)
+        {
+            flameRejected = true;
+        }
+        Require(flameRejected, "brightest_flame_out_of_range");
         Require(data.Search.RelicTargets.Length == 0, "relic_targets_default");
         Require(data.Search.ActTransitionBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "act_boss_default");
@@ -154,6 +168,7 @@ internal static class UiLogicChecks
                     },
                 },
                 IgnoreLongTermRewards = true,
+                BrightestFlameMaxHpLossLimit = 3,
                 RelicTargets =
                 [
                     new SearchRelicCounterTarget(SearchRelicCounter.HappyFlower, 2, 4, 6, 3, 2),

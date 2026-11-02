@@ -23,6 +23,7 @@ internal static class SearchCodec
 {
     internal const uint RequestMagic = 0x51455253; // "SREQ"
     internal const uint ResultMagic = 0x53455253; // "SRES"
+    internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
 
     internal static byte[] EncodeRequest(SearchCase search)
         => Codec.ToBytes(writer =>
@@ -132,6 +133,16 @@ internal static class SearchCodec
         if (options.Pacer != null) hooks |= 1;
         if (options.Trace != null) hooks |= 8;
         writer.Write(hooks);
+        if (options.BrightestFlameMaxHpLossLimit is { } flameLimit)
+        {
+            if (flameLimit is < 0 or > 1000)
+                throw new InvalidDataException("至亮之焰最大生命消耗上限必须在 0..1000。");
+            if (options.InitialBrightestFlameMaxHpSpent < 0)
+                throw new InvalidDataException("根上已消耗的最大生命不能为负。");
+            writer.Write(BrightestFlameExtensionMagic);
+            writer.Write(flameLimit);
+            writer.Write(options.InitialBrightestFlameMaxHpSpent);
+        }
         if (options.Scorer?.QueenPolicy is { } queen)
         {
             if (!queen.PreserveKillTiming)
@@ -229,20 +240,48 @@ internal static class SearchCodec
         byte hooks = reader.ReadByte();
         if ((hooks & ~0x0F) != 0)
             throw new InvalidDataException($"Sts2Solver 搜索请求的宿主回调位 {hooks:X} 非法。");
-        if (reader.BaseStream.Position < reader.BaseStream.Length)
+        int? flameLimit = null;
+        int flameSpent = 0;
+        bool sawFlame = false;
+        bool sawSetup = false;
+        bool sawQueen = false;
+        while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
             uint extension = reader.ReadUInt32();
-            if (scorer is null)
-                throw new InvalidDataException("Search extension requires a scorer.");
-            if (extension is 0x31505553u or 0x32505553u)
+            if (extension == BrightestFlameExtensionMagic)
             {
-                SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader, continuous: extension == 0x32505553u);
+                if (sawFlame)
+                    throw new InvalidDataException("至亮之焰扩展重复。");
+                int limit = reader.ReadInt32();
+                if (limit is < 0 or > 1000)
+                    throw new InvalidDataException($"至亮之焰最大生命消耗上限 {limit} 非法。");
+                int spent = reader.ReadInt32();
+                if (spent < 0)
+                    throw new InvalidDataException($"根上已消耗的最大生命 {spent} 非法。");
+                flameLimit = limit;
+                flameSpent = spent;
+                sawFlame = true;
+            }
+            else if (extension is 0x31505553u or 0x32505553u)
+            {
+                if (scorer is null)
+                    throw new InvalidDataException("Search extension requires a scorer.");
+                if (sawSetup || sawQueen)
+                    throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
+                SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader,
+                    continuous: extension == 0x32505553u);
                 scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, setup: setup);
+                sawSetup = true;
             }
             else if (extension == 0x32505351u)
             {
+                if (scorer is null)
+                    throw new InvalidDataException("Search extension requires a scorer.");
+                if (sawSetup || sawQueen)
+                    throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
                 QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader) with { PreserveKillTiming = true };
                 scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, queen: queen);
+                sawQueen = true;
             }
             else if (extension == 0x31505351u)
                 throw new InvalidDataException("QSP1 女王能力补搜已删除。");
@@ -271,6 +310,8 @@ internal static class SearchCodec
             AggressivePowerCommitment = aggressive,
             PreserveReplayAllocatorOpening = preserveOpening,
             PowerCommitments = commitments,
+            BrightestFlameMaxHpLossLimit = flameLimit,
+            InitialBrightestFlameMaxHpSpent = flameSpent,
         };
     }
 

@@ -52,7 +52,6 @@ public static class ModEntry
         CombatSessionController.Initialize();
         if (NGame.IsMainThread())
         {
-            SearchThreadCount.Resolve();
             CombatUiStore.Reset(CombatUiProjection.Idle(SearchMemoryBudget.Resolve()));
         }
         else

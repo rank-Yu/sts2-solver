@@ -1,7 +1,7 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.Controls.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // Dark palette only. Group descriptions are not shown; the slider is narrower and inputs keep their
-// height so the two columns fit the 390-wide sidebar, and a note row can sit under an input.
+// height so the two columns fit the 390-wide sidebar.
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
@@ -212,22 +212,6 @@ internal static class SolverSettingsControls
         grid.AddChild(input);
     }
 
-    /// <summary>A hidden caption under the previous row's input; both grid cells hide together.</summary>
-    public static SettingsNote AddNoteRow(GridContainer grid)
-    {
-        Control spacer = new() { Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
-        Label note = SolverUiTokens.CreateLabel(
-            string.Empty,
-            SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextMuted);
-        note.Visible = false;
-        note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        note.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        grid.AddChild(spacer);
-        grid.AddChild(note);
-        return new SettingsNote(spacer, note);
-    }
-
     private static void ApplyTooltip(Control control, string tooltip)
     {
         control.TooltipText = tooltip;
@@ -257,18 +241,5 @@ internal static class SolverSettingsControls
         };
         row.AddChild(divider);
         return row;
-    }
-}
-
-/// <summary>A note row of a settings grid: the empty label cell and the caption under the input.</summary>
-internal sealed record SettingsNote(Control Spacer, Label Label)
-{
-    /// <summary>Shows the caption, or hides the whole row when the text is null.</summary>
-    public void Show(string? text)
-    {
-        Spacer.Visible = text != null;
-        Label.Visible = text != null;
-        if (text != null && Label.Text != text)
-            Label.Text = text;
     }
 }

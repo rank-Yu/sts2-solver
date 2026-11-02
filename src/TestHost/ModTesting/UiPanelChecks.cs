@@ -123,8 +123,6 @@ internal static class UiPanelChecks
         session.Check("sidebar_single_page", sidebar is { TabBarVisibleForTest: false }, "tab bar shown");
         session.Check("settings_no_light_theme", NoLightTheme(sidebar), "light surface or theme selector");
         session.Check("settings_controls_present", ControlsPresent(sidebar, out string missing), missing);
-        session.Check("settings_environment_state", EnvironmentState(page, out string environment),
-            environment);
         (bool resetOk, string resetDetail) = await ResetKeepsModeAsync(host, page);
         session.Check("settings_reset_keeps_mode", resetOk, resetDetail);
         await Press(host, panel.SettingsButtonForTest);
@@ -288,39 +286,6 @@ internal static class UiPanelChecks
             .ToArray();
         missing = absent.Length == 0 ? "all present" : string.Join("|", absent);
         return absent.Length == 0;
-    }
-
-    private static bool EnvironmentState(SolverSettingsPage? page, out string detail)
-    {
-        if (page == null)
-        {
-            detail = "page missing";
-            return false;
-        }
-        SettingsUiSnapshot settings = CombatUiStore.Snapshot.Settings;
-        string? threadsVariable = System.Environment.GetEnvironmentVariable(SearchThreadCount.OverrideVariable);
-        string? memoryVariable = System.Environment.GetEnvironmentVariable(SearchMemoryBudget.OverrideVariable);
-        bool threadsExpected = int.TryParse(threadsVariable, NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out int threads) && threads > 0;
-        bool memoryExpected = long.TryParse(memoryVariable, NumberStyles.Integer,
-            CultureInfo.InvariantCulture, out long mebibytes) && mebibytes > 0;
-        LineEdit threadsInput = page.ThreadsInputForTest;
-        LineEdit memoryInput = page.MemoryInputForTest;
-        string threadsText = settings.SearchThreads.ToString(CultureInfo.InvariantCulture);
-        string memoryText = SolverSettingsPage.FormatGigabytes(settings.MemoryBudgetBytes);
-        detail = $"threads_env={threadsVariable ?? "-"} source={settings.SearchThreadsSource} " +
-            $"editable={threadsInput.Editable} note={page.ThreadsNoteForTest.Visible} " +
-            $"text={threadsInput.Text}/{threadsText} memory_env={memoryVariable ?? "-"} " +
-            $"source={settings.MemoryBudgetSource} editable={memoryInput.Editable} " +
-            $"note={page.MemoryNoteForTest.Visible} text={memoryInput.Text}/{memoryText}";
-        return settings.SearchThreadsFromEnvironment == threadsExpected
-            && threadsInput.Editable == !threadsExpected
-            && page.ThreadsNoteForTest.Visible == threadsExpected
-            && threadsInput.Text == threadsText
-            && settings.MemoryBudgetFromEnvironment == memoryExpected
-            && memoryInput.Editable == !memoryExpected
-            && page.MemoryNoteForTest.Visible == memoryExpected
-            && memoryInput.Text == memoryText;
     }
 
     /// <summary>

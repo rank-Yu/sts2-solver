@@ -25,9 +25,7 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
     private readonly LineEdit _delay;
     private readonly OptionButton _tier;
     private readonly LineEdit _threads;
-    private readonly SettingsNote _threadsNote;
     private readonly LineEdit _memory;
-    private readonly SettingsNote _memoryNote;
     private readonly HSlider _opacity;
     private readonly Label _opacityValue;
     private readonly Label _status;
@@ -94,14 +92,12 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
         _threads.FocusExited += () => CommitThreads();
         SolverSettingsControls.AddBasicRow(performance, SolverText.Get("搜索并行度"), _threads,
             SolverText.Get("越大搜索越快，但更占 CPU，可能让游戏卡顿。"));
-        _threadsNote = SolverSettingsControls.AddNoteRow(performance);
         _memory = SolverSettingsControls.CreateInput(string.Empty);
         _memory.Name = "MemoryInput";
         _memory.TextSubmitted += _ => CommitMemory();
         _memory.FocusExited += () => CommitMemory();
         SolverSettingsControls.AddBasicRow(performance, SolverText.Get("搜索内存上限（GB）"), _memory,
             SolverText.Get("只限制搜索用的内存。设太小可能搜不完。"));
-        _memoryNote = SolverSettingsControls.AddNoteRow(performance);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("性能"), performance);
 
         GridContainer display = SolverSettingsControls.CreateSettingsGrid();
@@ -246,20 +242,8 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
     {
         _settings = snapshot.Settings;
         _availableMemoryBytes = snapshot.Memory.GcAvailableBytes;
-        bool threadsFromEnvironment = _settings.SearchThreadsFromEnvironment;
-        _threads.Editable = !threadsFromEnvironment;
-        _threads.ClearButtonEnabled = !threadsFromEnvironment;
-        _threadsNote.Show(threadsFromEnvironment
-            ? SolverText.Get("由环境变量指定")
-            : null);
         if (force || !_threads.HasFocus())
             Show(_threads, ref _threadsShown, _settings.SearchThreads.ToString(CultureInfo.InvariantCulture));
-        bool memoryFromEnvironment = _settings.MemoryBudgetFromEnvironment;
-        _memory.Editable = !memoryFromEnvironment;
-        _memory.ClearButtonEnabled = !memoryFromEnvironment;
-        _memoryNote.Show(memoryFromEnvironment
-            ? SolverText.Get("由环境变量指定")
-            : null);
         if (force || !_memory.HasFocus())
             Show(_memory, ref _memoryShown, FormatGigabytes(_settings.MemoryBudgetBytes));
     }
@@ -308,7 +292,7 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
 
     private bool CommitThreads()
     {
-        if (_loading || !_threads.Editable || _threads.Text == _threadsShown)
+        if (_loading || _threads.Text == _threadsShown)
             return true;
         if (!TryParseThreads(_threads.Text, _settings.SearchThreadsDefault, out int? threads))
         {
@@ -327,7 +311,7 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
 
     private bool CommitMemory()
     {
-        if (_loading || !_memory.Editable || _memory.Text == _memoryShown)
+        if (_loading || _memory.Text == _memoryShown)
             return true;
         long maximumBytes = Math.Max(_availableMemoryBytes, _settings.MemoryBudgetDefaultBytes);
         if (!TryParseMemoryGigabytes(_memory.Text, _settings.MemoryBudgetDefaultBytes, maximumBytes,
@@ -450,14 +434,6 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
 
 #if STS2_SOLVER_TESTING
     internal Button ResetButtonForTest => _reset;
-
-    internal LineEdit ThreadsInputForTest => _threads;
-
-    internal LineEdit MemoryInputForTest => _memory;
-
-    internal Label ThreadsNoteForTest => _threadsNote.Label;
-
-    internal Label MemoryNoteForTest => _memoryNote.Label;
 
     internal string StatusTextForTest => _status.Text;
 #endif

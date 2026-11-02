@@ -13,7 +13,6 @@
   "不选": "Skip choice",
   "第 {0} 回合": "Turn {0}",
   "（药水）": " (Potion)",
-  "环境变量": "Environment variable",
   "默认": "Default",
   "无": "None",
   "全自动已暂停": "Full auto paused",
@@ -261,6 +260,5 @@
   "搜索内存上限（GB）": "Search memory limit (GB)",
   "越高越可能找到更好的路线，但搜索更久。": "Higher tiers are more likely to find a better route but search longer.",
   "越大搜索越快，但更占 CPU，可能让游戏卡顿。": "Higher values search faster but use more CPU and may make the game stutter.",
-  "只限制搜索用的内存。设太小可能搜不完。": "Limits only the memory used by search. Too small a limit may stop the search early.",
-  "由环境变量指定": "Set by an environment variable"
+  "只限制搜索用的内存。设太小可能搜不完。": "Limits only the memory used by search. Too small a limit may stop the search early."
 }

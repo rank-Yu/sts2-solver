@@ -342,24 +342,15 @@ internal static class UiLogicChecks
     private static void MemoryPriority()
     {
         const long gib = 1L << 30;
-        const long mib = 1L << 20;
-        SearchMemoryBudgetResolution environment =
-            SearchMemoryBudget.Resolve(2 * gib, "4096", gib);
-        Require(environment.Source == SearchMemoryBudgetSource.Environment, "env_source");
-        Require(environment.Bytes == 4096 * mib, "env_bytes");
-        SearchMemoryBudgetResolution settings = SearchMemoryBudget.Resolve(2 * gib, null, gib);
+        SearchMemoryBudgetResolution settings = SearchMemoryBudget.Resolve(2 * gib, gib);
         Require(settings.Source == SearchMemoryBudgetSource.Settings, "settings_source");
         Require(settings.Bytes == 2 * gib, "settings_bytes");
-        SearchMemoryBudgetResolution fallback = SearchMemoryBudget.Resolve(null, null, gib);
+        SearchMemoryBudgetResolution fallback = SearchMemoryBudget.Resolve(null, gib);
         Require(fallback.Source == SearchMemoryBudgetSource.Default, "default_source");
         Require(fallback.Bytes == gib, "default_bytes");
-        SearchMemoryBudgetResolution invalid = SearchMemoryBudget.Resolve(2 * gib, "0", gib);
-        Require(invalid.Source == SearchMemoryBudgetSource.Settings, "invalid_env_fallthrough");
-        Require(invalid.Bytes == 2 * gib, "invalid_env_bytes");
-        SearchMemoryBudgetResolution unparseable =
-            SearchMemoryBudget.Resolve(null, "nope", gib);
-        Require(unparseable.Source == SearchMemoryBudgetSource.Default, "unparseable_env_source");
-        Require(unparseable.Bytes == gib, "unparseable_env_bytes");
+        SearchMemoryBudgetResolution invalid = SearchMemoryBudget.Resolve(0, gib);
+        Require(invalid.Source == SearchMemoryBudgetSource.Default, "invalid_setting_fallthrough");
+        Require(invalid.Bytes == gib, "invalid_setting_bytes");
     }
 
     private static void MemoryDefault()
@@ -407,35 +398,23 @@ internal static class UiLogicChecks
 
     private static void ThreadCount()
     {
-        SearchThreadCountResolution many = SearchThreadCount.Resolve(null, 24);
+        SearchThreadCountResolution many = SearchThreadCount.Resolve(24);
         Require(many.Threads == 8 && many.Source == SearchThreadCountSource.Default,
             "default_upper_clamp");
-        SearchThreadCountResolution four = SearchThreadCount.Resolve(null, 4);
+        SearchThreadCountResolution four = SearchThreadCount.Resolve(4);
         Require(four.Threads == 2, "default_minus_two");
-        SearchThreadCountResolution one = SearchThreadCount.Resolve(null, 1);
+        SearchThreadCountResolution one = SearchThreadCount.Resolve(1);
         Require(one.Threads == 1, "default_floor");
-        SearchThreadCountResolution environment = SearchThreadCount.Resolve("3", 24);
-        Require(environment.Threads == 3 && environment.Source == SearchThreadCountSource.Environment,
-            "env_source");
-        SearchThreadCountResolution clamped = SearchThreadCount.Resolve("99", 24);
-        Require(clamped.Threads == 8 && clamped.Source == SearchThreadCountSource.Environment,
-            "env_upper_clamp");
-        SearchThreadCountResolution invalid = SearchThreadCount.Resolve("0", 24);
-        Require(invalid.Threads == 8 && invalid.Source == SearchThreadCountSource.Default,
-            "invalid_env_fallthrough");
-        SearchThreadCountResolution unparseable = SearchThreadCount.Resolve("nope", 4);
-        Require(unparseable.Threads == 2 && unparseable.Source == SearchThreadCountSource.Default,
-            "unparseable_env_fallthrough");
-        SearchThreadCountResolution settings = SearchThreadCount.Resolve(null, 24, 3);
+        SearchThreadCountResolution settings = SearchThreadCount.Resolve(24, 3);
         Require(settings.Threads == 3 && settings.Source == SearchThreadCountSource.Settings,
             "settings_source");
-        SearchThreadCountResolution settingsClamped = SearchThreadCount.Resolve(null, 24, 99);
+        SearchThreadCountResolution settingsClamped = SearchThreadCount.Resolve(24, 99);
         Require(settingsClamped.Threads == 8 && settingsClamped.Source == SearchThreadCountSource.Settings,
             "settings_clamp");
-        SearchThreadCountResolution environmentWins = SearchThreadCount.Resolve("2", 24, 3);
-        Require(environmentWins.Threads == 2
-            && environmentWins.Source == SearchThreadCountSource.Environment,
-            "environment_beats_settings");
+        SearchThreadCountResolution settingsBeatsDefault = SearchThreadCount.Resolve(4, 3);
+        Require(settingsBeatsDefault.Threads == 3
+            && settingsBeatsDefault.Source == SearchThreadCountSource.Settings,
+            "settings_beats_default");
     }
 
     private static void ResultSummarySpeed()

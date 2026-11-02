@@ -37,17 +37,12 @@ internal static class CombatUiProjection
 
     internal static SettingsUiSnapshot Settings(SearchMemoryBudgetResolution budget)
     {
-        SearchThreadCountResolution threads = SearchThreadCount.Resolve(
-            Environment.GetEnvironmentVariable(SearchThreadCount.OverrideVariable),
-            Environment.ProcessorCount, SolverSettings.Current.Search.Threads);
+        SearchThreadCountResolution threads = SearchThreadCount.Resolve();
         return new SettingsUiSnapshot
         {
             SearchThreads = threads.Threads,
-            SearchThreadsSource = threads.Source,
             SearchThreadsDefault = SearchThreadCount.DefaultFor(threads.LogicalProcessors),
             MemoryBudgetBytes = budget.Bytes,
-            MemoryBudgetSource = budget.Source,
-            MemoryBudgetSettingBytes = budget.SettingsBytes,
             MemoryBudgetDefaultBytes = SearchMemoryBudget.DefaultBytes(),
         };
     }

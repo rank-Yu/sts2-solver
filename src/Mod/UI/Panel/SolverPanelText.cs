@@ -171,7 +171,6 @@ internal static class SolverPanelText
 
     internal static string MemorySource(SearchMemoryBudgetSource source) => source switch
     {
-        SearchMemoryBudgetSource.Environment => SolverText.Get("环境变量"),
         SearchMemoryBudgetSource.Settings => SolverText.Get("设置"),
         SearchMemoryBudgetSource.Default => SolverText.Get("默认"),
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),

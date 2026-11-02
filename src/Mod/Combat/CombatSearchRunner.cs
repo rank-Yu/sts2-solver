@@ -33,6 +33,10 @@ internal static class CombatSearchRunner
     {
         int threads = SearchThreadCount.Value;
         SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.ForceSearchFailure?.Invoke(turn) is { } forcedFailure)
+            return Failed(searchRoot, turn, tier, profile, threads, forcedFailure, "forced_by_test");
+#endif
         SearchCase searchCase;
         try
         {

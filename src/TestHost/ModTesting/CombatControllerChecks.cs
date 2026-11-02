@@ -125,6 +125,9 @@ internal static class CombatControllerChecks
                 case "panel_texts":
                     await PanelTextsAsync(host, Check, Action);
                     break;
+                case "search_failures":
+                    await SearchFailuresAsync(host, Check, Action);
+                    break;
                 case "manual_reuses_route":
                     await ManualReusesRouteAsync(host, Check, Action);
                     break;
@@ -185,6 +188,7 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.ForceActionsRunningForTest = false;
             CombatControllerTestHooks.ForceTurnStartForTest = false;
             CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
+            CombatControllerTestHooks.ForceSearchFailure = null;
             CombatSessionController.ForceMultiplayerForTest = false;
         }
         CombatPilotResult summary = CombatSessionController.LastCompletedResultForTesting
@@ -689,6 +693,79 @@ internal static class CombatControllerChecks
         await WaitStatusAsync(host, SolverText.Get("搜索已停止"));
         check("stop_candidate_summary",
             Summary().Contains("下方保留停止时已经得到的当前候选路线", StringComparison.Ordinal), Summary());
+    }
+
+    /// <summary>
+    /// Forces a search failure through the real completion path and checks the main panel. A retry
+    /// clears the state; a turn change also clears a later forced-potion failure.
+    /// </summary>
+    private static async Task SearchFailuresAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int turn = Snapshot().Turn;
+
+        CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
+        await PressPanelButtonAsync(host, PanelButton.Search, "search_failed");
+        action("press_search_failed");
+        CombatUiSnapshot failed = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 240,
+            "search_failed phase");
+        check("search_failed_phase", failed.Phase == CombatUiPhase.Failed, failed.Phase.ToString());
+        check("search_failed_code", failed.ErrorCode == "search_failed", failed.ErrorCode);
+        check("search_failed_turn", failed.Turn == turn, $"{turn}->{failed.Turn}");
+        check("search_failed_can_retry", failed.CanStartSearch);
+        check("search_failed_no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
+        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        check("search_failed_status", Status() == SolverText.Get("求解器消息"), Status());
+        check("search_failed_summary",
+            Summary() == SolverPanelText.Error("search_failed"), Summary());
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("search_failed_button",
+            panel?.SearchButtonForTest is { Disabled: false } button
+            && button.Text == SolverText.Get("重新搜索"),
+            panel?.SearchButtonForTest?.Text);
+        check("search_failed_no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+
+        CombatControllerTestHooks.ForceSearchFailure = null;
+        await PressPanelButtonAsync(host, PanelButton.Search, "retry");
+        action("press_retry");
+        CombatUiSnapshot retried = await WaitAsync(host,
+            s => s.ErrorCode == null && s.Phase != CombatUiPhase.Failed && !s.IsSearching,
+            900, "search failure cleared by retry");
+        check("retry_phase", retried.Phase == CombatUiPhase.WaitingTurn, retried.Phase.ToString());
+        check("retry_error_cleared", retried.ErrorCode == null, retried.ErrorCode);
+        await WaitIdleAsync(host, "retry search done");
+
+        CombatControllerTestHooks.ForceSearchFailure = static _ => "forced_potion_unusable";
+        int failedTurn = Snapshot().Turn;
+        await PressPanelButtonAsync(host, PanelButton.Search, "forced_potion_unusable");
+        action("press_forced_potion_unusable");
+        CombatUiSnapshot potion = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 240,
+            "forced_potion_unusable phase");
+        check("potion_failed_phase", potion.Phase == CombatUiPhase.Failed, potion.Phase.ToString());
+        check("potion_failed_code", potion.ErrorCode == "forced_potion_unusable",
+            potion.ErrorCode);
+        check("potion_failed_can_retry", potion.CanStartSearch);
+        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        check("potion_failed_status", Status() == SolverText.Get("求解器消息"), Status());
+        check("potion_failed_summary",
+            Summary() == SolverPanelText.Error("forced_potion_unusable"), Summary());
+        check("potion_failed_button",
+            panel?.SearchButtonForTest is { Disabled: false } potionButton
+            && potionButton.Text == SolverText.Get("重新搜索"),
+            panel?.SearchButtonForTest?.Text);
+
+        CombatControllerTestHooks.ForceSearchFailure = null;
+        await ForceEndTurnAsync(host);
+        action("force_end_turn");
+        CombatUiSnapshot next = await WaitAsync(host,
+            s => s.Turn > failedTurn && s.ErrorCode == null && s.Phase != CombatUiPhase.Failed,
+            900, "failure cleared on next turn");
+        check("next_turn_phase", next.Phase == CombatUiPhase.WaitingTurn, next.Phase.ToString());
+        check("next_turn_error_cleared", next.ErrorCode == null, next.ErrorCode);
     }
 
     private static async Task ThreadSettingAsync(NGame host, Check check, Action action)

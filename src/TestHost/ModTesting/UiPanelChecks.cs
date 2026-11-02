@@ -1034,6 +1034,7 @@ internal sealed partial class UiPanelObserver : Node
             || !searching && snapshot.CurrentTurnRouteReady;
         string expectedSearchText = searching ? SolverText.Get("停止搜索")
             : deploying || snapshot.CurrentTurnRouteReady
+                || snapshot.Phase == CombatUiPhase.Failed
                 ? SolverText.Get("重新搜索")
                 : SolverText.Get("开始搜索");
         bool expectedSearchDisabled = searching ? stoppingSearch : !snapshot.CanStartSearch;

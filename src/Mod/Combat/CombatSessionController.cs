@@ -290,6 +290,8 @@ internal static partial class CombatSessionController
                 _importErrorCode = _errorCode;
                 _importErrorDetail = _errorDetail;
             }
+            if (_importErrorCode != null)
+                _phase = CombatUiPhase.Failed;
         }
         _fullAutoEnabled = CanArmFullAuto();
         PublishSnapshot();
@@ -328,6 +330,7 @@ internal static partial class CombatSessionController
             _completedActions = active.Plan.Actions.Length;
             _currentActionIndex = active.Plan.Actions.Length;
         }
+        ClearFailureState();
         _phase = CombatUiPhase.Completed;
         PublishSnapshot();
         ModLog.Info(
@@ -435,6 +438,7 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (!_combatActive || !ReferenceEquals(state, _state))
             return;
+        ClearFailureState();
 #if STS2_SOLVER_TESTING
         if (HoldAutoSearchForTest)
             return;
@@ -679,6 +683,19 @@ internal static partial class CombatSessionController
     {
         _consecutiveFailureTurn = turn;
         _consecutiveFailures = 0;
+    }
+
+    /// <summary>
+    /// Clears the transient failure shown on the main panel. A new search, a turn change, a mode
+    /// change and combat end all start from a clean panel.
+    /// </summary>
+    private static void ClearFailureState()
+    {
+        if (_phase != CombatUiPhase.Failed)
+            return;
+        _phase = _combatActive ? CombatUiPhase.WaitingTurn : CombatUiPhase.Idle;
+        _errorCode = null;
+        _errorDetail = null;
     }
 
     /// <summary>

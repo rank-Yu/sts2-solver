@@ -30,6 +30,7 @@ internal static partial class CombatSessionController
         }
         bool changed = _mode != mode;
         _mode = mode;
+        ClearFailureState();
         if (mode != SolverMode.FullAuto)
         {
             if (_fullAutoEnabled)

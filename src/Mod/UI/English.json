@@ -21,17 +21,13 @@
   "第 {0} 回合搜索超出战斗状态容量，已暂停全自动": "Turn {0}: the search exceeded the combat state capacity; full auto paused",
   "第 {0} 回合连续多次失败，已暂停全自动": "Turn {0}: repeated failures; full auto paused",
   "错误：{0}": "Error: {0}",
-  "无法导入当前战斗状态": "Could not import the current combat state",
   "当前战斗含有尚未支持的内容": "This combat contains content that is not supported yet",
-  "当前战斗超出求解器的状态容量": "This combat exceeds the solver's state capacity",
   "搜索请求无效": "The search request is invalid",
   "搜索结果无法回放，已丢弃": "The search result could not be replayed and was discarded",
   "路线含有尚未支持的效果": "The route contains an effect that is not supported yet",
   "路线回放超出状态容量": "Replaying the route exceeded the state capacity",
-  "搜索没有找到可执行路线": "The search found no executable route",
   "回合开始时实际状态与预测不同，将重新搜索": "The turn started differently than predicted; searching again",
   "动作结果与预测不同，将重新搜索": "An action resolved differently than predicted; searching again",
-  "动作执行失败，将重新搜索": "An action failed to execute; searching again",
   "搜索已取消": "Search cancelled",
   "全自动异常结束": "Full auto ended abnormally",
   "遇到尚未支持的游戏语义": "Hit game behavior that is not supported yet",
@@ -293,5 +289,8 @@
   "改为放走": "Let escape",
   "本场有盗贼：放走，不追回被偷的牌和金币": "Thief in this fight: let it escape with stolen cards and gold",
   "改为保住": "Recover",
-  "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索": "No route uses every potion set to Always use; change it under Potions and search again"
+  "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索": "No route uses every potion set to Always use; change it under Potions and search again",
+  "搜索初始化失败": "Search setup failed",
+  "搜索失败": "Search failed",
+  "自动执行中止": "Automatic execution stopped"
 }

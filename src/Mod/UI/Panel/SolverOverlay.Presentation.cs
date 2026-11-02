@@ -569,6 +569,8 @@ internal sealed partial class SolverOverlay
     private void ShowMessage(string status, string message)
     {
         _presentation = SolverOverlayPresentation.Ready;
+        _waitingForNextTurnPlan = false;
+        _lastResultCandidate = -1;
         SetStatus(status, SolverUiTokens.Palette.TextMuted);
         SetSummary(message);
         SetReviewText(null);

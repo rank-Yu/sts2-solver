@@ -12,18 +12,18 @@ internal static class SolverPanelText
 {
     private static readonly IReadOnlyDictionary<string, string> ErrorNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["import_failed"] = "无法导入当前战斗状态",
-        ["import_unsupported"] = "当前战斗含有尚未支持的内容",
-        ["import_capacity"] = "当前战斗超出求解器的状态容量",
+        ["import_failed"] = "搜索初始化失败",
+        ["import_unsupported"] = "搜索初始化失败",
+        ["import_capacity"] = "搜索初始化失败",
         ["request_invalid"] = "搜索请求无效",
         ["route_invalid"] = "搜索结果无法回放，已丢弃",
         ["route_unsupported"] = "路线含有尚未支持的效果",
         ["route_capacity"] = "路线回放超出状态容量",
-        ["search_failed"] = "搜索没有找到可执行路线",
+        ["search_failed"] = "搜索失败",
         ["forced_potion_unusable"] = "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索",
         ["boundary_deviation"] = "回合开始时实际状态与预测不同，将重新搜索",
         ["action_deviation"] = "动作结果与预测不同，将重新搜索",
-        ["deploy_failed"] = "动作执行失败，将重新搜索",
+        ["deploy_failed"] = "自动执行中止",
         ["cancelled"] = "搜索已取消",
         ["pilot_failed"] = "全自动异常结束",
         ["unsupported_import"] = "当前战斗含有尚未支持的内容",

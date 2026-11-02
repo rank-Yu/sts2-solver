@@ -54,11 +54,13 @@ internal static partial class CombatSessionController
         {
             _rejectCode = rejection;
             _pauseCode = null;
-            _phase = CombatUiPhase.WaitingTurn;
+            if (_phase != CombatUiPhase.Failed)
+                _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
             ModLog.Info($"[Sts2Solver] CONTROLLER_SEARCH_REJECT reason={rejection}");
             return;
         }
+        ClearFailureState();
         if (reason == CombatSearchReason.AutoTurnStart && _continuationSource != null
             && TryReuseContinuation(turn, deployWhenReady))
         {
@@ -270,7 +272,7 @@ internal static partial class CombatSessionController
         _pendingCompleteBaseline = null;
         if (RecordConsecutiveFailure(session.StartTurn, code, detail))
             return;
-        _phase = CombatUiPhase.WaitingTurn;
+        _phase = CombatUiPhase.Failed;
         PublishSnapshot();
         ModLog.Error($"[Sts2Solver] CONTROLLER_SEARCH_FAILED turn={session.StartTurn} code={code} {detail}");
     }
@@ -417,12 +419,9 @@ internal static partial class CombatSessionController
                 run.ErrorCode ?? "search_failed");
             _errorCode = run.ErrorCode ?? "search_failed";
             _errorDetail = run.ErrorDetail;
-            _phase = CombatUiPhase.WaitingTurn;
+            _phase = session.StopRequested ? CombatUiPhase.Paused : CombatUiPhase.Failed;
             if (session.StopRequested)
-            {
                 _pauseCode = "stopped";
-                _phase = CombatUiPhase.Paused;
-            }
             AddSearchLog(session, run, "failed");
             _pendingCompleteBaseline = null;
             if (!session.StopRequested
@@ -585,9 +584,13 @@ internal static partial class CombatSessionController
 
     private static void PublishSearchSetupFailure(string code, string detail)
     {
+        _latestResult = null;
+        _latestStamp = null;
+        _continuationSource = null;
+        _finishedSearch = null;
         _errorCode = code;
         _errorDetail = detail;
-        _phase = CombatUiPhase.WaitingTurn;
+        _phase = CombatUiPhase.Failed;
         _pauseCode = null;
         _pendingCompleteBaseline = null;
         PublishSnapshot();

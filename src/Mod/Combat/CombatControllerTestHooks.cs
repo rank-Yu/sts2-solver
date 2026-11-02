@@ -26,6 +26,9 @@ internal static class CombatControllerTestHooks
     /// <summary>Pretends the turn-start setup is still running, for the search-block scenario.</summary>
     internal static bool ForceTurnStartForTest { get; set; }
 
+    /// <summary>Returns a search failure code for the request, or null to search normally.</summary>
+    internal static Func<int, string?>? ForceSearchFailure { get; set; }
+
     /// <summary>Runs before the live end-turn risk check, for the forced-execution scenario.</summary>
     internal static Func<CombatState, Player, Task>? BeforeLiveEndTurnCheck { get; set; }
 

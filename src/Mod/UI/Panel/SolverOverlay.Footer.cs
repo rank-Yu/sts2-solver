@@ -90,7 +90,10 @@ internal sealed partial class SolverOverlay
         }
         else
         {
-            searchText = SolverText.Get(deploying || routeReady ? "重新搜索" : "开始搜索");
+            searchText = SolverText.Get(
+                deploying || routeReady || snapshot.Phase == CombatUiPhase.Failed
+                    ? "重新搜索"
+                    : "开始搜索");
             searchDisabled = !snapshot.CanStartSearch;
             if (searchDisabled)
                 searchTooltip = SolverPanelText.SearchBlock(snapshot.SearchBlockReason);

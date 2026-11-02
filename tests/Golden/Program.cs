@@ -20,6 +20,7 @@ try
         case "k0":
             RulesCodecContract.Run();
             SearchContracts.Run();
+            ForcedPotionContracts.Run();
             SearchProgressContracts.Run();
             PowerEvidenceContracts.Run();
             RetrievalAndWitherContracts.Run();

@@ -160,7 +160,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `IgnoreLongTermRewards` | false | 同时影响成长额度和目标 | — |
 | `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
 | `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
-| `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；`Smart` 不入表 | `CapturePotionStrategy` |
+| `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；接受 `Smart`、`Disabled`、`Force`，`Smart` 不入表 | `CapturePotionStrategy` |
 | `BaseScoreOnly` | false | 请求可以覆盖 | M0 宿主 `ordering=baseline` |
 | `ContinuousThreatRanking` | false | 请求可以覆盖 | M0 宿主默认 |
 | `BeamWeightPerturbation` | 空 | 请求覆盖时项和 scale 必须同时给出 | M0 宿主默认 |

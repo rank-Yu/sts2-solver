@@ -28,8 +28,12 @@ internal static class CombatSearchCoordinator
         SearchCase initial = request.Case;
         if (initial.Battles.Length == 0) throw new InvalidDataException("搜索根为空。");
         if (initial.Options.Scorer is not { } scorer) throw new InvalidDataException("缺少评分配置。");
-        bool canUsePotions = PotionSearchSchedule.HasAllowedUse(initial.Battles, initial.Rules, initial.Options);
         bool requiredPlan = initial.Options.EffectivePotionPolicy == PotionUseMode.RequireAtLeastOne;
+        // The existing search tries a forced-only baseline first when the Smart policy has forced
+        // directives, then falls back to optional potions when that baseline has no usable route.
+        bool forcedGradient = initial.Options.EffectivePotionPolicy == PotionUseMode.Smart
+            && initial.Options.Potions.Strategy.HasForcedDirectives;
+        int passCount = forcedGradient ? 2 : 1;
         SearchMember[] members = PortfolioBuilder.Build(plan,
             initial.Options.PowerCommitments is { Rules.Length: > 0 });
         QueenSearchPolicy? queen = plan.QueenStrategies && initial.Battles.Length == 1
@@ -42,32 +46,51 @@ internal static class CombatSearchCoordinator
             members = SupplementPortfolio.AppendToStages(members, plan, queen is not null && plan.QueenStrategies);
         QueenSearchPolicy? timing = queen is null ? null : queen with { PreserveKillTiming = true };
         // Resolve all limits before dividing time so skipped and duplicate layers receive no share.
-        PotionPolicy[] policies = new PotionPolicy[members.Length];
-        string?[] skips = new string?[members.Length];
-        HashSet<(int Width, SearchEvaluation Evaluation, SearchRetention Retention, int? Limit)> seenMembers = [];
-        for (int i = 0; i < members.Length; i++)
+        PotionPolicy[] ResolvePolicies(PotionStrategySnapshot strategy, out string?[] skips)
         {
-            SearchMember item = members[i];
-            PotionPolicy policy = PotionSearchSchedule.Limit(initial.Options.Potions, item.Potions,
-                initial.Options.InitialExplicitPotionUses);
-            policies[i] = policy;
-            bool potionPhase = !requiredPlan && item.Potions != SearchPotionLimit.None;
-            if (potionPhase && !canUsePotions)
-                skips[i] = "no-allowed-potions";
-            else if (potionPhase && policy.MaximumUses is { } limit
-                && limit <= initial.Options.InitialExplicitPotionUses)
-                skips[i] = "limit-already-used";
-            else if (potionPhase && !seenMembers.Add(
-                (item.Width, item.Evaluation, item.Retention, policy.MaximumUses)))
-                skips[i] = "duplicate-limit";
+            BeamOptions passOptions = initial.Options with
+            {
+                Potions = initial.Options.Potions with { Strategy = strategy },
+            };
+            bool canUsePotions = PotionSearchSchedule.HasAllowedUse(
+                initial.Battles, initial.Rules, passOptions);
+            PotionPolicy[] policies = new PotionPolicy[members.Length];
+            skips = new string?[members.Length];
+            HashSet<(int Width, SearchEvaluation Evaluation, SearchRetention Retention, int? Limit)>
+                seenMembers = [];
+            for (int i = 0; i < members.Length; i++)
+            {
+                SearchMember item = members[i];
+                PotionPolicy policy = PotionSearchSchedule.Limit(initial.Options.Potions, item.Potions,
+                    initial.Options.InitialExplicitPotionUses);
+                policy = policy with { Strategy = strategy };
+                policies[i] = policy;
+                bool potionPhase = !requiredPlan && item.Potions != SearchPotionLimit.None;
+                if (potionPhase && !canUsePotions)
+                    skips[i] = "no-allowed-potions";
+                else if (potionPhase && policy.MaximumUses is { } limit
+                    && limit <= initial.Options.InitialExplicitPotionUses)
+                    skips[i] = "limit-already-used";
+                else if (potionPhase && !seenMembers.Add(
+                    (item.Width, item.Evaluation, item.Retention, policy.MaximumUses)))
+                    skips[i] = "duplicate-limit";
+            }
+            return policies;
         }
         SearchProgressChannel? progress = request.Progress;
         long plannedMilliseconds = plan.TotalBudgetMilliseconds ?? 0L;
         if (plannedMilliseconds <= 0L)
         {
-            for (int i = 0; i < members.Length; i++)
-                if (skips[i] is null)
-                    plannedMilliseconds += checked((long)members[i].Width * plan.MillisecondsPerWidth);
+            for (int pass = 0; pass < passCount; pass++)
+            {
+                PotionStrategySnapshot strategy = forcedGradient && pass == 0
+                    ? initial.Options.Potions.Strategy.ForForcedBaseline()
+                    : initial.Options.Potions.Strategy;
+                _ = ResolvePolicies(strategy, out string?[] passSkips);
+                for (int i = 0; i < members.Length; i++)
+                    if (passSkips[i] is null)
+                        plannedMilliseconds += checked((long)members[i].Width * plan.MillisecondsPerWidth);
+            }
         }
         if (progress != null)
             progress.PlannedBudgetMilliseconds = plannedMilliseconds;
@@ -83,214 +106,238 @@ internal static class CombatSearchCoordinator
         bool goalReached = false;
         SortedDictionary<string, int>? capacityDrops = null;
         SearchInterimResult? bestComplete = null;
-        for (int index = 0; index < members.Length; index++)
+        for (int pass = 0; pass < passCount; pass++)
         {
-            token.ThrowIfCancellationRequested();
-            SearchMember member = members[index];
-            bool potionPhase = !requiredPlan && member.Potions != SearchPotionLimit.None;
-            bool stageStart = index == 0 || members[index - 1].Potions != member.Potions;
-            if (potionPhase && stageStart && !requiredPlan
-                && PotionStageGate.CanSkip(initial.Battles, initial.Rules, initial.Options, selected, free))
+            bool forcedPass = forcedGradient && pass == 0;
+            PotionStrategySnapshot strategy = forcedPass
+                ? initial.Options.Potions.Strategy.ForForcedBaseline()
+                : initial.Options.Potions.Strategy;
+            BeamOptions passOptions = initial.Options with
             {
-                for (int j = index; j < members.Length && members[j].Potions == member.Potions; j++)
-                    if (PotionStageGate.HasRunCombination(logs, members[j]))
-                        skips[j] ??= "stage-economy";
-            }
-            if (skips[index] is { } reason)
-            {
-                logs.Add(new SearchMemberResult(member, false, reason, 0, 0, "skipped", false, null, null, false, 0, 0));
-                continue;
-            }
-            long configuredMs = checked((long)member.Width * plan.MillisecondsPerWidth);
-            long searchMs = SearchClock.MemberSearchMilliseconds(configuredMs);
-            long memberStarted = budget.Now;
-            long memberDeadline = checked(memberStarted + searchMs);
-            long validationDeadline = checked(memberStarted + configuredMs);
-            bool DeadlineExpired() => budget.Now >= memberDeadline;
-            bool ValidationExpired() => budget.Now >= validationDeadline;
-            BeamOptions options = initial.Options with
-            {
-                BeamWidth = member.Width,
-                MaxTurns = int.MaxValue,
-                UnlimitedNodes = true,
-                SearchThreads = initial.Options.SearchThreads,
-                DeadlineExpired = DeadlineExpired,
-                SoftTimeBudget = TimeSpan.FromMilliseconds(searchMs),
-                Scorer = new Scorer(scorer.RulesForCodec,
-                    baseOnly: member.Evaluation is SearchEvaluation.Base,
-                    offensive: member.Evaluation == SearchEvaluation.Offensive,
-                    queen: member.Retention == SearchRetention.QueenKillTiming ? timing : null,
-                    setup: member.Evaluation == SearchEvaluation.Setup ? setupPolicy
-                        : member.Evaluation == SearchEvaluation.ContinuousSetup ? continuousSetup : null),
-                SecondRankBand = member.Retention == SearchRetention.SecondBand,
-                SecondRankBandWidth = member.Width,
-                AggressivePowerCommitment = member.Retention == SearchRetention.Power,
-                Potions = policies[index],
-                AuditPotionPolicy = potionPhase || requiredPlan
-                    || initial.Options.InitialExplicitPotionUses > 0,
-                PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
-                Progress = progress,
+                Potions = initial.Options.Potions with { Strategy = strategy },
             };
-            options = SearchBudgetPolicy.Apply(options, plan.EndedKeepWidths,
-                plan.EndedTriggerWidths, plan.MemoryBytes);
-            SearchMemberMeasurement measurement;
-            progress?.BeginMember(index, member, bestComplete);
-            try
+            PotionPolicy[] policies = ResolvePolicies(strategy, out string?[] skips);
+            free = null;
+            selected = null;
+            best = null;
+            bestOutcome = Outcome.None;
+            bestIndex = -1;
+            goalReached = false;
+            capacityDrops = null;
+            bestComplete = null;
+            logs = new List<SearchMemberResult>(members.Length);
+            for (int index = 0; index < members.Length; index++)
             {
-                measurement = await run(initial with { Options = options }, storage, token);
-            }
-            catch (SearchMemoryBudgetException exception)
-            {
-                measurement = new(null, "memory", exception.Message, Math.Max(0, budget.Now - memberStarted));
-            }
-            token.ThrowIfCancellationRequested();
-            BeamResult? beam = measurement.Beam;
-            if (beam == null && measurement.Status == "cancelled") cancelled = true;
-            else if (beam == null && measurement.Status is not ("ok" or "none" or "memory"))
-                error = measurement.Error ?? measurement.Status;
-            expanded += beam?.ExpandedNodesTotal ?? 0;
-            if (beam is { StopWithoutCandidate: true })
-            {
-                logs.Add(new SearchMemberResult(member, true, null,
-                    Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal, "stopped",
-                    false, null, null, false, 0, 0));
-                return new CombatSearchResult(CombatSearchStatus.Cancelled, null, -1,
-                    budget.Elapsed, expanded, [.. logs], null)
+                token.ThrowIfCancellationRequested();
+                SearchMember member = members[index];
+                bool potionPhase = !requiredPlan && member.Potions != SearchPotionLimit.None;
+                bool stageStart = index == 0 || members[index - 1].Potions != member.Potions;
+                if (potionPhase && stageStart && !requiredPlan
+                    && PotionStageGate.CanSkip(initial.Battles, initial.Rules, passOptions, selected, free))
                 {
-                    Completion = SearchCompletionKind.Cancelled,
-                    SearchThreads = initial.Options.SearchThreads,
-                    PlannedBudgetMilliseconds = plannedMilliseconds,
-                };
-            }
-            if (beam is { Adoption: { } adoption })
-            {
-                BeamResult chosen = beam;
-                int chosenIndex = index;
-                bool chosenOnlyDeath = adoption.OnlyDeathRoutes;
-                if (adoption.Kind == SearchAdoptionKind.Stopped && best is { } completed
-                    && quality.TryCompareResultQuality(initial.Battles, completed, beam,
-                        out int comparison, out int completedThroughTurn, out _)
-                    && comparison < 0)
-                {
-                    chosen = completed;
-                    chosenIndex = bestIndex;
-                    chosenOnlyDeath = selected is { } selectedCandidate
-                        && !selectedCandidate.Key.Survives;
-                    adoption = adoption with
-                    {
-                        CandidateVersion = 0,
-                        ThroughTurn = completedThroughTurn,
-                        Outcome = bestOutcome,
-                        OnlyDeathRoutes = chosenOnlyDeath,
-                    };
+                    for (int j = index; j < members.Length && members[j].Potions == member.Potions; j++)
+                        if (PotionStageGate.HasRunCombination(logs, members[j]))
+                            skips[j] ??= "stage-economy";
                 }
-                logs.Add(new SearchMemberResult(member, true, null,
-                    Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal,
-                    adoption.Kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
-                    chosen.BestIsVictory, null, null, chosenIndex == index, chosen.SearchMemoryPeakBytes,
-                    chosen.EndedCompactions)
+                if (skips[index] is { } reason)
                 {
-                    MemoryUsedBytes = chosen.SearchMemoryUsedBytes,
-                    MemoryBudgetExceeded = chosen.SearchMemoryBudgetExceeded,
-                    MemoryExceededAtBytes = chosen.SearchMemoryExceededAtBytes,
-                    RouteNodeStorageBytes = chosen.RouteNodeStorageBytes,
-                    RouteNodePeakCount = chosen.RouteNodePeakCount,
-                    ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
-                    WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
-                    WorkspaceOverflowParents = chosen.WorkspaceOverflowParents,
-                    SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
-                    SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
-                });
-                for (int i = 0; i < logs.Count; i++)
-                    logs[i] = logs[i] with { Adopted = i == chosenIndex };
-                CombatSearchStatus adoptionStatus = adoption.Outcome == Outcome.Victory
-                    ? CombatSearchStatus.Victory
-                    : adoption.Outcome is Outcome.Defeat or Outcome.EventDefeat
-                        ? CombatSearchStatus.Defeat
-                        : CombatSearchStatus.Incomplete;
-                return new CombatSearchResult(adoptionStatus, chosen, chosenIndex, budget.Elapsed,
-                    expanded, [.. logs], null)
+                    logs.Add(new SearchMemberResult(member, false, reason, 0, 0, "skipped", false, null, null, false, 0, 0));
+                    continue;
+                }
+                long configuredMs = checked((long)member.Width * plan.MillisecondsPerWidth);
+                long searchMs = SearchClock.MemberSearchMilliseconds(configuredMs);
+                long memberStarted = budget.Now;
+                long memberDeadline = checked(memberStarted + searchMs);
+                long validationDeadline = checked(memberStarted + configuredMs);
+                bool DeadlineExpired() => budget.Now >= memberDeadline;
+                bool ValidationExpired() => budget.Now >= validationDeadline;
+                BeamOptions options = initial.Options with
                 {
-                    Completion = adoption.Kind == SearchAdoptionKind.Stopped
-                        ? SearchCompletionKind.StoppedWithCandidate
-                        : SearchCompletionKind.Adopted,
-                    Adoption = adoption,
-                    OnlyDeathRoutes = chosenOnlyDeath,
+                    BeamWidth = member.Width,
+                    MaxTurns = int.MaxValue,
+                    UnlimitedNodes = true,
                     SearchThreads = initial.Options.SearchThreads,
-                    PlannedBudgetMilliseconds = plannedMilliseconds,
+                    DeadlineExpired = DeadlineExpired,
+                    SoftTimeBudget = TimeSpan.FromMilliseconds(searchMs),
+                    Scorer = new Scorer(scorer.RulesForCodec,
+                        baseOnly: member.Evaluation is SearchEvaluation.Base,
+                        offensive: member.Evaluation == SearchEvaluation.Offensive,
+                        queen: member.Retention == SearchRetention.QueenKillTiming ? timing : null,
+                        setup: member.Evaluation == SearchEvaluation.Setup ? setupPolicy
+                            : member.Evaluation == SearchEvaluation.ContinuousSetup ? continuousSetup : null),
+                    SecondRankBand = member.Retention == SearchRetention.SecondBand,
+                    SecondRankBandWidth = member.Width,
+                    AggressivePowerCommitment = member.Retention == SearchRetention.Power,
+                    Potions = policies[index],
+                    AuditPotionPolicy = potionPhase || requiredPlan
+                        || initial.Options.InitialExplicitPotionUses > 0,
+                    PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
+                    Progress = progress,
                 };
-            }
-            bool adopted = false;
-            SearchInterimResult? completeVictory = null;
-            int? hpLost = null;
-            int? potionCount = null;
-            CombatSearchStatus? memberStatus = null;
-            string stop = beam == null ? measurement.Status
-                : beam.SearchMemoryBudgetExceeded ? "memory"
-                : beam.SoftTimeBudgetReached ? "time" : beam.StopReason;
-            if (beam != null && stop == "frontier-empty" && beam.CapacityPruned > 0)
-            {
-                capacityDrops ??= new(StringComparer.Ordinal);
-                foreach ((string region, int count) in beam.CapacityDroppedChildren)
-                    capacityDrops[region] = capacityDrops.GetValueOrDefault(region) + count;
-            }
-            if (beam != null && beam.PotionPolicySatisfied)
-            {
+                options = SearchBudgetPolicy.Apply(options, plan.EndedKeepWidths,
+                    plan.EndedTriggerWidths, plan.MemoryBytes);
+                SearchMemberMeasurement measurement;
+                progress?.BeginMember(index, member, bestComplete);
                 try
                 {
-                    BeamSolver.Candidate candidate = quality.AssessResult(initial.Battles, beam,
-                        token, ValidationExpired, out Outcome outcome, out int rawHpLost, out bool meetsGoal);
-                    hpLost = rawHpLost;
-                    potionCount = candidate.ExplicitPotionUseCount;
-                    memberStatus = outcome == Outcome.Victory ? CombatSearchStatus.Victory
-                        : outcome is Outcome.Defeat or Outcome.EventDefeat ? CombatSearchStatus.Defeat
-                        : CombatSearchStatus.Incomplete;
-                    if (member.Potions == SearchPotionLimit.None
-                        && candidate.ExplicitPotionUseCount == 0
-                        && (free is null || quality.ComparePolicyResults(candidate, free.Value) < 0))
-                        free = candidate;
-                    bool policyEligible = quality.IsPolicyEligible(candidate, free);
-                    if (policyEligible
-                        && (selected is null || quality.ComparePolicyResults(candidate, selected.Value) < 0))
+                    measurement = await run(initial with { Options = options }, storage, token);
+                }
+                catch (SearchMemoryBudgetException exception)
+                {
+                    measurement = new(null, "memory", exception.Message, Math.Max(0, budget.Now - memberStarted));
+                }
+                token.ThrowIfCancellationRequested();
+                BeamResult? beam = measurement.Beam;
+                if (beam == null && measurement.Status == "cancelled") cancelled = true;
+                else if (beam == null && measurement.Status is not ("ok" or "none" or "memory"))
+                    error = measurement.Error ?? measurement.Status;
+                expanded += beam?.ExpandedNodesTotal ?? 0;
+                if (beam is { StopWithoutCandidate: true })
+                {
+                    logs.Add(new SearchMemberResult(member, true, null,
+                        Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal, "stopped",
+                        false, null, null, false, 0, 0));
+                    return new CombatSearchResult(CombatSearchStatus.Cancelled, null, -1,
+                        budget.Elapsed, expanded, [.. logs], null)
                     {
-                        selected = candidate;
-                        best = beam;
-                        bestOutcome = outcome;
-                        bestIndex = index;
-                        adopted = true;
-                        goalReached = meetsGoal;
-                        if (candidate.Key.Won)
+                        Completion = SearchCompletionKind.Cancelled,
+                        SearchThreads = initial.Options.SearchThreads,
+                        PlannedBudgetMilliseconds = plannedMilliseconds,
+                    };
+                }
+                if (beam is { Adoption: { } adoption })
+                {
+                    BeamResult chosen = beam;
+                    int chosenIndex = index;
+                    bool chosenOnlyDeath = adoption.OnlyDeathRoutes;
+                    if (adoption.Kind == SearchAdoptionKind.Stopped && best is { } completed
+                        && quality.TryCompareResultQuality(initial.Battles, completed, beam,
+                            out int comparison, out int completedThroughTurn, out _)
+                        && comparison < 0)
+                    {
+                        chosen = completed;
+                        chosenIndex = bestIndex;
+                        chosenOnlyDeath = selected is { } selectedCandidate
+                            && !selectedCandidate.Key.Survives;
+                        adoption = adoption with
                         {
-                            completeVictory = new SearchInterimResult(index, true, rawHpLost,
-                                candidate.ExplicitPotionUseCount, beam.BestRoute.Length,
-                                candidate.Key.Score, candidate.Key.CombatEndedTurn);
+                            CandidateVersion = 0,
+                            ThroughTurn = completedThroughTurn,
+                            Outcome = bestOutcome,
+                            OnlyDeathRoutes = chosenOnlyDeath,
+                        };
+                    }
+                    logs.Add(new SearchMemberResult(member, true, null,
+                        Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal,
+                        adoption.Kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
+                        chosen.BestIsVictory, null, null, chosenIndex == index, chosen.SearchMemoryPeakBytes,
+                        chosen.EndedCompactions)
+                    {
+                        MemoryUsedBytes = chosen.SearchMemoryUsedBytes,
+                        MemoryBudgetExceeded = chosen.SearchMemoryBudgetExceeded,
+                        MemoryExceededAtBytes = chosen.SearchMemoryExceededAtBytes,
+                        RouteNodeStorageBytes = chosen.RouteNodeStorageBytes,
+                        RouteNodePeakCount = chosen.RouteNodePeakCount,
+                        ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
+                        WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
+                        WorkspaceOverflowParents = chosen.WorkspaceOverflowParents,
+                        SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
+                        SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
+                    });
+                    for (int i = 0; i < logs.Count; i++)
+                        logs[i] = logs[i] with { Adopted = i == chosenIndex };
+                    CombatSearchStatus adoptionStatus = adoption.Outcome == Outcome.Victory
+                        ? CombatSearchStatus.Victory
+                        : adoption.Outcome is Outcome.Defeat or Outcome.EventDefeat
+                            ? CombatSearchStatus.Defeat
+                            : CombatSearchStatus.Incomplete;
+                    return new CombatSearchResult(adoptionStatus, chosen, chosenIndex, budget.Elapsed,
+                        expanded, [.. logs], null)
+                    {
+                        Completion = adoption.Kind == SearchAdoptionKind.Stopped
+                            ? SearchCompletionKind.StoppedWithCandidate
+                            : SearchCompletionKind.Adopted,
+                        Adoption = adoption,
+                        OnlyDeathRoutes = chosenOnlyDeath,
+                        SearchThreads = initial.Options.SearchThreads,
+                        PlannedBudgetMilliseconds = plannedMilliseconds,
+                    };
+                }
+                bool adopted = false;
+                SearchInterimResult? completeVictory = null;
+                int? hpLost = null;
+                int? potionCount = null;
+                CombatSearchStatus? memberStatus = null;
+                string stop = beam == null ? measurement.Status
+                    : beam.SearchMemoryBudgetExceeded ? "memory"
+                    : beam.SoftTimeBudgetReached ? "time" : beam.StopReason;
+                if (beam != null && stop == "frontier-empty" && beam.CapacityPruned > 0)
+                {
+                    capacityDrops ??= new(StringComparer.Ordinal);
+                    foreach ((string region, int count) in beam.CapacityDroppedChildren)
+                        capacityDrops[region] = capacityDrops.GetValueOrDefault(region) + count;
+                }
+                if (beam != null && beam.PotionPolicySatisfied)
+                {
+                    try
+                    {
+                        BeamSolver.Candidate candidate = quality.AssessResult(initial.Battles, beam,
+                            token, ValidationExpired, out Outcome outcome, out int rawHpLost, out bool meetsGoal);
+                        hpLost = rawHpLost;
+                        potionCount = candidate.ExplicitPotionUseCount;
+                        memberStatus = outcome == Outcome.Victory ? CombatSearchStatus.Victory
+                            : outcome is Outcome.Defeat or Outcome.EventDefeat ? CombatSearchStatus.Defeat
+                            : CombatSearchStatus.Incomplete;
+                        if (member.Potions == SearchPotionLimit.None
+                            && candidate.ExplicitPotionUseCount == 0
+                            && (free is null || quality.ComparePolicyResults(candidate, free.Value) < 0))
+                            free = candidate;
+                        bool policyEligible = quality.IsPolicyEligible(candidate, free);
+                        if (policyEligible
+                            && (selected is null || quality.ComparePolicyResults(candidate, selected.Value) < 0))
+                        {
+                            selected = candidate;
+                            best = beam;
+                            bestOutcome = outcome;
+                            bestIndex = index;
+                            adopted = true;
+                            goalReached = meetsGoal;
+                            if (candidate.Key.Won)
+                            {
+                                completeVictory = new SearchInterimResult(index, true, rawHpLost,
+                                    candidate.ExplicitPotionUseCount, beam.BestRoute.Length,
+                                    candidate.Key.Score, candidate.Key.CombatEndedTurn);
+                            }
                         }
                     }
+                    catch (TimeoutException) { stop = "deadline"; }
+                    catch (InvalidDataException exception) { error = exception.Message; stop = "invalid"; }
+                    catch (CapacityException exception) { error = exception.Message; stop = "invalid"; }
                 }
-                catch (TimeoutException) { stop = "deadline"; }
-                catch (InvalidDataException exception) { error = exception.Message; stop = "invalid"; }
-                catch (CapacityException exception) { error = exception.Message; stop = "invalid"; }
+                if (completeVictory != null)
+                    bestComplete = completeVictory;
+                logs.Add(new(member, true, null, Math.Max(0, budget.Now - memberStarted),
+                    beam?.ExpandedNodesTotal ?? 0, stop, beam?.BestIsVictory ?? false, hpLost, potionCount,
+                    adopted, beam?.SearchMemoryPeakBytes ?? storage.Memory.PeakBytes,
+                    beam?.EndedCompactions ?? 0)
+                {
+                    MemoryUsedBytes = beam?.SearchMemoryUsedBytes ?? storage.Memory.UsedBytes,
+                    MemoryBudgetExceeded = beam?.SearchMemoryBudgetExceeded ?? stop == "memory",
+                    MemoryExceededAtBytes = beam?.SearchMemoryExceededAtBytes ?? 0,
+                    PoolCapacityDropped = beam != null && beam.CapacityDroppedChildren.TryGetValue("Beam.Pool", out int dropped) ? dropped : 0,
+                    RouteNodeStorageBytes = beam?.RouteNodeStorageBytes ?? 0,
+                    RouteNodePeakCount = beam?.RouteNodePeakCount ?? 0,
+                    ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
+                    WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
+                    WorkspaceOverflowParents = beam?.WorkspaceOverflowParents ?? 0,
+                    SearchWorkspacePeakBytes = beam?.SearchWorkspacePeakBytes ?? 0,
+                    SearchWorkspaceGrowablePeakBytes = beam?.SearchWorkspaceGrowablePeakBytes ?? 0,
+                });
+                if (error != null || cancelled || stop == "memory" || goalReached) break;
             }
-            if (completeVictory != null)
-                bestComplete = completeVictory;
-            logs.Add(new(member, true, null, Math.Max(0, budget.Now - memberStarted),
-                beam?.ExpandedNodesTotal ?? 0, stop, beam?.BestIsVictory ?? false, hpLost, potionCount,
-                adopted, beam?.SearchMemoryPeakBytes ?? storage.Memory.PeakBytes,
-                beam?.EndedCompactions ?? 0)
-            {
-                MemoryUsedBytes = beam?.SearchMemoryUsedBytes ?? storage.Memory.UsedBytes,
-                MemoryBudgetExceeded = beam?.SearchMemoryBudgetExceeded ?? stop == "memory",
-                MemoryExceededAtBytes = beam?.SearchMemoryExceededAtBytes ?? 0,
-                PoolCapacityDropped = beam != null && beam.CapacityDroppedChildren.TryGetValue("Beam.Pool", out int dropped) ? dropped : 0,
-                RouteNodeStorageBytes = beam?.RouteNodeStorageBytes ?? 0,
-                RouteNodePeakCount = beam?.RouteNodePeakCount ?? 0,
-                ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
-                WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
-                WorkspaceOverflowParents = beam?.WorkspaceOverflowParents ?? 0,
-                SearchWorkspacePeakBytes = beam?.SearchWorkspacePeakBytes ?? 0,
-                SearchWorkspaceGrowablePeakBytes = beam?.SearchWorkspaceGrowablePeakBytes ?? 0,
-            });
-            if (error != null || cancelled || stop == "memory" || goalReached) break;
+            if (forcedPass && selected == null && error == null && !cancelled)
+                continue;
+            break;
         }
         while (logs.Count < members.Length)
             logs.Add(new SearchMemberResult(members[logs.Count], false, error != null ? "invalid" : cancelled ? "cancelled" : goalReached ? "target-reached" : "memory", 0, 0, "skipped", false, null, null, false, 0, 0));
@@ -301,6 +348,10 @@ internal static class CombatSearchCoordinator
         if (capacityBounded)
             error = "成员丢弃超出状态容量的分支后前沿耗尽，且没有胜利路线（"
                 + string.Join(", ", capacityDrops!.Select(d => $"{d.Key}={d.Value}")) + "）。";
+        else if (best == null && error == null && !cancelled
+            && initial.Options.Potions.Strategy.HasForcedDirectives)
+            error = "指定药水必须使用，但搜索没有找到可执行路线："
+                + initial.Options.Potions.Strategy.DescribeForcedUses() + "。";
         CombatSearchStatus status = cancelled ? CombatSearchStatus.Cancelled
             : capacityBounded ? CombatSearchStatus.CapacityBounded
             : error != null ? CombatSearchStatus.Invalid

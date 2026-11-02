@@ -18,6 +18,7 @@ internal sealed partial class BeamSolver
         Battle end = root;
         int uses = _initialExplicitPotionUses;
         int ambergris = _initialAmbergrisUses;
+        List<PotionUse> potionUses = [];
         for (int i = 0; i < result.BestRoute.Length; i++)
         {
             token.ThrowIfCancellationRequested();
@@ -35,6 +36,10 @@ internal sealed partial class BeamSolver
                     throw new InvalidDataException("路线违反药水保护指令。");
                 uses++;
                 if (potion == _ambergrisPotionId) ambergris++;
+                int cost = potion < _scorer.RulesForCodec.PotionStrategicCost.Length
+                    ? _scorer.RulesForCodec.PotionStrategicCost[potion]
+                    : 0;
+                potionUses.Add(new PotionUse(slot, Registry.Potion(potion).NativeId, cost));
             }
             for (int prefix = 0; prefix <= action.ChoiceCount; prefix++)
             {
@@ -58,20 +63,25 @@ internal sealed partial class BeamSolver
         int actionCount = _options.InitialActionCount + result.BestRoute.Length;
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;
+        ForcedPotionUseEvaluation forced = _options.Potions.Strategy.EvaluateForcedUses(potionUses);
+        int optional = Math.Max(0, features.ExplicitPotionUseCount - forced.ForcedUseCount);
+        int optionalCost = OptionalPotionStrategicCost(
+            Math.Max(0, features.ExplicitPotionStrategicCost - forced.ForcedStrategicHpCost),
+            optional);
         RouteKey key = Key(end, features, actionCount);
         bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features) && _scorer.RelicTargetsSatisfied(features);
         bool safeVictory = key.Won && features.ProjectedDeathSaveUseCount == 0 && goalsSatisfied;
         goalReached = safeVictory && !_options.HasUnboundedGrowthTargets
             && _scorer.RulesForCodec.GrowthBudgets.Total == 0
             && features.ExplicitPotionUseCount == 0
+            && forced.AllForcedUsesSatisfied
             && features.CumulativePlayerHpLost == 0
             && features.PlayerHp >= _ordering.InitialPlayerHp
             && features.PlayerMaxHp >= _ordering.InitialPlayerMaxHp
             && key.OutstandingStolenResource == 0;
-        int optional = features.ExplicitPotionUseCount;
-        int optionalCost = OptionalPotionStrategicCost(features.ExplicitPotionStrategicCost, optional);
         PotionUseMode mode = _effectivePotionPolicy switch
         {
+            PotionUseMode.RequireAtLeastOne when forced.ForcedUseCount > 0 => PotionUseMode.Smart,
             PotionUseMode.Disabled when optional > 0 => PotionUseMode.Smart,
             _ => _effectivePotionPolicy,
         };
@@ -83,8 +93,9 @@ internal sealed partial class BeamSolver
                 : key.StrategicHpDeficit,
         };
         return new Candidate(0, key, features.ExplicitPotionUseCount, features.PotionUseCount,
-            features.ExplicitPotionStrategicCost, optionalCost, ambergris,
-            features.PlayerHp, features.ProjectedDeathSaveUseCount, mode);
+            features.ExplicitPotionStrategicCost, optionalCost, Math.Max(0, ambergris - forced.ForcedAmbergrisCount),
+            features.PlayerHp, features.ProjectedDeathSaveUseCount, mode,
+            forced.AllForcedUsesSatisfied);
     }
 
     internal bool IsPolicyEligible(in Candidate candidate, Candidate? baseline)

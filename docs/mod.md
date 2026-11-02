@@ -67,7 +67,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `search.threads` | `null` | 一个搜索成员的总线程数（含搜索线程本身）；`null` 表示按逻辑核数自动决定。 |
 | `search.potions.defaultMode` | `Smart` | 药水默认策略；请求捕获只接受 `Smart` 和 `Disabled`。 |
 | `search.potions.preset` | `Smart` | 药水预设，只在批量命令中更新；不是搜索输入。 |
-| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索只读 `Smart` 和 `Disabled`；`Force` 留给后续批次，当前遇到会显式拒绝。 |
+| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索接受 `Smart`、`Disabled` 和 `Force`；`Smart` 不入表。 |
 | `search.growthBudgets` | 十个来源全为 `0` | 十个内置成长来源的额外战损预算。文件里的第三方来源条目原样保留，但不进入请求。 |
 | `search.ignoreLongTermRewards` | `false` | 不考虑局外收益。 |
 | `search.relicTargets` | `[]` | 遗物计数目标；每项包含 `id`、`minimum`、`maximum`、`hpAllowance`、`period`、`priority`。 |

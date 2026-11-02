@@ -330,7 +330,7 @@ internal static class UiLogicChecks
         [
             new(0, "FIRE_POTION", SearchPotionMode.Disabled),
             new(1, "BLOCK_POTION", SearchPotionMode.Disabled),
-            new(2, "STRENGTH_POTION", SearchPotionMode.Smart),
+            new(2, "STRENGTH_POTION", SearchPotionMode.Force),
         ];
         IReadOnlyList<SearchPotionDirective> reconciled = SearchPolicyCapture.ReconcilePotionDirectives(
             persisted,
@@ -338,6 +338,10 @@ internal static class UiLogicChecks
         Require(reconciled.Count == 1, "reconcile_count");
         Require(reconciled[0].Slot == 0 && reconciled[0].PotionId == "FIRE_POTION"
             && reconciled[0].Mode == SearchPotionMode.Disabled, "reconcile_match");
+        IReadOnlyList<SearchPotionDirective> reconciledForce =
+            SearchPolicyCapture.ReconcilePotionDirectives(persisted, [(2, "STRENGTH_POTION")]);
+        Require(reconciledForce.Count == 1
+            && reconciledForce[0].Mode == SearchPotionMode.Force, "reconcile_force");
         IReadOnlyList<SearchPotionDirective> replaced = SearchPolicyCapture.ReconcilePotionDirectives(
             persisted,
             [(0, "BLOCK_POTION")]);
@@ -350,7 +354,7 @@ internal static class UiLogicChecks
         [
             new(0, "FIRE_POTION", PotionDirective.Disabled),
             new(1, "BLOCK_POTION", PotionDirective.Disabled),
-            new(2, "STRENGTH_POTION", PotionDirective.Smart),
+            new(2, "STRENGTH_POTION", PotionDirective.Force),
         ];
         PotionSlotDirective[] settingsRetained = SolverPotionDirectives.Reconcile(
             settingsDirectives, [(0, "FIRE_POTION"), (1, "STRENGTH_POTION")]);
@@ -361,6 +365,14 @@ internal static class UiLogicChecks
             "settings_reconcile_replaced");
         Require(SolverPotionDirectives.Reconcile(settingsDirectives, []).Length == 0,
             "settings_reconcile_empty");
+        SolverPotionSettings forced = new SolverPotionSettings()
+            .ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Force);
+        Require(forced.Directives.Length == 1
+            && forced.Directives[0].Directive == PotionDirective.Force, "force_directive_persisted");
+        Require(forced.ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Smart)
+            .Directives.Length == 0, "smart_directive_removed");
+        Require(forced.ResolveDirective(0, "FIRE_POTION") == PotionDirective.Force,
+            "force_directive_resolved");
     }
 
     private static void DeploymentTiming()

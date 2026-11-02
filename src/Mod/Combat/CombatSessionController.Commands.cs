@@ -222,9 +222,12 @@ internal static partial class CombatSessionController
         }
         PotionDirective current = SolverSettings.Current.Search.Potions
             .ResolveDirective(slot, potionId);
-        PotionDirective next = mode == SolverPotionMode.Disabled
-            ? PotionDirective.Disabled
-            : PotionDirective.Smart;
+        PotionDirective next = mode switch
+        {
+            SolverPotionMode.Disabled => PotionDirective.Disabled,
+            SolverPotionMode.Force => PotionDirective.Force,
+            _ => PotionDirective.Smart,
+        };
         if (current == next)
             return true;
         if (!SolverSettings.Update(settings => settings with
@@ -246,9 +249,64 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (!Enum.IsDefined(mode))
             return false;
+        if (!TryCollectSearchablePotions(out List<(int Slot, string PotionId)> searchable))
+            return false;
+        SolverSettingsData current = SolverSettings.Current;
+        SolverPotionSettings potions = current.Search.Potions;
+        foreach ((int slot, string potionId) in searchable)
+            potions = potions.ApplyDirective(slot, potionId, mode);
+        SolverPotionPreset preset = mode switch
+        {
+            SolverPotionMode.Disabled => SolverPotionPreset.ProtectAll,
+            SolverPotionMode.Force => SolverPotionPreset.ForceAll,
+            _ => SolverPotionPreset.Smart,
+        };
+        potions = potions with { Preset = preset };
+        if (!SolverSettings.Update(settings => settings with
+            {
+                Search = settings.Search with { Potions = potions },
+            }))
+        {
+            return false;
+        }
+        StrategySettingsChanged($"potions all={mode} count={searchable.Count}");
+        return true;
+    }
+
+    /// <summary>
+    /// <c>PotionStrategyPreset.OnlyForced</c>: keep the potions already forced, protect the rest.
+    /// </summary>
+    internal static bool SetOnlyForcedPotionDirectives()
+    {
+        RequireMainThread();
+        if (!TryCollectSearchablePotions(out List<(int Slot, string PotionId)> searchable))
+            return false;
+        SolverSettingsData current = SolverSettings.Current;
+        SolverPotionSettings potions = current.Search.Potions;
+        foreach ((int slot, string potionId) in searchable)
+        {
+            SolverPotionMode mode = potions.ResolveDirective(slot, potionId)
+                == PotionDirective.Force ? SolverPotionMode.Force : SolverPotionMode.Disabled;
+            potions = potions.ApplyDirective(slot, potionId, mode);
+        }
+        potions = potions with { Preset = SolverPotionPreset.OnlyForced };
+        if (!SolverSettings.Update(settings => settings with
+            {
+                Search = settings.Search with { Potions = potions },
+            }))
+        {
+            return false;
+        }
+        StrategySettingsChanged($"potions only_forced count={searchable.Count}");
+        return true;
+    }
+
+    private static bool TryCollectSearchablePotions(
+        out List<(int Slot, string PotionId)> searchable)
+    {
+        searchable = [];
         if (_state == null || _player == null)
             return false;
-        List<(int Slot, string PotionId)> searchable = [];
         for (int slot = 0; slot < _player.PotionSlots.Count; slot++)
         {
             if (_player.GetPotionAtSlotIndex(slot) is not { } potion)
@@ -259,22 +317,6 @@ internal static partial class CombatSessionController
                 continue;
             searchable.Add((slot, potion.Id.Entry));
         }
-        SolverSettingsData current = SolverSettings.Current;
-        SolverPotionSettings potions = current.Search.Potions;
-        foreach ((int slot, string potionId) in searchable)
-            potions = potions.ApplyDirective(slot, potionId, mode);
-        SolverPotionPreset preset = mode == SolverPotionMode.Disabled
-            ? SolverPotionPreset.ProtectAll
-            : SolverPotionPreset.Smart;
-        potions = potions with { Preset = preset };
-        if (!SolverSettings.Update(settings => settings with
-            {
-                Search = settings.Search with { Potions = potions },
-            }))
-        {
-            return false;
-        }
-        StrategySettingsChanged($"potions all={mode} count={searchable.Count}");
         return true;
     }
 

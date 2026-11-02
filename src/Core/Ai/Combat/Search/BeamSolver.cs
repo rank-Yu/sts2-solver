@@ -795,6 +795,7 @@ internal sealed partial class BeamSolver
                 return;
             int explicitPotionUses = ExplicitPotionUses(node);
             if (explicitPotionUses == 0
+                && !_options.Potions.Strategy.HasForcedDirectives
                 && features.CumulativePlayerHpLost == 0
                 && features.PlayerMaxHp >= _options.InitialPlayerMaxHp
                 && features.PlayerHp >= features.PlayerMaxHp
@@ -1095,11 +1096,15 @@ internal sealed partial class BeamSolver
     {
         if (key.Won)
             _anyAuditedVictory = true;
-        int optionalPotionCount = features.ExplicitPotionUseCount;
+        ForcedPotionUseEvaluation forced = EvaluateForcedUses(node);
+        int optionalPotionCount = Math.Max(
+            0, features.ExplicitPotionUseCount - forced.ForcedUseCount);
         int optionalPotionStrategicCost = OptionalPotionStrategicCost(
-            features.ExplicitPotionStrategicCost, optionalPotionCount);
+            Math.Max(0, features.ExplicitPotionStrategicCost - forced.ForcedStrategicHpCost),
+            optionalPotionCount);
         PotionUseMode effectivePotionPolicy = _effectivePotionPolicy switch
         {
+            PotionUseMode.RequireAtLeastOne when forced.ForcedUseCount > 0 => PotionUseMode.Smart,
             PotionUseMode.Disabled when optionalPotionCount > 0 => PotionUseMode.Smart,
             _ => _effectivePotionPolicy,
         };
@@ -1119,10 +1124,11 @@ internal sealed partial class BeamSolver
             features.PotionUseCount,
             features.ExplicitPotionStrategicCost,
             optionalPotionStrategicCost,
-            AmbergrisUses(node),
+            Math.Max(0, AmbergrisUses(node) - forced.ForcedAmbergrisCount),
             features.PlayerHp,
             features.ProjectedDeathSaveUseCount,
-            effectivePotionPolicy);
+            effectivePotionPolicy,
+            forced.AllForcedUsesSatisfied);
         if (candidate.ExplicitPotionUseCount == 0
             && (_bestPotionFree is not { } free || ComparePotionFree(candidate, free) < 0))
         {
@@ -1231,7 +1237,7 @@ internal sealed partial class BeamSolver
                 _ordering.InitialPlayerMaxHp,
                 potionFreePlayerHp,
                 candidate.PlayerHp);
-        return passesSoftPolicy && passesAmbergris;
+        return candidate.ForcedUsesSatisfied && passesSoftPolicy && passesAmbergris;
     }
 
     /// <summary>Negative when <paramref name="left"/> wins the audited final ordering.</summary>
@@ -1325,7 +1331,8 @@ internal sealed partial class BeamSolver
         int AmbergrisUses,
         int PlayerHp,
         int ProjectedDeathSaveUseCount,
-        PotionUseMode EffectivePotionPolicy);
+        PotionUseMode EffectivePotionPolicy,
+        bool ForcedUsesSatisfied);
 
     private RouteKey Key(in Battle state, in ScoreFeatures features, int actionCount)
     {
@@ -1577,6 +1584,52 @@ internal sealed partial class BeamSolver
                 uses++;
         }
         return uses;
+    }
+
+    /// <summary>
+    /// The existing search's <c>PotionStrategySnapshot.EvaluateForcedUses(SearchNode)</c>: every forced
+    /// directive must match a use on the route. The walk is allocation-free for the audited candidates.
+    /// The strategic cost is the root potion's cost, which is the cost the search's slot-difference
+    /// ledger charges for the use.
+    /// </summary>
+    private ForcedPotionUseEvaluation EvaluateForcedUses(int node)
+    {
+        PotionStrategySnapshot strategy = _options.Potions.Strategy;
+        if (!strategy.HasForcedDirectives)
+            return new ForcedPotionUseEvaluation(true, 0, 0, 0);
+        int count = 0;
+        int strategicCost = 0;
+        int ambergrisCount = 0;
+        foreach (PotionSlotDirective directive in strategy.Directives)
+        {
+            if (directive.Directive != PotionDirective.Force)
+                continue;
+            bool used = false;
+            for (int cursor = node; _nodes.View(cursor).Parent >= 0;
+                 cursor = _nodes.View(cursor).Parent)
+            {
+                PlayerAction action = _nodes.View(cursor).Action;
+                if (action.Kind != PlayerActionKind.UsePotion
+                    || action.PotionSlot != directive.Slot)
+                    continue;
+                ushort potionId = _nodes.View(cursor).PotionId;
+                if (!string.Equals(Registry.Potion(potionId).NativeId, directive.PotionId,
+                        StringComparison.Ordinal))
+                    continue;
+                used = true;
+                strategicCost += potionId < _scorer.RulesForCodec.PotionStrategicCost.Length
+                    ? _scorer.RulesForCodec.PotionStrategicCost[potionId]
+                    : 0;
+                break;
+            }
+            if (!used)
+                continue;
+            count++;
+            if (directive.PotionId == "AMBERGRIS")
+                ambergrisCount++;
+        }
+        return new ForcedPotionUseEvaluation(count == strategy.ForcedDirectiveCount,
+            count, strategicCost, ambergrisCount);
     }
 
     private PlayerAction[] Route(int node)

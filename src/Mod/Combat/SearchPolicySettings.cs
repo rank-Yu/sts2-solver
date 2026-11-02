@@ -52,8 +52,7 @@ internal static class SolverSearchPolicy
     {
         PotionDirective.Smart => SearchPotionMode.Smart,
         PotionDirective.Disabled => SearchPotionMode.Disabled,
-        PotionDirective.Force => throw new UnsupportedImportException(
-            ImportReason.UnsupportedPolicy, "药水强制使用策略尚未支持。"),
+        PotionDirective.Force => SearchPotionMode.Force,
         _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
             $"未知药水槽策略：{directive}"),
     };

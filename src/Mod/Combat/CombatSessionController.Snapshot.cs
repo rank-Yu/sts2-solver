@@ -22,43 +22,42 @@ internal static partial class CombatSessionController
         int turn = CurrentTurn();
         int hp = _player?.Creature.CurrentHp ?? current.PlayerHp;
         int maxHp = _player?.Creature.MaxHp ?? current.PlayerMaxHp;
-        bool stoppedAvailable = StoppedRouteAvailable();
-        bool canExecute = !_solverDisabled && _deployment == null && _search == null
+        bool canExecute = _deployment == null && _search == null
             && _latestResult != null && ResultStampMatches(_latestResult);
-        bool canApply = !_solverDisabled && _search is { } applying
-            && !applying.ApplyCurrentTurn
-            && applying.RenderedCandidateVersion > 0
-            && _lastProgress?.CurrentTurn != null;
-        bool canAdopt = !_solverDisabled
-            && ((_search is { } adopting && adopting.RenderedCandidateVersion > 0)
-                || stoppedAvailable);
+        bool canStart = false;
+        string? searchBlock = null;
+        if (_search == null)
+        {
+            if (_deployment == null && !SearchSession.IsRunning && CanSolve(out _))
+                canStart = true;
+            else
+                searchBlock = CanSolve(out string reason) ? "searching" : reason;
+        }
         CombatControllerResult? routeSource = _search == null
-            ? _latestResult ?? _deploymentResult ?? _stoppedResult
+            ? _latestResult ?? _deploymentResult
             : null;
-        CombatControllerResult? shown = _search == null ? _latestResult ?? _stoppedResult : null;
+        CombatControllerResult? shown = _search == null ? _latestResult : null;
         CombatUiSnapshot next = new()
         {
             Phase = _phase,
             Root = current.Root.Length == 0 ? _testRoot ?? "" : current.Root,
             Mode = _mode,
-            SolverDisabled = _solverDisabled,
             FullAutoEnabled = _fullAutoEnabled,
+            FullAutoPausedThisCombat = _fullAutoPausedThisCombat,
             AutomaticCalculationEnabled = _mode is SolverMode.AutoSearch or SolverMode.FullAuto,
             AutomaticSearchPaused = _automaticSearchPaused,
             AutomaticSearchPausedTurn = _automaticSearchPausedTurn,
-            DeployWhenReady = _search?.DeployWhenReady ?? false,
+            AutomationStoppedThisTurn = _automaticSearchPaused
+                && _automaticSearchPausedTurn == turn,
             IsSearching = _search != null,
             IsDeploying = _deployment != null,
-            IsApplyingCurrentTurn = _search?.ApplyCurrentTurn ?? false,
-            IsAdoptingRoute = _search?.AdoptRequested ?? false,
-            CanStartSearch = !_solverDisabled && _search == null && _deployment == null
-                && !SearchSession.IsRunning && CanSolve(out _),
-            CanStopSearch = !_solverDisabled && _search != null,
-            CanExecuteCurrentTurn = canExecute,
-            CanApplyCurrentTurn = canApply,
-            CanAdoptCurrentRoute = canAdopt,
-            StoppedRouteAvailable = stoppedAvailable,
-            HasRetainedRoute = _latestResult != null || _continuationSource != null,
+            DeployWhenReady = _search?.DeployWhenReady ?? false,
+            IsStoppingDeployment = _deployment?.StopRequested ?? false,
+            CanStartSearch = canStart,
+            CanStopSearch = _search != null,
+            SearchBlockReason = searchBlock,
+            CurrentTurnRouteReady = canExecute,
+            SearchCandidateAllDeath = _lastProgress?.Route?.OnlyDeathRoutes ?? false,
             LastSolverDeployedTurn = _lastSolverDeployedTurn,
             Result = shown == null ? null : ResultUi(shown),
             Turn = turn,
@@ -147,8 +146,9 @@ internal static partial class CombatSessionController
             ActiveMemberWidth = _activeMemberWidth,
             ActiveMemberBudgetMilliseconds = _activeMemberBudget,
             ActiveMemberStartedAtMilliseconds = _activeMemberStartedAt,
-            BudgetMilliseconds = checked((long)_searchProfile.BaselineWidth
-                * _searchProfile.MillisecondsPerWidth),
+            BudgetMilliseconds = progress?.PlannedBudgetMilliseconds is > 0
+                ? progress.PlannedBudgetMilliseconds
+                : checked((long)_searchProfile.BaselineWidth * _searchProfile.MillisecondsPerWidth),
             ElapsedMilliseconds = progress?.ElapsedMilliseconds
                 ?? Math.Max(0, Environment.TickCount64 - _searchStartedAt),
             ExpandedNodes = progress?.ExpandedNodes ?? 0,
@@ -259,8 +259,9 @@ internal static partial class CombatSessionController
                 Reason = ReasonName(session.Reason),
                 StartedAtMilliseconds = _searchStartedAt,
                 SearchThreads = _searchThreads,
-                BudgetMilliseconds = checked((long)profile.BaselineWidth
-                    * profile.MillisecondsPerWidth),
+                BudgetMilliseconds = _lastProgress?.PlannedBudgetMilliseconds is > 0
+                    ? _lastProgress.PlannedBudgetMilliseconds
+                    : checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
                 ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - _searchStartedAt),
                 Status = status,
                 SearchStatus = status,
@@ -289,13 +290,6 @@ internal static partial class CombatSessionController
                 : CurrentTurnPreview(final.CurrentTurn),
             MemberRuns = run?.MemberRuns ?? [],
         };
-    }
-
-    private static bool StoppedRouteAvailable()
-    {
-        if (_stoppedResult is not { } stopped || _search != null || _deployment != null)
-            return false;
-        return ResultStampMatches(stopped);
     }
 
     private static CombatPilotResult BuildPilotResult()

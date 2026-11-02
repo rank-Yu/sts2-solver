@@ -63,6 +63,7 @@ internal static class UiLogicChecks
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("settings_v1_migration", () => MigrateV1(directory));
         Check("settings_v2_migration", () => MigrateV2(directory));
+        Check("settings_v3_migration", () => MigrateV3(directory));
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
@@ -110,7 +111,6 @@ internal static class UiLogicChecks
             "final_boss_default");
         Require(data.Search.Theft == SolverTheftMode.Auto, "theft_default");
         Require(data.Automation.Mode == SolverMode.AutoSearch, "mode_default");
-        Require(!data.Automation.SolverDisabled, "solver_enabled_default");
         Require(data.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
             "deployment_speed_default");
         Require(data.Automation.InterActionDelaySeconds == 0d, "inter_action_delay_default");
@@ -153,7 +153,6 @@ internal static class UiLogicChecks
             Automation = new SolverAutomationSettings
             {
                 Mode = SolverMode.FullAuto,
-                SolverDisabled = false,
                 DeploymentSpeed = SolverDeploymentSpeed.Fast,
                 InterActionDelaySeconds = 0.5,
             },
@@ -214,7 +213,7 @@ internal static class UiLogicChecks
             "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(fullAuto, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 3, "migration_schema");
+        Require(migrated.Current.SchemaVersion == 4, "migration_schema");
         Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "migration_full_auto");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "migration_search");
         Require(logs.Any(static line => line.Contains("SETTINGS_MIGRATED", StringComparison.Ordinal)),
@@ -239,7 +238,7 @@ internal static class UiLogicChecks
             "\"ui\":{\"opacity\":0.5,\"theme\":\"Light\"}}");
         List<string> logs = [];
         SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 3, "v2_migration_schema");
+        Require(migrated.Current.SchemaVersion == 4, "v2_migration_schema");
         Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v2_migration_search");
         Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "v2_migration_mode");
         Require(migrated.Current.Search.Threads is null, "v2_migration_threads");
@@ -248,6 +247,35 @@ internal static class UiLogicChecks
         Require(migrated.Current.Ui.ShowBattleDamagePerformanceHint, "v2_migration_performance_hint");
         Require(logs.Any(static line => line.Contains("from=2", StringComparison.Ordinal)),
             "v2_migration_log");
+    }
+
+    private static void MigrateV3(string directory)
+    {
+        string path = Path.Combine(directory, "v3-disabled.json");
+        File.WriteAllText(path,
+            "{\"schemaVersion\":3,\"search\":{\"tier\":\"High\"}," +
+            "\"automation\":{\"mode\":\"AutoSearch\",\"solverDisabled\":true}," +
+            "\"ui\":{\"opacity\":0.5,\"theme\":\"Dark\"}}");
+        List<string> logs = [];
+        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        Require(migrated.Current.SchemaVersion == 4, "v3_migration_schema");
+        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v3_migration_search");
+        Require(migrated.Current.Automation.Mode == SolverMode.Manual, "v3_migration_disabled");
+        string rewritten = File.ReadAllText(path);
+        Require(!rewritten.Contains("solverDisabled", StringComparison.Ordinal),
+            "v3_migration_field_removed");
+        Require(logs.Any(static line => line.Contains("from=3", StringComparison.Ordinal)),
+            "v3_migration_log");
+
+        string enabledPath = Path.Combine(directory, "v3-enabled.json");
+        File.WriteAllText(enabledPath,
+            "{\"schemaVersion\":3,\"automation\":{\"mode\":\"FullAuto\"," +
+            "\"solverDisabled\":false},\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
+        SolverSettingsStore enabled = SolverSettingsStore.Load(enabledPath, logs.Add, logs.Add);
+        Require(enabled.Current.SchemaVersion == 4, "v3_enabled_schema");
+        Require(enabled.Current.Automation.Mode == SolverMode.FullAuto, "v3_enabled_mode");
+        Require(!File.ReadAllText(enabledPath).Contains("solverDisabled", StringComparison.Ordinal),
+            "v3_enabled_field_removed");
     }
 
     private static void DeploymentTiming()

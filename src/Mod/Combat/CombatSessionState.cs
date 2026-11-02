@@ -43,9 +43,6 @@ internal sealed class CombatSearchSession(
     /// <summary>Set when the user asked to apply the current turn while the search was running.</summary>
     internal bool ApplyCurrentTurn { get; set; }
 
-    /// <summary>Set when the user asked to adopt the rendered candidate without deploying.</summary>
-    internal bool AdoptRequested { get; set; }
-
     /// <summary>Candidate version last rendered by the main thread; stop adopts this exact version.</summary>
     internal int RenderedCandidateVersion { get; set; }
 
@@ -63,6 +60,9 @@ internal sealed class CombatDeploymentSession(
     internal CombatState State { get; } = state;
     internal CancellationTokenSource Cancellation { get; } = cancellation;
     internal Task Operation { get; set; } = Task.CompletedTask;
+
+    /// <summary>Soft stop: no new action is started, the current one settles before the turn returns.</summary>
+    internal bool StopRequested { get; set; }
 }
 
 /// <summary>One completed search, replayed and ready for the controller or deployment.</summary>

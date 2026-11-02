@@ -1,5 +1,5 @@
-// Command surface of the controller: mode, solver switch, search, stop, adopt and execute. All
-// commands run on the game main thread and return false when the button would be disabled.
+// Command surface of the controller: mode, search, stop and execute. All commands run on the game
+// main thread and return false when the button would be disabled.
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
@@ -27,25 +27,43 @@ internal static partial class CombatSessionController
         {
             return false;
         }
+        bool changed = _mode != mode;
         _mode = mode;
         if (mode != SolverMode.FullAuto)
         {
             if (_fullAutoEnabled)
                 ModLog.Info($"[Sts2Solver] CONTROLLER_FULL_AUTO_OFF source=mode mode={mode}");
             _fullAutoEnabled = false;
+            if (_fullAutoPausedThisCombat)
+            {
+                _fullAutoPausedThisCombat = false;
+                _pauseCode = null;
+                _pauseReason = null;
+            }
             if (mode == SolverMode.Manual)
                 CancelTurnSchedule();
             if (_search == null && _deployment == null && _pauseCode == null)
                 _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
+            if (mode == SolverMode.AutoSearch && changed
+                && _search == null && _deployment == null
+                && !_automaticSearchPaused)
+            {
+                TrySearchOnModeSwitch(CombatSearchReason.AutoTurnStart);
+            }
             return true;
         }
 
-        _automaticSearchPaused = false;
-        _automaticSearchPausedTurn = null;
+        bool resumePaused = _fullAutoPausedThisCombat;
+        _fullAutoPausedThisCombat = false;
         _pauseCode = null;
         _pauseReason = null;
         _rejectCode = null;
+        if (resumePaused)
+        {
+            _automaticSearchPaused = false;
+            _automaticSearchPausedTurn = null;
+        }
         _fullAutoEnabled = CanArmFullAuto();
         if (!_fullAutoEnabled)
         {
@@ -54,66 +72,25 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return true;
         }
-        if (_search == null && _deployment == null && CanSolve(out _))
+        if (_search != null || _deployment != null)
         {
-            if (_latestResult != null && ResultStampMatches(_latestResult))
-                StartFullAutoDeployment(_latestResult);
-            else
-                RequestSearch(CombatSearchReason.FullAuto, deployWhenReady: false);
-        }
-        PublishSnapshot();
-        return true;
-    }
-
-    internal static bool SetSolverEnabled(bool enabled, bool persist = true)
-    {
-        RequireMainThread();
-        bool disabled = !enabled;
-        if (persist && SolverSettings.Current.Automation.SolverDisabled != disabled
-            && !SolverSettings.Update(current => current with
-            {
-                Automation = current.Automation with { SolverDisabled = disabled },
-            }))
-        {
-            return false;
-        }
-        _solverDisabled = disabled;
-        ModLog.Info($"[Sts2Solver] CONTROLLER_SOLVER enabled={enabled}");
-        if (disabled)
-        {
-            CancelTurnSchedule();
-            DisableFullAuto(persistMode: true);
-            CancelSearch();
-            CancelDeployment();
-            _latestResult = null;
-            _latestStamp = null;
-            _stoppedResult = null;
-            _continuationSource = null;
-            _pendingCompleteBaseline = null;
-            _pauseCode = null;
-            _pauseReason = null;
-            _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
             return true;
         }
-
-        _pauseCode = null;
-        _pauseReason = null;
-        _rejectCode = null;
-        _fullAutoEnabled = _mode == SolverMode.FullAuto && CanArmFullAuto();
-        if (_fullAutoEnabled && _search == null && _deployment == null && CanSolve(out _))
+        if (!_automaticSearchPaused
+            && _latestResult is { } result && ResultStampMatches(result))
         {
-            if (_latestResult != null && ResultStampMatches(_latestResult))
-                StartFullAutoDeployment(_latestResult);
-            else
-                RequestSearch(CombatSearchReason.FullAuto, deployWhenReady: false);
+            StartFullAutoDeployment(result);
         }
-        else if (!_fullAutoEnabled && _mode == SolverMode.AutoSearch
-            && _search == null && _deployment == null && CanSolve(out _))
+        else if (!_automaticSearchPaused)
         {
-            _ = RequestSearchWhenIdleAsync(CombatSearchReason.AutoTurnStart);
+            TrySearchOnModeSwitch(CombatSearchReason.FullAuto);
         }
-        _phase = CombatUiPhase.WaitingTurn;
+        if (_search == null && _deployment == null && _phase != CombatUiPhase.Searching
+            && _phase != CombatUiPhase.Deploying && _pauseCode == null)
+        {
+            _phase = CombatUiPhase.WaitingTurn;
+        }
         PublishSnapshot();
         return true;
     }
@@ -121,9 +98,14 @@ internal static partial class CombatSessionController
     internal static bool StartOrRecalculateSearch()
     {
         RequireMainThread();
-        if (_search != null || _deployment != null || SearchSession.IsRunning
-            || !CanSolve(out _))
+        if (IsMultiplayerSession || _search != null || _deployment != null
+            || SearchSession.IsRunning)
+            return false;
+        if (!CanSolve(out string rejection))
         {
+            _rejectCode = rejection;
+            PublishSnapshot();
+            ModLog.Info($"[Sts2Solver] CONTROLLER_SEARCH_REJECT reason={rejection}");
             return false;
         }
         RequestSearch(CombatSearchReason.Manual, deployWhenReady: false);
@@ -133,83 +115,77 @@ internal static partial class CombatSessionController
     internal static bool StopSearch()
     {
         RequireMainThread();
-        if (_search is not { } search || _solverDisabled)
+        if (IsMultiplayerSession || _search is not { } search || search.StopRequested)
             return false;
-        DisableFullAuto(persistMode: true);
         _automaticSearchPaused = true;
         _automaticSearchPausedTurn = CurrentTurn();
         _pauseCode = "stopped";
         _pauseReason = "stopped_by_user";
         _phase = CombatUiPhase.Searching;
-        if (search.RenderedCandidateVersion > 0
-            && SearchSession.RequestAdopt(search.RenderedCandidateVersion))
+        search.StopRequested = true;
+        search.ApplyCurrentTurn = false;
+        search.DeployWhenReady = false;
+        if (!SearchSession.RequestStop())
         {
-            search.StopRequested = true;
-            ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_STOP_PRESERVE turn={search.StartTurn} " +
-                $"candidate={search.RenderedCandidateVersion}");
-        }
-        else
-        {
-            ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_CANCEL turn={search.StartTurn}");
             search.Cancellation.Cancel();
             SearchSession.Cancel("user");
         }
         PublishSnapshot();
+        ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_REQUEST turn={search.StartTurn}");
         return true;
     }
 
-    internal static bool AdoptCurrentRoute()
+    internal static bool StopDeployment()
     {
         RequireMainThread();
-        _automaticSearchPaused = false;
-        _automaticSearchPausedTurn = null;
-        if (_search is { } search)
-        {
-            if (search.RenderedCandidateVersion <= 0
-                || !SearchSession.RequestAdopt(search.RenderedCandidateVersion))
-            {
-                return false;
-            }
-            search.StopRequested = false;
-            search.DeployWhenReady = false;
-            search.AdoptRequested = true;
-            _pauseCode = null;
-            _pauseReason = null;
-            _phase = CombatUiPhase.Searching;
-            PublishSnapshot();
-            ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_ADOPT turn={search.StartTurn} " +
-                $"candidate={search.RenderedCandidateVersion}");
-            return true;
-        }
-        return TryAdoptStoppedRoute();
+        if (IsMultiplayerSession || _deployment is not { } deployment || deployment.StopRequested)
+            return false;
+        deployment.StopRequested = true;
+        _automaticSearchPaused = true;
+        _automaticSearchPausedTurn = CurrentTurn();
+        _pauseCode = "stopped";
+        _pauseReason = "stopped_by_user";
+        PublishSnapshot();
+        ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_DEPLOYMENT turn={deployment.Turn}");
+        return true;
     }
 
-    internal static bool ExecuteOrApplyCurrentTurn()
+    internal static bool ExecuteCurrentTurn()
     {
         RequireMainThread();
-        if (_deployment != null || _solverDisabled)
+        if (IsMultiplayerSession || _deployment != null)
             return false;
         if (_search is { } search)
         {
-            if (search.RenderedCandidateVersion <= 0 || _lastProgress?.CurrentTurn == null)
+            if (search.StopRequested || search.ApplyCurrentTurn
+                || search.RenderedCandidateVersion <= 0
+                || _lastProgress?.CurrentTurn == null
+                || _lastProgress.Route?.OnlyDeathRoutes == true)
+            {
                 return false;
-            DisableFullAuto(persistMode: true);
-            _automaticSearchPaused = false;
-            _automaticSearchPausedTurn = null;
-            if (!SearchSession.RequestAdopt(search.RenderedCandidateVersion))
-                return false;
+            }
+            _automaticSearchPaused = true;
+            _automaticSearchPausedTurn = CurrentTurn();
             search.ApplyCurrentTurn = true;
+            search.StopRequested = true;
             search.DeployWhenReady = true;
-            search.StopRequested = false;
-            search.AdoptRequested = false;
-            _pauseCode = null;
-            _pauseReason = null;
+            _pauseCode = "stopped";
+            _pauseReason = "execute_current_turn";
             _phase = CombatUiPhase.Searching;
+            if (!SearchSession.RequestStop())
+            {
+                search.ApplyCurrentTurn = false;
+                search.StopRequested = false;
+                search.DeployWhenReady = false;
+                _automaticSearchPaused = false;
+                _automaticSearchPausedTurn = null;
+                _pauseCode = null;
+                _pauseReason = null;
+                return false;
+            }
             PublishSnapshot();
             ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_APPLY_CURRENT_TURN turn={search.StartTurn} " +
+                $"[Sts2Solver] CONTROLLER_EXECUTE_CURRENT_TURN turn={search.StartTurn} " +
                 $"candidate={search.RenderedCandidateVersion}");
             return true;
         }
@@ -223,76 +199,17 @@ internal static partial class CombatSessionController
             ModLog.Info($"[Sts2Solver] CONTROLLER_EXECUTE_REJECT reason={rejection}");
             return false;
         }
-        RequestSearch(CombatSearchReason.Deploy, deployWhenReady: true);
-        return true;
+        ModLog.Info("[Sts2Solver] CONTROLLER_EXECUTE_REJECT reason=no_current_turn_route");
+        return false;
     }
 
-    internal static bool SetFullAuto(bool enabled)
+    /// <summary>Starts the mode-switch search without replacing a route that is still current.</summary>
+    private static void TrySearchOnModeSwitch(CombatSearchReason reason)
     {
-        RequireMainThread();
-        if (!enabled)
-        {
-            DisableFullAuto(persistMode: true);
-            PublishSnapshot();
-            return true;
-        }
-        return SetMode(SolverMode.FullAuto);
-    }
-
-    private static bool TryAdoptStoppedRoute()
-    {
-        if (_stoppedResult is not { } stopped || stopped.Plan.Actions.Length == 0
-            || _state == null || _player == null || _rules == null || _tracker == null
-            || !CanSolve(out _))
-        {
-            return false;
-        }
-        Battle live;
-        try
-        {
-            live = _tracker.ImportForComparison(_state, _player, _rules,
-                stopped.Plan.Actions[0].Before);
-        }
-        catch (UnsupportedImportException error)
-        {
-            ModLog.Error($"[Sts2Solver] CONTROLLER_ADOPT_IMPORT_FAILED reason={error.Reason} {error.Detail}");
-            return false;
-        }
-        catch (UnsupportedException error)
-        {
-            ModLog.Error($"[Sts2Solver] CONTROLLER_ADOPT_IMPORT_FAILED {error.Message}");
-            return false;
-        }
-        catch (CapacityException error)
-        {
-            ModLog.Error($"[Sts2Solver] CONTROLLER_ADOPT_IMPORT_FAILED region={error.Region} {error.Message}");
-            return false;
-        }
-        catch (InvalidDataException error)
-        {
-            ModLog.Error($"[Sts2Solver] CONTROLLER_ADOPT_IMPORT_FAILED {error.Message}");
-            return false;
-        }
-        bool current = stopped.Stamp.Matches(live);
-        _stoppedResult = null;
-        if (!current)
-        {
-            ModLog.Info("[Sts2Solver] CONTROLLER_ADOPT_STALE");
-            PublishSnapshot();
-            return false;
-        }
-        _tracker.Observe(live);
-        _names ??= CombatDisplayNames.Capture(_state);
-        _latestResult = stopped;
-        _latestStamp = CombatStateStamp.Capture(live);
-        _continuationSource = stopped;
-        _pauseCode = null;
-        _pauseReason = null;
-        _phase = CombatUiPhase.WaitingTurn;
-        PublishSnapshot();
-        ModLog.Info(
-            $"[Sts2Solver] CONTROLLER_STOPPED_ROUTE_ADOPTED turn={stopped.StartTurn} " +
-            $"actions={stopped.Plan.Actions.Length}");
-        return true;
+        if (_latestResult is { } result && ResultStampMatches(result))
+            return;
+        if (!CanSolve(out _))
+            return;
+        RequestSearch(reason, deployWhenReady: false);
     }
 }

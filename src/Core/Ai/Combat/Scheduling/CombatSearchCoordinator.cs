@@ -61,6 +61,16 @@ internal static class CombatSearchCoordinator
                 (item.Width, item.Evaluation, item.Retention, policy.MaximumUses)))
                 skips[i] = "duplicate-limit";
         }
+        SearchProgressChannel? progress = request.Progress;
+        long plannedMilliseconds = plan.TotalBudgetMilliseconds ?? 0L;
+        if (plannedMilliseconds <= 0L)
+        {
+            for (int i = 0; i < members.Length; i++)
+                if (skips[i] is null)
+                    plannedMilliseconds += checked((long)members[i].Width * plan.MillisecondsPerWidth);
+        }
+        if (progress != null)
+            progress.PlannedBudgetMilliseconds = plannedMilliseconds;
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
         List<SearchMemberResult> logs = new(members.Length);
         BeamSolver.Candidate? free = null, selected = null;
@@ -72,7 +82,6 @@ internal static class CombatSearchCoordinator
         bool cancelled = false;
         bool goalReached = false;
         SortedDictionary<string, int>? capacityDrops = null;
-        SearchProgressChannel? progress = request.Progress;
         SearchInterimResult? bestComplete = null;
         for (int index = 0; index < members.Length; index++)
         {
@@ -150,40 +159,65 @@ internal static class CombatSearchCoordinator
                 {
                     Completion = SearchCompletionKind.Cancelled,
                     SearchThreads = initial.Options.SearchThreads,
+                    PlannedBudgetMilliseconds = plannedMilliseconds,
                 };
             }
             if (beam is { Adoption: { } adoption })
             {
+                BeamResult chosen = beam;
+                int chosenIndex = index;
+                bool chosenOnlyDeath = adoption.OnlyDeathRoutes;
+                if (adoption.Kind == SearchAdoptionKind.Stopped && best is { } completed
+                    && quality.TryCompareResultQuality(initial.Battles, completed, beam,
+                        out int comparison, out int completedThroughTurn, out _)
+                    && comparison < 0)
+                {
+                    chosen = completed;
+                    chosenIndex = bestIndex;
+                    chosenOnlyDeath = selected is { } selectedCandidate
+                        && !selectedCandidate.Key.Survives;
+                    adoption = adoption with
+                    {
+                        CandidateVersion = 0,
+                        ThroughTurn = completedThroughTurn,
+                        Outcome = bestOutcome,
+                        OnlyDeathRoutes = chosenOnlyDeath,
+                    };
+                }
                 logs.Add(new SearchMemberResult(member, true, null,
                     Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal,
                     adoption.Kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
-                    beam.BestIsVictory, null, null, true, beam.SearchMemoryPeakBytes,
-                    beam.EndedCompactions)
+                    chosen.BestIsVictory, null, null, chosenIndex == index, chosen.SearchMemoryPeakBytes,
+                    chosen.EndedCompactions)
                 {
-                    MemoryUsedBytes = beam.SearchMemoryUsedBytes,
-                    MemoryBudgetExceeded = beam.SearchMemoryBudgetExceeded,
-                    MemoryExceededAtBytes = beam.SearchMemoryExceededAtBytes,
-                    RouteNodeStorageBytes = beam.RouteNodeStorageBytes,
-                    RouteNodePeakCount = beam.RouteNodePeakCount,
+                    MemoryUsedBytes = chosen.SearchMemoryUsedBytes,
+                    MemoryBudgetExceeded = chosen.SearchMemoryBudgetExceeded,
+                    MemoryExceededAtBytes = chosen.SearchMemoryExceededAtBytes,
+                    RouteNodeStorageBytes = chosen.RouteNodeStorageBytes,
+                    RouteNodePeakCount = chosen.RouteNodePeakCount,
                     ManagedHeapPeakBytes = measurement.ManagedHeapPeakBytes,
                     WorkingSetPeakBytes = measurement.WorkingSetPeakBytes,
-                    WorkspaceOverflowParents = beam.WorkspaceOverflowParents,
-                    SearchWorkspacePeakBytes = beam.SearchWorkspacePeakBytes,
-                    SearchWorkspaceGrowablePeakBytes = beam.SearchWorkspaceGrowablePeakBytes,
+                    WorkspaceOverflowParents = chosen.WorkspaceOverflowParents,
+                    SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
+                    SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
                 });
+                for (int i = 0; i < logs.Count; i++)
+                    logs[i] = logs[i] with { Adopted = i == chosenIndex };
                 CombatSearchStatus adoptionStatus = adoption.Outcome == Outcome.Victory
                     ? CombatSearchStatus.Victory
                     : adoption.Outcome is Outcome.Defeat or Outcome.EventDefeat
                         ? CombatSearchStatus.Defeat
                         : CombatSearchStatus.Incomplete;
-                return new CombatSearchResult(adoptionStatus, beam, index, budget.Elapsed,
+                return new CombatSearchResult(adoptionStatus, chosen, chosenIndex, budget.Elapsed,
                     expanded, [.. logs], null)
                 {
                     Completion = adoption.Kind == SearchAdoptionKind.Stopped
                         ? SearchCompletionKind.StoppedWithCandidate
                         : SearchCompletionKind.Adopted,
                     Adoption = adoption,
+                    OnlyDeathRoutes = chosenOnlyDeath,
                     SearchThreads = initial.Options.SearchThreads,
+                    PlannedBudgetMilliseconds = plannedMilliseconds,
                 };
             }
             bool adopted = false;
@@ -281,6 +315,7 @@ internal static class CombatSearchCoordinator
                 : error != null || capacityBounded ? SearchCompletionKind.Failed
                 : SearchCompletionKind.Completed,
             SearchThreads = initial.Options.SearchThreads,
+            PlannedBudgetMilliseconds = plannedMilliseconds,
         };
     }
 }

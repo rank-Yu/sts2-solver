@@ -54,32 +54,28 @@ internal static class UiPanelChecks
         session.Check("collapse_persists",
             collapsed.Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
         session.Check("collapsed_header_visible", collapsed.Visible, Describe(panel));
-        session.Check("collapsed_solver_toggle_clickable",
-            await VisibleAndClickable(host, panel.SolverEnabledButtonForTest), Describe(panel));
-        session.Check("collapsed_mode_button_clickable",
-            await VisibleAndClickable(host, panel.ModeButtonForTest), Describe(panel));
+        bool modeButtonsClickable =
+            await VisibleAndClickable(host, panel.ManualModeButtonForTest)
+            && await VisibleAndClickable(host, panel.AutoSearchModeButtonForTest)
+            && await VisibleAndClickable(host, panel.FullAutoModeButtonForTest);
+        session.Check("collapsed_mode_buttons_clickable", modeButtonsClickable, Describe(panel));
         await Press(host, panel.CollapseButtonForTest);
         session.Check("expand_persists",
             !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
 
         SolverMode originalMode = SolverSettings.Current.Automation.Mode;
-        await Press(host, panel.ModeButtonForTest);
-        await Frames(host, 2);
-        session.Check("mode_button_cycles",
-            SolverSettings.Current.Automation.Mode != originalMode, Describe(panel));
-        for (int attempt = 0; attempt < 3 && SolverSettings.Current.Automation.Mode != originalMode;
-             attempt++)
-        {
-            await Press(host, panel.ModeButtonForTest);
-        }
-        await WaitModeAsync(host, originalMode, 30);
-
-        await Press(host, panel.SolverEnabledButtonForTest);
-        await WaitAsync(host, static s => s.SolverDisabled, 60, "solver disabled by panel");
-        session.Check("solver_toggle_off", CombatUiStore.Snapshot.SolverDisabled, Describe(panel));
-        await Press(host, panel.SolverEnabledButtonForTest);
-        await WaitAsync(host, static s => !s.SolverDisabled, 60, "solver enabled by panel");
-        session.Check("solver_toggle_on", !CombatUiStore.Snapshot.SolverDisabled, Describe(panel));
+        await Press(host, panel.ManualModeButtonForTest);
+        await WaitModeAsync(host, SolverMode.Manual, 30);
+        session.Check("mode_manual_selected",
+            SolverSettings.Current.Automation.Mode == SolverMode.Manual, Describe(panel));
+        await Press(host, panel.AutoSearchModeButtonForTest);
+        await WaitModeAsync(host, SolverMode.AutoSearch, 30);
+        session.Check("mode_auto_search_selected",
+            SolverSettings.Current.Automation.Mode == SolverMode.AutoSearch, Describe(panel));
+        await Press(host, panel.FullAutoModeButtonForTest);
+        await WaitModeAsync(host, SolverMode.FullAuto, 30);
+        session.Check("mode_full_auto_selected",
+            SolverSettings.Current.Automation.Mode == SolverMode.FullAuto, Describe(panel));
         if (SolverSettings.Current.Automation.Mode != originalMode)
             CombatUiCommands.Instance.SetMode(originalMode);
         await WaitModeAsync(host, originalMode, 60);
@@ -415,7 +411,42 @@ internal sealed partial class UiPanelObserver : Node
     {
         SolverOverlay panel = _panel!;
         bool searching = snapshot.IsSearching;
-        bool adopting = snapshot.IsAdoptingRoute;
+        bool deploying = snapshot.IsDeploying;
+        bool stoppingSearch = snapshot.Search?.Phase == SearchUiPhase.Stopping;
+        bool queuedExecution = searching && snapshot.DeployWhenReady;
+        bool candidateExecute = searching && !queuedExecution && !stoppingSearch
+            && snapshot.Search?.StopCandidateAvailable == true
+            && snapshot.Search?.CurrentTurnPreview != null
+            && !snapshot.SearchCandidateAllDeath;
+        bool executeVisible = deploying || queuedExecution || candidateExecute
+            || !searching && snapshot.CurrentTurnRouteReady;
+        string expectedSearchText = searching ? SolverText.Get("停止搜索")
+            : deploying || snapshot.CurrentTurnRouteReady
+                ? SolverText.Get("重新搜索")
+                : SolverText.Get("开始搜索");
+        bool expectedSearchDisabled = searching ? stoppingSearch : !snapshot.CanStartSearch;
+        string? expectedSearchTooltip = !searching && expectedSearchDisabled
+            ? BlockText(snapshot.SearchBlockReason)
+            : searching && stoppingSearch ? SolverText.Get("正在停止搜索…") : null;
+        string expectedExecuteText = deploying || queuedExecution
+            ? SolverText.Get("停止执行")
+            : SolverText.Get("执行本回合");
+        bool expectedExecuteDisabled = deploying
+            ? snapshot.IsStoppingDeployment
+            : queuedExecution && stoppingSearch;
+        string? expectedExecuteTooltip = deploying
+            ? snapshot.IsStoppingDeployment
+                ? SolverText.Get("当前动作完成后停止。")
+                : SolverText.Get("停止执行当前回合；已发出的动作会结算完。")
+            : queuedExecution
+                ? SolverText.Get("停止这次搜索；本回合不再自动执行。")
+                : searching
+                    ? SolverText.Get("停止搜索，按当前最佳候选执行本回合。")
+                    : snapshot.CurrentTurnRouteReady
+                        ? snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
+                            ? SolverText.Get("玩家确认后强制执行这条路线。")
+                            : SolverText.Get("执行当前回合的动作。")
+                        : null;
         bool ok = true;
         string? detail = null;
         void Expect(string name, bool condition)
@@ -425,39 +456,63 @@ internal sealed partial class UiPanelObserver : Node
             ok = false;
             detail ??= name;
         }
-        Expect("stop_visible", panel.StopSearchButtonForTest?.Visible == searching);
-        Expect("recalculate_visible", panel.RecalculateButtonForTest?.Visible == !searching);
-        Expect("execute_visible", panel.ExecuteButtonForTest?.Visible == !searching);
-        Expect("adopt_visible", panel.AdoptRouteButtonForTest?.Visible
-            == (snapshot.CanAdoptCurrentRoute || adopting));
-        Expect("memory_collapsed", panel.MemoryRowVisibleForTest != panel.ProbeForTest().Collapsed);
-        Expect("stop_disabled", panel.StopSearchButtonForTest?.Disabled
-            == (snapshot.SolverDisabled || !searching || snapshot.Search?.Phase == SearchUiPhase.Stopping));
-        Expect("recalculate_disabled", panel.RecalculateButtonForTest?.Disabled
-            == (snapshot.SolverDisabled || searching || snapshot.IsDeploying || adopting));
-        Expect("adopt_disabled", panel.AdoptRouteButtonForTest?.Disabled
-            == (snapshot.SolverDisabled || !snapshot.CanAdoptCurrentRoute || adopting));
-        bool executeDisabled = snapshot.SolverDisabled || snapshot.IsDeploying
-            || snapshot.IsApplyingCurrentTurn || adopting
-            || searching && !snapshot.CanApplyCurrentTurn
-            || !searching && !snapshot.CanExecuteCurrentTurn;
-        Expect("execute_disabled", panel.ExecuteButtonForTest?.Disabled == executeDisabled);
-        string expectedText = snapshot.IsDeploying ? SolverText.Get("执行中…")
-            : snapshot.IsApplyingCurrentTurn ? SolverText.Get("正在应用…")
-            : searching ? SolverText.Get("应用当前回合")
-            : snapshot.DeployWhenReady ? SolverText.Get("已排队执行")
-            : panel.PresentationForTest == SolverOverlayPresentation.ExecutedHistory
-                && !snapshot.CanExecuteCurrentTurn ? SolverText.Get("等待下一回合")
-            : SolverText.Get("执行本回合");
-        Expect("execute_text", panel.ExecuteButtonForTest?.Text == expectedText);
+        Expect("search_visible", panel.SearchButtonForTest?.Visible == true);
+        Expect("search_text", panel.SearchButtonForTest?.Text == expectedSearchText);
+        Expect("search_disabled", panel.SearchButtonForTest?.Disabled == expectedSearchDisabled);
+        Expect("search_tooltip", panel.SearchButtonForTest?.TooltipText
+            == (expectedSearchTooltip ?? ""));
+        Expect("execute_visible", panel.ExecuteButtonForTest?.Visible == executeVisible);
+        if (executeVisible)
+        {
+            Expect("execute_text", panel.ExecuteButtonForTest?.Text == expectedExecuteText);
+            Expect("execute_disabled", panel.ExecuteButtonForTest?.Disabled == expectedExecuteDisabled);
+            Expect("execute_tooltip", panel.ExecuteButtonForTest?.TooltipText
+                == (expectedExecuteTooltip ?? ""));
+        }
+        Expect("memory_collapsed",
+            panel.MemoryRowVisibleForTest != panel.ProbeForTest().Collapsed);
+        CheckModeButtons(snapshot, Expect);
         if (!ok)
         {
             ButtonMismatches++;
             Record($"buttons seq={snapshot.Sequence} phase={snapshot.Phase} detail={detail} " +
-                $"searching={searching} canAdopt={snapshot.CanAdoptCurrentRoute} " +
-                $"canApply={snapshot.CanApplyCurrentTurn} canExecute={snapshot.CanExecuteCurrentTurn}");
+                $"searching={searching} deploying={deploying} queue={queuedExecution} " +
+                $"canStart={snapshot.CanStartSearch} routeReady={snapshot.CurrentTurnRouteReady} " +
+                $"block={snapshot.SearchBlockReason ?? "-"}");
         }
     }
+
+    private void CheckModeButtons(CombatUiSnapshot snapshot, Action<string, bool> expect)
+    {
+        SolverOverlay panel = _panel!;
+        expect("manual_visible", panel.ManualModeButtonForTest?.Visible == true);
+        expect("auto_search_visible", panel.AutoSearchModeButtonForTest?.Visible == true);
+        expect("full_auto_visible", panel.FullAutoModeButtonForTest?.Visible == true);
+        expect("manual_text",
+            panel.ManualModeButtonForTest?.Text == SolverText.Get("手动"));
+        expect("auto_search_text",
+            panel.AutoSearchModeButtonForTest?.Text == SolverText.Get("自动搜索"));
+        expect("full_auto_text",
+            panel.FullAutoModeButtonForTest?.Text == SolverText.Get("全自动"));
+        string expectedTooltip = snapshot.FullAutoPausedThisCombat
+            ? SolverText.Get("本场全自动已暂停，点击恢复")
+            : SolverText.Get("手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+        expect("full_auto_tooltip",
+            panel.FullAutoModeButtonForTest?.TooltipText == expectedTooltip);
+    }
+
+    private static string BlockText(string? code) => code switch
+    {
+        "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
+        "actions_running" => SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
+        "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
+        "executing" => SolverText.Get("正在执行本回合；要重新搜索请先停止执行。"),
+        "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
+        "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),
+        "not_playable" => SolverText.Get("当前战斗状态不能搜索。"),
+        "not_in_combat" => SolverText.Get("当前不在战斗中。"),
+        _ => SolverText.Get("当前状态不能搜索。"),
+    };
 
     private void CheckRows(CombatUiSnapshot snapshot, SolverOverlayProbe probe)
     {

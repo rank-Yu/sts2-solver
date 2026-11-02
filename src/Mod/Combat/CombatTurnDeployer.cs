@@ -21,7 +21,8 @@ internal sealed record CombatTurnDeployment(
     string? FailureDetail,
     string[] Diff,
     bool PlanExhausted,
-    CombatPause? Pause);
+    CombatPause? Pause,
+    bool Stopped = false);
 
 internal sealed class CombatTurnDeployer(
     NGame host,
@@ -38,6 +39,7 @@ internal sealed class CombatTurnDeployer(
         Func<ReplayedAction, IReadOnlyDictionary<int, int>, ValueTask<CombatPause?>>? beforeEndTurn,
         Action<ReplayedAction>? actionStarted,
         Action<ReplayedAction>? actionCompleted,
+        Func<bool>? stopRequested,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -62,6 +64,8 @@ internal sealed class CombatTurnDeployer(
         {
             ReplayedAction action = actions[actionIndex];
             token.ThrowIfCancellationRequested();
+            if (stopRequested?.Invoke() == true)
+                return StoppedDeployment();
             if (action.Action.Kind == PlayerActionKind.EndTurn)
                 continue;
             actionStarted?.Invoke(action);
@@ -117,6 +121,8 @@ internal sealed class CombatTurnDeployer(
 
         if (!CombatManager.Instance.IsInProgress || !IsSamePlayableTurn(turn))
             return new CombatTurnDeployment(false, false, null, null, [], false, null);
+        if (stopRequested?.Invoke() == true)
+            return StoppedDeployment();
         if (endTurn == null)
             return new CombatTurnDeployment(false, false, "turn_plan_exhausted",
                 $"第 {turn} 回合路线没有结束回合动作。", [], true, null);
@@ -126,6 +132,8 @@ internal sealed class CombatTurnDeployer(
             if (pause != null)
                 return new CombatTurnDeployment(false, false, null, null, [], false, pause);
         }
+        if (stopRequested?.Invoke() == true)
+            return StoppedDeployment();
 
         actionStarted?.Invoke(endTurn);
 #if STS2_SOLVER_TESTING
@@ -173,6 +181,9 @@ internal sealed class CombatTurnDeployer(
 
         static CombatTurnDeployment Failure(string reason, string detail)
             => new(false, false, reason, detail, [], false, null);
+
+        static CombatTurnDeployment StoppedDeployment()
+            => new(false, false, null, null, [], false, null, Stopped: true);
     }
 
     private bool IsSamePlayableTurn(int turn)

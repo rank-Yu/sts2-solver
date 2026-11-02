@@ -1438,10 +1438,21 @@ internal sealed partial class BeamSolver
     /// </summary>
     internal bool TryCompareResultQuality(IReadOnlyList<Battle> roots, in BeamResult left,
         in BeamResult right, out int comparison)
+        => TryCompareResultQuality(roots, left, right, out comparison, out _, out _);
+
+    /// <summary>
+    /// As <see cref="TryCompareResultQuality"/>, also reporting the last player turn each route
+    /// reaches. The stop path uses the turn of the completed member it substitutes.
+    /// </summary>
+    internal bool TryCompareResultQuality(IReadOnlyList<Battle> roots, in BeamResult left,
+        in BeamResult right, out int comparison, out int leftThroughTurn, out int rightThroughTurn)
     {
         comparison = 0;
-        bool leftOk = TryEvaluateResultQuality(roots, left, out RouteKey leftKey);
-        bool rightOk = TryEvaluateResultQuality(roots, right, out RouteKey rightKey);
+        leftThroughTurn = 0;
+        rightThroughTurn = 0;
+        bool leftOk = TryEvaluateResultQuality(roots, left, out RouteKey leftKey, out leftThroughTurn);
+        bool rightOk = TryEvaluateResultQuality(roots, right, out RouteKey rightKey,
+            out rightThroughTurn);
         if (!leftOk || !rightOk)
             return false;
         comparison = CompareRoutes(leftKey, rightKey);
@@ -1449,13 +1460,15 @@ internal sealed partial class BeamSolver
     }
 
     private bool TryEvaluateResultQuality(IReadOnlyList<Battle> roots, in BeamResult result,
-        out RouteKey key)
+        out RouteKey key, out int throughTurn)
     {
         key = default;
+        throughTurn = 0;
         if ((uint)result.BestRootIndex >= (uint)roots.Count)
             return false;
         Battle state = roots[result.BestRootIndex];
         int actionCount = _options.InitialActionCount;
+        throughTurn = state.PlayerTurn;
         foreach (PlayerAction action in result.BestRoute)
         {
             try
@@ -1469,6 +1482,7 @@ internal sealed partial class BeamSolver
                 return false;
             }
             actionCount++;
+            throughTurn = state.PlayerTurn;
         }
         ScoreFeatures features = _scorer.Features(state, actionCount, includeRetentionOnly: false);
         key = Key(state, features, actionCount);

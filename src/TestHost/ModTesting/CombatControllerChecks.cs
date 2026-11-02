@@ -66,14 +66,11 @@ internal static class CombatControllerChecks
                 case "stop_then_next_turn":
                     await StopThenNextTurnAsync(host, Check, Action);
                     break;
-                case "stop_then_adopt":
-                    await StopThenAdoptAsync(host, Check, Action);
+                case "stop_search_keep_route":
+                    await StopSearchKeepRouteAsync(host, Check, Action);
                     break;
                 case "stop_then_recalc":
                     await StopThenRecalcAsync(host, Check, Action);
-                    break;
-                case "adopt":
-                    await AdoptAsync(host, Check, Action);
                     break;
                 case "execute_has_result":
                     await ExecuteHasResultAsync(host, Check, Action);
@@ -93,23 +90,14 @@ internal static class CombatControllerChecks
                 case "full_auto_arm_after_turn":
                     await FullAutoArmAfterTurnAsync(host, Check, Action);
                     break;
-                case "full_auto_arm_solver_toggle":
-                    await FullAutoArmSolverToggleAsync(host, Check, Action);
-                    break;
                 case "repeated_failure":
                     await RepeatedFailureAsync(host, Check, Action);
                     break;
                 case "turn_setup_wait":
                     await TurnSetupWaitAsync(host, Check, Action);
                     break;
-                case "pause_death_turn":
-                    await PauseDeathTurnAsync(host, Check, Action);
-                    break;
                 case "pause_worse_recalculation":
                     await PauseWorseRecalculationAsync(host, Check, Action);
-                    break;
-                case "solver_toggle":
-                    await SolverToggleAsync(host, Check, Action);
                     break;
                 case "combat_end":
                     await CombatEndAsync(host, Check, Action);
@@ -135,8 +123,26 @@ internal static class CombatControllerChecks
                 case "panel_texts":
                     await PanelTextsAsync(host, Check, Action);
                     break;
-                case "deployment_delay_cancel":
-                    await DeploymentDelayCancelAsync(host, Check, Action);
+                case "manual_reuses_route":
+                    await ManualReusesRouteAsync(host, Check, Action);
+                    break;
+                case "mode_switch_mid_turn":
+                    await ModeSwitchMidTurnAsync(host, Check, Action);
+                    break;
+                case "full_auto_pause_combat":
+                    await FullAutoPauseCombatAsync(host, Check, Action);
+                    break;
+                case "stop_deployment":
+                    await StopDeploymentAsync(host, Check, Action);
+                    break;
+                case "search_block_reasons":
+                    await SearchBlockReasonsAsync(host, Check, Action);
+                    break;
+                case "deployment_drift_research":
+                    await DeploymentDriftResearchAsync(host, Check, Action);
+                    break;
+                case "live_end_turn_risk_retained":
+                    await LiveEndTurnRiskRetainedAsync(host, Check, Action);
                     break;
                 default:
                     throw new NotSupportedException($"未知控制器场景：{scenario}");
@@ -165,6 +171,9 @@ internal static class CombatControllerChecks
         {
             CombatControllerTestHooks.BeforeAutoSearch = null;
             CombatControllerTestHooks.ForceDeploymentFailure = null;
+            CombatControllerTestHooks.ForceActionsRunningForTest = false;
+            CombatControllerTestHooks.ForceTurnStartForTest = false;
+            CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
             CombatSessionController.ForceMultiplayerForTest = false;
         }
         CombatPilotResult summary = CombatSessionController.LastCompletedResultForTesting
@@ -186,7 +195,7 @@ internal static class CombatControllerChecks
         CombatUiSnapshot idle = Snapshot();
         check("manual_auto_search_off", !idle.AutomaticCalculationEnabled && !idle.FullAutoEnabled);
         check("can_start", idle.CanStartSearch, "can start");
-        await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         check("start", true, "manual search via panel button");
         action("press_recalculate");
         CombatUiSnapshot searching = await WaitAsync(host,
@@ -194,7 +203,7 @@ internal static class CombatControllerChecks
         check("search_reason", searching.Search?.Reason == "manual", searching.Search?.Reason);
         check("search_mode", searching.Mode == SolverMode.Manual, searching.Mode.ToString());
         await WaitAsync(host, static s => s.IsSearching, 120, "manual search started");
-        await PressPanelButtonAsync(host, PanelButton.Stop, "stop_search");
+        await PressPanelButtonAsync(host, PanelButton.Search, "stop_search");
         check("stop", true, "stop search via panel button");
         action("press_stop_search");
         CombatUiSnapshot stopped = await WaitAsync(host, static s => !s.IsSearching, 240,
@@ -299,11 +308,11 @@ internal static class CombatControllerChecks
         check("no_deploy", !deployed, "auto search does not deploy");
     }
 
-    private static async Task StopThenAdoptAsync(NGame host, Check check, Action action)
+    private static async Task StopSearchKeepRouteAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-        action("set_mode:auto_search");
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("set_mode:full_auto");
         CombatControllerTestHooks.AutoStopOnCandidate = true;
         try
         {
@@ -316,18 +325,20 @@ internal static class CombatControllerChecks
         {
             CombatControllerTestHooks.AutoStopOnCandidate = false;
         }
-        await WaitAsync(host, static s => !s.IsSearching, 300, "search stopped");
         CombatUiSnapshot stopped = await WaitAsync(host,
-            static s => s.StoppedRouteAvailable, 300, "stopped route available");
-        check("stopped_available", stopped.StoppedRouteAvailable);
-        await PressPanelButtonAsync(host, PanelButton.Adopt, "adopt");
-        check("adopt", true, "adopt stopped route via panel button");
-        action("press_adopt");
-        CombatUiSnapshot adopted = await WaitAsync(host,
-            static s => s.Result != null && !s.StoppedRouteAvailable, 240, "stopped route adopted");
-        check("result_present", adopted.Result != null);
-        check("can_execute", adopted.CanExecuteCurrentTurn);
-        check("no_new_search", adopted.Searches == stopped.Searches, "no new search");
+            static s => s.AutomaticSearchPaused && !s.IsSearching, 300, "search stopped");
+        check("stopped_this_turn", stopped.AutomationStoppedThisTurn);
+        check("route_retained", stopped.Result != null && stopped.CurrentTurnRouteReady);
+        check("mode_unchanged", stopped.Mode == SolverMode.FullAuto, stopped.Mode.ToString());
+        check("full_auto_not_paused", !stopped.FullAutoPausedThisCombat);
+        check("not_deploying", !stopped.IsDeploying);
+        int searches = stopped.Searches;
+        await ForceEndTurnAsync(host);
+        action("force_end_turn");
+        CombatUiSnapshot next = await WaitAsync(host,
+            s => s.Searches > searches || s.IsDeploying, 900, "next turn auto work");
+        check("resumed_next_turn", next.Searches > searches || next.IsDeploying);
+        check("pause_cleared", !next.AutomationStoppedThisTurn);
     }
 
     private static async Task StopThenRecalcAsync(NGame host, Check check, Action action)
@@ -335,39 +346,24 @@ internal static class CombatControllerChecks
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
         action("set_mode:auto_search");
         await StartManualSearchAsync(host, action, waitCandidate: true);
-        await PressPanelButtonAsync(host, PanelButton.Stop, "stop_search");
+        await PressPanelButtonAsync(host, PanelButton.Search, "stop_search");
         check("stop", true, "stop via panel button");
         action("press_stop_search");
         await WaitAsync(host, static s => !s.IsSearching, 300, "search stopped");
         CombatUiSnapshot stopped = Snapshot();
-        action(stopped.StoppedRouteAvailable
+        action(stopped.Result != null && stopped.CurrentTurnRouteReady
             ? "stopped_with_candidate"
             : "stopped_without_candidate");
-        await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         check("recalc", true, "recalculate via panel button");
         action("press_recalculate");
         CombatUiSnapshot started = await WaitAsync(host, static s => s.IsSearching,
             240, "recalculate started");
-        check("stopped_cleared", !started.StoppedRouteAvailable);
+        check("stopped_cleared", started.Result == null);
         check("reason_manual", started.Search?.Reason == "manual", started.Search?.Reason);
         await WaitIdleAsync(host, "recalculate done");
         check("searches_increased", Snapshot().Searches > stopped.Searches);
         check("no_reuse", Snapshot().ReusedTurns == stopped.ReusedTurns);
-    }
-
-    private static async Task AdoptAsync(NGame host, Check check, Action action)
-    {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-        action("set_mode:auto_search");
-        await StartManualSearchAsync(host, action, waitCandidate: true);
-        check("adopt", CombatUiCommands.Instance.AdoptCurrentRoute(), "adopt");
-        action("adopt");
-        await WaitIdleAsync(host, "adopt done");
-        CombatUiSnapshot adopted = Snapshot();
-        check("result_present", adopted.Result != null);
-        check("can_execute", adopted.CanExecuteCurrentTurn);
-        bool deployed = CombatUiStore.History.Any(static s => s.IsDeploying);
-        check("no_deploy", !deployed);
     }
 
     private static async Task ExecuteHasResultAsync(NGame host, Check check, Action action)
@@ -378,7 +374,7 @@ internal static class CombatControllerChecks
         await WaitIdleAsync(host, "idle with result");
         CombatUiSnapshot ready = Snapshot();
         check("has_result", ready.Result != null, "latest result");
-        check("can_execute", ready.CanExecuteCurrentTurn);
+        check("can_execute", ready.CurrentTurnRouteReady);
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
         check("execute", true, "execute via panel button");
         action("press_execute");
@@ -392,49 +388,50 @@ internal static class CombatControllerChecks
     private static async Task ExecuteWhileSearchingAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-        action("set_mode:auto_search");
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
         bool applied = false;
         for (int attempt = 0; attempt < 3 && !applied; attempt++)
         {
             await StartManualSearchAsync(host, action, waitCandidate: false);
-            if (!await WaitOptionalAsync(host, static s => s.CanApplyCurrentTurn, 600))
+            if (!await WaitOptionalAsync(host,
+                    static s => s.Search?.StopCandidateAvailable == true
+                        && s.Search?.CurrentTurnPreview != null
+                        && !s.SearchCandidateAllDeath, 600))
             {
-                await WaitIdleAsync(host, "search finished before apply");
+                await WaitIdleAsync(host, "search finished before execute");
                 continue;
             }
             CombatUiSnapshot preview = Snapshot();
             check("preview", preview.Search?.CurrentTurnPreview != null);
-            if (!CombatUiCommands.Instance.ExecuteOrApplyCurrentTurn())
-            {
-                await WaitIdleAsync(host, "search finished before apply");
-                continue;
-            }
-            action("apply_current_turn");
-            applied = await WaitOptionalAsync(host, static s => s.IsDeploying, 120);
+            await PressPanelButtonAsync(host, PanelButton.Execute, "execute_while_searching");
+            applied = await WaitOptionalAsync(host, static s => s.IsDeploying, 240);
+            if (!applied)
+                await WaitIdleAsync(host, "search finished before execute");
         }
-        check("applied", applied, "apply current turn command accepted");
-        await WaitIdleAsync(host, "apply deployment done");
+        check("applied", applied, "execute current turn accepted while searching");
+        action("press_execute_while_searching");
+        await WaitIdleAsync(host, "execute deployment done");
+        check("stopped_this_turn", Snapshot().AutomaticSearchPaused
+            || !Snapshot().IsSearching);
     }
 
     private static async Task ExecuteWithoutResultAsync(NGame host, Check check, Action action)
     {
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
         action("set_mode:manual");
-        check("disable", CombatUiCommands.Instance.SetSolverEnabled(false), "disable");
-        action("solver_off");
-        check("enable", CombatUiCommands.Instance.SetSolverEnabled(true), "enable");
-        action("solver_on");
-        await WaitIdleAsync(host, "idle without result");
+        await WaitIdleAsync(host, "manual idle");
         CombatUiSnapshot idle = Snapshot();
         check("no_result", idle.Result == null, "result cleared");
-        check("execute", CombatUiCommands.Instance.ExecuteOrApplyCurrentTurn(), "execute without result");
+        check("not_searching", !idle.IsSearching);
+        check("execute_rejected", !CombatUiCommands.Instance.ExecuteCurrentTurn(),
+            "execute without a route");
         action("execute_without_result");
-        CombatUiSnapshot started = await WaitAsync(host, static s => s.IsSearching, 240,
-            "deploy search started");
-        check("deploy_when_ready", started.DeployWhenReady);
-        await WaitAsync(host, static s => s.IsDeploying, 600, "deploy search deployment");
-        await WaitIdleAsync(host, "deployment done");
+        await Frames(host, 20);
+        CombatUiSnapshot after = Snapshot();
+        check("still_idle", !after.IsSearching && !after.IsDeploying);
+        check("searches_unchanged", after.Searches == idle.Searches,
+            $"{idle.Searches}->{after.Searches}");
     }
 
     private static async Task ModeSwitchAsync(NGame host, Check check, Action action)
@@ -512,28 +509,6 @@ internal static class CombatControllerChecks
         check("deployed", Snapshot().LastSolverDeployedTurn is not null);
     }
 
-    private static async Task FullAutoArmSolverToggleAsync(NGame host, Check check, Action action)
-    {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-        action("set_mode:auto_search");
-        await WaitIdleAsync(host, "auto search idle");
-        check("disable", CombatUiCommands.Instance.SetSolverEnabled(false), "disable");
-        action("solver_off");
-        CombatUiSnapshot disabled = Snapshot();
-        check("disabled", disabled.SolverDisabled);
-        check("set_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
-        CombatUiSnapshot stillDisabled = Snapshot();
-        check("not_armed_while_disabled", !stillDisabled.FullAutoEnabled);
-        check("enable", CombatUiCommands.Instance.SetSolverEnabled(true), "enable");
-        action("solver_on");
-        CombatUiSnapshot armed = Snapshot();
-        check("armed_after_enable", armed.FullAutoEnabled, "full auto armed after enable");
-        await WaitAsync(host, static s => s.IsSearching, 600, "full auto search after enable");
-        await WaitAsync(host, static s => s.IsDeploying, 900, "full auto deployment after enable");
-        await WaitIdleAsync(host, "full auto turn done");
-        check("deployed", Snapshot().LastSolverDeployedTurn is not null);
-    }
-
     private static async Task RepeatedFailureAsync(NGame host, Check check, Action action)
     {
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
@@ -552,7 +527,8 @@ internal static class CombatControllerChecks
         await Frames(host, 180);
         CombatUiSnapshot after = Snapshot();
         check("no_fourth_search", after.Searches == searches, $"{searches}->{after.Searches}");
-        check("mode_auto_search", after.Mode == SolverMode.AutoSearch, after.Mode.ToString());
+        check("mode_full_auto", after.Mode == SolverMode.FullAuto, after.Mode.ToString());
+        check("paused_this_combat", after.FullAutoPausedThisCombat);
         check("not_armed", !after.FullAutoEnabled);
     }
 
@@ -565,23 +541,6 @@ internal static class CombatControllerChecks
         action("setup_completed");
         check("searched_after_setup", after.Searches >= 1, after.Searches.ToString());
         await WaitIdleAsync(host, "setup search done");
-    }
-
-    private static async Task PauseDeathTurnAsync(NGame host, Check check, Action action)
-    {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
-        action("set_mode:full_auto");
-        CombatUiSnapshot paused = await WaitAsync(host,
-            static s => s.Phase == CombatUiPhase.Paused, 900, "death pause");
-        check("pause_code", paused.PauseCode == "death_turn", paused.PauseCode);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("mode_auto_search", paused.Mode == SolverMode.AutoSearch, paused.Mode.ToString());
-        check("result_death_turn", paused.Result?.DeathTurn == paused.Result?.StartTurn,
-            $"{paused.Result?.DeathTurn}/{paused.Result?.StartTurn}");
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
-        check("pause_status", Status() == SolverText.Get("已暂停执行"), Status());
-        check("pause_context", Context().Contains("预计死亡", StringComparison.Ordinal), Context());
-        check("pause_summary", Summary().Contains("预计本回合死亡", StringComparison.Ordinal), Summary());
     }
 
     private static async Task PauseWorseRecalculationAsync(NGame host, Check check, Action action)
@@ -605,33 +564,15 @@ internal static class CombatControllerChecks
         check("damaged", damaged, "turn 2 damage injected");
         check("pause_code", paused.PauseCode == "worse_recalculation", paused.PauseCode);
         check("full_auto_off", !paused.FullAutoEnabled);
-        check("mode_auto_search", paused.Mode == SolverMode.AutoSearch, paused.Mode.ToString());
+        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("result_retained", paused.Result != null);
         check("increase", paused.Result?.ProjectedBattleHpLossIncrease > 0,
             paused.Result?.ProjectedBattleHpLossIncrease.ToString());
         await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
         check("pause_status", Status() == SolverText.Get("已暂停执行"), Status());
         check("pause_context", Context().Contains("重算后战损上升", StringComparison.Ordinal), Context());
         check("pause_summary", Summary().Contains("完整路线原预计", StringComparison.Ordinal), Summary());
-    }
-
-    private static async Task SolverToggleAsync(NGame host, Check check, Action action)
-    {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-        action("set_mode:auto_search");
-        await StartManualSearchAsync(host, action, waitCandidate: false);
-        check("disable", CombatUiCommands.Instance.SetSolverEnabled(false), "disable");
-        action("solver_off");
-        CombatUiSnapshot disabled = await WaitAsync(host, static s => !s.IsSearching, 240,
-            "disabled idle");
-        check("disabled", disabled.SolverDisabled);
-        check("result_cleared", disabled.Result == null);
-        check("full_auto_off", !disabled.FullAutoEnabled);
-        check("enable", CombatUiCommands.Instance.SetSolverEnabled(true), "enable");
-        action("solver_on");
-        CombatUiSnapshot enabled = await WaitAsync(host, static s => s.IsSearching, 300,
-            "auto search after enable");
-        check("enabled", !enabled.SolverDisabled);
-        check("auto_search", enabled.Search?.Reason == "auto_turn_start", enabled.Search?.Reason);
     }
 
     private static async Task CombatEndAsync(NGame host, Check check, Action action)
@@ -681,7 +622,7 @@ internal static class CombatControllerChecks
         check("manual_status", Status() == SolverText.Get("等待手动搜索"), Status());
         check("manual_summary", Summary().Contains("自动搜索已关闭", StringComparison.Ordinal)
             && Summary().Contains("开始搜索", StringComparison.Ordinal), Summary());
-        await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search started");
         await WaitStatusAsync(host, SolverText.Get("后台搜索中"));
         check("searching_status", Status() == SolverText.Get("后台搜索中"), Status());
@@ -709,9 +650,9 @@ internal static class CombatControllerChecks
         check("waiting_context", Context().Contains("回合已执行", StringComparison.Ordinal), Context());
         check("waiting_summary", Summary().Contains("等待下一回合方案就绪", StringComparison.Ordinal), Summary());
 
-        await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search for stop");
-        await PressPanelButtonAsync(host, PanelButton.Stop, "stop");
+        await PressPanelButtonAsync(host, PanelButton.Search, "stop");
         await WaitStatusAsync(host, SolverText.Get("搜索已停止"));
         check("stop_status", Status() == SolverText.Get("搜索已停止"), Status());
         check("stop_summary_no_candidate",
@@ -721,59 +662,22 @@ internal static class CombatControllerChecks
         CombatControllerTestHooks.AutoStopOnCandidate = true;
         try
         {
-            await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+            await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
             CombatUiSnapshot stoppedCandidate = await WaitAsync(host,
-                static s => s.AutomaticSearchPaused && s.StoppedRouteAvailable, 600,
-                "candidate stopped");
-            candidateStopped = stoppedCandidate.StoppedRouteAvailable;
+                static s => s.AutomaticSearchPaused && s.Result != null
+                    && s.CurrentTurnRouteReady, 600, "candidate stopped");
+            candidateStopped = stoppedCandidate.Result != null
+                && stoppedCandidate.CurrentTurnRouteReady;
         }
         finally
         {
             CombatControllerTestHooks.AutoStopOnCandidate = false;
         }
-        check("stop_candidate_stopped", candidateStopped, Snapshot().StoppedRouteAvailable.ToString());
+        check("stop_candidate_stopped", candidateStopped,
+            Snapshot().CurrentTurnRouteReady.ToString());
         await WaitStatusAsync(host, SolverText.Get("搜索已停止"));
         check("stop_candidate_summary",
             Summary().Contains("下方保留停止时已经得到的当前候选路线", StringComparison.Ordinal), Summary());
-    }
-
-    private static async Task DeploymentDelayCancelAsync(NGame host, Check check, Action action)
-    {
-        SolverSettingsData original = SolverSettings.Current;
-        try
-        {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
-            await WaitAsync(host, static s => s.Result != null && !s.IsSearching && !s.IsDeploying,
-                900, "result ready");
-            check("settings_saved", SolverSettings.Update(current => current with
-            {
-                Automation = current.Automation with { InterActionDelaySeconds = 3d },
-            }), "delay saved");
-            CombatControllerTestHooks.DeploymentWaits.Clear();
-            await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
-            await WaitAsync(host, static s => s.IsDeploying, 240, "deploying");
-            for (int frame = 0; frame < 600; frame++)
-            {
-                if (CombatControllerTestHooks.DeploymentWaits.Count > 0
-                    && CombatControllerTestHooks.DeploymentWaits[^1].End == 0L)
-                    break;
-                await CombatFrameWaiter.NextFrameAsync(host);
-            }
-            check("waiting_started", CombatControllerTestHooks.DeploymentWaits.Count > 0
-                && CombatControllerTestHooks.DeploymentWaits[^1].End == 0L,
-                CombatControllerTestHooks.DeploymentWaits.Count.ToString());
-            long started = Environment.TickCount64;
-            check("solver_off", CombatUiCommands.Instance.SetSolverEnabled(false), "solver disabled");
-            await WaitAsync(host, static s => !s.IsDeploying, 120, "deployment cancelled");
-            long elapsed = Environment.TickCount64 - started;
-            check("cancel_fast", elapsed < 500L, elapsed.ToString());
-            action($"cancelled_in_ms:{elapsed}");
-        }
-        finally
-        {
-            SolverSettings.Update(_ => original);
-            CombatUiCommands.Instance.SetSolverEnabled(true);
-        }
     }
 
     private static async Task ThreadSettingAsync(NGame host, Check check, Action action)
@@ -790,7 +694,7 @@ internal static class CombatControllerChecks
                     {
                         Search = current.Search with { Threads = threads },
                     }), "thread setting saved");
-                await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+                await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
                 CombatUiSnapshot searching = await WaitAsync(host, static s => s.IsSearching, 240,
                     "search started");
                 check($"search_threads_{threads}", searching.Search?.SearchThreads == threads,
@@ -876,15 +780,17 @@ internal static class CombatControllerChecks
 
     private static async Task MultiplayerGateAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
         CombatSessionController.ForceMultiplayerForTest = true;
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
         action("force_multiplayer");
         await Frames(host, 3);
-        check("set_mode", !CombatSessionController.SetFullAuto(true), "full auto rejected");
+        check("set_full_auto", !CombatUiCommands.Instance.SetMode(SolverMode.FullAuto),
+            "full auto rejected");
         check("start", !CombatUiCommands.Instance.StartOrRecalculateSearch(), "search rejected");
-        check("execute", !CombatUiCommands.Instance.ExecuteOrApplyCurrentTurn(), "execute rejected");
-        check("adopt", !CombatUiCommands.Instance.AdoptCurrentRoute(), "adopt rejected");
-        check("stop", !CombatUiCommands.Instance.StopSearch(), "stop rejected");
+        check("execute", !CombatUiCommands.Instance.ExecuteCurrentTurn(), "execute rejected");
+        check("stop_search", !CombatUiCommands.Instance.StopSearch(), "stop search rejected");
+        check("stop_deployment", !CombatUiCommands.Instance.StopDeployment(),
+            "stop deployment rejected");
         check("not_searching", !Snapshot().IsSearching);
         check("not_deploying", !Snapshot().IsDeploying);
         check("full_auto_off", !Snapshot().FullAutoEnabled);
@@ -896,12 +802,312 @@ internal static class CombatControllerChecks
         }
     }
 
+    private static async Task ManualReusesRouteAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int reused = Snapshot().ReusedTurns;
+        await PressPanelButtonAsync(host, PanelButton.Search, "search");
+        CombatUiSnapshot ready = await WaitAsync(host,
+            static s => s.Result != null && !s.IsSearching, 900, "route ready");
+        int searches = ready.Searches;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
+        action("press_execute");
+        await WaitAsync(host, static s => s.IsDeploying, 240, "deploying");
+        await WaitIdleAsync(host, "deployment done");
+        CombatUiSnapshot next = await WaitAsync(host,
+            s => s.ReusedTurns > reused || !CombatManager.Instance.IsInProgress, 1200,
+            "manual route reused");
+        check("combat_continues", CombatManager.Instance.IsInProgress);
+        check("reused", next.ReusedTurns > reused, $"{reused}->{next.ReusedTurns}");
+        check("no_new_search", next.Searches == searches, $"{searches}->{next.Searches}");
+        check("reused_result", next.Result?.WasReused == true);
+        CombatUiSnapshot reusedReady = await WaitAsync(host,
+            static s => s.CurrentTurnRouteReady, 240, "reused route ready");
+        check("route_ready", reusedReady.CurrentTurnRouteReady);
+    }
+
+    private static async Task ModeSwitchMidTurnAsync(NGame host, Check check, Action action)
+    {
+        using SettingsOverride slowTier = SlowSearchTier();
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int searches = Snapshot().Searches;
+        await PressPanelButtonAsync(host, PanelButton.AutoSearchMode, "auto_search_mode");
+        action("press_auto_search");
+        CombatUiSnapshot searching = await WaitAsync(host, static s => s.IsSearching, 240,
+            "mode switch started search");
+        check("search_reason", searching.Search?.Reason == "auto_turn_start",
+            searching.Search?.Reason);
+        await PressPanelButtonAsync(host, PanelButton.ManualMode, "manual_mode");
+        action("press_manual");
+        await Frames(host, 4);
+        check("not_interrupted", Snapshot().IsSearching);
+        await WaitIdleAsync(host, "mode switch search done");
+        check("one_search", Snapshot().Searches == searches + 1,
+            $"{searches}->{Snapshot().Searches}");
+        check("no_deploy", !CombatUiStore.History.Any(static s => s.IsDeploying));
+    }
+
+    private static async Task FullAutoPauseCombatAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitAsync(host, static s => s.Result != null && !s.IsSearching
+            && !s.IsDeploying, 900, "result ready");
+        CombatControllerTestHooks.ForceDeploymentFailure = static (deployed, _) =>
+            deployed.Action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.PlayCard
+                ? "forced_failure"
+                : null;
+        action("force_deployment_failure");
+        check("set_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused
+                && s.PauseCode == "repeated_failure", 2400, "repeated failure pause");
+        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("not_armed", !paused.FullAutoEnabled);
+        CombatControllerTestHooks.ForceDeploymentFailure = null;
+        int searches = paused.Searches;
+        await ForceEndTurnAsync(host);
+        action("force_end_turn");
+        CombatUiSnapshot searching = await WaitAsync(host,
+            s => s.IsSearching && s.Search?.Reason == "auto_turn_start", 900,
+            "auto search after pause");
+        check("auto_search_resumed", searching.Searches > searches,
+            $"{searches}->{searching.Searches}");
+        check("still_paused", searching.FullAutoPausedThisCombat);
+        check("mode_still_full_auto", searching.Mode == SolverMode.FullAuto,
+            searching.Mode.ToString());
+        await WaitIdleAsync(host, "post-pause search done");
+        check("no_auto_execute", !Snapshot().IsDeploying);
+        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
+        action("press_resume_full_auto");
+        CombatUiSnapshot resumed = await WaitAsync(host,
+            static s => !s.FullAutoPausedThisCombat, 120, "full auto resumed");
+        check("resume_flag_cleared", !resumed.FullAutoPausedThisCombat);
+        check("resume_armed", resumed.FullAutoEnabled || resumed.IsDeploying || resumed.IsSearching);
+        await WaitAsync(host, static s => s.IsDeploying || s.IsSearching, 240,
+            "full auto resumed work");
+        if (Snapshot().IsSearching)
+            await WaitAsync(host, static s => s.IsDeploying, 1200, "resume deployment");
+        await WaitIdleAsync(host, "resumed deployment done");
+    }
+
+    private static async Task StopDeploymentAsync(NGame host, Check check, Action action)
+    {
+        SolverSettingsData original = SolverSettings.Current;
+        try
+        {
+            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+            action("set_mode:auto_search");
+            await WaitAsync(host, static s => s.Result != null && !s.IsSearching
+                && !s.IsDeploying, 900, "result ready");
+            check("settings_saved", SolverSettings.Update(current => current with
+            {
+                Automation = current.Automation with { InterActionDelaySeconds = 0.6d },
+            }), "delay saved");
+            CombatControllerTestHooks.DeploymentCompletionTimes.Clear();
+            CombatControllerTestHooks.DeploymentWaits.Clear();
+            await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
+            action("press_execute");
+            await WaitAsync(host, static s => s.IsDeploying, 240, "deploying");
+            for (int frame = 0; frame < 600; frame++)
+            {
+                if (CombatControllerTestHooks.DeploymentCompletionTimes.Count > 0
+                    && CombatControllerTestHooks.DeploymentWaits.Count > 0
+                    && CombatControllerTestHooks.DeploymentWaits[^1].End == 0L)
+                    break;
+                await CombatFrameWaiter.NextFrameAsync(host);
+            }
+            int completedAtStop = CombatControllerTestHooks.DeploymentCompletionTimes.Count;
+            await PressPanelButtonAsync(host, PanelButton.Execute, "stop_deployment");
+            action("press_stop_deployment");
+            CombatUiSnapshot stopping = await WaitAsync(host,
+                static s => s.IsDeploying && s.IsStoppingDeployment, 120, "stopping deployment");
+            check("deployment_retained", stopping.IsDeploying);
+            check("stopping_flag", stopping.IsStoppingDeployment);
+            SolverOverlay? panel = SolverOverlay.Instance;
+            check("left_disabled", panel?.SearchButtonForTest?.Disabled == true);
+            check("left_reason", stopping.SearchBlockReason == "executing",
+                stopping.SearchBlockReason ?? "-");
+            await Frames(host, 4);
+            check("stop_button_disabled", panel?.ExecuteButtonForTest?.Disabled == true);
+            await WaitAsync(host, static s => !s.IsDeploying, 1800, "deployment stopped");
+            int completedAfter = CombatControllerTestHooks.DeploymentCompletionTimes.Count;
+            check("no_new_actions", completedAfter <= completedAtStop + 1,
+                $"{completedAtStop}->{completedAfter}");
+            await Frames(host, 30);
+            check("no_late_actions",
+                CombatControllerTestHooks.DeploymentCompletionTimes.Count == completedAfter);
+            CombatUiSnapshot stopped = Snapshot();
+            check("stopped_this_turn", stopped.AutomationStoppedThisTurn);
+            check("pause_code", stopped.PauseCode == "stopped", stopped.PauseCode);
+            check("not_searching", !stopped.IsSearching);
+            check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
+        }
+        finally
+        {
+            SolverSettings.Update(_ => original);
+        }
+    }
+
+    private static async Task SearchBlockReasonsAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        CombatUiSnapshot idle = Snapshot();
+        check("can_start", idle.CanStartSearch && idle.SearchBlockReason == null,
+            idle.SearchBlockReason ?? "-");
+        await ForceEndTurnAsync(host, waitForPlay: false);
+        action("force_end_turn");
+        CombatUiSnapshot enemy = await WaitAsync(host,
+            static s => s.SearchBlockReason == "enemy_turn", 240, "enemy turn reason");
+        check("enemy_block", enemy.SearchBlockReason == "enemy_turn", enemy.SearchBlockReason);
+        check("enemy_cannot_start", !enemy.CanStartSearch);
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("enemy_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
+        check("enemy_tooltip",
+            panel?.SearchButtonForTest?.TooltipText == SolverText.Get("敌方回合，轮到你时再搜索。"),
+            panel?.SearchButtonForTest?.TooltipText ?? "-");
+        await WaitAsync(host, static s => s.CanStartSearch, 900, "player turn restored");
+        CombatControllerTestHooks.ForceActionsRunningForTest = true;
+        action("force_actions_running");
+        try
+        {
+            CombatUiSnapshot running = await WaitAsync(host,
+                static s => s.SearchBlockReason == "actions_running", 120,
+                "actions running reason");
+            check("actions_block", running.SearchBlockReason == "actions_running",
+                running.SearchBlockReason);
+            check("actions_cannot_start", !running.CanStartSearch);
+            await Frames(host, 4);
+            check("actions_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
+            check("actions_tooltip",
+                panel?.SearchButtonForTest?.TooltipText
+                    == SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
+                panel?.SearchButtonForTest?.TooltipText ?? "-");
+            check("actions_rejected", !CombatUiCommands.Instance.StartOrRecalculateSearch());
+        }
+        finally
+        {
+            CombatControllerTestHooks.ForceActionsRunningForTest = false;
+        }
+        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        await WaitAsync(host, static s => s.CanStartSearch, 120, "actions settled");
+        CombatControllerTestHooks.ForceTurnStartForTest = true;
+        action("force_turn_start");
+        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        try
+        {
+            CombatUiSnapshot start = await WaitAsync(host,
+                static s => s.SearchBlockReason == "turn_start", 120, "turn start reason");
+            check("turn_start_block", start.SearchBlockReason == "turn_start",
+                start.SearchBlockReason);
+            check("turn_start_cannot_start", !start.CanStartSearch);
+            await Frames(host, 4);
+            check("turn_start_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
+            check("turn_start_tooltip",
+                panel?.SearchButtonForTest?.TooltipText
+                    == SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
+                panel?.SearchButtonForTest?.TooltipText ?? "-");
+        }
+        finally
+        {
+            CombatControllerTestHooks.ForceTurnStartForTest = false;
+        }
+        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        await WaitAsync(host, static s => s.CanStartSearch, 120, "turn start settled");
+    }
+
+    private static async Task DeploymentDriftResearchAsync(NGame host, Check check, Action action)
+    {
+        using SettingsOverride slowTier = SlowSearchTier();
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int searches = Snapshot().Searches;
+        await PressPanelButtonAsync(host, PanelButton.Search, "search");
+        await WaitAsync(host, static s => s.Result != null && !s.IsSearching, 1200,
+            "route ready");
+        int forced = 0;
+        CombatControllerTestHooks.ForceDeploymentFailure = (deployed, _) =>
+        {
+            if (deployed.Action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.PlayCard
+                && forced++ == 0)
+            {
+                return "forced_failure";
+            }
+            return null;
+        };
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
+        action("press_execute");
+        CombatUiSnapshot drift = await WaitAsync(host,
+            static s => s.IsSearching && s.Search?.Reason == "deployment_drift"
+                && s.DeployWhenReady, 1800, "deployment drift search");
+        check("drift_search", drift.Search?.Reason == "deployment_drift", drift.Search?.Reason);
+        check("pending_execution", drift.DeployWhenReady);
+        await Frames(host, 4);
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("drift_left_text", panel?.SearchButtonForTest?.Text
+            == SolverText.Get("停止搜索"), panel?.SearchButtonForTest?.Text ?? "-");
+        check("drift_right_text", panel?.ExecuteButtonForTest?.Text
+            == SolverText.Get("停止执行"), panel?.ExecuteButtonForTest?.Text ?? "-");
+        await WaitAsync(host, static s => s.IsDeploying, 2400, "drift deployment resumed");
+        action("drift_deployment_resumed");
+        await WaitIdleAsync(host, "drift deployment done");
+        check("searches_increased", Snapshot().Searches > searches,
+            $"{searches}->{Snapshot().Searches}");
+    }
+
+    private static async Task LiveEndTurnRiskRetainedAsync(NGame host, Check check, Action action)
+    {
+        bool damaged = false;
+        CombatControllerTestHooks.BeforeLiveEndTurnCheck = async (state, player) =>
+        {
+            if (damaged)
+                return;
+            damaged = true;
+            await CreatureCmd.LoseBlock(new BlockingPlayerChoiceContext(), player.Creature,
+                player.Creature.Block, null);
+            await DamagePlayerAsync(state, player, 60);
+        };
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitAsync(host, static s => s.Result != null && !s.IsSearching
+            && !s.IsDeploying, 900, "result ready");
+        check("set_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("set_mode:full_auto");
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused
+                && s.PauseCode == "live_end_turn_risk", 2400, "live end turn pause");
+        check("damaged", damaged, "live damage injected");
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("not_armed", !paused.FullAutoEnabled);
+        check("result_retained", paused.Result != null);
+        check("route_ready", paused.CurrentTurnRouteReady);
+        check("only_end_turn",
+            paused.Route?.Turns.Length == 1
+            && paused.Route.Turns[0].Actions.Length == 1
+            && paused.Route.Turns[0].Actions[0].EndsTurn,
+            $"{paused.Route?.Turns.Length}/{paused.Route?.Turns.FirstOrDefault()?.Actions.Length}");
+        CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "force_end_turn");
+        action("press_execute_after_live_pause");
+        await WaitAsync(host, static s => s.IsDeploying, 240, "forced deployment");
+        await WaitIdleAsync(host, "forced end turn done");
+    }
+
     private enum PanelButton
     {
-        Recalculate,
-        Stop,
-        Adopt,
+        Search,
         Execute,
+        ManualMode,
+        AutoSearchMode,
+        FullAutoMode,
     }
 
     private sealed class SettingsOverride : IDisposable
@@ -932,10 +1138,11 @@ internal static class CombatControllerChecks
                 ? null
                 : which switch
                 {
-                    PanelButton.Recalculate => panel.RecalculateButtonForTest,
-                    PanelButton.Stop => panel.StopSearchButtonForTest,
-                    PanelButton.Adopt => panel.AdoptRouteButtonForTest,
+                    PanelButton.Search => panel.SearchButtonForTest,
                     PanelButton.Execute => panel.ExecuteButtonForTest,
+                    PanelButton.ManualMode => panel.ManualModeButtonForTest,
+                    PanelButton.AutoSearchMode => panel.AutoSearchModeButtonForTest,
+                    PanelButton.FullAutoMode => panel.FullAutoModeButtonForTest,
                     _ => throw new ArgumentOutOfRangeException(nameof(which)),
                 };
             if (button != null && button.IsVisibleInTree() && !button.Disabled)
@@ -954,7 +1161,7 @@ internal static class CombatControllerChecks
         {
             await WaitAsync(host, static s => !s.IsSearching, 900, "existing search done");
         }
-        await PressPanelButtonAsync(host, PanelButton.Recalculate, "recalculate");
+        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         action("press_recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search started");
         if (waitCandidate)
@@ -1082,14 +1289,14 @@ internal static class CombatControllerChecks
 
     private static ControllerSnapshotRecord SnapshotRecord(CombatUiSnapshot snapshot) => new(
         snapshot.Sequence, snapshot.Phase.ToString(), snapshot.Mode.ToString(),
-        snapshot.FullAutoEnabled, snapshot.AutomaticCalculationEnabled,
-        snapshot.AutomaticSearchPaused, snapshot.AutomaticSearchPausedTurn,
-        snapshot.IsSearching, snapshot.IsDeploying,
-        snapshot.CanStartSearch, snapshot.CanStopSearch, snapshot.CanExecuteCurrentTurn,
-        snapshot.CanApplyCurrentTurn, snapshot.CanAdoptCurrentRoute,
-        snapshot.StoppedRouteAvailable, snapshot.HasRetainedRoute,
-        snapshot.PauseCode, snapshot.ErrorCode, snapshot.Searches, snapshot.ReusedTurns,
-        snapshot.Deviations, snapshot.DeploymentFailures,
+        snapshot.FullAutoEnabled, snapshot.FullAutoPausedThisCombat,
+        snapshot.AutomaticCalculationEnabled, snapshot.AutomaticSearchPaused,
+        snapshot.AutomaticSearchPausedTurn, snapshot.AutomationStoppedThisTurn,
+        snapshot.IsSearching, snapshot.IsDeploying, snapshot.IsStoppingDeployment,
+        snapshot.CanStartSearch, snapshot.CanStopSearch, snapshot.SearchBlockReason,
+        snapshot.CurrentTurnRouteReady, snapshot.SearchCandidateAllDeath,
+        snapshot.DeployWhenReady, snapshot.PauseCode, snapshot.ErrorCode,
+        snapshot.Searches, snapshot.ReusedTurns, snapshot.Deviations, snapshot.DeploymentFailures,
         snapshot.Result?.StartTurn, snapshot.Result?.DeathTurn,
         snapshot.Result?.CombatEndedTurn, snapshot.Result?.ProjectedBattleHpLost,
         snapshot.Result?.ProjectedBattleHpLossIncrease,
@@ -1109,18 +1316,20 @@ internal sealed record ControllerSnapshotRecord(
     string Phase,
     string Mode,
     bool FullAutoEnabled,
+    bool FullAutoPausedThisCombat,
     bool AutomaticCalculationEnabled,
     bool AutomaticSearchPaused,
     int? AutomaticSearchPausedTurn,
+    bool AutomationStoppedThisTurn,
     bool IsSearching,
     bool IsDeploying,
+    bool IsStoppingDeployment,
     bool CanStartSearch,
     bool CanStopSearch,
-    bool CanExecuteCurrentTurn,
-    bool CanApplyCurrentTurn,
-    bool CanAdoptCurrentRoute,
-    bool StoppedRouteAvailable,
-    bool HasRetainedRoute,
+    string? SearchBlockReason,
+    bool CurrentTurnRouteReady,
+    bool SearchCandidateAllDeath,
+    bool DeployWhenReady,
     string? PauseCode,
     string? ErrorCode,
     int Searches,

@@ -37,8 +37,9 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private VBoxContainer? _mainStack;
     private VBoxContainer? _body;
     private ColorRect? _footerDivider;
-    private Button? _solverEnabledButton;
-    private Button? _modeButton;
+    private Button? _manualModeButton;
+    private Button? _autoSearchModeButton;
+    private Button? _fullAutoModeButton;
     private Button? _settingsButton;
     private Button? _collapseButton;
     private SolverDetailsPanel? _details;
@@ -222,6 +223,14 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _appliedSequence = -1;
         _lastSnapshot = null;
         _lastOverlay = null;
+        _renderedMode = null;
+        _renderedFullAutoPaused = false;
+        _renderedSearchText = null;
+        _renderedExecuteText = null;
+        _renderedSearchTooltip = null;
+        _renderedExecuteTooltip = null;
+        _renderedSearchStyle = SolverButtonStyle.Secondary;
+        _renderedExecuteStyle = SolverButtonStyle.Secondary;
         ModLog.Info(
             $"[Sts2Solver] UI_PANEL_BUILT theme=Dark language={_builtLanguage ?? "-"} " +
             $"collapsed={_collapsed} builds={_buildCount}");
@@ -244,16 +253,19 @@ internal sealed partial class SolverOverlay : CanvasLayer
         title.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         header.AddChild(title);
 
-        _solverEnabledButton = CreateHeaderButton("", 90);
-        _solverEnabledButton.Name = "SolverEnabledButton";
-        _solverEnabledButton.Pressed += OnSolverEnabledPressed;
-        header.AddChild(_solverEnabledButton);
-
-        _modeButton = CreateHeaderButton("", 96);
-        _modeButton.Name = "ModeButton";
-        _modeButton.TooltipText = SolverText.Get("切换手动、自动搜索和全自动；收起时也可用。");
-        _modeButton.Pressed += OnModePressed;
-        header.AddChild(_modeButton);
+        HBoxContainer segments = new()
+        {
+            Name = "ModeSegments",
+            MouseFilter = Control.MouseFilterEnum.Pass,
+        };
+        segments.AddThemeConstantOverride("separation", 0);
+        _manualModeButton = CreateSegmentButton("手动", 44, SolverMode.Manual);
+        segments.AddChild(_manualModeButton);
+        _autoSearchModeButton = CreateSegmentButton("自动搜索", 72, SolverMode.AutoSearch);
+        segments.AddChild(_autoSearchModeButton);
+        _fullAutoModeButton = CreateSegmentButton("全自动", 58, SolverMode.FullAuto);
+        segments.AddChild(_fullAutoModeButton);
+        header.AddChild(segments);
 
         header.AddChild(new Control
         {
@@ -277,6 +289,22 @@ internal sealed partial class SolverOverlay : CanvasLayer
     {
         Button button = SolverUiTokens.CreateButton(text, SolverButtonStyle.Secondary);
         button.CustomMinimumSize = new Vector2(minimumWidth, SolverUiTokens.Size.ButtonHeight);
+        return button;
+    }
+
+    private static Button CreateSegmentButton(string text, float minimumWidth, SolverMode mode)
+    {
+        Button button = CreateHeaderButton(SolverText.Get(text), minimumWidth);
+        button.Name = mode switch
+        {
+            SolverMode.Manual => "ManualModeButton",
+            SolverMode.AutoSearch => "AutoSearchModeButton",
+            SolverMode.FullAuto => "FullAutoModeButton",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+        };
+        button.TooltipText = SolverText.Get(
+            "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+        button.Pressed += () => OnModeSelected(mode);
         return button;
     }
 
@@ -327,18 +355,10 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _memoryBar?.Advance(delta);
     }
 
-    private void OnSolverEnabledPressed()
+    private static void OnModeSelected(SolverMode mode)
     {
-        CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
-        bool enable = snapshot.SolverDisabled;
-        bool accepted = CombatUiCommands.Instance.SetSolverEnabled(enable);
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=solver_toggle enabled={enable} accepted={accepted}");
-    }
-
-    private void OnModePressed()
-    {
-        bool accepted = CombatUiCommands.Instance.CycleMode();
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=cycle_mode mode={CombatSessionController.Mode} accepted={accepted}");
+        bool accepted = CombatUiCommands.Instance.SetMode(mode);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=set_mode mode={mode} accepted={accepted}");
     }
 
     private void ToggleDetails()
@@ -414,9 +434,13 @@ internal sealed partial class SolverOverlay : CanvasLayer
             _details.Visible = !_collapsed && !_settingsVisible && _detailsVisible;
         if (_footerDivider != null)
             _footerDivider.Visible = !_collapsed && !_settingsVisible;
-        if (_actionBar != null && _lastSnapshot != null)
-            _actionBar.Refresh(new SolverActionBarState(_collapsed, _lastSnapshot.IsSearching,
-                _lastSnapshot.CanAdoptCurrentRoute || _lastSnapshot.IsAdoptingRoute));
+        if (_actionBar != null)
+        {
+            if (_lastSnapshot != null)
+                RefreshControls(_lastSnapshot);
+            else
+                _actionBar.Refresh(new SolverActionBarState(_collapsed, false));
+        }
         if (_routeOutcomePanel != null && _mainStack != null && _body != null)
         {
             Node parent = _collapsed ? _mainStack : _body;
@@ -500,14 +524,17 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _actionBar = null;
         _memoryBar = null;
         _renderedMode = null;
+        _renderedFullAutoPaused = false;
+        _renderedSearchText = null;
+        _renderedExecuteText = null;
+        _renderedSearchTooltip = null;
+        _renderedExecuteTooltip = null;
         _presentation = SolverOverlayPresentation.Searching;
         _lastResultCandidate = -1;
         _lastSearchingTurn = 0;
         _lastSearchStartedAt = 0;
+        _searchButton = null;
         _executeButton = null;
-        _recalculateButton = null;
-        _stopSearchButton = null;
-        _adoptRouteButton = null;
         _footerDivider = null;
         _mainStack = null;
         _body = null;
@@ -531,9 +558,11 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _buildCount,
         ProbeRowsForTest());
 
-    internal Button? SolverEnabledButtonForTest => _solverEnabledButton;
+    internal Button? ManualModeButtonForTest => _manualModeButton;
 
-    internal Button? ModeButtonForTest => _modeButton;
+    internal Button? AutoSearchModeButtonForTest => _autoSearchModeButton;
+
+    internal Button? FullAutoModeButtonForTest => _fullAutoModeButton;
 
     internal Button? SettingsButtonForTest => _settingsButton;
 
@@ -541,11 +570,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal Button? DetailsButtonForTest => _detailsButton;
 
-    internal Button? RecalculateButtonForTest => _recalculateButton;
-
-    internal Button? StopSearchButtonForTest => _stopSearchButton;
-
-    internal Button? AdoptRouteButtonForTest => _adoptRouteButton;
+    internal Button? SearchButtonForTest => _searchButton;
 
     internal Button? ExecuteButtonForTest => _executeButton;
 

@@ -7,22 +7,15 @@ namespace Sts2Solver;
 /// </summary>
 internal interface ICombatUiCommands
 {
-    /// <summary>Cycles Manual → AutoSearch → FullAuto. The new mode is published in the snapshot.</summary>
-    bool CycleMode();
-
     bool SetMode(SolverMode mode);
-
-    bool SetSolverEnabled(bool enabled);
 
     bool StartOrRecalculateSearch();
 
     bool StopSearch();
 
-    bool AdoptCurrentRoute();
+    bool ExecuteCurrentTurn();
 
-    bool ExecuteOrApplyCurrentTurn();
-
-    bool SetFullAuto(bool enabled);
+    bool StopDeployment();
 }
 
 internal static class CombatUiCommands
@@ -31,27 +24,15 @@ internal static class CombatUiCommands
 
     private sealed class Commands : ICombatUiCommands
     {
-        public bool CycleMode()
-        {
-            CombatSessionController.CycleMode();
-            return true;
-        }
-
         public bool SetMode(SolverMode mode) => CombatSessionController.SetMode(mode);
-
-        public bool SetSolverEnabled(bool enabled)
-            => CombatSessionController.SetSolverEnabled(enabled);
 
         public bool StartOrRecalculateSearch()
             => CombatSessionController.StartOrRecalculateSearch();
 
         public bool StopSearch() => CombatSessionController.StopSearch();
 
-        public bool AdoptCurrentRoute() => CombatSessionController.AdoptCurrentRoute();
+        public bool ExecuteCurrentTurn() => CombatSessionController.ExecuteCurrentTurn();
 
-        public bool ExecuteOrApplyCurrentTurn()
-            => CombatSessionController.ExecuteOrApplyCurrentTurn();
-
-        public bool SetFullAuto(bool enabled) => CombatSessionController.SetFullAuto(enabled);
+        public bool StopDeployment() => CombatSessionController.StopDeployment();
     }
 }

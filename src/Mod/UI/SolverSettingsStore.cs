@@ -89,6 +89,25 @@ internal sealed class SolverSettingsStore
                     ?? throw new InvalidDataException("设置文件为空。");
                 migrated = true;
             }
+            else if (schema == 3)
+            {
+                bool wasDisabled = root["automation"] is JsonObject automation
+                    && automation["solverDisabled"] is JsonValue disabledValue
+                    && disabledValue.TryGetValue(out bool disabled) && disabled;
+                if (root["automation"] is JsonObject migratedAutomation)
+                    migratedAutomation.Remove("solverDisabled");
+                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
+                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
+                    ?? throw new InvalidDataException("设置文件为空。");
+                if (data.Automation is null)
+                    throw new InvalidDataException("设置缺少 automation 分区。");
+                if (wasDisabled)
+                    data = data with
+                    {
+                        Automation = data.Automation with { Mode = SolverMode.Manual },
+                    };
+                migrated = true;
+            }
             else
             {
                 data = JsonSerializer.Deserialize<SolverSettingsData>(json, JsonOptions)

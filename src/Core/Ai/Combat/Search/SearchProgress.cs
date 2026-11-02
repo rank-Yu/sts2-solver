@@ -31,7 +31,11 @@ internal sealed record SearchAdoptionInfo(
     int CandidateVersion,
     int ThroughTurn,
     SearchAdoptionKind Kind,
-    Outcome Outcome);
+    Outcome Outcome)
+{
+    /// <summary>True when the chosen route contains only death lines; host-only.</summary>
+    internal bool OnlyDeathRoutes { get; init; }
+}
 
 /// <summary>Stable target kind of a speculative action.</summary>
 internal enum SearchProgressTargetKind : byte
@@ -123,7 +127,11 @@ internal sealed record SearchProgressSnapshot(
     SearchRoutePreview? Route,
     SearchCurrentTurnPreview? CurrentTurn,
     SearchInterimResult? BestCompleteResult,
-    int CandidateVersion);
+    int CandidateVersion)
+{
+    /// <summary>The coordinator's planned duration for the whole request; zero before it is known.</summary>
+    internal long PlannedBudgetMilliseconds { get; init; }
+}
 
 /// <summary>A retained candidate with the final state captured at publication time.</summary>
 internal sealed record SearchRouteCandidate(
@@ -162,6 +170,7 @@ internal sealed class SearchProgressChannel
     private int _memberIndex;
     private SearchInterimResult? _bestComplete;
     private SearchProgressSnapshot? _latest;
+    private long _plannedBudgetMilliseconds;
 
     internal SearchProgressChannel(int throttleMilliseconds, int retainedCandidates = DefaultRetainedCandidates)
     {
@@ -190,6 +199,13 @@ internal sealed class SearchProgressChannel
     internal int MemberIndex => _memberIndex;
     internal SearchMember Member => _member;
     internal SearchInterimResult? BestComplete => _bestComplete;
+
+    /// <summary>Set by the coordinator before any member runs; read by the publishing thread.</summary>
+    internal long PlannedBudgetMilliseconds
+    {
+        get => Volatile.Read(ref _plannedBudgetMilliseconds);
+        set => Volatile.Write(ref _plannedBudgetMilliseconds, value);
+    }
 
     /// <summary>Stores one snapshot and invokes the publisher-side observer, outside the lock.</summary>
     internal void Publish(SearchProgressSnapshot snapshot)

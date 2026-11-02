@@ -45,9 +45,10 @@ internal sealed record CombatUiSnapshot
 
     public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
 
-    public bool SolverDisabled { get; init; }
-
     public bool FullAutoEnabled { get; init; }
+
+    /// <summary>Full auto was paused by a pause condition for the rest of this combat.</summary>
+    public bool FullAutoPausedThisCombat { get; init; }
 
     public bool AutomaticCalculationEnabled { get; init; }
 
@@ -55,29 +56,31 @@ internal sealed record CombatUiSnapshot
 
     public int? AutomaticSearchPausedTurn { get; init; }
 
-    public bool DeployWhenReady { get; init; }
+    /// <summary>A stop or paused search applies to the current turn only.</summary>
+    public bool AutomationStoppedThisTurn { get; init; }
 
     public bool IsSearching { get; init; }
 
     public bool IsDeploying { get; init; }
 
-    public bool IsApplyingCurrentTurn { get; init; }
+    /// <summary>The running search will deploy its result when it finishes (drift continuation).</summary>
+    public bool DeployWhenReady { get; init; }
 
-    public bool IsAdoptingRoute { get; init; }
+    /// <summary>A soft stop was requested; the current action still has to settle.</summary>
+    public bool IsStoppingDeployment { get; init; }
 
     public bool CanStartSearch { get; init; }
 
     public bool CanStopSearch { get; init; }
 
-    public bool CanExecuteCurrentTurn { get; init; }
+    /// <summary>Stable <see cref="SearchBlockReason"/> when search is not possible.</summary>
+    public string? SearchBlockReason { get; init; }
 
-    public bool CanApplyCurrentTurn { get; init; }
+    /// <summary>The retained route matches the live state for the current turn.</summary>
+    public bool CurrentTurnRouteReady { get; init; }
 
-    public bool CanAdoptCurrentRoute { get; init; }
-
-    public bool StoppedRouteAvailable { get; init; }
-
-    public bool HasRetainedRoute { get; init; }
+    /// <summary>The published search candidate contains only death lines.</summary>
+    public bool SearchCandidateAllDeath { get; init; }
 
     public int? LastSolverDeployedTurn { get; init; }
 
@@ -141,8 +144,6 @@ internal sealed record SettingsUiSnapshot
     public SearchPerformanceTier Tier { get; init; } = SearchPerformanceTier.Medium;
 
     public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
-
-    public bool SolverDisabled { get; init; }
 
     public long MemoryBudgetBytes { get; init; }
 

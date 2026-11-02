@@ -1,6 +1,6 @@
 // Presentation state machine ported from CombatSolver src/UI/SolverOverlay.cs
 // (ShowSearching/ShowProgress/ShowResult/ShowDeploying/ShowDeploymentComplete/ShowWaitingForNextTurnPlan/
-// ShowSearchStopped/ShowManualCalculationReady/ShowDisabled and the full-auto pause banners) at
+// ShowSearchStopped/ShowManualCalculationReady and the full-auto pause banners) at
 // 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and contributors). The controller methods are
 // replaced by a dispatch over CombatUiSnapshot; the texts, tones, contexts and timing are the original ones.
 using System.Globalization;
@@ -22,7 +22,6 @@ internal sealed partial class SolverOverlay
 
     private SolverOverlayPresentation _presentation = SolverOverlayPresentation.Searching;
     private bool _waitingForNextTurnPlan;
-    private bool _deployQueued;
     private SolverOverlaySnapshot? _searchBestSnapshot;
     private int _lastSearchingTurn;
     private int _lastSearchStartedAt;
@@ -48,11 +47,7 @@ internal sealed partial class SolverOverlay
     {
         ApplySummary(snapshot, now);
         PopulateRoute(overlay, snapshot);
-        if (snapshot.SolverDisabled)
-        {
-            ShowDisabled();
-        }
-        else if (snapshot.Phase == CombatUiPhase.Searching && snapshot.Search is { } search)
+        if (snapshot.Phase == CombatUiPhase.Searching && snapshot.Search is { } search)
         {
             if (_presentation != SolverOverlayPresentation.Searching
                 || _lastSearchingTurn != search.Turn
@@ -150,10 +145,8 @@ internal sealed partial class SolverOverlay
         _shownSearchElapsedSeconds = 0d;
         _searchRequestBudgetSeconds = search.BudgetMilliseconds / 1000d;
         _shownSearchProgressRatio = 0d;
-        _deployQueued = snapshot.DeployWhenReady;
         SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
-            SolverText.Format($"第 {search.Turn} 回合")
-            + (snapshot.DeployWhenReady ? SolverText.Get("    已排队执行") : string.Empty));
+            SolverText.Format($"第 {search.Turn} 回合"));
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
         if (_summaryText != null)
         {
@@ -202,8 +195,7 @@ internal sealed partial class SolverOverlay
         string routeContext = _searchBestSnapshot is { Turns.Count: > 0 } best
             ? SolverText.Format($"已规划至第 {best.Turns[^1].Turn} 回合")
             : SolverText.Get("等待候选路线");
-        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
-            routeContext + (snapshot.DeployWhenReady ? SolverText.Get("    已排队执行") : string.Empty));
+        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent, routeContext);
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
         long reviewedNow = search.ReviewedWorldlinesBeforeSearch + search.ExpandedNodes;
         _reviewedWorldlinesTarget = reviewedNow;
@@ -305,7 +297,6 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.Ready;
         _waitingForNextTurnPlan = false;
-        _deployQueued = false;
         _lastResultCandidate = result.CandidateVersion;
         string status = result.ProjectedBattleHpLossIncrease > 0
             ? SolverText.Get("重算后战损上升")
@@ -380,7 +371,6 @@ internal sealed partial class SolverOverlay
             ? overlay.Turns[0].Actions.Count
             : snapshot.Route?.Turns.FirstOrDefault()?.Actions.Count(static action => !action.EndsTurn) ?? 0;
         _lastDeploymentEndedTurn = false;
-        _deployQueued = false;
         SetStatus(SolverText.Get("正在执行"), SolverUiTokens.Palette.Warning,
             SolverText.Format($"第 {snapshot.Turn} 回合"));
         SetRouteHeading(SolverText.Get("正在执行的路线"));
@@ -442,7 +432,6 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.ExecutedHistory;
         _waitingForNextTurnPlan = true;
-        _deployQueued = false;
         int turn = result?.StartTurn ?? _lastDeploymentTurn;
         int actions = _lastDeploymentActionCount;
         SetStatus(SolverText.Get("执行完成"), SolverUiTokens.Palette.Accent,
@@ -545,7 +534,7 @@ internal sealed partial class SolverOverlay
         _presentation = SolverOverlayPresentation.Ready;
         _lastResultCandidate = snapshot.Result?.CandidateVersion ?? -1;
         SetStatus(SolverText.Get("搜索已停止"), SolverUiTokens.Palette.Danger);
-        if (snapshot.StoppedRouteAvailable)
+        if (snapshot.CurrentTurnRouteReady)
         {
             SetSummary(SolverText.Format(
                 $"[color={SolverUiTokens.Palette.WarningHex}]搜索已停止；下方保留停止时已经得到的当前候选路线。[/color]"));
@@ -566,7 +555,7 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.Ready;
         SetStatus(SolverText.Get("等待手动搜索"), SolverUiTokens.Palette.TextMuted);
-        string action = snapshot.Searches > 0 ? SolverText.Get("重新搜索") : SolverText.Get("开始搜索");
+        string action = SolverText.Get("开始搜索");
         SetSummary(SolverText.Format(
             $"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索已关闭。点击“{action}”生成当前回合路线。[/color]"));
         SetReviewText(null);
@@ -575,19 +564,6 @@ internal sealed partial class SolverOverlay
             _detailsButton.Visible = false;
         SetDetailsVisible(false);
         RefreshControls(snapshot);
-    }
-
-    private void ShowDisabled()
-    {
-        _presentation = SolverOverlayPresentation.Ready;
-        SetStatus(SolverText.Get("求解器已禁用"), SolverUiTokens.Palette.TextMuted);
-        SetSummary(SolverText.Format(
-            $"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索和路线执行已暂停。[/color]"));
-        SetReviewText(null);
-        SetRouteVisibility(false);
-        if (_detailsButton != null)
-            _detailsButton.Visible = false;
-        SetDetailsVisible(false);
     }
 
     private void ShowMessage(string status, string message)

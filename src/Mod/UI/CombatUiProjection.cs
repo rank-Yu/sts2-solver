@@ -16,7 +16,6 @@ internal static class CombatUiProjection
         {
             Phase = CombatUiPhase.Idle,
             Mode = SolverSettings.Current.Automation.Mode,
-            SolverDisabled = SolverSettings.Current.Automation.SolverDisabled,
             AutomaticCalculationEnabled = SolverSettings.Current.Automation.Mode
                 is SolverMode.AutoSearch or SolverMode.FullAuto,
             Memory = Memory(budget),
@@ -43,7 +42,6 @@ internal static class CombatUiProjection
         {
             Tier = settings.Search.Tier,
             Mode = settings.Automation.Mode,
-            SolverDisabled = settings.Automation.SolverDisabled,
             MemoryBudgetBytes = budget.Bytes,
             MemoryBudgetSource = budget.Source,
         };
@@ -144,7 +142,9 @@ internal static class CombatUiProjection
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
             SearchThreads = outcome.SearchThreads,
-            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
+            BudgetMilliseconds = outcome.PlannedBudgetMilliseconds > 0
+                ? outcome.PlannedBudgetMilliseconds
+                : checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             ElapsedMilliseconds = outcome.ElapsedMilliseconds,
             ExpandedNodes = outcome.TotalExpandedNodes,
             Transitions = memberRuns.Sum(static run => (long)run.Transitions),

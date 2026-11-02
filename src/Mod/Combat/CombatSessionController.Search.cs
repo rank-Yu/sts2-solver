@@ -16,7 +16,7 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (!_combatActive || _state == null || _player == null || _rules == null || _tracker == null)
             return;
-        if (_solverDisabled || IsMultiplayerSession)
+        if (IsMultiplayerSession)
             return;
         if (reason == CombatSearchReason.Manual)
         {
@@ -24,16 +24,12 @@ internal static partial class CombatSessionController
             _automaticSearchPausedTurn = null;
             _pauseCode = null;
             _pauseReason = null;
-            _stoppedResult = null;
             _pendingCompleteBaseline = null;
             ClearConsecutiveFailures(CurrentTurn());
         }
-        else if (_automaticSearchPaused)
+        else if (_automaticSearchPaused
+            && reason is not (CombatSearchReason.DeploymentDrift or CombatSearchReason.PlanExhausted))
         {
-            ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_FULL_AUTO_OFF source=search_paused request={reason} " +
-                $"turn={CurrentTurn()} paused_turn={_automaticSearchPausedTurn?.ToString() ?? "-"}");
-            _fullAutoEnabled = false;
             _pauseCode = "stopped";
             _phase = CombatUiPhase.Paused;
             PublishSnapshot();
@@ -52,7 +48,9 @@ internal static partial class CombatSessionController
             ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH_OWNED turn={turn}");
             return;
         }
-        if (!CanSolve(out string rejection))
+        if (!CanSolve(out string rejection,
+                allowDeployment: reason is CombatSearchReason.DeploymentDrift
+                    or CombatSearchReason.PlanExhausted))
         {
             _rejectCode = rejection;
             _pauseCode = null;
@@ -70,7 +68,6 @@ internal static partial class CombatSessionController
             _continuationSource = null;
         if (_search != null)
             CancelSearch();
-        _stoppedResult = null;
         _rejectCode = null;
         Battle root;
         try
@@ -161,7 +158,7 @@ internal static partial class CombatSessionController
                 break;
             await CombatFrameWaiter.NextFrameAsync(host);
         }
-        if (!_combatActive || _solverDisabled || IsMultiplayerSession || _search != null
+        if (!_combatActive || IsMultiplayerSession || _search != null
             || _deployment != null || !CanSolve(out _))
         {
             return;
@@ -297,16 +294,47 @@ internal static partial class CombatSessionController
             if (trimmed == null)
                 return false;
             _tracker.Observe(live);
+            Battle stampState;
+            try
+            {
+                stampState = _tracker.ImportRoot(_state, _player, _rules);
+            }
+            catch (UnsupportedImportException error)
+            {
+                ModLog.Error($"[Sts2Solver] CONTROLLER_REUSE_IMPORT_FAILED reason={error.Reason} {error.Detail}");
+                _continuationSource = null;
+                return false;
+            }
+            catch (UnsupportedException error)
+            {
+                ModLog.Error($"[Sts2Solver] CONTROLLER_REUSE_IMPORT_FAILED {error.Message}");
+                _continuationSource = null;
+                return false;
+            }
+            catch (CapacityException error)
+            {
+                ModLog.Error($"[Sts2Solver] CONTROLLER_REUSE_IMPORT_FAILED region={error.Region} {error.Message}");
+                _continuationSource = null;
+                return false;
+            }
+            catch (InvalidDataException error)
+            {
+                ModLog.Error($"[Sts2Solver] CONTROLLER_REUSE_IMPORT_FAILED {error.Message}");
+                _continuationSource = null;
+                return false;
+            }
+            CombatStateStamp reuseStamp = CombatStateStamp.Capture(stampState);
             CombatControllerResult reused = source with
             {
                 Plan = trimmed,
+                Stamp = reuseStamp,
                 PreviousProjectedBattleHpLost = 0,
                 ProjectedBattleHpLossIncrease = 0,
                 RecalculatedAfterCompleteProjection = false,
                 Reason = "reuse",
             };
             _latestResult = reused;
-            _latestStamp = CombatStateStamp.Capture(live);
+            _latestStamp = reuseStamp;
             _currentActionIndex = 0;
             _completedActions = 0;
             _reusedTurns++;
@@ -400,15 +428,15 @@ internal static partial class CombatSessionController
             run.Tier, run.Outcome.ElapsedMilliseconds, run.Outcome.TotalExpandedNodes,
             run.Outcome, run.MemberRuns, ReasonName(session.Reason),
             run.Plan.Root.Counter(Sts2Solver.Simulation.Combat.Counter.CumulativeHpLost));
-        if (session.StopRequested
-            && run.Outcome.Completion is SearchCompletionKind.Adopted
-                or SearchCompletionKind.StoppedWithCandidate)
+        if (session.StopRequested)
         {
             _names ??= CombatDisplayNames.Capture(_state!);
-            _stoppedResult = result;
+            _latestResult = result;
+            _latestStamp = result.Stamp;
+            _continuationSource = result;
             _finishedSearch = BuildFinishedSearch(session, run, "stopped", null);
             _pauseCode = "stopped";
-            _pauseReason = "stopped_by_user";
+            _pauseReason = session.ApplyCurrentTurn ? "execute_current_turn" : "stopped_by_user";
             _automaticSearchPaused = true;
             _automaticSearchPausedTurn = session.StartTurn;
             _phase = CombatUiPhase.WaitingTurn;
@@ -416,33 +444,24 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_STOPPED_RESULT turn={result.StartTurn} " +
-                $"candidate={result.CandidateVersion} actions={result.Plan.Actions.Length}");
+                $"candidate={result.CandidateVersion} actions={result.Plan.Actions.Length} " +
+                $"apply={session.ApplyCurrentTurn}");
+            if (session.ApplyCurrentTurn)
+            {
+                _automaticSearchPaused = false;
+                _automaticSearchPausedTurn = null;
+                _pauseCode = null;
+                _pauseReason = null;
+                StartDeployment(result);
+            }
             return;
         }
 
         _names ??= CombatDisplayNames.Capture(_state!);
-        if (session.ApplyCurrentTurn)
-        {
-            CombatRoutePlan? trimmed = result.Plan.TrimToTurn(session.StartTurn);
-            if (trimmed == null)
-            {
-                _finishedSearch = BuildFinishedSearch(session, run, "failed", "apply_turn_missing");
-                _errorCode = "apply_turn_missing";
-                _phase = CombatUiPhase.WaitingTurn;
-                AddSearchLog(session, run, "failed");
-                PublishSnapshot();
-                return;
-            }
-            result = result with { Plan = trimmed };
-            _continuationSource = null;
-        }
-        else
-        {
-            result = ApplyProjectionBaseline(result);
-            _latestResult = result;
-            _latestStamp = result.Stamp;
-            _continuationSource = result;
-        }
+        result = ApplyProjectionBaseline(result);
+        _latestResult = result;
+        _latestStamp = result.Stamp;
+        _continuationSource = result;
         _pauseCode = null;
         _pauseReason = null;
         _automaticSearchPaused = false;
@@ -458,7 +477,7 @@ internal static partial class CombatSessionController
             $"combat_end_turn={result.Outcome.CombatEndedTurn?.ToString() ?? "-"} " +
             $"projected_hp_lost={result.Outcome.ProjectedBattleHpLost} " +
             $"increase={result.ProjectedBattleHpLossIncrease} adopted={result.Adoption?.Kind.ToString() ?? "-"}");
-        if (session.ApplyCurrentTurn || session.DeployWhenReady)
+        if (session.DeployWhenReady)
             StartDeployment(result);
         else if (_fullAutoEnabled)
             StartFullAutoDeployment(result);

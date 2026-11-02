@@ -1,7 +1,7 @@
 // Footer and command bindings ported from CombatSolver src/UI/SolverOverlay.cs (CreateFooter,
 // RefreshControls and the button handlers) at 5c773caa (MIT License, Copyright (c) 2026 Torch1230
-// and contributors). The frozen route, the independent full-auto button, the auto-start switch and
-// the memory-release button are omitted; the three-position mode lives in the header.
+// and contributors). The footer has two slots: search on the left and execute on the right. The
+// current mode is the segmented control in the header.
 using Godot;
 
 namespace Sts2Solver;
@@ -10,31 +10,23 @@ internal sealed partial class SolverOverlay
 {
     private SolverActionBar? _actionBar;
     private SolverMemoryBar? _memoryBar;
-    private Button? _recalculateButton;
-    private Button? _stopSearchButton;
-    private Button? _adoptRouteButton;
+    private Button? _searchButton;
     private Button? _executeButton;
     private SolverMode? _renderedMode;
+    private bool _renderedFullAutoPaused;
+    private SolverButtonStyle _renderedSearchStyle = SolverButtonStyle.Secondary;
+    private SolverButtonStyle _renderedExecuteStyle = SolverButtonStyle.Secondary;
+    private string? _renderedSearchText;
+    private string? _renderedExecuteText;
+    private string? _renderedSearchTooltip;
+    private string? _renderedExecuteTooltip;
 
     private Control CreateFooter()
     {
-        _recalculateButton = CreateButton(SolverText.Get("重新搜索"));
-        _recalculateButton.Name = "RecalculateButton";
-        _recalculateButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
-        _recalculateButton.Pressed += OnRecalculatePressed;
-
-        _stopSearchButton = CreateButton(SolverText.Get("停止搜索"));
-        _stopSearchButton.Name = "StopSearchButton";
-        SolverUiTokens.ApplyButtonStyle(_stopSearchButton, SolverButtonStyle.Danger);
-        _stopSearchButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
-        _stopSearchButton.Pressed += OnStopSearchPressed;
-
-        _adoptRouteButton = CreateButton(SolverText.Get("采用当前路线"));
-        _adoptRouteButton.Name = "AdoptRouteButton";
-        _adoptRouteButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
-        _adoptRouteButton.Pressed += OnAdoptRoutePressed;
-        _adoptRouteButton.TooltipText = SolverText.Get(
-            "结束搜索并采用屏幕当前路线；已开启的全自动或排队执行仍按原设置继续。");
+        _searchButton = CreateButton(SolverText.Get("开始搜索"));
+        _searchButton.Name = "SearchButton";
+        _searchButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
+        _searchButton.Pressed += OnSearchPressed;
 
         _executeButton = CreateButton(SolverText.Get("执行本回合"));
         _executeButton.Name = "ExecuteButton";
@@ -42,101 +34,171 @@ internal sealed partial class SolverOverlay
         _executeButton.Pressed += OnExecutePressed;
 
         _memoryBar = new SolverMemoryBar { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _actionBar = new SolverActionBar(_executeButton, _recalculateButton, _stopSearchButton,
-            _adoptRouteButton, _memoryBar);
+        _actionBar = new SolverActionBar(_searchButton, _executeButton, _memoryBar);
         return _actionBar;
     }
 
     private static Button CreateButton(string text)
         => SolverUiTokens.CreateButton(text, SolverButtonStyle.Secondary);
 
-    private void OnRecalculatePressed()
+    private void OnSearchPressed()
     {
-        bool accepted = CombatUiCommands.Instance.StartOrRecalculateSearch();
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=recalculate accepted={accepted}");
-    }
-
-    private void OnStopSearchPressed()
-    {
-        bool accepted = CombatUiCommands.Instance.StopSearch();
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=stop_search accepted={accepted}");
-    }
-
-    private void OnAdoptRoutePressed()
-    {
-        bool accepted = CombatUiCommands.Instance.AdoptCurrentRoute();
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=adopt accepted={accepted}");
+        CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
+        bool accepted = snapshot.IsSearching
+            ? CombatUiCommands.Instance.StopSearch()
+            : CombatUiCommands.Instance.StartOrRecalculateSearch();
+        ModLog.Info(
+            $"[Sts2Solver] UI_ACTION action={(snapshot.IsSearching ? "stop_search" : "search")} " +
+            $"accepted={accepted}");
     }
 
     private void OnExecutePressed()
     {
-        bool accepted = CombatUiCommands.Instance.ExecuteOrApplyCurrentTurn();
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=deploy accepted={accepted}");
+        CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
+        bool accepted = snapshot.IsDeploying
+            ? CombatUiCommands.Instance.StopDeployment()
+            : snapshot.IsSearching && snapshot.DeployWhenReady
+                ? CombatUiCommands.Instance.StopSearch()
+                : CombatUiCommands.Instance.ExecuteCurrentTurn();
+        string action = snapshot.IsDeploying ? "stop_deployment"
+            : snapshot.IsSearching && snapshot.DeployWhenReady ? "stop_queued_execution"
+            : "execute";
+        ModLog.Info($"[Sts2Solver] UI_ACTION action={action} accepted={accepted}");
     }
 
     private void RefreshControls(CombatUiSnapshot snapshot)
     {
-        if (_recalculateButton == null || _stopSearchButton == null || _adoptRouteButton == null
-            || _executeButton == null || _actionBar == null)
+        if (_searchButton == null || _executeButton == null || _actionBar == null)
+            return;
+        RefreshModeButtons(snapshot);
+        bool searching = snapshot.IsSearching;
+        bool deploying = snapshot.IsDeploying;
+        bool routeReady = snapshot.CurrentTurnRouteReady;
+        bool searchingStopping = snapshot.Search?.Phase == SearchUiPhase.Stopping;
+
+        string searchText;
+        SolverButtonStyle searchStyle = SolverButtonStyle.Secondary;
+        bool searchDisabled;
+        string? searchTooltip = null;
+        if (searching)
+        {
+            searchText = SolverText.Get("停止搜索");
+            searchStyle = SolverButtonStyle.Danger;
+            searchDisabled = searchingStopping;
+            if (searchDisabled)
+                searchTooltip = SolverText.Get("正在停止搜索…");
+        }
+        else
+        {
+            searchText = SolverText.Get(deploying || routeReady ? "重新搜索" : "开始搜索");
+            searchDisabled = !snapshot.CanStartSearch;
+            if (searchDisabled)
+                searchTooltip = SolverPanelText.SearchBlock(snapshot.SearchBlockReason);
+        }
+        SetButton(_searchButton, searchText, searchStyle, searchDisabled, searchTooltip,
+            ref _renderedSearchText, ref _renderedSearchStyle, ref _renderedSearchTooltip);
+
+        bool showExecute;
+        string executeText;
+        SolverButtonStyle executeStyle = SolverButtonStyle.Secondary;
+        bool executeDisabled = false;
+        string? executeTooltip = null;
+        if (deploying)
+        {
+            showExecute = true;
+            executeText = SolverText.Get("停止执行");
+            executeStyle = SolverButtonStyle.Danger;
+            executeDisabled = snapshot.IsStoppingDeployment;
+            executeTooltip = snapshot.IsStoppingDeployment
+                ? SolverText.Get("当前动作完成后停止。")
+                : SolverText.Get("停止执行当前回合；已发出的动作会结算完。");
+        }
+        else if (searching && snapshot.DeployWhenReady)
+        {
+            showExecute = true;
+            executeText = SolverText.Get("停止执行");
+            executeStyle = SolverButtonStyle.Danger;
+            executeDisabled = searchingStopping;
+            executeTooltip = SolverText.Get("停止这次搜索；本回合不再自动执行。");
+        }
+        else if (searching)
+        {
+            showExecute = !searchingStopping
+                && snapshot.Search?.StopCandidateAvailable == true
+                && snapshot.Search?.CurrentTurnPreview != null
+                && !snapshot.SearchCandidateAllDeath;
+            executeText = SolverText.Get("执行本回合");
+            executeTooltip = SolverText.Get("停止搜索，按当前最佳候选执行本回合。");
+        }
+        else if (routeReady)
+        {
+            showExecute = true;
+            executeText = SolverText.Get("执行本回合");
+            executeTooltip = snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
+                ? SolverText.Get("玩家确认后强制执行这条路线。")
+                : SolverText.Get("执行当前回合的动作。");
+        }
+        else
+        {
+            showExecute = false;
+            executeText = SolverText.Get("执行本回合");
+        }
+        SetButton(_executeButton, executeText, executeStyle, executeDisabled, executeTooltip,
+            ref _renderedExecuteText, ref _renderedExecuteStyle, ref _renderedExecuteTooltip);
+        _actionBar.Refresh(new SolverActionBarState(_collapsed, showExecute));
+        _memoryBar?.Apply(snapshot.Memory, snapshot.Search);
+    }
+
+    private void RefreshModeButtons(CombatUiSnapshot snapshot)
+    {
+        if (_manualModeButton == null || _autoSearchModeButton == null || _fullAutoModeButton == null)
+            return;
+        if (_renderedMode == snapshot.Mode
+            && _renderedFullAutoPaused == snapshot.FullAutoPausedThisCombat)
         {
             return;
         }
-        bool solverDisabled = snapshot.SolverDisabled;
-        if (_solverEnabledButton != null)
+        _renderedMode = snapshot.Mode;
+        _renderedFullAutoPaused = snapshot.FullAutoPausedThisCombat;
+        ApplyModeButton(_manualModeButton, SolverMode.Manual, snapshot);
+        ApplyModeButton(_autoSearchModeButton, SolverMode.AutoSearch, snapshot);
+        ApplyModeButton(_fullAutoModeButton, SolverMode.FullAuto, snapshot);
+        _fullAutoModeButton.TooltipText = SolverText.Get(snapshot.FullAutoPausedThisCombat
+            ? "本场全自动已暂停，点击恢复"
+            : "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+    }
+
+    private static void ApplyModeButton(Button button, SolverMode mode, CombatUiSnapshot snapshot)
+    {
+        SolverButtonStyle style = snapshot.Mode != mode
+            ? SolverButtonStyle.Secondary
+            : mode == SolverMode.FullAuto
+                ? snapshot.FullAutoPausedThisCombat
+                    ? SolverButtonStyle.Warning
+                    : SolverButtonStyle.Positive
+                : SolverButtonStyle.Primary;
+        SolverUiTokens.ApplyButtonStyle(button, style);
+    }
+
+    private static void SetButton(Button button, string text, SolverButtonStyle style,
+        bool disabled, string? tooltip, ref string? renderedText,
+        ref SolverButtonStyle renderedStyle, ref string? renderedTooltip)
+    {
+        if (renderedText != text)
         {
-            _solverEnabledButton.Text = SolverText.Get(solverDisabled ? "求解器：关" : "求解器：开");
-            _solverEnabledButton.AddThemeColorOverride("font_color",
-                solverDisabled ? SolverUiTokens.Palette.TextMuted : SolverUiTokens.Palette.TextPrimary);
+            renderedText = text;
+            button.Text = text;
         }
-        if (_modeButton != null && _renderedMode != snapshot.Mode)
+        if (renderedStyle != style)
         {
-            _renderedMode = snapshot.Mode;
-            _modeButton.Text = SolverPanelText.Mode(snapshot.Mode);
-            SolverUiTokens.ApplyButtonStyle(_modeButton,
-                snapshot.Mode == SolverMode.FullAuto ? SolverButtonStyle.Positive
-                    : SolverButtonStyle.Secondary);
+            renderedStyle = style;
+            SolverUiTokens.ApplyButtonStyle(button, style);
         }
-        bool searching = snapshot.IsSearching;
-        bool adopting = snapshot.IsAdoptingRoute;
-        _recalculateButton.Text = !snapshot.AutomaticCalculationEnabled && snapshot.Searches == 0
-            ? SolverText.Get("开始搜索")
-            : SolverText.Get("重新搜索");
-        _recalculateButton.Disabled = solverDisabled || searching || snapshot.IsDeploying || adopting;
-        _stopSearchButton.Disabled = solverDisabled || !searching
-            || snapshot.Search?.Phase == SearchUiPhase.Stopping;
-        _adoptRouteButton.Disabled = solverDisabled || !snapshot.CanAdoptCurrentRoute || adopting;
-        _adoptRouteButton.Text = adopting
-            ? SolverText.Get("正在采用…")
-            : SolverText.Get("采用当前路线");
-        _executeButton.Disabled = solverDisabled
-            || snapshot.IsDeploying
-            || snapshot.IsApplyingCurrentTurn
-            || adopting
-            || searching && !snapshot.CanApplyCurrentTurn
-            || !searching && !snapshot.CanExecuteCurrentTurn;
-        _executeButton.Text = snapshot.IsDeploying
-            ? SolverText.Get("执行中…")
-            : snapshot.IsApplyingCurrentTurn
-                ? SolverText.Get("正在应用…")
-                : searching
-                    ? SolverText.Get("应用当前回合")
-                    : snapshot.DeployWhenReady
-                        ? SolverText.Get("已排队执行")
-                        : _presentation == SolverOverlayPresentation.ExecutedHistory
-                            && _waitingForNextTurnPlan
-                            ? SolverText.Get("等待下一回合")
-                            : SolverText.Get("执行本回合");
-        _executeButton.TooltipText = SolverText.Get(solverDisabled
-            ? "求解器已关闭，请从标题栏开启。"
-            : adopting
-                ? "正在采用路线，请等待完成。"
-                : snapshot.IsDeploying
-                    ? "正在执行当前回合。"
-                    : _executeButton.Disabled
-                        ? "当前没有可执行的回合，请等待搜索或完成当前选牌。"
-                        : "执行当前回合的动作。");
-        _actionBar.Refresh(new SolverActionBarState(_collapsed, searching,
-            snapshot.CanAdoptCurrentRoute || adopting));
-        _memoryBar?.Apply(snapshot.Memory, snapshot.Search);
+        if (renderedTooltip != tooltip)
+        {
+            renderedTooltip = tooltip;
+            button.TooltipText = tooltip ?? "";
+        }
+        button.Disabled = disabled;
     }
 }

@@ -14,6 +14,7 @@ internal enum SolverButtonStyle
     Secondary,
     Primary,
     Positive,
+    Warning,
     Danger,
 }
 
@@ -272,6 +273,11 @@ internal static class SolverUiTokens
                 Palette.Success,
                 Palette.PositiveHover,
                 Palette.Positive.Darkened(0.18f)),
+            SolverButtonStyle.Warning => (
+                Palette.Warning.Darkened(0.28f),
+                Palette.Warning,
+                Palette.Warning.Lightened(0.08f),
+                Palette.Warning.Darkened(0.38f)),
             SolverButtonStyle.Danger => (
                 Palette.Danger.Darkened(0.22f),
                 Palette.Danger,

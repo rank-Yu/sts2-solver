@@ -70,6 +70,27 @@ internal sealed class CombatRoutePlan
         return new CombatRoutePlan(Root, sliced, Rules, Victory, true, Outcome);
     }
 
+    /// <summary>
+    /// Keeps exactly one action, reindexed from zero. The live end-turn pause uses this to retain
+    /// only the unplayed end-turn action as the current-turn route.
+    /// </summary>
+    internal CombatRoutePlan? TrimToAction(int index)
+    {
+        if (index < 0 || index >= Actions.Length)
+            return null;
+        ReplayedAction source = Actions[index];
+        ReplayedAction sliced = new()
+        {
+            Index = 0,
+            Action = source.Action,
+            Before = source.Before,
+            After = source.After,
+            Choices = source.Choices,
+            EnemySideTurnEndReached = source.EnemySideTurnEndReached,
+        };
+        return new CombatRoutePlan(Root, [sliced], Rules, Victory, WasReused, Outcome);
+    }
+
     internal ReplayedAction? EndTurnAction(int turn)
     {
         foreach (ReplayedAction action in Actions)

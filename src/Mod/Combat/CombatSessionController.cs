@@ -39,13 +39,12 @@ internal static partial class CombatSessionController
     private static CombatDeploymentSession? _deployment;
     private static CombatControllerResult? _latestResult;
     private static CombatControllerResult? _deploymentResult;
-    private static CombatControllerResult? _stoppedResult;
     private static CombatControllerResult? _continuationSource;
     private static CombatStateStamp? _latestStamp;
     private static CompleteProjectionBaseline? _pendingCompleteBaseline;
     private static SolverMode _mode = SolverMode.AutoSearch;
-    private static bool _solverDisabled;
     private static bool _fullAutoEnabled;
+    private static bool _fullAutoPausedThisCombat;
     private static bool _automaticSearchPaused;
     private static int? _automaticSearchPausedTurn;
     private static int? _lastSolverDeployedTurn;
@@ -88,6 +87,9 @@ internal static partial class CombatSessionController
     private static long _lastProgressPublishAt;
     private static string? _testRoot;
     private static CombatPilotResult? _lastCompletedForTesting;
+    private static PumpObservation _pumpObservation;
+    private static bool _pumpObserved;
+    private static CombatState? _pendingTurnStartedState;
 
 #if STS2_SOLVER_TESTING
     internal static Func<SearchPolicy, Player, SearchPolicy>? SearchPolicyOverrideForTest { get; set; }
@@ -97,6 +99,13 @@ internal static partial class CombatSessionController
         int StartTurnNumber,
         int ProjectedBattleHpLost,
         string StateDifference);
+
+    private readonly record struct PumpObservation(
+        bool Playable,
+        bool ActionsIdle,
+        int Turn,
+        CombatSide? Side,
+        PlayerTurnPhase? Phase);
 
     internal static bool HasActiveSearch => _search != null;
 
@@ -149,7 +158,6 @@ internal static partial class CombatSessionController
     {
         SolverSettingsData settings = SolverSettings.Current;
         _mode = settings.Automation.Mode;
-        _solverDisabled = settings.Automation.SolverDisabled;
         SearchSession.ConfigureProgress(true, 200);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_PROGRESS_CONFIG subscribed={SearchSession.ProgressSubscribed} " +
@@ -180,10 +188,12 @@ internal static partial class CombatSessionController
         _deployment = null;
         _latestResult = null;
         _deploymentResult = null;
-        _stoppedResult = null;
         _continuationSource = null;
         _latestStamp = null;
         _pendingCompleteBaseline = null;
+        _fullAutoPausedThisCombat = false;
+        _pumpObserved = false;
+        _pendingTurnStartedState = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
@@ -218,7 +228,6 @@ internal static partial class CombatSessionController
         _combatStartedAt = Environment.TickCount64;
         SolverSettingsData settings = SolverSettings.Current;
         _mode = settings.Automation.Mode;
-        _solverDisabled = settings.Automation.SolverDisabled;
         _combatActive = state != null;
         _trackerSeeded = false;
         _combatGeneration++;
@@ -275,7 +284,7 @@ internal static partial class CombatSessionController
         PublishSnapshot();
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_BEGIN combat={state.GetHashCode()} players={state.Players.Count} " +
-            $"mode={_mode} disabled={_solverDisabled} full_auto={_fullAutoEnabled} " +
+            $"mode={_mode} full_auto={_fullAutoEnabled} paused={_fullAutoPausedThisCombat} " +
             $"multiplayer={IsMultiplayerSession} error={_errorCode ?? "-"}");
     }
 
@@ -320,6 +329,8 @@ internal static partial class CombatSessionController
         _combatCancellation.Cancel();
         _combatActive = false;
         _fullAutoEnabled = false;
+        _fullAutoPausedThisCombat = false;
+        _pendingTurnStartedState = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _search = null;
@@ -360,10 +371,12 @@ internal static partial class CombatSessionController
         _deployment = null;
         _latestResult = null;
         _deploymentResult = null;
-        _stoppedResult = null;
         _continuationSource = null;
         _latestStamp = null;
         _pendingCompleteBaseline = null;
+        _fullAutoPausedThisCombat = false;
+        _pumpObserved = false;
+        _pendingTurnStartedState = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
@@ -414,12 +427,17 @@ internal static partial class CombatSessionController
         if (HoldAutoSearchForTest)
             return;
 #endif
-        if (_solverDisabled || IsMultiplayerSession || state.CurrentSide != CombatSide.Player)
+        if (IsMultiplayerSession || state.CurrentSide != CombatSide.Player)
             return;
         Player? player = LocalContext.GetMe(state);
         if (player?.PlayerCombatState is not { } playerState)
             return;
         int turn = playerState.TurnNumber;
+        if (_deployment != null)
+        {
+            _pendingTurnStartedState = state;
+            return;
+        }
         ResetConsecutiveFailures(turn);
         if (_automaticSearchPaused
             && _automaticSearchPausedTurn is { } stoppedTurn
@@ -427,14 +445,13 @@ internal static partial class CombatSessionController
         {
             _automaticSearchPaused = false;
             _automaticSearchPausedTurn = null;
+            if (_pauseCode == "stopped")
+            {
+                _pauseCode = null;
+                _pauseReason = null;
+            }
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_AUTO_PAUSE_CLEARED stopped_turn={stoppedTurn} turn={turn}");
-        }
-        if (!ShouldAutomaticallySearchNextTurn)
-        {
-            _phase = CombatUiPhase.WaitingTurn;
-            PublishSnapshot();
-            return;
         }
         if (_automaticSearchPaused)
         {
@@ -464,14 +481,12 @@ internal static partial class CombatSessionController
             // Native turn-start card selection keeps PlayerTurnPhase at Start while the setup
             // task awaits a player choice. The action queue can already be empty at that point,
             // so there is no frame bound here: wait until Play, or until the schedule is canceled
-            // by a turn change, combat end, solver disable or Manual mode.
+            // by a turn change, combat end or leaving the scene.
             int frame = 0;
             while (frame < 2 || !IsPlayable(state, turn))
             {
                 token.ThrowIfCancellationRequested();
                 if (!_combatActive
-                    || _solverDisabled
-                    || _mode == SolverMode.Manual
                     || !ReferenceEquals(state, _state)
                     || !CombatManager.Instance.IsInProgress)
                 {
@@ -487,15 +502,25 @@ internal static partial class CombatSessionController
             await CombatControllerTestHooks.BeforeAutoSearchAsync(state, turn, token);
 #endif
             if (!_combatActive
-                || _solverDisabled
                 || IsMultiplayerSession
-                || !ShouldAutomaticallySearchNextTurn
                 || _automaticSearchPaused
                 || _search != null
                 || _deployment != null
                 || !ReferenceEquals(state, _state)
                 || !IsPlayable(state, turn))
             {
+                return;
+            }
+            if (_continuationSource != null && TryReuseContinuation(turn, deployWhenReady: false))
+            {
+                LogTurnStart(turn, "reuse");
+                return;
+            }
+            if (!ShouldAutomaticallySearchNextTurn)
+            {
+                _phase = CombatUiPhase.WaitingTurn;
+                PublishSnapshot();
+                LogTurnStart(turn, "manual");
                 return;
             }
             ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH turn={turn} mode={_mode}");
@@ -514,18 +539,30 @@ internal static partial class CombatSessionController
 
     internal static void Pump()
     {
-        if (!_combatActive || _search == null)
+        if (!_combatActive)
             return;
+        if (_search != null)
+        {
+            PumpSearch(_search);
+            return;
+        }
+        if (_deployment != null)
+            return;
+        PumpIdle();
+    }
+
+    private static void PumpSearch(CombatSearchSession search)
+    {
         SearchProgressSnapshot? progress = SearchSession.LatestProgress;
         if (progress == null)
             return;
         bool changed = !ReferenceEquals(progress, _lastProgress);
         _lastProgress = progress;
-        if (progress.Route != null && progress.CandidateVersion > _search.RenderedCandidateVersion)
-            _search.RenderedCandidateVersion = progress.CandidateVersion;
+        if (progress.Route != null && progress.CandidateVersion > search.RenderedCandidateVersion)
+            search.RenderedCandidateVersion = progress.CandidateVersion;
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.AutoStopOnCandidate
-            && _search.RenderedCandidateVersion > 0 && !_search.StopRequested)
+            && search.RenderedCandidateVersion > 0 && !search.StopRequested)
         {
             StopSearch();
         }
@@ -547,14 +584,45 @@ internal static partial class CombatSessionController
         PublishSnapshot();
     }
 
+    /// <summary>
+    /// Refreshes the search/execute gates while no worker is owned by the controller. The only
+    /// expensive check is the live-state comparison, and it runs when the turn side, the player
+    /// phase, the turn number or the action queue changes, not on every frame.
+    /// </summary>
+    private static void PumpIdle()
+    {
+        CombatSide? side = _state?.CurrentSide;
+        PlayerTurnPhase? phase = _player?.PlayerCombatState?.Phase;
+        int turn = CurrentTurn();
+        bool playable = _state is { } state && IsPlayable(state, turn);
+        bool actionsIdle = RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted;
+        PumpObservation observation = new(playable, actionsIdle, turn, side, phase);
+        if (_pumpObserved && observation == _pumpObservation)
+            return;
+        _pumpObservation = observation;
+        _pumpObserved = true;
+        bool canStart = _search == null && _deployment == null && !SearchSession.IsRunning
+            && CanSolve(out _);
+        string? block = null;
+        if (!canStart && _search == null && _deployment == null)
+            block = CanSolve(out string reason) ? "searching" : reason;
+        bool routeReady = _latestResult is { } result && ResultStampMatches(result);
+        CombatUiSnapshot current = CombatUiStore.Snapshot;
+        if (current.CanStartSearch == canStart
+            && current.SearchBlockReason == block
+            && current.CurrentTurnRouteReady == routeReady)
+        {
+            return;
+        }
+        PublishSnapshot();
+    }
+
     internal static void OnSettingsChanged()
     {
         if (!_combatActive)
             return;
         SolverSettingsData settings = SolverSettings.Current;
-        if (_solverDisabled != settings.Automation.SolverDisabled)
-            SetSolverEnabled(!settings.Automation.SolverDisabled, persist: false);
-        else if (_mode != settings.Automation.Mode)
+        if (_mode != settings.Automation.Mode)
             SetMode(settings.Automation.Mode, persist: false);
         else
             PublishSnapshot();
@@ -573,6 +641,19 @@ internal static partial class CombatSessionController
         return player?.PlayerCombatState is { Phase: PlayerTurnPhase.Play } playerState
             && playerState.TurnNumber == turn;
     }
+
+    private static void ResumePendingTurnStarted()
+    {
+        if (_pendingTurnStartedState is not { } state)
+            return;
+        _pendingTurnStartedState = null;
+        if (!_combatActive || !ReferenceEquals(state, _state))
+            return;
+        OnTurnStarted(state);
+    }
+
+    private static void LogTurnStart(int turn, string action)
+        => ModLog.Info($"[Sts2Solver] CONTROLLER_TURN_START turn={turn} action={action} mode={_mode}");
 
     private static void ResetConsecutiveFailures(int turn)
     {
@@ -604,7 +685,8 @@ internal static partial class CombatSessionController
                 $"reason={reason} {detail}");
             return false;
         }
-        DisableFullAuto(persistMode: true);
+        DisableFullAuto();
+        _fullAutoPausedThisCombat = true;
         _continuationSource = null;
         _automaticSearchPaused = true;
         _automaticSearchPausedTurn = turn;
@@ -620,7 +702,7 @@ internal static partial class CombatSessionController
 
     /// <summary>
     /// Whether full auto may be armed for this combat. This is the same capability gate as
-    /// <see cref="BeginCombat"/>: a live single-player combat, solver enabled, and no import error.
+    /// <see cref="BeginCombat"/>: a live single-player combat without an import error.
     /// Play phase is deliberately not part of it; execution waits for the turn-start event.
     /// </summary>
     private static bool CanArmFullAuto()
@@ -631,7 +713,6 @@ internal static partial class CombatSessionController
             || _player == null
             || _rules == null
             || _tracker == null
-            || _solverDisabled
             || IsMultiplayerSession
             || _state.Players.Count != 1
             || _importErrorCode != null)
@@ -642,16 +723,11 @@ internal static partial class CombatSessionController
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
     }
 
-    private static bool CanSolve(out string rejection)
+    private static bool CanSolve(out string rejection, bool allowDeployment = false)
     {
         if (!_combatActive || _state == null)
         {
             rejection = "not_in_combat";
-            return false;
-        }
-        if (_solverDisabled)
-        {
-            rejection = "solver_disabled";
             return false;
         }
         if (IsMultiplayerSession)
@@ -669,10 +745,35 @@ internal static partial class CombatSessionController
             rejection = "not_playable";
             return false;
         }
-        if (_player.PlayerCombatState is not { Phase: PlayerTurnPhase.Play }
-            || _state.CurrentSide != CombatSide.Player)
+        if (_deployment != null && !allowDeployment)
         {
-            rejection = "not_play_phase";
+            rejection = "executing";
+            return false;
+        }
+        bool actionsRunning = !RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted;
+#if STS2_SOLVER_TESTING
+        actionsRunning |= CombatControllerTestHooks.ForceActionsRunningForTest;
+#endif
+        if (actionsRunning)
+        {
+            rejection = "actions_running";
+            return false;
+        }
+        if (_state.CurrentSide != CombatSide.Player)
+        {
+            rejection = "enemy_turn";
+            return false;
+        }
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.ForceTurnStartForTest)
+        {
+            rejection = "turn_start";
+            return false;
+        }
+#endif
+        if (_player.PlayerCombatState is not { Phase: PlayerTurnPhase.Play })
+        {
+            rejection = "turn_start";
             return false;
         }
         rejection = "";
@@ -682,36 +783,12 @@ internal static partial class CombatSessionController
     private static int CurrentTurn()
         => _player?.PlayerCombatState?.TurnNumber ?? 0;
 
-    private static SolverMode NextMode(SolverMode mode) => mode switch
-    {
-        SolverMode.Manual => SolverMode.AutoSearch,
-        SolverMode.AutoSearch => SolverMode.FullAuto,
-        _ => SolverMode.Manual,
-    };
-
-    internal static SolverMode CycleMode()
-    {
-        SolverMode next = NextMode(_mode);
-        _ = SetMode(next);
-        return next;
-    }
-
-    private static void DisableFullAuto(bool persistMode)
+    private static void DisableFullAuto()
     {
         if (_fullAutoEnabled)
-            ModLog.Info($"[Sts2Solver] CONTROLLER_FULL_AUTO_OFF source=disable persist={persistMode} " +
+            ModLog.Info($"[Sts2Solver] CONTROLLER_FULL_AUTO_OFF source=disable " +
                 $"pause={_pauseCode ?? "-"}");
         _fullAutoEnabled = false;
-        if (!persistMode || _mode != SolverMode.FullAuto)
-            return;
-        _mode = SolverMode.AutoSearch;
-        if (!SolverSettings.Update(current => current with
-            {
-                Automation = current.Automation with { Mode = SolverMode.AutoSearch },
-            }))
-        {
-            ModLog.Error("[Sts2Solver] CONTROLLER_MODE_PERSIST_FAILED mode=AutoSearch");
-        }
     }
 
     private static void CancelSearch()
@@ -776,7 +853,6 @@ internal static partial class CombatSessionController
     private static async Task KickAutoSearchIfNeededAsync()
     {
         if (!_combatActive
-            || _solverDisabled
             || _search != null
             || _deployment != null
             || !ShouldAutomaticallySearchNextTurn

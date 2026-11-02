@@ -16,6 +16,9 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
     /// <summary>Time per beam slot; every member gets an independent deadline.</summary>
     public int MillisecondsPerWidth { get; init; }
 
+    /// <summary>Whole-request deadline when the host sets one; overrides the member sum in the UI budget.</summary>
+    public long? TotalBudgetMilliseconds { get; init; }
+
     /// <summary>Encounter-specific default portfolio.</summary>
     public bool QueenStrategies { get; init; }
 
@@ -108,4 +111,10 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
 
     /// <summary>Adoption provenance when <see cref="Completion"/> is an adoption.</summary>
     internal SearchAdoptionInfo? Adoption { get; init; }
+
+    /// <summary>True when the adopted route contains only death lines; host-only.</summary>
+    internal bool OnlyDeathRoutes { get; init; }
+
+    /// <summary>Sum of the coordinator's planned member time limits; host-only.</summary>
+    internal long PlannedBudgetMilliseconds { get; init; }
 }

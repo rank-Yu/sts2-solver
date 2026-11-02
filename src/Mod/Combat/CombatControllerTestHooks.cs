@@ -3,6 +3,7 @@
 // so the controller has no test-host dependency.
 using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Entities.Players;
 
 namespace Sts2Solver;
 
@@ -18,6 +19,15 @@ internal static class CombatControllerTestHooks
 
     /// <summary>Stop the search as soon as a candidate is rendered, for stop-candidate text tests.</summary>
     internal static bool AutoStopOnCandidate { get; set; }
+
+    /// <summary>Pretends the action queue is still resolving, for the search-block scenario.</summary>
+    internal static bool ForceActionsRunningForTest { get; set; }
+
+    /// <summary>Pretends the turn-start setup is still running, for the search-block scenario.</summary>
+    internal static bool ForceTurnStartForTest { get; set; }
+
+    /// <summary>Runs before the live end-turn risk check, for the forced-execution scenario.</summary>
+    internal static Func<CombatState, Player, Task>? BeforeLiveEndTurnCheck { get; set; }
 
     /// <summary>Completion times of deployed actions in the current scenario, in tick milliseconds.</summary>
     internal static List<long> DeploymentCompletionTimes { get; } = [];

@@ -21,7 +21,8 @@ internal static partial class CombatSessionController
             StopFullAutoOnCombatEnd, StopFullAutoOnDeathTurn, StopFullAutoOnWorseRecalculation);
         if (pause is { } code)
         {
-            DisableFullAuto(persistMode: true);
+            DisableFullAuto();
+            _fullAutoPausedThisCombat = true;
             _continuationSource = null;
             _pauseCode = CombatFullAutoPausePolicy.Code(code);
             _pauseReason = code switch
@@ -115,11 +116,16 @@ internal static partial class CombatSessionController
                         RecordPotionUsed(action);
                     PublishSnapshot();
                 },
+                () => deployment.StopRequested,
                 deployment.Cancellation.Token);
+            ReleaseDeployment(deployment);
             if (outcome.Pause is { } pause)
             {
-                DisableFullAuto(persistMode: true);
+                DisableFullAuto();
+                _fullAutoPausedThisCombat = true;
                 _continuationSource = null;
+                if (pause.CodeName == "live_end_turn_risk")
+                    RetainRemainingEndTurnPlan(turn);
                 _pauseCode = pause.CodeName;
                 _pauseReason = pause.Detail;
                 _pausePlannedHpLost = pause.PlannedHpLost;
@@ -132,6 +138,17 @@ internal static partial class CombatSessionController
                     $"planned_hp_lost={pause.PlannedHpLost?.ToString() ?? "-"} " +
                     $"live_hp_lost={pause.LiveHpLost?.ToString() ?? "-"} " +
                     $"player_dead={pause.PlayerDead} {pause.Detail}");
+                return;
+            }
+            if (outcome.Stopped)
+            {
+                _automaticSearchPaused = true;
+                _automaticSearchPausedTurn = turn;
+                _pauseCode = "stopped";
+                _pauseReason = "stopped_by_user";
+                _phase = CombatUiPhase.WaitingTurn;
+                PublishSnapshot();
+                ModLog.Info($"[Sts2Solver] CONTROLLER_DEPLOY_STOPPED turn={turn}");
                 return;
             }
             if (outcome.FailureReason is { } failure)
@@ -160,14 +177,20 @@ internal static partial class CombatSessionController
         }
         finally
         {
-            if (ReferenceEquals(_deployment, deployment))
-                _deployment = null;
+            ReleaseDeployment(deployment);
             _deploymentResult = null;
             deployment.Cancellation.Dispose();
+            ResumePendingTurnStarted();
             PublishSnapshot();
         }
         if (endedTurn)
             await KickAutoSearchIfNeededAsync();
+    }
+
+    private static void ReleaseDeployment(CombatDeploymentSession deployment)
+    {
+        if (ReferenceEquals(_deployment, deployment))
+            _deployment = null;
     }
 
     private static void HandleDeploymentFailure(int turn, string reason, string detail,
@@ -186,7 +209,8 @@ internal static partial class CombatSessionController
             return;
         if (reason == "choice_mismatch")
         {
-            DisableFullAuto(persistMode: true);
+            DisableFullAuto();
+            _fullAutoPausedThisCombat = true;
             _continuationSource = null;
             _automaticSearchPaused = true;
             _automaticSearchPausedTurn = turn;
@@ -206,23 +230,88 @@ internal static partial class CombatSessionController
         RequestSearch(CombatSearchReason.DeploymentDrift, deployWhenReady: !_fullAutoEnabled);
     }
 
-    private static ValueTask<CombatPause?> BeforeEndTurnAsync(ReplayedAction endTurn,
+    /// <summary>
+    /// Keeps the unplayed tail (the end-turn action) as the current-turn route after a live
+    /// end-turn pause, so "Execute current turn" can force the remaining action.
+    /// </summary>
+    private static void RetainRemainingEndTurnPlan(int turn)
+    {
+        if (_deploymentResult is not { } result || _state == null || _player == null
+            || _rules == null || _tracker == null)
+        {
+            return;
+        }
+        ReplayedAction? endTurn = result.Plan.EndTurnAction(turn);
+        CombatRoutePlan? remaining = endTurn == null ? null : result.Plan.TrimToAction(endTurn.Index);
+        if (remaining == null)
+            return;
+        try
+        {
+            _tracker.Refresh(_state);
+            Battle live = _tracker.ImportRoot(_state, _player, _rules);
+            _tracker.Observe(live);
+            CombatControllerResult retained = result with
+            {
+                Plan = remaining,
+                Stamp = CombatStateStamp.Capture(live),
+                Reason = "live_end_turn_risk",
+            };
+            _latestResult = retained;
+            _latestStamp = retained.Stamp;
+            _currentActionIndex = 0;
+            _completedActions = 0;
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_RETAIN_END_TURN turn={turn} " +
+                $"actions={remaining.Actions.Length}");
+        }
+        catch (UnsupportedImportException error)
+        {
+            ModLog.Error(
+                $"[Sts2Solver] CONTROLLER_RETAIN_END_TURN_FAILED reason={error.Reason} {error.Detail}");
+        }
+        catch (UnsupportedException error)
+        {
+            ModLog.Error($"[Sts2Solver] CONTROLLER_RETAIN_END_TURN_FAILED {error.Message}");
+        }
+        catch (CapacityException error)
+        {
+            ModLog.Error(
+                $"[Sts2Solver] CONTROLLER_RETAIN_END_TURN_FAILED region={error.Region} {error.Message}");
+        }
+        catch (InvalidDataException error)
+        {
+            ModLog.Error($"[Sts2Solver] CONTROLLER_RETAIN_END_TURN_FAILED {error.Message}");
+        }
+        catch (InvalidOperationException error)
+        {
+            ModLog.Error($"[Sts2Solver] CONTROLLER_RETAIN_END_TURN_FAILED {error.Message}");
+        }
+    }
+
+    private static async ValueTask<CombatPause?> BeforeEndTurnAsync(ReplayedAction endTurn,
         IReadOnlyDictionary<int, int> hpLostByTurn)
     {
+#if !STS2_SOLVER_TESTING
+        await ValueTask.CompletedTask;
+#endif
         if (!_fullAutoEnabled
             || (!StopFullAutoOnDeathTurn && !StopFullAutoOnWorseRecalculation)
             || _state == null || _player == null || _rules == null || _tracker == null)
         {
-            return ValueTask.FromResult<CombatPause?>(null);
+            return null;
         }
         int turn = endTurn.Before.PlayerTurn;
         if (!hpLostByTurn.TryGetValue(turn, out int plannedHpLost))
         {
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(
-                CombatPauseCode.LiveEndTurnRisk, $"missing planned hp loss for turn {turn}"));
+            return new CombatPause(
+                CombatPauseCode.LiveEndTurnRisk, $"missing planned hp loss for turn {turn}");
         }
         try
         {
+#if STS2_SOLVER_TESTING
+            if (CombatControllerTestHooks.BeforeLiveEndTurnCheck is { } hook)
+                await hook(_state, _player);
+#endif
             _tracker.Refresh(_state);
             Battle live = _tracker.ImportForComparison(_state, _player, _rules, endTurn.Before);
             LiveEndTurnRiskProjection risk =
@@ -231,32 +320,32 @@ internal static partial class CombatSessionController
                 plannedHpLost, risk.HpLost, risk.PlayerDead,
                 StopFullAutoOnDeathTurn, StopFullAutoOnWorseRecalculation);
             if (code == null)
-                return ValueTask.FromResult<CombatPause?>(null);
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(code.Value,
+                return null;
+            return new CombatPause(code.Value,
                 $"planned_hp_lost={plannedHpLost} live_hp_lost={risk.HpLost} " +
                 $"hp_before={risk.HpBefore} hp_after={risk.HpAfter} dead={risk.PlayerDead}",
-                plannedHpLost, risk.HpLost, risk.PlayerDead));
+                plannedHpLost, risk.HpLost, risk.PlayerDead);
         }
         catch (InvalidDataException error)
         {
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(
-                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false));
+            return new CombatPause(
+                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false);
         }
         catch (UnsupportedException error)
         {
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(
-                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false));
+            return new CombatPause(
+                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false);
         }
         catch (InvalidOperationException error)
         {
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(
-                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false));
+            return new CombatPause(
+                CombatPauseCode.LiveEndTurnRisk, error.Message, plannedHpLost, null, false);
         }
         catch (CapacityException error)
         {
-            return ValueTask.FromResult<CombatPause?>(new CombatPause(
+            return new CombatPause(
                 CombatPauseCode.LiveEndTurnRisk, $"region={error.Region} {error.Message}",
-                plannedHpLost, null, false));
+                plannedHpLost, null, false);
         }
     }
 

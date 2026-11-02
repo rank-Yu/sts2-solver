@@ -67,7 +67,10 @@ internal sealed partial class BeamSolver
             route,
             current,
             channel.BestComplete,
-            built?.CandidateVersion ?? _progressCandidateVersion));
+            built?.CandidateVersion ?? _progressCandidateVersion)
+        {
+            PlannedBudgetMilliseconds = channel.PlannedBudgetMilliseconds,
+        });
     }
 
     /// <summary>
@@ -354,7 +357,10 @@ internal sealed partial class BeamSolver
             BestRootIndex = candidate.RootIndex,
             PotionPolicySatisfied = true,
             Adoption = new SearchAdoptionInfo(candidate.CandidateVersion, candidate.ThroughTurn,
-                kind, replay.FinalState.Outcome),
+                kind, replay.FinalState.Outcome)
+            {
+                OnlyDeathRoutes = candidate.OnlyDeathRoutes,
+            },
         };
         return WithSolveDiagnostics(result);
     }

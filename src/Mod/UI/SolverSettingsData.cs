@@ -49,7 +49,7 @@ internal enum SolverDeploymentSpeed
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 3;
+    internal const int CurrentSchemaVersion = 4;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -201,9 +201,6 @@ internal sealed record SolverAutomationSettings
 {
     /// <summary>Manual, automatic search or full automatic; persisted across combats and restarts.</summary>
     public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
-
-    /// <summary>The solver-wide off switch; disabling it also drops full auto back to automatic search.</summary>
-    public bool SolverDisabled { get; init; }
 
     /// <summary>Battle speed override while the solver plays cards; follow the game by default.</summary>
     public SolverDeploymentSpeed DeploymentSpeed { get; init; } = SolverDeploymentSpeed.FollowGame;

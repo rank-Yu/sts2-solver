@@ -42,6 +42,7 @@ internal static class SearchProgressContracts
             SubscriptionDoesNotChangeResult(original, baseline, threads);
             CoordinatorAdoption(original, baseline, threads);
             BestCompleteSummary(original, baseline, threads);
+            StopChoosesBetterCompleted(original, baseline, threads);
         }
         Console.WriteLine("SEARCH_PROGRESS adoption/stop/stale/threads=pass");
     }
@@ -221,6 +222,110 @@ internal static class SearchProgressContracts
             $"{threads}t coordinator returns the adopted member result");
         _ = ReplayedRoute.Build(original.Battles[result.Beam!.BestRootIndex], original.Rules,
             result.Beam.BestRoute, result.Beam.BestIsVictory);
+    }
+
+    private static void StopChoosesBetterCompleted(SearchCase original, BeamOptions baseline,
+        int threads)
+    {
+        BeamSolver quality = new(original.Rules,
+            baseline with { SearchThreads = threads, Progress = null, AuditPotionPolicy = true });
+        (BeamResult better, BeamResult worse) = FindTwoRoutes(original, quality);
+        CombatSearchResult completedBetter = RunStop(original, baseline, threads, better, worse);
+        Assert(completedBetter.Completion == SearchCompletionKind.StoppedWithCandidate
+            && completedBetter.Beam is not null
+            && Equal(completedBetter.Beam.BestRoute, better.BestRoute),
+            $"{threads}t stop keeps the better completed member");
+        Assert(completedBetter.SelectedMember == 0
+            && completedBetter.Members[0].Adopted && !completedBetter.Members[1].Adopted,
+            $"{threads}t stop marks the substituted member");
+        CombatSearchResult stopBetter = RunStop(original, baseline, threads, worse, better);
+        Assert(stopBetter.Completion == SearchCompletionKind.StoppedWithCandidate
+            && stopBetter.Beam is not null
+            && Equal(stopBetter.Beam.BestRoute, better.BestRoute),
+            $"{threads}t stop keeps the better current candidate");
+
+        static CombatSearchResult RunStop(SearchCase original, BeamOptions baseline, int threads,
+            BeamResult completed, BeamResult stopped)
+        {
+            SearchPlan plan = new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };
+            int call = 0;
+            ValueTask<SearchMemberMeasurement> RunMember(SearchCase member,
+                SearchStorage shared, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                if (call++ == 0)
+                    return ValueTask.FromResult(new SearchMemberMeasurement(completed, "ok", null, 0));
+                BeamResult stoppedBeam = stopped with
+                {
+                    StopReason = "stopped",
+                    Adoption = new SearchAdoptionInfo(1, 0, SearchAdoptionKind.Stopped,
+                        Outcome.None),
+                };
+                return ValueTask.FromResult(new SearchMemberMeasurement(stoppedBeam, "stopped",
+                    null, 0));
+            }
+            return CombatSearchCoordinator.RunAsync(
+                new(original with { Options = baseline with { SearchThreads = threads } }, plan),
+                new SearchStorage(), RunMember, CancellationToken.None, static () => 0)
+                .AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static (BeamResult Better, BeamResult Worse) FindTwoRoutes(SearchCase original,
+        BeamSolver quality)
+    {
+        List<BeamResult> routes = [];
+        if (TryRoute(original, []) is { } empty)
+            routes.Add(empty);
+        if (TryRoute(original, [PlayerAction.EndTurn()]) is { } endTurn)
+            routes.Add(endTurn);
+        PlayerAction[] legal = new PlayerAction[Kernel.MaxLegalActions];
+        int count = Kernel.LegalActions(original.Battles[0], original.Rules, legal);
+        for (int index = 0; index < count; index++)
+        {
+            if (legal[index].Kind == PlayerActionKind.UsePotion)
+                continue;
+            if (TryRoute(original, [legal[index]]) is { } single)
+                routes.Add(single);
+            if (TryRoute(original, [legal[index], PlayerAction.EndTurn()]) is { } withEnd)
+                routes.Add(withEnd);
+        }
+        for (int left = 0; left < routes.Count; left++)
+            for (int right = left + 1; right < routes.Count; right++)
+            {
+                int comparison = quality.CompareResultQuality(original.Battles,
+                    routes[left], routes[right]);
+                if (comparison == 0)
+                    continue;
+                return comparison < 0
+                    ? (routes[left], routes[right])
+                    : (routes[right], routes[left]);
+            }
+        throw new InvalidDataException("search-progress: no two routes with different final ordering");
+    }
+
+    private static BeamResult? TryRoute(SearchCase original, PlayerAction[] route)
+    {
+        Battle state = original.Battles[0];
+        try
+        {
+            foreach (PlayerAction action in route)
+            {
+                if (Kernel.Step(ref state, action, original.Rules, out _) != StepResult.Completed)
+                    return null;
+            }
+        }
+        catch (CapacityException)
+        {
+            return null;
+        }
+        return new BeamResult(route, [], state.Outcome == Outcome.Victory, 0d, 0, 0, 0,
+            route.Length, 0, TimeSpan.Zero)
+        {
+            BestRootIndex = 0,
+            PotionPolicySatisfied = true,
+            StopReason = "ok",
+        };
     }
 
     private static void BestCompleteSummary(SearchCase original, BeamOptions baseline, int threads)

@@ -125,7 +125,7 @@ internal static class CombatSearchRunner
             $"victory={beam.BestIsVictory} score={beam.BestScore} members={outcome.Members.Length} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
-            $"completion={outcome.Completion}");
+            $"planned_ms={outcome.PlannedBudgetMilliseconds} completion={outcome.Completion}");
         return new CombatSearchRun(searchRoot, searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null);

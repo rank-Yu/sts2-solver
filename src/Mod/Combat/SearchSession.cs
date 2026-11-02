@@ -93,10 +93,6 @@ internal static class SearchSession
             Interlocked.CompareExchange(ref _activeProgress, null, channel);
     }
 
-    /// <summary>Requests adoption of one published candidate version.</summary>
-    internal static bool RequestAdopt(int candidateVersion)
-        => Volatile.Read(ref _activeProgress)?.RequestAdopt(candidateVersion) == true;
-
     /// <summary>Stops the search; a published candidate is preserved, otherwise it is cancelled.</summary>
     internal static bool RequestStop()
         => Volatile.Read(ref _activeProgress)?.RequestStop() == true;

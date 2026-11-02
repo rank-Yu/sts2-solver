@@ -146,6 +146,20 @@ internal static class SolverPanelText
     internal static string SearchReason(string code)
         => SearchReasonNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
 
+    /// <summary>Why the search slot is disabled; codes come from the controller's CanSolve.</summary>
+    internal static string SearchBlock(string? code) => code switch
+    {
+        "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
+        "actions_running" => SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
+        "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
+        "executing" => SolverText.Get("正在执行本回合；要重新搜索请先停止执行。"),
+        "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
+        "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),
+        "not_playable" => SolverText.Get("当前战斗状态不能搜索。"),
+        "not_in_combat" => SolverText.Get("当前不在战斗中。"),
+        _ => SolverText.Get("当前状态不能搜索。"),
+    };
+
     internal static string Mode(SolverMode mode) => mode switch
     {
         SolverMode.Manual => SolverText.Get("手动"),

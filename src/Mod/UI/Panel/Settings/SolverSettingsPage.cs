@@ -1,17 +1,21 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.cs, SolverSettingsPanel.General.cs and
 // SolverSettingsPanel.Performance.cs at 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and
-// contributors). One page in the sidebar with three groups (出牌, 性能, 显示) and only the settings
-// Sts2Solver wires. The thread count and memory limit are free inputs prefilled with the effective
-// value; an input left as shown writes nothing, and a value equal to the machine default is stored
-// as null so it keeps following the machine. The memory limit has 0.1 GB precision.
+// contributors). The page replaces the panel body like the original, without tabs: four groups
+// (出牌, 性能, 幕末 Boss, 显示) with only the settings Sts2Solver wires. The thread count and memory
+// limit are free inputs prefilled with the effective value; an input left as shown writes nothing,
+// and a value equal to the machine default is stored as null so it keeps following the machine. The
+// memory limit has 0.1 GB precision. The two Boss HP policies go through ICombatUiCommands.
 using System.Globalization;
 using Godot;
 using Sts2Solver.Import;
 
 namespace Sts2Solver;
 
-/// <summary>The sidebar's settings page. Saves through <see cref="SolverSettings.Update"/>.</summary>
-internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebarPage
+/// <summary>
+/// The settings page shown in place of the panel body. Saves through
+/// <see cref="SolverSettings.Update"/> and the Boss HP commands.
+/// </summary>
+internal sealed partial class SolverSettingsPage : PanelContainer
 {
     internal const int MinimumThreads = 1;
     internal const double MinimumMemoryGigabytes = 0.25d;
@@ -26,8 +30,12 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
     private readonly OptionButton _tier;
     private readonly LineEdit _threads;
     private readonly LineEdit _memory;
+    private readonly OptionButton _actBoss;
+    private readonly OptionButton _finalBoss;
     private readonly HSlider _opacity;
     private readonly Label _opacityValue;
+    private readonly VBoxContainer _content;
+    private readonly ScrollContainer _scroll;
     private readonly Label _status;
     private SettingsUiSnapshot _settings = new();
     private long _availableMemoryBytes;
@@ -47,17 +55,45 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
     public SolverSettingsPage()
     {
         Name = "SettingsPage";
+        Visible = false;
         MouseFilter = MouseFilterEnum.Pass;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         SizeFlagsVertical = SizeFlags.ExpandFill;
-        AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
+            SolverUiTokens.Palette.Surface,
+            SolverUiTokens.Palette.BorderSubtle,
+            SolverUiTokens.Radius.Medium,
+            SolverUiTokens.Spacing.Md,
+            SolverUiTokens.Spacing.Md));
+        VBoxContainer layout = new()
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        AddChild(layout);
 
+        HBoxContainer heading = new()
+        {
+            Name = "SettingsHeading",
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        heading.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        Label title = SolverUiTokens.CreateLabel(SolverText.Get("求解器设置"), SolverUiTokens.Type.Title,
+            SolverUiTokens.Palette.TextPrimary);
+        title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        heading.AddChild(title);
         _reset = SolverUiTokens.CreateButton(SolverText.Get("恢复默认"), SolverButtonStyle.Secondary);
         _reset.Name = "ResetDefaults";
         _reset.CustomMinimumSize = new Vector2(96, SolverUiTokens.Size.ButtonHeight);
         _reset.Pressed += ResetDefaults;
+        heading.AddChild(_reset);
+        layout.AddChild(heading);
 
         VBoxContainer content = SolverSettingsControls.CreatePageContent("SettingsContent");
+        _content = content;
 
         GridContainer play = SolverSettingsControls.CreateSettingsGrid();
         _speed = SolverSettingsControls.CreateOptionInput();
@@ -100,6 +136,17 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
             SolverText.Get("只限制搜索用的内存。设太小可能搜不完。"));
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("性能"), performance);
 
+        GridContainer boss = SolverSettingsControls.CreateSettingsGrid();
+        _actBoss = CreateBossInput("ActBossHpOption");
+        _actBoss.ItemSelected += OnActBossSelected;
+        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("第一、二幕血量取舍"), _actBoss,
+            SolverText.Get("通关优先会按战后回复 80% 折算血量价值并尽量保留药水；最低战损会按普通战斗完整比较掉血。"));
+        _finalBoss = CreateBossInput("FinalBossHpOption");
+        _finalBoss.ItemSelected += OnFinalBossSelected;
+        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("最终 Boss 血量取舍"), _finalBoss,
+            SolverText.Get("通关优先只要求路线存活并优先保留资源；最低战损会继续比较剩余血量。"));
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("幕末 Boss"), boss);
+
         GridContainer display = SolverSettingsControls.CreateSettingsGrid();
         HBoxContainer opacityRow = new()
         {
@@ -120,28 +167,34 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
         SolverSettingsControls.AddBasicRow(display, SolverText.Get("覆盖层透明度"), opacityRow);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("显示"), display);
 
-        AddChild(SolverSettingsControls.CreatePageScroll(content));
+        _scroll = SolverSettingsControls.CreatePageScroll(content);
+        layout.AddChild(_scroll);
         _status = SolverUiTokens.CreateLabel(string.Empty, SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.Success);
         _status.Name = "SettingsStatus";
         _status.CustomMinimumSize = new Vector2(0, 20);
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        AddChild(_status);
+        layout.AddChild(_status);
         SetProcess(false);
     }
 
-    public SolverSidebarPageKind Kind => SolverSidebarPageKind.Settings;
+    /// <summary>
+    /// Height the groups need beyond the scroll area's minimum; the panel adds it to its request so
+    /// the page shows whole when there is room.
+    /// </summary>
+    internal float HiddenContentHeight
+        => Math.Max(0f, _content.GetCombinedMinimumSize().Y - _scroll.GetCombinedMinimumSize().Y);
 
-    public string Title => SolverText.Get("求解器设置");
-
-    public Control Root => this;
-
-    public Control HeaderActions => _reset;
-
+    /// <summary>Reloads the page from the current settings; called each time the page opens.</summary>
     public void Opened() => Reload();
 
-    public void Apply(CombatUiSnapshot snapshot) => ApplyEffectiveValues(snapshot, force: false);
+    public void Apply(CombatUiSnapshot snapshot)
+    {
+        ApplyEffectiveValues(snapshot, force: false);
+        ApplyBossStrategies(snapshot.Strategy);
+    }
 
+    /// <summary>Saves inputs still being edited; false keeps the page open on an invalid value.</summary>
     public bool CommitPending()
     {
         FlushOpacity();
@@ -235,6 +288,56 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
         _status.Text = string.Empty;
         _loading = false;
         ApplyEffectiveValues(CombatUiStore.Snapshot, force: true);
+        ApplyBossStrategies(CombatUiStore.Snapshot.Strategy);
+    }
+
+    private static OptionButton CreateBossInput(string name)
+    {
+        OptionButton input = SolverSettingsControls.CreateOptionInput();
+        input.Name = name;
+        input.AddItem(SolverText.Get("通关优先（默认）"), (int)SearchBossHpStrategy.ProgressionFirst);
+        input.AddItem(SolverText.Get("最低战损"), (int)SearchBossHpStrategy.MinimizeHpLoss);
+        return input;
+    }
+
+    private void ApplyBossStrategies(StrategyUiSnapshot strategy)
+    {
+        SelectBoss(_actBoss, strategy.ActTransitionBossHpStrategy);
+        SelectBoss(_finalBoss, strategy.FinalBossHpStrategy);
+    }
+
+    private static void SelectBoss(OptionButton input, SearchBossHpStrategy strategy)
+    {
+        int index = input.GetItemIndex((int)strategy);
+        if (input.Selected != index)
+            input.Select(index);
+    }
+
+    private void OnActBossSelected(long index)
+    {
+        SearchBossHpStrategy strategy = (SearchBossHpStrategy)_actBoss.GetItemId((int)index);
+        bool accepted = CombatUiCommands.Instance.SetActTransitionBossHpStrategy(strategy);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=act_boss_hp strategy={strategy} accepted={accepted}");
+        ShowCommandResult(accepted);
+    }
+
+    private void OnFinalBossSelected(long index)
+    {
+        SearchBossHpStrategy strategy = (SearchBossHpStrategy)_finalBoss.GetItemId((int)index);
+        bool accepted = CombatUiCommands.Instance.SetFinalBossHpStrategy(strategy);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=final_boss_hp strategy={strategy} accepted={accepted}");
+        ShowCommandResult(accepted);
+    }
+
+    private void ShowCommandResult(bool accepted)
+    {
+        if (accepted)
+        {
+            SetStatus(SolverText.Get("已保存，下次搜索生效"), SolverUiTokens.Palette.Success);
+            return;
+        }
+        SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
+        ApplyBossStrategies(CombatUiStore.Snapshot.Strategy);
     }
 
     /// <summary>Shows the effective thread count and memory limit; inputs being edited are left alone.</summary>
@@ -353,7 +456,10 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
             SolverText.Get("已保存并立即生效"));
     }
 
-    /// <summary>Resets this page's settings, the panel geometry and the big-damage hint; the mode stays.</summary>
+    /// <summary>
+    /// Resets this page's settings (the Boss HP policies through their commands), the panel geometry
+    /// and the big-damage hint; the mode stays.
+    /// </summary>
     private void ResetDefaults()
     {
         _pendingOpacity = null;
@@ -387,8 +493,14 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
             SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
             return;
         }
+        bool actReset = CombatUiCommands.Instance.SetActTransitionBossHpStrategy(
+            search.ActTransitionBossHpStrategy);
+        bool finalReset = CombatUiCommands.Instance.SetFinalBossHpStrategy(search.FinalBossHpStrategy);
         Reload();
-        SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
+        if (actReset && finalReset)
+            SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
+        else
+            SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
         DefaultsRestored?.Invoke();
         OpacityPreview?.Invoke(SolverSettings.Current.Ui.Opacity);
     }
@@ -434,6 +546,10 @@ internal sealed partial class SolverSettingsPage : VBoxContainer, ISolverSidebar
 
 #if STS2_SOLVER_TESTING
     internal Button ResetButtonForTest => _reset;
+
+    internal OptionButton ActBossOptionForTest => _actBoss;
+
+    internal OptionButton FinalBossOptionForTest => _finalBoss;
 
     internal string StatusTextForTest => _status.Text;
 #endif

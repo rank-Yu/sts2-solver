@@ -1,8 +1,9 @@
 // Layout, drag and resize ported from CombatSolver src/UI/SolverOverlay.cs
 // (ApplyResponsiveLayout through ResetOverlayPosition, ApplyStrategyBounds and StrategySidebarX) at
 // 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and contributors). Geometry is persisted
-// through Sts2Solver's SolverSettings on pointer release; the strategy-sidebar placement is used for
-// the settings sidebar.
+// through Sts2Solver's SolverSettings on pointer release. While the settings page is shown the
+// panel requests the page's whole content height instead of its scroll minimum, still capped at
+// the original 540.
 using Godot;
 
 namespace Sts2Solver;
@@ -117,6 +118,11 @@ internal sealed partial class SolverOverlay
                 Math.Max(SolverSettings.MinimumOverlayHeight, contentMinimum.Y),
                 availableHeight);
             height = Math.Clamp(customSize.Y, minimumHeight, availableHeight);
+        }
+        else if (_settingsVisible && _settingsPage != null)
+        {
+            height = Math.Min(contentMinimum.Y + _settingsPage.HiddenContentHeight,
+                Math.Min(SolverUiTokens.Size.SettingsMaxHeight, availableHeight));
         }
         else
         {

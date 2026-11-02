@@ -2,7 +2,7 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The palettes are redrawn for Sts2Solver (translucent surfaces over one panel background whose
 // alpha follows the opacity setting); the spacing scale, box/label/button factories and the
-// procedural textures keep the original structure.
+// procedural textures keep the original structure. The switch texture keeps only the dark colors.
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
@@ -51,6 +51,7 @@ internal static class SolverUiTokens
         public const float PanelMargin = 24f;
         public const float ExpandedMaxWidth = 820f;
         public const float ExpandedMaxHeight = 440f;
+        public const float SettingsMaxHeight = 540f;
         public const float ExpandedMinWidth = 560f;
         public const float CollapsedWidth = 520f;
         public const float CollapsedHeight = 120f;
@@ -276,6 +277,23 @@ internal static class SolverUiTokens
         button.AddThemeColorOverride("font_disabled_color", Palette.TextMuted);
     }
 
+    /// <summary>
+    /// Fixes the button's width to its widest label so swapping labels never moves the layout. The
+    /// button must already be in the tree, where its theme font is resolved.
+    /// </summary>
+    public static void FitWidestText(Button button, params string[] texts)
+    {
+        string shown = button.Text;
+        float width = button.CustomMinimumSize.X;
+        foreach (string text in texts)
+        {
+            button.Text = text;
+            width = Math.Max(width, button.GetMinimumSize().X);
+        }
+        button.Text = shown;
+        button.CustomMinimumSize = new Vector2(width, button.CustomMinimumSize.Y);
+    }
+
     /// <summary>Panel font override count, used by the headless locale check.</summary>
     internal static int FontOverrideCount(Control root)
     {
@@ -325,6 +343,67 @@ internal static class SolverUiTokens
             {
                 if (x >= half - 1 - y && x <= half + y)
                     image.SetPixel(x, height - 1 - y, color);
+            }
+        }
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    private static Texture2D? _switchOn;
+    private static Texture2D? _switchOff;
+
+    public static Texture2D SwitchTexture(bool isChecked)
+        => isChecked
+            ? _switchOn ??= CreateSwitchTexture(true)
+            : _switchOff ??= CreateSwitchTexture(false);
+
+    private static Texture2D CreateSwitchTexture(bool isChecked)
+    {
+        const int width = 38;
+        const int height = 20;
+        Image image = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
+
+        const float radius = height / 2f;
+        const float cx1 = radius - 0.5f;
+        const float cx2 = width - radius - 0.5f;
+        const float cy = radius - 0.5f;
+
+        Color fill = isChecked ? Color.FromHtml("2d7bd4ff") : Color.FromHtml("222832ff");
+        Color border = isChecked ? Color.FromHtml("458de6ff") : Color.FromHtml("3c4656ff");
+
+        float knobX = isChecked ? cx2 : cx1;
+        float knobY = cy;
+        const float knobRadius = 7.0f;
+
+        for (int y = 0; y < height; y++)
+        {
+            float dy = y - cy;
+            for (int x = 0; x < width; x++)
+            {
+                float dx = x < cx1 ? x - cx1 : (x > cx2 ? x - cx2 : 0f);
+                float dist = MathF.Sqrt(dx * dx + dy * dy);
+                if (dist > radius + 0.5f)
+                    continue;
+
+                float edgeAlpha = Math.Clamp(radius + 0.5f - dist, 0f, 1f);
+                float borderFactor = Math.Clamp(dist - (radius - 1.2f), 0f, 1f);
+                Color track = fill.Lerp(border, borderFactor);
+                track.A *= edgeAlpha;
+
+                float kdx = x - knobX;
+                float kdy = y - knobY;
+                float kdist = MathF.Sqrt(kdx * kdx + kdy * kdy);
+
+                if (kdist <= knobRadius + 0.5f)
+                {
+                    float knobAlpha = Math.Clamp(knobRadius + 0.5f - kdist, 0f, 1f);
+                    Color finalColor = track.Lerp(Colors.White, knobAlpha);
+                    finalColor.A = Math.Max(track.A, knobAlpha * edgeAlpha);
+                    image.SetPixel(x, y, finalColor);
+                }
+                else
+                {
+                    image.SetPixel(x, y, track);
+                }
             }
         }
         return ImageTexture.CreateFromImage(image);

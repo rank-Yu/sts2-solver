@@ -185,6 +185,7 @@ internal static class ForcedPotionContracts
             outcome.Error ?? "-");
         Assert(outcome.Error?.Contains("FAIRY_IN_A_BOTTLE@1", StringComparison.Ordinal) == true,
             outcome.Error ?? "-");
+        Assert(outcome.ForcedPotionsUnsatisfied, "forced failure is flagged for the host");
 
         // Without the Smart gradient a forced directive is still a hard requirement, so an
         // unusable one must fail explicitly instead of returning an unqualified incomplete route.
@@ -205,5 +206,6 @@ internal static class ForcedPotionContracts
             disabledOutcome.Completion.ToString());
         Assert(disabledOutcome.Error?.Contains("指定药水必须使用", StringComparison.Ordinal) == true,
             disabledOutcome.Error ?? "-");
+        Assert(disabledOutcome.ForcedPotionsUnsatisfied, "forced failure is flagged without the gradient");
     }
 }

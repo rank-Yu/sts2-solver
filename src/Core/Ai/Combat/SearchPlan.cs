@@ -117,4 +117,10 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
 
     /// <summary>Sum of the coordinator's planned member time limits; host-only.</summary>
     internal long PlannedBudgetMilliseconds { get; init; }
+
+    /// <summary>
+    /// True when the request forces potions and no route used them all; the request then failed
+    /// with <see cref="CombatSearchStatus.Invalid"/>. Host-only.
+    /// </summary>
+    internal bool ForcedPotionsUnsatisfied { get; init; }
 }

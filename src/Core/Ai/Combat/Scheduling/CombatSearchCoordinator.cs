@@ -345,13 +345,17 @@ internal static class CombatSearchCoordinator
             for (int i = 0; i < logs.Count; i++) logs[i] = logs[i] with { Adopted = i == bestIndex };
         bool capacityBounded = !cancelled && error == null && capacityDrops != null
             && (best == null || bestOutcome != Outcome.Victory);
+        bool forcedPotionsUnsatisfied = false;
         if (capacityBounded)
             error = "成员丢弃超出状态容量的分支后前沿耗尽，且没有胜利路线（"
                 + string.Join(", ", capacityDrops!.Select(d => $"{d.Key}={d.Value}")) + "）。";
         else if (best == null && error == null && !cancelled
             && initial.Options.Potions.Strategy.HasForcedDirectives)
+        {
+            forcedPotionsUnsatisfied = true;
             error = "指定药水必须使用，但搜索没有找到可执行路线："
                 + initial.Options.Potions.Strategy.DescribeForcedUses() + "。";
+        }
         CombatSearchStatus status = cancelled ? CombatSearchStatus.Cancelled
             : capacityBounded ? CombatSearchStatus.CapacityBounded
             : error != null ? CombatSearchStatus.Invalid
@@ -367,6 +371,7 @@ internal static class CombatSearchCoordinator
                 : SearchCompletionKind.Completed,
             SearchThreads = initial.Options.SearchThreads,
             PlannedBudgetMilliseconds = plannedMilliseconds,
+            ForcedPotionsUnsatisfied = forcedPotionsUnsatisfied,
         };
     }
 }

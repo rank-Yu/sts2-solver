@@ -95,7 +95,8 @@ internal static class CombatSearchRunner
             string error = outcome.FailureError ?? "搜索没有返回路线";
             return new CombatSearchRun(searchRoot, searchCase, outcome, null, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
-                "search_failed", $"search {status}: {error}");
+                outcome.ForcedPotionsUnsatisfied ? "forced_potion_unusable" : "search_failed",
+                $"search {status}: {error}");
         }
         ReplayedRoute route;
         try

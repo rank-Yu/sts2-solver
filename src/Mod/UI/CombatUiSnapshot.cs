@@ -158,8 +158,9 @@ internal sealed record SettingsUiSnapshot
 }
 
 /// <summary>
-/// Frozen strategy values for the next UI batch. Only stable codes, ids and numbers; display names
-/// are resolved from the game model by the panel.
+/// Frozen strategy values shown by the strategy sidebar, the settings page's Boss group and the theft
+/// bar. Only stable codes, ids and numbers; display names and icons are resolved from the game model
+/// by the panel.
 /// </summary>
 internal sealed record StrategyUiSnapshot
 {

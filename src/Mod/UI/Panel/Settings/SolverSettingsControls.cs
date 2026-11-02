@@ -1,19 +1,24 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.Controls.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Dark palette only. Group descriptions are not shown; the slider is narrower and inputs keep their
-// height so the two columns fit the 390-wide sidebar.
+// Dark palette only. Group descriptions are not shown; the slider and the dropdowns keep small
+// minimum widths and inputs keep their height so the two columns fit the 560-wide panel. The
+// strategy sidebar's HP input is a plain text box with an HP suffix instead of the original SpinBox.
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
 namespace Sts2Solver;
 
-/// <summary>Control factories for sidebar pages; validation and saving live in the page.</summary>
+/// <summary>
+/// Control factories for the settings page and the strategy sidebar; validation and saving live in
+/// the page.
+/// </summary>
 internal static class SolverSettingsControls
 {
     private const float RowLabelWidth = 170f;
     private const float InputWidth = 126f;
     private const float InputHeight = 32f;
     private const float SliderWidth = 110f;
+    private const float HpInputWidth = 80f;
 
     public static VBoxContainer CreatePageContent(string name)
     {
@@ -149,6 +154,84 @@ internal static class SolverSettingsControls
         return input;
     }
 
+    /// <summary>A number box with a muted HP suffix; clicking anywhere in the box edits the number.</summary>
+    public static (PanelContainer Box, LineEdit Edit) CreateHpInput()
+    {
+        StyleBoxFlat normal = CreateInputBox(SolverUiTokens.Palette.Background, SolverUiTokens.Palette.BorderSubtle);
+        StyleBoxFlat focus = CreateInputBox(SolverUiTokens.Palette.SurfaceRaised, SolverUiTokens.Palette.Accent);
+        PanelContainer box = new()
+        {
+            CustomMinimumSize = new Vector2(HpInputWidth, InputHeight),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            MouseDefaultCursorShape = Control.CursorShape.Ibeam,
+        };
+        box.AddThemeStyleboxOverride("panel", normal);
+        HBoxContainer row = new() { MouseFilter = Control.MouseFilterEnum.Ignore };
+        row.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
+        box.AddChild(row);
+        LineEdit edit = new()
+        {
+            ExpandToTextLength = true,
+            SelectAllOnFocus = true,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        edit.AddThemeConstantOverride("minimum_character_width", 0);
+        StyleBoxEmpty empty = new();
+        edit.AddThemeStyleboxOverride("normal", empty);
+        edit.AddThemeStyleboxOverride("focus", empty);
+        edit.AddThemeStyleboxOverride("read_only", empty);
+        edit.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Body);
+        edit.AddThemeColorOverride("font_uneditable_color", SolverUiTokens.Palette.TextMuted);
+        edit.AddThemeColorOverride("caret_color", SolverUiTokens.Palette.Accent);
+        edit.ApplyLocaleFontSubstitution(FontType.Regular, "font");
+        row.AddChild(edit);
+        row.AddChild(SolverUiTokens.CreateLabel("HP", SolverUiTokens.Type.Body,
+            SolverUiTokens.Palette.TextMuted, FontType.Regular));
+        box.GuiInput += inputEvent =>
+        {
+            if (edit.Editable
+                && inputEvent is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                edit.GrabFocus();
+            }
+        };
+        edit.FocusEntered += () => box.AddThemeStyleboxOverride("panel", focus);
+        edit.FocusExited += () => box.AddThemeStyleboxOverride("panel", normal);
+        return (box, edit);
+    }
+
+    /// <summary>The on/off switch of the original settings and growth panels.</summary>
+    public static CheckButton CreateToggle()
+    {
+        CheckButton toggle = new()
+        {
+            FocusMode = Control.FocusModeEnum.None,
+            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            CustomMinimumSize = new Vector2(38, 20),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        Texture2D onIcon = SolverUiTokens.SwitchTexture(true);
+        Texture2D offIcon = SolverUiTokens.SwitchTexture(false);
+        toggle.AddThemeIconOverride("checked", onIcon);
+        toggle.AddThemeIconOverride("unchecked", offIcon);
+        toggle.AddThemeIconOverride("checked_disabled", onIcon);
+        toggle.AddThemeIconOverride("unchecked_disabled", offIcon);
+        StyleBoxEmpty empty = new();
+        toggle.AddThemeStyleboxOverride("normal", empty);
+        toggle.AddThemeStyleboxOverride("hover", empty);
+        toggle.AddThemeStyleboxOverride("pressed", empty);
+        toggle.AddThemeStyleboxOverride("hover_pressed", empty);
+        toggle.AddThemeStyleboxOverride("focus", empty);
+        toggle.AddThemeStyleboxOverride("disabled", empty);
+        return toggle;
+    }
+
+    private static StyleBoxFlat CreateInputBox(Color background, Color border)
+        => SolverUiTokens.CreateBox(background, border, SolverUiTokens.Radius.Small,
+            SolverUiTokens.Spacing.Sm, SolverUiTokens.Spacing.Xs);
+
     public static HSlider CreateSlider(double minimum, double maximum, double step)
     {
         HSlider slider = new()
@@ -219,7 +302,7 @@ internal static class SolverSettingsControls
             control.MouseFilter = Control.MouseFilterEnum.Pass;
     }
 
-    private static Control CreateSectionHeading(string text)
+    public static HBoxContainer CreateSectionHeading(string text)
     {
         HBoxContainer row = new()
         {

@@ -2,10 +2,11 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The big floating-panel layout is kept: CanvasLayer 120, draggable header, right/bottom/corner
 // resize, summary, route rows, details and action footer. The presentation is driven by
-// CombatUiSnapshot and every command goes through ICombatUiCommands. Settings open in a sidebar
-// docked beside the panel, placed like the original strategy sidebars; the frozen route, shortcuts,
-// online/bug-report surfaces, potion/growth/relic sidebars and the memory-release button are not
-// ported. Theme is always dark.
+// CombatUiSnapshot and every command goes through ICombatUiCommands. The header's 药水 / 成长 open
+// the strategy sidebar docked beside the panel and 设置 replaces the panel body with the settings
+// page (ToggleSettings, TogglePotionStrategy, ApplyContentVisibility); the frozen route, shortcuts,
+// online/bug-report surfaces, the relic sidebar and the memory-release button are not ported. Theme
+// is always dark.
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Localization;
@@ -41,17 +42,22 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private Button? _manualModeButton;
     private Button? _autoSearchModeButton;
     private Button? _fullAutoModeButton;
+    private Button? _potionButton;
+    private Button? _growthButton;
     private Button? _settingsButton;
     private Button? _collapseButton;
     private SolverDetailsPanel? _details;
     private SolverSidebar? _sidebar;
+    private SolverPotionStrategyPage? _potionPage;
+    private SolverGrowthStrategyPage? _growthPage;
     private SolverSettingsPage? _settingsPage;
     private CombatUiSnapshot? _lastSnapshot;
     private SolverOverlaySnapshot? _lastOverlay;
     private long _appliedSequence = -1;
     private long _nextTick;
     private bool _collapsed;
-    private SolverSidebarPageKind? _openSidebarPage;
+    private SolverStrategyPageKind? _openStrategyPage;
+    private bool _settingsVisible;
     private bool _detailsVisible;
     private bool _rebuildQueued;
     private string? _builtLanguage;
@@ -94,7 +100,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
             if (show)
             {
                 _appliedSequence = -1;
-                _openSidebarPage = null;
+                _openStrategyPage = null;
+                _settingsVisible = false;
                 ApplyContentVisibility();
             }
             else
@@ -151,6 +158,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         root.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         panel.AddChild(root);
         root.AddChild(BuildHeader());
+        root.AddChild(CreateTheftNotice());
         root.AddChild(CreateSearchLimitHint());
         root.AddChild(CreatePerformanceHint());
 
@@ -208,19 +216,28 @@ internal sealed partial class SolverOverlay : CanvasLayer
         footerArea.AddChild(CreateFooter());
         _mainStack.AddChild(footerArea);
 
-        AddChild(panel);
-        _panel = panel;
         _settingsPage = new SolverSettingsPage();
         _settingsPage.OpacityPreview += PreviewOpacity;
         _settingsPage.DefaultsRestored += OnDefaultsRestored;
-        _sidebar = new SolverSidebar(_settingsPage);
+        primaryColumn.AddChild(_settingsPage);
+
+        AddChild(panel);
+        _panel = panel;
+        // Labels that swap keep the width of the wider one, so the header and notice never jump.
+        SolverUiTokens.FitWidestText(_settingsButton!, SolverText.Get("设置"), SolverText.Get("返回"));
+        SolverUiTokens.FitWidestText(_theftNoticeButton!, SolverText.Get("改为放走"), SolverText.Get("改为保住"));
+        _potionPage = new SolverPotionStrategyPage();
+        _growthPage = new SolverGrowthStrategyPage();
+        _sidebar = new SolverSidebar(_potionPage, _growthPage);
         _sidebar.CloseRequested += CloseSidebar;
         AddChild(_sidebar);
         BuildResizeHandles();
         PreviewOpacity(SolverSettings.Current.Ui.Opacity);
         panel.MinimumSizeChanged += QueueLayout;
-        if (_openSidebarPage is { } page)
+        if (_openStrategyPage is { } page)
             _sidebar.Open(page);
+        if (_settingsVisible)
+            _settingsPage.Opened();
         ApplyContentVisibility();
         _appliedSequence = -1;
         _lastSnapshot = null;
@@ -275,12 +292,14 @@ internal sealed partial class SolverOverlay : CanvasLayer
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
 
+        _potionButton = CreateStrategyButton(SolverText.Get("药水"), "PotionStrategyButton",
+            SolverStrategyPageKind.Potions);
+        header.AddChild(_potionButton);
+        _growthButton = CreateStrategyButton(SolverText.Get("成长"), "GrowthStrategyButton",
+            SolverStrategyPageKind.Growth);
+        header.AddChild(_growthButton);
         _settingsButton = CreateHeaderButton(SolverText.Get("设置"), 54);
         _settingsButton.Name = "SettingsButton";
-        _settingsButton.ToggleMode = true;
-        _settingsButton.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextSecondary);
-        _settingsButton.AddThemeColorOverride("font_pressed_color", SolverUiTokens.Palette.Accent);
-        _settingsButton.AddThemeColorOverride("font_hover_pressed_color", SolverUiTokens.Palette.Accent);
         _settingsButton.Pressed += ToggleSettings;
         header.AddChild(_settingsButton);
         _collapseButton = CreateHeaderButton(SolverText.Get("−  收起"), 64);
@@ -295,6 +314,19 @@ internal sealed partial class SolverOverlay : CanvasLayer
     {
         Button button = SolverUiTokens.CreateButton(text, SolverButtonStyle.Secondary);
         button.CustomMinimumSize = new Vector2(minimumWidth, SolverUiTokens.Size.ButtonHeight);
+        return button;
+    }
+
+    /// <summary>A header toggle that opens the sidebar on its page; pressed while that page is open.</summary>
+    private Button CreateStrategyButton(string text, string name, SolverStrategyPageKind page)
+    {
+        Button button = CreateHeaderButton(text, 48);
+        button.Name = name;
+        button.ToggleMode = true;
+        button.AddThemeColorOverride("font_color", SolverUiTokens.Palette.TextSecondary);
+        button.AddThemeColorOverride("font_pressed_color", SolverUiTokens.Palette.Accent);
+        button.AddThemeColorOverride("font_hover_pressed_color", SolverUiTokens.Palette.Accent);
+        button.Pressed += () => ToggleStrategyPage(page);
         return button;
     }
 
@@ -328,8 +360,11 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _lastOverlay = overlay;
         Present(overlay, snapshot, now);
         _details.Apply(snapshot);
-        if (_openSidebarPage != null)
+        if (_openStrategyPage != null)
             _sidebar?.Apply(snapshot);
+        if (_settingsVisible)
+            _settingsPage?.Apply(snapshot);
+        ApplyTheftNotice(snapshot.Strategy);
         if (previous == null || !ReferenceEquals(previous.Route, snapshot.Route)
             || !ReferenceEquals(previous.Search, snapshot.Search) || previous.Phase != snapshot.Phase)
         {
@@ -386,37 +421,81 @@ internal sealed partial class SolverOverlay : CanvasLayer
         ApplyContentVisibility();
     }
 
+    /// <summary>
+    /// 设置 / 返回: swaps the panel body for the settings page and closes the strategy sidebar.
+    /// Nothing changes while a page holds an invalid input.
+    /// </summary>
     private void ToggleSettings()
     {
-        if (_openSidebarPage == SolverSidebarPageKind.Settings)
+        if (_settingsVisible)
         {
-            CloseSidebar();
+            if (_settingsPage?.CommitPending() == false)
+                return;
+            _settingsVisible = false;
         }
         else
         {
-            _openSidebarPage = SolverSidebarPageKind.Settings;
-            _sidebar?.Open(SolverSidebarPageKind.Settings);
-            ModLog.Info("[Sts2Solver] UI_ACTION action=sidebar page=Settings");
+            CloseSidebar();
+            if (_openStrategyPage != null)
+                return;
+            _settingsVisible = true;
+            _settingsPage?.Opened();
         }
         ApplyContentVisibility();
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=settings visible={_settingsVisible}");
+    }
+
+    /// <summary>
+    /// 药水 / 成长: opens the sidebar on that page, switches pages, or closes the sidebar when the page
+    /// is already open. Open settings are closed first, like the original.
+    /// </summary>
+    private void ToggleStrategyPage(SolverStrategyPageKind page)
+    {
+        if (_settingsVisible)
+        {
+            if (_settingsPage?.CommitPending() == false)
+            {
+                ApplyContentVisibility();
+                return;
+            }
+            _settingsVisible = false;
+        }
+        if (_openStrategyPage == page)
+        {
+            CloseSidebar();
+            ApplyContentVisibility();
+            return;
+        }
+        if (_openStrategyPage != null && _sidebar?.CommitPending() == false)
+        {
+            ApplyContentVisibility();
+            return;
+        }
+        _openStrategyPage = page;
+        _sidebar?.Open(page);
+        ApplyContentVisibility();
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=sidebar page={page}");
     }
 
     /// <summary>Closes the sidebar unless its page holds an invalid input.</summary>
     private void CloseSidebar()
     {
-        if (_openSidebarPage == null || _sidebar?.CommitPending() == false)
+        if (_openStrategyPage == null || _sidebar?.CommitPending() == false)
             return;
-        _openSidebarPage = null;
+        _openStrategyPage = null;
         ApplyContentVisibility();
         ModLog.Info("[Sts2Solver] UI_ACTION action=sidebar page=none");
     }
 
+    /// <summary>Collapsing closes the sidebar and keeps the settings state, like the original.</summary>
     private void ToggleCollapsed()
     {
         if (!_collapsed)
         {
+            if (_settingsVisible && _settingsPage?.CommitPending() == false)
+                return;
             CloseSidebar();
-            if (_openSidebarPage != null)
+            if (_openStrategyPage != null)
                 return;
         }
         SetCollapsed(!_collapsed);
@@ -440,14 +519,19 @@ internal sealed partial class SolverOverlay : CanvasLayer
     {
         if (_panel == null)
             return;
+        bool settingsShown = _settingsVisible && !_collapsed;
+        if (_mainStack != null)
+            _mainStack.Visible = !settingsShown;
         if (_body != null)
-            _body.Visible = !_collapsed;
+            _body.Visible = !_collapsed && !_settingsVisible;
+        if (_settingsPage != null)
+            _settingsPage.Visible = settingsShown;
         if (_sidebar != null)
-            _sidebar.Visible = _openSidebarPage != null && !_collapsed;
+            _sidebar.Visible = _openStrategyPage != null && !_collapsed;
         if (_details != null)
             _details.Visible = !_collapsed && _detailsVisible;
         if (_footerDivider != null)
-            _footerDivider.Visible = !_collapsed;
+            _footerDivider.Visible = !_collapsed && !_settingsVisible;
         if (_actionBar != null)
         {
             if (_lastSnapshot != null)
@@ -464,13 +548,26 @@ internal sealed partial class SolverOverlay : CanvasLayer
                 parent.MoveChild(_routeOutcomePanel, 0);
             }
         }
+        ApplyStrategyButton(_potionButton, SolverStrategyPageKind.Potions);
+        ApplyStrategyButton(_growthButton, SolverStrategyPageKind.Growth);
         if (_settingsButton != null)
         {
             _settingsButton.Visible = !_collapsed;
-            _settingsButton.SetPressedNoSignal(_openSidebarPage == SolverSidebarPageKind.Settings);
+            _settingsButton.Text = SolverText.Get(_settingsVisible ? "返回" : "设置");
+            _settingsButton.AddThemeColorOverride("font_color",
+                _settingsVisible ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextSecondary);
         }
+        ApplyNoticeVisibility();
         SetResizeHandlesVisible(!_collapsed);
         QueueLayout();
+    }
+
+    private void ApplyStrategyButton(Button? button, SolverStrategyPageKind page)
+    {
+        if (button == null)
+            return;
+        button.Visible = !_collapsed;
+        button.SetPressedNoSignal(_openStrategyPage == page);
     }
 
     private void PreviewOpacity(float opacity)
@@ -526,6 +623,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
             _sidebar = null;
         }
         _settingsPage = null;
+        _potionPage = null;
+        _growthPage = null;
         _summaryText = null;
         _summaryPanel = null;
         _summaryStateLabel = null;
@@ -570,7 +669,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _appliedSequence,
         _lastSnapshot?.Phase.ToString() ?? "",
         _collapsed,
-        _openSidebarPage == SolverSidebarPageKind.Settings && !_collapsed,
+        _settingsVisible && !_collapsed,
+        _openStrategyPage != null && !_collapsed ? _openStrategyPage.Value.ToString() : "",
         _detailsVisible && !_collapsed,
         _builtLanguage ?? "",
         _buildCount,
@@ -582,7 +682,13 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal Button? FullAutoModeButtonForTest => _fullAutoModeButton;
 
+    internal Button? PotionButtonForTest => _potionButton;
+
+    internal Button? GrowthButtonForTest => _growthButton;
+
     internal Button? SettingsButtonForTest => _settingsButton;
+
+    internal bool SettingsOpenForTest => _settingsVisible;
 
     internal Button? CollapseButtonForTest => _collapseButton;
 
@@ -595,6 +701,18 @@ internal sealed partial class SolverOverlay : CanvasLayer
     internal SolverSidebar? SidebarForTest => _sidebar;
 
     internal SolverSettingsPage? SettingsPageForTest => _settingsPage;
+
+    internal SolverPotionStrategyPage? PotionPageForTest => _potionPage;
+
+    internal SolverGrowthStrategyPage? GrowthPageForTest => _growthPage;
+
+    internal PanelContainer? TheftNoticeForTest => _theftNotice;
+
+    internal Label? TheftNoticeLabelForTest => _theftNoticeLabel;
+
+    internal Button? TheftNoticeButtonForTest => _theftNoticeButton;
+
+    internal Control? MainStackForTest => _mainStack;
 
     internal PanelContainer? PanelForTest => _panel;
 
@@ -627,6 +745,7 @@ internal sealed record SolverOverlayProbe(
     string PhaseKey,
     bool Collapsed,
     bool SettingsVisible,
+    string SidebarPage,
     bool DetailsVisible,
     string Language,
     int BuildCount,

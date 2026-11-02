@@ -20,6 +20,7 @@ internal static class SolverPanelText
         ["route_unsupported"] = "路线含有尚未支持的效果",
         ["route_capacity"] = "路线回放超出状态容量",
         ["search_failed"] = "搜索没有找到可执行路线",
+        ["forced_potion_unusable"] = "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索",
         ["boundary_deviation"] = "回合开始时实际状态与预测不同，将重新搜索",
         ["action_deviation"] = "动作结果与预测不同，将重新搜索",
         ["deploy_failed"] = "动作执行失败，将重新搜索",

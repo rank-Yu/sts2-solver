@@ -152,6 +152,9 @@ internal static class CombatControllerChecks
                 case "forced_potion":
                     await ForcedPotionAsync(host, Check, Action);
                     break;
+                case "panel_strategy":
+                    await PanelStrategyAsync(host, Check, Action);
+                    break;
                 default:
                     throw new NotSupportedException($"未知控制器场景：{scenario}");
             }
@@ -1133,6 +1136,23 @@ internal static class CombatControllerChecks
         check("theft_reject", !CombatUiCommands.Instance.SetTheftPolicy(
             SearchTheftPolicy.LetEscape));
         check("theft_absent", strategy.TheftPolicy == null, strategy.TheftPolicy ?? "-");
+    }
+
+    /// <summary>The strategy panel driven through its controls, in manual mode so no search runs.</summary>
+    private static async Task PanelStrategyAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        bool reset = CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart)
+            && CombatUiCommands.Instance.SetIgnoreLongTermRewards(false)
+            && CombatUiCommands.Instance.SetBrightestFlameLimit(null)
+            && CombatUiCommands.Instance.SetActTransitionBossHpStrategy(SearchBossHpStrategy.ProgressionFirst)
+            && CombatUiCommands.Instance.SetFinalBossHpStrategy(SearchBossHpStrategy.ProgressionFirst)
+            && Enum.GetValues<GrowthSource>().All(source => CombatUiCommands.Instance.SetGrowthBudget(source, 0));
+        check("reset_strategy", reset, "strategy commands");
+        await Frames(host, 4);
+        await UiPanelChecks.StrategyAsync(host, check, action);
     }
 
     /// <summary>

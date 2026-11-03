@@ -83,4 +83,22 @@ internal static class SearchVerificationHooks
     /// A difference in an exact check throws immediately.
     /// </summary>
     internal static bool VerifySearchEquivalence { get; set; }
+
+    /// <summary>
+    /// Default-off contract switch. The first layer-boundary selection batch runs a dedicated
+    /// failing batch first: one worker throws <see cref="SelectionBatchFailure"/>, the search thread
+    /// must receive the same exception object from <c>RunBatch</c>, a following batch on the same
+    /// worker pool must complete, and the solve must continue through later layers to the same
+    /// encoded result. The contract asserts all of this; production never sets the switch.
+    /// </summary>
+    internal static bool VerifySelectionBatchFailureRecovery { get; set; }
+
+    /// <summary>The exception object thrown by the contract's worker batch.</summary>
+    internal static Exception? SelectionBatchFailure { get; set; }
+
+    /// <summary>Set by the contract after <c>RunBatch</c> rethrows the worker exception.</summary>
+    internal static Exception? SelectionBatchFailureObserved { get; set; }
+
+    /// <summary>Items completed by the batch run immediately after the failed batch.</summary>
+    internal static int SelectionBatchRecoveryItems { get; set; }
 }

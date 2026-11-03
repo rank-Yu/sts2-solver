@@ -16,6 +16,13 @@ internal sealed partial class BeamSolver
     private sealed class ParallelExpansion : IDisposable
     {
         private const int SpinsBeforeBlocking = 8;
+        /// <summary>Below this many items the wake-up cost exceeds one batch's parallel gain.</summary>
+        private const int MinimumBatchItems = 8;
+
+        private interface IWorkerJob
+        {
+            void RunWorker(SearchWorkPacer? pacer);
+        }
 
         private readonly BeamSolver _solver;
         private readonly ExpansionWorkspace[] _workspaces;
@@ -23,16 +30,22 @@ internal sealed partial class BeamSolver
         private readonly Thread[] _threads;
         private readonly SearchWorkPacer?[] _threadPacers;
         private readonly object _gate = new();
-        private LayerJob? _job;
+        private readonly BatchJob _batchJob;
+        private readonly ManualResetEventSlim _batchCompleted = new(false);
+        private IWorkerJob? _job;
         private int _generation;
         private int _workersDone;
-        private bool _shutdown;
+        private int _batchWorkersDone;
+        private volatile bool _shutdown;
+        /// <summary>One while the ordered layer job is active; read-only batches are refused then.</summary>
+        private int _layerActive;
 
         internal ParallelExpansion(BeamSolver solver, int threads)
         {
             _solver = solver;
             _workspaces = solver._workspaces;
             _window = solver._workspaces.Length;
+            _batchJob = new BatchJob();
             _threads = new Thread[threads - 1];
             _threadPacers = new SearchWorkPacer?[_threads.Length];
             SearchWorkPacer? pacer = solver._options.Pacer;
@@ -79,29 +92,84 @@ internal sealed partial class BeamSolver
             int window = Math.Min(_window, count);
             if (window <= 0)
                 return;
-            LayerJob job = new(this, current, next, ended, terminal, contexts, window, count);
+            Volatile.Write(ref _layerActive, 1);
+            try
+            {
+                LayerJob job = new(this, current, next, ended, terminal, contexts, window, count);
+                lock (_gate)
+                {
+                    _job = job;
+                    _generation++;
+                    _workersDone = 0;
+                    Monitor.PulseAll(_gate);
+                }
+                try
+                {
+                    job.RunSearch(_solver._options.Pacer);
+                }
+                finally
+                {
+                    job.Stop();
+                    lock (_gate)
+                    {
+                        while (_workersDone < _threads.Length)
+                            Monitor.Wait(_gate);
+                        _job = null;
+                    }
+                }
+                job.RethrowFailure();
+            }
+            finally
+            {
+                Volatile.Write(ref _layerActive, 0);
+            }
+        }
+
+        /// <summary>
+        /// True when the workers are between layers and can take a read-only index batch. The ordered
+        /// layer commits call pool selection too, and must keep using the serial path because their
+        /// own workers are still expanding parents.
+        /// </summary>
+        internal bool CanRunBatch => !_shutdown && Volatile.Read(ref _layerActive) == 0;
+
+        /// <summary>
+        /// Runs independent indexes 0..<paramref name="count"/> on the search thread and the existing
+        /// search workers. Each index writes its own result slot; the caller reduces them in index
+        /// order, so the outcome does not depend on which thread ran an item.
+        /// </summary>
+        internal void RunBatch(int count, Action<int> work)
+        {
+            if (count <= 0)
+                return;
+            if (count < MinimumBatchItems || _threads.Length == 0 || !CanRunBatch)
+            {
+                for (int index = 0; index < count; index++)
+                    work(index);
+                return;
+            }
+            _batchJob.Prepare(work, count);
+            _batchWorkersDone = 0;
             lock (_gate)
             {
-                _job = job;
+                _job = _batchJob;
                 _generation++;
-                _workersDone = 0;
                 Monitor.PulseAll(_gate);
             }
             try
             {
-                job.RunSearch(_solver._options.Pacer);
+                _batchJob.RunSearch();
             }
             finally
             {
-                job.Stop();
+                // Workers report through a one-shot event instead of contending on _gate, which is
+                // the dominant wake cost for the small selection batches.
+                while (Volatile.Read(ref _batchWorkersDone) < _threads.Length)
+                    _batchCompleted.Wait();
+                _batchCompleted.Reset();
                 lock (_gate)
-                {
-                    while (_workersDone < _threads.Length)
-                        Monitor.Wait(_gate);
                     _job = null;
-                }
             }
-            job.RethrowFailure();
+            _batchJob.RethrowFailure();
         }
 
         public void Dispose()
@@ -113,6 +181,7 @@ internal sealed partial class BeamSolver
             }
             foreach (Thread thread in _threads)
                 thread.Join();
+            _batchCompleted.Dispose();
             if (_solver._options.Pacer is not { } pacer)
                 return;
             foreach (SearchWorkPacer? worker in _threadPacers)
@@ -127,7 +196,7 @@ internal sealed partial class BeamSolver
             int seen = 0;
             while (true)
             {
-                LayerJob job;
+                IWorkerJob job;
                 lock (_gate)
                 {
                     while (!_shutdown && _generation == seen)
@@ -143,17 +212,77 @@ internal sealed partial class BeamSolver
                 }
                 finally
                 {
-                    lock (_gate)
+                    if (job is BatchJob)
                     {
-                        _workersDone++;
-                        Monitor.PulseAll(_gate);
+                        if (Interlocked.Increment(ref _batchWorkersDone) == _threads.Length)
+                            _batchCompleted.Set();
+                    }
+                    else
+                    {
+                        lock (_gate)
+                        {
+                            _workersDone++;
+                            Monitor.PulseAll(_gate);
+                        }
                     }
                 }
             }
         }
 
+        /// <summary>A reusable unsynchronized index batch; only one batch is active at a time.</summary>
+        private sealed class BatchJob : IWorkerJob
+        {
+            private Action<int>? _work;
+            private int _count;
+            private int _next;
+            private ExceptionDispatchInfo? _failure;
+            private readonly object _gate = new();
+
+            internal void Prepare(Action<int> work, int count)
+            {
+                _work = work;
+                _count = count;
+                _next = 0;
+                _failure = null;
+            }
+
+            public void RunWorker(SearchWorkPacer? pacer)
+            {
+                try
+                {
+                    Action<int> work = _work!;
+                    while (true)
+                    {
+                        int index = Interlocked.Increment(ref _next) - 1;
+                        if (index >= _count)
+                            return;
+                        work(index);
+                    }
+                }
+                // Any worker failure is handed back to the search thread and rethrown there by
+                // RunBatch after every worker has stopped touching the batch. This is ownership
+                // transfer, not suppression: the caller observes the original exception object, the
+                // same contract LayerJob has.
+                catch (Exception error)
+                {
+                    lock (_gate)
+                        _failure ??= ExceptionDispatchInfo.Capture(error);
+                }
+            }
+
+            internal void RunSearch() => RunWorker(null);
+
+            internal void RethrowFailure()
+            {
+                ExceptionDispatchInfo? failure;
+                lock (_gate)
+                    failure = _failure;
+                failure?.Throw();
+            }
+        }
+
         /// <summary>One action layer's parent queue, result slots and ordered commit cursor.</summary>
-        private sealed class LayerJob
+        private sealed class LayerJob : IWorkerJob
         {
             private const int SlotFree = 0;
             private const int SlotClaimed = 1;
@@ -223,7 +352,7 @@ internal sealed partial class BeamSolver
                 }
             }
 
-            internal void RunWorker(SearchWorkPacer? pacer)
+            public void RunWorker(SearchWorkPacer? pacer)
             {
                 try
                 {

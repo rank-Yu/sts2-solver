@@ -68,6 +68,49 @@ internal static class SearchContracts
             "parallel prefix diagnostics aggregate to the single-thread totals");
         Assert(first.Equivalence == parallel.Equivalence,
             "parallel equivalence diagnostics aggregate to the single-thread totals");
+
+        // A worker exception inside a layer-boundary selection batch must be handed back to the
+        // search thread as the same object; the same worker pool must then run another batch and
+        // continue through subsequent action layers. The contract is default-off and self-asserts
+        // the exception identity and the recovery batch size.
+        BeamOptions recoveryOptions = batched with
+        {
+            BeamWidth = 24,
+            SecondRankBandWidth = 0,
+            MaxExpandedNodes = 1_500,
+            SearchThreads = 4,
+        };
+        BeamResult recoveryBaseline = new BeamSolver(original.Rules,
+            recoveryOptions with { SearchThreads = 1 }).Solve(original.Battles, CancellationToken.None);
+        SearchVerificationHooks.VerifySelectionBatchFailureRecovery = true;
+        SearchVerificationHooks.SelectionBatchFailure = null;
+        SearchVerificationHooks.SelectionBatchFailureObserved = null;
+        SearchVerificationHooks.SelectionBatchRecoveryItems = 0;
+        BeamResult recovered;
+        try
+        {
+            Task<BeamResult> contract = Task.Run(() => new BeamSolver(original.Rules, recoveryOptions)
+                .Solve(original.Battles, CancellationToken.None));
+            Assert(contract.Wait(TimeSpan.FromSeconds(60)),
+                "selection batch failure contract did not finish");
+            recovered = contract.Result;
+        }
+        finally
+        {
+            SearchVerificationHooks.VerifySelectionBatchFailureRecovery = false;
+        }
+        Assert(SearchVerificationHooks.SelectionBatchFailureObserved is InvalidOperationException observed
+            && ReferenceEquals(observed, SearchVerificationHooks.SelectionBatchFailure),
+            "selection batch failure did not reach the calling thread as the original exception");
+        Assert(SearchVerificationHooks.SelectionBatchRecoveryItems == 16,
+            "the same worker pool did not complete the next batch after a worker failure");
+        Assert(SearchCodec.EncodeResult(recoveryBaseline).AsSpan()
+                .SequenceEqual(SearchCodec.EncodeResult(recovered)),
+            "the search after a recovered batch failure did not continue to the same result");
+        Assert(recovered.ExpandedNodesTotal > 1,
+            "the recovered batch failure contract did not reach later action layers");
+        Console.WriteLine($"COMBAT_SEARCH batch_failure_recovered expanded={recovered.ExpandedNodesTotal}");
+
         BeamResult streamed = new BeamSolver(original.Rules,
             batched with { WorkspaceBufferLimitBytes = 1 })
             .Solve(original.Battles, CancellationToken.None);

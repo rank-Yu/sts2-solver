@@ -52,6 +52,19 @@ internal sealed partial class BeamSolver
         private bool[] _required;
         private readonly List<int> _selected = new();
         private readonly List<int> _requiredScratch = new();
+        // Stand-pat probes are independent per slot: they are evaluated by the worker batch and the
+        // exact same values are then reduced in rank order. The cache only holds the current
+        // SelectTop's probes.
+        private readonly List<int> _standPatProbeSlots = new();
+        private readonly HashSet<int> _standPatProbeSet = new();
+        private readonly List<int> _freshProbeScratch = new();
+        private StandPatEvaluation[] _standPatProbeValues = new StandPatEvaluation[16];
+        private int _standPatProbeCount;
+        // Pareto dominance is a per-candidate read-only check; the serial pass keeps insertion order.
+        private bool[] _paretoDominated = new bool[16];
+        private int _paretoPreparedCount = -1;
+        private int _batchParetoCount;
+        private readonly Action<int> _evaluateSelectionBatch;
         private readonly Dictionary<ulong, LineageLeaders> _lineageLeaders = new();
         private readonly List<ulong> _lineageOrder = new();
         private readonly Dictionary<int, PotionLeaders> _potionLeaders = new();
@@ -114,7 +127,9 @@ internal sealed partial class BeamSolver
             ulong EnemyCombatFirst, ulong EnemyCombatSecond,
             ulong EnemyControlFirst, ulong EnemyControlSecond,
             ulong UnorderedPileFirst, ulong UnorderedPileSecond);
-        private readonly Dictionary<ParetoCohortKey, List<int>> _paretoCohorts = new();
+        private readonly Dictionary<ParetoCohortKey, int> _paretoCohortLookup = new();
+        private readonly List<List<int>> _paretoCohortLists = new();
+        private int[] _paretoCohortIndex = new int[16];
         private readonly List<int> _pareto = new(3);
         private readonly List<int> _standPatGroup = new();
         private readonly Dictionary<int, List<int>> _standPatGroups = new();
@@ -180,6 +195,7 @@ internal sealed partial class BeamSolver
             // conservative fixed allowance so the hard budget cannot be crossed by unmeasured growth.
             _auxSeats = scratchCapacity;
             storage.Memory.Charge((long)_auxSeats * PoolAuxiliaryBytesPerSeat, "pool-aux");
+            _evaluateSelectionBatch = EvaluateSelectionBatch;
         }
 
         private void EnsureScratch(int count)
@@ -252,6 +268,15 @@ internal sealed partial class BeamSolver
 
         public int Count { get; private set; }
         public int PeakCount { get; private set; }
+
+        /// <summary>
+        /// The solve's worker pool, set after construction. Selection uses it only between layers;
+        /// null keeps the serial path (including every single-thread solve).
+        /// </summary>
+        internal ParallelExpansion? Parallel { get; set; }
+
+        /// <summary>Default-off test contract run before the first real selection batch.</summary>
+        internal Action<ParallelExpansion>? BatchFailureContract { get; set; }
 
         public ref readonly Battle State(int index) => ref _states[index];
 

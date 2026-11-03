@@ -615,6 +615,7 @@ internal sealed partial class BeamSolver
         /// </summary>
         private void CollectRepresentatives(List<int> required, int count, int width, bool turnBoundary)
         {
+            _paretoPreparedCount = -1;
             _lineageLeaders.Clear();
             _potionLeaders.Clear();
             foreach (List<int> group in _standPatGroups.Values)
@@ -888,6 +889,34 @@ internal sealed partial class BeamSolver
 
             if (_policyWidth >= 18)
             {
+                // Pareto cohorts and stand-pat probes are independent per slot. Build both preparation
+                // lists first so one worker batch covers the whole selection, then reduce in rank order.
+                PrepareParetoDominance();
+                // Stand-pat probes only depend on each retained slot, so evaluate every probe of
+                // this selection with the idle search workers first. The finders below then replay
+                // their original comparisons in rank order against the cached values.
+                ClearStandPatProbes();
+                Span<int> traitProbes = stackalloc int[9];
+                for (int potionIndex = 0; potionIndex < _potionCountOrder.Count; potionIndex++)
+                {
+                    int potionCount = _potionCountOrder[potionIndex];
+                    if (!_standPatGroups.TryGetValue(potionCount, out List<int>? standPat)
+                        || standPat.Count == 0)
+                    {
+                        continue;
+                    }
+                    SelectFreshProbeSlots(standPat, _freshProbeScratch);
+                    for (int index = 0; index < _freshProbeScratch.Count; index++)
+                        AppendStandPatProbe(_freshProbeScratch[index]);
+                    for (int traitIndex = 0; traitIndex < 3; traitIndex++)
+                    {
+                        SearchRouteTraits trait = StandPatTrait(traitIndex);
+                        int probeCount = SelectStandPatProbes(standPat, trait, traitProbes);
+                        for (int index = 0; index < probeCount; index++)
+                            AppendStandPatProbe(traitProbes[index]);
+                    }
+                }
+                EvaluateStandPatProbes();
                 for (int potionIndex = 0; potionIndex < _potionCountOrder.Count; potionIndex++)
                 {
                     int potionCount = _potionCountOrder[potionIndex];
@@ -902,6 +931,7 @@ internal sealed partial class BeamSolver
                     AddRequired(required, FindBestStandPat(standPat, SearchRouteTraits.Resource), width);
                     AddRequired(required, FindBestStandPat(standPat, SearchRouteTraits.Control), width);
                 }
+                ClearStandPatProbes();
             }
 
             // BeamRetentionPolicy.RankBest: persistent setup trait groups (Focus, Thunder, OrbEngine,
@@ -1766,6 +1796,14 @@ internal sealed partial class BeamSolver
             // never comparable.
             if (BuildParetoCohort(left) != BuildParetoCohort(right))
                 return false;
+            return ParetoDominatesSameCohort(left, right);
+        }
+
+        /// <summary>The dominance test for two states already known to share one cohort key.</summary>
+        private bool ParetoDominatesSameCohort(int left, int right)
+        {
+            if (left == right)
+                return false;
             RetentionFacts a = _facts[left];
             RetentionFacts b = _facts[right];
             bool noWorse = a.ProjectedPlayerHp >= b.ProjectedPlayerHp
@@ -1910,6 +1948,98 @@ internal sealed partial class BeamSolver
         /// </summary>
         private StandPatEvaluation EvaluateStandPat(int slot)
         {
+            int count = _standPatProbeCount;
+            for (int index = 0; index < count; index++)
+            {
+                if (_standPatProbeSlots[index] == slot)
+                    return _standPatProbeValues[index];
+            }
+            return EvaluateStandPatCore(slot);
+        }
+
+        /// <summary>One worker-batch item; writes only its own probe slot.</summary>
+        private void EvaluateStandPatProbe(int index)
+            => _standPatProbeValues[index] = EvaluateStandPatCore(_standPatProbeSlots[index]);
+
+        private void AppendStandPatProbe(int slot)
+        {
+            if (!_standPatProbeSet.Add(slot))
+                return;
+            if (_standPatProbeCount == _standPatProbeValues.Length)
+                Array.Resize(ref _standPatProbeValues, _standPatProbeValues.Length * 2);
+            _standPatProbeSlots.Add(slot);
+            _standPatProbeCount++;
+        }
+
+        private void EvaluateStandPatProbes()
+        {
+            _standPatProbeCount = _standPatProbeSlots.Count;
+            _batchParetoCount = Count;
+            int batchCount = Count + _standPatProbeCount;
+            if (batchCount == 0)
+                return;
+            if (Parallel is { CanRunBatch: true } parallel)
+            {
+                BatchFailureContract?.Invoke(parallel);
+                parallel.RunBatch(batchCount, _evaluateSelectionBatch);
+                return;
+            }
+            for (int position = 0; position < Count; position++)
+                EvaluateParetoDominance(position);
+            for (int index = 0; index < _standPatProbeCount; index++)
+                _standPatProbeValues[index] = EvaluateStandPatCore(_standPatProbeSlots[index]);
+        }
+
+        /// <summary>
+        /// One worker-batch item: the first <c>Count</c> indexes are Pareto dominance flags, the
+        /// remaining ones are stand-pat probe evaluations. Both write disjoint result slots.
+        /// </summary>
+        private void EvaluateSelectionBatch(int index)
+        {
+            int paretoCount = _batchParetoCount;
+            if (index < paretoCount)
+                EvaluateParetoDominance(index);
+            else
+                EvaluateStandPatProbe(index - paretoCount);
+        }
+
+        private void PrepareParetoDominance()
+        {
+            _paretoCohortLookup.Clear();
+            _paretoCohortLists.Clear();
+            EnsureParetoDominanceScratch(Count);
+            for (int position = 0; position < Count; position++)
+            {
+                int slot = _rankOrder[position];
+                ParetoCohortKey key = BuildParetoCohort(slot);
+                if (!_paretoCohortLookup.TryGetValue(key, out int cohortIndex))
+                {
+                    cohortIndex = _paretoCohortLists.Count;
+                    _paretoCohortLookup.Add(key, cohortIndex);
+                    _paretoCohortLists.Add(new List<int>());
+                }
+                _paretoCohortLists[cohortIndex].Add(slot);
+                _paretoCohortIndex[position] = cohortIndex;
+            }
+            _paretoPreparedCount = Count;
+        }
+
+        private void ClearStandPatProbes()
+        {
+            _standPatProbeCount = 0;
+            _standPatProbeSlots.Clear();
+            _standPatProbeSet.Clear();
+        }
+
+        private static SearchRouteTraits StandPatTrait(int index) => index switch
+        {
+            0 => SearchRouteTraits.Scaling,
+            1 => SearchRouteTraits.Resource,
+            _ => SearchRouteTraits.Control,
+        };
+
+        private StandPatEvaluation EvaluateStandPatCore(int slot)
+        {
             Unsafe.SkipInit(out Battle end);
             Battle.CopyPacked(in _states[slot], ref end);
             try
@@ -1982,13 +2112,11 @@ internal sealed partial class BeamSolver
 
         /// <summary><c>FindBestFreshResourceStandPat</c>: the first 64 rank-ordered fresh-resource
         /// candidates, evaluated with the same EndTurn stand-pat replay and comparator.</summary>
-        private int FindBestFreshResourceStandPat(List<int> nodes)
+        private void SelectFreshProbeSlots(List<int> nodes, List<int> probes)
         {
             const int probeLimit = 64;
-            int best = -1;
-            StandPatEvaluation bestEvaluation = default;
-            int evaluated = 0;
-            for (int index = 0; index < nodes.Count && evaluated < probeLimit; index++)
+            probes.Clear();
+            for (int index = 0; index < nodes.Count && probes.Count < probeLimit; index++)
             {
                 int node = nodes[index];
                 RetentionFacts facts = _facts[node];
@@ -1999,8 +2127,21 @@ internal sealed partial class BeamSolver
                 {
                     continue;
                 }
+                probes.Add(node);
+            }
+        }
+
+        private int FindBestFreshResourceStandPat(List<int> nodes)
+        {
+            List<int> probes = _freshProbeScratch;
+            SelectFreshProbeSlots(nodes, probes);
+            int best = -1;
+            StandPatEvaluation bestEvaluation = default;
+            for (int index = 0; index < probes.Count; index++)
+            {
+                int node = probes[index];
+                RetentionFacts facts = _facts[node];
                 StandPatEvaluation evaluation = EvaluateStandPat(node);
-                evaluated++;
                 if (best < 0
                     || evaluation.AllEnemiesDead && !bestEvaluation.AllEnemiesDead
                     || evaluation.AllEnemiesDead == bestEvaluation.AllEnemiesDead
@@ -2021,26 +2162,34 @@ internal sealed partial class BeamSolver
         }
 
         /// <summary><c>FindBestStandPat</c>: the same probe ordering and evaluation comparator.</summary>
-        private int FindBestStandPat(List<int> nodes, SearchRouteTraits trait)
+        private int SelectStandPatProbes(List<int> nodes, SearchRouteTraits trait, Span<int> probes)
         {
             const int limit = 8;
-            Span<int> probes = stackalloc int[limit + 1];
+            // The old loop rescanned the whole group once per seat and removed the winner. Keeping
+            // the top eight in one pass is the same sequence: IsBetterStandPatProbe is a strict
+            // lexicographic order on (ProjectedPlayerHp, lane value, Score), and an equal later node
+            // never displaces the earlier one. Insertions shift the previous seat down exactly like
+            // the repeated-removal loop.
             int probeCount = 0;
-            while (probeCount < limit)
+            for (int index = 0; index < nodes.Count; index++)
             {
-                int best = -1;
-                for (int index = 0; index < nodes.Count; index++)
+                int node = nodes[index];
+                RetentionFacts facts = _facts[node];
+                if ((facts.Traits & trait) == 0)
+                    continue;
+                int insert = probeCount;
+                while (insert > 0
+                    && IsBetterStandPatProbe(facts, _facts[probes[insert - 1]], trait))
                 {
-                    int node = nodes[index];
-                    RetentionFacts facts = _facts[node];
-                    if ((facts.Traits & trait) == 0 || ContainsProbe(probes, probeCount, node))
-                        continue;
-                    if (best < 0 || IsBetterStandPatProbe(facts, _facts[best], trait))
-                        best = node;
+                    insert--;
                 }
-                if (best < 0)
-                    break;
-                probes[probeCount++] = best;
+                if (insert >= limit)
+                    continue;
+                if (probeCount < limit)
+                    probeCount++;
+                for (int move = probeCount - 1; move > insert; move--)
+                    probes[move] = probes[move - 1];
+                probes[insert] = node;
             }
             if (trait == SearchRouteTraits.Control && probeCount > 0)
             {
@@ -2065,6 +2214,14 @@ internal sealed partial class BeamSolver
                     probes[probeCount++] = delayedFinish;
                 }
             }
+            return probeCount;
+        }
+
+        private int FindBestStandPat(List<int> nodes, SearchRouteTraits trait)
+        {
+            const int limit = 8;
+            Span<int> probes = stackalloc int[limit + 1];
+            int probeCount = SelectStandPatProbes(nodes, trait, probes);
             if (_trace != null)
             {
                 for (int index = 0; index < nodes.Count; index++)
@@ -2589,34 +2746,19 @@ internal sealed partial class BeamSolver
         {
             if (_policyWidth < 18)
                 return;
-            _paretoCohorts.Clear();
-            for (int position = 0; position < Count; position++)
+            if (_paretoPreparedCount != Count)
             {
-                int slot = _rankOrder[position];
-                ParetoCohortKey key = BuildParetoCohort(slot);
-                if (!_paretoCohorts.TryGetValue(key, out List<int>? cohort))
-                {
-                    cohort = new List<int>();
-                    _paretoCohorts.Add(key, cohort);
-                }
-                cohort.Add(slot);
+                // Only reachable when a caller selects without going through CollectRepresentatives;
+                // keep the original serial behavior as a safety path.
+                PrepareParetoDominance();
+                for (int position = 0; position < Count; position++)
+                    EvaluateParetoDominance(position);
             }
             _pareto.Clear();
             for (int position = 0; position < Count; position++)
             {
                 int slot = _rankOrder[position];
-                List<int> cohort = _paretoCohorts[BuildParetoCohort(slot)];
-                bool dominated = false;
-                for (int index = 0; index < cohort.Count; index++)
-                {
-                    int other = cohort[index];
-                    if (other != slot && ParetoDominates(other, slot))
-                    {
-                        dominated = true;
-                        break;
-                    }
-                }
-                if (dominated)
+                if (_paretoDominated[position])
                     continue;
                 int insert = 0;
                 while (insert < _pareto.Count
@@ -2634,6 +2776,33 @@ internal sealed partial class BeamSolver
             }
             for (int index = 0; index < _pareto.Count; index++)
                 AddRequired(required, _pareto[index], width);
+        }
+
+        private void EnsureParetoDominanceScratch(int count)
+        {
+            if (count <= _paretoDominated.Length)
+                return;
+            int capacity = Math.Max(count, _paretoDominated.Length * 2);
+            _paretoDominated = new bool[capacity];
+            _paretoCohortIndex = new int[capacity];
+        }
+
+        /// <summary>One worker-batch item; the cohort and all compared facts are immutable here.</summary>
+        private void EvaluateParetoDominance(int position)
+        {
+            int slot = _rankOrder[position];
+            List<int> cohort = _paretoCohortLists[_paretoCohortIndex[position]];
+            bool dominated = false;
+            for (int index = 0; index < cohort.Count; index++)
+            {
+                int other = cohort[index];
+                if (other != slot && ParetoDominatesSameCohort(other, slot))
+                {
+                    dominated = true;
+                    break;
+                }
+            }
+            _paretoDominated[position] = dominated;
         }
 
         /// <summary>

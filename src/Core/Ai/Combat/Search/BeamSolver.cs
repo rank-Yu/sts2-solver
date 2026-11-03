@@ -863,7 +863,20 @@ internal sealed partial class BeamSolver
         TerminalSink terminal = ConsiderTerminal;
         int turns = 0;
         if (_parallelSearch)
+        {
             _parallelExpansion = new ParallelExpansion(this, searchThreads);
+            current.Parallel = _parallelExpansion;
+            next.Parallel = _parallelExpansion;
+            ended.Parallel = _parallelExpansion;
+            turnFrontier.Parallel = _parallelExpansion;
+            if (SearchVerificationHooks.VerifySelectionBatchFailureRecovery)
+            {
+                current.BatchFailureContract = RunSelectionBatchFailureContract;
+                next.BatchFailureContract = RunSelectionBatchFailureContract;
+                ended.BatchFailureContract = RunSelectionBatchFailureContract;
+                turnFrontier.BatchFailureContract = RunSelectionBatchFailureContract;
+            }
+        }
         try
         {
         while (turnFrontier.Count > 0 && turns < _options.MaxTurns && !OutOfBudget(watch))

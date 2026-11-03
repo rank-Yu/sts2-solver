@@ -220,7 +220,7 @@ internal static partial class CombatSessionController
         if (result == null || _names == null)
             return null;
         return CombatUiProjection.Route(result.Plan, _names, CurrentTurn(),
-            _currentActionIndex, _completedActions, result.WasReused);
+            _currentActionIndex, _completedActions, result.WasReused, _actionRunning);
     }
 
     private static SearchUiSnapshot? BuildSearchUi()

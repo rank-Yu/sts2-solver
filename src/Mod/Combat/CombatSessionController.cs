@@ -46,6 +46,7 @@ internal static partial class CombatSessionController
     private static int? _automaticSearchPausedTurn;
     private static int? _lastSolverDeployedTurn;
     private static int? _lastTurnSupersededBySetup;
+    private static int? _autoTurnStartTurn;
     private static int? _continuationSetupTurn;
 #if STS2_SOLVER_TESTING
     internal static int ContinuationReuseSuccessesForTest { get; private set; }
@@ -69,6 +70,7 @@ internal static partial class CombatSessionController
     private static int _nextSearchGeneration;
     private static int _currentActionIndex;
     private static int _completedActions;
+    private static bool _actionRunning;
     private static int _searches;
     private static int _reusedTurns;
     private static int _deviations;
@@ -374,6 +376,7 @@ internal static partial class CombatSessionController
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
         _lastTurnSupersededBySetup = null;
+        _autoTurnStartTurn = null;
         _continuationSetupTurn = null;
 #if STS2_SOLVER_TESTING
         ContinuationReuseSuccessesForTest = 0;
@@ -398,6 +401,7 @@ internal static partial class CombatSessionController
         _lastCandidateVersion = 0;
         _currentActionIndex = 0;
         _completedActions = 0;
+        _actionRunning = false;
         _searches = 0;
         _reusedTurns = 0;
         _deviations = 0;
@@ -576,6 +580,7 @@ internal static partial class CombatSessionController
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
         _lastTurnSupersededBySetup = null;
+        _autoTurnStartTurn = null;
         _continuationSetupTurn = null;
         _fullAutoEnabled = false;
         _pauseCode = null;
@@ -596,6 +601,7 @@ internal static partial class CombatSessionController
         _lastCandidateVersion = 0;
         _currentActionIndex = 0;
         _completedActions = 0;
+        _actionRunning = false;
 #if STS2_SOLVER_TESTING
         LastResumeMergeForTest = null;
         LastContinuationMismatchForTest = null;
@@ -631,6 +637,22 @@ internal static partial class CombatSessionController
             // Keep the state and resume once the setup transaction has released the page. Do not
             // clear a setup failure here: the panel must keep showing it while the page is open.
             _pendingTurnStartedState = state;
+            return;
+        }
+#if STS2_SOLVER_TESTING
+        bool repeatedAutoTurnStart = CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest;
+#else
+        const bool repeatedAutoTurnStart = false;
+#endif
+        if (!repeatedAutoTurnStart && _autoTurnStartTurn is { } handledTurn
+            && LocalContext.GetMe(state)?.PlayerCombatState is { } handledPlayerState
+            && handledPlayerState.TurnNumber == handledTurn)
+        {
+            // TurnStarted can be delivered again for the turn whose automatic search was already
+            // dispatched (native event plus pending replay). Keep the current phase and error;
+            // a repeated event must not clear a failure or queue another search.
+            ModLog.Info($"[Sts2Solver] CONTROLLER_TURN_START_SKIP turn={handledTurn} " +
+                "reason=auto_search_already_requested");
             return;
         }
         ClearFailureState();
@@ -753,8 +775,7 @@ internal static partial class CombatSessionController
                 LogTurnStart(turn, "manual");
                 return;
             }
-            ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH turn={turn} mode={_mode}");
-            RequestSearch(CombatSearchReason.AutoTurnStart, deployWhenReady: false);
+            RequestAutoTurnStartSearch(turn);
         }
         catch (OperationCanceledException)
         {
@@ -1078,6 +1099,7 @@ internal static partial class CombatSessionController
     {
         CombatDeploymentSession? deployment = _deployment;
         _deployment = null;
+        _actionRunning = false;
         if (deployment == null)
             return;
         if (!deployment.Cancellation.IsCancellationRequested)
@@ -1217,6 +1239,34 @@ internal static partial class CombatSessionController
         if (!IsPlayable(_state!, turn) || _search != null || _deployment != null)
             return;
 #endif
+        RequestAutoTurnStartSearch(turn);
+    }
+
+    /// <summary>
+    /// Dispatches the one automatic search owned by a turn start. Native TurnStarted can arrive
+    /// more than once for the same turn (the event itself plus a pending replay after a setup page
+    /// or deployment releases), and the deployment fallback can race the scheduled turn-start
+    /// task. Both routes come through here so a turn never issues two automatic searches.
+    /// RequestSearch re-checks the mode, so a search scheduled before the player switches to
+    /// manual is dropped when it finally runs.
+    /// </summary>
+    private static void RequestAutoTurnStartSearch(int turn)
+    {
+        if (!ShouldAutomaticallySearchNextTurn)
+            return;
+#if STS2_SOLVER_TESTING
+        bool repeated = CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest;
+#else
+        const bool repeated = false;
+#endif
+        if (_autoTurnStartTurn == turn && !repeated)
+        {
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_AUTO_TURN_START_SKIP turn={turn} reason=already_requested");
+            return;
+        }
+        _autoTurnStartTurn = turn;
+        ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH turn={turn} mode={_mode}");
         RequestSearch(CombatSearchReason.AutoTurnStart, deployWhenReady: false);
     }
 

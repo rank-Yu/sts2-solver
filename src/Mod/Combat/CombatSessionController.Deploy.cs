@@ -80,6 +80,7 @@ internal static partial class CombatSessionController
         _deploymentResult = result;
         _currentActionIndex = turnActions[0].Index;
         _completedActions = turnActions[0].Index;
+        _actionRunning = false;
         _phase = CombatUiPhase.Deploying;
         _errorCode = null;
         _errorDetail = null;
@@ -110,12 +111,14 @@ internal static partial class CombatSessionController
                 action =>
                 {
                     _currentActionIndex = action.Index;
+                    _actionRunning = true;
                     PublishSnapshot();
                 },
                 action =>
                 {
                     _completedActions = action.Index + 1;
                     _currentActionIndex = action.Index + 1;
+                    _actionRunning = false;
                     if (action.Action.Kind == PlayerActionKind.UsePotion)
                         RecordPotionUsed(action);
                     PublishSnapshot();
@@ -212,6 +215,7 @@ internal static partial class CombatSessionController
 
     private static void ReleaseDeployment(CombatDeploymentSession deployment)
     {
+        _actionRunning = false;
         if (ReferenceEquals(_deployment, deployment))
             _deployment = null;
     }

@@ -158,9 +158,15 @@ internal sealed partial class SolverOverlay
         }
         if (snapshot.Phase == CombatUiPhase.Deploying && snapshot.Route is { } route)
         {
-            int? active = route.CurrentActionIndex >= route.CompletedActions
-                ? route.CurrentActionIndex
-                : null;
+            // CombatSolver passes a non-null currentCardTitle only while an action runs and
+            // passes null for the completion boundary (src/Runtime/SolverController.cs at
+            // 5c773caa). ActionRunning carries that distinction; current == completed alone also
+            // holds while an action is running, so it cannot identify the boundary frame.
+            int? active = route.ActionRunning
+                && route.CurrentActionIndex >= route.CompletedActions
+                && route.CurrentActionIndex < route.ActionCount
+                    ? route.CurrentActionIndex
+                    : null;
             foreach (SolverRouteRow row in RouteRows)
             {
                 if (!row.Visible)

@@ -1223,7 +1223,12 @@ internal sealed partial class UiPanelObserver : Node
         int start, int count)
     {
         HighlightChecks++;
-        int? active = snapshot.Phase == CombatUiPhase.Deploying
+        // CombatSolver calls ShowDeploymentStep with the next action title only when the action
+        // starts; after it completes, the call passes a null title and SolverRouteRow clears the
+        // active pill even though CurrentActionIndex and CompletedActions are both the next
+        // index. ActionRunning is the explicit running/not-running discriminator, so a boundary
+        // frame must have no lit pill while a running frame must have exactly one.
+        int? active = snapshot.Phase == CombatUiPhase.Deploying && route.ActionRunning
             && route.CurrentActionIndex >= route.CompletedActions
             && route.CurrentActionIndex < route.ActionCount
                 ? route.CurrentActionIndex
@@ -1291,7 +1296,13 @@ internal sealed partial class UiPanelObserver : Node
         {
             HighlightMismatches++;
             Record($"highlight seq={snapshot.Sequence} phase={snapshot.Phase} current={route.CurrentActionIndex} " +
-                $"completed={route.CompletedActions} expected={expectedKind ?? "none"}@{expectedRow} lit={lit.Count}");
+                $"completed={route.CompletedActions} expected={expectedKind ?? "none"}@{expectedRow} lit={lit.Count} " +
+                "rows=" + string.Join(";", probe.Rows.Select(row =>
+                    $"{row.Turn}[s={row.StartActionIndex},n={row.DisplayedCount},e={row.EndTurnIndex}]:" +
+                    string.Join(",", row.Pills.Select(pill =>
+                        $"{pill.Kind}/{pill.RunStart}+{pill.Offset}x{pill.Repetitions}={pill.State}")))) +
+                " turns=" + string.Join(";", route.Turns.Select(turn =>
+                    $"{turn.Turn}[s={turn.StartActionIndex},n={turn.Actions.Length}]")));
         }
     }
 

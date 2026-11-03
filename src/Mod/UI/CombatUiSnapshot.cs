@@ -479,6 +479,9 @@ internal sealed record RouteUiSnapshot
 
     public int CompletedActions { get; init; }
 
+    /// <summary>True only while an executable action is actually being deployed.</summary>
+    public bool ActionRunning { get; init; }
+
     public int ActionCount { get; init; }
 
     public bool Victory { get; init; }

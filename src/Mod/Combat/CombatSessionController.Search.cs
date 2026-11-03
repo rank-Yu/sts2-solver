@@ -113,6 +113,7 @@ internal static partial class CombatSessionController
         _activeMemberStartedAt = _searchStartedAt;
         _currentActionIndex = 0;
         _completedActions = 0;
+        _actionRunning = false;
         _searches++;
         _phase = CombatUiPhase.Searching;
         _pauseCode = null;
@@ -429,6 +430,7 @@ internal static partial class CombatSessionController
             _latestStamp = reuseStamp;
             _currentActionIndex = 0;
             _completedActions = 0;
+            _actionRunning = false;
             _reusedTurns++;
             _pauseCode = null;
             _pauseReason = null;

@@ -192,18 +192,20 @@ internal static class CombatUiProjection
     }
 
     internal static RouteUiSnapshot Route(ReplayedRoute route, CombatDisplayNames names,
-        int currentTurn, int currentActionIndex, int completedActions, bool reused)
+        int currentTurn, int currentActionIndex, int completedActions, bool reused,
+        bool actionRunning)
         => Route(route.Actions, route.Rules, route.Victory, names, currentTurn,
-            currentActionIndex, completedActions, reused, []);
+            currentActionIndex, completedActions, reused, actionRunning, []);
 
     internal static RouteUiSnapshot Route(CombatRoutePlan plan, CombatDisplayNames names,
-        int currentTurn, int currentActionIndex, int completedActions, bool reused)
+        int currentTurn, int currentActionIndex, int completedActions, bool reused,
+        bool actionRunning)
         => Route(plan.Actions, plan.Rules, plan.Victory, names, currentTurn,
-            currentActionIndex, completedActions, reused, plan.RootSetupChoices);
+            currentActionIndex, completedActions, reused, actionRunning, plan.RootSetupChoices);
 
     private static RouteUiSnapshot Route(ReplayedAction[] routeActions, Rules rules, bool victory,
         CombatDisplayNames names, int currentTurn, int currentActionIndex, int completedActions,
-        bool reused, PlannedChoice[] rootSetupChoices)
+        bool reused, bool actionRunning, PlannedChoice[] rootSetupChoices)
     {
         List<RouteTurnUi> turns = [];
         List<RouteActionUi>? turnActions = null;
@@ -298,6 +300,7 @@ internal static class CombatUiProjection
             CurrentTurn = currentTurn,
             CurrentActionIndex = currentActionIndex,
             CompletedActions = completedActions,
+            ActionRunning = actionRunning,
             ActionCount = routeActions.Length,
             Victory = victory,
             Reused = reused,

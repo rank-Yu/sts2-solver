@@ -133,6 +133,11 @@ internal static class TestSession
                     request.ControllerScenarioForTest is { Length: > 0 } ? 0 : 200);
                 string? scenarioName = request.ControllerScenarioForTest;
                 bool turnSetupWait = scenarioName == "turn_setup_wait";
+                // These scenarios deliver the held turn-start event themselves: the manual switch
+                // needs to change mode before the scheduled search runs, and the once-per-turn
+                // scenario needs the search failure hook installed before the first event.
+                bool deferTurnStartResume = scenarioName is "manual_switch_at_turn_start"
+                    or "auto_turn_start_once";
                 bool turnSetupTurnTwo = TurnSetupTurnTwoScenario(scenarioName);
                 bool turnSetupTakeover = request.TurnSetupTakeoverForTest
                     && scenarioName is not null && IsTurnSetupScenario(scenarioName);
@@ -237,7 +242,8 @@ internal static class TestSession
                     // pending event until the setup transaction releases the page.
                     CombatSessionController.ResumeAutoSearchForTest();
                 }
-                else if (request.FullCombatForTest || request.ControllerScenarioForTest != null)
+                else if ((request.FullCombatForTest || request.ControllerScenarioForTest != null)
+                    && !deferTurnStartResume)
                 {
                     CombatSessionController.ResumeAutoSearchForTest();
                 }

@@ -1,0 +1,941 @@
+{
+  "schemaVersion": 1,
+  "description": "Long-lived controller, turn-setup and whole-combat scenario requests. Generated into .local by tools/testing/run-scenario-regression.py.",
+  "defaults": {
+    "fixture": "k3-basic-potions",
+    "group": "controller",
+    "threads": 2,
+    "timeoutSeconds": 900,
+    "request": {
+      "settingsModeForTest": "Manual",
+      "controllerScenarioForTest": null,
+      "fullCombatForTest": false
+    }
+  },
+  "scenarios": [
+    {
+      "id": "manual_start_stop",
+      "scenario": "manual_start_stop",
+      "group": "controller"
+    },
+    {
+      "id": "auto_search_turn",
+      "scenario": "auto_search_turn",
+      "group": "controller"
+    },
+    {
+      "id": "manual_no_auto_search",
+      "scenario": "manual_no_auto_search",
+      "group": "controller"
+    },
+    {
+      "id": "auto_search_full",
+      "scenario": "auto_search_full",
+      "group": "controller"
+    },
+    {
+      "id": "manual_full",
+      "scenario": "manual_full",
+      "group": "controller"
+    },
+    {
+      "id": "stop_then_next_turn",
+      "scenario": "stop_then_next_turn",
+      "group": "controller"
+    },
+    {
+      "id": "stop_search_keep_route",
+      "scenario": "stop_search_keep_route",
+      "group": "controller"
+    },
+    {
+      "id": "stop_then_recalc",
+      "scenario": "stop_then_recalc",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_middle",
+      "scenario": "continue_search_middle",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_settings_changed",
+      "scenario": "continue_search_settings_changed",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_state_changed",
+      "scenario": "continue_search_state_changed",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_last_member",
+      "scenario": "continue_search_last_member",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_twice",
+      "scenario": "continue_search_twice",
+      "group": "controller"
+    },
+    {
+      "id": "continue_search_request_mismatch",
+      "scenario": "continue_search_request_mismatch",
+      "group": "controller"
+    },
+    {
+      "id": "execute_has_result",
+      "scenario": "execute_has_result",
+      "group": "controller"
+    },
+    {
+      "id": "execute_while_searching",
+      "scenario": "execute_while_searching",
+      "group": "controller"
+    },
+    {
+      "id": "execute_without_result",
+      "scenario": "execute_without_result",
+      "group": "controller"
+    },
+    {
+      "id": "mode_switch",
+      "scenario": "mode_switch",
+      "group": "controller"
+    },
+    {
+      "id": "full_auto_start",
+      "scenario": "full_auto_start",
+      "group": "controller"
+    },
+    {
+      "id": "full_auto_arm_after_turn",
+      "scenario": "full_auto_arm_after_turn",
+      "group": "controller"
+    },
+    {
+      "id": "repeated_failure",
+      "scenario": "repeated_failure",
+      "group": "controller"
+    },
+    {
+      "id": "deviation_action_full_auto",
+      "scenario": "deviation_action_full_auto",
+      "group": "controller"
+    },
+    {
+      "id": "deviation_action_auto_search",
+      "scenario": "deviation_action_auto_search",
+      "group": "controller"
+    },
+    {
+      "id": "deviation_deployment_drift",
+      "scenario": "deviation_deployment_drift",
+      "group": "controller"
+    },
+    {
+      "id": "deviation_boundary",
+      "scenario": "deviation_boundary",
+      "group": "controller"
+    },
+    {
+      "id": "plan_exhausted",
+      "scenario": "plan_exhausted",
+      "group": "controller"
+    },
+    {
+      "id": "pause_death_turn_deployment",
+      "scenario": "pause_death_turn_deployment",
+      "group": "controller"
+    },
+    {
+      "id": "combat_end",
+      "scenario": "combat_end",
+      "group": "controller"
+    },
+    {
+      "id": "multiplayer_gate",
+      "scenario": "multiplayer_gate",
+      "group": "controller"
+    },
+    {
+      "id": "deployment_speed_follow",
+      "scenario": "deployment_speed_follow",
+      "group": "controller"
+    },
+    {
+      "id": "deployment_speed_normal",
+      "scenario": "deployment_speed_normal",
+      "group": "controller"
+    },
+    {
+      "id": "deployment_speed_fast",
+      "scenario": "deployment_speed_fast",
+      "group": "controller"
+    },
+    {
+      "id": "deployment_delay",
+      "scenario": "deployment_delay",
+      "group": "controller"
+    },
+    {
+      "id": "thread_setting",
+      "scenario": "thread_setting",
+      "group": "controller"
+    },
+    {
+      "id": "panel_texts",
+      "scenario": "panel_texts",
+      "group": "controller"
+    },
+    {
+      "id": "manual_reuses_route",
+      "scenario": "manual_reuses_route",
+      "group": "controller"
+    },
+    {
+      "id": "mode_switch_mid_turn",
+      "scenario": "mode_switch_mid_turn",
+      "group": "controller"
+    },
+    {
+      "id": "full_auto_pause_combat",
+      "scenario": "full_auto_pause_combat",
+      "group": "controller"
+    },
+    {
+      "id": "stop_deployment",
+      "scenario": "stop_deployment",
+      "group": "controller"
+    },
+    {
+      "id": "search_block_reasons",
+      "scenario": "search_block_reasons",
+      "group": "controller"
+    },
+    {
+      "id": "deployment_drift_research",
+      "scenario": "deployment_drift_research",
+      "group": "controller"
+    },
+    {
+      "id": "strategy_commands",
+      "scenario": "strategy_commands",
+      "group": "controller"
+    },
+    {
+      "id": "forced_potion",
+      "scenario": "forced_potion",
+      "group": "controller"
+    },
+    {
+      "id": "panel_strategy",
+      "scenario": "panel_strategy",
+      "group": "controller"
+    },
+    {
+      "id": "manual_switch_at_turn_start",
+      "scenario": "manual_switch_at_turn_start",
+      "group": "controller",
+      "threads": 1,
+      "request": {
+        "settingsModeForTest": "AutoSearch"
+      }
+    },
+    {
+      "id": "auto_turn_start_once",
+      "scenario": "auto_turn_start_once",
+      "group": "controller",
+      "request": {
+        "settingsModeForTest": "AutoSearch"
+      },
+      "threads": 1
+    },
+    {
+      "id": "turn_setup_carry",
+      "scenario": "turn_setup_carry",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "initialPlayerHp": 1,
+        "initialPlayerMaxHp": 80,
+        "enemyCurrentHp": 120,
+        "potions": [
+          {
+            "potionId": "BLOOD_POTION"
+          }
+        ],
+        "potionDirectivesForTest": [
+          {
+            "slot": 0,
+            "potionId": "BLOOD_POTION",
+            "mode": "Force"
+          }
+        ],
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "search_failures-t1",
+      "scenario": "search_failures",
+      "group": "controller",
+      "threads": 1,
+      "request": {
+        "settingsModeForTest": "AutoSearch"
+      }
+    },
+    {
+      "id": "search_failures-default",
+      "scenario": "search_failures",
+      "group": "controller",
+      "threads": "auto",
+      "request": {
+        "settingsModeForTest": "AutoSearch"
+      }
+    },
+    {
+      "id": "import_capacity",
+      "scenario": "import_capacity",
+      "group": "controller",
+      "request": {
+        "runCards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "count": 641,
+            "upgradeLevels": 0
+          }
+        ],
+        "clearRunDeck": true,
+        "preserveNativeCombatStateForTest": true,
+        "cards": [],
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "import_failure",
+      "scenario": "import_failure",
+      "group": "controller",
+      "request": {
+        "runCards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "count": 641,
+            "upgradeLevels": 0
+          }
+        ],
+        "clearRunDeck": true,
+        "preserveNativeCombatStateForTest": true,
+        "cards": [],
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "search_status_failures-zh",
+      "scenario": "search_status_failures",
+      "group": "controller"
+    },
+    {
+      "id": "search_status_failures-en",
+      "scenario": "search_status_failures",
+      "group": "controller",
+      "english": true
+    },
+    {
+      "id": "capacity_dropped_route-zh",
+      "scenario": "capacity_dropped_route",
+      "group": "controller"
+    },
+    {
+      "id": "capacity_dropped_route-en",
+      "scenario": "capacity_dropped_route",
+      "group": "controller",
+      "english": true
+    },
+    {
+      "id": "panel_strategy-tw",
+      "scenario": "panel_strategy",
+      "group": "controller",
+      "fixture": "tw-gremlin-merc",
+      "request": {
+        "settingsModeForTest": "Manual",
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "live_end_turn_risk_retained",
+      "scenario": "live_end_turn_risk_retained",
+      "group": "controller",
+      "request": {
+        "initialPlayerHp": 65,
+        "initialPlayerMaxHp": 80,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "deviation_boundary_setup",
+      "scenario": "deviation_boundary",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500,
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "deviation_setup_stamp",
+      "scenario": "deviation_setup_stamp",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500,
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "turn_setup_wait",
+      "scenario": "turn_setup_wait",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": false,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "ts-b-toolbox-auto-execute",
+      "scenario": "turn_setup_auto_execute",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_auto_manual",
+      "scenario": "turn_setup_auto_manual",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_full",
+      "scenario": "turn_setup_full",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_stop_keep",
+      "scenario": "turn_setup_stop_keep",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_stop_drop",
+      "scenario": "turn_setup_stop_drop",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_fail",
+      "scenario": "turn_setup_fail",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_stop_drive",
+      "scenario": "turn_setup_stop_drive",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_pause",
+      "scenario": "turn_setup_pause",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_scene_exit",
+      "scenario": "turn_setup_scene_exit",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_implicit",
+      "scenario": "turn_setup_implicit",
+      "group": "turn-setup",
+      "fixture": "ts-j-toasty-one-card",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_manual",
+      "scenario": "turn_setup_manual",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "Manual",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_turn2",
+      "scenario": "turn_setup_turn2",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_autopreplay",
+      "scenario": "turn_setup_autopreplay",
+      "group": "turn-setup",
+      "fixture": "ts-d-autopreplay-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_plasma",
+      "scenario": "turn_setup_plasma",
+      "group": "turn-setup",
+      "fixture": "ts-i-plasma-pause",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_manual_end",
+      "scenario": "turn_setup_manual_end",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "Manual",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_multi",
+      "scenario": "turn_setup_multi",
+      "group": "turn-setup",
+      "fixture": "ts-k-two-relic-choices",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_crossbow",
+      "scenario": "turn_setup_crossbow",
+      "group": "turn-setup",
+      "fixture": "ts-j-crossbow-one-card",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_crossbow_many",
+      "scenario": "turn_setup_crossbow_many",
+      "group": "turn-setup",
+      "fixture": "ts-j-crossbow-many",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_continuation_auto",
+      "scenario": "turn_setup_continuation_auto",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_player",
+      "scenario": "turn_setup_continuation_player",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_mismatch",
+      "scenario": "turn_setup_continuation_mismatch",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_pause",
+      "scenario": "turn_setup_continuation_pause",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_full",
+      "scenario": "turn_setup_continuation_full",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_probe",
+      "scenario": "turn_setup_continuation_probe",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_validation",
+      "scenario": "turn_setup_continuation_validation",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_continuation_gap",
+      "scenario": "turn_setup_continuation_gap",
+      "group": "turn-setup",
+      "fixture": "ts-g-multi-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
+      "id": "turn_setup_capsule_source-toasty-zh",
+      "scenario": "turn_setup_capsule_source",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900
+      },
+      "scenarioId": "FLASH-TS-A-TOASTY"
+    },
+    {
+      "id": "turn_setup_capsule_source-toasty-en",
+      "scenario": "turn_setup_capsule_source",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900
+      },
+      "scenarioId": "FLASH-TS-A-TOASTY",
+      "english": true
+    },
+    {
+      "id": "turn_setup_capsule_source-toolbox-zh",
+      "scenario": "turn_setup_capsule_source",
+      "group": "turn-setup",
+      "fixture": "ts-b-toolbox",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900
+      },
+      "scenarioId": "FLASH-TS-B-TOOLBOX"
+    },
+    {
+      "id": "turn_setup_capsule_source_turn2-multi-zh",
+      "scenario": "turn_setup_capsule_source_turn2",
+      "group": "turn-setup",
+      "fixture": "ts-g-multi-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      },
+      "scenarioId": "TS-G-MULTI-CHOICE"
+    },
+    {
+      "id": "turn_setup_capsule_source_turn2-multi-en",
+      "scenario": "turn_setup_capsule_source_turn2",
+      "group": "turn-setup",
+      "fixture": "ts-g-multi-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      },
+      "scenarioId": "TS-G-MULTI-CHOICE",
+      "english": true
+    },
+    {
+      "id": "turn_setup_capsule_source_turn2-autopreplay-zh",
+      "scenario": "turn_setup_capsule_source_turn2",
+      "group": "turn-setup",
+      "fixture": "ts-d-autopreplay-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "AutoSearch",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      },
+      "scenarioId": "TS-D-AUTOPREPLAY-CHOICE"
+    },
+    {
+      "id": "quality-DEFECT-001",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "quality-DEFECT-001",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-IRONCLAD-001",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "quality-IRONCLAD-001",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-NECROBINDER-001",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "quality-NECROBINDER-001",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-REGENT-001",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "quality-REGENT-001",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-SILENT-001",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "quality-SILENT-001",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-DEFECT-000",
+      "scenario": null,
+      "group": "panel-stress",
+      "fixture": "quality-DEFECT-000",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    },
+    {
+      "id": "quality-CLONE-289-AXEBOTS",
+      "scenario": null,
+      "group": "panel-stress",
+      "fixture": "quality-CLONE-289-AXEBOTS",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 8,
+      "separate": true
+    }
+  ]
+}

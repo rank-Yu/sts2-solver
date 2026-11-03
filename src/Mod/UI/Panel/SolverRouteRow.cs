@@ -17,7 +17,7 @@ internal enum SolverPillState
 
 internal sealed partial class SolverRouteRow : PanelContainer
 {
-    private readonly List<(CanvasItem Pill, SolverActionRun Run, int Offset, int Index)> _deploymentActions = [];
+    private readonly List<(CanvasItem Pill, SolverActionRun Run, int Offset)> _deploymentActions = [];
     private readonly List<Control> _turnStartChoicePills = [];
     private readonly ColorRect _currentMarker;
     private readonly StyleBoxFlat _normalBox;
@@ -181,7 +181,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
                 SolverOverlayActionSnapshot action = turn.Actions[run.Start + offset];
                 Control pill = SolverActionPill.Create(action);
                 destination.AddChild(pill);
-                _deploymentActions.Add((pill, run, offset, run.Start + offset));
+                _deploymentActions.Add((pill, run, offset));
             }
         }
         _deploymentActionCount = turn.Actions.Count;
@@ -286,10 +286,15 @@ internal sealed partial class SolverRouteRow : PanelContainer
                         : Colors.White,
                 choiceActive);
         }
-        foreach ((CanvasItem pill, _, _, int index) in _deploymentActions)
+        foreach ((CanvasItem pill, SolverActionRun run, int offset) in _deploymentActions)
         {
-            bool isActive = activeActionIndex == index;
-            bool isCompleted = completedActions > index;
+            // A collapsed cycle is one pill for several route indexes. Use the run's repetition
+            // arithmetic, as CombatSolver src/UI/SolverRouteRow.cs does: the pill is active while
+            // any index in the run maps to this offset, and completed only after the last
+            // repetition. Comparing against run.Start alone would mark the pill completed at the
+            // first repetition boundary and leave no active highlight for the rest of the cycle.
+            bool isActive = run.IsActive(offset, activeActionIndex);
+            bool isCompleted = run.IsCompleted(offset, completedActions);
             _pillStates[pill] = isActive ? SolverPillState.Active
                 : isCompleted ? SolverPillState.Completed
                 : SolverPillState.Pending;

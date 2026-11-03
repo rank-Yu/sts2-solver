@@ -61,6 +61,12 @@ internal static class CombatControllerChecks
                 case "manual_no_auto_search":
                     await ManualNoAutoSearchAsync(host, Check, Action);
                     break;
+                case "manual_switch_at_turn_start":
+                    await ManualSwitchAtTurnStartAsync(host, Check, Action);
+                    break;
+                case "auto_turn_start_once":
+                    await AutoTurnStartOnceAsync(host, Check, Action);
+                    break;
                 case "auto_search_full":
                     await AutoSearchFullAsync(host, Check, Action);
                     break;
@@ -334,6 +340,7 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
             CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
             CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+            CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest = false;
             CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
             CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
             CombatControllerTestHooks.BeforeTurnSetupPlayStamp = null;
@@ -418,6 +425,55 @@ internal static class CombatControllerChecks
         check("no_search", after.Searches == before, $"{before}->{after.Searches}");
         check("not_searching", !after.IsSearching);
         check("auto_search_off", !after.AutomaticCalculationEnabled);
+    }
+
+    /// <summary>
+    /// Delivers the turn-start event, then switches to manual before the scheduled automatic
+    /// search task gets to run. The scheduled search must observe the current mode and disappear,
+    /// without incrementing Searches or leaving the controller searching.
+    /// </summary>
+    private static async Task ManualSwitchAtTurnStartAsync(NGame host, Check check, Action action)
+    {
+        CombatSessionController.ResumeAutoSearchForTest();
+        action("resume_turn_start");
+        check("mode_before", Snapshot().Mode == SolverMode.AutoSearch,
+            Snapshot().Mode.ToString());
+        int before = Snapshot().Searches;
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await Frames(host, 180);
+        CombatUiSnapshot after = Snapshot();
+        check("no_auto_search", after.Searches == before, $"{before}->{after.Searches}");
+        check("not_searching", !after.IsSearching, after.Phase.ToString());
+        check("mode_manual", after.Mode == SolverMode.Manual, after.Mode.ToString());
+        check("auto_search_off", !after.AutomaticCalculationEnabled, "automatic search enabled");
+    }
+
+    /// <summary>
+    /// Replays the same turn's TurnStarted event after the first automatic search has already
+    /// failed. The controller must keep the failed state and must not issue a second automatic
+    /// search for that turn; only the player or the next turn may try again.
+    /// </summary>
+    private static async Task AutoTurnStartOnceAsync(NGame host, Check check, Action action)
+    {
+        CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
+        CombatSessionController.ResumeAutoSearchForTest();
+        action("resume_turn_start");
+        CombatUiSnapshot failed = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 1800,
+            "first automatic turn-start failure");
+        int searches = failed.Searches;
+        check("first_search", searches == 1, searches.ToString());
+        check("failure_code", failed.ErrorCode == "search_failed", failed.ErrorCode ?? "-");
+        CombatSessionController.ResumeAutoSearchForTest();
+        action("repeat_turn_start");
+        await Frames(host, 120);
+        CombatUiSnapshot after = Snapshot();
+        check("no_second_search", after.Searches == searches, $"{searches}->{after.Searches}");
+        check("not_searching", !after.IsSearching, after.Phase.ToString());
+        check("failure_retained", after.Phase == CombatUiPhase.Failed
+            && after.ErrorCode == "search_failed", $"{after.Phase}/{after.ErrorCode ?? "-"}");
+        CombatControllerTestHooks.ForceSearchFailure = null;
     }
 
     private static async Task AutoSearchFullAsync(NGame host, Check check, Action action)
@@ -1035,6 +1091,9 @@ internal static class CombatControllerChecks
 
     private static async Task RepeatedFailureAsync(NGame host, Check check, Action action)
     {
+        // This scenario deliberately replays the automatic turn-start request to reach the
+        // failure limit; production only allows one automatic turn-start search per turn.
+        CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest = true;
         CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
         action("set_mode:full_auto");
@@ -2401,7 +2460,14 @@ internal static class CombatControllerChecks
     {
         for (int frame = 0; frame < 240; frame++)
         {
-            if (statuses.Contains(Status(), StringComparer.Ordinal))
+            SolverOverlay? panel = SolverOverlay.Instance;
+            // Status text alone can still be the previous combat's last message when a request
+            // starts after another one in the same process. Only accept it after the panel has
+            // applied the current snapshot, so the following Summary() assertions read the new
+            // combat's text too.
+            bool applied = panel != null
+                && panel.ProbeForTest().AppliedSequence == CombatUiStore.Snapshot.Sequence;
+            if (applied && statuses.Contains(Status(), StringComparer.Ordinal))
                 return;
             await CombatFrameWaiter.NextFrameAsync(host);
         }

@@ -51,6 +51,9 @@ internal static class CombatControllerTestHooks
     /// <summary>Adds capacity-drop provenance to a successful searched route, for panel checks.</summary>
     internal static IDictionary<string, int>? ForceCapacityDropForTest { get; set; }
 
+    /// <summary>Lets the repeated-failure scenario replay an automatic turn-start search on a turn.</summary>
+    internal static bool AllowRepeatedAutoTurnStartForTest { get; set; }
+
     /// <summary>Makes the normal search outcome look like a projected death on its start turn.</summary>
     internal static bool ForceProjectedDeathTurn { get; set; }
 

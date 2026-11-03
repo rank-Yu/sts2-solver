@@ -25,3 +25,5 @@
   - `ts-k-two-relic-choices`：烤面包手套 + 赌博芯片，同一准备阶段产生两段可见选择。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。
+
+控制器、回合准备和整场回归使用的长期请求清单在 [`../scenarios/`](../scenarios/README.md)，与冻结 fixture 输入分开维护。

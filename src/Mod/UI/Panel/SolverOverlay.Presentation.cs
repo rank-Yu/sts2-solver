@@ -410,7 +410,8 @@ internal sealed partial class SolverOverlay
         PopulateRoute(overlay, snapshot);
         _lastDeploymentActionCount = Math.Max(_lastDeploymentActionCount,
             route.Turns.FirstOrDefault()?.Actions.Count(static action => !action.EndsTurn) ?? 0);
-        if (route.CurrentActionIndex >= route.CompletedActions
+        if (route.ActionRunning
+            && route.CurrentActionIndex >= route.CompletedActions
             && route.CurrentActionIndex < route.ActionCount)
         {
             SolverOverlayActionSnapshot? active = overlay.Turns

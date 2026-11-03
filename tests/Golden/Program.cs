@@ -155,7 +155,8 @@ internal static class VerifyCommand
             watch.Stop();
             Console.WriteLine($"SIMULATION_OK files={d1.Files} roots={d1.Roots} k1={d1.K1} walks={d1.Walks} "
                 + $"states={d1.WalkStates} transitions={d1.Transitions} features={d1.FeatureStates} "
-                + $"traits={d1.FeatureTraits} rules={d1.RulesObjects} mismatched=0 "
+                + $"traits={d1.FeatureTraits} rules={d1.RulesObjects} "
+                + $"setupPauseChecks={d1.SetupPauseChecks} setupPauseExtraTurns={d1.SetupPauseExtraTurns} mismatched=0 "
                 + $"wall={watch.Elapsed.TotalSeconds:F1}s jobs={jobs}");
             Console.WriteLine($"SIMULATION_TIME wall={watch.Elapsed.TotalSeconds:F3}s jobs={jobs} "
                 + $"files={d1.Files} states={d1.WalkStates} features={d1.FeatureStates}");

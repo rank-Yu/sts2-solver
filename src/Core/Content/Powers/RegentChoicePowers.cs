@@ -21,12 +21,16 @@ public sealed class TyrannyPower : PowerDef
     {
         if (self.Owner != Limits.PlayerOwner)
             return;
-        int count = Math.Min(x.B.Powers[self.Index].Amount, x.B.HandCount);
+        int amount = x.B.Powers[self.Index].Amount;
+        if (amount <= 0)
+            return;
+        // CardSelectCmd.FromHand is called even with an empty hand and pauses before it reads the
+        // hand; the prefs carry the power amount fixed before that pause. A side-start card added
+        // during the pause therefore becomes a candidate.
+        x.RunSetupPause();
+        int count = Math.Min(amount, x.B.HandCount);
         if (count <= 0)
             return;
-        // CardSelectCmd.FromHand pauses before it reads the hand; the prefs (Min=Max=count) are
-        // fixed by the caller before that pause.
-        x.RunSetupPause();
         Span<int> options = stackalloc int[x.B.HandCount];
         for (int index = 0; index < options.Length; index++)
             options[index] = index;

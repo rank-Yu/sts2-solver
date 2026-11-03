@@ -855,9 +855,11 @@ public ref struct Exec
                 if ((selection & ~valid) != 0 || count < request.MinCount || count > request.MaxCount)
                     throw new InvalidOperationException($"选择 {selection:X} 不符合选项规格（{request.OptionCount} 项，{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} timing={request.Timing} source={request.Source} choices={_choiceCount} taken={_choicesTaken}）。");
             }
-            // The first carried selection answers the native setup pause: run the side start and
-            // the orb turn-start pass before the listener that asked resumes and applies it.
-            if (_choicesTaken == 1)
+            // The first carried PlayerTurnStart selection answers the native setup pause: run the
+            // side start and the orb turn-start pass before the listener that asked resumes and
+            // applies it. An EndTurn action can carry turn-end/enemy-turn selections before the
+            // setup choices, so the pause point is the request timing, not the first carried choice.
+            if (request.Timing == ChoiceTiming.PlayerTurnStart)
                 RunSetupPause();
             return true;
         }

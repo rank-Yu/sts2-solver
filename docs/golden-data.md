@@ -175,6 +175,19 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 两套语义来源要分清：数据的语义参照 CombatSolver `a62f1850`，但快照本身由 M0 宿主在 `752170…` 捕获，两者不是同一个提交。模拟回归的 `config.br` 与 `golden.br` 来自同一次确定性运行。
 
+当前冻结数据的来源记录保存在 manifest 中，两者都由对应工具写入，不手改：
+
+```text
+d1Rerecord = roots=dx5-history-course-choice,id-f-generation,lr-a-choices,
+  ls-b-silent-powers,p16-c-instanced-powers,p16-d-entropy,pr-c-relics,
+  qf-turn-start-choice-forge,qf2-gradient-failure,quality-DEFECT-000,
+  quality-DEFECT-020,quality-IRONCLAD-005,quality-IRONCLAD-011,quality-REGENT-001,
+  quality-REGENT-003,quality-REGENT-008,quality-REGENT-012,quality-REGENT-022,
+  quality-SILENT-004,quality-SILENT-013,sw2-entropy-transform,ts-a-toasty
+  reason=endturn-setup-pause sha256=844ea8593284821460eeec37d4d993175005f8e5f9bdf6e8c77f67e5912abce3
+refreeze = M3b current-code results sha256=cc7218574b5da0b98752c8b59c44e50dca96f6c0285d6fa36139940c24a93d32
+```
+
 ## 9. 重录与重冻会改什么
 
 两个工具都先复制整棵数据目录，在副本上修改；源目录只读，目标目录必须为空，两者不能互相包含。命令见 [测试与验证](testing.md#5-更新快照)。

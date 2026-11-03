@@ -1317,24 +1317,15 @@ internal static class CombatControllerChecks
         action("press_execute_turn_one");
         CombatUiSnapshot plan = await WaitTurnTwoSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
-        if (scenarioId == "TS-G-MULTI-CHOICE")
-        {
-            // The furnace gap rejects the reused plan; the new search plan still carries Tyranny.
-            check("validation_fallback",
-                !plan.TurnSetupContinuation
-                    && PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 1,
-                $"{plan.TurnSetupContinuation} " +
-                $"{PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch} " +
-                $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
-        }
-        else
-        {
-            check("continuation", plan.TurnSetupContinuation,
-                plan.TurnSetupContinuation.ToString());
-            check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
-                $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
-                $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
-        }
+        // The furnace now pauses the EndTurn setup at the same point as the native page, so the
+        // carried plan already contains the paused-in Sovereign Blade candidate and is reused.
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("no_validation_fallback",
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 0,
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch.ToString());
         string[] texts = SetupChoiceTexts(host);
         check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
         bool english = SolverText.IsEnglish;
@@ -1462,33 +1453,38 @@ internal static class CombatControllerChecks
     }
 
     /// <summary>
-    /// The furnace adds a candidate at the native pause. Validation must reject the stale plan and
-    /// search again instead of driving it or pausing full auto.
+    /// Furnace pause regression for ts-g-multi-choice. The kernel used to answer the turn-start
+    /// choices before the side start, so the carried plan had one fewer candidate than the native
+    /// page and validation had to fall back to a new setup search. EndTurn now pauses at the first
+    /// turn-start choice exactly like PreparePlayerPlayPhase, so the plan validates and is reused
+    /// without a second search.
     /// </summary>
     private static async Task TurnSetupContinuationGapAsync(NGame host, Check check, Action action)
     {
         check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
             Snapshot().Mode.ToString());
         CombatUiSnapshot page = await WaitAsync(host,
-            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "furnace validation page");
-        action("wait_furnace_validation");
+            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "furnace pause page");
+        action("wait_furnace_pause");
         check("page_open", page.TurnSetupPageOpen);
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
-        check("validation_candidate",
-            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 1,
-            $"{PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch} " +
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk == 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
             $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
-        check("no_continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 0,
+        check("no_validation_candidate",
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 0,
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch.ToString());
+        check("continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 1,
             PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
-        check("searches_two", plan.Searches == 2, plan.Searches.ToString());
-        check("not_continuation", !plan.TurnSetupContinuation,
-            plan.TurnSetupContinuation.ToString());
+        check("searches_one", plan.Searches == 1, plan.Searches.ToString());
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
         check("not_paused", Snapshot().Phase != CombatUiPhase.Paused, Snapshot().PauseCode);
         check("no_pause_code", plan.PauseCode == null, plan.PauseCode);
         CombatUiSnapshot activated = await WaitAsync(host,
             static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
-            "furnace validated search activated");
+            "furnace reused plan activated");
         check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());
+        check("searches_still_one", activated.Searches == 1, activated.Searches.ToString());
         check("page_closed", !activated.TurnSetupPageOpen);
         check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
         check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());

@@ -300,9 +300,10 @@ internal sealed class LiveCombatTracker
         foreach (Counter counter in CarriedCounters)
             live.SetCounter(counter, predicted.Counter(counter));
         // Shuffle counters are search-only: ShuffleEventCount is an action-local kernel counter and
-        // ShufflesCrossed is a derived route-score key. The importer cannot recover either from the
-        // native game; the predicted values are carried so later searches keep the same scoring
-        // lineage. Card piles and all nine RNG streams remain strictly compared.
+        // ShufflesCrossed is a state-identity key (it participates in Fingerprint state identity and
+        // dedup, not in scorer/bound evaluation). The importer cannot recover either from the native
+        // game; the predicted values are carried so later searches keep the same state identity.
+        // Card piles and all nine RNG streams remain strictly compared.
         live.ShuffleEventCount = predicted.ShuffleEventCount;
         live.ShufflesCrossed = predicted.ShufflesCrossed;
         live.Flags = (live.Flags & ~BattleFlags.HasRisk) | (predicted.Flags & BattleFlags.HasRisk);

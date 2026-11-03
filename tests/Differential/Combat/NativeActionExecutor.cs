@@ -7,6 +7,7 @@ using System.Diagnostics;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Actions;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -50,7 +51,15 @@ internal sealed class NativeActionExecutor(
         PlannedChoice[] explicitChoices = [.. planned.Choices.Where(static choice => !choice.Implicit)];
         NativeChoiceSelector selector = new(explicitChoices, player,
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
-        using IDisposable selectorScope = NativeChoiceSelector.Activate(selector);
+        // Production releases PlannedNativeSelector before the next turn's setup page, so the
+        // native SetupPlayerTurn task pauses at CardSelectCmd.Selector == null. An EndTurn action
+        // therefore answers through LocalSelector for its whole execution: end-of-turn choices and
+        // the next turn's setup choices take the native paused branch, while the same frozen plan
+        // still supplies every selection. Other actions keep the ordinary selector.
+        bool endTurn = planned.Action.Kind == PlayerActionKind.EndTurn;
+        using IDisposable selectorScope = endTurn
+            ? CardSelectCmd.PushSelector(selector, localOnly: true)
+            : NativeChoiceSelector.Activate(selector);
         TerminalBattleCapture.Begin(() => TerminalBattleCapture.Import(
             CombatManager.Instance.DebugOnlyGetState(), tracker, rules, planned.After, player));
         try

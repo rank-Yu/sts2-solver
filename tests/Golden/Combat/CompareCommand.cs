@@ -40,7 +40,8 @@ internal static class CompareCommand
         long SearchMemoryUsed,
         long RouteNodeStorage,
         int RouteNodePeak,
-        SearchEquivalenceDiagnostics Equivalence);
+        SearchEquivalenceDiagnostics Equivalence,
+        string QualityError);
 
     internal static int Run(string[] args)
     {
@@ -160,18 +161,39 @@ internal static class CompareCommand
             }
             solveWatch.Stop();
             Quality quality = Quality.Unknown;
-            if (solver.TryCompareResultQuality(search.Battles, expected, actual, out int comparison))
+            string qualityError = "";
+            try
             {
-                quality = comparison < 0 ? Quality.Worse
-                    : comparison > 0 ? Quality.Better
-                    : Quality.Same;
+                if (solver.TryCompareResultQuality(search.Battles, expected, actual,
+                        out int comparison))
+                {
+                    quality = comparison < 0 ? Quality.Worse
+                        : comparison > 0 ? Quality.Better
+                        : Quality.Same;
+                }
+            }
+            catch (UnsupportedException error)
+            {
+                qualityError = DescribeQualityFailure(error);
+            }
+            catch (ArgumentOutOfRangeException error)
+            {
+                qualityError = DescribeQualityFailure(error);
+            }
+            catch (InvalidOperationException error)
+            {
+                qualityError = DescribeQualityFailure(error);
+            }
+            catch (InvalidDataException error)
+            {
+                qualityError = DescribeQualityFailure(error);
             }
             rows.Add(new Row(hash, quality, RouteEquals(expected.BestRoute, actual.BestRoute),
                 expected.ExpandedNodes, actual.ExpandedNodes, expected.Transitions, actual.Transitions,
                 expected.BestScore, actual.BestScore, expected.BestIsVictory, actual.BestIsVictory,
                 solveWatch.Elapsed.TotalMilliseconds, managedPeak,
                 actual.SearchMemoryUsedBytes, actual.RouteNodeStorageBytes,
-                actual.RouteNodePeakCount, actual.Equivalence));
+                actual.RouteNodePeakCount, actual.Equivalence, qualityError));
         });
         watch.Stop();
         Row[] ordered = [.. rows.OrderBy(static row => row.Hash, StringComparer.Ordinal)];
@@ -183,7 +205,7 @@ internal static class CompareCommand
                 + "searchMemoryUsed,routeNodeStorage,routeNodePeak,playDeduped,"
                 + "playVerifiedExact,playVerifiedApprox,playVerifiedApproxEqual,playVerifiedUnresolved,"
                 + "choiceByClassRequests,choiceVerifiedExact,choiceVerifiedApprox,"
-                + "choiceVerifiedApproxEqual,choiceVerifiedUnresolved");
+                + "choiceVerifiedApproxEqual,choiceVerifiedUnresolved,qualityError");
             foreach (Row row in ordered)
             {
                 SearchEquivalenceDiagnostics e = row.Equivalence;
@@ -213,6 +235,7 @@ internal static class CompareCommand
                     e.ChoiceVerifiedApprox.ToString(CultureInfo.InvariantCulture),
                     e.ChoiceVerifiedApproxEqual.ToString(CultureInfo.InvariantCulture),
                     e.ChoiceVerifiedUnresolved.ToString(CultureInfo.InvariantCulture),
+                    Csv(row.QualityError),
                 }));
             }
             Console.WriteLine($"COMPARE_WROTE {output} rows={ordered.Length}");
@@ -257,9 +280,25 @@ internal static class CompareCommand
                 + $"oldScore={row.OldScore:R} newScore={row.NewScore:R} "
                 + $"oldVictory={row.OldVictory} newVictory={row.NewVictory} "
                 + $"routeEqual={row.RouteEqual} oldTransitions={row.OldTransitions} "
-                + $"newTransitions={row.NewTransitions} ms={row.Milliseconds:F0}");
+                + $"newTransitions={row.NewTransitions} ms={row.Milliseconds:F0} "
+                + $"qualityError={row.QualityError}");
         }
         return 0;
+    }
+
+    private static string DescribeQualityFailure(Exception error)
+        => $"{error.GetType().Name}: {error.Message}";
+
+    /// <summary>Quotes one CSV field when the replay error contains separators or quotes.</summary>
+    private static string Csv(string value)
+    {
+        value = value.Replace('\r', ' ').Replace('\n', ' ');
+        if (!value.Contains(',', StringComparison.Ordinal)
+            && !value.Contains('"', StringComparison.Ordinal))
+        {
+            return value;
+        }
+        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 
     private static bool RouteEquals(PlayerAction[] left, PlayerAction[] right)

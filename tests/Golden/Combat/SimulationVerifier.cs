@@ -17,7 +17,9 @@ internal sealed record SimulationSummary(
     int Transitions,
     long FeatureStates,
     long FeatureTraits,
-    long RulesObjects);
+    long RulesObjects,
+    int SetupPauseChecks,
+    int SetupPauseExtraTurns);
 
 internal sealed record SimulationFileResult(
     int Roots,
@@ -26,7 +28,9 @@ internal sealed record SimulationFileResult(
     int WalkStates,
     int Transitions,
     long FeatureStates,
-    long FeatureTraits);
+    long FeatureTraits,
+    int SetupPauseChecks,
+    int SetupPauseExtraTurns);
 
 internal static class SimulationVerifier
 {
@@ -53,6 +57,7 @@ internal static class SimulationVerifier
 
         int roots = 0, k1 = 0, walks = 0, states = 0, transitions = 0;
         long featureStates = 0, featureTraits = 0;
+        int setupPauseChecks = 0, setupPauseExtraTurns = 0;
         foreach (string directory in selected)
         {
             string name = Path.GetFileName(directory);
@@ -64,12 +69,14 @@ internal static class SimulationVerifier
             transitions += result.Transitions;
             featureStates += result.FeatureStates;
             featureTraits += result.FeatureTraits;
+            setupPauseChecks += result.SetupPauseChecks;
+            setupPauseExtraTurns += result.SetupPauseExtraTurns;
             Console.WriteLine($"ROOT {name} roots={result.Roots} k1={result.K1} walks={result.Walks} "
                 + $"states={result.WalkStates} transitions={result.Transitions} "
                 + $"features={result.FeatureStates} traits={result.FeatureTraits} OK");
         }
         return new SimulationSummary(selected.Length, roots, k1, walks, states, transitions,
-            featureStates, featureTraits, RulesCache.Count);
+            featureStates, featureTraits, RulesCache.Count, setupPauseChecks, setupPauseExtraTurns);
     }
 
     private static SimulationFileResult VerifyFile(string dataDirectory, string directory)
@@ -105,6 +112,7 @@ internal static class SimulationVerifier
 
         long featureStates = 0, featureTraits = 0;
         int walkStates = 0, transitions = 0;
+        int setupPauseChecks = 0, setupPauseExtraTurns = 0;
 
         for (int index = 0; index < record.Roots.Count; index++)
         {
@@ -112,6 +120,8 @@ internal static class SimulationVerifier
             CheckFeatures(rootName, $"root[{index}]", root.Battle, rootActionCount,
                 scorer, bound, root.ScoreHash, root.BoundStatus, root.BoundHash);
             featureStates++;
+            CheckRootEndTurnSetupPause(rootName, $"root[{index}]", root.Battle, rules,
+                ref setupPauseChecks, ref setupPauseExtraTurns);
         }
 
         foreach (GoldenK1Action entry in record.K1)
@@ -119,7 +129,8 @@ internal static class SimulationVerifier
             if ((uint)entry.RootIndex >= (uint)record.Roots.Count)
                 throw new InvalidDataException($"根 {rootName} 的 K1 根下标 {entry.RootIndex} 越界。");
             VerifyK1(rootName, record.Roots[entry.RootIndex].Battle, entry, rules,
-                scorer, bound, rootActionCount, ref featureStates, ref featureTraits);
+                scorer, bound, rootActionCount, ref featureStates, ref featureTraits,
+                ref setupPauseChecks, ref setupPauseExtraTurns);
         }
 
         foreach (GoldenWalk walk in record.Walks)
@@ -128,7 +139,8 @@ internal static class SimulationVerifier
                 throw new InvalidDataException($"根 {rootName} 的游走根下标 {walk.RootIndex} 越界。");
             VerifyWalk(rootName, walk, record.Roots[walk.RootIndex].Battle, rules,
                 scorer, bound, rootActionCount, ref featureStates,
-                ref featureTraits, ref walkStates, ref transitions);
+                ref featureTraits, ref walkStates, ref transitions,
+                ref setupPauseChecks, ref setupPauseExtraTurns);
         }
 
         if (counts.GetProperty("walkStates").GetInt32() != walkStates
@@ -136,14 +148,17 @@ internal static class SimulationVerifier
             throw new InvalidDataException($"根 {rootName} 的游走计数与 meta 不符。");
 
         return new SimulationFileResult(record.Roots.Count, record.K1.Count, record.Walks.Count,
-            walkStates, transitions, featureStates, featureTraits);
+            walkStates, transitions, featureStates, featureTraits, setupPauseChecks,
+            setupPauseExtraTurns);
     }
 
     private static void VerifyK1(string rootName, in Battle root, GoldenK1Action entry,
         Rules rules, Scorer scorer, BoundFeatures? bound, int rootActionCount,
-        ref long featureStates, ref long featureTraits)
+        ref long featureStates, ref long featureTraits, ref int setupPauseChecks,
+        ref int setupPauseExtraTurns)
     {
         PlayerAction action = entry.BaseAction;
+        int firstSetup = -1;
         for (int index = 0; index < entry.Requests.Length; index++)
         {
             Battle partial = root;
@@ -152,6 +167,8 @@ internal static class SimulationVerifier
             if (result != StepResult.NeedsChoice)
                 throw Mismatch(rootName, $"K1 root={entry.RootIndex} choice[{index}] expected needs-choice but got {result}");
             CompareRequest(rootName, $"K1 root={entry.RootIndex} choice[{index}]", entry.Requests[index], request);
+            if (request.Timing == ChoiceTiming.PlayerTurnStart && firstSetup < 0)
+                firstSetup = index;
             if (index >= entry.Selections.Length)
                 throw Mismatch(rootName, $"K1 root={entry.RootIndex} missing selection {index}");
             action = action.WithChoice(entry.Selections[index]);
@@ -166,6 +183,8 @@ internal static class SimulationVerifier
         ulong expectedChild = Codec.BattleHash(child);
         if (entry.ChildHash != expectedChild)
             throw Mismatch(rootName, $"K1 root={entry.RootIndex} child hash expected={entry.ChildHash:X16} actual={expectedChild:X16}");
+        CheckEndTurnSetupPause(rootName, $"K1 root={entry.RootIndex}", root, action, firstSetup,
+            child, rules, ref setupPauseChecks, ref setupPauseExtraTurns);
         if (entry.Ended != !Kernel.IsInProgress(child))
             throw Mismatch(rootName, $"K1 root={entry.RootIndex} ended expected={entry.Ended} actual={!Kernel.IsInProgress(child)}");
 
@@ -181,7 +200,8 @@ internal static class SimulationVerifier
 
     private static void VerifyWalk(string rootName, GoldenWalk walk, in Battle root,
         Rules rules, Scorer scorer, BoundFeatures? bound, int rootActionCount,
-        ref long featureStates, ref long featureTraits, ref int walkStates, ref int transitions)
+        ref long featureStates, ref long featureTraits, ref int walkStates, ref int transitions,
+        ref int setupPauseChecks, ref int setupPauseExtraTurns)
     {
         Battle battle = root;
         Span<PlayerAction> actions = stackalloc PlayerAction[Kernel.MaxLegalActions];
@@ -234,6 +254,7 @@ internal static class SimulationVerifier
             transitions++;
 
             PlayerAction action = state.StepBase;
+            int firstSetup = -1;
             for (int index = 0; index < state.StepRequests.Length; index++)
             {
                 Battle partial = battle;
@@ -243,6 +264,8 @@ internal static class SimulationVerifier
                     throw Mismatch(rootName, $"walk seed={walk.Seed} state={stateIndex} step choice[{index}] expected needs-choice but got {result}");
                 CompareRequest(rootName, $"walk seed={walk.Seed} state={stateIndex} step choice[{index}]",
                     state.StepRequests[index], request);
+                if (request.Timing == ChoiceTiming.PlayerTurnStart && firstSetup < 0)
+                    firstSetup = index;
                 if (index >= state.StepSelections.Length)
                     throw Mismatch(rootName, $"walk seed={walk.Seed} state={stateIndex} missing step selection {index}");
                 action = action.WithChoice(state.StepSelections[index]);
@@ -257,6 +280,9 @@ internal static class SimulationVerifier
             ulong childHash = Codec.BattleHash(child);
             if (state.ChildHash != childHash)
                 throw Mismatch(rootName, $"walk seed={walk.Seed} state={stateIndex} child hash expected={state.ChildHash:X16} actual={childHash:X16}");
+            CheckEndTurnSetupPause(rootName, $"walk seed={walk.Seed} state={stateIndex}", battle,
+                action, firstSetup, child, rules, ref setupPauseChecks,
+                ref setupPauseExtraTurns);
             if (state.Ended != !Kernel.IsInProgress(child))
                 throw Mismatch(rootName, $"walk seed={walk.Seed} state={stateIndex} ended expected={state.Ended} actual={!Kernel.IsInProgress(child)}");
 
@@ -398,6 +424,88 @@ internal static class SimulationVerifier
                     throw Mismatch(rootName, $"{where} generated option[{index}] mismatch");
             }
         }
+    }
+
+
+    /// <summary>
+    /// Long-term contract for the shared end-turn/setup pause semantics: every normal-turn EndTurn
+    /// transition whose next turn asks a PlayerTurnStart choice must produce exactly the Play root
+    /// that <see cref="Kernel.PreparePlayerPlayPhase"/> produces from the same Start root and the same
+    /// setup selections. Extra turns stay outside the preamble (and are counted explicitly).
+    /// </summary>
+    private static void CheckEndTurnSetupPause(string rootName, string where, in Battle before,
+        in PlayerAction action, int firstSetup, in Battle child, Rules rules,
+        ref int checks, ref int extraTurns)
+    {
+        if (action.Kind != PlayerActionKind.EndTurn || firstSetup < 0)
+            return;
+        if (!Kernel.TryAdvanceToPlayerSetupStart(in before, rules, action, out Battle start))
+        {
+            Battle diagnostic = before;
+            Exec x = new(ref diagnostic, rules, action);
+            if (!Kernel.AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn))
+                throw Mismatch(rootName, $"{where} setup-pause contract cannot advance to the setup entry");
+            if (!takingExtraTurn)
+                throw Mismatch(rootName, $"{where} setup-pause contract Start prediction failed");
+            extraTurns++;
+            return;
+        }
+        int choiceCount = action.ChoiceCount - firstSetup;
+        if (choiceCount < 0 || choiceCount > Limits.MaxChoices)
+            throw Mismatch(rootName, $"{where} setup-pause contract choice range {choiceCount}");
+        Span<ulong> setupChoices = stackalloc ulong[choiceCount];
+        for (int index = 0; index < choiceCount; index++)
+            setupChoices[index] = action.Choices[firstSetup + index];
+        Battle prepared = start;
+        StepResult result = Kernel.PreparePlayerPlayPhase(ref prepared, rules, setupChoices, out _);
+        checks++;
+        if (result != StepResult.Completed)
+            throw Mismatch(rootName, $"{where} setup-pause contract replay returned {result}");
+        if (!Fingerprint.Equal(in child, in prepared))
+        {
+            string diff = string.Join(" | ",
+                BattleDump.Diff(in child, in prepared, "endturn", "prepare").Take(6));
+            throw Mismatch(rootName, $"{where} setup-pause contract root mismatch: {diff}");
+        }
+    }
+
+    /// <summary>
+    /// Runs one deterministic EndTurn from a root (first enumerated selection at each request) to
+    /// cover roots whose recorded K1/walks happen not to execute EndTurn.
+    /// </summary>
+    private static void CheckRootEndTurnSetupPause(string rootName, string where, in Battle root,
+        Rules rules, ref int checks, ref int extraTurns)
+    {
+        if (!Kernel.IsInProgress(root) || root.Phase != PlayerPhase.Play || root.Side != Side.Player)
+            return;
+        Battle state = root;
+        PlayerAction action = PlayerAction.EndTurn();
+        int firstSetup = -1;
+        Battle child = default;
+        Span<ulong> buffer = stackalloc ulong[BeamSolver.MaxChoiceBranches];
+        for (int depth = 0; ; depth++)
+        {
+            if (depth > Limits.MaxChoices)
+                throw Mismatch(rootName, $"{where} setup-pause root scan exceeded the choice limit");
+            Battle partial = state;
+            StepResult result = Kernel.Step(ref partial, action, rules,
+                out ChoiceRequest request, out _);
+            if (result == StepResult.Completed)
+            {
+                child = partial;
+                break;
+            }
+            if (request.Timing == ChoiceTiming.PlayerTurnStart && firstSetup < 0)
+                firstSetup = action.ChoiceCount;
+            if (action.ChoiceCount >= Limits.MaxChoices)
+                throw Mismatch(rootName, $"{where} setup-pause root scan exceeded the choice limit");
+            int written = ChoiceEnumerator.Enumerate(request, buffer);
+            if (written == 0)
+                throw Mismatch(rootName, $"{where} setup-pause root scan found no selections");
+            action = action.WithChoice(buffer[0]);
+        }
+        CheckEndTurnSetupPause(rootName, where, root, action, firstSetup, child, rules,
+            ref checks, ref extraTurns);
     }
 
     private static InvalidDataException Mismatch(string rootName, string detail)

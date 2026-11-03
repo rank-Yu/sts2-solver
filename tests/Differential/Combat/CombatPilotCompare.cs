@@ -220,7 +220,12 @@ internal static class CombatPilotCompare
         try
         {
             OfflineCombatWaiter waiter = new(loop);
-            Task<CombatState> build = ScenarioBuilder.BuildAsync(waiter, request);
+            // The opening SetupPlayerTurn can ask for a turn-start choice (Toasty Mittens,
+            // Gambling Chip, Tyranny, ...). Supply the same local selector surface the setup
+            // enumeration uses so the comparison builds through the native pause to Play; the
+            // selector is unused when the opening asks nothing.
+            Task<CombatState> build = ScenarioBuilder.BuildAsync(waiter, request,
+                turnSetupSelector: new TurnSetupCardSelector(0));
             loop.RunUntilCompleted(build, TimeSpan.FromSeconds(120), "pilot 战斗场景");
             CombatState combat = build.GetAwaiter().GetResult();
             string encounterId = combat.Encounter?.Id.Entry

@@ -556,12 +556,13 @@ public sealed class ToastyMittens : RelicDef
 
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
+        // CardSelectCmd.FromHand is called even with an empty hand; with CardSelectCmd.Selector
+        // null it signals the native setup pause before it builds the list. Run the pause first so
+        // a card added at side start (Furnace/Crossbow) is a candidate. Outside the setup preamble
+        // this is a no-op and the historical EndTurn shortcut is unchanged.
+        bool setup = x.RunSetupPause();
         if (x.B.HandCount > 0)
         {
-            // CardSelectCmd.FromHand signals the native setup pause before it builds the hand
-            // list. Run the pause first so a card added at side start (Crossbow) is a candidate;
-            // outside the setup preamble this is a no-op and the EndTurn path is unchanged.
-            bool setup = x.RunSetupPause();
             if (setup || x.B.HandCount > 1)
             {
                 Span<int> options = stackalloc int[x.B.HandCount];
@@ -580,8 +581,10 @@ public sealed class ToastyMittens : RelicDef
             else
             {
                 // CardSelectCmd.FromHand auto-selects when the hand has at most MinSelect cards
-                // (RequireManualConfirmation is false for the 1-of-1 prompt). The EndTurn path
-                // does not model the setup pause's candidate rebuild, so it keeps this shortcut.
+                // (RequireManualConfirmation is false for the 1-of-1 prompt). Outside the setup
+                // preamble the candidate list is not rebuilt after a pause, so it keeps this
+                // shortcut; in the preamble the implicit one-option request above records the
+                // selection so deferred side-start effects still run first.
                 Span<int> only = stackalloc int[1];
                 Kernel.ExhaustSelected(ref x, Pile.Hand, only);
                 if (x.NeedsChoice)

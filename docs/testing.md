@@ -111,7 +111,7 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 
 ### 4.1 模拟回归
 
-输出 `SIMULATION_OK`，汇总文件、根、游走、状态、特征和差异的计数，失败时以非零退出。对每个根重放：
+输出 `SIMULATION_OK`，汇总文件、根、游走、状态、特征和差异的计数，失败时以非零退出。除下面列出的重放外，模拟回归还在每个根、K1 和 K2 转移上检查结束回合的 setup 暂停合同：凡是 EndTurn 进入下一回合且请求 `PlayerTurnStart` 选择的转移，`EndTurn.After` 必须逐字节等于 `PreparePlayerPlayPhase(TryAdvanceToPlayerSetupStart(EndTurn.Before), 同样的准备选择)`；每个根另跑一条确定的 EndTurn 路径覆盖记录里没有结束回合的根。额外回合不属于准备前奏，单独计入 `setupPauseExtraTurns`。对每个根重放：
 
 - `golden.br` 里的根状态、K1 单步动作与完整选择序列；
 - K2 固定种子游走的每一步状态、合法动作顺序、选择请求与实际选择；
@@ -177,7 +177,7 @@ dotnet run --project tests/Golden -c Release --no-build -- \
 - `--config none|play|choice|all|choice-fill|all-fill`：`none` 关闭两项去重；`play` 只开完全等价的出牌去重；`choice` 只开旧的选牌等价类（每个类向量一个代表）；`all` 是 `play + choice`；`choice-fill` 是类优先、再补位置变体；`all-fill` 是 `play + choice-fill`，也是正式默认。
 - `--shard i/n`：与 `verify` 相同的权重分片；全量对照按 4 片运行。
 - `--search-threads N`：每个请求内部的展开线程数，默认 1；结果应与单线程逐字节相同。
-- `--out`：逐请求的 CSV，含质量分类、路线是否逐动作相同、展开/转移、分数、胜负、耗时和等价计数。
+- `--out`：逐请求的 CSV，含质量分类、路线是否逐动作相同、展开/转移、分数、胜负、耗时和等价计数；质量比较因冻结路线重放失败而记 `unknown` 时，末尾的 `qualityError` 列写具体异常类型和消息。
 - `--verify`：对照时打开 `STS2_SOLVER_VERIFY_SEARCH_EQUIVALENCE` 的全部检查；精确等价断言失败仍以 `GOLDEN_FAILED` 退出，近似项只统计。
 - 质量用 `BeamSolver.TryCompareResultQuality` 判断：把冻结路线和当前路线分别从同一根重放，按求解器自己的终局比较键（胜负、存活、死亡保护、战略失血、成长、回合、资源、可选药水、敌人生命、分数、动作数）分成更好、相同、更差；无法重放时计 `unknown`。
 - 不修改 `tests/Golden/data`，也不更新 manifest。
@@ -371,7 +371,7 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 后续回合和新页面的场景用 `turn_setup_turn2`（上一回合由求解器结束，第 2 回合沿用 EndTurn 计划，不再搜索）、`turn_setup_manual_end`（自动搜索档，玩家用原生结束回合动作结束上一回合，没有可沿用的计划，走新的准备搜索）、`turn_setup_autopreplay`（`ts-d-autopreplay-choice`，沿用计划包含 AutoPrePlay 选择，驱动消费完且只有一次搜索）、`turn_setup_plasma`（`ts-i-plasma-pause` 第 2 回合沿用）、`turn_setup_multi`（`ts-k-two-relic-choices` 的两段准备选择）和 `turn_setup_carry`（`ts-a-toasty`，初始生命 1/80、敌人 120，第 1 回合强制使用 `BLOOD_POTION` 使 `RecoveredHp=16`，断言第 2 回合准备 Start 根、选中的 Play 根和部署边界都等于该值，且预测 Start 根与实机一致）。`turn_setup_crossbow` / `turn_setup_crossbow_many` 用 `ts-j-crossbow-one-card` / `ts-j-crossbow-many` 验证暂停后加入手牌的十字弓牌进入原生页面候选（分别 2 个和 4 个选项）。
 
-沿用计划的场景另加 `turn_setup_continuation_full`（`ts-a-toasty` 全自动至少 3 个玩家回合，只搜索一次，复用回合数增加，0 偏差）、`turn_setup_continuation_auto`（自动搜索档第 2 回合显示沿用计划，执行后驱动并部署）、`turn_setup_continuation_player`（玩家改选后计划作废，出牌阶段正常搜索）、`turn_setup_continuation_validation`（校验前篡改计划，改走新的枚举搜索）、`turn_setup_continuation_gap`（`ts-g-multi-choice` 的熔炉在暂停处多一个候选，校验拒绝后改走新搜索并正常部署，不暂停全自动）、`turn_setup_continuation_mismatch`（校验通过后、驱动前篡改计划，页面交还，全自动按 `choice_mismatch` 暂停）、`turn_setup_continuation_pause`（沿用计划命中全自动暂停条件）和 `turn_setup_continuation_probe`（只记录沿用计划被校验或续用比较接受还是拒绝，供研究）。胶囊来源用 `turn_setup_capsule_source` / `turn_setup_capsule_source_turn2` 在中文和英文下断言遗物、能力、卡牌来源的本地化标题；`ts-g` 的胶囊来自校验失败后的新搜索计划。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`，并要求出牌阶段的精确状态戳一致。
+沿用计划的场景另加 `turn_setup_continuation_full`（`ts-a-toasty` 全自动至少 3 个玩家回合，只搜索一次，复用回合数增加，0 偏差）、`turn_setup_continuation_auto`（自动搜索档第 2 回合显示沿用计划，执行后驱动并部署）、`turn_setup_continuation_player`（玩家改选后计划作废，出牌阶段正常搜索）、`turn_setup_continuation_validation`（校验前篡改计划，改走新的枚举搜索）、`turn_setup_continuation_gap`（`ts-g-multi-choice` 的熔炉在暂停处多一个候选，内核 EndTurn 现在和准备前奏同样暂停，因此沿用计划通过校验并直接部署，只搜索一次、不改走新搜索）、`turn_setup_continuation_mismatch`（校验通过后、驱动前篡改计划，页面交还，全自动按 `choice_mismatch` 暂停）、`turn_setup_continuation_pause`（沿用计划命中全自动暂停条件）和 `turn_setup_continuation_probe`（只记录沿用计划被校验或续用比较接受还是拒绝，供研究）。胶囊来源用 `turn_setup_capsule_source` / `turn_setup_capsule_source_turn2` 在中文和英文下断言遗物、能力、卡牌来源的本地化标题；`ts-g` 的胶囊来自沿用计划。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`，并要求出牌阶段的精确状态戳一致。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \

@@ -28,6 +28,7 @@
 - 拍快照时，选择游标、效果深度和嵌套 Sly 标记区间都必须为空，逐项断言。
 - 遇到额外回合，或前半段已经请求选择，返回“不可共享”（`EndTurnPrefixStatus`），调用方改跑完整的 `Step`，不做近似。
 - 前半段在玩家回合开始前就结束了战斗时，仍会拍快照；续跑跳过玩家回合开始，只做动作收尾，与完整 `Step` 相同。
+- 后半段包含下一回合的 setup 暂停：首次选择仍会让出 `NeedsChoice`，前缀可以继续复用；侧回合开始、球与选择顺序和完整 `Step` 相同。
 
 `Exec` 新增的字段会不会被漏进快照，由 KernelChecks 的 `ExecCoverage` 合同把关，见 [测试与验证](testing.md#43-搜索等价自检)。
 
@@ -207,11 +208,13 @@ Power 施加（`Q/SimulatedCombatState.cs:648-711`）：数量为 0 或目标不
 3. 能量：`ShouldPlayerResetEnergy`（IceCream 从第 2 回合起拒绝重置；否则清零）→ 加修正后的最大能量与 `ConsumeEnergyNextTurn`（`EnergyNextTurnPower` 的层数直接消费并清零）；`AfterEnergyReset`、遗物 `AfterEnergyReset`、`AfterEnergyResetLate`。
 4. `BeforeHandDraw`：Power → 遗物 → 返回手牌的卡。返回手牌阶段处理 `Card.ReturnToHandNextTurn`（Bolas/ThrummingHatchet），牌已在手牌时只清位。
 5. 抽牌数 = 5 + 下回合抽牌 + DrawCardsNextTurn → `ModifyHandDraw` → Late；抽牌。`ConsumeModifiedHandDraw` 的“尚未快照”项（`DrawCardsNextTurnPower` 的 `AmountOnTurnStart == 0`）在监听者之前直接加到基础抽牌数；已快照的层数由该 Power 的 `ModifyHandDraw` 加。`DrawCardsNextTurnPower` 在 `TriggerBaseSideTurnStart` 清零。
-6. `AfterPlayerTurnStart`（原版：先 Power，再遗物）。回合开始的选择（Tyranny、Toasty Mittens 等）在这里提出，并完整结算。
-7. 玩家己方回合开始效果（`TriggerSideTurnStart`：第 1 回合之后 Plating 递减，Rampart 只在非额外回合执行等），在抽牌和 `AfterPlayerTurnStart` **之后**执行。
-8. 敌人死亡效果 → 苦难归一化 → 回合开始的附魔与球触发 → 自动预打出 → 胜负判定。
+6. `AfterPlayerTurnStart`（原版：先 Power，再遗物）。回合开始的选择（Tyranny、Toasty Mittens、Gambling Chip、工具箱、Foregone Conclusion 等）在这里提出。只要原生的 `CardSelectCmd.Selector == null`（包括只有一个候选或空手牌的隐式请求），`SetupPlayerTurn` 就在第一个选择处暂停；`StartTurn` 先跑侧回合开始（`AfterSideTurnStart`）与球 `AfterTurnStart`，之后才恢复 setup、读取候选并结算选择。
+7. 没有选择时，玩家己方回合开始效果（`TriggerSideTurnStart`：第 1 回合之后 Plating 递减，Rampart 只在非额外回合执行等）在 `AfterPlayerTurnStart` 之后执行；有选择时它已经在暂停处跑过，不再重复。
+8. 敌人死亡效果 → 苦难归一化 → 回合开始的附魔与球触发 → 自动预打出 → 胜负判定。有选择时球在暂停处已经触发，此步不再重复。
 
-第 6、7 步的顺序是按原版“全局自动选择器、不暂停”的方式建模的：`SetupPlayerTurn` 的 `AfterPlayerTurnStart` 完整跑完，才跑侧回合开始和回合开始球。原版的手动界面（`localOnly` 选择器）会在选择处暂停、先跑侧回合开始，这是已知差异。停在选择上的冻结根或导入根按根状态延续，不重跑侧回合开始。
+EndTurn 路径与 `PreparePlayerPlayPhase` 共用同一套 `Exec.SetupPause`/`RunSetupPause` 机制：正常结束回合进入下一回合时也按 `rootSetup` 语义执行装填，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。额外回合不进入这套暂停前奏。
+
+**`ShufflesCrossed` 的记账。** 这个字段是从原版引擎 `SimulationSnapshot` 继承的洗牌跨越计数，不是原生 `CombatState` 的可见状态；导入时作为根事实写入，根之后由内核在首次回合开始、玩家回合结束、药水等动作和抽牌洗牌时更新。它进入 `Fingerprint` 的整段打包状态，因此影响状态身份和去重；搜索评分、下界与 `Scorer` 不读它，`BattleReconciler.Normalize` 在与实机对账前把 `ShuffleEventCount` 和 `ShufflesCrossed` 清零，Mod 只在预测边界和回合准备根之间携带它。记账规则按路径区分：普通的首次回合开始和普通动作照旧计数；回合准备前奏（`rootSetup`）不改变导入根值；正常 EndTurn 进入下一回合时，先按旧的 EndTurn 规则把本次 setup 抽牌的洗牌数记入延迟槽，只有 setup 没有在 `PlayerTurnStart` 选择处暂停时才补回字段，发生暂停时丢弃这笔增量。这样有暂停的 EndTurn 与前奏逐字节一致，无暂停的 EndTurn 仍保持历史边界；差别只落在状态身份上，不改变搜索评分。
 
 ### 7.1 额外回合
 

@@ -58,6 +58,7 @@ internal static class UiLogicChecks
             }
         }
 
+        Check("jit_prepare_methods", JitChecks.Run);
         Check("settings_defaults", Defaults);
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));

@@ -262,6 +262,27 @@ Golden 和 Mod 的默认整场流程。订阅只读取搜索状态，不改变�
 供主线程每帧读取，`RequestAdopt` / `RequestStop` 是线程安全的请求入口，
 `ConfigureProgress` 控制后续搜索是否订阅。
 
+### 9.4 停止后的接续
+
+停止并保留候选时，协调器除了返回 `StoppedWithCandidate`，还会带出一份
+`SearchResumeState`。它只存在宿主内存里，不写进 SREQ/SRES，也不进冻结数据，内容包括：第几遍
+（`Pass`）、下一个要跑的成员下标（`NextMemberIndex`）、这一遍已有的成员日志、`free`、`selected`、
+`best`、`bestIndex`、`bestOutcome`、`bestComplete`、`capacityDrops`、累计展开数，以及停止那一刻
+采用的结果（被停成员的候选与已完成最优结果比较后选中的那条）和它的成员下标。最后一遍的最后一个
+成员没有可接续的部分，不返回接续状态。
+
+宿主用同一份计划、同一个请求再次调用协调器并带上这份状态时，成员循环从 `NextMemberIndex` 开始，
+被停成员不重跑；这一遍剩余的成员照常按宽度乘每宽度毫秒独立计时。进度条的计划总时长只统计剩余
+成员。剩余成员跑完后，先按现有规则在它们之间选出最优，再和停止时的结果用
+`TryCompareResultQuality` 比较，取更好的一条；比较不出来（路线无法回放或评分）时保留停止时的
+结果，并在 `SearchResumeMerge` 里给出 `Compared=false` 和原因，宿主据此写日志。再次停止时，
+停止路径把新候选、这一遍已完成的最优结果和上一次停止的结果一起比较，新状态保留更好的那条。
+
+被停成员没有任何候选（`StopWithoutCandidate`）时，如果前面已有完成的成员结果，协调器采用已完成
+的最优结果，按 `StoppedWithCandidate` 返回并带接续状态；只有完全没有可用结果时才按取消处理。
+普通采用请求（`SearchAdoptionKind.Requested`）结束整次请求，不返回接续状态。不停止的请求仍然
+按原来的成员循环和遍数运行，行为不变。
+
 ## 10. 移植来源
 
 能力政策和搜索组合参照 CombatSolver `src/Search/BeamWidthPortfolio.cs`、`src/Search/CombatSearchCoordinator.BeamPortfolio.cs`、`src/Search/CombatSearchCoordinator.PotionChain.cs` 与 `src/Search/PowerCardValuation/Cards/*/*PowerRoutePolicy.cs`，提交 `a62f1850`，MIT License，Copyright (c) 2026 Torch1230 and contributors。

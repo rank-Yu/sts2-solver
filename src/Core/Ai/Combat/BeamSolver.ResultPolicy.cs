@@ -130,4 +130,12 @@ internal sealed partial class BeamSolver
         candidate.Key.Won ? candidate.Key.CombatEndedTurn : null)
     { DeathSaveUseCount = candidate.ProjectedDeathSaveUseCount,
       OutstandingStolenResource = candidate.Key.OutstandingStolenResource };
+
+    /// <summary>The last player turn a replayable result reaches; false when it cannot be scored.</summary>
+    internal bool TryGetResultThroughTurn(IReadOnlyList<Battle> roots, in BeamResult result,
+        out int throughTurn)
+    {
+        throughTurn = 0;
+        return TryEvaluateResultQuality(roots, result, out _, out throughTurn);
+    }
 }

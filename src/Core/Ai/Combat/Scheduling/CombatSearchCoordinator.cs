@@ -78,36 +78,48 @@ internal static class CombatSearchCoordinator
             return policies;
         }
         SearchProgressChannel? progress = request.Progress;
-        long plannedMilliseconds = plan.TotalBudgetMilliseconds ?? 0L;
-        if (plannedMilliseconds <= 0L)
+        SearchResumeState? resume = request.Resume;
+        if (resume != null
+            && (resume.Pass < 0 || resume.Pass >= passCount
+                || resume.NextMemberIndex < 0 || resume.NextMemberIndex > members.Length
+                || resume.Members.Length != resume.NextMemberIndex
+                || resume.StoppedIndex < -1 || resume.StoppedIndex >= resume.Members.Length))
         {
-            for (int pass = 0; pass < passCount; pass++)
-            {
-                PotionStrategySnapshot strategy = forcedGradient && pass == 0
-                    ? initial.Options.Potions.Strategy.ForForcedBaseline()
-                    : initial.Options.Potions.Strategy;
-                _ = ResolvePolicies(strategy, out string?[] passSkips);
-                for (int i = 0; i < members.Length; i++)
-                    if (passSkips[i] is null)
-                        plannedMilliseconds += checked((long)members[i].Width * plan.MillisecondsPerWidth);
-            }
+            throw new InvalidDataException("接续状态与当前搜索计划不一致。");
+        }
+        long plannedMilliseconds;
+        if (resume == null)
+        {
+            plannedMilliseconds = plan.TotalBudgetMilliseconds ?? 0L;
+            if (plannedMilliseconds <= 0L)
+                plannedMilliseconds = RemainingPlannedMilliseconds(0, 0);
+        }
+        else
+        {
+            // A resumed request reports only the members that are still ahead of it.
+            plannedMilliseconds = RemainingPlannedMilliseconds(resume.Pass, resume.NextMemberIndex);
         }
         if (progress != null)
             progress.PlannedBudgetMilliseconds = plannedMilliseconds;
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
-        List<SearchMemberResult> logs = new(members.Length);
-        BeamSolver.Candidate? free = null, selected = null;
-        BeamResult? best = null;
-        Outcome bestOutcome = Outcome.None;
-        int bestIndex = -1;
-        long expanded = 0;
+        List<SearchMemberResult> logs = resume != null ? [.. resume.Members] : new(members.Length);
+        BeamSolver.Candidate? free = resume?.Free, selected = resume?.Selected;
+        BeamResult? best = resume?.Best;
+        Outcome bestOutcome = resume?.BestOutcome ?? Outcome.None;
+        int bestIndex = resume?.BestIndex ?? -1;
+        long expanded = resume?.ExpandedNodes ?? 0L;
         string? error = null;
         bool cancelled = false;
         bool goalReached = false;
-        SortedDictionary<string, int>? capacityDrops = null;
-        SearchInterimResult? bestComplete = null;
-        for (int pass = 0; pass < passCount; pass++)
+        SortedDictionary<string, int>? capacityDrops = resume?.CapacityDrops is { } drops
+            ? new SortedDictionary<string, int>(drops, StringComparer.Ordinal)
+            : null;
+        SearchInterimResult? bestComplete = resume?.BestComplete;
+        int firstPass = resume?.Pass ?? 0;
+        int logsPass = firstPass;
+        for (int pass = firstPass; pass < passCount; pass++)
         {
+            logsPass = pass;
             bool forcedPass = forcedGradient && pass == 0;
             PotionStrategySnapshot strategy = forcedPass
                 ? initial.Options.Potions.Strategy.ForForcedBaseline()
@@ -117,16 +129,20 @@ internal static class CombatSearchCoordinator
                 Potions = initial.Options.Potions with { Strategy = strategy },
             };
             PotionPolicy[] policies = ResolvePolicies(strategy, out string?[] skips);
-            free = null;
-            selected = null;
-            best = null;
-            bestOutcome = Outcome.None;
-            bestIndex = -1;
-            goalReached = false;
-            capacityDrops = null;
-            bestComplete = null;
-            logs = new List<SearchMemberResult>(members.Length);
-            for (int index = 0; index < members.Length; index++)
+            bool resumedPass = resume != null && pass == resume.Pass;
+            if (!resumedPass)
+            {
+                free = null;
+                selected = null;
+                best = null;
+                bestOutcome = Outcome.None;
+                bestIndex = -1;
+                goalReached = false;
+                capacityDrops = null;
+                bestComplete = null;
+                logs = new List<SearchMemberResult>(members.Length);
+            }
+            for (int index = resumedPass ? resume!.NextMemberIndex : 0; index < members.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
                 SearchMember member = members[index];
@@ -197,6 +213,47 @@ internal static class CombatSearchCoordinator
                     logs.Add(new SearchMemberResult(member, true, null,
                         Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal, "stopped",
                         false, null, null, false, 0, 0));
+                    // The stopped member published no candidate of its own. Keep the route this
+                    // request already owns instead of cancelling the whole decision.
+                    if (resume?.StoppedResult is { } earlier)
+                    {
+                        BeamResult kept = earlier;
+                        int keptIndex = resume.StoppedIndex;
+                        bool earlierPass = resume.Pass != pass;
+                        SearchAdoptionInfo keptAdoption = resume.Adoption;
+                        bool keptOnlyDeath = resume.OnlyDeathRoutes;
+                        if (best is { } completed
+                            && quality.TryCompareResultQuality(initial.Battles, completed, earlier,
+                                out int comparison, out int completedThroughTurn, out _)
+                            && comparison < 0)
+                        {
+                            kept = completed;
+                            keptIndex = bestIndex;
+                            earlierPass = false;
+                            keptOnlyDeath = selected is { } completedCandidate
+                                && !completedCandidate.Key.Survives;
+                            keptAdoption = new SearchAdoptionInfo(0, completedThroughTurn,
+                                SearchAdoptionKind.Stopped, bestOutcome)
+                            {
+                                OnlyDeathRoutes = keptOnlyDeath,
+                            };
+                        }
+                        return StopResult(kept, earlierPass ? -1 : keptIndex, keptAdoption,
+                            keptOnlyDeath, pass);
+                    }
+                    if (best is { } bestCompleted)
+                    {
+                        bool onlyDeath = selected is { } bestCandidate
+                            && !bestCandidate.Key.Survives;
+                        int throughTurn = quality.TryGetResultThroughTurn(initial.Battles,
+                            bestCompleted, out int completedTurn) ? completedTurn : 0;
+                        SearchAdoptionInfo completedAdoption = new(0, throughTurn,
+                            SearchAdoptionKind.Stopped, bestOutcome)
+                        {
+                            OnlyDeathRoutes = onlyDeath,
+                        };
+                        return StopResult(bestCompleted, bestIndex, completedAdoption, onlyDeath, pass);
+                    }
                     return new CombatSearchResult(CombatSearchStatus.Cancelled, null, -1,
                         budget.Elapsed, expanded, [.. logs], null)
                     {
@@ -227,6 +284,20 @@ internal static class CombatSearchCoordinator
                             OnlyDeathRoutes = chosenOnlyDeath,
                         };
                     }
+                    bool chosenFromEarlierPass = false;
+                    if (adoption.Kind == SearchAdoptionKind.Stopped
+                        && resume?.StoppedResult is { } stoppedEarlier
+                        && quality.TryCompareResultQuality(initial.Battles, stoppedEarlier, chosen,
+                            out int earlierComparison, out _, out _)
+                        && earlierComparison < 0)
+                    {
+                        // A second stop during a resumed request keeps the best route of both.
+                        chosen = stoppedEarlier;
+                        chosenIndex = resume.StoppedIndex;
+                        chosenFromEarlierPass = resume.Pass != pass;
+                        chosenOnlyDeath = resume.OnlyDeathRoutes;
+                        adoption = resume.Adoption;
+                    }
                     logs.Add(new SearchMemberResult(member, true, null,
                         Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal,
                         adoption.Kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
@@ -244,6 +315,9 @@ internal static class CombatSearchCoordinator
                         SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
                         SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
                     });
+                    if (adoption.Kind == SearchAdoptionKind.Stopped)
+                        return StopResult(chosen, chosenFromEarlierPass ? -1 : chosenIndex,
+                            adoption, chosenOnlyDeath, pass);
                     for (int i = 0; i < logs.Count; i++)
                         logs[i] = logs[i] with { Adopted = i == chosenIndex };
                     CombatSearchStatus adoptionStatus = adoption.Outcome == Outcome.Victory
@@ -254,9 +328,7 @@ internal static class CombatSearchCoordinator
                     return new CombatSearchResult(adoptionStatus, chosen, chosenIndex, budget.Elapsed,
                         expanded, [.. logs], null)
                     {
-                        Completion = adoption.Kind == SearchAdoptionKind.Stopped
-                            ? SearchCompletionKind.StoppedWithCandidate
-                            : SearchCompletionKind.Adopted,
+                        Completion = SearchCompletionKind.Adopted,
                         Adoption = adoption,
                         OnlyDeathRoutes = chosenOnlyDeath,
                         SearchThreads = initial.Options.SearchThreads,
@@ -341,8 +413,47 @@ internal static class CombatSearchCoordinator
         }
         while (logs.Count < members.Length)
             logs.Add(new SearchMemberResult(members[logs.Count], false, error != null ? "invalid" : cancelled ? "cancelled" : goalReached ? "target-reached" : "memory", 0, 0, "skipped", false, null, null, false, 0, 0));
-        if (bestIndex >= 0)
-            for (int i = 0; i < logs.Count; i++) logs[i] = logs[i] with { Adopted = i == bestIndex };
+        SearchResumeMerge? resumeMerge = null;
+        int selectedMember = bestIndex;
+        if (resume?.StoppedResult is { } stoppedResult && !cancelled && error == null)
+        {
+            // The stop-time route participates in the final choice: the best of the members that
+            // ran after the stop is compared with it by the same final ordering the stop used.
+            if (best is null)
+            {
+                best = stoppedResult;
+                bestIndex = resume.StoppedIndex;
+                bestOutcome = resume.Adoption.Outcome;
+                resumeMerge = new SearchResumeMerge(false, true, "no_remaining_result");
+            }
+            else if (quality.TryCompareResultQuality(initial.Battles, best, stoppedResult,
+                out int comparison, out _, out _))
+            {
+                if (comparison > 0)
+                {
+                    best = stoppedResult;
+                    bestIndex = resume.StoppedIndex;
+                    bestOutcome = resume.Adoption.Outcome;
+                    resumeMerge = new SearchResumeMerge(true, true, "stopped_not_worse");
+                }
+                else
+                {
+                    resumeMerge = new SearchResumeMerge(true, false, "completed_better");
+                }
+            }
+            else
+            {
+                // An incomparable pair keeps the route the user already adopted.
+                best = stoppedResult;
+                bestIndex = resume.StoppedIndex;
+                bestOutcome = resume.Adoption.Outcome;
+                resumeMerge = new SearchResumeMerge(false, true, "result_not_comparable");
+            }
+            if (resumeMerge is { KeptStopped: true })
+                selectedMember = resume.Pass == logsPass ? resume.StoppedIndex : -1;
+        }
+        if (selectedMember >= 0)
+            for (int i = 0; i < logs.Count; i++) logs[i] = logs[i] with { Adopted = i == selectedMember };
         bool capacityBounded = !cancelled && error == null && capacityDrops != null
             && (best == null || bestOutcome != Outcome.Victory);
         bool forcedPotionsUnsatisfied = false;
@@ -363,8 +474,8 @@ internal static class CombatSearchCoordinator
             : bestOutcome == Outcome.Victory ? CombatSearchStatus.Victory
             : bestOutcome is Outcome.Defeat or Outcome.EventDefeat ? CombatSearchStatus.Defeat
             : CombatSearchStatus.Incomplete;
-        return new(status, error == null && !cancelled ? best : null, bestIndex, budget.Elapsed,
-            expanded, [.. logs], error)
+        return new(status, error == null && !cancelled ? best : null, selectedMember,
+            budget.Elapsed, expanded, [.. logs], error)
         {
             Completion = cancelled ? SearchCompletionKind.Cancelled
                 : error != null || capacityBounded ? SearchCompletionKind.Failed
@@ -372,6 +483,62 @@ internal static class CombatSearchCoordinator
             SearchThreads = initial.Options.SearchThreads,
             PlannedBudgetMilliseconds = plannedMilliseconds,
             ForcedPotionsUnsatisfied = forcedPotionsUnsatisfied,
+            ResumeMerge = resumeMerge,
+            OnlyDeathRoutes = resumeMerge is { KeptStopped: true }
+                && resume?.StoppedResult is not null && resume.OnlyDeathRoutes,
         };
+
+        long RemainingPlannedMilliseconds(int firstPass, int firstMember)
+        {
+            long total = 0L;
+            for (int pass = firstPass; pass < passCount; pass++)
+            {
+                PotionStrategySnapshot strategy = forcedGradient && pass == 0
+                    ? initial.Options.Potions.Strategy.ForForcedBaseline()
+                    : initial.Options.Potions.Strategy;
+                _ = ResolvePolicies(strategy, out string?[] passSkips);
+                for (int i = pass == firstPass ? firstMember : 0; i < members.Length; i++)
+                    if (passSkips[i] is null)
+                        total += checked((long)members[i].Width * plan.MillisecondsPerWidth);
+            }
+            return total;
+        }
+
+        CombatSearchResult StopResult(BeamResult chosen, int chosenIndex,
+            SearchAdoptionInfo adoption, bool chosenOnlyDeath, int pass)
+        {
+            for (int i = 0; i < logs.Count; i++)
+                logs[i] = logs[i] with { Adopted = i == chosenIndex };
+            SearchResumeState? continuation = pass == passCount - 1 && logs.Count == members.Length
+                ? null
+                : new SearchResumeState(pass, logs.Count, chosen, chosenIndex, adoption)
+                {
+                    Members = [.. logs],
+                    Free = free,
+                    Selected = selected,
+                    Best = best,
+                    BestIndex = bestIndex,
+                    BestOutcome = bestOutcome,
+                    BestComplete = bestComplete,
+                    CapacityDrops = capacityDrops,
+                    ExpandedNodes = expanded,
+                    OnlyDeathRoutes = chosenOnlyDeath,
+                };
+            CombatSearchStatus status = adoption.Outcome == Outcome.Victory
+                ? CombatSearchStatus.Victory
+                : adoption.Outcome is Outcome.Defeat or Outcome.EventDefeat
+                    ? CombatSearchStatus.Defeat
+                    : CombatSearchStatus.Incomplete;
+            return new CombatSearchResult(status, chosen, chosenIndex, budget.Elapsed,
+                expanded, [.. logs], null)
+            {
+                Completion = SearchCompletionKind.StoppedWithCandidate,
+                Adoption = adoption,
+                OnlyDeathRoutes = chosenOnlyDeath,
+                SearchThreads = initial.Options.SearchThreads,
+                PlannedBudgetMilliseconds = plannedMilliseconds,
+                Resume = continuation,
+            };
+        }
     }
 }

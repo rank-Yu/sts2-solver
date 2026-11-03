@@ -23,6 +23,7 @@ try
             ForcedPotionContracts.Run();
             BrightestFlameContracts.Run();
             SearchProgressContracts.Run();
+            SearchResumeContracts.Run();
             PowerEvidenceContracts.Run();
             RetrievalAndWitherContracts.Run();
             string magics = FormatContract.Run();

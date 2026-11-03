@@ -97,6 +97,18 @@ internal sealed record CombatUiSnapshot
     /// <summary>The retained route matches the live state for the current turn.</summary>
     public bool CurrentTurnRouteReady { get; init; }
 
+    /// <summary>
+    /// A stopped search kept a host-only resume point, the live root still matches it and every
+    /// search input is unchanged, so the search key continues instead of restarting.
+    /// </summary>
+    public bool CanContinueSearch { get; init; }
+
+    /// <summary>
+    /// A host-only resume point from this turn's stop exists, but the root or the inputs changed;
+    /// the search key restarts instead of continuing.
+    /// </summary>
+    public bool ContinuationAvailable { get; init; }
+
     /// <summary>The published search candidate contains only death lines.</summary>
     public bool SearchCandidateAllDeath { get; init; }
 

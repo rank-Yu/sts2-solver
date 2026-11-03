@@ -51,6 +51,12 @@ internal sealed class CombatSearchRequest
 
     /// <summary>Optional progress publisher for this request; null keeps the search progress-free.</summary>
     internal SearchProgressChannel? Progress { get; init; }
+
+    /// <summary>
+    /// Host-only resume point from an earlier stop of the same request; null starts at member zero.
+    /// It is never encoded in SREQ/SRES.
+    /// </summary>
+    internal SearchResumeState? Resume { get; init; }
 }
 
 /// <summary>
@@ -123,4 +129,16 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
     /// with <see cref="CombatSearchStatus.Invalid"/>. Host-only.
     /// </summary>
     internal bool ForcedPotionsUnsatisfied { get; init; }
+
+    /// <summary>
+    /// Resume point when the request stopped with a route and members remain; null otherwise.
+    /// Host-only and never encoded in SREQ/SRES.
+    /// </summary>
+    internal SearchResumeState? Resume { get; init; }
+
+    /// <summary>
+    /// How a resumed request merged its stop-time route with the members it ran afterwards; null for
+    /// a request that did not resume.
+    /// </summary>
+    internal SearchResumeMerge? ResumeMerge { get; init; }
 }

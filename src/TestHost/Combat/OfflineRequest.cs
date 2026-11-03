@@ -99,6 +99,8 @@ internal sealed record OfflineRequest
     public bool TurnSetupTakeoverForTest { get; init; }
     public bool SearchTierFromSettingsForTest { get; init; }
     public string? SettingsTierForTest { get; init; }
+    /// <summary>Host-only search thread count for controller scenarios; clamps to 1..8.</summary>
+    public int? SettingsThreadsForTest { get; init; }
     public string? SettingsModeForTest { get; init; }
     public bool? SettingsAutoEnableFullAutoForTest { get; init; }
 

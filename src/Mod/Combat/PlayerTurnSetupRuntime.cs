@@ -220,7 +220,8 @@ internal static class PlayerTurnSetupRuntime
             ModLog.Info(
                 $"[Sts2Solver] TURN_SETUP_CARRY turn={setupTurn} " +
                 $"compared={compared} matched={matched} " +
-                $"recovered={startRoot.Counter(Counter.RecoveredHp)}");
+                $"recovered={startRoot.Counter(Counter.RecoveredHp)} " +
+                $"hp={startRoot.Player.CurrentHp}/{startRoot.Player.MaxHp}");
         }
 #if STS2_SOLVER_TESTING
         TestPredictedStartCompared = compared;

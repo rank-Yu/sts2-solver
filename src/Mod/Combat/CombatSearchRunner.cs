@@ -29,7 +29,9 @@ internal static class CombatSearchRunner
         SearchPerformanceTier tier,
         SearchPolicyConfiguration policyConfiguration,
         Func<SearchPolicy, Player, SearchPolicy>? configurePolicy,
-        CancellationToken token)
+        CancellationToken token,
+        SearchResumeState? resume = null,
+        SearchPlan? resumePlan = null)
     {
         int threads = SearchThreadCount.Value;
         SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
@@ -71,9 +73,14 @@ internal static class CombatSearchRunner
             return Failed(searchRoot, turn, tier, profile, threads, "request_invalid", error.Message);
         }
 
-        SearchPlan plan = profile.ToSearchPlan(searchCase.Options.SearchMemoryBudgetBytes,
-            combat.Encounter?.RoomType == RoomType.Boss,
-            combat.Encounter?.RoomType == RoomType.Elite, combat.RunState.CurrentActIndex);
+        SearchPlan plan = resumePlan
+            ?? profile.ToSearchPlan(searchCase.Options.SearchMemoryBudgetBytes,
+                combat.Encounter?.RoomType == RoomType.Boss,
+                combat.Encounter?.RoomType == RoomType.Elite, combat.RunState.CurrentActIndex);
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.SearchMillisecondsPerWidthForTest is { } fastMilliseconds)
+            plan = plan with { MillisecondsPerWidth = fastMilliseconds };
+#endif
         SearchStorage storage = new();
         List<SearchMemberRunUi> memberRuns = [];
         SearchProgressChannel? progress = SearchSession.BeginProgress();
@@ -84,12 +91,28 @@ internal static class CombatSearchRunner
         try
         {
             outcome = await CombatSearchCoordinator.RunAsync(
-                new(searchCase, plan) { Progress = progress }, storage,
+                new(searchCase, plan) { Progress = progress, Resume = resume }, storage,
                 RunMember, token);
         }
         finally
         {
             SearchSession.EndProgress(progress);
+        }
+
+        if (outcome.ResumeMerge is { } merge)
+        {
+            if (merge.Compared)
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] CONTROLLER_SEARCH_CONTINUE_RESULT turn={turn} " +
+                    $"kept_stopped={merge.KeptStopped} reason={merge.Reason}");
+            }
+            else
+            {
+                ModLog.Warn(
+                    $"[Sts2Solver] CONTROLLER_SEARCH_CONTINUE_COMPARE_FAILED turn={turn} " +
+                    $"reason={merge.Reason} keeping=stopped");
+            }
         }
 
         SearchProgressSnapshot? finalProgress = SearchSession.LatestProgress;
@@ -100,7 +123,10 @@ internal static class CombatSearchRunner
             return new CombatSearchRun(searchRoot, searchCase, outcome, null, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
                 outcome.ForcedPotionsUnsatisfied ? "forced_potion_unusable" : "search_failed",
-                $"search {status}: {error}");
+                $"search {status}: {error}")
+            {
+                RequestPlan = plan,
+            };
         }
         ReplayedRoute route;
         try
@@ -135,14 +161,20 @@ internal static class CombatSearchRunner
             $"planned_ms={outcome.PlannedBudgetMilliseconds} completion={outcome.Completion}");
         return new CombatSearchRun(searchRoot, searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
-            null, null);
+            null, null)
+        {
+            RequestPlan = plan,
+        };
 
         CombatSearchRun RouteFailed(string detail, string code)
         {
             ModLog.Error($"[Sts2Solver] CONTROLLER_ROUTE_INVALID turn={turn} reason={reason} {detail}");
             return new CombatSearchRun(searchRoot, searchCase, outcome, beam, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
-                code, detail);
+                code, detail)
+            {
+                RequestPlan = plan,
+            };
         }
 
         async ValueTask<SearchMemberMeasurement> RunMember(SearchCase member, SearchStorage shared,
@@ -216,6 +248,10 @@ internal static class CombatSearchRunner
         SearchPlan plan = profile.ToSearchPlan(searchCase.Options.SearchMemoryBudgetBytes,
             combat.Encounter?.RoomType == RoomType.Boss,
             combat.Encounter?.RoomType == RoomType.Elite, combat.RunState.CurrentActIndex);
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.SearchMillisecondsPerWidthForTest is { } fastMilliseconds)
+            plan = plan with { MillisecondsPerWidth = fastMilliseconds };
+#endif
         SearchStorage storage = new();
         List<SearchMemberRunUi> memberRuns = [];
         SearchProgressChannel? progress = SearchSession.BeginProgress();

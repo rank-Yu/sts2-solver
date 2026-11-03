@@ -62,6 +62,17 @@ internal sealed class CombatSearchSession(
 
     /// <summary>The native <c>SetupPlayerTurn</c> entry root, imported before the page opened.</summary>
     internal Battle? SetupStartRoot { get; init; }
+
+    /// <summary>Search inputs captured when this request started; null for a setup search.</summary>
+    internal SearchSettingsSnapshot? Settings { get; init; }
+
+    /// <summary>Host-only resume point when this request continues an earlier stop.</summary>
+    internal SearchResumeState? Resume { get; init; }
+
+    /// <summary>The plan the stopped request was launched with; reused verbatim when continuing.</summary>
+    internal SearchPlan? ResumePlan { get; init; }
+
+    internal bool IsContinuation => Resume != null;
 }
 
 internal sealed class CombatDeploymentSession(
@@ -111,7 +122,24 @@ internal sealed record CombatSearchRun(
 
     /// <summary>Exact native Play state the setup plan predicted for its Play root.</summary>
     internal CombatStateStamp? SetupPlayStamp { get; init; }
+
+    /// <summary>The plan this search was launched with; the continuation keeps it host-only.</summary>
+    internal SearchPlan? RequestPlan { get; init; }
 }
+
+/// <summary>
+/// Main-thread resume state kept after a user stop. The Core resume point, the exact encoded
+/// request, the stop-time root stamp, the settings snapshot and the plan all stay in host memory;
+/// nothing here enters SREQ/SRES or frozen data.
+/// </summary>
+internal sealed record CombatSearchContinuation(
+    SearchResumeState Resume,
+    byte[] RequestBytes,
+    CombatStateStamp Stamp,
+    SearchSettingsSnapshot Settings,
+    SearchPlan Plan,
+    int StartTurn,
+    CombatControllerResult Result);
 
 /// <summary>The controller's owned result, with the projection baseline applied.</summary>
 internal sealed record CombatControllerResult(

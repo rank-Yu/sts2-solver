@@ -137,7 +137,15 @@ internal static partial class CombatSessionController
             ModLog.Info($"[Sts2Solver] CONTROLLER_SEARCH_REJECT reason={rejection}");
             return false;
         }
-        RequestSearch(CombatSearchReason.Manual, deployWhenReady: false);
+        SearchResumeState? resume = null;
+        SearchPlan? resumePlan = null;
+        if (_searchContinuation is { } continuation
+            && TryContinueSearch(continuation, out SearchResumeState state, out SearchPlan plan))
+        {
+            resume = state;
+            resumePlan = plan;
+        }
+        RequestSearch(CombatSearchReason.Manual, deployWhenReady: false, resume, resumePlan);
         return true;
     }
 

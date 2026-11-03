@@ -48,6 +48,7 @@ internal static partial class CombatSessionController
         {
             return;
         }
+        InvalidateSearchContinuation("deployment");
         ReplayedAction[] turnActions =
             CombatRouteDecision.CurrentTurnActions(result.Plan.Actions, result.StartTurn);
 #if STS2_SOLVER_TESTING

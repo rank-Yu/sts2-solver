@@ -36,6 +36,7 @@ internal static partial class CombatSessionController
     private static CombatControllerResult? _latestResult;
     private static CombatControllerResult? _deploymentResult;
     private static CombatControllerResult? _continuationSource;
+    private static CombatSearchContinuation? _searchContinuation;
     private static CombatStateStamp? _latestStamp;
     private static CompleteProjectionBaseline? _pendingCompleteBaseline;
     private static SolverMode _mode = SolverMode.AutoSearch;
@@ -104,6 +105,12 @@ internal static partial class CombatSessionController
 
     /// <summary>The last accepted route, for controller scenarios that assert potion use.</summary>
     internal static PlayerAction[] LastSearchRouteForTest { get; private set; } = [];
+
+    /// <summary>How the last resumed request merged its stop-time route; null when it did not resume.</summary>
+    internal static SearchResumeMerge? LastResumeMergeForTest { get; private set; }
+
+    /// <summary>Request section that differed when the exact continuation check restarted a search.</summary>
+    internal static string? LastContinuationMismatchForTest { get; private set; }
 #endif
 
     private sealed record CompleteProjectionBaseline(
@@ -353,6 +360,7 @@ internal static partial class CombatSessionController
         _latestResult = null;
         _deploymentResult = null;
         _continuationSource = null;
+        _searchContinuation = null;
         _latestStamp = null;
         _pendingCompleteBaseline = null;
         _fullAutoPausedThisCombat = false;
@@ -371,6 +379,8 @@ internal static partial class CombatSessionController
         ContinuationReuseSuccessesForTest = 0;
         ContinuationReuseMissesForTest = 0;
         ContinuationReuseMissDetailForTest = null;
+        LastResumeMergeForTest = null;
+        LastContinuationMismatchForTest = null;
 #endif
         _pauseCode = null;
         _pauseReason = null;
@@ -472,6 +482,7 @@ internal static partial class CombatSessionController
         CancelTurnSchedule();
         CancelSearch();
         CancelDeployment();
+        InvalidateSearchContinuation(reason);
         _phase = _combatActive ? CombatUiPhase.WaitingTurn : CombatUiPhase.Idle;
         PublishSnapshot();
         long deadline = Environment.TickCount64 + timeoutMilliseconds;
@@ -506,6 +517,7 @@ internal static partial class CombatSessionController
         CancelTurnSchedule();
         CancelSearch();
         CancelDeployment();
+        InvalidateSearchContinuation("combat_ended");
         _combatCancellation.Cancel();
         _combatActive = false;
         _fullAutoEnabled = false;
@@ -553,6 +565,7 @@ internal static partial class CombatSessionController
         _deploymentResult = null;
         _continuationSource = null;
         _latestStamp = null;
+        _searchContinuation = null;
         _pendingCompleteBaseline = null;
         _turnSetupResult = null;
         _fullAutoPausedThisCombat = false;
@@ -583,6 +596,10 @@ internal static partial class CombatSessionController
         _lastCandidateVersion = 0;
         _currentActionIndex = 0;
         _completedActions = 0;
+#if STS2_SOLVER_TESTING
+        LastResumeMergeForTest = null;
+        LastContinuationMismatchForTest = null;
+#endif
     }
 
     internal static void Reset(string reason)
@@ -627,6 +644,8 @@ internal static partial class CombatSessionController
         if (player?.PlayerCombatState is not { } playerState)
             return;
         int turn = playerState.TurnNumber;
+        if (_searchContinuation is { } continuation && continuation.StartTurn != turn)
+            InvalidateSearchContinuation("turn_changed");
         if (_search is { IsTurnSetup: true })
         {
             _pendingTurnStartedState = state;
@@ -781,6 +800,12 @@ internal static partial class CombatSessionController
             search.RenderedCandidateVersion = progress.CandidateVersion;
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.AutoStopOnCandidate
+            && search.RenderedCandidateVersion > 0 && !search.StopRequested)
+        {
+            StopSearch();
+        }
+        if (CombatControllerTestHooks.StopAtMemberForTest is { } stopMember
+            && stopMember >= 0 && progress.MemberIndex >= stopMember
             && search.RenderedCandidateVersion > 0 && !search.StopRequested)
         {
             StopSearch();
@@ -1070,6 +1095,41 @@ internal static partial class CombatSessionController
             schedule.Cancel();
         schedule.Dispose();
     }
+
+    /// <summary>The profile of the next search; test scenarios can shorten the member slots.</summary>
+    private static SearchPerformanceProfile CaptureSearchProfile()
+    {
+        SearchPerformanceProfile profile = SearchPerformanceProfile.For(_searchTier);
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.SearchMillisecondsPerWidthForTest is { } milliseconds)
+            profile = profile with { MillisecondsPerWidth = milliseconds };
+#endif
+        return profile;
+    }
+
+    /// <summary>
+    /// Drops the stop-continuation state. A turn change, a deployment, combat end, leaving the
+    /// scene or a new search invalidates it; the panel then offers a fresh search.
+    /// </summary>
+    private static void InvalidateSearchContinuation(string reason)
+    {
+        if (_searchContinuation == null)
+            return;
+        _searchContinuation = null;
+        ModLog.Info($"[Sts2Solver] CONTROLLER_CONTINUATION_DROPPED reason={reason} turn={CurrentTurn()}");
+    }
+
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// Publishes a fresh snapshot after a scenario changed live state without an action. The real
+    /// panel refreshes on the action-queue and phase observations; an injected HP change has none.
+    /// </summary>
+    internal static void RefreshSnapshotForTest()
+    {
+        RequireMainThread();
+        PublishSnapshot();
+    }
+#endif
 
     /// <summary>
     /// Drops persisted potion directives whose slot no longer holds the same potion, matching

@@ -598,7 +598,8 @@ internal static class TestSession
                 (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player);
         }
         if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null
-            && request.SettingsModeForTest is null && !request.FullCombatForTest)
+            && request.SettingsModeForTest is null && request.SettingsThreadsForTest is null
+            && !request.FullCombatForTest)
         {
             return false;
         }
@@ -613,9 +614,14 @@ internal static class TestSession
                 : request.SettingsAutoEnableFullAutoForTest is { } auto
                     ? auto ? SolverMode.FullAuto : SolverMode.AutoSearch
                     : current.Automation.Mode;
+        SolverSearchSettings search = current.Search;
+        if (tier is { } tierValue)
+            search = search with { Tier = tierValue };
+        if (request.SettingsThreadsForTest is { } threads)
+            search = search with { Threads = Math.Clamp(threads, 1, 8) };
         SolverSettingsData next = current with
         {
-            Search = tier is { } value ? current.Search with { Tier = value } : current.Search,
+            Search = search,
             Automation = current.Automation with { Mode = mode },
         };
         if (next == current)

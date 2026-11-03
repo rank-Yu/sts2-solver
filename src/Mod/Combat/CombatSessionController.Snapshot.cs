@@ -27,8 +27,9 @@ internal static partial class CombatSessionController
         bool turnSetupPlanAvailable = _turnSetupResult != null;
         bool turnSetupPlan = turnSetupPlanAvailable && turnSetupPage;
         bool turnSetupDriving = PlayerTurnSetupRuntime.IsDriving;
-        bool canExecute = (!HasBlockingDeployment && _search == null
-            && _latestResult != null && ResultStampMatches(_latestResult))
+        bool latestStateMatches = _search == null && _latestResult is { } latest
+            && ResultStampMatches(latest);
+        bool canExecute = (!HasBlockingDeployment && latestStateMatches)
             || (turnSetupPlan && !turnSetupDriving && _search == null
                 && !HasBlockingDeployment);
         bool canStart = false;
@@ -56,10 +57,16 @@ internal static partial class CombatSessionController
                 searchBlock = CanSolve(out string reason) ? "searching" : reason;
             }
         }
+        bool canContinue = canStart && latestStateMatches && _searchContinuation is { } continuation
+            && ContinuationInputsMatch(continuation);
+        bool continuationAvailable = _search == null && !HasBlockingDeployment
+            && _searchContinuation != null;
+        bool continuationSearch = _search is { IsContinuation: true };
         CombatControllerResult? routeSource = _search == null
             ? _latestResult ?? _deploymentResult
-            : null;
-        CombatControllerResult? shown = _search == null ? _latestResult : null;
+            : continuationSearch ? _latestResult : null;
+        CombatControllerResult? shown = _search == null || continuationSearch
+            ? _latestResult : null;
         CombatUiSnapshot next = new()
         {
             Phase = _phase,
@@ -86,6 +93,8 @@ internal static partial class CombatSessionController
             CanStopSearch = _search != null,
             SearchBlockReason = searchBlock,
             CurrentTurnRouteReady = canExecute,
+            CanContinueSearch = canContinue,
+            ContinuationAvailable = continuationAvailable,
             SearchCandidateAllDeath = _lastProgress?.Route?.OnlyDeathRoutes ?? false,
             LastSolverDeployedTurn = _lastSolverDeployedTurn,
             Result = shown == null ? null : ResultUi(shown),
@@ -201,7 +210,7 @@ internal static partial class CombatSessionController
 
     private static RouteUiSnapshot? BuildRouteUi(CombatControllerResult? result)
     {
-        if (result == null || _names == null || _search != null)
+        if (result == null || _names == null)
             return null;
         return CombatUiProjection.Route(result.Plan, _names, CurrentTurn(),
             _currentActionIndex, _completedActions, result.WasReused);

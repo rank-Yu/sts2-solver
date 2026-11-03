@@ -8,6 +8,8 @@ using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
+using PlayerAction = Sts2Solver.Simulation.Combat.PlayerAction;
+using PlayerActionKind = Sts2Solver.Simulation.Combat.PlayerActionKind;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Context;
@@ -73,6 +75,24 @@ internal static class CombatControllerChecks
                     break;
                 case "stop_then_recalc":
                     await StopThenRecalcAsync(host, Check, Action);
+                    break;
+                case "continue_search_middle":
+                    await ContinueSearchMiddleAsync(host, Check, Action);
+                    break;
+                case "continue_search_settings_changed":
+                    await ContinueSearchSettingsChangedAsync(host, Check, Action);
+                    break;
+                case "continue_search_state_changed":
+                    await ContinueSearchStateChangedAsync(host, Check, Action);
+                    break;
+                case "continue_search_last_member":
+                    await ContinueSearchLastMemberAsync(host, Check, Action);
+                    break;
+                case "continue_search_twice":
+                    await ContinueSearchTwiceAsync(host, Check, Action);
+                    break;
+                case "continue_search_request_mismatch":
+                    await ContinueSearchRequestMismatchAsync(host, Check, Action);
                     break;
                 case "execute_has_result":
                     await ExecuteHasResultAsync(host, Check, Action);
@@ -303,6 +323,9 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
             CombatControllerTestHooks.BeforeTurnSetupPlayStamp = null;
             CombatControllerTestHooks.SetupStampDamageInjected = false;
+            CombatControllerTestHooks.StopAtMemberForTest = null;
+            CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = null;
+            CombatControllerTestHooks.TamperContinuationCompileForTest = null;
             CombatSessionController.ForceMultiplayerForTest = false;
         }
         CombatPilotResult summary = CombatSessionController.LastCompletedResultForTesting
@@ -490,16 +513,366 @@ internal static class CombatControllerChecks
         action(stopped.Result != null && stopped.CurrentTurnRouteReady
             ? "stopped_with_candidate"
             : "stopped_without_candidate");
-        await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
-        check("recalc", true, "recalculate via panel button");
-        action("press_recalculate");
-        CombatUiSnapshot started = await WaitAsync(host, static s => s.IsSearching,
-            240, "recalculate started");
-        check("stopped_cleared", started.Result == null);
-        check("reason_manual", started.Search?.Reason == "manual", started.Search?.Reason);
-        await WaitIdleAsync(host, "recalculate done");
-        check("searches_increased", Snapshot().Searches > stopped.Searches);
-        check("no_reuse", Snapshot().ReusedTurns == stopped.ReusedTurns);
+        check("stop_can_continue", stopped.CanContinueSearch,
+            "an unchanged stop offers the continuation");
+        // A settings change makes the same key restart from scratch, which is this scenario's
+        // subject; the continuation path itself is covered by the continue_search scenarios.
+        PotionSlotUi? slot = stopped.Strategy.Potions.Length > 0 ? stopped.Strategy.Potions[0] : null;
+        check("potion_available", slot != null, "the root has a searchable potion");
+        SolverPotionMode originalMode = slot!.Mode switch
+        {
+            "disabled" => SolverPotionMode.Disabled,
+            "force" => SolverPotionMode.Force,
+            _ => SolverPotionMode.Smart,
+        };
+        try
+        {
+            check("settings_change", CombatUiCommands.Instance.SetPotionDirective(
+                slot.Slot, slot.PotionId, SolverPotionMode.Disabled), "change a search setting");
+            CombatSessionController.RefreshSnapshotForTest();
+            await Frames(host, 2);
+            check("cannot_continue", !Snapshot().CanContinueSearch,
+                "the changed request restarts instead of continuing");
+            await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
+            check("recalc", true, "recalculate via panel button");
+            action("press_recalculate");
+            CombatUiSnapshot started = await WaitAsync(host, static s => s.IsSearching,
+                240, "recalculate started");
+            check("stopped_cleared", started.Result == null);
+            check("reason_manual", started.Search?.Reason == "manual", started.Search?.Reason);
+            await WaitIdleAsync(host, "recalculate done");
+            check("searches_increased", Snapshot().Searches > stopped.Searches);
+            check("no_reuse", Snapshot().ReusedTurns == stopped.ReusedTurns);
+        }
+        finally
+        {
+            CombatUiCommands.Instance.SetPotionDirective(slot.Slot, slot.PotionId, originalMode);
+        }
+    }
+
+    /// <summary>
+    /// Stops a search at a chosen member with the same panel button a player uses. The member slots
+    /// are shortened so the remaining portfolio also finishes inside the scenario budget.
+    /// </summary>
+    private static async Task<CombatUiSnapshot> StopAtMemberAsync(NGame host, Action action,
+        int member, string description)
+    {
+        CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = FastMillisecondsPerWidth;
+        CombatControllerTestHooks.StopAtMemberForTest = member;
+        await PressPanelButtonAsync(host, PanelButton.Search, description);
+        action($"press_search_stop_member:{member}");
+        CombatUiSnapshot stopped = await WaitAsync(host,
+            static s => !s.IsSearching && s.PauseCode == "stopped", 1800, description);
+        CombatControllerTestHooks.StopAtMemberForTest = null;
+        return stopped;
+    }
+
+    private static async Task ContinueSearchMiddleAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        using SettingsOverride singleThread = new(SolverSettings.Current with
+        {
+            Search = SolverSettings.Current.Search with { Threads = 1 },
+        });
+        CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 2, "stop at middle member");
+        check("stopped_paused", stopped.AutomaticSearchPaused && stopped.PauseCode == "stopped",
+            stopped.PauseCode ?? "-");
+        check("can_continue", stopped.CanContinueSearch, "continue available");
+        string continueText = await SearchButtonTextAsync(host);
+        check("continue_text", continueText == SolverText.Get("继续搜索"), continueText);
+        check("route_retained", stopped.Result != null && stopped.CurrentTurnRouteReady);
+        int stoppedIndex = FindStoppedMember(stopped);
+        check("stopped_middle", stoppedIndex == 2, $"stopped_member={stoppedIndex}");
+        SearchMemberUi[] stoppedMembers = stopped.Search?.Members ?? [];
+        check("stopped_member_logged",
+            stoppedIndex >= 0 && stoppedIndex < stoppedMembers.Length
+                && stoppedMembers[stoppedIndex].Ran
+                && stoppedMembers[stoppedIndex].StopReason == "stopped",
+            $"members={stoppedMembers.Length}");
+        PlayerAction[] retainedRoute = CombatSessionController.LastSearchRouteForTest;
+        int adopted = stopped.Search?.SelectedMember ?? -1;
+        int searches = stopped.Searches;
+
+        await PressPanelButtonAsync(host, PanelButton.Search, "continue_search");
+        action("press_continue_search");
+        CombatUiSnapshot continuing = await WaitAsync(host, static s => s.IsSearching,
+            240, "continuation started");
+        check("continuation_reason", continuing.Search?.Reason == "manual",
+            continuing.Search?.Reason);
+        check("continuation_route_visible", continuing.Result != null && continuing.Route != null,
+            "route stays visible while continuing");
+        check("continuation_route_same", RouteEquals(
+            CombatSessionController.LastSearchRouteForTest, retainedRoute),
+            "retained route is unchanged while continuing");
+        CombatUiSnapshot done = await WaitAsync(host,
+            static s => !s.IsSearching && s.Search?.Phase == SearchUiPhase.Completed,
+            1800, "continuation done");
+        check("searches_increased", done.Searches == searches + 1,
+            $"{searches}->{done.Searches}");
+        check("result_ready", done.Result != null && done.CurrentTurnRouteReady);
+        SearchMemberUi[] members = done.Search?.Members ?? [];
+        check("stopped_member_kept", stoppedIndex >= 0 && stoppedIndex < members.Length
+            && members[stoppedIndex].StopReason == "stopped" && members[stoppedIndex].Ran,
+            $"members={members.Length}");
+        check("later_members_processed", ProcessedAfter(members, stoppedIndex),
+            "every later member ran or was skipped");
+        int expectedRuns = 0;
+        for (int index = stoppedIndex + 1; index < members.Length; index++)
+            if (members[index].Ran)
+                expectedRuns++;
+        check("runs_match", done.Search?.MemberRuns.Length == expectedRuns,
+            $"runs={done.Search?.MemberRuns.Length} expected={expectedRuns}");
+        int selected = done.Search?.SelectedMember ?? -1;
+        check("selected_consistent",
+            selected == adopted
+                ? RouteEquals(CombatSessionController.LastSearchRouteForTest, retainedRoute)
+                : selected > stoppedIndex,
+            $"selected={selected} stopped={stoppedIndex} adopted={adopted}");
+        check("not_worse",
+            done.Result != null && stopped.Result != null
+                && (!stopped.Result.Victory || done.Result.Victory),
+            $"stopped_victory={stopped.Result?.Victory} final_victory={done.Result?.Victory}");
+    }
+
+    private static async Task ContinueSearchSettingsChangedAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before settings change");
+        check("can_continue", stopped.CanContinueSearch, "continue available before the change");
+        PotionSlotUi? slot = stopped.Strategy.Potions.Length > 0 ? stopped.Strategy.Potions[0] : null;
+        check("potion_available", slot != null, "the root has a searchable potion");
+        SolverPotionMode originalMode = slot!.Mode switch
+        {
+            "disabled" => SolverPotionMode.Disabled,
+            "force" => SolverPotionMode.Force,
+            _ => SolverPotionMode.Smart,
+        };
+        try
+        {
+            check("settings_command", CombatUiCommands.Instance.SetPotionDirective(
+                slot.Slot, slot.PotionId, SolverPotionMode.Disabled), "disable the first potion");
+            action($"disable_potion:{slot.Slot}");
+            CombatSessionController.RefreshSnapshotForTest();
+            CombatUiSnapshot changed = Snapshot();
+            check("no_continue", !changed.CanContinueSearch,
+                "continue rejected after a settings change");
+            string restartText = await SearchButtonTextAsync(host);
+            check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+            int searches = changed.Searches;
+            await PressPanelButtonAsync(host, PanelButton.Search, "restart_after_settings");
+            action("press_restart_after_settings");
+            CombatUiSnapshot done = await WaitAsync(host, static s => !s.IsSearching
+                && s.Search?.Phase == SearchUiPhase.Completed, 1800, "restart after settings");
+            check("searches_increased", done.Searches == searches + 1,
+                $"{searches}->{done.Searches}");
+            SearchMemberUi[] members = done.Search?.Members ?? [];
+            check("fresh_from_zero", members.Length > 0 && members[0].Ran
+                && members[0].StopReason != "stopped", "first member reran from scratch");
+            check("fresh_runs_match", done.Search?.MemberRuns.Length == members.Count(
+                static member => member.Ran), "a fresh search runs every reported member");
+        }
+        finally
+        {
+            check("settings_restored", CombatUiCommands.Instance.SetPotionDirective(
+                slot.Slot, slot.PotionId, originalMode), "restore the potion policy");
+        }
+    }
+
+    private static async Task ContinueSearchStateChangedAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before state change");
+        check("can_continue", stopped.CanContinueSearch, "continue available before the change");
+        CombatState? state = CombatManager.Instance.DebugOnlyGetState();
+        Player? player = state == null ? null : LocalContext.GetMe(state);
+        check("player_available", player != null, "live player");
+        player!.Creature.SetCurrentHpInternal(player.Creature.CurrentHp - 1);
+        action("inject_damage:1");
+        CombatSessionController.RefreshSnapshotForTest();
+        CombatUiSnapshot changed = Snapshot();
+        check("no_continue", !changed.CanContinueSearch, "continue rejected after a state change");
+        string restartText = await SearchButtonTextAsync(host);
+        check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+        int searches = changed.Searches;
+        await PressPanelButtonAsync(host, PanelButton.Search, "restart_after_state");
+        action("press_restart_after_state");
+        CombatUiSnapshot done = await WaitAsync(host, static s => !s.IsSearching
+            && s.Search?.Phase == SearchUiPhase.Completed, 1800, "restart after state");
+        check("searches_increased", done.Searches == searches + 1, $"{searches}->{done.Searches}");
+        SearchMemberUi[] members = done.Search?.Members ?? [];
+        check("fresh_from_zero", members.Length > 0 && members[0].Ran
+            && members[0].StopReason != "stopped", "first member reran from scratch");
+    }
+
+    private static async Task ContinueSearchLastMemberAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = FastMillisecondsPerWidth;
+        await PressPanelButtonAsync(host, PanelButton.Search, "learn_member_count");
+        action("press_search_learn_count");
+        CombatUiSnapshot complete = await WaitAsync(host, static s => !s.IsSearching
+            && s.Search?.Phase == SearchUiPhase.Completed, 3600, "first full search");
+        SearchMemberUi[] planned = complete.Search?.Members ?? [];
+        check("member_count", planned.Length > 1, $"members={planned.Length}");
+        int last = planned.Length - 1;
+        CombatControllerTestHooks.StopAtMemberForTest = last;
+        await PressPanelButtonAsync(host, PanelButton.Search, "stop_at_last_member");
+        action("press_search_stop_last_member");
+        CombatUiSnapshot stopped = await WaitAsync(host,
+            static s => !s.IsSearching && s.PauseCode == "stopped", 3600,
+            "stop at the last member");
+        CombatControllerTestHooks.StopAtMemberForTest = null;
+        SearchMemberUi[] members = stopped.Search?.Members ?? [];
+        check("last_member_stopped", members.Length == planned.Length
+            && members[last].Ran && members[last].StopReason == "stopped",
+            $"members={members.Length}");
+        check("no_continue", !stopped.CanContinueSearch, "the last member has nothing to continue");
+        string restartText = await SearchButtonTextAsync(host);
+        check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+    }
+
+    private static async Task ContinueSearchTwiceAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = FastMillisecondsPerWidth;
+        CombatUiSnapshot first = await StopAtMemberAsync(host, action, 1, "first stop");
+        int firstStopped = FindStoppedMember(first);
+        check("first_stop", firstStopped == 1 && first.CanContinueSearch,
+            $"stopped={firstStopped}");
+        PlayerAction[] retained = CombatSessionController.LastSearchRouteForTest;
+        int firstAdopted = first.Search?.SelectedMember ?? -1;
+
+        CombatControllerTestHooks.StopAtMemberForTest = 4;
+        await PressPanelButtonAsync(host, PanelButton.Search, "continue_then_stop");
+        action("press_continue_then_stop");
+        CombatUiSnapshot second = await WaitAsync(host,
+            static s => !s.IsSearching && s.PauseCode == "stopped", 1800,
+            "second stop during the continuation");
+        CombatControllerTestHooks.StopAtMemberForTest = null;
+        int secondStopped = FindStoppedMember(second);
+        PlayerAction[] retainedSecond = CombatSessionController.LastSearchRouteForTest;
+        int secondAdopted = second.Search?.SelectedMember ?? -1;
+        check("second_stop", secondStopped == 4, $"stopped={secondStopped}");
+        check("second_can_continue", second.CanContinueSearch, "second stop can continue again");
+        SearchMemberUi[] secondMembers = second.Search?.Members ?? [];
+        check("first_stop_carried", firstStopped >= 0 && firstStopped < secondMembers.Length
+            && secondMembers[firstStopped].StopReason == "stopped",
+            "the first stopped member stays carried");
+        check("between_ran", secondStopped > firstStopped
+            && secondMembers[firstStopped + 1].Ran && secondMembers[secondStopped - 1].Ran,
+            "members between the two stops ran");
+
+        await PressPanelButtonAsync(host, PanelButton.Search, "continue_again");
+        action("press_continue_again");
+        CombatUiSnapshot done = await WaitAsync(host, static s => !s.IsSearching
+            && s.Search?.Phase == SearchUiPhase.Completed, 1800, "second continuation");
+        SearchMemberUi[] members = done.Search?.Members ?? [];
+        check("both_stops_kept", firstStopped >= 0 && secondStopped < members.Length
+            && members[firstStopped].StopReason == "stopped"
+            && members[secondStopped].StopReason == "stopped",
+            "neither stopped member reran");
+        check("after_second_processed", ProcessedAfter(members, secondStopped),
+            "members after the second stop ran or were skipped");
+        int expectedRuns = 0;
+        for (int index = secondStopped + 1; index < members.Length; index++)
+            if (members[index].Ran)
+                expectedRuns++;
+        check("third_runs_match", done.Search?.MemberRuns.Length == expectedRuns,
+            $"runs={done.Search?.MemberRuns.Length} expected={expectedRuns}");
+        int selected = done.Search?.SelectedMember ?? -1;
+        check("not_worse", done.Result != null
+            && (selected == secondAdopted
+                ? RouteEquals(CombatSessionController.LastSearchRouteForTest, retainedSecond)
+                : selected > secondStopped),
+            $"selected={selected} second_adopted={secondAdopted}");
+        check("first_route_still_owned",
+            secondAdopted == firstAdopted && RouteEquals(retainedSecond, retained),
+            "the better first-stop route is still the route after the second stop");
+    }
+
+    private static async Task ContinueSearchRequestMismatchAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before tamper");
+        check("can_continue", stopped.CanContinueSearch, "continue available before the tamper");
+        CombatControllerTestHooks.TamperContinuationCompileForTest =
+            static searchCase => searchCase with
+            {
+                Options = searchCase.Options with { MaxTurns = searchCase.Options.MaxTurns + 1 },
+            };
+        int searches = stopped.Searches;
+        await PressPanelButtonAsync(host, PanelButton.Search, "continue_with_tampered_request");
+        action("press_continue_tampered");
+        CombatUiSnapshot done = await WaitAsync(host, static s => !s.IsSearching
+            && s.Search?.Phase == SearchUiPhase.Completed, 1800, "tampered request restart");
+        check("mismatch_logged", CombatSessionController.LastContinuationMismatchForTest
+            == "options.max_turns",
+            CombatSessionController.LastContinuationMismatchForTest ?? "-");
+        check("searches_increased", done.Searches == searches + 1, $"{searches}->{done.Searches}");
+        SearchMemberUi[] members = done.Search?.Members ?? [];
+        check("fresh_from_zero", members.Length > 0 && members[0].Ran
+            && members[0].StopReason != "stopped", "first member reran from scratch");
+        check("fresh_runs_match", done.Search?.MemberRuns.Length == members.Count(
+            static member => member.Ran), "a fresh search runs every reported member");
+        CombatControllerTestHooks.TamperContinuationCompileForTest = null;
+    }
+
+    private const int FastMillisecondsPerWidth = 6;
+
+    private static int FindStoppedMember(CombatUiSnapshot snapshot)
+    {
+        SearchMemberUi[] members = snapshot.Search?.Members ?? [];
+        for (int index = members.Length - 1; index >= 0; index--)
+            if (members[index].StopReason == "stopped")
+                return index;
+        return -1;
+    }
+
+    private static bool ProcessedAfter(SearchMemberUi[] members, int stoppedIndex)
+    {
+        if (stoppedIndex < 0 || members.Length <= stoppedIndex + 1)
+            return false;
+        bool ran = false;
+        for (int index = stoppedIndex + 1; index < members.Length; index++)
+        {
+            if (!members[index].Ran && members[index].SkippedReason == null)
+                return false;
+            ran |= members[index].Ran;
+        }
+        return ran;
+    }
+
+    private static async Task<string> SearchButtonTextAsync(NGame host)
+    {
+        await Frames(host, 2);
+        return SolverOverlay.Instance?.SearchButtonForTest?.Text ?? "";
+    }
+
+    private static bool RouteEquals(PlayerAction[] left, PlayerAction[] right)
+    {
+        if (left.Length != right.Length)
+            return false;
+        for (int index = 0; index < left.Length; index++)
+        {
+            PlayerAction a = left[index], b = right[index];
+            if (a.Kind != b.Kind || a.HandIndex != b.HandIndex || a.Target != b.Target
+                || a.PotionSlot != b.PotionSlot || a.ChoiceCount != b.ChoiceCount)
+            {
+                return false;
+            }
+            for (int choice = 0; choice < a.ChoiceCount; choice++)
+                if (a.Choices[choice] != b.Choices[choice])
+                    return false;
+        }
+        return true;
     }
 
     private static async Task ExecuteHasResultAsync(NGame host, Check check, Action action)
@@ -1518,6 +1891,10 @@ internal static class CombatControllerChecks
     /// Turn one uses a forced Blood Potion, so RecoveredHp is non-zero in the verified EndTurn
     /// boundary. Turn two's setup root, selected Play root and first deployment boundary must all
     /// carry the same value, and the predicted Start root must match the live import.
+    /// Request: <c>ts-a-toasty</c>, FullAuto takeover, <c>BLOOD_POTION</c> injected and forced,
+    /// <c>initialPlayerHp=1</c> of 80, <c>enemyCurrentHp=120</c>. On the e527fdd3 baseline this
+    /// exact request passes with RecoveredHp=16; 40/80 (even with enemy 120) heals 0 on both the
+    /// baseline and this branch, so it is a route/config property, not a regression.
     /// </summary>
     private static async Task TurnSetupCarryAsync(NGame host, Check check, Action action)
     {
@@ -1533,6 +1910,14 @@ internal static class CombatControllerChecks
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
         check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("forced_directive",
+            CombatSessionController.LastSearchCaseForTest?.Options.Potions.Strategy
+                .HasForcedDirectives == true,
+            "turn-one request carries the forced potion directive");
+        check("forced_route_uses_potion",
+            CombatSessionController.LastSearchRouteForTest.Any(
+                static action => action.Kind == PlayerActionKind.UsePotion),
+            "turn-one route uses the forced potion");
         check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
         check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
             $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +

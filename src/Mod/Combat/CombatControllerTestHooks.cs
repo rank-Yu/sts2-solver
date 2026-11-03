@@ -1,6 +1,7 @@
 #if STS2_SOLVER_TESTING
 // Test-only hooks used by the controller scenarios. Production builds do not compile this file,
 // so the controller has no test-host dependency.
+using Sts2Solver.Ai.Combat;
 using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -19,6 +20,18 @@ internal static class CombatControllerTestHooks
 
     /// <summary>Stop the search as soon as a candidate is rendered, for stop-candidate text tests.</summary>
     internal static bool AutoStopOnCandidate { get; set; }
+
+    /// <summary>Requests a stop when the active search member reaches this index; -1 disables it.</summary>
+    internal static int? StopAtMemberForTest { get; set; }
+
+    /// <summary>Shortens the search plan's member slots so controller scenarios finish quickly.</summary>
+    internal static int? SearchMillisecondsPerWidthForTest { get; set; }
+
+    /// <summary>
+    /// Mutates the request compiled for the exact continuation check. The scenario uses it to prove
+    /// the byte comparison restarts a search whose cheap settings snapshot still matches.
+    /// </summary>
+    internal static Func<SearchCase, SearchCase>? TamperContinuationCompileForTest { get; set; }
 
     /// <summary>Pretends the action queue is still resolving, for the search-block scenario.</summary>
     internal static bool ForceActionsRunningForTest { get; set; }

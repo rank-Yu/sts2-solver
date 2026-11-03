@@ -117,10 +117,12 @@ internal sealed record CombatUiSnapshot
     public string? PauseReason { get; init; }
 
     /// <summary>
-    /// Stable code behind a pause or stop: <c>worse_recalculation</c>, <c>death_turn</c>,
-    /// <c>combat_end_turn</c>, <c>live_end_turn_risk</c>, <c>repeated_failure</c>,
-    /// <c>choice_mismatch</c> or <c>stopped</c>; null otherwise. Rejected commands use
-    /// <see cref="RejectCode"/>. The panel localizes this instead of <see cref="PauseReason"/>.
+    /// Stable code behind a pause or stop: <c>death_turn</c>, <c>live_end_turn_risk</c>,
+    /// <c>repeated_failure</c>, <c>choice_mismatch</c>, <c>action_deviation</c>,
+    /// <c>boundary_deviation</c>, <c>deployment_deviation</c>, <c>deploy_failed</c> or
+    /// <c>stopped</c>; null otherwise.
+    /// Rejected commands use <see cref="RejectCode"/>. The panel localizes this instead of
+    /// <see cref="PauseReason"/>.
     /// </summary>
     public string? PauseCode { get; init; }
 

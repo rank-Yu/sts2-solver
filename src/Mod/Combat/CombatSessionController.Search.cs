@@ -28,7 +28,7 @@ internal static partial class CombatSessionController
             ClearConsecutiveFailures(CurrentTurn());
         }
         else if (_automaticSearchPaused
-            && reason is not (CombatSearchReason.DeploymentDrift or CombatSearchReason.PlanExhausted))
+            && reason is not CombatSearchReason.PlanExhausted)
         {
             _pauseCode = "stopped";
             _phase = CombatUiPhase.Paused;
@@ -49,8 +49,7 @@ internal static partial class CombatSessionController
             return;
         }
         if (!CanSolve(out string rejection,
-                allowDeployment: reason is CombatSearchReason.DeploymentDrift
-                    or CombatSearchReason.PlanExhausted))
+                allowDeployment: reason is CombatSearchReason.PlanExhausted))
         {
             _rejectCode = rejection;
             _pauseCode = null;
@@ -62,7 +61,7 @@ internal static partial class CombatSessionController
         }
         ClearFailureState();
         if (reason == CombatSearchReason.AutoTurnStart && _continuationSource != null
-            && TryReuseContinuation(turn, deployWhenReady))
+            && TryReuseContinuation(turn, deployWhenReady, out _))
         {
             return;
         }
@@ -277,8 +276,10 @@ internal static partial class CombatSessionController
         ModLog.Error($"[Sts2Solver] CONTROLLER_SEARCH_FAILED turn={session.StartTurn} code={code} {detail}");
     }
 
-    private static bool TryReuseContinuation(int turn, bool deployWhenReady)
+    private static bool TryReuseContinuation(int turn, bool deployWhenReady,
+        out bool stoppedForDeviation)
     {
+        stoppedForDeviation = false;
         if (_continuationSource is not { } source || _state == null || _player == null
             || _rules == null || _tracker == null)
         {
@@ -409,7 +410,28 @@ internal static partial class CombatSessionController
         {
             difference = "field=continuation expected={cached_turn_missing} actual={live_turn_present}";
         }
-        bool followedBySolver = _lastSolverDeployedTurn == turn - 1;
+        // A normal continuation is not a boundary deviation when the previous deployment was
+        // taken over by this turn's setup page: the setup result owns that boundary. A validated
+        // setup continuation is different: its Play comparison is the post-validation check the
+        // player-visible plan must still pass.
+        bool followedBySolver = _lastSolverDeployedTurn == turn - 1
+            && (_lastTurnSupersededBySetup != turn - 1 || _continuationSetupTurn == turn);
+#if STS2_SOLVER_TESTING
+        if (_continuationSetupTurn == turn)
+        {
+            ContinuationReuseMissesForTest++;
+            ContinuationReuseMissDetailForTest = difference;
+        }
+#endif
+        if (expected is not null && followedBySolver)
+        {
+            ModLog.Warn(
+                $"[Sts2Solver] CONTROLLER_REUSE_MISS turn={turn} source_turn={source.StartTurn} " +
+                $"followed_by_solver=true boundary_deviation=true {difference}");
+            PauseForTurnStop(turn, "boundary_deviation", difference, countDeviation: true);
+            stoppedForDeviation = true;
+            return true;
+        }
         if (followedBySolver && source.Outcome.CombatEndedTurn.HasValue)
         {
             _pendingCompleteBaseline = new CompleteProjectionBaseline(
@@ -420,13 +442,7 @@ internal static partial class CombatSessionController
         }
         _continuationSource = null;
         if (_continuationSetupTurn == turn)
-        {
-#if STS2_SOLVER_TESTING
-            ContinuationReuseMissesForTest++;
-            ContinuationReuseMissDetailForTest = difference;
-#endif
             _continuationSetupTurn = null;
-        }
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_REUSE_MISS turn={turn} source_turn={source.StartTurn} " +
             $"followed_by_solver={followedBySolver} {difference}");
@@ -523,7 +539,7 @@ internal static partial class CombatSessionController
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH_DONE turn={result.StartTurn} " +
             $"completion={run.Outcome.Completion} death_turn={result.Outcome.DeathTurn?.ToString() ?? "-"} " +
-            $"combat_end_turn={result.Outcome.CombatEndedTurn?.ToString() ?? "-"} " +
+            $"combat_ended_turn={result.Outcome.CombatEndedTurn?.ToString() ?? "-"} " +
             $"projected_hp_lost={result.Outcome.ProjectedBattleHpLost} " +
             $"increase={result.ProjectedBattleHpLossIncrease} adopted={result.Adoption?.Kind.ToString() ?? "-"}");
         if (session.DeployWhenReady)
@@ -626,7 +642,6 @@ internal static partial class CombatSessionController
         CombatSearchReason.AutoTurnStart => "auto_turn_start",
         CombatSearchReason.Deploy => "deploy",
         CombatSearchReason.FullAuto => "full_auto",
-        CombatSearchReason.DeploymentDrift => "deployment_drift",
         CombatSearchReason.PlanExhausted => "plan_exhausted",
         CombatSearchReason.TurnSetup => "turn_setup",
         _ => throw new ArgumentOutOfRangeException(nameof(reason)),

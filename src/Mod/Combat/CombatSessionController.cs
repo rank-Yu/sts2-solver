@@ -19,10 +19,6 @@ namespace Sts2Solver;
 
 internal static partial class CombatSessionController
 {
-    private const bool StopFullAutoOnCombatEnd = false;
-    private const bool StopFullAutoOnDeathTurn = true;
-    private const bool StopFullAutoOnWorseRecalculation = true;
-
     private static readonly List<CombatPilotSearchEntry> SearchLog = [];
     private static readonly List<CombatPilotDeviationEntry> DeviationLog = [];
     private static readonly List<CombatPilotFailureEntry> FailureLog = [];
@@ -48,6 +44,7 @@ internal static partial class CombatSessionController
     private static bool _automaticSearchPaused;
     private static int? _automaticSearchPausedTurn;
     private static int? _lastSolverDeployedTurn;
+    private static int? _lastTurnSupersededBySetup;
     private static int? _continuationSetupTurn;
 #if STS2_SOLVER_TESTING
     internal static int ContinuationReuseSuccessesForTest { get; private set; }
@@ -205,6 +202,7 @@ internal static partial class CombatSessionController
             return;
         }
         deployment.SupersededByTurnSetup = true;
+        _lastTurnSupersededBySetup = deployment.Turn;
 #if STS2_SOLVER_TESTING
         SetupSupersededDeploymentCount++;
 #endif
@@ -367,6 +365,7 @@ internal static partial class CombatSessionController
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
+        _lastTurnSupersededBySetup = null;
         _continuationSetupTurn = null;
 #if STS2_SOLVER_TESTING
         ContinuationReuseSuccessesForTest = 0;
@@ -563,6 +562,8 @@ internal static partial class CombatSessionController
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
+        _lastTurnSupersededBySetup = null;
+        _continuationSetupTurn = null;
         _fullAutoEnabled = false;
         _pauseCode = null;
         _pauseReason = null;
@@ -643,7 +644,7 @@ internal static partial class CombatSessionController
         {
             _automaticSearchPaused = false;
             _automaticSearchPausedTurn = null;
-            if (_pauseCode == "stopped")
+            if (_pauseCode == "stopped" || IsTurnStopPause(_pauseCode))
             {
                 _pauseCode = null;
                 _pauseReason = null;
@@ -653,7 +654,11 @@ internal static partial class CombatSessionController
         }
         if (_automaticSearchPaused)
         {
-            _pauseCode = "stopped";
+            if (!IsTurnStopPause(_pauseCode))
+            {
+                _pauseCode = "stopped";
+                _pauseReason = "stopped_by_user";
+            }
             _phase = CombatUiPhase.Paused;
             PublishSnapshot();
             return;
@@ -716,9 +721,10 @@ internal static partial class CombatSessionController
             bool deployAfterSetup = PlayerTurnSetupRuntime.LastTurnSetupDeployAfterSetup(turn);
             PlayerTurnSetupRuntime.ConsumeLastTurnSetup();
             if (_continuationSource != null
-                && TryReuseContinuation(turn, deployWhenReady: deployAfterSetup))
+                && TryReuseContinuation(turn, deployWhenReady: deployAfterSetup,
+                    out bool stoppedForDeviation))
             {
-                LogTurnStart(turn, "reuse");
+                LogTurnStart(turn, stoppedForDeviation ? "boundary_deviation" : "reuse");
                 return;
             }
             if (!ShouldAutomaticallySearchNextTurn)
@@ -1010,6 +1016,15 @@ internal static partial class CombatSessionController
 
     private static int CurrentTurn()
         => _player?.PlayerCombatState?.TurnNumber ?? 0;
+
+    /// <summary>
+    /// A pause that stops the current turn and asks the player to search again: a prediction
+    /// deviation or a deployment that could not be executed. These codes survive a pending
+    /// turn-start event in the same turn and are cleared when the turn changes.
+    /// </summary>
+    internal static bool IsTurnStopPause(string? code)
+        => code is "action_deviation" or "boundary_deviation" or "deployment_deviation"
+            or "deploy_failed";
 
     private static void DisableFullAuto()
     {

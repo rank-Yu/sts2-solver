@@ -481,6 +481,9 @@ internal static partial class CombatSessionController
         }
         if (_state == null || _player == null || _rules == null || _tracker == null)
             return false;
+#if STS2_SOLVER_TESTING
+        CombatControllerTestHooks.BeforeTurnSetupPlayStamp?.Invoke(_state, _player);
+#endif
         Battle live;
         try
         {
@@ -521,10 +524,10 @@ internal static partial class CombatSessionController
         {
             ModLog.Warn(
                 $"[Sts2Solver] CONTROLLER_TURN_SETUP_STATE_MISMATCH turn={turn} " +
-                "validation=exact_state_text stale_plan_discarded=true");
-            DiscardTurnSetupPlan("live_state_changed");
-            PublishSnapshot();
-            return false;
+                "validation=exact_state_text boundary_deviation=true");
+            PauseForTurnStop(turn, "boundary_deviation",
+                "turn_setup_live_state_changed", countDeviation: true);
+            return true;
         }
         CombatStateStamp liveStamp = CombatStateStamp.Capture(live);
         CombatControllerResult activated = result with { Stamp = liveStamp };
@@ -563,37 +566,20 @@ internal static partial class CombatSessionController
     {
         code = "";
         reason = "";
+        CombatRouteOutcome outcome = result.Outcome;
 #if STS2_SOLVER_TESTING
-        if (CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode is { Length: > 0 } forced)
-        {
-            code = forced;
-            reason = $"forced_by_test:{forced}";
-            ApplyTurnSetupFullAutoPause(code, reason);
-            return true;
-        }
+        if (CombatControllerTestHooks.ForceProjectedDeathTurnSetup)
+            outcome = outcome with { DeathTurn = result.StartTurn };
 #endif
-        CombatPauseCode? pause = result.Outcome.OnlyDeathRoutes
+        CombatPauseCode? pause = outcome.OnlyDeathRoutes
             ? CombatPauseCode.DeathTurn
-            : CombatFullAutoPausePolicy.BeforeDeployment(
-                result.StartTurn, result.Outcome, result.WasReused,
-                result.ProjectedBattleHpLossIncrease,
-                StopFullAutoOnCombatEnd, StopFullAutoOnDeathTurn,
-                StopFullAutoOnWorseRecalculation);
+            : CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome);
         if (pause is null)
             return false;
         code = CombatFullAutoPausePolicy.Code(pause.Value);
-        reason = pause.Value switch
-        {
-            CombatPauseCode.WorseRecalculation =>
-                $"projected_hp_lost {result.PreviousProjectedBattleHpLost} -> " +
-                $"{result.Outcome.ProjectedBattleHpLost}",
-            CombatPauseCode.DeathTurn when result.Outcome.OnlyDeathRoutes =>
-                "only_death_routes=true",
-            CombatPauseCode.DeathTurn => $"death_turn={result.Outcome.DeathTurn}",
-            CombatPauseCode.CombatEndTurn =>
-                $"combat_ended_turn={result.Outcome.CombatEndedTurn}",
-            _ => pause.Value.ToString(),
-        };
+        reason = pause.Value == CombatPauseCode.DeathTurn && outcome.OnlyDeathRoutes
+            ? "only_death_routes=true"
+            : $"death_turn={outcome.DeathTurn}";
         ApplyTurnSetupFullAutoPause(code, reason);
         return true;
     }

@@ -93,8 +93,11 @@ internal sealed partial class SolverOverlay
         }
         else
         {
+            bool turnStopPaused = snapshot.Phase == CombatUiPhase.Paused
+                && CombatSessionController.IsTurnStopPause(snapshot.PauseCode);
             searchText = SolverText.Get(
-                deploying || driving || routeReady || snapshot.Phase == CombatUiPhase.Failed
+                deploying || driving || routeReady || turnStopPaused
+                    || snapshot.Phase == CombatUiPhase.Failed
                     ? "重新搜索"
                     : "开始搜索");
             searchDisabled = !snapshot.CanStartSearch;

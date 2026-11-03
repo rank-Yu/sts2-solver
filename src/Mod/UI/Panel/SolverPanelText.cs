@@ -22,8 +22,8 @@ internal static class SolverPanelText
         ["search_failed"] = "搜索失败",
         ["forced_potion_unusable"] = "找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索",
         ["turn_setup_failed"] = "回合准备选牌失败",
-        ["boundary_deviation"] = "回合开始时实际状态与预测不同，将重新搜索",
-        ["action_deviation"] = "动作结果与预测不同，将重新搜索",
+        ["boundary_deviation"] = "回合开始时实际状态与预测不同，已停止",
+        ["action_deviation"] = "动作结果与预测不同，已停止",
         ["deploy_failed"] = "自动执行中止",
         ["cancelled"] = "搜索已取消",
         ["pilot_failed"] = "全自动异常结束",
@@ -92,6 +92,14 @@ internal static class SolverPanelText
         ["Allowed"] = "放开",
     };
 
+    private static readonly IReadOnlyDictionary<string, string> PauseNames = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["action_deviation"] = "动作结果与预测不同，已停止",
+        ["boundary_deviation"] = "回合开始时实际状态与预测不同，已停止",
+        ["deployment_deviation"] = "实际局面与路线不符，已停止",
+        ["deploy_failed"] = "自动执行中止",
+    };
+
     private static readonly IReadOnlyDictionary<string, string> SearchReasonNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["initial"] = "首次搜索",
@@ -122,7 +130,7 @@ internal static class SolverPanelText
 
     /// <summary>Every source string looked up through the maps above; the logic check requires an English entry for each.</summary>
     internal static IEnumerable<string> MappedSourceStrings
-        => ErrorNames.Values.Concat(StopNames.Values)
+        => ErrorNames.Values.Concat(StopNames.Values).Concat(PauseNames.Values)
             .Concat(SkipNames.Values).Concat(EvaluationNames.Values).Concat(RetentionNames.Values)
             .Concat(PotionLimitNames.Values).Concat(SearchReasonNames.Values)
             .Concat(ChoiceEffectNames.Values).Distinct(StringComparer.Ordinal);
@@ -133,20 +141,20 @@ internal static class SolverPanelText
             : SolverText.Format($"错误：{code}");
 
     internal static string Pause(string? code, int turn)
-        => code switch
-        {
-            "turn_limit" => SolverText.Get("回合数超过上限，已暂停全自动"),
-            "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停全自动"),
-            "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停全自动"),
-            "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停全自动"),
-            "worse_recalculation" => SolverText.Get("重算后预计战损增加，已暂停全自动"),
-            "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停全自动"),
-            "combat_end_turn" => SolverText.Format($"第 {turn} 回合预计结束战斗，已暂停全自动"),
-            "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停全自动"),
-            "stopped" => SolverText.Get("搜索已停止"),
-            null => SolverText.Get("全自动已暂停"),
-            _ => SolverText.Format($"全自动已暂停：{code}"),
-        };
+        => code is not null && PauseNames.TryGetValue(code, out string? pauseSource)
+            ? SolverText.Get(pauseSource)
+            : code switch
+            {
+                "turn_limit" => SolverText.Get("回合数超过上限，已暂停全自动"),
+                "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停全自动"),
+                "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停全自动"),
+                "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停全自动"),
+                "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停全自动"),
+                "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停全自动"),
+                "stopped" => SolverText.Get("搜索已停止"),
+                null => SolverText.Get("全自动已暂停"),
+                _ => SolverText.Format($"全自动已暂停：{code}"),
+            };
 
     internal static string StopReason(string code)
         => StopNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;

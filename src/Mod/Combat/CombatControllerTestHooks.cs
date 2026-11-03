@@ -29,8 +29,20 @@ internal static class CombatControllerTestHooks
     /// <summary>Returns a search failure code for the request, or null to search normally.</summary>
     internal static Func<int, string?>? ForceSearchFailure { get; set; }
 
-    /// <summary>Forces the pre-drive full-auto pause code for the turn-setup takeover scenario.</summary>
-    internal static string? ForcedTurnSetupFullAutoPauseCode { get; set; }
+    /// <summary>Makes the normal search outcome look like a projected death on its start turn.</summary>
+    internal static bool ForceProjectedDeathTurn { get; set; }
+
+    /// <summary>Makes a turn-setup plan look like a projected death on its start turn.</summary>
+    internal static bool ForceProjectedDeathTurnSetup { get; set; }
+
+    /// <summary>Skips the current-turn actions once, to exercise the plan-exhausted re-search.</summary>
+    internal static bool ForcePlanExhaustedOnce { get; set; }
+
+    /// <summary>Runs after the setup driver finishes and before the Play stamp is compared.</summary>
+    internal static Action<CombatState, Player>? BeforeTurnSetupPlayStamp { get; set; }
+
+    /// <summary>Set by the stamp-deviation scenario's pre-installed Play-stamp hook.</summary>
+    internal static bool SetupStampDamageInjected { get; set; }
 
     /// <summary>Stops a setup search on its first frame, before a candidate exists.</summary>
     internal static bool StopTurnSetupSearchOnStart { get; set; }

@@ -188,7 +188,16 @@ internal static class TestSession
                 if (scenarioName == "turn_setup_stop_drive")
                     CombatControllerTestHooks.HoldTurnSetupDriverForTest = true;
                 if (scenarioName == "turn_setup_pause")
-                    CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = "death_turn";
+                    CombatControllerTestHooks.ForceProjectedDeathTurnSetup = true;
+                if (scenarioName == "deviation_setup_stamp")
+                {
+                    CombatControllerTestHooks.SetupStampDamageInjected = false;
+                    CombatControllerTestHooks.BeforeTurnSetupPlayStamp = static (_, player) =>
+                    {
+                        player.Creature.SetCurrentHpInternal(player.Creature.CurrentHp - 1);
+                        CombatControllerTestHooks.SetupStampDamageInjected = true;
+                    };
+                }
                 if (scenarioName == "turn_setup_continuation_mismatch")
                     CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = true;
                 if (scenarioName == "turn_setup_continuation_validation")
@@ -428,7 +437,11 @@ internal static class TestSession
                 CombatSessionController.HoldAutoSearchForTest = false;
                 CombatControllerTestHooks.ForceDeploymentFailure = null;
                 CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
-                CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = null;
+                CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+                CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
+                CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
+                CombatControllerTestHooks.BeforeTurnSetupPlayStamp = null;
+                CombatControllerTestHooks.SetupStampDamageInjected = false;
                 CombatControllerTestHooks.StopTurnSetupSearchOnStart = false;
                 CombatControllerTestHooks.HoldTurnSetupDriverForTest = false;
                 CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
@@ -565,7 +578,8 @@ internal static class TestSession
         or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
         or "turn_setup_continuation_full" or "turn_setup_capsule_source"
         or "turn_setup_capsule_source_turn2" or "turn_setup_continuation_probe"
-        or "turn_setup_continuation_validation" or "turn_setup_continuation_gap";
+        or "turn_setup_continuation_validation" or "turn_setup_continuation_gap"
+        or "deviation_boundary_setup" or "deviation_setup_stamp";
 
     private static bool TurnSetupTurnTwoScenario(string? scenario) => scenario is
         "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
@@ -574,7 +588,7 @@ internal static class TestSession
         or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
         or "turn_setup_continuation_full" or "turn_setup_capsule_source_turn2"
         or "turn_setup_continuation_probe" or "turn_setup_continuation_validation"
-        or "turn_setup_continuation_gap";
+        or "turn_setup_continuation_gap" or "deviation_boundary_setup";
 
     private static bool ApplyTestSettings(OfflineRequest request)
     {

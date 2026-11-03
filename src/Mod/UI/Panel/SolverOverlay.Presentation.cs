@@ -494,29 +494,19 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.Ready;
         string code = snapshot.PauseCode ?? "";
-        if (code == "combat_end_turn")
-        {
-            SetStatus(SolverText.Get("方案就绪"), SolverUiTokens.Palette.Success,
-                SolverText.Format($"第 {snapshot.Turn} 回合    全自动已暂停"));
-            SetSummary(SolverText.Format(
-                $"[color={SolverUiTokens.Palette.SuccessHex}]当前方案预计结束战斗，操作权已交还。[/color]"));
-        }
-        else if (code == "death_turn")
+        if (code == "death_turn")
         {
             SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
                 SolverText.Format($"第 {snapshot.Turn} 回合    预计死亡"));
             SetSummary(SolverText.Format(
                 $"[color={SolverUiTokens.Palette.DangerHex}]当前方案预计本回合死亡，操作权已交还。[/color]"));
         }
-        else if (code == "worse_recalculation")
+        else if (CombatSessionController.IsTurnStopPause(code))
         {
-            int previous = snapshot.Result?.PreviousProjectedBattleHpLost ?? 0;
-            int projected = snapshot.Result?.ProjectedBattleHpLost ?? 0;
-            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
-                SolverText.Format($"第 {snapshot.Turn} 回合    重算后战损上升"));
+            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger);
             SetSummary(
-                SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]完整路线原预计 {previous} HP，")
-                + SolverText.Format($"重算后为 {projected} HP；全自动已暂停。[/color]\n"));
+                $"[color={SolverUiTokens.Palette.DangerHex}]" +
+                $"{SolverPanelText.Pause(code, snapshot.Turn)}[/color]");
         }
         else if (code == "live_end_turn_risk")
         {

@@ -421,31 +421,18 @@ internal static class UiLogicChecks
     {
         CombatRouteOutcome death = new(3, null, 20, 0, false, false,
             new Dictionary<int, int> { [3] = 5 });
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, false, 0,
-                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death)
             == CombatPauseCode.DeathTurn, "death_pause");
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, false, 0,
-                stopOnCombatEnd: false, stopOnDeathTurn: false, stopOnWorseRecalculation: true)
-            == null, "death_disabled");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(2, death) == null, "death_other_turn");
         CombatRouteOutcome end = new(null, 3, 20, 0, true, false,
             new Dictionary<int, int> { [3] = 5 });
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 0,
-                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
-            == null, "combat_end_default_off");
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 0,
-                stopOnCombatEnd: true, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
-            == CombatPauseCode.CombatEndTurn, "combat_end_on");
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, false, 4,
-                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
-            == CombatPauseCode.WorseRecalculation, "worse_recalculation");
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, true, 4,
-                stopOnCombatEnd: false, stopOnDeathTurn: true, stopOnWorseRecalculation: true)
-            == null, "reuse_skips_worse");
-        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, false, true, true) == null,
-            "live_equal");
-        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 6, false, true, true)
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end) == null,
+            "combat_end_never_pauses");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, false) == null, "live_equal");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 6, false)
             == CombatPauseCode.LiveEndTurnRisk, "live_worse");
-        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, true, true, true)
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 4, false) == null, "live_better");
+        Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, true)
             == CombatPauseCode.LiveEndTurnRisk, "live_death");
     }
 

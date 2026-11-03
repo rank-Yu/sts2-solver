@@ -15,25 +15,22 @@ internal static partial class CombatSessionController
 {
     private static void StartFullAutoDeployment(CombatControllerResult result)
     {
-        CombatPauseCode? pause = CombatFullAutoPausePolicy.BeforeDeployment(
-            result.StartTurn, result.Outcome, result.WasReused,
-            result.ProjectedBattleHpLossIncrease,
-            StopFullAutoOnCombatEnd, StopFullAutoOnDeathTurn, StopFullAutoOnWorseRecalculation);
+        CombatRouteOutcome outcome = result.Outcome;
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.ForceProjectedDeathTurn)
+            outcome = outcome with { DeathTurn = result.StartTurn };
+#endif
+        CombatPauseCode? pause =
+            CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome);
         if (pause is { } code)
         {
             DisableFullAuto();
             _fullAutoPausedThisCombat = true;
             _continuationSource = null;
             _pauseCode = CombatFullAutoPausePolicy.Code(code);
-            _pauseReason = code switch
-            {
-                CombatPauseCode.WorseRecalculation =>
-                    $"projected_hp_lost {result.PreviousProjectedBattleHpLost} -> " +
-                    $"{result.Outcome.ProjectedBattleHpLost}",
-                CombatPauseCode.DeathTurn => $"death_turn={result.Outcome.DeathTurn}",
-                CombatPauseCode.CombatEndTurn => $"combat_ended_turn={result.Outcome.CombatEndedTurn}",
-                _ => code.ToString(),
-            };
+            _pauseReason = code == CombatPauseCode.DeathTurn
+                ? $"death_turn={outcome.DeathTurn}"
+                : code.ToString();
             _phase = CombatUiPhase.Paused;
             PublishSnapshot();
             ModLog.Info(
@@ -53,7 +50,13 @@ internal static partial class CombatSessionController
         }
         ReplayedAction[] turnActions =
             CombatRouteDecision.CurrentTurnActions(result.Plan.Actions, result.StartTurn);
-        if (turnActions.Length == 0)
+#if STS2_SOLVER_TESTING
+        bool forcePlanExhausted = CombatControllerTestHooks.ForcePlanExhaustedOnce;
+        CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
+#else
+        const bool forcePlanExhausted = false;
+#endif
+        if (turnActions.Length == 0 || forcePlanExhausted)
         {
             _continuationSource = null;
             _phase = CombatUiPhase.WaitingTurn;
@@ -158,6 +161,7 @@ internal static partial class CombatSessionController
                 // The next turn's setup page already owns the turn; do not compare the old
                 // EndTurn prediction, do not count a deviation and do not kick another search.
                 _lastSolverDeployedTurn = turn;
+                _lastTurnSupersededBySetup = turn;
                 if (!replaced)
                 {
                     _phase = CombatUiPhase.WaitingTurn;
@@ -215,16 +219,26 @@ internal static partial class CombatSessionController
         string[] diff, bool planExhausted)
     {
         _deploymentFailures++;
-        if (reason == "action_deviation")
-            _deviations++;
-        if (reason is "combat_over" or "combat_changed" && !CombatManager.Instance.IsInProgress)
+        if ((reason is "combat_over" or "combat_changed" or "combat_ended")
+            && !CombatManager.Instance.IsInProgress)
         {
             _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
             return;
         }
-        if (RecordConsecutiveFailure(turn, reason, detail))
+        if (reason == "turn_plan_exhausted")
+        {
+            // The route had actions but no EndTurn. This is the plan-exhausted path, not a
+            // failed live execution: search again and keep the old pending-execution rule.
+            _continuationSource = null;
+            _phase = CombatUiPhase.WaitingTurn;
+            PublishSnapshot();
+            ModLog.Warn(
+                $"[Sts2Solver] CONTROLLER_DEPLOY_REPLAN turn={turn} reason={reason} " +
+                $"diff={string.Join(" | ", diff)} {detail}");
+            RequestSearch(CombatSearchReason.PlanExhausted, deployWhenReady: !_fullAutoEnabled);
             return;
+        }
         if (reason == "choice_mismatch")
         {
             DisableFullAuto();
@@ -239,14 +253,70 @@ internal static partial class CombatSessionController
             ModLog.Warn($"[Sts2Solver] CONTROLLER_DEPLOY_PAUSE turn={turn} reason={reason} {detail}");
             return;
         }
+        if (IsDeploymentDeviation(reason))
+        {
+            string pauseCode = reason == "action_deviation"
+                ? "action_deviation"
+                : "deployment_deviation";
+            string pauseDetail = reason == pauseCode ? detail : $"{reason}: {detail}";
+            PauseForTurnStop(turn, pauseCode, pauseDetail, countDeviation: true);
+            ModLog.Warn(
+                $"[Sts2Solver] CONTROLLER_DEPLOY_PAUSE turn={turn} reason={reason} " +
+                $"pause={pauseCode} plan_exhausted={planExhausted} " +
+                $"diff={string.Join(" | ", diff)} {detail}");
+            return;
+        }
+
+        // Every remaining deployment failure stops the turn: the action could not be executed
+        // and the route is no longer trustworthy. Do not search automatically.
+        PauseForTurnStop(turn, "deploy_failed", $"{reason}: {detail}", countDeviation: false);
+        ModLog.Warn(
+            $"[Sts2Solver] CONTROLLER_DEPLOY_FAILED turn={turn} reason={reason} " +
+            $"plan_exhausted={planExhausted} diff={string.Join(" | ", diff)} {detail}");
+    }
+
+    /// <summary>
+    /// Stops the current turn without searching again. Prediction deviations also count in
+    /// <c>_deviations</c>; deployment failures already counted in <c>_deploymentFailures</c>.
+    /// </summary>
+    private static void PauseForTurnStop(int turn, string code, string detail,
+        bool countDeviation)
+    {
+        if (countDeviation)
+            _deviations++;
+        _latestResult = null;
+        _latestStamp = null;
+        _deploymentResult = null;
+        _turnSetupResult = null;
         _continuationSource = null;
-        _phase = CombatUiPhase.WaitingTurn;
+        _continuationSetupTurn = null;
+        _pendingCompleteBaseline = null;
+        _automaticSearchPaused = true;
+        _automaticSearchPausedTurn = turn;
+        if (_fullAutoEnabled || _mode == SolverMode.FullAuto)
+        {
+            DisableFullAuto();
+            _fullAutoPausedThisCombat = true;
+        }
+        _pauseCode = code;
+        _pauseReason = detail;
+        _pausePlannedHpLost = null;
+        _pauseLiveHpLost = null;
+        _pausePlayerDead = false;
+        _phase = CombatUiPhase.Paused;
         PublishSnapshot();
         ModLog.Warn(
-            $"[Sts2Solver] CONTROLLER_DEPLOY_DRIFT turn={turn} reason={reason} " +
-            $"plan_exhausted={planExhausted} diff={string.Join(" | ", diff)} {detail}");
-        RequestSearch(CombatSearchReason.DeploymentDrift, deployWhenReady: !_fullAutoEnabled);
+            $"[Sts2Solver] CONTROLLER_TURN_STOP turn={turn} code={code} " +
+            $"mode={_mode} deviation={countDeviation} {detail}");
     }
+
+    private static bool IsDeploymentDeviation(string reason) => reason switch
+    {
+        "action_deviation" or "turn_drift" or "energy_drift" or "stars_drift" or "hand_drift"
+            or "potion_slot_drift" or "card_missing" or "card_mismatch" or "card_unplayable"
+            or "potion_missing" or "potion_mismatch" or "potion_target" or "target_missing" => true,
+        _ => false,
+    };
 
     /// <summary>
     /// Keeps the unplayed tail (the end-turn action) as the current-turn route after a live
@@ -312,9 +382,8 @@ internal static partial class CombatSessionController
 #if !STS2_SOLVER_TESTING
         await ValueTask.CompletedTask;
 #endif
-        if (!_fullAutoEnabled
-            || (!StopFullAutoOnDeathTurn && !StopFullAutoOnWorseRecalculation)
-            || _state == null || _player == null || _rules == null || _tracker == null)
+        if (!_fullAutoEnabled || _state == null || _player == null || _rules == null
+            || _tracker == null)
         {
             return null;
         }
@@ -335,8 +404,7 @@ internal static partial class CombatSessionController
             LiveEndTurnRiskProjection risk =
                 LiveEndTurnRiskEvaluator.Evaluate(live, endTurn, _rules);
             CombatPauseCode? code = CombatFullAutoPausePolicy.LiveEndTurn(
-                plannedHpLost, risk.HpLost, risk.PlayerDead,
-                StopFullAutoOnDeathTurn, StopFullAutoOnWorseRecalculation);
+                plannedHpLost, risk.HpLost, risk.PlayerDead);
             if (code == null)
                 return null;
             return new CombatPause(code.Value,

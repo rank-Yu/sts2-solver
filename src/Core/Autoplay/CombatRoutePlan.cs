@@ -252,47 +252,26 @@ internal static class CombatFailureLimit
 
 internal enum CombatPauseCode
 {
-    WorseRecalculation,
     DeathTurn,
-    CombatEndTurn,
     LiveEndTurnRisk,
 }
 
 /// <summary>
-/// The full-auto pause conditions. Defaults match CombatSolver: combat-end stop off, death turn
-/// on, worse recalculation on. The live end-turn recheck reuses the same two risk switches.
+/// The full-auto pause conditions. Only a projected death on the turn that is about to run stops
+/// the solver; the live end-turn recheck always pauses when the live simulation dies or loses more
+/// HP than the route predicted.
 /// </summary>
 internal static class CombatFullAutoPausePolicy
 {
-    internal static CombatPauseCode? BeforeDeployment(int startTurn, in CombatRouteOutcome outcome,
-        bool wasReused, int projectedBattleHpLossIncrease,
-        bool stopOnCombatEnd, bool stopOnDeathTurn, bool stopOnWorseRecalculation)
-    {
-        if (stopOnWorseRecalculation && !wasReused && projectedBattleHpLossIncrease > 0)
-            return CombatPauseCode.WorseRecalculation;
-        if (stopOnCombatEnd && outcome.CombatEndedTurn == startTurn)
-            return CombatPauseCode.CombatEndTurn;
-        if (stopOnDeathTurn && outcome.DeathTurn == startTurn)
-            return CombatPauseCode.DeathTurn;
-        return null;
-    }
+    internal static CombatPauseCode? BeforeDeployment(int startTurn, in CombatRouteOutcome outcome)
+        => outcome.DeathTurn == startTurn ? CombatPauseCode.DeathTurn : null;
 
-    internal static CombatPauseCode? LiveEndTurn(int plannedHpLost, int liveHpLost, bool playerDead,
-        bool stopOnDeathTurn, bool stopOnWorseRecalculation)
-    {
-        if ((stopOnDeathTurn && playerDead)
-            || (stopOnWorseRecalculation && liveHpLost > plannedHpLost))
-        {
-            return CombatPauseCode.LiveEndTurnRisk;
-        }
-        return null;
-    }
+    internal static CombatPauseCode? LiveEndTurn(int plannedHpLost, int liveHpLost, bool playerDead)
+        => playerDead || liveHpLost > plannedHpLost ? CombatPauseCode.LiveEndTurnRisk : null;
 
     internal static string Code(CombatPauseCode code) => code switch
     {
-        CombatPauseCode.WorseRecalculation => "worse_recalculation",
         CombatPauseCode.DeathTurn => "death_turn",
-        CombatPauseCode.CombatEndTurn => "combat_end_turn",
         CombatPauseCode.LiveEndTurnRisk => "live_end_turn_risk",
         _ => throw new ArgumentOutOfRangeException(nameof(code)),
     };

@@ -14,7 +14,6 @@ internal enum CombatSearchReason
     AutoTurnStart,
     Deploy,
     FullAuto,
-    DeploymentDrift,
     PlanExhausted,
 
     /// <summary>A setup search started after the first visible native choice page.</summary>

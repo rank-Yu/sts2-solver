@@ -993,8 +993,12 @@ internal sealed partial class BeamSolver
                 if (_preserveReplayAllocatorOpening)
                 {
                     List<int> candidates = new();
-                    foreach (int slot in _rankOrder)
+                    // _rankOrder is a reusable scratch array: only its first Count entries are live.
+                    // The rest still holds indexes from an earlier, larger pool and must never enter
+                    // a selection or the state arena.
+                    for (int position = 0; position < Count; position++)
                     {
+                        int slot = _rankOrder[position];
                         if (_lineages[slot] == _lineageOrder[index])
                             candidates.Add(slot);
                     }

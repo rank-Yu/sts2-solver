@@ -42,6 +42,15 @@ internal static class CombatControllerTestHooks
     /// <summary>Returns a search failure code for the request, or null to search normally.</summary>
     internal static Func<int, string?>? ForceSearchFailure { get; set; }
 
+    /// <summary>Coordinator status reported by a forced search failure; null keeps Invalid.</summary>
+    internal static CombatSearchStatus? ForceSearchFailureStatus { get; set; }
+
+    /// <summary>Makes a forced search failure report that the memory budget was exceeded.</summary>
+    internal static bool ForceSearchFailureMemoryExceeded { get; set; }
+
+    /// <summary>Adds capacity-drop provenance to a successful searched route, for panel checks.</summary>
+    internal static IDictionary<string, int>? ForceCapacityDropForTest { get; set; }
+
     /// <summary>Makes the normal search outcome look like a projected death on its start turn.</summary>
     internal static bool ForceProjectedDeathTurn { get; set; }
 

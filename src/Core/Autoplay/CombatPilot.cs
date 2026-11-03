@@ -235,7 +235,8 @@ internal static class CombatPilot
                             failureLog.Add(new CombatPilotFailureEntry(turn.Turn, failureReason,
                                 search.FailureDetail ?? ""));
                         }
-                        // The same root hits the same capacity again; retrying cannot help.
+                        // CapacityBounded only reaches this no-route branch. A capacity-limited
+                        // Defeat/Incomplete route is a normal route and falls through to execution.
                         if (search.SearchStatus == CombatSearchStatus.CapacityBounded)
                         {
                             pauseReason = $"第 {turn.Turn} 回合搜索超出战斗状态容量";

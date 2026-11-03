@@ -205,7 +205,8 @@ internal sealed record CombatControllerResult(
     int BattleHpLostSoFar = 0,
     PlannedChoice[]? TurnSetupChoices = null,
     CombatStateStamp? SetupPlayStamp = null,
-    bool IsContinuationSetup = false)
+    bool IsContinuationSetup = false,
+    IReadOnlyDictionary<string, int>? CapacityDroppedRegions = null)
 {
     internal bool WasReused => Plan.WasReused;
 

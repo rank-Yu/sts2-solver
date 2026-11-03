@@ -62,7 +62,8 @@ internal static class CombatSearchRunner
         catch (CapacityException error)
         {
             return Failed(in searchRoot, turn, tier, profile, threads, "import_capacity",
-                $"region={error.Region} {error.Message}");
+                CombatFailureDetail.Capacity(error,
+                    error.Region == "Cards" ? CountCombatCards(player) : null));
         }
         catch (InvalidDataException error)
         {
@@ -98,6 +99,18 @@ internal static class CombatSearchRunner
         {
             SearchSession.EndProgress(progress);
         }
+
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.ForceCapacityDropForTest is { Count: > 0 } forcedDrops
+            && outcome.Beam != null)
+        {
+            outcome = outcome with
+            {
+                CapacityDroppedRegions =
+                    new SortedDictionary<string, int>(forcedDrops, StringComparer.Ordinal),
+            };
+        }
+#endif
 
         if (outcome.ResumeMerge is { } merge)
         {
@@ -147,7 +160,7 @@ internal static class CombatSearchRunner
         }
         catch (CapacityException error)
         {
-            return RouteFailed($"region={error.Region} {error.Message}", "route_capacity");
+            return RouteFailed(CombatFailureDetail.Capacity(error), "route_capacity");
         }
         tracker.Observe(searchRoot);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route,
@@ -207,6 +220,16 @@ internal static class CombatSearchRunner
                 result.ElapsedMilliseconds, result.ManagedHeapPeakBytes,
                 result.WorkingSetPeakBytes);
         }
+    }
+
+    /// <summary>Card count across the player's combat piles, used only to explain a Cards capacity.</summary>
+    private static int? CountCombatCards(Player player)
+    {
+        if (player.PlayerCombatState is not { } state)
+            return null;
+        return state.Hand.Cards.Count + state.DrawPile.Cards.Count
+            + state.DiscardPile.Cards.Count + state.ExhaustPile.Cards.Count
+            + state.PlayPile.Cards.Count;
     }
 
     /// <summary>
@@ -383,7 +406,27 @@ internal static class CombatSearchRunner
         SearchPerformanceProfile profile, int threads, string code, string detail)
     {
         ModLog.Error($"[Sts2Solver] CONTROLLER_SEARCH_FAILED turn={turn} code={code} {detail}");
-        CombatSearchResult outcome = new(CombatSearchStatus.Invalid, null, -1, 0, 0, [], detail);
+        CombatSearchStatus status = CombatSearchStatus.Invalid;
+        SearchMemberResult[] members = [];
+#if STS2_SOLVER_TESTING
+        status = CombatControllerTestHooks.ForceSearchFailureStatus ?? status;
+        if (CombatControllerTestHooks.ForceSearchFailureMemoryExceeded)
+        {
+            members =
+            [
+                new SearchMemberResult(
+                    new SearchMember(1, SearchEvaluation.Standard, SearchRetention.Standard,
+                        SearchPotionLimit.None),
+                    Ran: true, SkippedReason: null, ElapsedMilliseconds: 0, ExpandedNodes: 0,
+                    StopReason: "memory", Victory: false, HpLost: null, PotionUses: null,
+                    Adopted: false, MemoryPeakBytes: 0, EndedCompactions: 0)
+                {
+                    MemoryBudgetExceeded = true,
+                },
+            ];
+        }
+#endif
+        CombatSearchResult outcome = new(status, null, -1, 0, 0, members, detail);
         return new CombatSearchRun(in root, null, outcome, null, null, null, null,
             Environment.TickCount64, tier, profile, threads, [], code, detail);
     }

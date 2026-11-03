@@ -6,8 +6,6 @@
   "seed": "FLASH-DECK-IRONCLAD-22",
   "targetRoomType": "Elite",
   "targetMapPointType": "Elite",
-  "checkpointArchivePath": "",
-  "replayPolicyOverridePath": "",
   "evidenceDirectory": "",
   "ascension": 10,
   "actIndexForTest": 2,
@@ -153,11 +151,7 @@
     }
   ],
   "timeoutSeconds": 600,
-  "expectedUnexpectedReplansAtMost": 0,
   "headlessFastModeForTest": "Instant",
-  "deploymentFastModeForTest": "Instant",
-  "flashSearchModeForTest": "On",
-  "deploymentInterActionDelaySecondsForTest": 0,
   "exportBugReportAfterCombat": true,
   "flashPrefixPlan": [
     {

@@ -76,6 +76,7 @@ internal static class UiLogicChecks
         Check("result_summary_speed", ResultSummarySpeed);
         Check("english_catalog_placeholders", LocaleCatalog);
         Check("panel_text_catalog", PanelTextCatalog);
+        Check("failure_reason_text", FailureReasonText);
         try
         {
             Directory.Delete(directory, recursive: true);
@@ -530,6 +531,86 @@ internal static class UiLogicChecks
         Require(problems.Length == 0, "catalog:" + string.Join(",", problems));
         Require(SolverText.EnglishCatalogForTesting.Count > 0, "catalog_empty");
         Require(SolverText.EnglishCatalogForTesting.ContainsKey("尖塔求解器"), "catalog_title_key");
+    }
+
+    private static void FailureReasonText()
+    {
+        int cardLimit = Sts2Solver.Simulation.Combat.Limits.Cards;
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.ImportCapacity,
+            Region = "Cards",
+            Capacity = cardLimit,
+            Actual = cardLimit + 1,
+        }) == SolverText.Format($"牌组共 {cardLimit + 1} 张，超过求解器上限 {cardLimit} 张"),
+            "deck_capacity");
+        Require(SolverPanelText.CapacityDropHint(
+                new Dictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 })
+            == "部分打法因牌数超出求解器容量被跳过，可能还有更好的路线",
+            "capacity_drop_hint_cards");
+        Require(SolverPanelText.CapacityDropHint(
+                new Dictionary<string, int>(StringComparer.Ordinal) { ["Powers"] = 1 })
+            .Contains("能力", StringComparison.Ordinal),
+            "capacity_drop_hint_region");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.SearchCapacityBounded,
+        }).Contains("生成的牌太多", StringComparison.Ordinal), "capacity_bounded");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.SearchNoRoute,
+        }) == "没有找到任何可执行路线", "no_route");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.SearchMemoryLimit,
+        }).Contains("内存上限", StringComparison.Ordinal), "memory_limit");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Import,
+            Code = ImportReason.UnsupportedCard,
+            Detail = "NO_SUCH_CARD",
+        }) == "战斗中有尚未支持的卡牌", "unsupported_card_category");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Deployment,
+            Code = "action_failed",
+        }) == "原生动作执行出错", "deployment_action_failed");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Deployment,
+            Code = "boundary_timeout",
+        }) == "等待游戏结算超时", "deployment_timeout");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Deviation,
+            Code = "energy_drift",
+        }) == "能量和路线对不上", "deviation_energy");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Deployment,
+            Code = "not_a_known_reason",
+        }) == "详细原因已写入日志", "deployment_unknown");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Deviation,
+            Diff = ["HandCount"],
+        }) == "手牌和路线对不上", "deviation_hand");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.ChoiceMismatch,
+        }) == "游戏当前的选牌请求和路线里的选择对不上", "choice_mismatch");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.DeathTurn,
+        }).Contains("死亡", StringComparison.Ordinal), "death_turn");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.LiveEndTurnRisk,
+        }).Contains("实机复核", StringComparison.Ordinal), "live_end_turn_risk");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.Unknown,
+        }) == "详细原因已写入日志", "unknown_reason");
     }
 
     private static void PanelTextCatalog()

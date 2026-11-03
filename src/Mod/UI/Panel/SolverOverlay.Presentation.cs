@@ -85,7 +85,9 @@ internal sealed partial class SolverOverlay
         }
         else if (snapshot.Phase == CombatUiPhase.Failed)
         {
-            ShowMessage(SolverText.Get("求解器消息"), SolverPanelText.Error(snapshot.ErrorCode ?? "search_failed"));
+            ShowMessage(SolverText.Get("求解器消息"),
+                SolverPanelText.Error(snapshot.ErrorCode ?? "search_failed"),
+                SolverPanelText.ErrorReason(snapshot.ErrorReason));
         }
         else if (snapshot.TurnSetupDriving)
         {
@@ -328,7 +330,7 @@ internal sealed partial class SolverOverlay
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = summary;
+            _summaryText.Text = AppendCapacityDropHint(summary, result);
         }
         string review = FormatSearchReview(
             overlay.ReviewedWorldlines, result.SearchExpandedNodes,
@@ -504,9 +506,10 @@ internal sealed partial class SolverOverlay
         else if (CombatSessionController.IsTurnStopPause(code))
         {
             SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger);
+            string title = SolverPanelText.Pause(code, snapshot.Turn);
+            string reason = SolverPanelText.ErrorReason(snapshot.PauseDetailReason);
             SetSummary(
-                $"[color={SolverUiTokens.Palette.DangerHex}]" +
-                $"{SolverPanelText.Pause(code, snapshot.Turn)}[/color]");
+                $"[color={SolverUiTokens.Palette.DangerHex}]{title}\n{reason}[/color]");
         }
         else if (code == "live_end_turn_risk")
         {
@@ -523,11 +526,14 @@ internal sealed partial class SolverOverlay
         else if (code == "choice_mismatch")
         {
             ShowMessage(SolverText.Get("求解器消息"),
-                SolverText.Get("自动选牌未完成，已暂停执行。当前选择交还手动操作，完成后点击“重新搜索”。"));
+                SolverText.Get("自动选牌未完成，已暂停执行。当前选择交还手动操作，完成后点击“重新搜索”。"),
+                SolverPanelText.ErrorReason(snapshot.PauseDetailReason));
         }
         else
         {
-            ShowMessage(SolverText.Get("求解器消息"), SolverPanelText.Pause(code, snapshot.Turn));
+            ShowMessage(SolverText.Get("求解器消息"),
+                SolverPanelText.Pause(code, snapshot.Turn),
+                SolverPanelText.ErrorReason(snapshot.PauseDetailReason));
         }
         SetRouteHeading(SolverText.Get("推荐路线"));
         PopulateRoute(overlay, snapshot);
@@ -541,8 +547,10 @@ internal sealed partial class SolverOverlay
         SetStatus(SolverText.Get("搜索已停止"), SolverUiTokens.Palette.Danger);
         if (snapshot.CurrentTurnRouteReady)
         {
-            SetSummary(SolverText.Format(
-                $"[color={SolverUiTokens.Palette.WarningHex}]搜索已停止；下方保留停止时已经得到的当前候选路线。[/color]"));
+            SetSummary(AppendCapacityDropHint(
+                SolverText.Format(
+                    $"[color={SolverUiTokens.Palette.WarningHex}]搜索已停止；下方保留停止时已经得到的当前候选路线。[/color]"),
+                snapshot.Result));
         }
         else
         {
@@ -554,6 +562,16 @@ internal sealed partial class SolverOverlay
             SetDetailsVisible(false);
         }
         RefreshControls(snapshot);
+    }
+
+    private static string AppendCapacityDropHint(string text, CombatResultUiSnapshot? result)
+    {
+        if (result?.CapacityDroppedRegions is not { Count: > 0 } regions)
+            return text;
+        string hint = SolverPanelText.CapacityDropHint(regions);
+        return hint.Length == 0
+            ? text
+            : text + "\n" + $"[color={SolverUiTokens.Palette.WarningHex}]{hint}[/color]";
     }
 
     private void ShowManualCalculationReady(CombatUiSnapshot snapshot)
@@ -620,13 +638,13 @@ internal sealed partial class SolverOverlay
         RefreshControls(snapshot);
     }
 
-    private void ShowMessage(string status, string message)
+    private void ShowMessage(string status, string title, string? reason = null)
     {
         _presentation = SolverOverlayPresentation.Ready;
         _waitingForNextTurnPlan = false;
         _lastResultCandidate = -1;
         SetStatus(status, SolverUiTokens.Palette.TextMuted);
-        SetSummary(message);
+        SetSummary(string.IsNullOrEmpty(reason) ? title : title + "\n" + reason);
         SetReviewText(null);
         SetRouteVisibility(false);
         if (_detailsButton != null)

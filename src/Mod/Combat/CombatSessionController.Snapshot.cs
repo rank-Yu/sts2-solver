@@ -67,6 +67,10 @@ internal static partial class CombatSessionController
             : continuationSearch ? _latestResult : null;
         CombatControllerResult? shown = _search == null || continuationSearch
             ? _latestResult : null;
+        CombatFailureReason? errorReason =
+            CombatFailureReasonClassifier.Error(_errorCode, _errorDetail, _finishedSearch);
+        CombatFailureReason? pauseDetailReason =
+            CombatFailureReasonClassifier.Pause(_pauseCode, _pauseReason, errorReason);
         CombatUiSnapshot next = new()
         {
             Phase = _phase,
@@ -103,9 +107,11 @@ internal static partial class CombatSessionController
             PlayerMaxHp = maxHp,
             EndReason = EndReason(),
             PauseReason = _pauseReason,
+            PauseDetailReason = pauseDetailReason,
             PauseCode = _pauseCode ?? (_automaticSearchPaused ? "stopped" : null),
             ErrorCode = _errorCode,
             ErrorDetail = _errorDetail,
+            ErrorReason = errorReason,
             RejectCode = _rejectCode,
             Search = BuildSearchUi(),
             Route = BuildRouteUi(routeSource),
@@ -201,6 +207,7 @@ internal static partial class CombatSessionController
         Outcome = OutcomeName(result.Outcome),
         AdoptionKind = result.Adoption?.Kind,
         CandidateVersion = result.CandidateVersion,
+        CapacityDroppedRegions = result.CapacityDroppedRegions,
     };
 
     private static string OutcomeName(CombatRouteOutcome outcome)

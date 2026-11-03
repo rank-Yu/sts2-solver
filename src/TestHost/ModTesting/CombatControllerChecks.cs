@@ -254,6 +254,18 @@ internal static class CombatControllerChecks
                 case "search_failures":
                     await SearchFailuresAsync(host, Check, Action);
                     break;
+                case "import_capacity":
+                    await ImportCapacityAsync(host, Check, Action);
+                    break;
+                case "import_failure":
+                    await ImportFailureAsync(host, Check, Action);
+                    break;
+                case "search_status_failures":
+                    await SearchStatusFailuresAsync(host, Check, Action);
+                    break;
+                case "capacity_dropped_route":
+                    await CapacityDroppedRouteAsync(host, Check, Action);
+                    break;
                 case "manual_reuses_route":
                     await ManualReusesRouteAsync(host, Check, Action);
                     break;
@@ -315,6 +327,9 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.ForceTurnStartForTest = false;
             CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
             CombatControllerTestHooks.ForceSearchFailure = null;
+            CombatControllerTestHooks.ForceSearchFailureStatus = null;
+            CombatControllerTestHooks.ForceSearchFailureMemoryExceeded = false;
+            CombatControllerTestHooks.ForceCapacityDropForTest = null;
             CombatControllerTestHooks.AutoStopOnCandidate = false;
             CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
             CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
@@ -1040,6 +1055,14 @@ internal static class CombatControllerChecks
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "repeated_failure",
             1800, "repeated search failure pause");
         check("pause_code", paused.PauseCode == "repeated_failure", paused.PauseCode);
+        check("reason_kind", paused.PauseDetailReason?.Kind == CombatReasonKind.RepeatedFailure,
+            paused.PauseDetailReason?.Kind ?? "-");
+        check("reason_inner", paused.PauseDetailReason?.Inner?.Kind == CombatReasonKind.SearchFailed,
+            paused.PauseDetailReason?.Inner?.Kind ?? "-");
+        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        await Frames(host, 4);
+        check("summary", Summary() == SolverPanelText.Pause(paused.PauseCode, paused.Turn)
+            + "\n" + SolverPanelText.ErrorReason(paused.PauseDetailReason), Summary());
         check("searches", paused.Searches >= 3, paused.Searches.ToString());
         check("no_deployment_failures", paused.DeploymentFailures == 0,
             paused.DeploymentFailures.ToString());
@@ -1631,6 +1654,16 @@ internal static class CombatControllerChecks
             CombatUiSnapshot failed = await WaitAsync(host,
                 static s => s.ErrorCode == "turn_setup_failed", 2400, "turn setup failure");
             check("error_code", failed.ErrorCode == "turn_setup_failed", failed.ErrorCode);
+            check("reason_kind",
+                failed.ErrorReason?.Kind == CombatReasonKind.TurnSetupFailed,
+                failed.ErrorReason?.Kind ?? "-");
+            await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+            check("summary_title",
+                Summary().Contains(SolverText.Get("回合准备选牌失败"), StringComparison.Ordinal),
+                Summary());
+            check("summary_reason",
+                Summary().Contains(SolverText.Get("没有找到可执行的回合开始选牌方案"),
+                    StringComparison.Ordinal), Summary());
             check("page_open", failed.TurnSetupPageOpen);
             check("no_plan", !failed.TurnSetupPlanReady);
             check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
@@ -2126,6 +2159,9 @@ internal static class CombatControllerChecks
         await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
         check("summary", Summary().Contains("动作结果与预测不同，已停止", StringComparison.Ordinal),
             Summary());
+        check("summary_reason", Summary().Contains(
+            SolverPanelText.ErrorReason(paused.PauseDetailReason), StringComparison.Ordinal),
+            Summary());
         await Frames(host, 60);
         check("no_research", Snapshot().Searches == searches, $"{searches}->{Snapshot().Searches}");
         CombatControllerTestHooks.ForceDeploymentFailure = null;
@@ -2190,6 +2226,22 @@ internal static class CombatControllerChecks
         check("pause_code", paused.PauseCode == "deployment_deviation", paused.PauseCode);
         check("detail", paused.PauseReason?.Contains("hand_drift", StringComparison.Ordinal) == true,
             paused.PauseReason ?? "-");
+        check("reason_kind", paused.PauseDetailReason?.Kind == CombatReasonKind.Deviation,
+            paused.PauseDetailReason?.Kind ?? "-");
+        check("reason_text",
+            SolverPanelText.ErrorReason(paused.PauseDetailReason)
+                == SolverText.Get("手牌和路线对不上"),
+            SolverPanelText.ErrorReason(paused.PauseDetailReason));
+        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        check("summary_reason",
+            Summary().Contains(SolverText.Get("手牌和路线对不上"), StringComparison.Ordinal),
+            Summary());
+        if (SolverText.IsEnglish)
+        {
+            check("english_reason",
+                Summary().Contains("The hand does not match the route.",
+                    StringComparison.Ordinal), Summary());
+        }
         check("searches_unchanged", paused.Searches == searches,
             $"{searches}->{paused.Searches}");
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
@@ -2241,6 +2293,8 @@ internal static class CombatControllerChecks
         check("summary",
             Summary().Contains("回合开始时实际状态与预测不同，已停止", StringComparison.Ordinal),
             Summary());
+        check("summary_reason",
+            Summary().Contains("和路线对不上", StringComparison.Ordinal), Summary());
         CombatControllerTestHooks.BeforeAutoSearch = null;
         int searches = paused.Searches;
         await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
@@ -2451,8 +2505,18 @@ internal static class CombatControllerChecks
         check("search_failed_no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
         await WaitStatusAsync(host, SolverText.Get("求解器消息"));
         check("search_failed_status", Status() == SolverText.Get("求解器消息"), Status());
+        check("search_failed_reason_kind",
+            failed.ErrorReason?.Kind == CombatReasonKind.SearchFailed,
+            failed.ErrorReason?.Kind ?? "-");
         check("search_failed_summary",
-            Summary() == SolverPanelText.Error("search_failed"), Summary());
+            Summary() == SolverPanelText.Error("search_failed") + "\n"
+                + SolverPanelText.ErrorReason(failed.ErrorReason), Summary());
+        if (SolverText.IsEnglish)
+        {
+            check("search_failed_english_reason",
+                Summary().Contains("The search failed before returning an executable route.",
+                    StringComparison.Ordinal), Summary());
+        }
         SolverOverlay? panel = SolverOverlay.Instance;
         check("search_failed_button",
             panel?.SearchButtonForTest is { Disabled: false } button
@@ -2483,8 +2547,18 @@ internal static class CombatControllerChecks
         check("potion_failed_can_retry", potion.CanStartSearch);
         await WaitStatusAsync(host, SolverText.Get("求解器消息"));
         check("potion_failed_status", Status() == SolverText.Get("求解器消息"), Status());
+        check("potion_failed_reason_kind",
+            potion.ErrorReason?.Kind == CombatReasonKind.ForcedPotion,
+            potion.ErrorReason?.Kind ?? "-");
         check("potion_failed_summary",
-            Summary() == SolverPanelText.Error("forced_potion_unusable"), Summary());
+            Summary() == SolverPanelText.Error("forced_potion_unusable") + "\n"
+                + SolverPanelText.ErrorReason(potion.ErrorReason), Summary());
+        if (SolverText.IsEnglish)
+        {
+            check("potion_failed_english_reason",
+                Summary().Contains("No route used every potion set to Always use.",
+                    StringComparison.Ordinal), Summary());
+        }
         check("potion_failed_button",
             panel?.SearchButtonForTest is { Disabled: false } potionButton
             && potionButton.Text == SolverText.Get("重新搜索"),
@@ -2498,6 +2572,167 @@ internal static class CombatControllerChecks
             900, "failure cleared on next turn");
         check("next_turn_phase", next.Phase == CombatUiPhase.WaitingTurn, next.Phase.ToString());
         check("next_turn_error_cleared", next.ErrorCode == null, next.ErrorCode);
+    }
+
+    private static async Task ImportCapacityAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int turn = Snapshot().Turn;
+
+        await PressPanelButtonAsync(host, PanelButton.Search, "import_capacity");
+        action("press_search_import_capacity");
+        CombatUiSnapshot failed = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 1800,
+            "import capacity failure");
+        check("phase", failed.Phase == CombatUiPhase.Failed, failed.Phase.ToString());
+        check("code", failed.ErrorCode == "import_capacity", failed.ErrorCode ?? "-");
+        check("turn", failed.Turn == turn, $"{turn}->{failed.Turn}");
+        check("reason_kind", failed.ErrorReason?.Kind == CombatReasonKind.ImportCapacity,
+            failed.ErrorReason?.Kind ?? "-");
+        int limit = Sts2Solver.Simulation.Combat.Limits.Cards;
+        check("reason_capacity", failed.ErrorReason?.Capacity == limit,
+            failed.ErrorReason?.Capacity?.ToString() ?? "-");
+        check("reason_actual", failed.ErrorReason?.Actual == limit + 1,
+            failed.ErrorReason?.Actual?.ToString() ?? "-");
+        string expected = SolverText.Format($"牌组共 {limit + 1} 张，超过求解器上限 {limit} 张");
+        check("reason_text", SolverPanelText.ErrorReason(failed.ErrorReason) == expected,
+            SolverPanelText.ErrorReason(failed.ErrorReason));
+        check("no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
+        check("can_retry", failed.CanStartSearch);
+        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        check("status", Status() == SolverText.Get("求解器消息"), Status());
+        check("title", Summary().Contains(SolverText.Get("搜索初始化失败"), StringComparison.Ordinal),
+            Summary());
+        check("summary_reason", Summary().Contains(expected, StringComparison.Ordinal), Summary());
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("button",
+            panel?.SearchButtonForTest is { Disabled: false } button
+            && button.Text == SolverText.Get("重新搜索"),
+            panel?.SearchButtonForTest?.Text);
+        check("no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+    }
+
+    private static async Task ImportFailureAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        await PressPanelButtonAsync(host, PanelButton.Search, "import_failure");
+        action("press_search_import_failure");
+        CombatUiSnapshot failed = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 1800,
+            "import failure");
+        check("phase", failed.Phase == CombatUiPhase.Failed, failed.Phase.ToString());
+        check("import_code",
+            failed.ErrorCode is "import_failed" or "import_unsupported" or "import_capacity",
+            failed.ErrorCode ?? "-");
+        check("reason_kind", failed.ErrorReason?.Kind is CombatReasonKind.Import
+                or CombatReasonKind.ImportUnsupported or CombatReasonKind.ImportCapacity,
+            failed.ErrorReason?.Kind ?? "-");
+        check("no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
+        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        string title = SolverPanelText.Error(failed.ErrorCode ?? "search_failed");
+        string reason = SolverPanelText.ErrorReason(failed.ErrorReason);
+        check("summary_title", Summary().Contains(title, StringComparison.Ordinal), Summary());
+        check("summary_reason", Summary().Contains(reason, StringComparison.Ordinal), Summary());
+        check("summary_two_lines", Summary().Contains('\n'), Summary());
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("button",
+            panel?.SearchButtonForTest is { Disabled: false } button
+            && button.Text == SolverText.Get("重新搜索"),
+            panel?.SearchButtonForTest?.Text);
+        check("no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+    }
+
+    private static async Task SearchStatusFailuresAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        (string Name, CombatSearchStatus Status, bool Memory, string Kind,
+            string Reason)[] cases =
+        [
+            ("capacity_bounded", CombatSearchStatus.CapacityBounded, false,
+                CombatReasonKind.SearchCapacityBounded,
+                "生成的牌太多，超出求解器容量，没有找到能赢的路线"),
+            ("memory_limit", CombatSearchStatus.Incomplete, true,
+                CombatReasonKind.SearchMemoryLimit,
+                "达到内存上限，没有找到可执行路线"),
+            ("no_route", CombatSearchStatus.Incomplete, false,
+                CombatReasonKind.SearchNoRoute,
+                "没有找到任何可执行路线"),
+        ];
+        try
+        {
+            foreach ((string name, CombatSearchStatus status, bool memory,
+                         string kind, string reasonSource) in cases)
+            {
+                CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
+                CombatControllerTestHooks.ForceSearchFailureStatus = status;
+                CombatControllerTestHooks.ForceSearchFailureMemoryExceeded = memory;
+                await PressPanelButtonAsync(host, PanelButton.Search, name);
+                action($"press_search:{name}");
+                CombatUiSnapshot failed = await WaitAsync(host,
+                    static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 600,
+                    $"{name} failure");
+                check($"{name}_code", failed.ErrorCode == "search_failed",
+                    failed.ErrorCode ?? "-");
+                check($"{name}_kind", failed.ErrorReason?.Kind == kind,
+                    failed.ErrorReason?.Kind ?? "-");
+                string title = SolverPanelText.Error("search_failed");
+                string reason = SolverPanelText.ErrorReason(failed.ErrorReason);
+                check($"{name}_reason", reason == SolverText.Get(reasonSource), reason);
+                await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+                await Frames(host, 4);
+                check($"{name}_summary", Summary() == title + "\n" + reason, Summary());
+                if (SolverText.IsEnglish)
+                {
+                    check($"{name}_english_line",
+                        Summary().Contains("\n", StringComparison.Ordinal)
+                        && !Summary().EndsWith('\n'), Summary());
+                }
+            }
+        }
+        finally
+        {
+            CombatControllerTestHooks.ForceSearchFailure = null;
+            CombatControllerTestHooks.ForceSearchFailureStatus = null;
+            CombatControllerTestHooks.ForceSearchFailureMemoryExceeded = false;
+        }
+    }
+
+    private static async Task CapacityDroppedRouteAsync(NGame host, Check check, Action action)
+    {
+        check("mode_auto_search",
+            CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        CombatUiSnapshot ready = await WaitAsync(host,
+            static s => s.Result != null && !s.IsSearching && !s.IsDeploying
+                && s.Result.CapacityDroppedRegions is { Count: > 0 },
+            1800, "capacity-dropped route");
+        check("phase", ready.Phase == CombatUiPhase.WaitingTurn, ready.Phase.ToString());
+        check("no_error", ready.ErrorCode == null, ready.ErrorCode ?? "-");
+        check("has_route", ready.Result != null && ready.CurrentTurnRouteReady);
+        check("drop_region", ready.Result?.CapacityDroppedRegions is { } regions
+            && regions.TryGetValue("Cards", out int dropped) && dropped == 1,
+            ready.Result?.CapacityDroppedRegions is { } r
+                ? string.Join(",", r.Select(static pair => $"{pair.Key}={pair.Value}"))
+                : "-");
+        await WaitStatusAsync(host, SolverText.Get("方案就绪"), SolverText.Get("方案已复用"));
+        await Frames(host, 4);
+        string hint = SolverPanelText.CapacityDropHint(
+            new SortedDictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 });
+        check("summary_hint", Summary().Contains(hint, StringComparison.Ordinal), Summary());
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
+            panel?.SearchButtonForTest?.Text ?? "-");
+        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
+        check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
+        check("right_text", panel?.ExecuteButtonForTest?.Text == SolverText.Get("执行本回合"),
+            panel?.ExecuteButtonForTest?.Text ?? "-");
+        check("right_enabled", panel?.ExecuteButtonForTest?.Disabled == false);
     }
 
     private static async Task ThreadSettingAsync(NGame host, Check check, Action action)
@@ -3198,7 +3433,7 @@ internal static class CombatControllerChecks
             if (deployed.Action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.PlayCard
                 && forced++ == 0)
             {
-                return "forced_failure";
+                return "action_failed";
             }
             return null;
         };
@@ -3212,6 +3447,13 @@ internal static class CombatControllerChecks
         check("no_research", stopped.Searches == searches, $"{searches}->{stopped.Searches}");
         check("failures", stopped.DeploymentFailures == 1, stopped.DeploymentFailures.ToString());
         check("deviations", stopped.Deviations == 0, stopped.Deviations.ToString());
+        check("reason_kind", stopped.PauseDetailReason?.Kind == CombatReasonKind.Deployment,
+            stopped.PauseDetailReason?.Kind ?? "-");
+        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        check("summary_title",
+            Summary().Contains("自动执行中止", StringComparison.Ordinal), Summary());
+        check("summary_reason",
+            Summary().Contains("原生动作执行出错", StringComparison.Ordinal), Summary());
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
         check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),

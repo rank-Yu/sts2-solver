@@ -35,7 +35,9 @@ internal static class SearchResumeContracts
         StopWithoutCandidateAdoptsCompleted(plain);
         StopWithoutCandidateWithoutCompletedCancels(plain);
         RequestedAdoptionHasNoResume(plain);
-        Console.WriteLine("SEARCH_RESUME stop/middle/last/two-pass/carried/without-candidate=pass");
+        CapacityDropsWithRouteReturnsBest(plain);
+        CapacityDropsWithoutRouteFails(plain);
+        Console.WriteLine("SEARCH_RESUME stop/middle/last/two-pass/carried/without-candidate/capacity-drops=pass");
     }
 
     private static void ResumeKeepsStoppedResult(SearchCase original)
@@ -306,6 +308,61 @@ internal static class SearchResumeContracts
     private static int MemberCount(SearchCase searchCase)
         => PortfolioBuilder.Build(Plan,
             searchCase.Options.PowerCommitments is { Rules.Length: > 0 }).Length;
+
+    private static void CapacityDropsWithRouteReturnsBest(SearchCase original)
+    {
+        BeamResult route = FirstRoute(original);
+        Assert(!route.BestIsVictory, "capacity-drop fixture route must be non-victory");
+        Script script = new() { Default = FakeStep.None };
+        script.Set((0, 0), CapacityDroppedStep(route));
+        SearchProgressChannel channel = new(0);
+        FakeRunner runner = new(channel, Plan, script);
+        CombatSearchResult result = Run(original, runner, channel);
+        Assert(result.Completion == SearchCompletionKind.Completed,
+            result.Completion.ToString());
+        Assert(result.Status is CombatSearchStatus.Defeat or CombatSearchStatus.Incomplete,
+            result.Status.ToString());
+        Assert(result.Error == null && result.Beam is not null
+            && Equal(result.Beam.BestRoute, route.BestRoute),
+            "capacity-dropped non-victory route is returned");
+        Assert(result.CapacityDroppedRegions is { } drops
+            && drops.TryGetValue("Cards", out int count) && count == 1,
+            "capacity-drop regions travel with the result");
+    }
+
+    private static void CapacityDropsWithoutRouteFails(SearchCase original)
+    {
+        BeamResult empty = new([], [], false, 0d, 0, 0, 0, 0, 0, TimeSpan.Zero)
+        {
+            StopReason = "frontier-empty",
+            CapacityPruned = 1,
+            CapacityDroppedChildren = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                ["Cards"] = 1,
+            },
+            PotionPolicySatisfied = false,
+        };
+        Script script = new() { Default = FakeStep.None };
+        script.Set((0, 0), BeamStep(empty));
+        SearchProgressChannel channel = new(0);
+        FakeRunner runner = new(channel, Plan, script);
+        CombatSearchResult result = Run(original, runner, channel);
+        Assert(result.Status == CombatSearchStatus.CapacityBounded, result.Status.ToString());
+        Assert(result.Beam is null && result.Completion == SearchCompletionKind.Failed
+            && result.Error is { } error && error.Contains("Cards=1", StringComparison.Ordinal),
+            "capacity drops without any result stay CapacityBounded");
+    }
+
+    private static FakeStep CapacityDroppedStep(BeamResult beam)
+        => BeamStep(beam with
+        {
+            StopReason = "frontier-empty",
+            CapacityPruned = 1,
+            CapacityDroppedChildren = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                ["Cards"] = 1,
+            },
+        });
 
     private static CombatSearchResult Run(SearchCase searchCase, FakeRunner runner,
         SearchProgressChannel channel, SearchResumeState? resume = null)

@@ -100,6 +100,38 @@ internal sealed class CombatDisplayNames
     }
 
     /// <summary>Card title in the current language; the panel re-resolves it after a language change.</summary>
+    /// <summary>
+    /// Resolves an exact native id carried by an import rejection to its localized title. The id
+    /// must match the model table exactly; free-form diagnostic text is never treated as a name.
+    /// </summary>
+    internal static bool TryContentTitle(string importReason, string? nativeId, out string title)
+    {
+        title = "";
+        if (string.IsNullOrEmpty(nativeId))
+            return false;
+        EnsureCache();
+        switch (importReason)
+        {
+            case "unsupported-card":
+                if (_cardNames.TryGetValue((nativeId, 0), out string? card))
+                {
+                    title = card;
+                    return true;
+                }
+                return false;
+            case "unsupported-power":
+                return _powerNames.TryGetValue(nativeId, out title!);
+            case "unsupported-relic":
+                return _relicNames.TryGetValue(nativeId, out title!);
+            case "unsupported-potion":
+                return _potionNames.TryGetValue(nativeId, out title!);
+            case "unsupported-monster":
+                return _monsterNames.TryGetValue(nativeId, out title!);
+            default:
+                return false;
+        }
+    }
+
     internal static string CardTitle(string nativeId, int upgrade)
     {
         if (string.IsNullOrEmpty(nativeId))

@@ -333,6 +333,7 @@ internal static class CombatSearchCoordinator
                         OnlyDeathRoutes = chosenOnlyDeath,
                         SearchThreads = initial.Options.SearchThreads,
                         PlannedBudgetMilliseconds = plannedMilliseconds,
+                        CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
                     };
                 }
                 bool adopted = false;
@@ -454,11 +455,13 @@ internal static class CombatSearchCoordinator
         }
         if (selectedMember >= 0)
             for (int i = 0; i < logs.Count; i++) logs[i] = logs[i] with { Adopted = i == selectedMember };
-        bool capacityBounded = !cancelled && error == null && capacityDrops != null
-            && (best == null || bestOutcome != Outcome.Victory);
+        // A capacity-limited search that still has any route returns that route as a normal
+        // Defeat/Incomplete result. CapacityBounded remains only for the no-route case, where
+        // retrying the same root cannot produce a candidate.
+        bool capacityBounded = !cancelled && error == null && capacityDrops != null && best == null;
         bool forcedPotionsUnsatisfied = false;
         if (capacityBounded)
-            error = "成员丢弃超出状态容量的分支后前沿耗尽，且没有胜利路线（"
+            error = "成员丢弃超出状态容量的分支后前沿耗尽，且没有可执行路线（"
                 + string.Join(", ", capacityDrops!.Select(d => $"{d.Key}={d.Value}")) + "）。";
         else if (best == null && error == null && !cancelled
             && initial.Options.Potions.Strategy.HasForcedDirectives)
@@ -486,7 +489,14 @@ internal static class CombatSearchCoordinator
             ResumeMerge = resumeMerge,
             OnlyDeathRoutes = resumeMerge is { KeptStopped: true }
                 && resume?.StoppedResult is not null && resume.OnlyDeathRoutes,
+            CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
         };
+
+        static IReadOnlyDictionary<string, int>? SnapshotCapacityDrops(
+            SortedDictionary<string, int>? drops)
+            => drops is { Count: > 0 }
+                ? new SortedDictionary<string, int>(drops, StringComparer.Ordinal)
+                : null;
 
         long RemainingPlannedMilliseconds(int firstPass, int firstMember)
         {
@@ -538,6 +548,7 @@ internal static class CombatSearchCoordinator
                 SearchThreads = initial.Options.SearchThreads,
                 PlannedBudgetMilliseconds = plannedMilliseconds,
                 Resume = continuation,
+                CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
             };
         }
     }

@@ -197,6 +197,26 @@ internal static class SearchContracts
             && poolDrops > 0,
             "full per-action pool drops children at Reserve and counts the boundary");
 
+        // A reusable rank scratch array may be longer than the current pool. Selection must only
+        // read its live prefix; a stale tail index used to reach the packed arena and throw.
+        BeamOptions preserveOpening = batched with
+        {
+            BeamWidth = 200,
+            PreserveReplayAllocatorOpening = true,
+            MaxExpandedNodes = 200_000,
+            UnlimitedNodes = true,
+            SoftTimeBudget = TimeSpan.FromSeconds(10),
+            EndedBatchTrigger = 1_000_000,
+            EndedBatchTarget = 1_000_000,
+        };
+        BeamResult preserveResult = new BeamSolver(original.Rules, preserveOpening)
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(preserveResult.ExpandedNodesTotal > 0 && preserveResult.BestRoute.Length > 0,
+            "preserve-opening selection reads only the live rank prefix");
+        _ = ReplayedRoute.Build(original.Battles[preserveResult.BestRootIndex], original.Rules,
+            preserveResult.BestRoute, preserveResult.BestIsVictory);
+        Console.WriteLine($"COMBAT_SEARCH preserve_opening_expanded={preserveResult.ExpandedNodesTotal} " +
+            $"route={preserveResult.BestRoute.Length}");
         PotionStageContracts.Run(original, plan);
         Console.WriteLine($"COMBAT_SEARCH compaction comparison={compactionComparison} " +
             $"batched={first.BestIsVictory} uncompressed={uncompressed.BestIsVictory}");

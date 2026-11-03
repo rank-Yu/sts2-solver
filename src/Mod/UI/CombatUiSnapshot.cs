@@ -128,6 +128,9 @@ internal sealed record CombatUiSnapshot
     /// <summary>Human-readable detail from the pilot; tests must assert <see cref="EndReason"/> instead.</summary>
     public string? PauseReason { get; init; }
 
+    /// <summary>Structured reason behind <see cref="PauseCode"/>; the panel localizes it.</summary>
+    public CombatFailureReason? PauseDetailReason { get; init; }
+
     /// <summary>
     /// Stable code behind a pause or stop: <c>death_turn</c>, <c>live_end_turn_risk</c>,
     /// <c>repeated_failure</c>, <c>choice_mismatch</c>, <c>action_deviation</c>,
@@ -146,7 +149,11 @@ internal sealed record CombatUiSnapshot
 
     public string? ErrorCode { get; init; }
 
+    /// <summary>Raw diagnostic detail; never shown verbatim by the panel.</summary>
     public string? ErrorDetail { get; init; }
+
+    /// <summary>Structured reason behind <see cref="ErrorCode"/>; the panel localizes it.</summary>
+    public CombatFailureReason? ErrorReason { get; init; }
 
     /// <summary>Stable reason a command/search request was rejected without pausing.</summary>
     public string? RejectCode { get; init; }
@@ -274,6 +281,9 @@ internal sealed record CombatResultUiSnapshot
     public SearchAdoptionKind? AdoptionKind { get; init; }
 
     public int CandidateVersion { get; init; }
+
+    /// <summary>Capacity regions that dropped candidate branches while still returning this route.</summary>
+    public IReadOnlyDictionary<string, int>? CapacityDroppedRegions { get; init; }
 }
 
 internal sealed record MemoryUiSnapshot

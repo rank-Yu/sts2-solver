@@ -160,7 +160,8 @@ internal static partial class CombatSessionController
         catch (CapacityException error)
         {
             code = "import_capacity";
-            detail = $"region={error.Region} {error.Message}";
+            detail = CombatFailureDetail.Capacity(error,
+                error.Region == "Cards" ? CountCombatCards() : null);
         }
         catch (InvalidDataException error)
         {
@@ -275,7 +276,7 @@ internal static partial class CombatSessionController
         }
         catch (CapacityException error)
         {
-            FailSearch(session, "capacity", $"region={error.Region} {error.Message}");
+            FailSearch(session, "capacity", CombatFailureDetail.Capacity(error));
         }
         catch (InvalidDataException error)
         {
@@ -293,6 +294,16 @@ internal static partial class CombatSessionController
         {
             session.Cancellation.Dispose();
         }
+    }
+
+    /// <summary>Card count across the live combat piles, used only to explain a Cards capacity.</summary>
+    private static int? CountCombatCards()
+    {
+        if (_player?.PlayerCombatState is not { } state)
+            return null;
+        return state.Hand.Cards.Count + state.DrawPile.Cards.Count
+            + state.DiscardPile.Cards.Count + state.ExhaustPile.Cards.Count
+            + state.PlayPile.Cards.Count;
     }
 
     private static void FailSearch(CombatSearchSession session, string code, string detail)
@@ -498,6 +509,9 @@ internal static partial class CombatSessionController
             if (session.StopRequested)
                 _pauseCode = "stopped";
             AddSearchLog(session, run, "failed");
+            ModLog.Error(
+                $"[Sts2Solver] CONTROLLER_SEARCH_FAILED turn={session.StartTurn} " +
+                $"code={_errorCode} {_errorDetail}");
             _pendingCompleteBaseline = null;
             if (!session.StopRequested
                 && run.Outcome.Completion != SearchCompletionKind.Cancelled
@@ -530,7 +544,8 @@ internal static partial class CombatSessionController
             run.FinalProgress?.CandidateVersion ?? 0, run.Outcome.Adoption, 0, 0, false,
             run.Tier, run.Outcome.ElapsedMilliseconds, run.Outcome.TotalExpandedNodes,
             run.Outcome, run.MemberRuns, ReasonName(session.Reason),
-            run.Plan.Root.Counter(Sts2Solver.Simulation.Combat.Counter.CumulativeHpLost));
+            run.Plan.Root.Counter(Sts2Solver.Simulation.Combat.Counter.CumulativeHpLost),
+            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions);
         if (session.StopRequested)
         {
             _names ??= CombatDisplayNames.Capture(_state!);

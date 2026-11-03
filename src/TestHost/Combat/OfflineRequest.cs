@@ -29,6 +29,8 @@ internal sealed record OfflineRequest
     public string EncounterId { get; init; } = "FUZZY_WURM_CRAWLER_WEAK";
     public string Seed { get; init; } = "COMBATSOLVER";
     public string? GeneratedScenarioPath { get; init; }
+    /// <summary>Upstream checkpoint archive path; this repository does not support checkpoint restore.</summary>
+    public string? CheckpointArchivePath { get; init; }
     public string? EvidenceDirectory { get; init; }
     public bool PreserveNativeCombatStateForTest { get; init; }
     /// <summary>Restore an already owned deck and relics before the native opening, without acquisition upgrades.</summary>

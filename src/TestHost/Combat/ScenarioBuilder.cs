@@ -186,6 +186,9 @@ internal static class ScenarioBuilder
             throw new InvalidDataException("已有牌组恢复需要原版开局、完整牌组、有效生命金币及无获取效果的遗物。");
         if (request.SchemaVersion != 1)
             throw new NotSupportedException($"不支持的请求 schemaVersion：{request.SchemaVersion}。");
+        if (!string.IsNullOrWhiteSpace(request.CheckpointArchivePath))
+            throw new NotSupportedException(
+                "本仓库不支持检查点恢复；checkpointArchivePath 必须为空。");
         if (request.HeadlessFastModeForTest is { Length: > 0 } headless && headless != "Instant")
             throw new NotSupportedException($"不支持的 headlessFastModeForTest：{headless}。");
         if (request.TargetRoomType is not (RoomType.Monster or RoomType.Elite or RoomType.Boss))

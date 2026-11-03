@@ -61,8 +61,9 @@ internal sealed class CombatSearchRequest
 
 /// <summary>
 /// <see cref="CapacityBounded"/>: a member emptied its frontier after dropping children at a
-/// <see cref="Battle"/> capacity and no member found a victory, so the best non-victory line may
-/// only have survived because better lines were cut. The request returns no route.
+/// <see cref="Battle"/> capacity and no member produced any route. The request fails. When a
+/// non-victory route does exist, it is returned normally as <see cref="Defeat"/> or
+/// <see cref="Incomplete"/> with <see cref="CombatSearchResult.CapacityDroppedRegions"/> set.
 /// </summary>
 internal enum CombatSearchStatus { Victory, Defeat, Incomplete, Cancelled, Invalid, CapacityBounded }
 
@@ -129,6 +130,13 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
     /// with <see cref="CombatSearchStatus.Invalid"/>. Host-only.
     /// </summary>
     internal bool ForcedPotionsUnsatisfied { get; init; }
+
+    /// <summary>
+    /// Region-to-child-count map when at least one member dropped children at a Battle capacity.
+    /// A returned route remains usable; the panel warns that only a subset of lines was explored.
+    /// Host-only and never encoded in SREQ/SRES.
+    /// </summary>
+    internal IReadOnlyDictionary<string, int>? CapacityDroppedRegions { get; init; }
 
     /// <summary>
     /// Resume point when the request stopped with a route and members remain; null otherwise.

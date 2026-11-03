@@ -45,7 +45,7 @@ internal static partial class CombatSessionController
         }
         catch (CapacityException error)
         {
-            detail = $"region={error.Region} {error.Message}";
+            detail = CombatFailureDetail.Capacity(error);
             return false;
         }
         catch (InvalidDataException error)
@@ -180,7 +180,7 @@ internal static partial class CombatSessionController
         }
         catch (CapacityException error)
         {
-            FailTurnSetupSearch(session, $"region={error.Region} {error.Message}");
+            FailTurnSetupSearch(session, CombatFailureDetail.Capacity(error));
         }
         catch (InvalidDataException error)
         {
@@ -249,7 +249,8 @@ internal static partial class CombatSessionController
             "turn_setup",
             run.Plan.Root.Counter(Counter.CumulativeHpLost),
             run.TurnSetupChoices,
-            run.SetupPlayStamp);
+            run.SetupPlayStamp,
+            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions);
         _turnSetupResult = result;
         _latestResult = result;
         _latestStamp = result.Stamp;

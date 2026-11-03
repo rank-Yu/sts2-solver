@@ -189,6 +189,11 @@ internal static class TestSession
                     CombatControllerTestHooks.HoldTurnSetupDriverForTest = true;
                 if (scenarioName == "turn_setup_pause")
                     CombatControllerTestHooks.ForceProjectedDeathTurnSetup = true;
+                if (scenarioName == "capacity_dropped_route")
+                {
+                    CombatControllerTestHooks.ForceCapacityDropForTest =
+                        new SortedDictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 };
+                }
                 if (scenarioName == "deviation_setup_stamp")
                 {
                     CombatControllerTestHooks.SetupStampDamageInjected = false;
@@ -440,6 +445,7 @@ internal static class TestSession
                 CombatControllerTestHooks.ForceProjectedDeathTurn = false;
                 CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
                 CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
+                CombatControllerTestHooks.ForceCapacityDropForTest = null;
                 CombatControllerTestHooks.BeforeTurnSetupPlayStamp = null;
                 CombatControllerTestHooks.SetupStampDamageInjected = false;
                 CombatControllerTestHooks.StopTurnSetupSearchOnStart = false;
@@ -714,6 +720,9 @@ internal static class TestSession
     {
         if (request.SchemaVersion != 1)
             throw new NotSupportedException($"不支持的请求 schemaVersion：{request.SchemaVersion}。");
+        if (!string.IsNullOrWhiteSpace(request.CheckpointArchivePath))
+            throw new NotSupportedException(
+                "本仓库不支持检查点恢复；checkpointArchivePath 必须为空。");
         if (request.FlashPrefixActions.Length != 0 || request.FlashPrefixPlan.Length != 0)
             throw new NotSupportedException("本批实机捕获只支持普通根；前缀根请用离线宿主。");
         if (request.GeneratedScenarioPath is { Length: > 0 } path && !Path.IsPathRooted(path))

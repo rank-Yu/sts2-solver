@@ -337,6 +337,7 @@ internal static partial class CombatSessionController
 
     private static void DiscardTurnSetupPlan(string reason)
     {
+        _continuationSetupTurn = null;
         if (_turnSetupResult == null)
             return;
         if (_latestResult != null && ReferenceEquals(_latestResult, _turnSetupResult))
@@ -351,6 +352,90 @@ internal static partial class CombatSessionController
     }
 
     /// <summary>
+    /// The previous turn's verified EndTurn action carries this turn's <c>PlayerTurnStart</c>
+    /// choices. The page can reuse that plan without enumerating or searching; the ordinary
+    /// continuation comparison after Play still decides whether the route is exact.
+    /// </summary>
+    internal static bool TryGetPlannedTurnSetupContinuation(int turn,
+        out CombatControllerResult result, out Battle expectedPlayRoot)
+    {
+        result = null!;
+        expectedPlayRoot = default;
+        if (_continuationSource is not { } source || !SolverDeployedTurn(turn - 1))
+            return false;
+        ReplayedAction? endTurn = source.Plan.EndTurnAction(turn - 1);
+        if (endTurn == null)
+            return false;
+        PlannedChoice[] planned = [.. endTurn.Choices.Where(
+            static choice => choice.Request.Timing == ChoiceTiming.PlayerTurnStart)];
+        if (planned.Length == 0)
+            return false;
+        CombatRoutePlan? trimmed = source.Plan.TrimToTurn(turn);
+        if (trimmed == null || trimmed.Actions.Length == 0
+            || trimmed.Actions[0].Before.PlayerTurn != turn)
+        {
+            return false;
+        }
+        expectedPlayRoot = endTurn.After;
+        result = source with
+        {
+            Plan = trimmed.WithRootSetupChoices(planned),
+            TurnSetupChoices = planned,
+            SetupPlayStamp = null,
+            IsContinuationSetup = true,
+            Reason = "turn_setup_continuation",
+        };
+        ModLog.Info(
+            $"[Sts2Solver] CONTROLLER_TURN_SETUP_CONTINUATION turn={turn} " +
+            $"choices={planned.Length} remaining={trimmed.Actions.Length}");
+        return true;
+    }
+
+    private static bool SolverDeployedTurn(int turn)
+        => _lastSolverDeployedTurn == turn
+            || _deploymentResult is { } result && result.StartTurn == turn
+            || _deployment is { } deployment && deployment.Turn == turn;
+
+    /// <summary>Publishes the reused plan while the page waits for the player or the driver.</summary>
+    internal static void OnTurnSetupContinuationReady(CombatControllerResult result)
+    {
+        _turnSetupResult = result;
+        _latestResult = result;
+        _continuationSetupTurn = result.StartTurn;
+        _phase = CombatUiPhase.WaitingTurn;
+        PublishSnapshot();
+    }
+
+    /// <summary>
+    /// The page and the plan disagree (or a planned card is absent). Never guess: return the page
+    /// to the player and, in full auto, pause the combat with <c>choice_mismatch</c>.
+    /// </summary>
+    internal static void FailTurnSetupChoiceMismatch(string detail)
+    {
+        DiscardTurnSetupPlan("choice_mismatch");
+        _errorCode = null;
+        _errorDetail = null;
+        if (_fullAutoEnabled)
+        {
+            DisableFullAuto();
+            _fullAutoPausedThisCombat = true;
+            _pauseCode = "choice_mismatch";
+            _pauseReason = detail;
+            _phase = CombatUiPhase.Paused;
+            ModLog.Warn($"[Sts2Solver] CONTROLLER_FULL_AUTO_STOP reason=choice_mismatch {detail}");
+        }
+        else
+        {
+            _pauseCode = null;
+            _pauseReason = null;
+            _phase = _combatActive ? CombatUiPhase.WaitingTurn : CombatUiPhase.Idle;
+            ModLog.Warn($"[Sts2Solver] CONTROLLER_TURN_SETUP_CHOICE_MISMATCH {detail}");
+        }
+        PlayerTurnSetupRuntime.OnSearchFailed();
+        PublishSnapshot();
+    }
+
+    /// <summary>
     /// Consumes a setup plan at the first native Play event. The exact Play stamp must match and
     /// the page must have been driven by the solver: a player selection (even one that happens to
     /// equal the plan) retires the search instead of installing a stale route.
@@ -359,6 +444,30 @@ internal static partial class CombatSessionController
     {
         if (_turnSetupResult is not { } result)
             return false;
+        if (result.IsContinuationSetup)
+        {
+            if (result.StartTurn != turn || !PlayerTurnSetupRuntime.LastTurnSetupDroveSelection(turn))
+            {
+                ModLog.Info(
+                    $"[Sts2Solver] CONTROLLER_TURN_SETUP_DISCARD turn={turn} reason=player_selected");
+                DiscardTurnSetupPlan("player_selected");
+                PublishSnapshot();
+                return false;
+            }
+            // Drop the display-only preview. The ordinary continuation comparison in
+            // RunTurnStartedAsync decides whether the reused route still matches the Play state.
+            _turnSetupResult = null;
+            if (_latestResult != null && ReferenceEquals(_latestResult, result))
+            {
+                _latestResult = null;
+                _latestStamp = null;
+            }
+            _phase = CombatUiPhase.WaitingTurn;
+            PublishSnapshot();
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_TURN_SETUP_CONTINUATION_READY turn={turn}");
+            return false;
+        }
         if (_player?.PlayerCombatState is not { Phase: PlayerTurnPhase.Play })
             return false;
         if (result.StartTurn != turn

@@ -69,6 +69,9 @@ internal sealed record CombatUiSnapshot
     /// <summary>A setup search returned a plan and the page is still waiting for the player or the driver.</summary>
     public bool TurnSetupPlanReady { get; init; }
 
+    /// <summary>The ready plan was reused from the previous turn's EndTurn action instead of searched.</summary>
+    public bool TurnSetupContinuation { get; init; }
+
     /// <summary>The solver is driving the visible setup page; the blocker is active.</summary>
     public bool TurnSetupDriving { get; init; }
 
@@ -496,7 +499,14 @@ internal sealed record RouteTurnUi
 /// <summary>One turn-start selection, with stable source/effect codes and card identities.</summary>
 internal sealed record TurnStartChoiceUi
 {
-    public string Source { get; init; } = "";
+    /// <summary>Stable source kind: <c>relic</c>, <c>power</c>, <c>card</c>, <c>potion</c> or empty.</summary>
+    public string SourceKind { get; init; } = "";
+
+    /// <summary>Native id of the source; empty when the choice has no displayable source.</summary>
+    public string SourceId { get; init; } = "";
+
+    /// <summary>Upgrade level of a card source, otherwise zero.</summary>
+    public int SourceUpgrade { get; init; }
 
     public string Effect { get; init; } = "";
 

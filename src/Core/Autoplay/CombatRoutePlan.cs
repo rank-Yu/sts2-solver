@@ -100,6 +100,10 @@ internal sealed class CombatRoutePlan
         return new CombatRoutePlan(Root, [sliced], Rules, Victory, WasReused, Outcome, RootSetupChoices);
     }
 
+    /// <summary>Returns the same plan with a different root-turn setup choice list.</summary>
+    internal CombatRoutePlan WithRootSetupChoices(PlannedChoice[] rootSetupChoices)
+        => new(Root, Actions, Rules, Victory, WasReused, Outcome, rootSetupChoices);
+
     internal ReplayedAction? EndTurnAction(int turn)
     {
         foreach (ReplayedAction action in Actions)

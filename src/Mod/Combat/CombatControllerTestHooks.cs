@@ -38,6 +38,12 @@ internal static class CombatControllerTestHooks
     /// <summary>Holds the setup driver on its first frame so a scenario can press stop first.</summary>
     internal static bool HoldTurnSetupDriverForTest { get; set; }
 
+    /// <summary>Makes a reused turn-setup plan select an option the page cannot offer.</summary>
+    internal static bool TamperTurnSetupContinuationPlanForTest { get; set; }
+
+    /// <summary>Makes the pre-drive validation reject an otherwise reusable plan.</summary>
+    internal static bool TamperTurnSetupContinuationBeforeValidationForTest { get; set; }
+
     /// <summary>Expected visible option count for the Toolbox regression; -1 disables the check.</summary>
     internal static int ExpectedSetupOptionCount { get; set; } = -1;
 

@@ -552,7 +552,16 @@ public static partial class Kernel
             EnchantmentDef def = Registry.Enchantment((ushort)(card.EnchantmentId - 1));
             if ((def.HooksExt & HookMaskExt.BeforeFlush) == 0)
                 continue;
-            def.BeforeFlush(ref x, new Listener(ListenerKind.Enchantment, (byte)index, Limits.PlayerOwner));
+            ChoiceSource savedOrigin = x.ChoiceOrigin;
+            x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, card.Id, card.Upgrade);
+            try
+            {
+                def.BeforeFlush(ref x, new Listener(ListenerKind.Enchantment, (byte)index, Limits.PlayerOwner));
+            }
+            finally
+            {
+                x.ChoiceOrigin = savedOrigin;
+            }
             if (x.NeedsChoice)
                 return;
         }

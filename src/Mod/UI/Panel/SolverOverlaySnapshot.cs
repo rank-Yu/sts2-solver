@@ -143,11 +143,28 @@ internal sealed record SolverOverlaySnapshot(
         string separator = SolverText.IsEnglish ? ", " : "、";
         string cards = string.Join(separator,
             choice.Cards.Select(card => CombatDisplayNames.CardTitle(card.CardId, card.Upgrade)));
-        string source = choice.Source.Length == 0
-            ? SolverText.Get("起手选择")
-            : SolverText.Get(choice.Source);
+        string source = ResolveStartChoiceSource(choice);
         string colon = SolverText.IsEnglish ? ": " : "：";
         return $"{source}{colon}{effect} {cards}";
+    }
+
+    private static string ResolveStartChoiceSource(TurnStartChoiceUi choice)
+    {
+        string fallback = SolverText.Get("起手选择");
+        if (choice.SourceId.Length == 0)
+            return fallback;
+        string title = choice.SourceKind switch
+        {
+            "relic" => CombatDisplayNames.RelicTitle(choice.SourceId),
+            "power" => CombatDisplayNames.PowerTitle(choice.SourceId),
+            "card" => CombatDisplayNames.CardTitle(choice.SourceId, choice.SourceUpgrade),
+            "potion" => CombatDisplayNames.PotionTitle(choice.SourceId),
+            _ => "",
+        };
+        // Unknown content must not surface a registry/native id in the pill.
+        return title.Length == 0 || string.Equals(title, choice.SourceId, StringComparison.Ordinal)
+            ? fallback
+            : title;
     }
 
     private static SolverOverlayActionSnapshot FromRouteAction(RouteActionUi action, CombatDisplayNames names)

@@ -323,6 +323,13 @@ internal static partial class CombatSessionController
             CombatRoutePlan? trimmed = source.Plan.TrimToTurn(turn);
             if (trimmed == null)
                 return false;
+            // The trimmed plan's root is this turn: its capsules come from the previous EndTurn's
+            // PlayerTurnStart choices, not from the source route's root turn.
+            PlannedChoice[] currentSetup = source.Plan.EndTurnAction(turn - 1) is { } priorEndTurn
+                ? [.. priorEndTurn.Choices.Where(
+                    static choice => choice.Request.Timing == ChoiceTiming.PlayerTurnStart)]
+                : [];
+            trimmed = trimmed.WithRootSetupChoices(currentSetup);
             _tracker.Observe(live);
             Battle stampState;
             try
@@ -354,6 +361,13 @@ internal static partial class CombatSessionController
                 return false;
             }
             CombatStateStamp reuseStamp = CombatStateStamp.Capture(stampState);
+            if (_continuationSetupTurn == turn)
+            {
+#if STS2_SOLVER_TESTING
+                ContinuationReuseSuccessesForTest++;
+#endif
+                _continuationSetupTurn = null;
+            }
             CombatControllerResult reused = source with
             {
                 Plan = trimmed,
@@ -405,6 +419,14 @@ internal static partial class CombatSessionController
                 $"projected_hp_lost={source.Outcome.ProjectedBattleHpLost} diff={difference}");
         }
         _continuationSource = null;
+        if (_continuationSetupTurn == turn)
+        {
+#if STS2_SOLVER_TESTING
+            ContinuationReuseMissesForTest++;
+            ContinuationReuseMissDetailForTest = difference;
+#endif
+            _continuationSetupTurn = null;
+        }
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_REUSE_MISS turn={turn} source_turn={source.StartTurn} " +
             $"followed_by_solver={followedBySolver} {difference}");

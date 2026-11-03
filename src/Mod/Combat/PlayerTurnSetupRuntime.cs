@@ -61,6 +61,9 @@ internal static class PlayerTurnSetupRuntime
 
     internal static int ChoiceCount => _active?.Result?.SetupChoices.Length ?? 0;
 
+    internal static bool IsContinuationPlanReady
+        => _active is { PageOpen: true, PlanReady: true, ContinuationResult: not null };
+
     internal static bool SearchStarted => _active is { SearchStarted: true };
 
     internal static bool IsBusy => _active != null;
@@ -103,7 +106,10 @@ internal static class PlayerTurnSetupRuntime
             ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=extra_turn");
             return false;
         }
-        if (!RequiresSolverChoice(player))
+        int setupTurn = player.PlayerCombatState!.TurnNumber;
+        bool continuation = CombatSessionController.TryGetPlannedTurnSetupContinuation(
+            setupTurn, out CombatControllerResult continuationResult, out Battle expectedPlayRoot);
+        if (!continuation && !RequiresSolverChoice(player))
             return false;
         if (!CombatSessionController.TryGetTurnSetupContext(out CombatState? combatContext,
                 out Rules? rulesContext, out LiveCombatTracker? trackerContext))
@@ -114,7 +120,6 @@ internal static class PlayerTurnSetupRuntime
         CombatState combat = combatContext!;
         Rules rules = rulesContext!;
         LiveCombatTracker tracker = trackerContext!;
-        int setupTurn = player.PlayerCombatState!.TurnNumber;
         Battle liveStart;
         try
         {
@@ -229,13 +234,64 @@ internal static class PlayerTurnSetupRuntime
                 $"phase={startRoot.Phase} outcome={startRoot.Outcome}");
             return false;
         }
+        if (continuation)
+        {
+            continuationResult = TamperContinuationPlanBeforeValidationForTest(continuationResult);
+            ContinuationValidation validation = ValidateContinuationPlan(
+                startRoot, rules, continuationResult.SetupChoices, expectedPlayRoot,
+                out string validationDetail);
+            switch (validation)
+            {
+                case ContinuationValidation.Ok:
+#if STS2_SOLVER_TESTING
+                    TestContinuationValidationOk++;
+#endif
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_CONTINUATION_VALIDATED turn={setupTurn} " +
+                        $"result=ok choices={continuationResult.SetupChoices.Length}");
+                    break;
+                case ContinuationValidation.CandidateMismatch:
+#if STS2_SOLVER_TESTING
+                    TestContinuationValidationCandidateMismatch++;
+                    TestLastContinuationValidationDetail = validationDetail;
+#endif
+                    continuation = false;
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_CONTINUATION_REJECT turn={setupTurn} " +
+                        $"reason=candidates detail={validationDetail}");
+                    break;
+                case ContinuationValidation.PlayRootMismatch:
+#if STS2_SOLVER_TESTING
+                    TestContinuationValidationPlayMismatch++;
+                    TestLastContinuationValidationDetail = validationDetail;
+#endif
+                    continuation = false;
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_CONTINUATION_REJECT turn={setupTurn} " +
+                        $"reason=play_root detail={validationDetail}");
+                    break;
+                case ContinuationValidation.ReplayFailed:
+#if STS2_SOLVER_TESTING
+                    TestContinuationValidationReplayFailed++;
+                    TestLastContinuationValidationDetail = validationDetail;
+#endif
+                    continuation = false;
+                    ModLog.Info(
+                        $"[Sts2Solver] TURN_SETUP_CONTINUATION_REJECT turn={setupTurn} " +
+                        $"reason=replay detail={validationDetail}");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(validation), validation, null);
+            }
+        }
         NativeChoiceSession choices = NativeChoiceRuntime.Begin(
             combat, player, $"turn_setup:{player.PlayerCombatState!.TurnNumber}");
         CancellationTokenSource cancellation =
             CancellationTokenSource.CreateLinkedTokenSource(CombatSessionController.CombatToken);
         TurnSetupTransaction transaction = new(
             combat, player, rules, tracker, turnState, choiceContext, startRoot, choices,
-            cancellation, setupTurn);
+            cancellation, setupTurn,
+            continuation ? continuationResult : null);
         _active = transaction;
         _lastTurn = setupTurn;
         _lastDroveSelection = false;
@@ -276,6 +332,192 @@ internal static class PlayerTurnSetupRuntime
 #endif
         task = RunAutoPrePlayAsync(transaction, manager, turnState, choiceContext, setupTask, player);
         return true;
+    }
+
+    private enum ContinuationValidation
+    {
+        Ok,
+        CandidateMismatch,
+        PlayRootMismatch,
+        ReplayFailed,
+    }
+
+    /// <summary>
+    /// Replays the native setup preamble from the Start root with the planned selections. Every
+    /// request must match the planned candidate list and bounds, and the final Play root must match
+    /// the previous route's EndTurn <c>After</c> under the continuation-comparison rule. This runs
+    /// before the page is touched: a mismatch means the plan is stale, not that the player or the
+    /// game did something unexpected.
+    /// </summary>
+    private static ContinuationValidation ValidateContinuationPlan(Battle startRoot, Rules rules,
+        PlannedChoice[] planned, in Battle expectedPlayRoot, out string detail)
+    {
+        detail = "";
+        if (planned.Length > Limits.MaxChoices)
+        {
+            detail = $"choices={planned.Length}";
+            return ContinuationValidation.ReplayFailed;
+        }
+        Span<ulong> selections = stackalloc ulong[planned.Length];
+        for (int index = 0; index < planned.Length; index++)
+            selections[index] = planned[index].Selection;
+        try
+        {
+            for (int count = 0; count <= planned.Length; count++)
+            {
+                Battle partial = default;
+                Battle.CopyPacked(in startRoot, ref partial);
+                StepResult step = Kernel.PreparePlayerPlayPhase(ref partial, rules,
+                    selections[..count], out ChoiceRequest request);
+                if (count < planned.Length)
+                {
+                    if (step != StepResult.NeedsChoice)
+                    {
+                        detail = $"segment={count} expected_request got={step}";
+                        return ContinuationValidation.CandidateMismatch;
+                    }
+                    if (!TryMatchPlannedChoice(request, in partial, planned[count],
+                            out string difference))
+                    {
+                        detail = $"segment={count} {difference}";
+                        return ContinuationValidation.CandidateMismatch;
+                    }
+                    continue;
+                }
+                if (step != StepResult.Completed)
+                {
+                    detail = $"segment={count} missing_plan_choice";
+                    return ContinuationValidation.CandidateMismatch;
+                }
+                if (!BattleReconciler.Same(expectedPlayRoot, partial))
+                {
+                    string[] diff = BattleReconciler.Diff(expectedPlayRoot, partial);
+                    detail = diff.Length == 0 ? "field=<bytes>" : diff[0];
+                    return ContinuationValidation.PlayRootMismatch;
+                }
+            }
+            return ContinuationValidation.Ok;
+        }
+        catch (UnsupportedException error)
+        {
+            detail = $"unsupported {error.Message}";
+            return ContinuationValidation.ReplayFailed;
+        }
+        catch (CapacityException error)
+        {
+            detail = $"capacity region={error.Region} {error.Message}";
+            return ContinuationValidation.ReplayFailed;
+        }
+        catch (InvalidDataException error)
+        {
+            detail = $"invalid_data {error.Message}";
+            return ContinuationValidation.ReplayFailed;
+        }
+        catch (InvalidOperationException error)
+        {
+            detail = $"invalid_operation {error.Message}";
+            return ContinuationValidation.ReplayFailed;
+        }
+    }
+
+    private static bool TryMatchPlannedChoice(in ChoiceRequest request, in Battle partial,
+        PlannedChoice planned, out string difference)
+    {
+        difference = "";
+        if (request.Kind != planned.Request.Kind)
+        {
+            difference = $"kind plan={planned.Request.Kind} actual={request.Kind}";
+            return false;
+        }
+        if (request.Effect != planned.Request.Effect)
+        {
+            difference = $"effect plan={planned.Request.Effect} actual={request.Effect}";
+            return false;
+        }
+        if (request.Timing != planned.Request.Timing)
+        {
+            difference = $"timing plan={planned.Request.Timing} actual={request.Timing}";
+            return false;
+        }
+        if (request.Source != planned.Request.Source
+            || request.SourceIsNone != planned.Request.SourceIsNone)
+        {
+            difference =
+                $"source plan={(planned.Request.SourceIsNone ? "none" : planned.Request.Source.ToString())} " +
+                $"actual={(request.SourceIsNone ? "none" : request.Source.ToString())}";
+            return false;
+        }
+        if (request.OptionsAreGenerated != planned.Request.OptionsAreGenerated)
+        {
+            difference =
+                $"generated plan={planned.Request.OptionsAreGenerated} " +
+                $"actual={request.OptionsAreGenerated}";
+            return false;
+        }
+        if (request.OptionCount != planned.Request.OptionCount)
+        {
+            difference = $"options plan={planned.Request.OptionCount} actual={request.OptionCount}";
+            return false;
+        }
+        if (request.MinCount != planned.Request.MinCount
+            || request.MaxCount != planned.Request.MaxCount)
+        {
+            difference =
+                $"bounds plan={planned.Request.MinCount}..{planned.Request.MaxCount} " +
+                $"actual={request.MinCount}..{request.MaxCount}";
+            return false;
+        }
+        Card[] expected = planned.Request.OptionsAreGenerated
+            ? planned.GeneratedOptions
+            : planned.PileOptions;
+        for (int index = 0; index < request.OptionCount; index++)
+        {
+            Card actual = request.OptionsAreGenerated
+                ? request.GeneratedOptions[index]
+                : partial.Cards[request.Options[index]];
+            if (actual.Id == expected[index].Id && actual.Upgrade == expected[index].Upgrade)
+                continue;
+            difference =
+                $"option[{index}] plan={Registry.Card(expected[index].Id).NativeId}+" +
+                $"{expected[index].Upgrade} actual={Registry.Card(actual.Id).NativeId}+" +
+                $"{actual.Upgrade}";
+            return false;
+        }
+        return true;
+    }
+
+    private static CombatControllerResult TamperContinuationPlanBeforeValidationForTest(
+        CombatControllerResult result)
+    {
+#if STS2_SOLVER_TESTING
+        if (!CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest)
+            return result;
+        PlannedChoice[] choices = result.SetupChoices;
+        if (choices.Length == 0)
+            return result;
+        PlannedChoice first = choices[0];
+        ChoiceRequest request = first.Request;
+        request.MaxCount = checked((byte)(request.MaxCount + 1));
+        PlannedChoice broken = new()
+        {
+            Request = request,
+            Selection = first.Selection,
+            Implicit = first.Implicit,
+            PileOptions = first.PileOptions,
+            GeneratedOptions = first.GeneratedOptions,
+        };
+        choices = [broken, .. choices.Skip(1)];
+        ModLog.Warn(
+            $"[Sts2Solver] TURN_SETUP_TAMPER_CONTINUATION_PRE_VALIDATION turn={result.StartTurn} " +
+            $"choices={choices.Length}");
+        return result with
+        {
+            TurnSetupChoices = choices,
+            Plan = result.Plan.WithRootSetupChoices(choices),
+        };
+#else
+        return result;
+#endif
     }
 
     /// <summary>
@@ -336,13 +578,117 @@ internal static class PlayerTurnSetupRuntime
 
     internal static bool TryRecalculate()
     {
-        if (_active is not { PageOpen: true, Driving: false, SearchStarted: true, Case: not null } t)
+        if (_active is not { PageOpen: true, Driving: false } t)
             return false;
-        t.Result = null;
-        t.PlanReady = false;
-        t.Stopped = false;
-        t.DeployAfterSetup = false;
-        return CombatSessionController.StartTurnSetupSearch(t.Case, t.StartRoot, t.Turn);
+        if (t.ContinuationResult != null)
+        {
+            t.ContinuationResult = null;
+            t.Result = null;
+            t.PlanReady = false;
+            t.Stopped = false;
+            t.DeployAfterSetup = false;
+            t.EnumerationTask = Task.Run(
+                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules),
+                t.Cancellation.Token);
+            _ = RecalculateFromContinuationAsync(t, t.EnumerationTask);
+            return true;
+        }
+        if (t.SearchStarted && t.Case != null)
+        {
+            t.Result = null;
+            t.PlanReady = false;
+            t.Stopped = false;
+            t.DeployAfterSetup = false;
+            return CombatSessionController.StartTurnSetupSearch(t.Case, t.StartRoot, t.Turn);
+        }
+        return false;
+    }
+
+    private static async Task RecalculateFromContinuationAsync(TurnSetupTransaction t,
+        Task<TurnSetupEnumeration> enumeration)
+    {
+        (EnumerationWait wait, TurnSetupEnumeration? value) =
+            await AwaitEnumerationAsync(t, enumeration, "manual_recalculate");
+        if (wait != EnumerationWait.Ok || value == null || !ReferenceEquals(_active, t)
+            || t.Completed)
+        {
+            return;
+        }
+        StartSearchFromEnumeration(t, value, "manual");
+    }
+
+    /// <summary>
+    /// Uses the previous turn's EndTurn plan on the first visible page instead of searching.
+    /// Auto search only publishes the route; full auto passes the same pre-drive pause policy as a
+    /// searched setup result before it drives.
+    /// </summary>
+    private static void PrepareContinuationPlan(TurnSetupTransaction t, string phase)
+    {
+        if (t.ContinuationResult is not { } result || t.PlanReady || t.Completed)
+            return;
+        result = TamperContinuationPlanForTest(result);
+        t.Result = result;
+        t.PlanReady = true;
+        t.Choices.RecordPlanReady();
+#if STS2_SOLVER_TESTING
+        TestContinuationPlanCount++;
+        if (result.Plan.Actions.Length > 0)
+            TestSetupPlayRecoveredHp = result.Plan.Actions[0].Before.Counter(Counter.RecoveredHp);
+#endif
+        CombatSessionController.OnTurnSetupContinuationReady(result);
+        ModLog.Info(
+            $"[Sts2Solver] TURN_SETUP_PLAN_READY turn={t.Turn} " +
+            $"source=continuation choices={result.SetupChoices.Length} search=false " +
+            $"phase={phase} visible=true driving=false");
+        if (CombatSessionController.FullAutoEnabled
+            && !CombatSessionController.AutomaticSearchPaused)
+        {
+            if (CombatSessionController.TryPauseTurnSetupFullAuto(result, out string pauseCode,
+                    out string pauseReason))
+            {
+                t.Choices.ReleaseVisibleSurface();
+                ModLog.Info(
+                    $"[Sts2Solver] TURN_SETUP_FULL_AUTO_PAUSE turn={t.Turn} code={pauseCode} " +
+                    $"{pauseReason}");
+                return;
+            }
+            TryStartDriving(deployAfterSetup: true);
+            return;
+        }
+        t.Choices.ReleaseVisibleSurface();
+    }
+
+    private static CombatControllerResult TamperContinuationPlanForTest(
+        CombatControllerResult result)
+    {
+#if STS2_SOLVER_TESTING
+        if (!CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest)
+            return result;
+        PlannedChoice[] choices = result.SetupChoices;
+        if (choices.Length == 0)
+            return result;
+        PlannedChoice first = choices[0];
+        PlannedChoice broken = new()
+        {
+            Request = first.Request,
+            // A bit outside the option list: the page cannot satisfy it.
+            Selection = first.Request.OptionCount >= 63 ? 1UL << 62 : 1UL << first.Request.OptionCount,
+            Implicit = false,
+            PileOptions = first.PileOptions,
+            GeneratedOptions = first.GeneratedOptions,
+        };
+        choices = [broken, .. choices.Skip(1)];
+        ModLog.Warn(
+            $"[Sts2Solver] TURN_SETUP_TAMPER_CONTINUATION turn={result.StartTurn} " +
+            $"choices={choices.Length}");
+        return result with
+        {
+            TurnSetupChoices = choices,
+            Plan = result.Plan.WithRootSetupChoices(choices),
+        };
+#else
+        return result;
+#endif
     }
 
     internal static void OnPlanReady(CombatControllerResult result, bool stopped)
@@ -483,6 +829,18 @@ internal static class PlayerTurnSetupRuntime
     internal static bool TestFirstVisibleCanSkip
         => _active?.Choices.FirstVisibleRequest?.CanSkip ?? false;
 
+    internal static int TestContinuationPlanCount { get; private set; }
+
+    internal static int TestContinuationValidationOk { get; private set; }
+
+    internal static int TestContinuationValidationCandidateMismatch { get; private set; }
+
+    internal static int TestContinuationValidationPlayMismatch { get; private set; }
+
+    internal static int TestContinuationValidationReplayFailed { get; private set; }
+
+    internal static string? TestLastContinuationValidationDetail { get; private set; }
+
     internal static int TestInterceptCount { get; private set; }
 
     internal static int TestLastInterceptTurn { get; private set; }
@@ -503,6 +861,12 @@ internal static class PlayerTurnSetupRuntime
 
     internal static void ResetTestState()
     {
+        TestContinuationPlanCount = 0;
+        TestContinuationValidationOk = 0;
+        TestContinuationValidationCandidateMismatch = 0;
+        TestContinuationValidationPlayMismatch = 0;
+        TestContinuationValidationReplayFailed = 0;
+        TestLastContinuationValidationDetail = null;
         TestInterceptCount = 0;
         TestLastInterceptTurn = 0;
         TestSelectorNullAtLastIntercept = false;
@@ -570,35 +934,47 @@ internal static class PlayerTurnSetupRuntime
             return;
         }
         Task originalSetup = InvokeOriginalSetupAsync(t);
-        Task<TurnSetupEnumeration> enumerationTask = Task.Run(
-            () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules), t.Cancellation.Token);
-        t.EnumerationTask = enumerationTask;
+        Task<TurnSetupEnumeration>? enumerationTask = null;
+        if (t.ContinuationResult == null)
+        {
+            enumerationTask = Task.Run(
+                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules), t.Cancellation.Token);
+            t.EnumerationTask = enumerationTask;
+        }
         try
         {
             bool visible = await t.Choices.WaitForFirstVisibleSurfaceAsync(
                 host, originalSetup, t.Cancellation.Token);
             ModLog.Info(
                 $"[Sts2Solver] TURN_SETUP_FIRST_VISIBLE turn={t.Turn} visible={visible} " +
-                $"original_done={originalSetup.IsCompleted} enum_done={enumerationTask.IsCompleted}");
+                $"original_done={originalSetup.IsCompleted} " +
+                $"enum_done={enumerationTask?.IsCompleted.ToString() ?? "-"}");
             if (visible)
             {
                 t.PageOpen = true;
                 CombatSessionController.NotifyTurnSetupChanged();
                 ModLog.Info(
                     $"[Sts2Solver] TURN_SETUP_PAGE turn={t.Turn} sequence={t.Choices.FirstVisibleSequence}");
-                while (!enumerationTask.IsCompleted && !originalSetup.IsCompleted)
+                if (t.ContinuationResult != null)
                 {
-                    ObservePlayerChoice(t, originalSetup);
-                    if (t.PageOpen && t.Choices.DriverFaulted)
-                        HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
-                    await CombatFrameWaiter.NextFrameAsync(host);
+                    PrepareContinuationPlan(t, "setup");
                 }
-                if (!originalSetup.IsCompleted)
+                else
                 {
-                    (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
-                        await AwaitEnumerationAsync(t, enumerationTask, "visible_choice");
-                    if (wait == EnumerationWait.Ok && enumerationValue != null)
-                        StartSearchFromEnumeration(t, enumerationValue, "setup");
+                    while (!enumerationTask!.IsCompleted && !originalSetup.IsCompleted)
+                    {
+                        ObservePlayerChoice(t, originalSetup);
+                        if (t.PageOpen && t.Choices.DriverFaulted)
+                            HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
+                        await CombatFrameWaiter.NextFrameAsync(host);
+                    }
+                    if (!originalSetup.IsCompleted)
+                    {
+                        (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
+                            await AwaitEnumerationAsync(t, enumerationTask!, "visible_choice");
+                        if (wait == EnumerationWait.Ok && enumerationValue != null)
+                            StartSearchFromEnumeration(t, enumerationValue, "setup");
+                    }
                 }
             }
             // The setup task stays alive until the native setup body completes, even after the
@@ -765,7 +1141,11 @@ internal static class PlayerTurnSetupRuntime
                     ModLog.Info(
                         $"[Sts2Solver] TURN_SETUP_AUTO_PRE_PLAY_PAGE turn={t.Turn} " +
                         $"sequence={t.Choices.FirstVisibleSequence}");
-                    if (t.EnumerationTask != null)
+                    if (t.ContinuationResult != null)
+                    {
+                        PrepareContinuationPlan(t, "auto_pre_play");
+                    }
+                    else if (t.EnumerationTask != null)
                     {
                         (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
                             await AwaitEnumerationAsync(t, t.EnumerationTask, "auto_pre_play");
@@ -900,6 +1280,17 @@ internal static class PlayerTurnSetupRuntime
         t.DeployAfterSetup = false;
         t.Choices.ReleaseVisibleSurface();
         string detail = error?.Message ?? "选牌驱动失败。";
+        if (t.ContinuationResult != null
+            && (error is NativeChoicePlanMismatchException
+                || error is NativeChoiceSurfaceMismatchException
+                    and not NativeChoiceSurfaceTimeoutException))
+        {
+            t.ContinuationResult = null;
+            CombatSessionController.FailTurnSetupChoiceMismatch(detail);
+            ModLog.Warn(
+                $"[Sts2Solver] TURN_SETUP_CONTINUATION_MISMATCH turn={t.Turn} {detail}");
+            return;
+        }
         CombatSessionController.FailTurnSetup(detail);
         ModLog.Warn($"[Sts2Solver] TURN_SETUP_DRIVE_FAILED turn={t.Turn} {detail}");
     }
@@ -1071,7 +1462,8 @@ internal static class PlayerTurnSetupRuntime
         Battle startRoot,
         NativeChoiceSession choices,
         CancellationTokenSource cancellation,
-        int turn)
+        int turn,
+        CombatControllerResult? continuationResult)
     {
         internal CombatState Combat { get; } = combat;
         internal Player Player { get; } = player;
@@ -1098,5 +1490,6 @@ internal static class PlayerTurnSetupRuntime
         internal Task<TurnSetupEnumeration>? EnumerationTask { get; set; }
         internal SearchCase? Case { get; set; }
         internal CombatControllerResult? Result { get; set; }
+        internal CombatControllerResult? ContinuationResult { get; set; } = continuationResult;
     }
 }

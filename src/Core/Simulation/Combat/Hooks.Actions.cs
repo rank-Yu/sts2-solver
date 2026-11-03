@@ -74,7 +74,7 @@ public static partial class HookDispatch
         {
             if (!TryResolve(x.B, snapshot[index], out Listener current))
                 continue;
-            hook.Invoke(ref x, Definition(x.B, current), current);
+            InvokeWithChoiceSource(ref x, Definition(x.B, current), current, ref hook);
             if (x.NeedsChoice)
                 return;
         }
@@ -107,9 +107,28 @@ public static partial class HookDispatch
                 continue;
             if (current.Kind != ListenerKind.Power || x.B.Powers[current.Index].Amount <= 0)
                 continue;
-            hook.Invoke(ref x, Definition(x.B, current), current);
+            InvokeWithChoiceSource(ref x, Definition(x.B, current), current, ref hook);
             if (x.NeedsChoice)
                 return;
+        }
+    }
+
+    /// <summary>
+    /// Invokes one action-hook listener with its own choice origin, restoring the caller's origin
+    /// afterwards so nested auto-plays and listeners keep the innermost source.
+    /// </summary>
+    private static void InvokeWithChoiceSource<T>(ref Exec x, ListenerDef definition,
+        Listener self, ref T hook) where T : struct, IActionHook
+    {
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = Kernel.ListenerChoiceSource(x.B, self);
+        try
+        {
+            hook.Invoke(ref x, definition, self);
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
         }
     }
 

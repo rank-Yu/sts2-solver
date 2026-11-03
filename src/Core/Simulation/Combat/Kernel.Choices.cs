@@ -43,6 +43,7 @@ public static partial class Kernel
             OptionCount = (byte)options.Length,
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
+            Origin = x.ChoiceOrigin,
         };
         int start = Piles.Start(x.B, pile);
         for (int index = 0; index < options.Length; index++)
@@ -82,6 +83,7 @@ public static partial class Kernel
             OptionCount = checked((byte)options.Length),
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
+            Origin = x.ChoiceOrigin,
         };
         for (int index = 0; index < options.Length; index++)
             request.GeneratedOptions[index] = options[index];
@@ -111,6 +113,24 @@ public static partial class Kernel
         selected = selectedIndexes[0];
         return true;
     }
+
+    /// <summary>
+    /// Host-only choice origin of a listener snapshot. Relics, powers, cards and potions map to
+    /// their registry id; other listener kinds have no displayable source and stay empty.
+    /// </summary>
+    internal static ChoiceSource ListenerChoiceSource(in Battle battle, in Listener listener)
+        => listener.Kind switch
+        {
+            ListenerKind.Relic => new ChoiceSource(ChoiceSourceKind.Relic,
+                battle.Relics[listener.Index].Id),
+            ListenerKind.Power => new ChoiceSource(ChoiceSourceKind.Power,
+                battle.Powers[listener.Index].Id),
+            ListenerKind.Card => new ChoiceSource(ChoiceSourceKind.Card,
+                battle.Cards[listener.Index].Id, battle.Cards[listener.Index].Upgrade),
+            ListenerKind.Potion => new ChoiceSource(ChoiceSourceKind.Potion,
+                checked((ushort)(battle.Potions[listener.Index] - 1))),
+            _ => default,
+        };
 
     /// <summary>
     /// A selected card remembered by value and by occurrence: it is the <see cref="Occurrence"/>-th card
@@ -247,6 +267,7 @@ public static partial class Kernel
             OptionCount = checked((byte)options.Length),
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
+            Origin = x.ChoiceOrigin,
         };
         for (int index = 0; index < options.Length; index++)
             request.GeneratedOptions[index] = options[index];

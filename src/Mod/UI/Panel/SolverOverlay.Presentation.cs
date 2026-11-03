@@ -14,6 +14,7 @@ internal enum SolverOverlayPresentation
     ExecutedHistory,
     Searching,
     TurnSetupPending,
+    TurnSetupContinuation,
     TurnSetupDriving,
 }
 
@@ -93,6 +94,10 @@ internal sealed partial class SolverOverlay
         else if (snapshot.TurnSetupPageOpen && !snapshot.TurnSetupPlanReady)
         {
             ShowTurnSetupPending(snapshot);
+        }
+        else if (snapshot.TurnSetupContinuation && snapshot.Result is { } continuationResult)
+        {
+            ShowTurnSetupContinuation(overlay, snapshot, continuationResult);
         }
         else if (snapshot.Result is { } result)
         {
@@ -589,6 +594,22 @@ internal sealed partial class SolverOverlay
         if (_detailsButton != null)
             _detailsButton.Visible = false;
         SetDetailsVisible(false);
+        RefreshControls(snapshot);
+    }
+
+    private void ShowTurnSetupContinuation(SolverOverlaySnapshot overlay,
+        CombatUiSnapshot snapshot, CombatResultUiSnapshot result)
+    {
+        if (_presentation != SolverOverlayPresentation.TurnSetupContinuation
+            || _lastResultCandidate != result.CandidateVersion)
+        {
+            ShowResult(overlay, snapshot, result);
+        }
+        _presentation = SolverOverlayPresentation.TurnSetupContinuation;
+        _waitingForNextTurnPlan = false;
+        SetStatus(SolverText.Get("等待回合开始选择"), SolverUiTokens.Palette.Accent,
+            SolverText.Format($"第 {snapshot.Turn} 回合"));
+        PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
 

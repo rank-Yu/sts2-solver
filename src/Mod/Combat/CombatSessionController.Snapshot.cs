@@ -76,6 +76,7 @@ internal static partial class CombatSessionController
             IsDeploying = HasBlockingDeployment,
             TurnSetupPageOpen = turnSetupPage,
             TurnSetupPlanReady = turnSetupPlan,
+            TurnSetupContinuation = PlayerTurnSetupRuntime.IsContinuationPlanReady,
             TurnSetupDriving = turnSetupDriving,
             TurnSetupSearchStarted = PlayerTurnSetupRuntime.SearchStarted,
             TurnSetupChoiceCount = PlayerTurnSetupRuntime.ChoiceCount,

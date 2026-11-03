@@ -143,6 +143,36 @@ internal static class CombatControllerChecks
                 case "turn_setup_carry":
                     await TurnSetupCarryAsync(host, Check, Action);
                     break;
+                case "turn_setup_continuation_auto":
+                    await TurnSetupContinuationAutoAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_player":
+                    await TurnSetupContinuationPlayerAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_mismatch":
+                    await TurnSetupContinuationMismatchAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_pause":
+                    await TurnSetupContinuationPauseAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_full":
+                    await TurnSetupContinuationFullAsync(host, Check, Action);
+                    break;
+                case "turn_setup_capsule_source":
+                    await TurnSetupCapsuleSourceAsync(host, Check, Action, request.ScenarioId);
+                    break;
+                case "turn_setup_capsule_source_turn2":
+                    await TurnSetupCapsuleSourceTurnTwoAsync(host, Check, Action, request.ScenarioId);
+                    break;
+                case "turn_setup_continuation_probe":
+                    await TurnSetupContinuationProbeAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_validation":
+                    await TurnSetupContinuationValidationAsync(host, Check, Action);
+                    break;
+                case "turn_setup_continuation_gap":
+                    await TurnSetupContinuationGapAsync(host, Check, Action);
+                    break;
                 case "turn_setup_manual_end":
                     await TurnSetupManualEndAsync(host, Check, Action);
                     break;
@@ -247,6 +277,8 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.BeforeLiveEndTurnCheck = null;
             CombatControllerTestHooks.ForceSearchFailure = null;
             CombatControllerTestHooks.AutoStopOnCandidate = false;
+            CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
+            CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
             CombatSessionController.ForceMultiplayerForTest = false;
         }
         CombatPilotResult summary = CombatSessionController.LastCompletedResultForTesting
@@ -261,6 +293,9 @@ internal static class CombatControllerChecks
             summary.Status, summary.Outcome,
             final.TurnSetupChoiceCount, final.TurnSetupDriving, final.TurnSetupPageOpen,
             final.TurnSetupPlanReady, final.TurnSetupSearchStarted,
+            final.TurnSetupContinuation,
+            CombatSessionController.ContinuationReuseMissesForTest,
+            CombatSessionController.ContinuationReuseMissDetailForTest,
             final.ErrorCode == "turn_setup_failed" ? final.ErrorDetail : null);
     }
 
@@ -645,6 +680,400 @@ internal static class CombatControllerChecks
         throw new TimeoutException("等原生出牌阶段超时。");
     }
 
+    private static async Task<CombatUiSnapshot> WaitSearchPlanAsync(NGame host)
+        => await WaitAsync(host,
+            static s => s.Result != null && !s.IsSearching && !s.IsDeploying,
+            3600, "turn one search plan");
+
+    private static async Task<CombatUiSnapshot> WaitTurnTwoSetupPlanAsync(NGame host)
+    {
+        await WaitAsync(host,
+            static s => s.Turn >= 2 && s.TurnSetupPageOpen, 3600, "turn two setup page");
+        return await WaitSetupPlanAsync(host);
+    }
+
+    /// <summary>Auto search reuses turn two's plan from the solver's EndTurn instead of searching.</summary>
+    private static async Task TurnSetupContinuationAutoAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        CombatUiSnapshot first = await WaitSearchPlanAsync(host);
+        check("turn_one_plan", first.CurrentTurnRouteReady, first.CurrentTurnRouteReady.ToString());
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_one");
+        action("press_execute_turn_one");
+        CombatUiSnapshot plan = await WaitTurnTwoSetupPlanAsync(host);
+        int searches = plan.Searches;
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 1,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("no_extra_search", searches == 1, searches.ToString());
+        check("page_no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        string[] texts = SetupChoiceTexts(host);
+        check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
+        int reused = plan.ReusedTurns;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_two_setup");
+        action("press_execute_turn_two_setup");
+        await WaitAsync(host, static s => s.TurnSetupDriving, 600, "continuation driving");
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
+            "continuation activated");
+        check("one_search", activated.Searches == searches,
+            $"{searches}->{activated.Searches}");
+        check("reused", activated.ReusedTurns > reused,
+            $"{reused}->{activated.ReusedTurns}");
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());
+        check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+    }
+
+    /// <summary>A player selection different from the reused plan retires it and searches normally.</summary>
+    private static async Task TurnSetupContinuationPlayerAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await WaitSearchPlanAsync(host);
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_one");
+        action("press_execute_turn_one");
+        CombatUiSnapshot plan = await WaitTurnTwoSetupPlanAsync(host);
+        int searches = plan.Searches;
+        int reused = plan.ReusedTurns;
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        await PlayerTurnSetupRuntime.SelectPlannedOrDifferentForTesting(host, different: true,
+            CancellationToken.None);
+        action("select_different_card");
+        CombatUiSnapshot advanced = await WaitAsync(host,
+            static s => !s.TurnSetupPageOpen, 1200, "player advanced from continuation");
+        check("stale_plan", !advanced.TurnSetupPlanReady, "plan discarded");
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        await WaitNativePlayAsync(host);
+        CombatUiSnapshot after = await WaitAsync(host,
+            s => s.Searches > searches, 3600, "normal search after player choice");
+        check("searched_again", after.Searches > searches, $"{searches}->{after.Searches}");
+        check("not_reused", after.ReusedTurns == reused,
+            $"{reused}->{after.ReusedTurns}");
+        check("no_error", after.ErrorCode == null, after.ErrorCode);
+    }
+
+    /// <summary>A reused plan whose card is absent from the page returns the page and pauses full auto.</summary>
+    private static async Task TurnSetupContinuationMismatchAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        check("tamper", CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest);
+        CombatUiSnapshot page = await WaitAsync(host,
+            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "turn two mismatch page");
+        action("wait_continuation_mismatch");
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            PlayerTurnSetupRuntime.TestContinuationValidationOk.ToString());
+        CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "choice_mismatch",
+            2400, "choice mismatch pause");
+        check("pause_code", paused.PauseCode == "choice_mismatch", paused.PauseCode);
+        check("page_open", paused.TurnSetupPageOpen);
+        check("not_driving", !paused.TurnSetupDriving);
+        check("not_plan_ready", !paused.TurnSetupPlanReady);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("full_auto_off", !paused.FullAutoEnabled);
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("no_error", paused.ErrorCode == null, paused.ErrorCode);
+    }
+
+    /// <summary>The pre-drive full-auto pause also applies to a reused plan.</summary>
+    private static async Task TurnSetupContinuationPauseAsync(NGame host, Check check, Action action)
+    {
+        CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = "death_turn";
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        action("force_full_auto_pause");
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.TurnSetupPageOpen && s.Turn >= 2
+                && s.Phase == CombatUiPhase.Paused && s.PauseCode == "death_turn",
+            3600, "continuation full auto pause");
+        CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = null;
+        check("pause_code", paused.PauseCode == "death_turn", paused.PauseCode);
+        check("page_open", paused.TurnSetupPageOpen);
+        check("plan_ready", paused.TurnSetupPlanReady);
+        check("continuation", paused.TurnSetupContinuation, paused.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("not_driving", !paused.TurnSetupDriving);
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("full_auto_off", !paused.FullAutoEnabled);
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+    }
+
+    /// <summary>At least three player turns from one search: turns 2 and 3 reuse the EndTurn plan.</summary>
+    private static async Task TurnSetupContinuationFullAsync(NGame host, Check check, Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        action("wait_three_turns");
+        CombatUiSnapshot third = await WaitAsync(host,
+            static s => s.Turn >= 3 && s.ReusedTurns >= 2, 7200, "third player turn");
+        check("turn_three", third.Turn >= 3, third.Turn.ToString());
+        check("searches_one", third.Searches == 1, third.Searches.ToString());
+        check("reused_two", third.ReusedTurns >= 2, third.ReusedTurns.ToString());
+        check("zero_deviations", third.Deviations == 0, third.Deviations.ToString());
+        check("zero_deployment_failures", third.DeploymentFailures == 0,
+            third.DeploymentFailures.ToString());
+        check("continuation_plans",
+            PlayerTurnSetupRuntime.TestContinuationPlanCount >= 2,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 2,
+            PlayerTurnSetupRuntime.TestContinuationValidationOk.ToString());
+        check("no_error", third.ErrorCode == null, third.ErrorCode);
+    }
+
+    /// <summary>Source titles come from the localized relic/power/card names, never ids.</summary>
+    private static async Task TurnSetupCapsuleSourceAsync(NGame host, Check check, Action action,
+        string scenarioId)
+    {
+        if (Snapshot().Mode != SolverMode.AutoSearch)
+        {
+            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch),
+                "auto search");
+            action("set_mode:auto_search");
+        }
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("plan_ready", plan.TurnSetupPlanReady);
+        string[] texts = SetupChoiceTexts(host);
+        check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
+        bool english = SolverText.IsEnglish;
+        string expected = (english, scenarioId) switch
+        {
+            (false, "FLASH-TS-A-TOASTY") => "烘焙手套",
+            (true, "FLASH-TS-A-TOASTY") => "Toasty Mittens",
+            (false, "FLASH-TS-B-TOOLBOX") => "工具箱",
+            (true, "FLASH-TS-B-TOOLBOX") => "Toolbox",
+            (false, "TS-G-MULTI-CHOICE") => "暴政",
+            (true, "TS-G-MULTI-CHOICE") => "Tyranny",
+            (false, "TS-D-AUTOPREPLAY-CHOICE") => "发现",
+            (true, "TS-D-AUTOPREPLAY-CHOICE") => "Discovery",
+            _ => throw new InvalidOperationException(
+                $"没有定义场景 {scenarioId} 的胶囊来源断言。"),
+        };
+        check("source_title", texts.Any(text => text.Contains(expected, StringComparison.Ordinal)),
+            $"{expected}: {string.Join(" | ", texts)}");
+        check("no_choice_fallback", texts.All(
+            text => !text.Contains("起手选择", StringComparison.Ordinal)
+                && !text.Contains("Turn-start choice", StringComparison.Ordinal)),
+            string.Join(" | ", texts));
+    }
+
+    /// <summary>Turn-two source titles: the reused EndTurn plan must keep its relic/power/card origin.</summary>
+    private static async Task TurnSetupCapsuleSourceTurnTwoAsync(NGame host, Check check,
+        Action action, string scenarioId)
+    {
+        check("mode_auto_search", Snapshot().Mode == SolverMode.AutoSearch,
+            Snapshot().Mode.ToString());
+        CombatUiSnapshot first = await WaitSearchPlanAsync(host);
+        check("turn_one_plan", first.CurrentTurnRouteReady, first.CurrentTurnRouteReady.ToString());
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_one");
+        action("press_execute_turn_one");
+        CombatUiSnapshot plan = await WaitTurnTwoSetupPlanAsync(host);
+        check("plan_ready", plan.TurnSetupPlanReady);
+        if (scenarioId == "TS-G-MULTI-CHOICE")
+        {
+            // The furnace gap rejects the reused plan; the new search plan still carries Tyranny.
+            check("validation_fallback",
+                !plan.TurnSetupContinuation
+                    && PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 1,
+                $"{plan.TurnSetupContinuation} " +
+                $"{PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch} " +
+                $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        }
+        else
+        {
+            check("continuation", plan.TurnSetupContinuation,
+                plan.TurnSetupContinuation.ToString());
+            check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+                $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+                $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        }
+        string[] texts = SetupChoiceTexts(host);
+        check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
+        bool english = SolverText.IsEnglish;
+        string expected = (english, scenarioId) switch
+        {
+            (false, "TS-G-MULTI-CHOICE") => "暴政",
+            (true, "TS-G-MULTI-CHOICE") => "Tyranny",
+            (false, "TS-D-AUTOPREPLAY-CHOICE") => "发现",
+            (true, "TS-D-AUTOPREPLAY-CHOICE") => "Discovery",
+            _ => throw new InvalidOperationException(
+                $"没有定义场景 {scenarioId} 的后续回合胶囊来源断言。"),
+        };
+        check("source_title", texts.Any(text => text.Contains(expected, StringComparison.Ordinal)),
+            $"{expected}: {string.Join(" | ", texts)}");
+        check("no_choice_fallback", texts.All(
+            text => !text.Contains("起手选择", StringComparison.Ordinal)
+                && !text.Contains("Turn-start choice", StringComparison.Ordinal)),
+            string.Join(" | ", texts));
+    }
+
+    /// <summary>
+    /// Research probe: reuses the previous EndTurn plan when possible and records whether the exact
+    /// Play-state comparison accepted or rejected it. A miss is not a scenario failure.
+    /// </summary>
+    private static async Task TurnSetupContinuationProbeAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        CombatUiSnapshot page = await WaitAsync(host,
+            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "continuation probe page");
+        action("wait_continuation_probe");
+        check("page_open", page.TurnSetupPageOpen);
+        for (int frame = 0; frame < 600; frame++)
+        {
+            if (PlayerTurnSetupRuntime.TestContinuationPlanCount > 0
+                || PlayerTurnSetupRuntime.TestContinuationValidationOk > 0
+                || PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch > 0
+                || PlayerTurnSetupRuntime.TestContinuationValidationPlayMismatch > 0
+                || PlayerTurnSetupRuntime.TestContinuationValidationReplayFailed > 0)
+            {
+                break;
+            }
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
+        string outcome = "none";
+        string outcomeDetail = "";
+        if (PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch > 0)
+        {
+            outcome = "validation_candidate";
+            outcomeDetail = PlayerTurnSetupRuntime.TestLastContinuationValidationDetail ?? "";
+        }
+        else if (PlayerTurnSetupRuntime.TestContinuationValidationPlayMismatch > 0)
+        {
+            outcome = "validation_play";
+            outcomeDetail = PlayerTurnSetupRuntime.TestLastContinuationValidationDetail ?? "";
+        }
+        else if (PlayerTurnSetupRuntime.TestContinuationValidationReplayFailed > 0)
+        {
+            outcome = "validation_replay";
+            outcomeDetail = PlayerTurnSetupRuntime.TestLastContinuationValidationDetail ?? "";
+        }
+        for (int frame = 0; frame < 3600 && outcome == "none"; frame++)
+        {
+            int successes = CombatSessionController.ContinuationReuseSuccessesForTest;
+            int misses = CombatSessionController.ContinuationReuseMissesForTest;
+            CombatUiSnapshot current = Snapshot();
+            if (successes > 0)
+            {
+                outcome = "reuse_ok";
+                break;
+            }
+            if (misses > 0)
+            {
+                outcome = "reuse_miss";
+                outcomeDetail = CombatSessionController.ContinuationReuseMissDetailForTest ?? "";
+                break;
+            }
+            if (current.PauseCode == "choice_mismatch")
+            {
+                outcome = "plan_mismatch";
+                outcomeDetail = current.PauseReason ?? "";
+                break;
+            }
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
+        check("probe_outcome", outcome != "none", $"{outcome} {outcomeDetail}");
+        check("reuse_outcome", outcome is "reuse_ok" or "reuse_miss" or "plan_mismatch"
+                or "validation_candidate" or "validation_play" or "validation_replay",
+            $"{outcome} {outcomeDetail}");
+        CombatUiSnapshot after = Snapshot();
+        check("searches", after.Searches is 1 or 2, after.Searches.ToString());
+        check("no_error", after.ErrorCode == null, after.ErrorCode);
+        action($"probe={outcome} detail={outcomeDetail}");
+    }
+
+    /// <summary>Pre-validation tamper rejects the plan before the page is touched; a new search runs.</summary>
+    private static async Task TurnSetupContinuationValidationAsync(NGame host, Check check,
+        Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        await WaitAsync(host, static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600,
+            "validation reject page");
+        action("wait_validation_reject");
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("validation_candidate",
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("no_continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 0,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("searches_two", plan.Searches == 2, plan.Searches.ToString());
+        check("not_continuation", !plan.TurnSetupContinuation,
+            plan.TurnSetupContinuation.ToString());
+        check("no_pause", plan.PauseCode == null, plan.PauseCode);
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
+            "validation reject activated");
+        check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());
+        check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+    }
+
+    /// <summary>
+    /// The furnace adds a candidate at the native pause. Validation must reject the stale plan and
+    /// search again instead of driving it or pausing full auto.
+    /// </summary>
+    private static async Task TurnSetupContinuationGapAsync(NGame host, Check check, Action action)
+    {
+        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
+            Snapshot().Mode.ToString());
+        CombatUiSnapshot page = await WaitAsync(host,
+            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "furnace validation page");
+        action("wait_furnace_validation");
+        check("page_open", page.TurnSetupPageOpen);
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("validation_candidate",
+            PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch == 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("no_continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 0,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("searches_two", plan.Searches == 2, plan.Searches.ToString());
+        check("not_continuation", !plan.TurnSetupContinuation,
+            plan.TurnSetupContinuation.ToString());
+        check("not_paused", Snapshot().Phase != CombatUiPhase.Paused, Snapshot().PauseCode);
+        check("no_pause_code", plan.PauseCode == null, plan.PauseCode);
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
+            "furnace validated search activated");
+        check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());
+        check("zero_deployment_failures", activated.DeploymentFailures == 0,
+            activated.DeploymentFailures.ToString());
+        check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+    }
+
+    private static string[] SetupChoiceTexts(NGame host)
+    {
+        CombatState state = CombatManager.Instance.DebugOnlyGetState()
+            ?? throw new InvalidOperationException("截图胶囊时没有战斗状态。");
+        CombatUiSnapshot snapshot = Snapshot();
+        SolverOverlaySnapshot overlay = SolverOverlaySnapshot.Build(
+            snapshot, CombatDisplayNames.Capture(state));
+        return [.. overlay.Turns.SelectMany(static turn => turn.TurnStartChoices)];
+    }
+
     private static async Task TurnSetupAutoExecuteAsync(NGame host, Check check, Action action)
     {
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
@@ -959,13 +1388,23 @@ internal static class CombatControllerChecks
         check("intercept_turn", PlayerTurnSetupRuntime.TestLastInterceptTurn == 2,
             PlayerTurnSetupRuntime.TestLastInterceptTurn.ToString());
         check("selector_null_at_intercept", PlayerTurnSetupRuntime.TestSelectorNullAtLastIntercept);
-        check("page_no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
-        CombatUiSnapshot searching = await WaitSetupSearchAsync(host);
-        check("search_reason", searching.Search?.Reason == "turn_setup", searching.Search?.Reason);
+        check("page_blocker_or_driving",
+            !PlayerTurnSetupRuntime.TestBlockerActive
+                || PlayerTurnSetupRuntime.TestBlockerAcquisitionCount > 0,
+            $"active={PlayerTurnSetupRuntime.TestBlockerActive} " +
+            $"count={PlayerTurnSetupRuntime.TestBlockerAcquisitionCount}");
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
         check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
-        check("searches_two", plan.Searches == 2, plan.Searches.ToString());
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 1,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("searches_one", plan.Searches == 1, plan.Searches.ToString());
+        check("no_setup_search", !plan.TurnSetupSearchStarted,
+            plan.TurnSetupSearchStarted.ToString());
         check("superseded_deployment",
             CombatSessionController.SetupSupersededDeploymentCount == 1,
             CombatSessionController.SetupSupersededDeploymentCount.ToString());
@@ -983,6 +1422,12 @@ internal static class CombatControllerChecks
         check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
         check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());
         check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+        check("continuation_reuse",
+            CombatSessionController.ContinuationReuseSuccessesForTest
+                + CombatSessionController.ContinuationReuseMissesForTest == 1,
+            $"ok={CombatSessionController.ContinuationReuseSuccessesForTest} " +
+            $"miss={CombatSessionController.ContinuationReuseMissesForTest} " +
+            $"{CombatSessionController.ContinuationReuseMissDetailForTest}");
     }
 
     /// <summary>
@@ -1001,14 +1446,21 @@ internal static class CombatControllerChecks
             PlayerTurnSetupRuntime.TestInterceptCount.ToString());
         check("auto_pre_play_intercept", PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount == 1,
             PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount.ToString());
-        check("search_started_in_auto_pre_play",
-            PlayerTurnSetupRuntime.TestLastSearchStartedInAutoPrePlay);
+        check("no_auto_pre_play_search",
+            !PlayerTurnSetupRuntime.TestLastSearchStartedInAutoPrePlay,
+            PlayerTurnSetupRuntime.TestLastSearchStartedInAutoPrePlay.ToString());
         check("selector_null_at_intercept", PlayerTurnSetupRuntime.TestSelectorNullAtLastIntercept);
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
         check("plan_has_choice", plan.TurnSetupChoiceCount > 0,
             plan.TurnSetupChoiceCount.ToString());
-        check("searches_two", plan.Searches == 2, plan.Searches.ToString());
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 1,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("searches_one", plan.Searches == 1, plan.Searches.ToString());
         check("no_pause", plan.PauseCode == null, plan.PauseCode);
         int searches = plan.Searches;
         CombatUiSnapshot activated = await WaitAsync(host,
@@ -1044,6 +1496,11 @@ internal static class CombatControllerChecks
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
         check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("searches_one", plan.Searches == 1, plan.Searches.ToString());
         check("predicted_start_compared", PlayerTurnSetupRuntime.TestPredictedStartCompared);
         check("predicted_start_matched", PlayerTurnSetupRuntime.TestPredictedStartMatched);
         int carried = PlayerTurnSetupRuntime.TestSetupStartRecoveredHp;
@@ -2458,4 +2915,7 @@ internal sealed record CombatControllerScenarioResult(
     bool TurnSetupPageVisible = false,
     bool TurnSetupPlanReady = false,
     bool TurnSetupSearchStarted = false,
+    bool TurnSetupContinuation = false,
+    int ContinuationReuseMisses = 0,
+    string? ContinuationReuseMissDetail = null,
     string? TurnSetupError = null);

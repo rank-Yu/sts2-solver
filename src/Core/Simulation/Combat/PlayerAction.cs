@@ -144,6 +144,41 @@ public enum ChoiceTiming : byte
     PlayerTurnStart,
 }
 
+/// <summary>
+/// Host-only identity of the relic, power, card or potion that asked for a choice. It is transient
+/// display metadata: it never enters <see cref="Battle"/>, the D1 request encoding, SREQ or SRES.
+/// Mirrors CombatSolver's <c>PlanCardChoice.SourceId</c>/<c>ChoiceRequest.SourceId</c> at 5c773caa.
+/// </summary>
+public enum ChoiceSourceKind : byte
+{
+    None = 0,
+    Relic = 1,
+    Power = 2,
+    Card = 3,
+    Potion = 4,
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct ChoiceSource
+{
+    public ChoiceSource(ChoiceSourceKind kind, ushort id, byte upgrade = 0)
+    {
+        Kind = kind;
+        Id = id;
+        Upgrade = upgrade;
+    }
+
+    public readonly ChoiceSourceKind Kind;
+
+    /// <summary>Registry id of the source, or zero for <see cref="ChoiceSourceKind.None"/>.</summary>
+    public readonly ushort Id;
+
+    /// <summary>Card upgrade level when <see cref="Kind"/> is <see cref="ChoiceSourceKind.Card"/>.</summary>
+    public readonly byte Upgrade;
+
+    public readonly bool IsNone => Kind == ChoiceSourceKind.None;
+}
+
 [InlineArray(Limits.MaxChoiceOptions)]
 public struct ChoiceOptions
 {
@@ -181,6 +216,12 @@ public struct ChoiceRequest
     /// <summary>Selection size bounds, already clamped to the option count as the existing engine does.</summary>
     public byte MinCount;
     public byte MaxCount;
+
+    /// <summary>
+    /// Host-only origin of the request, used by the panel's turn-start capsules. Never encoded and
+    /// never part of a search or replay equivalence key.
+    /// </summary>
+    public ChoiceSource Origin;
     public ChoiceOptions Options;
     public GeneratedChoiceOptions GeneratedOptions;
 }
@@ -300,6 +341,13 @@ public ref struct Exec
     /// </summary>
     internal bool SetupPreamble;
 
+    /// <summary>
+    /// Innermost listener/card/potion invoking an effect. A choice request created while this is set
+    /// copies it into <see cref="ChoiceRequest.Origin"/>; callers save and restore it around nested
+    /// effects so an inner source wins. Transient; empty at every stable boundary.
+    /// </summary>
+    internal ChoiceSource ChoiceOrigin;
+
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
 
@@ -381,6 +429,7 @@ public ref struct Exec
         TakingExtraTurn = false;
         SetupPause = null;
         SetupPreamble = false;
+        ChoiceOrigin = default;
     }
 
     /// <summary>
@@ -478,6 +527,8 @@ public ref struct Exec
             throw new InvalidOperationException("EndTurn 前缀带有回合准备暂停回调。");
         if (SetupPreamble)
             throw new InvalidOperationException("EndTurn 前缀处于回合准备前奏。");
+        if (!ChoiceOrigin.IsNone)
+            throw new InvalidOperationException($"EndTurn 前缀带有选择来源 {ChoiceOrigin.Kind}:{ChoiceOrigin.Id}。");
     }
 
     /// <summary>Set when an effect asked for a choice the action did not carry; callers unwind immediately.</summary>

@@ -275,7 +275,10 @@ git diff --exit-code -- tests/Golden/data/manifest.json
 ```bash
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-a-toasty
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-a-toasty --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-b-toolbox
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate qf2-gradient-failure
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate qf-turn-start-choice-forge --setup-turn 2
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-d-autopreplay-choice --setup-turn 2
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-g-multi-choice --setup-turn 2
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-h-choice-then-listener
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-i-plasma-pause --setup-turn 2
@@ -365,7 +368,9 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 回合准备接管场景用 `turnSetupTakeoverForTest` 显式打开测试构建里的正式接管，测试模式默认关闭；打开时测试入口不再安装 `TurnSetupCardSelector`，并让建局停在可见准备页或 `Play`。场景覆盖：自动搜索搜完后按“执行本回合”驱动页面并部署；全自动搜完直接驱动；Toolbox 三选一；Toasty 后监听器；停止搜索有候选（保留计划）与无候选（交还页面）；强制搜索失败显示 `turn_setup_failed` 且替换任务不 fault；全自动驱动中点“停止执行”；全自动在驱动前命中暂停条件；页面开着退出主菜单；手动档不接管；玩家在计划就绪后改选另一张牌使计划作废；纯隐式选择（`ts-j-toasty-one-card`，没有可见页面）不启动准备搜索、`Play` 后正常搜索。每个场景断言搜索次数、复用次数、偏差、错误码、遮挡是否释放和持久模式不变。现有 `turn_setup_wait` 仍作为“正式接管关闭”的回归。
 
-后续回合和新页面的场景用 `turn_setup_turn2`（上一回合由求解器结束）、`turn_setup_manual_end`（自动搜索档，玩家用原生结束回合动作结束上一回合）、`turn_setup_autopreplay`（`ts-d-autopreplay-choice`，搜索在 AutoPrePlay 的第一个可见页启动、计划包含 AutoPrePlay 选择且只有一次搜索）、`turn_setup_plasma`（`ts-i-plasma-pause` 第 2 回合）、`turn_setup_multi`（`ts-k-two-relic-choices` 的两段准备选择）和 `turn_setup_carry`（第 1 回合强制使用血瓶使 `RecoveredHp` 非零，断言第 2 回合准备 Start 根、选中的 Play 根和部署边界都等于该值，且预测 Start 根与实机一致）。`turn_setup_crossbow` / `turn_setup_crossbow_many` 用 `ts-j-crossbow-one-card` / `ts-j-crossbow-many` 验证暂停后加入手牌的十字弓牌进入原生页面候选（分别 2 个和 4 个选项）。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`、下一次 setup 只搜索一次，并要求出牌阶段的精确状态戳一致。
+后续回合和新页面的场景用 `turn_setup_turn2`（上一回合由求解器结束，第 2 回合沿用 EndTurn 计划，不再搜索）、`turn_setup_manual_end`（自动搜索档，玩家用原生结束回合动作结束上一回合，没有可沿用的计划，走新的准备搜索）、`turn_setup_autopreplay`（`ts-d-autopreplay-choice`，沿用计划包含 AutoPrePlay 选择，驱动消费完且只有一次搜索）、`turn_setup_plasma`（`ts-i-plasma-pause` 第 2 回合沿用）、`turn_setup_multi`（`ts-k-two-relic-choices` 的两段准备选择）和 `turn_setup_carry`（第 1 回合强制使用血瓶使 `RecoveredHp` 非零，断言第 2 回合准备 Start 根、选中的 Play 根和部署边界都等于该值，且预测 Start 根与实机一致）。`turn_setup_crossbow` / `turn_setup_crossbow_many` 用 `ts-j-crossbow-one-card` / `ts-j-crossbow-many` 验证暂停后加入手牌的十字弓牌进入原生页面候选（分别 2 个和 4 个选项）。
+
+沿用计划的场景另加 `turn_setup_continuation_full`（`ts-a-toasty` 全自动至少 3 个玩家回合，只搜索一次，复用回合数增加，0 偏差）、`turn_setup_continuation_auto`（自动搜索档第 2 回合显示沿用计划，执行后驱动并部署）、`turn_setup_continuation_player`（玩家改选后计划作废，出牌阶段正常搜索）、`turn_setup_continuation_validation`（校验前篡改计划，改走新的枚举搜索）、`turn_setup_continuation_gap`（`ts-g-multi-choice` 的熔炉在暂停处多一个候选，校验拒绝后改走新搜索并正常部署，不暂停全自动）、`turn_setup_continuation_mismatch`（校验通过后、驱动前篡改计划，页面交还，全自动按 `choice_mismatch` 暂停）、`turn_setup_continuation_pause`（沿用计划命中全自动暂停条件）和 `turn_setup_continuation_probe`（只记录沿用计划被校验或续用比较接受还是拒绝，供研究）。胶囊来源用 `turn_setup_capsule_source` / `turn_setup_capsule_source_turn2` 在中文和英文下断言遗物、能力、卡牌来源的本地化标题；`ts-g` 的胶囊来自校验失败后的新搜索计划。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`，并要求出牌阶段的精确状态戳一致。
 
 ```bash
 tools/testing/run-headless.sh --instance full-combat \

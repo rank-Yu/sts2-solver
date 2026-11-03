@@ -189,6 +189,10 @@ internal static class TestSession
                     CombatControllerTestHooks.HoldTurnSetupDriverForTest = true;
                 if (scenarioName == "turn_setup_pause")
                     CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = "death_turn";
+                if (scenarioName == "turn_setup_continuation_mismatch")
+                    CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = true;
+                if (scenarioName == "turn_setup_continuation_validation")
+                    CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = true;
                 CombatControllerTestHooks.ExpectedSetupOptionCount =
                     scenarioName == "turn_setup_auto_execute" && root == "ts-b-toolbox-auto-execute"
                         ? 3 : -1;
@@ -427,6 +431,8 @@ internal static class TestSession
                 CombatControllerTestHooks.ForcedTurnSetupFullAutoPauseCode = null;
                 CombatControllerTestHooks.StopTurnSetupSearchOnStart = false;
                 CombatControllerTestHooks.HoldTurnSetupDriverForTest = false;
+                CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
+                CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
                 CombatControllerTestHooks.ExpectedSetupOptionCount = -1;
                 PlayerTurnSetupRuntime.TestEnabled = false;
                 TurnSetupRootCapture.Reset();
@@ -554,11 +560,21 @@ internal static class TestSession
         or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause"
         or "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
         or "turn_setup_manual_end" or "turn_setup_multi" or "turn_setup_crossbow"
-        or "turn_setup_crossbow_many" or "turn_setup_carry";
+        or "turn_setup_crossbow_many" or "turn_setup_carry"
+        or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
+        or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
+        or "turn_setup_continuation_full" or "turn_setup_capsule_source"
+        or "turn_setup_capsule_source_turn2" or "turn_setup_continuation_probe"
+        or "turn_setup_continuation_validation" or "turn_setup_continuation_gap";
 
     private static bool TurnSetupTurnTwoScenario(string? scenario) => scenario is
         "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
-        or "turn_setup_manual_end" or "turn_setup_carry";
+        or "turn_setup_manual_end" or "turn_setup_carry"
+        or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
+        or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
+        or "turn_setup_continuation_full" or "turn_setup_capsule_source_turn2"
+        or "turn_setup_continuation_probe" or "turn_setup_continuation_validation"
+        or "turn_setup_continuation_gap";
 
     private static bool ApplyTestSettings(OfflineRequest request)
     {
@@ -697,8 +713,12 @@ internal static class TestSession
             throw new NotSupportedException("uiSnapshotForTest 需要 fullCombatForTest。");
         if (request.AutoStartFullCombatForTest && !request.FullCombatForTest)
             throw new NotSupportedException("autoStartFullCombatForTest 需要 fullCombatForTest。");
-        if (request.EnglishForTest && !request.FullCombatForTest)
-            throw new NotSupportedException("englishForTest 需要 fullCombatForTest。");
+        if (request.EnglishForTest && !request.FullCombatForTest
+            && request.ControllerScenarioForTest is null)
+        {
+            throw new NotSupportedException(
+                "englishForTest 需要 fullCombatForTest 或 controllerScenarioForTest。");
+        }
         if (request.AutoStartFullCombatForTest && request.FlashTurnSetupRootForTest)
             throw new NotSupportedException("自动开启场景不支持回合准备根。");
         if (request.ControllerScenarioForTest is { } scenario)

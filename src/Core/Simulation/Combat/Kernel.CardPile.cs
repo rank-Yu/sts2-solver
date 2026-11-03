@@ -185,7 +185,19 @@ public static partial class Kernel
         {
             CardDef def = Registry.Card(x.B.Cards[position].Id);
             if ((def.Hooks & HookMask.AfterCardDrawn) != 0)
-                def.AfterCardDrawn(ref x, new Listener(ListenerKind.Card, (byte)position, Limits.PlayerOwner), position, fromHandDraw);
+            {
+                Listener self = new(ListenerKind.Card, (byte)position, Limits.PlayerOwner);
+                ChoiceSource savedOrigin = x.ChoiceOrigin;
+                x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+                try
+                {
+                    def.AfterCardDrawn(ref x, self, position, fromHandDraw);
+                }
+                finally
+                {
+                    x.ChoiceOrigin = savedOrigin;
+                }
+            }
             if (x.NeedsChoice)
                 return;
         }

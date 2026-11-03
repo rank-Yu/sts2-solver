@@ -218,6 +218,16 @@ internal static class CombatUiProjection
         int? energyLeft = null;
         int rootTurn = routeActions.Length > 0 ? routeActions[0].Before.PlayerTurn : 0;
         TurnStartChoiceUi[] rootChoices = StartChoices(rootSetupChoices);
+        Dictionary<int, PlannedChoice[]> continuedChoices = [];
+        foreach (ReplayedAction action in routeActions)
+        {
+            if (action.Action.Kind != PlayerActionKind.EndTurn)
+                continue;
+            PlannedChoice[] planned = [.. action.Choices.Where(
+                static choice => choice.Request.Timing == ChoiceTiming.PlayerTurnStart)];
+            if (planned.Length > 0)
+                continuedChoices[action.Before.PlayerTurn + 1] = planned;
+        }
         for (int index = 0; index < routeActions.Length; index++)
         {
             ReplayedAction action = routeActions[index];
@@ -236,7 +246,9 @@ internal static class CombatUiProjection
                         EnemyHpLost = enemyHpLost,
                         CombatEnded = combatEnded,
                         EnergyLeft = energyLeft,
-                        TurnStartChoices = turnNumber == rootTurn ? rootChoices : [],
+                        TurnStartChoices = turnNumber == rootTurn
+                            ? rootChoices
+                            : StartChoices(continuedChoices.GetValueOrDefault(turnNumber, [])),
                         Actions = [.. turnActions],
                     });
                 }
@@ -274,7 +286,9 @@ internal static class CombatUiProjection
                 EnemyHpLost = enemyHpLost,
                 CombatEnded = combatEnded,
                 EnergyLeft = energyLeft,
-                TurnStartChoices = turnNumber == rootTurn ? rootChoices : [],
+                TurnStartChoices = turnNumber == rootTurn
+                    ? rootChoices
+                    : StartChoices(continuedChoices.GetValueOrDefault(turnNumber, [])),
                 Actions = [.. turnActions],
             });
         }
@@ -309,14 +323,43 @@ internal static class CombatUiProjection
                     Upgrade = card.Upgrade,
                 });
             }
+            ChoiceSource origin = choice.Request.Origin;
             mapped.Add(new TurnStartChoiceUi
             {
-                Source = "起手选择",
+                SourceKind = SourceKindName(origin.Kind),
+                SourceId = SourceId(origin),
+                SourceUpgrade = origin.Kind == ChoiceSourceKind.Card ? origin.Upgrade : 0,
                 Effect = choice.Request.Effect.ToString(),
                 Cards = [.. cards],
             });
         }
         return [.. mapped];
+    }
+
+    private static string SourceKindName(ChoiceSourceKind kind) => kind switch
+    {
+        ChoiceSourceKind.Relic => "relic",
+        ChoiceSourceKind.Power => "power",
+        ChoiceSourceKind.Card => "card",
+        ChoiceSourceKind.Potion => "potion",
+        _ => "",
+    };
+
+    private static string SourceId(ChoiceSource source)
+    {
+        switch (source.Kind)
+        {
+            case ChoiceSourceKind.Relic:
+                return source.Id < Registry.RelicCount ? Registry.Relic(source.Id).NativeId : "";
+            case ChoiceSourceKind.Power:
+                return source.Id < Registry.PowerCount ? Registry.Power(source.Id).NativeId : "";
+            case ChoiceSourceKind.Card:
+                return source.Id < Registry.CardCount ? Registry.Card(source.Id).NativeId : "";
+            case ChoiceSourceKind.Potion:
+                return source.Id < Registry.PotionCount ? Registry.Potion(source.Id).NativeId : "";
+            default:
+                return "";
+        }
     }
 
     private static RouteActionUi Action(ReplayedAction action, CombatDisplayNames names, Rules rules)

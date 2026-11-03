@@ -48,6 +48,12 @@ internal static partial class CombatSessionController
     private static bool _automaticSearchPaused;
     private static int? _automaticSearchPausedTurn;
     private static int? _lastSolverDeployedTurn;
+    private static int? _continuationSetupTurn;
+#if STS2_SOLVER_TESTING
+    internal static int ContinuationReuseSuccessesForTest { get; private set; }
+    internal static int ContinuationReuseMissesForTest { get; private set; }
+    internal static string? ContinuationReuseMissDetailForTest { get; private set; }
+#endif
     private static string? _pauseCode;
     private static string? _pauseReason;
     private static int? _pausePlannedHpLost;
@@ -361,6 +367,12 @@ internal static partial class CombatSessionController
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
         _lastSolverDeployedTurn = null;
+        _continuationSetupTurn = null;
+#if STS2_SOLVER_TESTING
+        ContinuationReuseSuccessesForTest = 0;
+        ContinuationReuseMissesForTest = 0;
+        ContinuationReuseMissDetailForTest = null;
+#endif
         _pauseCode = null;
         _pauseReason = null;
         _pausePlannedHpLost = null;
@@ -701,7 +713,10 @@ internal static partial class CombatSessionController
             {
                 return;
             }
-            if (_continuationSource != null && TryReuseContinuation(turn, deployWhenReady: false))
+            bool deployAfterSetup = PlayerTurnSetupRuntime.LastTurnSetupDeployAfterSetup(turn);
+            PlayerTurnSetupRuntime.ConsumeLastTurnSetup();
+            if (_continuationSource != null
+                && TryReuseContinuation(turn, deployWhenReady: deployAfterSetup))
             {
                 LogTurnStart(turn, "reuse");
                 return;

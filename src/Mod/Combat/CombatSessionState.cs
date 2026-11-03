@@ -132,7 +132,8 @@ internal sealed record CombatControllerResult(
     string Reason,
     int BattleHpLostSoFar = 0,
     PlannedChoice[]? TurnSetupChoices = null,
-    CombatStateStamp? SetupPlayStamp = null)
+    CombatStateStamp? SetupPlayStamp = null,
+    bool IsContinuationSetup = false)
 {
     internal bool WasReused => Plan.WasReused;
 
@@ -141,7 +142,7 @@ internal sealed record CombatControllerResult(
     /// <summary>The setup selections this result must replay, or an empty array.</summary>
     internal PlannedChoice[] SetupChoices => TurnSetupChoices ?? [];
 
-    internal bool IsTurnSetup => SetupPlayStamp.HasValue;
+    internal bool IsTurnSetup => SetupPlayStamp.HasValue || IsContinuationSetup;
 }
 
 internal sealed record CombatPause(

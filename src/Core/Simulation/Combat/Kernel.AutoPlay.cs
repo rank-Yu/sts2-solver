@@ -70,8 +70,17 @@ public static partial class Kernel
         x.Stats = stats;
         x.Target = target;
         x.CurrentPlayIsAutoPlay = true;
-        PlayFromPlay(ref x, moved, target, energyValue, playPosition, isAutoPlay: true,
-            out playedPile, out playedIndex);
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, moved.Id, moved.Upgrade);
+        try
+        {
+            PlayFromPlay(ref x, moved, target, energyValue, playPosition, isAutoPlay: true,
+                out playedPile, out playedIndex);
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
+        }
         played = x.Card;
         bool completed = !x.NeedsChoice;
         if (completed)
@@ -142,8 +151,17 @@ public static partial class Kernel
         x.Stats = stats;
         x.Target = target;
         x.CurrentPlayIsAutoPlay = true;
-        PlayFromPlay(ref x, moved, target, energyValue, playPosition, isAutoPlay: true,
-            out playedPile, out playedIndex);
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, moved.Id, moved.Upgrade);
+        try
+        {
+            PlayFromPlay(ref x, moved, target, energyValue, playPosition, isAutoPlay: true,
+                out playedPile, out playedIndex);
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
+        }
         played = x.Card;
         bool completed = !x.NeedsChoice;
         if (completed)

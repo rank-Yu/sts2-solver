@@ -103,22 +103,31 @@ public static partial class Kernel
         ref Power power = ref x.B.Powers[index];
         PowerDef def = Registry.Power(power.Id);
         Listener self = new(ListenerKind.Power, (byte)index, power.Owner);
-        switch (phase)
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+        try
         {
-            case PowerPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, participates); break;
-            case PowerPhase.BaseSideTurnStart: def.BaseSideTurnStart(ref x, self, flag); break;
-            case PowerPhase.OwnerAfterSideTurnStart: def.OwnerAfterSideTurnStart(ref x, self); break;
-            case PowerPhase.GlobalAfterSideTurnStart: def.GlobalAfterSideTurnStart(ref x, self, side, participates); break;
-            case PowerPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
-            case PowerPhase.EndTurnRegular: def.EndTurnRegular(ref x, self, side, participates); break;
-            case PowerPhase.EndTurnBatch048: def.EndTurnBatch048(ref x, self, side, participates); break;
-            case PowerPhase.PlayerSideTurnEnd: def.PlayerSideTurnEnd(ref x, self); break;
-            case PowerPhase.EnemySideTurnEnd: def.EnemySideTurnEnd(ref x, self); break;
-            case PowerPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
-            case PowerPhase.BeforeHandDraw: def.BeforeHandDraw(ref x, self); break;
-            case PowerPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
-            case PowerPhase.CompletePlayerEarlySideTurnEnd: def.CompletePlayerEarlySideTurnEnd(ref x, self); break;
-            default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
+            switch (phase)
+            {
+                case PowerPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, participates); break;
+                case PowerPhase.BaseSideTurnStart: def.BaseSideTurnStart(ref x, self, flag); break;
+                case PowerPhase.OwnerAfterSideTurnStart: def.OwnerAfterSideTurnStart(ref x, self); break;
+                case PowerPhase.GlobalAfterSideTurnStart: def.GlobalAfterSideTurnStart(ref x, self, side, participates); break;
+                case PowerPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
+                case PowerPhase.EndTurnRegular: def.EndTurnRegular(ref x, self, side, participates); break;
+                case PowerPhase.EndTurnBatch048: def.EndTurnBatch048(ref x, self, side, participates); break;
+                case PowerPhase.PlayerSideTurnEnd: def.PlayerSideTurnEnd(ref x, self); break;
+                case PowerPhase.EnemySideTurnEnd: def.EnemySideTurnEnd(ref x, self); break;
+                case PowerPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
+                case PowerPhase.BeforeHandDraw: def.BeforeHandDraw(ref x, self); break;
+                case PowerPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
+                case PowerPhase.CompletePlayerEarlySideTurnEnd: def.CompletePlayerEarlySideTurnEnd(ref x, self); break;
+                default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
+            }
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
         }
     }
 
@@ -349,19 +358,28 @@ public static partial class Kernel
     {
         RelicDef def = Registry.Relic(x.B.Relics[index].Id);
         Listener self = new(ListenerKind.Relic, (byte)index, Limits.PlayerOwner);
-        switch (phase)
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+        try
         {
-            case RelicPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, side); break;
-            case RelicPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
-            case RelicPhase.AfterEnergyResetLate: def.AfterEnergyResetLate(ref x, self); break;
-            case RelicPhase.BeforeHandDraw: def.BeforeHandDraw(ref x, self); break;
-            case RelicPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
-            case RelicPhase.AfterPlayerTurnStartLate: def.AfterPlayerTurnStartLate(ref x, self); break;
-            case RelicPhase.AfterSideTurnStart: def.AfterSideTurnStart(ref x, self, side); break;
-            case RelicPhase.PrepareBeforeSideTurnEnd: def.PrepareBeforeSideTurnEnd(ref x, self, side); break;
-            case RelicPhase.AfterSideTurnEnd: def.AfterSideTurnEnd(ref x, self, side); break;
-            case RelicPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
-            default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
+            switch (phase)
+            {
+                case RelicPhase.BeforeSideTurnStart: def.BeforeSideTurnStart(ref x, self, side); break;
+                case RelicPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
+                case RelicPhase.AfterEnergyResetLate: def.AfterEnergyResetLate(ref x, self); break;
+                case RelicPhase.BeforeHandDraw: def.BeforeHandDraw(ref x, self); break;
+                case RelicPhase.AfterPlayerTurnStart: def.AfterPlayerTurnStart(ref x, self); break;
+                case RelicPhase.AfterPlayerTurnStartLate: def.AfterPlayerTurnStartLate(ref x, self); break;
+                case RelicPhase.AfterSideTurnStart: def.AfterSideTurnStart(ref x, self, side); break;
+                case RelicPhase.PrepareBeforeSideTurnEnd: def.PrepareBeforeSideTurnEnd(ref x, self, side); break;
+                case RelicPhase.AfterSideTurnEnd: def.AfterSideTurnEnd(ref x, self, side); break;
+                case RelicPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
+                default: throw new ArgumentOutOfRangeException(nameof(phase), phase, null);
+            }
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
         }
     }
 

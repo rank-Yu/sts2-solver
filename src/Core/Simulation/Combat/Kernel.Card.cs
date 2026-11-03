@@ -206,7 +206,16 @@ public static partial class Kernel
         x.Target = target;
         x.CurrentPlayEnergyValue = energyValue;
         x.CurrentPlayIsAutoPlay = false;
-        PlayFromPlay(ref x, card, target, energyValue, playPosition, isAutoPlay: false);
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, card.Id, card.Upgrade);
+        try
+        {
+            PlayFromPlay(ref x, card, target, energyValue, playPosition, isAutoPlay: false);
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
+        }
     }
 
     /// <summary>

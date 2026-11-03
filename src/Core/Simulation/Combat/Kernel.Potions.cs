@@ -68,7 +68,16 @@ public static partial class Kernel
         UpdateSurroundedForPotionTarget(ref x,
             action.Target != Limits.NoOwner ? action.Target : Limits.PlayerOwner);
         x.EffectDepth++;
-        def.OnUse(ref x);
+        ChoiceSource savedOrigin = x.ChoiceOrigin;
+        x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Potion, def.Id);
+        try
+        {
+            def.OnUse(ref x);
+        }
+        finally
+        {
+            x.ChoiceOrigin = savedOrigin;
+        }
         x.EffectDepth--;
         if (x.NeedsChoice)
             return;

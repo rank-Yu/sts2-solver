@@ -26,6 +26,7 @@ internal sealed class CombatDisplayNames
     private static Dictionary<(string Id, int Upgrade), string> _cardNames = [];
     private static Dictionary<string, string> _potionNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _relicNames = new(StringComparer.Ordinal);
+    private static Dictionary<string, string> _powerNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _monsterNames = new(StringComparer.Ordinal);
 
     private readonly Dictionary<uint, string> _creatures;
@@ -83,6 +84,20 @@ internal sealed class CombatDisplayNames
     }
 
     internal string Card(string nativeId, int upgrade) => CardTitle(nativeId, upgrade);
+
+    /// <summary>Relic title in the current language, by native id.</summary>
+    internal static string RelicTitle(string nativeId)
+    {
+        EnsureCache();
+        return _relicNames.TryGetValue(nativeId, out string? name) ? name : nativeId;
+    }
+
+    /// <summary>Power title in the current language, by native id.</summary>
+    internal static string PowerTitle(string nativeId)
+    {
+        EnsureCache();
+        return _powerNames.TryGetValue(nativeId, out string? name) ? name : nativeId;
+    }
 
     /// <summary>Card title in the current language; the panel re-resolves it after a language change.</summary>
     internal static string CardTitle(string nativeId, int upgrade)
@@ -202,12 +217,16 @@ internal sealed class CombatDisplayNames
             Dictionary<string, string> relics = new(StringComparer.Ordinal);
             foreach (RelicModel relic in ModelDb.All.OfType<RelicModel>())
                 relics.TryAdd(relic.Id.Entry, relic.Title.GetFormattedText());
+            Dictionary<string, string> powers = new(StringComparer.Ordinal);
+            foreach (PowerModel power in ModelDb.All.OfType<PowerModel>())
+                powers.TryAdd(power.Id.Entry, power.Title.GetFormattedText());
             Dictionary<string, string> monsters = new(StringComparer.Ordinal);
             foreach (MonsterModel monster in ModelDb.All.OfType<MonsterModel>())
                 monsters.TryAdd(monster.Id.Entry, monster.Title.GetFormattedText());
             _cardNames = cards;
             _potionNames = potions;
             _relicNames = relics;
+            _powerNames = powers;
             _monsterNames = monsters;
             _cacheLanguage = language;
         }

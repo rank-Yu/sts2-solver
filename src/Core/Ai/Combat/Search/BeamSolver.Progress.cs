@@ -3,6 +3,7 @@
 // src/Search/CombatSearchCoordinator.cs at 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and
 // contributors), rewritten over Sts2Solver's packed Battle and route-node store.
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Ai.Combat.Scoring;
 
@@ -182,14 +183,17 @@ internal sealed partial class BeamSolver
     /// </summary>
     private ProgressReplay ReplayProgress(PlayerAction[] actions, int rootIndex)
     {
-        Battle state = _progressRoots[rootIndex];
+        Battle root = _progressRoots[rootIndex];
+        Unsafe.SkipInit(out Battle state);
+        Battle.CopyPacked(in root, ref state);
         int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
         List<ProgressTurnBuilder> builders = [];
         ProgressTurnBuilder? current = null;
         for (int index = 0; index < actions.Length; index++)
         {
             PlayerAction action = actions[index];
-            Battle before = state;
+            Unsafe.SkipInit(out Battle before);
+            Battle.CopyPacked(in state, ref before);
             StepResult step = Kernel.Step(ref state, action, _rules, out _,
                 out _, out _, out int actionBrightestFlameSpent);
             if (step != StepResult.Completed)

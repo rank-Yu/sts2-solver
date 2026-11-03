@@ -143,7 +143,7 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldDraw) == 0 || IsOverOrEnding(x.B))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldDraw, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -186,7 +186,7 @@ public static partial class Kernel
             CardDef def = Registry.Card(x.B.Cards[position].Id);
             if ((def.Hooks & HookMask.AfterCardDrawn) != 0)
             {
-                Listener self = new(ListenerKind.Card, (byte)position, Limits.PlayerOwner);
+                Listener self = new(ListenerKind.Card, (ushort)position, Limits.PlayerOwner);
                 ChoiceSource savedOrigin = x.ChoiceOrigin;
                 x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
                 try
@@ -257,7 +257,7 @@ public static partial class Kernel
 
         // Draw and discard are adjacent segments: the region becomes the new draw pile.
         list.CopyTo(System.Runtime.InteropServices.MemoryMarshal.CreateSpan(ref x.B.Cards[x.B.HandCount], total));
-        x.B.DrawCount = checked((byte)total);
+        x.B.DrawCount = checked((ushort)total);
         x.B.DiscardCount = 0;
         x.B.ShuffleEventCount++;
         // CombatPredictionSimulator.Shuffle calls HookMirrors.AfterShuffle only while the combat is
@@ -278,7 +278,7 @@ public static partial class Kernel
         if (!x.R.HasShuffleOrderEnchantment
             || (Registry.AnyHooksExt & HookMaskExt.ModifyShuffleOrder) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int listenersCount = HookDispatch.CollectListeners(x.B, HookMaskExt.ModifyShuffleOrder, listeners);
         for (int index = 0; index < listenersCount; index++)
             HookDispatch.Definition(x.B, listeners[index]).ModifyShuffleOrder(

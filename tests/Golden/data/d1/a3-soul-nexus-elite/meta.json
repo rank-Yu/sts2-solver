@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "a3-soul-nexus-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-soul-nexus-elite.json\u0022}",
-  "rulesSha256": "28588c7002d90e1e466be35c9bbe0dfe05eb903792a2c32deb2dde578056f86f",
+  "rulesSha256": "037d273bae91af460884fee322d0701203f574ab3c5beaf1e296e57270aa4bb8",
   "counts": {
     "roots": 1,
     "k1": 7,

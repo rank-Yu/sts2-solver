@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "a3-knights-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-knights-elite.json\u0022}",
-  "rulesSha256": "f27bbc14f178ad596e5aaf68fcc86ead6d05dfaf7d55a49aacc6b8b8f8d70532",
+  "rulesSha256": "1e20b81a8e00b3ed04dcc455f48b4e677163d07cf71bd06058a03ddc57002dce",
   "counts": {
     "roots": 1,
     "k1": 15,

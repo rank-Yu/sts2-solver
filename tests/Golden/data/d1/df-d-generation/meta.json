@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "df-d-generation",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-d-generation.json\u0022}",
-  "rulesSha256": "1a9f0551ac97a6bbca2b879bf6e431dbd4a08cae8ae44e09aa0441a13dcc5bb3",
+  "rulesSha256": "778654cb348493067ee890c54dff26bf3a6bb3c0fb111c4a55a4d3f609083782",
   "counts": {
     "roots": 1,
     "k1": 19,

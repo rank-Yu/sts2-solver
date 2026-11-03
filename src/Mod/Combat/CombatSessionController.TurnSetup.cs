@@ -122,7 +122,7 @@ internal static partial class CombatSessionController
             _search = null;
             CombatSearchResult stopped = new(CombatSearchStatus.Invalid, null, -1, 0, 0, [],
                 "stopped before candidate");
-            CombatSearchRun empty = new(startRoot, setupCase, stopped, null, null, null, null,
+            CombatSearchRun empty = new(in startRoot, setupCase, stopped, null, null, null, null,
                 Environment.TickCount64, _searchTier, _searchProfile, _searchThreads, [],
                 null, null);
             CompleteTurnSetupSearch(session, empty);
@@ -235,7 +235,7 @@ internal static partial class CombatSessionController
         CombatControllerResult result = new(
             run.Plan,
             run.Plan.Outcome,
-            run.SetupPlayStamp.Value,
+            run.SetupPlayStamp!,
             run.FinalProgress?.CandidateVersion ?? 0,
             run.Outcome.Adoption,
             0,

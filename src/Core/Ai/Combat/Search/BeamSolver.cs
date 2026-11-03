@@ -1500,7 +1500,9 @@ internal sealed partial class BeamSolver
         throughTurn = 0;
         if ((uint)result.BestRootIndex >= (uint)roots.Count)
             return false;
-        Battle state = roots[result.BestRootIndex];
+        Battle root = roots[result.BestRootIndex];
+        Unsafe.SkipInit(out Battle state);
+        Battle.CopyPacked(in root, ref state);
         int actionCount = _options.InitialActionCount;
         throughTurn = state.PlayerTurn;
         foreach (PlayerAction action in result.BestRoute)

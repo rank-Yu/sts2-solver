@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "a3-mecha-knight-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-mecha-knight-elite.json\u0022}",
-  "rulesSha256": "e9fe1100d178b6aee91682a3c3454b1e1729be93182cf36454d2034238450b63",
+  "rulesSha256": "48d0a26d2641967f80df2612b7c22bce59536f0eda08878fa784d35e8b55e7d6",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -229,7 +229,7 @@ internal static class CombatRouteDecision
 /// rejects a result whose root changed while the worker ran; the comparison is exact over the same
 /// normalized Battle surface as reconciliation.
 /// </summary>
-internal readonly record struct CombatStateStamp(Battle Normalized)
+internal sealed record CombatStateStamp(Battle Normalized)
 {
     internal static CombatStateStamp Capture(in Battle battle)
         => new(BattleReconciler.Normalize(battle));

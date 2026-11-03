@@ -2,6 +2,9 @@
 // partial Battle the kernel is in when it asks, mirroring the existing search's replay order; this
 // is a translation of the deployment design in CombatSolver src/Runtime/SolverController.cs at
 // a62f1850 (MIT, Copyright (c) 2026 Torch1230 and contributors), not a copy of its engine.
+
+using System.Runtime.CompilerServices;
+
 namespace Sts2Solver.Simulation.Combat;
 
 /// <summary>
@@ -23,6 +26,8 @@ internal sealed class PlannedChoice
 
     internal bool SelectsAll()
     {
+        if (Request.UsesIndexSelection)
+            return false;
         if (Request.OptionCount == 0)
             return Selection == 0;
         ulong all = Request.OptionCount >= 64 ? ulong.MaxValue : (1UL << Request.OptionCount) - 1;
@@ -31,6 +36,12 @@ internal sealed class PlannedChoice
 
     internal IEnumerable<int> SelectedIndexes()
     {
+        if (Request.UsesIndexSelection)
+        {
+            if (Selection < Request.OptionCount)
+                yield return (int)Selection;
+            yield break;
+        }
         for (int index = 0; index < Request.OptionCount; index++)
         {
             if ((Selection & (1UL << index)) != 0)
@@ -86,18 +97,21 @@ internal sealed class ReplayedRoute
         bool expectedVictory)
     {
         List<ReplayedAction> actions = new(route.Count);
-        Battle current = root;
+        Unsafe.SkipInit(out Battle current);
+        Battle.CopyPacked(in root, ref current);
         for (int index = 0; index < route.Count; index++)
         {
             PlayerAction action = route[index];
-            Battle before = current;
+            Unsafe.SkipInit(out Battle before);
+            Battle.CopyPacked(in current, ref before);
             List<PlannedChoice> choices = new(action.ChoiceCount);
-            Battle after = default;
+            Unsafe.SkipInit(out Battle after);
             bool completed = false;
             bool enemySideTurnEndReached = false;
             for (int prefix = 0; prefix <= action.ChoiceCount; prefix++)
             {
-                Battle partial = before;
+                Unsafe.SkipInit(out Battle partial);
+                Battle.CopyPacked(in before, ref partial);
                 PlayerAction partialAction = action;
                 partialAction.ChoiceCount = checked((byte)prefix);
                 StepResult step = Kernel.Step(ref partial, partialAction, rules,
@@ -118,7 +132,7 @@ internal sealed class ReplayedRoute
                         throw new InvalidDataException(
                             $"路线动作 {index} 在 {prefix} 个选择后仍请求额外选择。");
                     }
-                    after = partial;
+                    Battle.CopyPacked(in partial, ref after);
                     completed = true;
                     enemySideTurnEndReached = reachedEnemySideTurnEnd;
                 }
@@ -134,7 +148,7 @@ internal sealed class ReplayedRoute
                 Choices = [.. choices],
                 EnemySideTurnEndReached = enemySideTurnEndReached,
             });
-            current = after;
+            Battle.CopyPacked(in after, ref current);
         }
         bool victory = current.Outcome == Outcome.Victory;
         if (victory != expectedVictory)

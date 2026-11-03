@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p15-b-draw-search",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-b-draw-search.json\u0022}",
-  "rulesSha256": "380ca41000968792283f18d9f96bd60c432566bdeefb1e8470c3638b737b6e80",
+  "rulesSha256": "923630b73d670b22a70837725030774aa96f2d3298b7067ae90864e71c79d1c1",
   "counts": {
     "roots": 1,
     "k1": 141,

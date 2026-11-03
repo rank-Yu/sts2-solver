@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Sts2Solver.Simulation.Combat;
 
 public static partial class Kernel
@@ -118,11 +120,12 @@ public static partial class Kernel
     internal static bool TryAdvanceToPlayerSetupStart(in Battle endTurnBefore, Rules rules,
         in PlayerAction endTurnAction, out Battle setupStart)
     {
-        setupStart = default;
+        Unsafe.SkipInit(out setupStart);
         if (endTurnAction.Kind != PlayerActionKind.EndTurn)
             throw new ArgumentOutOfRangeException(nameof(endTurnAction), endTurnAction.Kind,
                 "预测 Start 根只接受结束回合动作。");
-        Battle battle = endTurnBefore;
+        Unsafe.SkipInit(out Battle battle);
+        Battle.CopyPacked(in endTurnBefore, ref battle);
         Exec x = new(ref battle, rules, endTurnAction);
         if (!AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn) || takingExtraTurn)
             return false;
@@ -134,7 +137,7 @@ public static partial class Kernel
             requireAllChoices: false);
         if (result != StepResult.Completed)
             return false;
-        setupStart = x.B;
+        Battle.CopyPacked(in x.B, ref setupStart);
         return true;
     }
 

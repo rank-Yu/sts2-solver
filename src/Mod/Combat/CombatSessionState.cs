@@ -20,26 +20,39 @@ internal enum CombatSearchReason
     TurnSetup,
 }
 
-internal sealed class CombatSearchSession(
-    int generation,
-    CombatState state,
-    Battle root,
-    CombatStateStamp stamp,
-    int startTurn,
-    CombatSearchReason reason,
-    SearchPolicyConfiguration policyConfiguration,
-    bool deployWhenReady,
-    CancellationTokenSource cancellation)
+internal sealed class CombatSearchSession
 {
-    internal int Generation { get; } = generation;
-    internal CombatState State { get; } = state;
-    internal Battle Root { get; } = root;
-    internal CombatStateStamp Stamp { get; } = stamp;
-    internal int StartTurn { get; } = startTurn;
-    internal CombatSearchReason Reason { get; } = reason;
-    internal SearchPolicyConfiguration PolicyConfiguration { get; } = policyConfiguration;
-    internal CancellationTokenSource Cancellation { get; } = cancellation;
-    internal bool DeployWhenReady { get; set; } = deployWhenReady;
+    internal CombatSearchSession(
+        int generation,
+        CombatState state,
+        in Battle root,
+        CombatStateStamp stamp,
+        int startTurn,
+        CombatSearchReason reason,
+        SearchPolicyConfiguration policyConfiguration,
+        bool deployWhenReady,
+        CancellationTokenSource cancellation)
+    {
+        Generation = generation;
+        State = state;
+        Root = root;
+        Stamp = stamp;
+        StartTurn = startTurn;
+        Reason = reason;
+        PolicyConfiguration = policyConfiguration;
+        DeployWhenReady = deployWhenReady;
+        Cancellation = cancellation;
+    }
+
+    internal int Generation { get; }
+    internal CombatState State { get; }
+    internal Battle Root { get; }
+    internal CombatStateStamp Stamp { get; }
+    internal int StartTurn { get; }
+    internal CombatSearchReason Reason { get; }
+    internal SearchPolicyConfiguration PolicyConfiguration { get; }
+    internal CancellationTokenSource Cancellation { get; }
+    internal bool DeployWhenReady { get; set; }
 
     /// <summary>Set when the user stopped a search whose rendered candidate must be preserved.</summary>
     internal bool StopRequested { get; set; }
@@ -96,22 +109,54 @@ internal sealed class CombatDeploymentSession(
 }
 
 /// <summary>One completed search, replayed and ready for the controller or deployment.</summary>
-internal sealed record CombatSearchRun(
-    Battle Root,
-    SearchCase? Case,
-    CombatSearchResult Outcome,
-    BeamResult? Beam,
-    ReplayedRoute? Route,
-    CombatRoutePlan? Plan,
-    SearchProgressSnapshot? FinalProgress,
-    long StartedAtMilliseconds,
-    SearchPerformanceTier Tier,
-    SearchPerformanceProfile Profile,
-    int SearchThreads,
-    SearchMemberRunUi[] MemberRuns,
-    string? ErrorCode,
-    string? ErrorDetail)
+internal sealed class CombatSearchRun
 {
+    internal CombatSearchRun(
+        in Battle root,
+        SearchCase? @case,
+        CombatSearchResult outcome,
+        BeamResult? beam,
+        ReplayedRoute? route,
+        CombatRoutePlan? plan,
+        SearchProgressSnapshot? finalProgress,
+        long startedAtMilliseconds,
+        SearchPerformanceTier tier,
+        SearchPerformanceProfile profile,
+        int searchThreads,
+        SearchMemberRunUi[] memberRuns,
+        string? errorCode,
+        string? errorDetail)
+    {
+        Root = root;
+        Case = @case;
+        Outcome = outcome;
+        Beam = beam;
+        Route = route;
+        Plan = plan;
+        FinalProgress = finalProgress;
+        StartedAtMilliseconds = startedAtMilliseconds;
+        Tier = tier;
+        Profile = profile;
+        SearchThreads = searchThreads;
+        MemberRuns = memberRuns;
+        ErrorCode = errorCode;
+        ErrorDetail = errorDetail;
+    }
+
+    internal Battle Root { get; }
+    internal SearchCase? Case { get; }
+    internal CombatSearchResult Outcome { get; }
+    internal BeamResult? Beam { get; }
+    internal ReplayedRoute? Route { get; }
+    internal CombatRoutePlan? Plan { get; }
+    internal SearchProgressSnapshot? FinalProgress { get; }
+    internal long StartedAtMilliseconds { get; }
+    internal SearchPerformanceTier Tier { get; }
+    internal SearchPerformanceProfile Profile { get; }
+    internal int SearchThreads { get; }
+    internal SearchMemberRunUi[] MemberRuns { get; }
+    internal string? ErrorCode { get; }
+    internal string? ErrorDetail { get; }
     internal int StartTurn => Plan?.StartTurn ?? Case?.Options.InitialPlayerTurn ?? 0;
 
     /// <summary>The Start root a setup search was launched from; null for an ordinary search.</summary>
@@ -169,7 +214,7 @@ internal sealed record CombatControllerResult(
     /// <summary>The setup selections this result must replay, or an empty array.</summary>
     internal PlannedChoice[] SetupChoices => TurnSetupChoices ?? [];
 
-    internal bool IsTurnSetup => SetupPlayStamp.HasValue || IsContinuationSetup;
+    internal bool IsTurnSetup => SetupPlayStamp != null || IsContinuationSetup;
 }
 
 internal sealed record CombatPause(

@@ -139,7 +139,7 @@ public static partial class Kernel
             amount = (int)HookDispatch.ModifyPowerAmountGivenMultiplicative(ref x, powerId, applier, target,
                 amount, cardSourceSerial);
         }
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         amount = HookDispatch.ModifyPowerAmountReceived(x.B, x.R, powerId, target, amount, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -203,7 +203,7 @@ public static partial class Kernel
         PowerDef def = Registry.Power(temporaryId);
         // ApplyWithBeforeApplied runs ModifyPowerAmountForRelics before the native BeforeApplied, so the
         // modified amount is what the inner Strength change uses (and what UnsettlingLamp doubles).
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -238,7 +238,7 @@ public static partial class Kernel
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -293,7 +293,7 @@ public static partial class Kernel
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)

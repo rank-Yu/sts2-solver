@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "nb-h-powers3",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-h-powers3.json\u0022}",
-  "rulesSha256": "85122d62bb70b56a3067dfd86f36b0352a9a7a3a983ca21aac0ca633787fdcfd",
+  "rulesSha256": "5867eb2a9ef38b6ff23232878a108ba297cd012e868730bd5781463e1512990d",
   "counts": {
     "roots": 1,
     "k1": 14,

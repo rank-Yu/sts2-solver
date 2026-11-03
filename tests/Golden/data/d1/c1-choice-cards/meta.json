@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "c1-choice-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-c1-choice-cards.json\u0022}",
-  "rulesSha256": "d73924a75085f0a41a18e0ce6ed6b8d6c2dc6a3adfeb6930c13792967b189cdf",
+  "rulesSha256": "a98ca9df0de40408d511a30afa69cf329ddd9a045dfef7d9d68e5f52082c0e61",
   "counts": {
     "roots": 1,
     "k1": 64,

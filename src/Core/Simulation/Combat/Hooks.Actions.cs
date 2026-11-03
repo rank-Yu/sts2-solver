@@ -63,7 +63,7 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & T.Mask) == 0 || gatedByEnding && Kernel.IsOverOrEnding(x.B))
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListeners];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
         int count = CollectListeners(x.B, T.Mask, listeners);
         if (count == 0)
             return;
@@ -89,7 +89,7 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & T.Mask) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListeners];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
         int count = CollectListeners(x.B, T.Mask, listeners);
         if (count == 0)
             return;
@@ -240,7 +240,7 @@ public static partial class HookDispatch
                     return true;
                 if (!TryLocateCard(battle, entry, out int located))
                     return false;
-                current = new Listener(entry.Listener.Kind, (byte)located, entry.Listener.Owner);
+                current = new Listener(entry.Listener.Kind, (ushort)located, entry.Listener.Owner);
                 return true;
             default:
                 return ListenerId(battle, entry.Listener) == entry.Id;
@@ -271,7 +271,7 @@ public static partial class HookDispatch
             if (occurrence-- == 0)
             {
                 index = position;
-                return ListenerId(battle, new Listener(entry.Listener.Kind, (byte)position, entry.Listener.Owner))
+                return ListenerId(battle, new Listener(entry.Listener.Kind, (ushort)position, entry.Listener.Owner))
                     == entry.Id;
             }
         }

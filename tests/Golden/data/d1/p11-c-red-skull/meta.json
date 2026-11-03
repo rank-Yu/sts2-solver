@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p11-c-red-skull",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-c-red-skull.json\u0022}",
-  "rulesSha256": "92fdc66f3460027d14babe982ac35f9a8828a04958b0de4ce9edf1f7a73a404f",
+  "rulesSha256": "e5b262eb99d2bd3a7181394e825b658fa31b8e0cd1ae4a176f82321596144156",
   "counts": {
     "roots": 1,
     "k1": 4,

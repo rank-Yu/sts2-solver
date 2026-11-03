@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p9-upgrade",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-upgrade.json\u0022}",
-  "rulesSha256": "21968a2572397e7063cff5cecedb37c7d6eeb4db6a9770b90df8c98decabd8da",
+  "rulesSha256": "40315a78186dcbd1c39461718dcaac61417dc1a88d641ed674af426fe43971c8",
   "counts": {
     "roots": 1,
     "k1": 81,

@@ -6,8 +6,17 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 public static class Limits
 {
-    /// <summary>Cards across every pile. A pile count is still a byte, so 255 is the ceiling.</summary>
-    public const int Cards = 255;
+    /// <summary>
+    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 62,752 bytes (packed prefix
+    /// 62,748), below the CLR's 65,535-byte array-element limit (and lets
+    /// <c>Marshal.OffsetOf</c> keep working). A pile count and every card position are 16-bit;
+    /// exceeding 640 still throws
+    /// <see cref="CapacityException"/> instead of truncating.
+    /// </summary>
+    public const int Cards = 640;
+
+    /// <summary>The frozen snapshot's card ceiling. Index-style choices are enabled only above it.</summary>
+    public const int LegacyCards = 255;
 
     /// <summary>
     /// Known enemies, including dead and escaped ones. The native combat state has no roster cap;
@@ -46,8 +55,15 @@ public static class Limits
     // 32 slots cost about 10% more managed allocation on the starter-deck bench for no reached route.
     public const int MaxChoices = 8;
 
-    /// <summary>Options of one choice request; selections are bit sets over them.</summary>
-    public const int MaxChoiceOptions = 64;
+    /// <summary>
+    /// Options of one choice request. A selection is a 64-bit mask when the option count is at
+    /// most <see cref="MaxBitSetChoiceOptions"/>; a single-select request above that bound carries
+    /// the chosen option index in the same <c>ulong</c> slot.
+    /// </summary>
+    public const int MaxChoiceOptions = Cards;
+
+    /// <summary>Largest option list representable as a bit-set selection.</summary>
+    public const int MaxBitSetChoiceOptions = 64;
 
     /// <summary>
     /// Power amount changes queued between <c>ResolvePowerAmountChanges</c> calls. The existing engine

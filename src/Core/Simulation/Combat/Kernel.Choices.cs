@@ -32,25 +32,37 @@ public static partial class Kernel
     public static bool ChooseCardsInRange(ref Exec x, ChoiceEffect effect, Pile pile, scoped ReadOnlySpan<int> options,
         int minCount, int maxCount, scoped Span<int> selected, out int selectedCount)
     {
-        if (options.Length > Limits.MaxChoiceOptions)
-            throw new CapacityException("Choice.Options", Limits.MaxChoiceOptions);
+        bool indexSelection = x.B.CardCount > Limits.LegacyCards
+            && options.Length > Limits.MaxBitSetChoiceOptions
+            && minCount == 1 && maxCount == 1;
+        int optionCapacity = indexSelection ? Limits.MaxChoiceOptions : Limits.MaxBitSetChoiceOptions;
+        if (options.Length > optionCapacity)
+            throw new CapacityException("Choice.Options", optionCapacity);
         ChoiceRequest request = new()
         {
             Kind = ChoiceKind.SelectCards,
             Effect = effect,
             Timing = x.ChoiceTiming,
             Source = pile,
-            OptionCount = (byte)options.Length,
+            OptionCount = checked((ushort)options.Length),
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
+            IndexSelection = indexSelection,
             Origin = x.ChoiceOrigin,
         };
         int start = Piles.Start(x.B, pile);
         for (int index = 0; index < options.Length; index++)
-            request.Options[index] = checked((byte)(start + options[index]));
+            request.Options[index] = checked((ushort)(start + options[index]));
         selectedCount = 0;
         if (!x.TryTakeChoice(request, out ulong selection))
             return false;
+        if (request.UsesIndexSelection)
+        {
+            if (selection >= (ulong)options.Length)
+                throw new InvalidOperationException($"索引选择 {selection} 超过选项数 {options.Length}。");
+            selected[selectedCount++] = options[(int)selection];
+            return true;
+        }
         for (int index = 0; index < options.Length; index++)
         {
             if ((selection & (1UL << index)) != 0)
@@ -80,7 +92,7 @@ public static partial class Kernel
             Timing = x.ChoiceTiming,
             SourceIsNone = true,
             OptionsAreGenerated = true,
-            OptionCount = checked((byte)options.Length),
+            OptionCount = checked((ushort)options.Length),
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
             Origin = x.ChoiceOrigin,
@@ -264,7 +276,7 @@ public static partial class Kernel
             Timing = x.ChoiceTiming,
             SourceIsNone = true,
             OptionsAreGenerated = true,
-            OptionCount = checked((byte)options.Length),
+            OptionCount = checked((ushort)options.Length),
             MinCount = (byte)Math.Min(minCount, options.Length),
             MaxCount = (byte)Math.Min(maxCount, options.Length),
             Origin = x.ChoiceOrigin,

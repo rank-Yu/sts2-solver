@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "sk-c-poison",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-c-poison.json\u0022}",
-  "rulesSha256": "3b0f76dea6095634918f8b743641f41bdc867293a76c1255427635849cd3c92d",
+  "rulesSha256": "fba02d3014b373e22ada3033b75e50473dafe2095409e3ab26f8ceccd0269236",
   "counts": {
     "roots": 1,
     "k1": 15,

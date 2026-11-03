@@ -1497,7 +1497,7 @@ internal sealed class Scorer
 
         HpLossContext loss = new(
             Limits.PlayerOwner, ValueProps.Move, attacker, false, default);
-        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount * 2];
+        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
         decimal hpLoss = ProjectedModifyHpLost(
             ref x, loss, adjustedHit - blocked, afterOsty: false, changed, out _);
         // the existing search's ProjectThreatHit: Hook.ModifyUnblockedDamageTarget, then the engine's explicit
@@ -1526,7 +1526,7 @@ internal sealed class Scorer
             ostyHp -= absorbed;
             // Native redirected damage applies the original receiver's AfterOsty modifiers to the
             // overkill as a separate loss; the engine also filters Buffer there.
-            Span<Listener> overflowChanges = stackalloc Listener[HookDispatch.MaxListenerCount * 2];
+            Span<Listener> overflowChanges = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
             HpLossContext overflow = new(
                 Limits.PlayerOwner, ValueProps.Move, attacker, false, default);
             decimal overflowLoss = ProjectedModifyHpLost(
@@ -1563,7 +1563,7 @@ internal sealed class Scorer
         HookMask lateMask = afterOsty ? HookMask.ModifyHpLostAfterOstyLate : HookMask.ModifyHpLostBeforeOstyLate;
         if ((Registry.AnyHooks & (normalMask | lateMask)) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         for (int pass = 0; pass < 2; pass++)
         {
             int count = HookDispatch.CollectListeners(x.B, pass == 0 ? normalMask : lateMask, listeners);
@@ -1684,7 +1684,7 @@ internal sealed class Scorer
         preventer = default;
         if ((Registry.AnyHooks & HookMask.ShouldClearBlock) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldClearBlock, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -2199,7 +2199,7 @@ internal sealed class Scorer
     {
         if (cached >= 0)
             return cached;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
         if (HookDispatch.CollectListeners(battle, HookMask.ModifyMaxEnergy, listeners) == 0)
             return cached = Math.Max(0, (int)(decimal)Rules.BaseMaxEnergy);
         Unsafe.SkipInit(out Battle probe);
@@ -2267,7 +2267,7 @@ internal sealed class Scorer
     {
         if (cached >= 0)
             return cached;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
         int count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDraw, listeners);
         if (count == 0)
             count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDrawLate, listeners);

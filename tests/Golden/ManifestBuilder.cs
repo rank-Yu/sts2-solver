@@ -12,8 +12,10 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "v2→v3 把 Battle 改为打包牌区（头部 + 前 CardCount 张牌，容量 96→255）；"
-        + "D1 stateHash/childHash 逐状态核对旧镜像后改写为打包前缀哈希，只改格式。";
+        "v3→v4：Battle 容量 255→640，五个牌堆张数与选择选项位置/选项值改为 2 字节，"
+        + "选择选项数改为 2 字节并增加单选超过 64 项时的 IndexSelection；"
+        + "D1 stateHash/childHash 用当前内核逐状态重放，先核对版本 3 投影等于旧哈希，"
+        + "再改写为版本 4 打包前缀哈希；只改格式，不改结果。";
 
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly

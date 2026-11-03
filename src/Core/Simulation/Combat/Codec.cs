@@ -13,7 +13,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 internal static class Codec
 {
-    internal const ushort FormatVersion = 3;
+    internal const ushort FormatVersion = 4;
 
     internal static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
@@ -171,6 +171,7 @@ internal static class Codec
 /// <summary>
 /// Packed <see cref="Battle"/> file: version, the packed prefix length and the packed byte image.
 /// Only the header and the cards at <c>[0, CardCount)</c> are stored; the struct suffix is undefined.
+/// Writers and readers use the current version only.
 /// </summary>
 public static class BattleCodec
 {
@@ -210,14 +211,17 @@ public static class BattleCodec
         if (current != Battle.ExpectedSize)
             throw new InvalidDataException(
                 $"Battle 大小 {current} 与布局断言 {Battle.ExpectedSize} 不符。");
-        if (declared < Battle.HeaderSize || declared > current)
-            throw new InvalidDataException(
-                $"Battle 打包长度 {declared} 不在 {Battle.HeaderSize}..{current} 内。");
         if (bytes.Length != HeaderSize + declared)
             throw new InvalidDataException(
                 $"Battle 数据长度 {bytes.Length} 与声明 {HeaderSize + declared} 不符。");
-        Battle battle = default;
-        bytes[HeaderSize..].CopyTo(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref battle, 1)));
+        if (bytes.Length <= HeaderSize)
+            throw new InvalidDataException("Battle 载荷为空。");
+        ReadOnlySpan<byte> payload = bytes[HeaderSize..];
+        if (declared < Battle.HeaderSize || declared > current)
+            throw new InvalidDataException(
+                $"Battle 打包长度 {declared} 不在 {Battle.HeaderSize}..{current} 内。");
+        Unsafe.SkipInit(out Battle battle);
+        payload.CopyTo(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref battle, 1)));
         if (Battle.PackedSize(in battle) != declared)
             throw new InvalidDataException(
                 $"Battle 打包长度 {declared} 与计数推出的 {Battle.PackedSize(in battle)} 不符。");

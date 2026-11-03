@@ -3,6 +3,7 @@
 // ResolveTurnSetupChoices. The state definition, choice enumeration and effect application are
 // Sts2Solver's kernel; only the replay-from-Start-prefix recursion and the budget shape follow the
 // original.
+using System.Runtime.CompilerServices;
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat;
@@ -173,7 +174,8 @@ internal static class TurnSetupRootEnumerator
         {
             if (_stopped || _unsupported != null)
                 return;
-            Battle partial = _start;
+            Unsafe.SkipInit(out Battle partial);
+            Battle.CopyPacked(in _start, ref partial);
             StepResult step = Kernel.PreparePlayerPlayPhase(ref partial, _rules, selections,
                 out ChoiceRequest request);
             if (step == StepResult.Completed)

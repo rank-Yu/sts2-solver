@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "ls-a-silent-attacks",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-a-silent-attacks.json\u0022}",
-  "rulesSha256": "dfd1d85c079569243a7376c098a0e29a479419b6a3df244886eeab630966c15c",
+  "rulesSha256": "5b415e45f94317b4791167c5020b1cfb47d55b5ec35930434d02bf0bde8eb42f",
   "counts": {
     "roots": 1,
     "k1": 16,

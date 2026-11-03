@@ -85,7 +85,7 @@ internal static partial class CombatSessionController
         _searchThreads = SearchThreadCount.Value;
         _searchProfile = CaptureSearchProfile();
         SearchSettingsSnapshot settings = SearchSettingsSnapshot.Capture(_searchTier, _theftPolicy);
-        CombatSearchSession session = new(++_nextSearchGeneration, _state, root, stamp, turn,
+        CombatSearchSession session = new(++_nextSearchGeneration, _state, in root, stamp, turn,
             reason, SolverSearchPolicy.Capture(_theftPolicy), deployWhenReady, cancellation)
         {
             Settings = settings,
@@ -127,7 +127,7 @@ internal static partial class CombatSessionController
             $"threads={_searchThreads} mode={_mode} full_auto={_fullAutoEnabled} " +
             $"continuation={continuation}" +
             (continuation ? $" pass={resume!.Pass} next_member={resume.NextMemberIndex}" : ""));
-        _ = RunSearchAsync(session, root);
+        _ = RunSearchAsync(session);
     }
 
     /// <summary>
@@ -142,11 +142,7 @@ internal static partial class CombatSessionController
         try
         {
             if (!_trackerSeeded)
-            {
-                Battle seed = _tracker!.ImportRoot(_state!, _player!, _rules!);
-                _tracker.Observe(seed);
-                _trackerSeeded = true;
-            }
+                SeedTracker();
             _tracker!.Refresh(_state!);
             root = _tracker.ImportRoot(_state!, _player!, _rules!);
             return true;
@@ -222,7 +218,14 @@ internal static partial class CombatSessionController
         RequestSearch(reason, deployWhenReady: false);
     }
 
-    private static async Task RunSearchAsync(CombatSearchSession session, Battle root)
+    private static void SeedTracker()
+    {
+        Battle seed = _tracker!.ImportRoot(_state!, _player!, _rules!);
+        _tracker.Observe(seed);
+        _trackerSeeded = true;
+    }
+
+    private static async Task RunSearchAsync(CombatSearchSession session)
     {
         NGame? host = NGame.Instance;
         if (host == null)
@@ -230,7 +233,7 @@ internal static partial class CombatSessionController
         try
         {
             CombatSearchRun run = await CombatSearchRunner.RunAsync(host, _testRoot ?? "manual",
-                _rules!, _tracker!, session.State, _player!, root, session.StartTurn, session.Reason,
+                _rules!, _tracker!, session.State, _player!, session.Root, session.StartTurn, session.Reason,
                 _searchTier, session.PolicyConfiguration,
 #if STS2_SOLVER_TESTING
                 SearchPolicyOverrideForTest,

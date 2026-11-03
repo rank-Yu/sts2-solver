@@ -17,8 +17,11 @@ namespace Sts2Solver.Ai.Combat;
 /// </summary>
 internal sealed class PackedStateArena
 {
-    /// <summary>Payload bytes per block (before the full-struct tail slack).</summary>
-    internal const int PayloadBytes = 1 << 19;
+    /// <summary>
+    /// Payload bytes per block (before the full-struct tail slack). 2 MiB keeps the one-state tail
+    /// reservation near 4.5% of a block at the 1023-card struct size.
+    /// </summary>
+    internal const int PayloadBytes = 1 << 21;
 
     /// <summary>Complete block length: payload plus one aligned <see cref="Battle"/>.</summary>
     internal const int BlockBytes = PayloadBytes + Battle.ExpectedSize;

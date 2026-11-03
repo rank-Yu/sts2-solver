@@ -23,14 +23,49 @@ Check(Unsafe.SizeOf<Orb>() == 8, $"Orb 应为 8 字节，实际 {Unsafe.SizeOf<O
 Check(Unsafe.SizeOf<RngState>() == 40, $"RngState 应为 40 字节，实际 {Unsafe.SizeOf<RngState>()}");
 Check(Unsafe.SizeOf<Battle>() == Battle.ExpectedSize,
     $"Battle 应为 {Battle.ExpectedSize} 字节，实际 {Unsafe.SizeOf<Battle>()}");
+Check(Unsafe.SizeOf<Battle>() <= 65535,
+    $"Battle 大小 {Unsafe.SizeOf<Battle>()} 超过 .NET 数组元素上限 65535；"
+    + "这样 Battle[]/List<Battle> 无法创建，Marshal.OffsetOf 也会失败。");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Cards))
         == Battle.HeaderSize,
     $"Cards 偏移应为 {Battle.HeaderSize}，实际 {System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Cards))}");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard))
         + Unsafe.SizeOf<Card>() == Battle.HeaderSize,
     "HistoryCourseCard 应紧挨在 Cards 之前");
-Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == Battle.ExpectedSize,
-    "满牌打包大小应等于 Battle 结构体大小");
+Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 62748,
+    "满牌打包前缀应为 62748 字节");
+Check(Battle.ExpectedSize == 62752, $"Battle 满容量大小应为 62752，实际 {Battle.ExpectedSize}");
+Check(Battle.ExpectedSize <= 65535, "Battle 结构体应不超过 .NET 数组元素上限");
+// Header anchors: every field starts where the preceding explicit field size ends, so the widened
+// pile counts and the five alignment bytes introduce no compiler-inserted padding.
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HandCount)) == 36,
+    "HandCount 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.MaxHandSize)) == 46,
+    "MaxHandSize 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DetachedCards)) == 60,
+    "DetachedCards 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 336,
+    "DecimalVars 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 400,
+    "Roster 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 412,
+    "Potions 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 424,
+    "Player 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 456,
+    "Counters 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 648,
+    "Rng 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 1008,
+    "Enemies 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1776,
+    "Powers 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Relics)) == 3312,
+    "Relics 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 3696,
+    "Orbs 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 3776,
+    "HistoryCourseCard 偏移");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");
 
@@ -53,6 +88,7 @@ CheckIntroSort(rules);
 CheckCapacity();
 CheckPiles();
 PackedCardsChecks.Check(rules);
+Cards640Checks.Check(rules);
 CheckMonsterForcedMoves(rules);
 CheckKm2Kernel(rules);
 CheckMonsterSpawn(SpawnRules());
@@ -961,6 +997,8 @@ static Rules SliceRules()
     Registry.TryCard("DEFEND_IRONCLAD", out ushort defend);
     Registry.TryCard("BASH", out ushort bash);
     Registry.TryCard("WHIRLWIND", out ushort whirlwind);
+    Registry.TryCard("VOID", out ushort voidCard);
+    builder.SetCard(voidCard, 0, Stats(CardType.Status, TargetType.None, 0, [1m]));
     Registry.TryCard("THRASH", out ushort thrash);
     builder.SetCard(strike, 0, Stats(CardType.Attack, TargetType.AnyEnemy, 1, [6m]));
     builder.SetCard(thrash, 0, Stats(CardType.Attack, TargetType.AnyEnemy, 1, [4m]));
@@ -3010,7 +3048,7 @@ static void CheckKg2Hooks(Rules rules)
     Kg2TestLog.Clear();
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, locationPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
-    Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     Pile location = HookDispatch.ModifyCardPlayResultLocation(ref x, card, false, 0, Pile.Discard,
         PilePosition.Bottom, locationModifiers, out int locationCount, out PilePosition locationPosition);
     Check(location == Pile.Draw && locationPosition == PilePosition.Top && locationCount == 1,
@@ -3022,7 +3060,7 @@ static void CheckKg2Hooks(Rules rules)
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, countPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
     Kg2TestLog.Clear();
-    Span<Listener> countModifiers = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> countModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     int playCount = HookDispatch.ModifyCardPlayCount(ref x, card, Limits.NoOwner, 1, countModifiers,
         out int countModifierCount);
     Check(playCount == 2 && countModifierCount == 1, "KG2 出牌次数 Hook 未生效");

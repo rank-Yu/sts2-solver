@@ -528,8 +528,8 @@ public static partial class Kernel
         int oldDiscardStart = handCount + drawCount;
         all.Slice(oldDiscardStart, discardCount).CopyTo(all.Slice(discardStart));
         flushed[..count].CopyTo(all.Slice(discardStart + discardCount));
-        x.B.HandCount = checked((byte)keep);
-        x.B.DiscardCount = checked((byte)(discardCount + count));
+        x.B.HandCount = checked((ushort)keep);
+        x.B.DiscardCount = checked((ushort)(discardCount + count));
     }
 
     /// <summary>
@@ -556,7 +556,7 @@ public static partial class Kernel
             x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, card.Id, card.Upgrade);
             try
             {
-                def.BeforeFlush(ref x, new Listener(ListenerKind.Enchantment, (byte)index, Limits.PlayerOwner));
+                def.BeforeFlush(ref x, new Listener(ListenerKind.Enchantment, (ushort)index, Limits.PlayerOwner));
             }
             finally
             {
@@ -572,7 +572,7 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldFlush) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldFlush, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -932,7 +932,7 @@ internal static void AfterFlushPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.AfterFlush) == 0)
         return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterFlush, listeners);
     for (int index = 0; index < count; index++)
     {
@@ -948,7 +948,7 @@ internal static bool ShouldTakeExtraTurnPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.ShouldTakeExtraTurn) == 0)
         return false;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     int count = HookDispatch.CollectListeners(x.B, HookMaskExt.ShouldTakeExtraTurn, listeners);
     for (int index = 0; index < count; index++)
     {
@@ -966,7 +966,7 @@ internal static void AfterTakingExtraTurnPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.AfterTakingExtraTurn) == 0)
         return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterTakingExtraTurn, listeners);
     for (int index = 0; index < count; index++)
     {
@@ -982,7 +982,7 @@ internal static void AfterRelicRoundPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.AfterRelicRound) == 0)
         return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
     int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterRelicRound, listeners);
     for (int index = 0; index < count; index++)
     {

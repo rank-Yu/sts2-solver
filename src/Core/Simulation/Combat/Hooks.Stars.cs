@@ -20,7 +20,7 @@ public static partial class HookDispatch
         {
             return amount;
         }
-        Span<Listener> listeners = stackalloc Listener[MaxListeners];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
         int count = CollectListeners(battle, HookMask.TryModifyStarCost, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -42,7 +42,7 @@ public static partial class HookDispatch
     {
         if (amount <= 0 || (Registry.AnyHooks & HookMask.AfterStarsSpent) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListeners];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
         int count = CollectListeners(x.B, HookMask.AfterStarsSpent, listeners);
         RejectUnsupportedAfterStarsSpentKinds(listeners[..count]);
         for (int index = 0; index < count; index++)
@@ -86,7 +86,7 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.AfterStarsGained) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[MaxListeners];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
         int count = CollectListeners(x.B, HookMask.AfterStarsGained, listeners);
         for (int index = 0; index < count; index++)
         {

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "km2-phrog-parasite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-phrog-parasite.json\u0022}",
-  "rulesSha256": "3b10936c34e29624b4430e2759f4c1d5e06c5da7dc85afd062f106fb5fdcce81",
+  "rulesSha256": "a4ceef4f0e8113d8db27f96dd5f2815b0987881d604ac48dce1be3262e990a7f",
   "counts": {
     "roots": 1,
     "k1": 7,

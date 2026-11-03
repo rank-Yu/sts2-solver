@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "dx7-distilled-chaos",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx7-distilled-chaos.json\u0022}",
-  "rulesSha256": "94a4f6a813ad65ba9ce076943a421d124c9033418b24bbaa7a956dadcef130dd",
+  "rulesSha256": "6849933ff37b0450b95c594aec3c1c9ab04a04579cf7c216f14bacddcfea91e4",
   "counts": {
     "roots": 1,
     "k1": 10,

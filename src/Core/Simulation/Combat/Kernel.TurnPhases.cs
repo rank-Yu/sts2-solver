@@ -492,7 +492,7 @@ public static partial class Kernel
         preventer = default;
         if ((Registry.AnyHooks & HookMask.ShouldClearBlock) == 0 || IsOverOrEnding(x.B))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldClearBlock, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -641,7 +641,7 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooksExt & HookMaskExt.AfterSideTurnEndLate) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterSideTurnEndLate, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -830,7 +830,7 @@ public static partial class Kernel
     internal static int ModifiedMaxEnergy(ref Exec x)
     {
         decimal result = x.R.BaseMaxEnergy;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ModifyMaxEnergy, listeners);
         for (int index = 0; index < count; index++)
             result = HookDispatch.Definition(x.B, listeners[index]).ModifyMaxEnergy(ref x, listeners[index], result);
@@ -841,7 +841,7 @@ public static partial class Kernel
     internal static int ModifiedHandDraw(ref Exec x, int baseDraw)
     {
         decimal result = baseDraw;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ModifyHandDraw, listeners);
         for (int index = 0; index < count; index++)
             result = HookDispatch.Definition(x.B, listeners[index]).ModifyHandDraw(ref x, listeners[index], result);

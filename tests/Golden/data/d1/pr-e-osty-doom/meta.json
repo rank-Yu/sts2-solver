@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "pr-e-osty-doom",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-e-osty-doom.json\u0022}",
-  "rulesSha256": "aed5e44cff10d8a1a837f01caa8d92fc185f268d209bb114c682c45222d21f09",
+  "rulesSha256": "9072f3f650de62efd9f2a372e670b2dfcc2adff50074cf2a71a0ef6487a348a1",
   "counts": {
     "roots": 1,
     "k1": 18,

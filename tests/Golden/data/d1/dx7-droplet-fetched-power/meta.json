@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "dx7-droplet-fetched-power",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx7-droplet-fetched-power.json\u0022}",
-  "rulesSha256": "6248b5f562b656f36709ee7ac475ec7d890c448fdb4a21a8a988164e7ced0c50",
+  "rulesSha256": "db7a1dbca0a31d13afcf02f5b28216945fd7f6dd25540881e8a31419d171b165",
   "counts": {
     "roots": 1,
     "k1": 15,

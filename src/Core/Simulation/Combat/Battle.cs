@@ -266,14 +266,15 @@ public struct Battle
     /// Offset of <see cref="Cards"/>: the end of the packed header. The complete header (including
     /// <see cref="HistoryCourseCard"/>) is <c>PackedSize</c> bytes for an empty state.
     /// </summary>
-    public const int HeaderSize = 3860;
+    public const int HeaderSize = 3868;
 
     /// <summary>
     /// <see cref="System.Runtime.CompilerServices.Unsafe.SizeOf{T}"/> of the complete struct. The
-    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 92 = 27320</c> bytes, exactly
-    /// the struct size.
+    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 92 = 62748</c> bytes; the
+    /// struct itself is 62752 bytes after its 4-byte tail alignment. Both are below the CLR's
+    /// 65,535-byte array-element limit.
     /// </summary>
-    public const int ExpectedSize = 27320;
+    public const int ExpectedSize = 62752;
 
     public int Round;
     public int PlayerTurn;
@@ -289,11 +290,12 @@ public struct Battle
     public Outcome Outcome;
     public BattleFlags Flags;
 
-    public byte HandCount;
-    public byte DrawCount;
-    public byte DiscardCount;
-    public byte ExhaustCount;
-    public byte PlayCount;
+    /// <summary>Pile sizes. A single pile is bounded by <see cref="Limits.Cards"/> (1023).</summary>
+    public ushort HandCount;
+    public ushort DrawCount;
+    public ushort DiscardCount;
+    public ushort ExhaustCount;
+    public ushort PlayCount;
     public byte MaxHandSize;
 
     /// <summary>Known enemies, including dead and escaped ones.</summary>
@@ -308,13 +310,17 @@ public struct Battle
     public byte OrbCapacity;
     public byte PotionSlotCount;
 
-    /// <summary>
-    /// Used entries of <see cref="DecimalCardVars"/> (canonical: contiguous 0..count-1). Reuses a
-    /// former header padding byte so the count does not add to the layout.
-    /// </summary>
+    /// <summary>Used entries of <see cref="DecimalVars"/> (canonical: contiguous 0..count-1).</summary>
     public byte DecimalVarCount;
+
+    // Explicit padding: DecimalVars is 8-byte aligned and DetachedCards is 276 bytes, so the byte
+    // block before it must leave the decimal array at an 8-byte offset. Written as explicit bytes so
+    // the header has no compiler-inserted padding; the v3 decoder and projection preserve them as 0.
     private byte _padding1;
     private byte _padding2;
+    private byte _padding3;
+    private byte _padding4;
+    private byte _padding5;
 
     /// <summary>
     /// Selected-card values of instanced powers that clone them at a later turn (NightmarePower).
@@ -334,7 +340,7 @@ public struct Battle
     public Roster Roster;
 
     public PotionSlots Potions;
-    private short _padding3;
+    private short _paddingAfterPotions;
 
     public Creature Player;
     public Creature Osty;
@@ -560,7 +566,7 @@ public static class Piles
 
     private static void SetCount(ref Battle battle, Pile pile, int value)
     {
-        byte count = checked((byte)value);
+        ushort count = checked((ushort)value);
         switch (pile)
         {
             case Pile.Hand: battle.HandCount = count; break;

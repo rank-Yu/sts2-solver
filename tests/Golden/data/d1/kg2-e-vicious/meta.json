@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "kg2-e-vicious",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-e-vicious.json\u0022}",
-  "rulesSha256": "3edd51bd6ceebec5efe06c31cb88e9359b313978d43a958215d6e0ca5fbeeadc",
+  "rulesSha256": "b00a69a22c46049e724da982a4973fa9402239dae7b3403f2b604575bd7be790",
   "counts": {
     "roots": 1,
     "k1": 9,

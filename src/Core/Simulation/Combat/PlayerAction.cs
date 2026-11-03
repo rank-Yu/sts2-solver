@@ -179,10 +179,10 @@ public readonly struct ChoiceSource
     public readonly bool IsNone => Kind == ChoiceSourceKind.None;
 }
 
-[InlineArray(Limits.MaxChoiceOptions)]
+[InlineArray(Limits.Cards)]
 public struct ChoiceOptions
 {
-    private byte _first;
+    private ushort _first;
 }
 
 [InlineArray(Limits.MaxGeneratedChoiceOptions)]
@@ -211,11 +211,18 @@ public struct ChoiceRequest
     /// <summary>True when <see cref="GeneratedOptions"/> holds the options instead of pile positions.</summary>
     public bool OptionsAreGenerated;
 
-    public byte OptionCount;
+    public ushort OptionCount;
 
     /// <summary>Selection size bounds, already clamped to the option count as the existing engine does.</summary>
     public byte MinCount;
     public byte MaxCount;
+
+    /// <summary>
+    /// Set when a single-select option list exceeds the 64-bit mask and the battle already exceeds
+    /// the frozen 255-card ceiling: the carried <c>ulong</c> is then the selected option index.
+    /// Below that ceiling the historical option-count boundary is unchanged.
+    /// </summary>
+    public bool IndexSelection;
 
     /// <summary>
     /// Host-only origin of the request, used by the panel's turn-start capsules. Never encoded and
@@ -224,6 +231,14 @@ public struct ChoiceRequest
     public ChoiceSource Origin;
     public ChoiceOptions Options;
     public GeneratedChoiceOptions GeneratedOptions;
+
+    /// <summary>
+    /// True when <see cref="Options"/> is longer than a 64-bit selection mask. The kernel and the
+    /// choice enumerator then treat a carried <c>ulong</c> as the selected option index instead of
+    /// a bit set. Only single-select requests use this form; a multi-select request above the mask
+    /// width is still a capacity boundary.
+    /// </summary>
+    public readonly bool UsesIndexSelection => IndexSelection;
 }
 
 /// <summary>
@@ -825,10 +840,21 @@ public ref struct Exec
         if (_choicesTaken < _choiceCount)
         {
             selection = _choices[_choicesTaken++];
-            ulong valid = request.OptionCount >= 64 ? ulong.MaxValue : (1UL << request.OptionCount) - 1;
-            int count = System.Numerics.BitOperations.PopCount(selection);
-            if ((selection & ~valid) != 0 || count < request.MinCount || count > request.MaxCount)
-                throw new InvalidOperationException($"选择 {selection:X} 不符合选项规格（{request.OptionCount} 项，{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} timing={request.Timing} source={request.Source} choices={_choiceCount} taken={_choicesTaken}）。");
+            if (request.UsesIndexSelection)
+            {
+                if (selection >= request.OptionCount || request.MinCount != 1 || request.MaxCount != 1)
+                    throw new InvalidOperationException(
+                        $"选择 {selection} 不符合索引选择规格（{request.OptionCount} 项，"
+                        + $"{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} "
+                        + $"timing={request.Timing} source={request.Source}）。");
+            }
+            else
+            {
+                ulong valid = request.OptionCount >= 64 ? ulong.MaxValue : (1UL << request.OptionCount) - 1;
+                int count = System.Numerics.BitOperations.PopCount(selection);
+                if ((selection & ~valid) != 0 || count < request.MinCount || count > request.MaxCount)
+                    throw new InvalidOperationException($"选择 {selection:X} 不符合选项规格（{request.OptionCount} 项，{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} timing={request.Timing} source={request.Source} choices={_choiceCount} taken={_choicesTaken}）。");
+            }
             // The first carried selection answers the native setup pause: run the side start and
             // the orb turn-start pass before the listener that asked resumes and applies it.
             if (_choicesTaken == 1)

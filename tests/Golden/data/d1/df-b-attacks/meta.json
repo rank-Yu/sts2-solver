@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "df-b-attacks",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-b-attacks.json\u0022}",
-  "rulesSha256": "b2a6ea7445bc6ffadbc3f3e1440c64690a1dbf3a87d1ee5075084b8f7b3a1ec8",
+  "rulesSha256": "9f0c2f5266f9f1e5f0a365ff561c894fac870ac08b4acefbf2bce7de54c6ffc3",
   "counts": {
     "roots": 1,
     "k1": 19,

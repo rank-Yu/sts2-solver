@@ -127,8 +127,8 @@ internal static class SimulationVerifier
             if ((uint)walk.RootIndex >= (uint)record.Roots.Count)
                 throw new InvalidDataException($"根 {rootName} 的游走根下标 {walk.RootIndex} 越界。");
             VerifyWalk(rootName, walk, record.Roots[walk.RootIndex].Battle, rules,
-                scorer, bound, rootActionCount, ref featureStates, ref featureTraits,
-                ref walkStates, ref transitions);
+                scorer, bound, rootActionCount, ref featureStates,
+                ref featureTraits, ref walkStates, ref transitions);
         }
 
         if (counts.GetProperty("walkStates").GetInt32() != walkStates
@@ -402,4 +402,5 @@ internal static class SimulationVerifier
 
     private static InvalidDataException Mismatch(string rootName, string detail)
         => new($"模拟回归 {rootName}：{detail}");
+
 }

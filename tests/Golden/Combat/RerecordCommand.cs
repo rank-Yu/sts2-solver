@@ -158,7 +158,8 @@ internal static class RerecordCommand
             configDirectory = targetDirectory;
         }
         Rules rules = SimulationVerifier.LoadRules(source, oldRecord.RulesSha256);
-        SearchCase config = SimulationVerifier.LoadConfig(configDirectory, rootName, oldRecord.RulesSha256);
+        SearchCase config = SimulationVerifier.LoadConfig(configDirectory, rootName,
+            oldRecord.RulesSha256);
         Scorer scorer = config.Options.Scorer
             ?? throw new InvalidDataException($"根 {rootName} 的特征配置没有 Scorer。");
         BoundFeatures? bound = config.Options.Bound;

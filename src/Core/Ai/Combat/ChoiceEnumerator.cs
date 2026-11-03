@@ -14,6 +14,13 @@ internal static class ChoiceEnumerator
 {
     public static int Enumerate(in ChoiceRequest request, Span<ulong> output)
     {
+        if (request.UsesIndexSelection)
+        {
+            int selectedCount = Math.Min((int)request.OptionCount, output.Length);
+            for (int index = 0; index < selectedCount; index++)
+                output[index] = (ulong)index;
+            return selectedCount;
+        }
         int options = request.OptionCount;
         int count = 0;
         Span<int> indexes = stackalloc int[Limits.MaxChoiceOptions];
@@ -49,6 +56,8 @@ internal static class ChoiceEnumerator
     public static int EnumerateByClass(in ChoiceRequest request, scoped ReadOnlySpan<Card> cards,
         Span<ulong> output)
     {
+        if (request.UsesIndexSelection)
+            return Enumerate(in request, output);
         if (output.IsEmpty)
             return 0;
         int options = request.OptionCount;
@@ -98,6 +107,8 @@ internal static class ChoiceEnumerator
     public static int EnumerateByClassFilled(in ChoiceRequest request, scoped ReadOnlySpan<Card> cards,
         Span<ulong> output)
     {
+        if (request.UsesIndexSelection)
+            return Enumerate(in request, output);
         int written = EnumerateByClass(request, cards, output);
         if (written >= output.Length)
             return written;
@@ -152,6 +163,8 @@ internal static class ChoiceEnumerator
     public static bool IsExactByClass(in Battle battle, in ChoiceRequest request,
         scoped ReadOnlySpan<Card> cards, ulong selection)
     {
+        if (request.UsesIndexSelection)
+            return false;
         if (request.OptionsAreGenerated || request.SourceIsNone)
             return true;
         if (request.OptionCount == 0)
@@ -221,6 +234,8 @@ internal static class ChoiceEnumerator
         scoped ReadOnlySpan<Card> cards, ulong selection, out ulong alternative)
     {
         alternative = 0;
+        if (request.UsesIndexSelection)
+            return false;
         int options = request.OptionCount;
         if (options == 0)
             return false;
@@ -259,6 +274,8 @@ internal static class ChoiceEnumerator
     {
         if (cap <= 0)
             return 0;
+        if (request.UsesIndexSelection)
+            return Math.Min(request.OptionCount, cap);
         long total = 0;
         for (int size = request.MinCount; size <= request.MaxCount; size++)
         {

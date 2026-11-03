@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p9-replay-select",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-replay-select.json\u0022}",
-  "rulesSha256": "5f4ab40faee5c90b7a99a606c3ab72d9e58a78052e2509225fdb43a8505df6d7",
+  "rulesSha256": "405ab5b99ad31b1cde8c779af9109b01e2c31bc35b9931f72387f785b6ab40f3",
   "counts": {
     "roots": 1,
     "k1": 19,

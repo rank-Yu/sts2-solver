@@ -4,6 +4,7 @@
 
 - **120 个生成牌组**：五个角色各 24 个（`<角色>-000` … `<角色>-023`），每个子目录是一份 `spec.json` + `request.json`，`request.json` 的 `generatedScenarioPath` 指向本目录内的规格。
 - **3 个固定牌组**：两份女王（`SILENT-QUEEN-*`）和一份沙漏（`SILENT-AEONGLASS-CG7UX7V5XZS9`），每个子目录是 `request.json` + `expectations.json`。
+- **大牌组回归输入**：`CLONE-289-AXEBOTS` 是 33 张原牌组加 256 张升级版 `NEUTRALIZE`（带 `CLONE` 附魔）的 289 张牌组，固定第三幕普通战斗 Axebots，用于 640 容量与 `IndexSelection` 的长期实机回归；不进入默认 108 场名单。
 
 默认评测名单在 `default-roots.txt`，共 108 场：生成牌组去掉第三幕首领的 15 场（各角色的 017、020、023）后剩 105 场，再加 3 个固定牌组。去掉的 15 场仍保留输入，可以用 `--root` 单独跑，也供冻结快照的一致性检查使用。
 

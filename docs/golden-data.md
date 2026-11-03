@@ -31,15 +31,15 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- 当前所有编解码的格式版本都是 3（`Codec.FormatVersion`）。
+- 当前所有编解码的格式版本都是 4（`Codec.FormatVersion`）。读取器只接受版本 4；版本 3 或其它版本按现有规则显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
 ```text
-u32 magic="BATL" | u16 version=3 | i32 PackedSize | packed bytes
+u32 magic="BATL" | u16 version=4 | i32 PackedSize | packed bytes
 ```
 
-魔数常量是 `0x4C544142`，按小端字节解出的 ASCII 是 `BATL`。载荷只写打包前缀：头部（`Battle.HeaderSize` = 3,860 字节）加 `CardCount × 92` 字节的牌，满牌 27,320 字节。
+魔数常量是 `0x4C544142`，按小端字节解出的 ASCII 是 `BATL`。载荷只写打包前缀：头部（`Battle.HeaderSize` = 3,868 字节）加 `CardCount × 92` 字节的牌，满牌打包前缀 62,748 字节（结构体 62,752 字节）。
 
 解码要求：魔数和版本正确；声明的长度在 `HeaderSize..Unsafe.SizeOf<Battle>()` 之间；数据长度正好等于 `HeaderSize + declared`；解码后由各计数推出的 `Battle.PackedSize` 与声明一致。否则抛 `InvalidDataException`。解码先把工作区清零再写入前缀，后缀保持为零；之后校验各计数的上限（卡牌、敌人、Power、遗物、球、药水槽、小数变量）、卡牌 Id 和敌人的规则下标。
 
@@ -48,7 +48,7 @@ u32 magic="BATL" | u16 version=3 | i32 PackedSize | packed bytes
 ## 4. `RULE`：Rules
 
 ```text
-u32 magic="RULE" | u16 version=3 | i32 fieldCount=30 | 30 个字段，按固定顺序
+u32 magic="RULE" | u16 version=4 | i32 fieldCount=30 | 30 个字段，按固定顺序
 ```
 
 魔数常量是 `0x454C5552`（`RULE`）。30 个字段的含义和顺序见 [原生导入](import.md#41-30-个字段)。
@@ -61,7 +61,7 @@ u32 magic="RULE" | u16 version=3 | i32 fieldCount=30 | 30 个字段，按固定�
 ## 5. `GOLD`：模拟回归文件
 
 ```text
-u32 magic="GOLD" | u16 version=3
+u32 magic="GOLD" | u16 version=4
 string inputJson | string rulesSha256
 rootCount | 每个根：i32 BATL 长度 + BATL 字节 + string choices
           + u64 scoreHash + u8 boundStatus + u64 boundHash
@@ -81,17 +81,17 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 
 - K1 对每个合法动作记录完整补全后的请求序列；K2 对每个状态记录枚举顺序的合法动作、第一次选择请求，以及随机选中动作的完整请求序列。
 - 动作编码：`Kind, HandIndex, Target, PotionSlot, ChoiceCount, ChoiceCount × u64 选择位集`（不写结构体填充）。
-- 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount, MinCount, MaxCount, OptionCount × 选项字节`；生成卡选项再写 `OptionCount × Card` 的原始 92 字节。
+- 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount(u16), MinCount, MaxCount, IndexSelection(bool), OptionCount × 选项(u16)`；生成卡选项再写 `OptionCount × Card` 的原始 92 字节。`OptionCount` 和选项位置/选项值都是 2 字节；`IndexSelection` 用于总牌数超过 255、单选选项超过 64 的请求。
 - `immediateStatus`：0 = 动作不需要选择；1 = 需要，并行的请求有效；2 = 内核边界（`UnsupportedException` 或 `CapacityException`）。
 - K4 哈希：`scoreHash` 是 `ScoreFeatures` 全部字段的确定性 SHA-256 截断；`boundHash` 是 `BoundValues`；`traitHash` 是 `SearchRouteTraits + pure + declined + pocketwatch threshold/played`。模拟回归只验证内核能复现的部分（K1、K2 和这些哈希）。
-- `meta.json` 记录 `formatVersion`（3）、`battleSize`（27,320）、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。
+- `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 4、`battleSize` 62,752；校验只接受这一组值。
 
 ## 6. `SREQ` / `SRES`：搜索回归的请求与结果
 
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=3 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=4 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
 魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、目标停止、强制药水指令与用药计数、各类策略开关等。字段清单以代码为准。
@@ -104,7 +104,7 @@ u32 magic="SREQ" | u16 version=3 | rules 长度 + RULE | battles 数量 + 每个
 ### 6.2 `SRES`
 
 ```text
-u32 magic="SRES" | u16 version=3
+u32 magic="SRES" | u16 version=4
 BestRoute | TopRoutes | BestIsVictory | BestScore(double bits)
 ExpandedNodes | Transitions | Duplicates | TurnsSearched | PrunedIncumbents
 CapacityPruned | CapacityDroppedChildren（按 key 排序） | EndedCompactions
@@ -158,11 +158,11 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 | 字段 | 内容 |
 | --- | --- |
-| `formatVersion` | 当前为 3 |
-| `battleSize` | 27,320，即 `Unsafe.SizeOf<Battle>()` |
+| `formatVersion` | 4 |
+| `battleSize` | 62,752，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：`Battle` 改为打包牌区（头部 + 前 `CardCount` 张牌，容量 96→255）；状态哈希逐状态核对旧镜像后改写为打包前缀哈希 |
+| `provenance.formatMigration` | 格式迁移说明：`Battle` 容量 255→640，牌堆张数与选择选项位置/选项值改为 2 字节，选项数改为 2 字节并增加单选超过 64 项的 `IndexSelection`；D1 状态哈希逐状态核对旧投影后改写，只改格式 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |
@@ -224,4 +224,4 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 ## 12. 旧版本
 
-读取器只接受版本 3。魔数或版本不符一律抛 `InvalidDataException`，不尝试迁移。
+读取器只接受版本 4。版本 3 的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。冻结数据已经迁移到版本 4，迁移只改格式，不改结果；测试侧不再保留版本 3 投影。

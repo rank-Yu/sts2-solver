@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p14-d-rupture",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p14-d-rupture.json\u0022}",
-  "rulesSha256": "52d29487621e3413fd4dc8b28f03f546827938893977d8fe79eb4a22be8ca9ee",
+  "rulesSha256": "85103cee7e1d9ae2435908dd46e6f2081f7b7dc7738ddf64b220fe51d2a7af31",
   "counts": {
     "roots": 1,
     "k1": 13,

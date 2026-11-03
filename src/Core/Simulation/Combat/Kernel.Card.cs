@@ -70,7 +70,7 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldPlay) == 0 || IsOverOrEnding(battle))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
         int count = HookDispatch.CollectListeners(battle, HookMask.ShouldPlay, listeners);
         for (int index = 0; index < count; index++)
         {
@@ -270,7 +270,7 @@ public static partial class Kernel
         }
         // HookMirrors.ModifyCardPlayResultLocation, then CardModel.OnPlayWrapper's direct after dispatch
         // over the modifiers that changed the location.
-        Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         Pile hooked = HookDispatch.ModifyCardPlayResultLocation(ref x, card, isAutoPlay, energyValue, result,
             basePosition, locationModifiers, out int locationModifierCount, out PilePosition resultPosition);
         if (x.NeedsChoice)
@@ -291,7 +291,7 @@ public static partial class Kernel
         // HookMirrors.ModifyCardPlayCount then Hook.AfterModifyingCardPlayCount. The base count is
         // CardModel.GetEnchantedReplayCount() (the enchantment modifies the replay count first).
         int basePlayCount = EnchantedReplayCount(card);
-        Span<Listener> playCountModifiers = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> playCountModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int playCount = HookDispatch.ModifyCardPlayCount(ref x, card, target, basePlayCount + 1,
             playCountModifiers, out int playCountModifierCount);
         HookDispatch.AfterModifyingCardPlayCount(ref x, card, playCountModifiers[..playCountModifierCount]);

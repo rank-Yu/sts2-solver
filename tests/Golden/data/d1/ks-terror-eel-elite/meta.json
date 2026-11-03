@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "ks-terror-eel-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ks-terror-eel-elite.json\u0022}",
-  "rulesSha256": "7a4e7b55027c0aee2fefbafb74d098a3bd542dd9b720578363066b771672d004",
+  "rulesSha256": "6d0eee134ac7eaf1e8ab571f72cdbf49f064171e8cae1a2a20b6e282e197eb15",
   "counts": {
     "roots": 1,
     "k1": 7,

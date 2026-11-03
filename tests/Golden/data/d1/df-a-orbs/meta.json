@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "df-a-orbs",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-a-orbs.json\u0022}",
-  "rulesSha256": "e017c6d3d861b067aa084cd288f524a6ea98cce1ab9f01d0cadb5950dd4ae930",
+  "rulesSha256": "3065d1e3b90c7edbcc184c36b9ca7fb6dc622e6452a29e6f2284b4b91c41a5f3",
   "counts": {
     "roots": 1,
     "k1": 12,

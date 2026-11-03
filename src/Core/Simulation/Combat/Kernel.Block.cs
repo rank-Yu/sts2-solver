@@ -21,7 +21,7 @@ public static partial class Kernel
         // block: Vambrace (identity content) or PaelsLegion's x2 while its cooldown is down.
         if (x.R.HasIdentityContent || x.R.HasPaelsLegion)
         {
-            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount * 2];
+            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
             modified = HookDispatch.ModifyBlock(ref x, owner, amount, props, hasCardSource, cardSource, out _,
                 changed, out int changedCount);
             modified = Math.Max(modified, 0m);

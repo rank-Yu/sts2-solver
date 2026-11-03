@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "a3-globe-head-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-globe-head-normal.json\u0022}",
-  "rulesSha256": "77ee808437aa0a712e92f0ae165d49f116a5dd81ca3d599ede36a7592f8deeba",
+  "rulesSha256": "98d89107e2982976150820c68c420ffd281a6f60d55d423e7d4920abc4c27210",
   "counts": {
     "roots": 1,
     "k1": 7,

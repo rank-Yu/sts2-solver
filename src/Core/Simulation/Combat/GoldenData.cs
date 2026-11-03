@@ -302,6 +302,7 @@ public static class GoldenData
             writer.Write(request.OptionCount);
             writer.Write(request.MinCount);
             writer.Write(request.MaxCount);
+            writer.Write(request.IndexSelection);
             for (int index = 0; index < request.OptionCount; index++)
                 writer.Write(request.Options[index]);
             if (request.OptionsAreGenerated)
@@ -330,13 +331,14 @@ public static class GoldenData
                 SourceIsNone = Codec.ReadBool(reader),
                 OptionsAreGenerated = Codec.ReadBool(reader),
             };
-            byte optionCount = reader.ReadByte();
+            ushort optionCount = reader.ReadUInt16();
             if (optionCount > Limits.MaxChoiceOptions
                 || (request.OptionsAreGenerated && optionCount > Limits.MaxGeneratedChoiceOptions))
                 throw new InvalidDataException($"D1 选择请求选项数 {optionCount} 超过上限。");
             request.OptionCount = optionCount;
             request.MinCount = reader.ReadByte();
             request.MaxCount = reader.ReadByte();
+            request.IndexSelection = Codec.ReadBool(reader);
             if (!Enum.IsDefined(request.Kind) || !Enum.IsDefined(request.Effect)
                 || !Enum.IsDefined(request.Timing) || !Enum.IsDefined(request.Source))
                 throw new InvalidDataException("D1 选择请求包含未定义枚举值。");
@@ -344,7 +346,9 @@ public static class GoldenData
                 throw new InvalidDataException(
                     $"D1 选择请求边界非法：{request.MinCount}..{request.MaxCount} / {optionCount}。");
             for (int option = 0; option < optionCount; option++)
-                request.Options[option] = reader.ReadByte();
+            {
+                request.Options[option] = reader.ReadUInt16();
+            }
             if (request.OptionsAreGenerated)
             {
                 for (int option = 0; option < optionCount; option++)

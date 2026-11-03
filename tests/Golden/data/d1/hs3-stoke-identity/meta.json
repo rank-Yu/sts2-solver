@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "hs3-stoke-identity",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs3-stoke-identity.json\u0022}",
-  "rulesSha256": "7967d0265eea4a76da89dafa210b2c1d4aa840148b05caf567113fc39104a232",
+  "rulesSha256": "cee77c2deef242df8a8bc9f6f2523b2ae914b75563c99df4b556a0f49ffe59e2",
   "counts": {
     "roots": 1,
     "k1": 7,

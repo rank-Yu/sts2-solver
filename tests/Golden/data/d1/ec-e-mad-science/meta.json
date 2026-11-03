@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "ec-e-mad-science",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-e-mad-science.json\u0022}",
-  "rulesSha256": "894c58582b7000a1e2cd42ad93e83332b7ab1c736c6f532c5048c212fb53b5bf",
+  "rulesSha256": "04485e8828c9495772ce839738b4741f402312d8e03ca5ff6ce8c367973d7803",
   "counts": {
     "roots": 1,
     "k1": 14,

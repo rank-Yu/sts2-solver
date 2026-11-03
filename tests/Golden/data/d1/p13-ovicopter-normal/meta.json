@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p13-ovicopter-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-ovicopter-normal.json\u0022}",
-  "rulesSha256": "66026f479e5e24ecd93029207a50cb0b246bfc5c7f2f3bd3020eef8cf5dc719c",
+  "rulesSha256": "79a3ba0f3c86c1e6273b31cf9d1a0c1dd2094f72fdf7cc56c4dc0e3a59e6ac0b",
   "counts": {
     "roots": 1,
     "k1": 7,

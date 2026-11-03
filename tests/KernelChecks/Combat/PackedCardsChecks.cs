@@ -39,12 +39,12 @@ internal static class PackedCardsChecks
         Assert(Fingerprint.Equal(in decoded, in state), "codec round trip");
         Assert(Battle.PackedSize(in decoded) == packed, "codec round trip size");
 
-        // Arena: full 200-card records cross the 512 KiB block boundary, compact in place, and
+        // Arena: full 200-card records cross the 2 MiB block boundary, compact in place, and
         // reclaim the released blocks.
         SearchStorage storage = new();
         storage.BeginSolve(SearchBudgetPolicy.RegressionMemoryBudgetBytes);
-        PackedStateArena arena = new(64, storage);
-        Battle[] originals = new Battle[40];
+        PackedStateArena arena = new(160, storage);
+        Battle[] originals = new Battle[120];
         for (int index = 0; index < originals.Length; index++)
         {
             Battle child = default;

@@ -149,12 +149,14 @@ internal sealed partial class BeamSolver
     /// </summary>
     private bool TryExecuteForVerification(in Battle parent, in PlayerAction action, out Battle result)
     {
+        Unsafe.SkipInit(out result);
         Span<Card> optionCards = stackalloc Card[Limits.MaxChoiceOptions];
         Span<ulong> selections = stackalloc ulong[MaxChoiceBranches];
         PlayerAction current = action;
         for (int depth = 0; depth <= Limits.MaxChoices; depth++)
         {
-            Battle state = parent;
+            Unsafe.SkipInit(out Battle state);
+            Battle.CopyPacked(in parent, ref state);
             StepResult step;
             ChoiceRequest request;
             try
@@ -163,12 +165,11 @@ internal sealed partial class BeamSolver
             }
             catch (CapacityException)
             {
-                result = default;
                 return false;
             }
             if (step == StepResult.Completed)
             {
-                result = state;
+                Battle.CopyPacked(in state, ref result);
                 return true;
             }
             if (current.ChoiceCount >= Limits.MaxChoices)
@@ -182,10 +183,7 @@ internal sealed partial class BeamSolver
                 }
                 int position = request.Options[option];
                 if ((uint)position >= (uint)state.CardCount)
-                {
-                    result = default;
                     return false;
-                }
                 optionCards[option] = state.Cards[position];
             }
             int count = ChoiceEnumerator.EnumerateByClass(request, optionCards[..request.OptionCount],
@@ -198,11 +196,9 @@ internal sealed partial class BeamSolver
             }
             catch (CapacityException)
             {
-                result = default;
                 return false;
             }
         }
-        result = default;
         return false;
     }
 

@@ -39,8 +39,12 @@ public enum ListenerKind : byte
     Enchantment,
 }
 
-/// <summary>Identity of the listener a hook is being dispatched to.</summary>
-public readonly record struct Listener(ListenerKind Kind, byte Index, byte Owner);
+/// <summary>
+/// Identity of the listener a hook is being dispatched to. <see cref="Index"/> is a row in the
+/// corresponding table; for cards it is the absolute position in <see cref="Battle.Cards"/>, so it
+/// is 16-bit like the card capacity.
+/// </summary>
+public readonly record struct Listener(ListenerKind Kind, ushort Index, byte Owner);
 
 /// <summary>Arguments of the damage modification hooks.</summary>
 public readonly struct DamageContext

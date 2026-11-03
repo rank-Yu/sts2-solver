@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "clone-289-AXEBOTS",
+  "characterId": "SILENT",
+  "seed": "CG7UX7V5XZS9",
+  "ascension": 10,
+  "encounterId": "AXEBOTS_NORMAL",
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "preserveNativeCombatStateForTest": true,
+  "clearRunDeck": true,
+  "runCards": [
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 2,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 5,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NEUTRALIZE",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SURVIVOR",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PIERCING_WAIL",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEADLY_POISON",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DASH",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ECHOING_SLASH",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BLADE_DANCE",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "LEG_SWEEP",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PREDATOR",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PROWESS",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ACCURACY",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "AFTERIMAGE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "SWIFT",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "BACKFLIP",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PRODUCTION",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CLOAK_AND_DAGGER",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "LEADING_STRIKE",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "EXPERTISE",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ASSASSINATE",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "WISH",
+      "count": 2,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "WISH",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PREPARED",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "TOOLS_OF_THE_TRADE",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "count": 1,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "HIDDEN_DAGGERS",
+      "count": 1,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NEUTRALIZE",
+      "count": 256,
+      "upgradeLevels": 1,
+      "enchantmentId": "CLONE",
+      "enchantmentAmount": 4
+    }
+  ],
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "BOOMING_CONCH",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MOLTEN_EGG",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ODDLY_SMOOTH_STONE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GIRYA",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TimesLifted": 3
+      }
+    },
+    {
+      "relicId": "BAG_OF_MARBLES",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PENDULUM",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "VERY_HOT_COCOA",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CENTENNIAL_PUZZLE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LANTERN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PARRYING_SHIELD",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "SNECKO_SKULL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "SERE_TALON",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MEAL_TICKET",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ANCHOR",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ORICHALCUM",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MANGO",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "WAR_PAINT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PAELS_GROWTH",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "searchTier": "Medium",
+  "deterministicSearchForTest": false,
+  "fullCombatForTest": true,
+  "timeoutSeconds": 1800,
+  "ownedLoadoutForTest": {
+    "hp": 75,
+    "maxHp": 75,
+    "gold": 35
+  }
+}

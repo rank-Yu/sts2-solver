@@ -255,7 +255,7 @@ public static partial class Kernel
         // on that receiver. A listener that changed the truncated amount is notified afterwards. The
         // redirect query itself is dispatched even without HP-loss hooks (DieForYouPower has none).
         HpLossContext loss = new(target, props, dealer, hasCardSource, cardSource);
-        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount * 2];
+        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
         bool hasHpLossHooks = (Registry.AnyHooks & HpLossHooks) != 0;
         if (hasHpLossHooks)
         {
@@ -318,7 +318,7 @@ public static partial class Kernel
         decimal overflow = redirectedResult.OverkillDamage;
         if ((Registry.AnyHooks & HpLossHooks) != 0)
         {
-            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount * 2];
+            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
             HpLossContext loss = new(originalTarget, props, dealer, hasCardSource, cardSource);
             overflow = HookDispatch.ModifyHpLost(ref x, loss, overflow, afterOsty: true, changed, out int changedCount);
             HookDispatch.AfterModifyingHpLostAfterOsty(ref x, changed[..changedCount]);
@@ -504,7 +504,7 @@ public static partial class Kernel
         preventer = default;
         if ((Registry.AnyHooks & (HookMask.ShouldDie | HookMask.ShouldDieLate)) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         for (int pass = 0; pass < 2; pass++)
         {
             int count = HookDispatch.CollectListeners(x.B, pass == 0 ? HookMask.ShouldDie : HookMask.ShouldDieLate, listeners);

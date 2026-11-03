@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p9-heal-block",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-heal-block.json\u0022}",
-  "rulesSha256": "d527705a991c8575659650acc229e478b912e4b03c363ac0ec26e07aeb06e08e",
+  "rulesSha256": "102d631a534a33f68267573d3c1b45637291106591ae1ffd1cfb67c9d761cd8d",
   "counts": {
     "roots": 1,
     "k1": 78,

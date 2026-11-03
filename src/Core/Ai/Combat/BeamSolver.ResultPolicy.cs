@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Ai.Combat.Scoring;
 using Sts2Solver.Simulation.Combat;
@@ -15,7 +16,8 @@ internal sealed partial class BeamSolver
         token.ThrowIfCancellationRequested();
         if (expired()) throw new TimeoutException();
         Battle root = roots[result.BestRootIndex];
-        Battle end = root;
+        Unsafe.SkipInit(out Battle end);
+        Battle.CopyPacked(in root, ref end);
         int uses = _initialExplicitPotionUses;
         int ambergris = _initialAmbergrisUses;
         int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
@@ -25,7 +27,8 @@ internal sealed partial class BeamSolver
             token.ThrowIfCancellationRequested();
             if (expired()) throw new TimeoutException();
             PlayerAction action = result.BestRoute[i];
-            Battle before = end;
+            Unsafe.SkipInit(out Battle before);
+            Battle.CopyPacked(in end, ref before);
             if (action.Kind == PlayerActionKind.UsePotion)
             {
                 int slot = action.PotionSlot;
@@ -46,7 +49,8 @@ internal sealed partial class BeamSolver
             {
                 token.ThrowIfCancellationRequested();
                 if (expired()) throw new TimeoutException();
-                Battle partial = before;
+                Unsafe.SkipInit(out Battle partial);
+                Battle.CopyPacked(in before, ref partial);
                 PlayerAction partialAction = action;
                 partialAction.ChoiceCount = (byte)prefix;
                 StepResult step = Kernel.Step(ref partial, partialAction, _rules, out _,
@@ -66,7 +70,7 @@ internal sealed partial class BeamSolver
                             throw new InvalidDataException("路线超过至亮之焰最大生命消耗上限。");
                         }
                     }
-                    end = partial;
+                    Battle.CopyPacked(in partial, ref end);
                 }
             }
         }

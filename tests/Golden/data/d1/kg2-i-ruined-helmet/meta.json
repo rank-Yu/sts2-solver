@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "kg2-i-ruined-helmet",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-i-ruined-helmet.json\u0022}",
-  "rulesSha256": "08182f8e50d5f7a6720f11c0c19d6f895ee063bf38f4ebd67534746774e93b30",
+  "rulesSha256": "3546f19e5ea959f25693d0534a9105b5e10f17e0a28982e29294ccd8457c47d3",
   "counts": {
     "roots": 1,
     "k1": 3,

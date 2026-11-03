@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "p4-d-exhaust-draw",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p4-d-exhaust-draw.json\u0022}",
-  "rulesSha256": "eda21a89af52ba33a452021f587a17af26fd36dc7e78ed8731fa4226ae392492",
+  "rulesSha256": "c9a4b2db6f85b02556fe198c39a0599dee74e2dfeb104a4d902e3b12b1281f19",
   "counts": {
     "roots": 1,
     "k1": 15,

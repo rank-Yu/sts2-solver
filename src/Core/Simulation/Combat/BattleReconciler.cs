@@ -2,6 +2,9 @@
 // the native game (its move state machine is reset and the monster leaves CombatState.Enemies), so
 // their action-machine fields are normalized on both sides before the byte comparison. This is a
 // state-surface normalization, not a tolerance: every other byte must match.
+
+using System.Runtime.CompilerServices;
+
 namespace Sts2Solver.Simulation.Combat;
 
 internal static class BattleReconciler
@@ -49,7 +52,8 @@ internal static class BattleReconciler
 
     internal static Battle Normalize(in Battle battle)
     {
-        Battle copy = battle;
+        Unsafe.SkipInit(out Battle copy);
+        Battle.CopyPacked(in battle, ref copy);
         // The two legacy shuffle counters are carried from the route by LiveCombatTracker because
         // the native game does not expose them. Zero them in the comparison view so a carried value
         // cannot hide a real card-pile/RNG divergence.

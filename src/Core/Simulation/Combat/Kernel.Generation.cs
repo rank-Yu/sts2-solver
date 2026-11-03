@@ -301,7 +301,7 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.AfterCardGeneratedForCombat) != 0)
         {
-            Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount];
+            Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
             int listenerCount = HookDispatch.CollectListeners(x.B, HookMask.AfterCardGeneratedForCombat, listeners);
             for (int listener = 0; listener < listenerCount; listener++)
             {

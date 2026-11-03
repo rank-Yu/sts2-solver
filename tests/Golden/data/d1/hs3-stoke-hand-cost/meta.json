@@ -1,9 +1,9 @@
 {
-  "formatVersion": 3,
-  "battleSize": 27320,
+  "formatVersion": 4,
+  "battleSize": 62752,
   "root": "hs3-stoke-hand-cost",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs3-stoke-hand-cost.json\u0022}",
-  "rulesSha256": "e50034fb3ff5c1d799857ca0b4a37c3f6852abfb697227f00509ca4a04e59fcc",
+  "rulesSha256": "98c9dc82dbef2e5856cc36c70dd83e09d5560636ae8c0411640e4af79c416396",
   "counts": {
     "roots": 1,
     "k1": 6,

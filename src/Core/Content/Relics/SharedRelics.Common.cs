@@ -179,7 +179,7 @@ public sealed class HappyFlower : RelicDef
 
     public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
     {
-        if (side != Side.Player)
+        if (side != Side.Player || Kernel.IsOverOrEnding(x.B))
             return;
         ref Relic relic = ref x.B.Relics[self.Index];
         int turns = (int)x.R.RelicVar(Id, 1);

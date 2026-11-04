@@ -62,8 +62,11 @@ public sealed class ForgottenSoul : RelicDef
 
     public override void AfterCardExhausted(ref Exec x, Listener self, in Card card,
         bool causedByEthereal)
-        => CardEffects.DamageRandomEnemy(ref x, x.R.RelicVar(Id, 0), ValueProps.Unpowered,
+    {
+        CardEffects.DamageRandomEnemy(ref x, x.R.RelicVar(Id, 0), ValueProps.Unpowered,
             Limits.PlayerOwner);
+        Kernel.ApplyEnemyDeathPowers(ref x);
+    }
 }
 
 /// <summary>
@@ -150,7 +153,7 @@ public sealed class FakeHappyFlower : RelicDef
 
     public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
     {
-        if (side != Side.Player)
+        if (side != Side.Player || Kernel.IsOverOrEnding(x.B))
             return;
         ref Relic relic = ref x.B.Relics[self.Index];
         relic.Counter = (relic.Counter + 1) % (int)x.R.RelicVar(Id, 1);

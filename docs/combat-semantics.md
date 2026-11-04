@@ -134,7 +134,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 
 1. 战斗结束/正在结束或拥有者死亡时不打出。卡牌不在任何牌堆时先加入打出区（触发 `AfterEnteredCombat`）。
 2. 不可打出关键字、`ShouldPlay` 拒绝或无法解析目标时，`MoveToResultPileWithoutPlaying`：先加入打出区，再按 `ExhaustOnNextPlay`/消耗关键字进入消耗堆，否则进入弃牌堆；不触发任何出牌 Hook、计数或费用清理。
-3. 不支付能量/星能；`SpendResources(isAutoPlay: true, skipXCapture)` 只在 `!skipXCapture` 时把当前费用写入本次 X 值（X 费卡取当前能量），并记录星能值。`ManualCardsPlayedThisTurn` 不计自动打出。
+3. 不支付能量/星能；`SpendResources(isAutoPlay: true, skipXCapture)` 只在 `!skipXCapture` 时把当前费用写入本次 X 值（X 费卡取当前能量），并记录星能值。`ManualCardsPlayedThisTurn` 不计自动打出。嵌套自动打出返回后，调用方恢复自己的 `XValue`、`StarValue` 和 `CurrentPlayEnergyValue`，对应原版每次 `CardPlay.Resources` 独立。
 4. 目标：`AnyEnemy` 用 `CombatTargets` 流从 `HittableEnemies`（名单顺序、排除复活/永久死亡）取随机目标，候选为空时不消耗流；单人没有其他队友，`AnyAlly` 只有调用方已给出目标才成立；其他目标类型直接通过。
 5. `AutoPlayFromDrawPile` 先按原引擎把最多 `count` 张抽牌堆顶牌移到打出区，再按顺序逐张自动打出；每张打出前写入 `ExhaustOnNextPlay = forceExhaust`（false 也写入）。打出的卡结果去向为消耗堆时清除该标志（`CardModel.GetResultLocationForCardPlay`），未打出而直接移入去向时保留（`MoveToResultPileWithoutPlaying`）。自动打出中战斗结束/正在结束时，原引擎仍对**剩余队列的每张卡**写入该标志，然后 `AutoPlay` 立即返回；Sts2Solver 在队列仍连续位于 `start` 的前提下复刻这一写入并停止。`count` 超过 `Limits.Cards` 时抛 `CapacityException`。
 6. 自动打出中的卡牌自身选择走现有嵌套选择协议：`OwnChoice` 请求选择、动作未携带时返回 `NeedsChoice`，调用方从父状态带选择重执行。生成选项（Discovery/Splash）的选择协议见 4.2。
@@ -165,7 +165,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 3. **单目标**：目标已死则跳过；`ModifyDamage` = 附魔加成与倍率 → 按监听顺序的加法阶段（力量等）→ 乘法阶段（易伤、虚弱等）→ 取所有 `ModifyDamageCap` 的最小值 → 钳制到 ≥ 0。全程 `decimal`，不取整。卡牌动态变量同样按原引擎的 `decimal` 读取：Thrash 的 `Damage` 偏移存在 `Battle.DecimalVars`，`CardEffects.Var` 返回同一个 `decimal`；只有 HP 损失按原引擎的位置 `(int)` 截断，评估先做 `decimal` 加法再转 `double`。`BeforeDamageReceived`；格挡吸收（目标是 Osty 时扣其主人的格挡；不可格挡伤害跳过）；`ModifyHpLost` BeforeOsty 与其 Late → Osty 重定向 → AfterOsty 与其 Late → `AfterModifyingHpLostAfterOsty`；失血时 `(int)` 截断；失血 ≥ 当前 HP 视为击杀。
 4. **结果处理**：`AfterBlockBroken` → `AfterCurrentHpChanged` → `AfterDamageGiven` → 未被击杀时 `AfterDamageReceived`（含 Late）；之后执行击杀，或所有玩家死亡时判负。每次结果同时按 `RecordDamageReceived` 记录玩家对敌人的 powered attack 命中（完全格挡也计数，非强化伤害不计），供 BeatIntoShape 的按目标锻造乘数读取；该计数在玩家回合开始清零，超过 255 按 `UnsupportedException` 拒绝。卡牌击杀目标（`Exec.CardKilledTarget`）按伤害的卡来源判断，玩家或 Osty 打出的同一张牌都能置位。
 5. **击杀**：扣光剩余 HP 并触发 `AfterCurrentHpChanged` → `BeforeDeath` → `ShouldDie`（第一个阻止者生效）。死亡：`AfterDeath` → 移出阵容 → 主敌人死亡且只剩附属时附属一并死亡。被阻止：`AfterDeath(prevented)` 与 `AfterPreventingDeath`，最多递归 10 次。
-6. **敌人死亡效果延后**：在动作边界由 `ApplyEnemyDeathPowers` 统一结算（`P/CorePowerSupport.cs:597-674`）：死亡 Power（Ravenous、Surrounded、召唤）→ 清除死者施加的 Constrict、Hex、Shrink、MagicBomb。`SteamEruptionPower.AfterDeath` 属于普通 `AfterDeath` 监听者，在 `Kill` 内部立即改写死亡，不进入这条延后清算；见 [偷窃与瀑布巨兽](#14-偷窃与瀑布巨兽)。
+6. **敌人死亡效果**：由 `ApplyEnemyDeathPowers` 结算（`P/CorePowerSupport.cs:597-674`）：死亡 Power（Ravenous、Surrounded、召唤）→ 清除死者施加的 Constrict、Hex、Shrink、MagicBomb。卡牌攻击在 `ApplyCardPowers` 的位置统一结算；遗物和 Power 在回合/出牌 Hook 里独立造成的伤害（Kusarigama、Tingsha、ParryingShield、ForgottenSoul、SerpentForm）在伤害调用返回后立即结算，下一次重放能看到死亡 Power 的效果。`SteamEruptionPower.AfterDeath` 属于普通 `AfterDeath` 监听者，在 `Kill` 内部立即改写死亡，不进入这条清算；见 [偷窃与瀑布巨兽](#14-偷窃与瀑布巨兽)。
 
 ## 6. 格挡与 Power
 

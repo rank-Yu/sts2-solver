@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS5_ENCHANT_DOWNGRADE_KEYWORDS",
+  "characterId": "IRONCLAD",
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "FS5ENCHANT",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [108, 97, 89],
+  "initialEnemyCurrentHps": [108, 97, 89],
+  "initialEnemyMoveIds": ["FLAIL_MOVE", "SOUL_SLASH", "DAMPEN_MOVE"],
+  "timeoutSeconds": 180,
+  "cards": [
+    { "cardId": "STRIKE_IRONCLAD", "pile": "Hand", "upgradeLevels": 2, "count": 2, "enchantmentId": "TEZCATARAS_EMBER", "enchantmentAmount": 1 },
+    { "cardId": "DEFEND_IRONCLAD", "pile": "Hand", "upgradeLevels": 2, "count": 2, "enchantmentId": "ROYALLY_APPROVED", "enchantmentAmount": 1 },
+    { "cardId": "BASH", "pile": "Draw", "upgradeLevels": 2 },
+    { "cardId": "STRIKE_IRONCLAD", "pile": "Draw", "count": 3 }
+  ]
+}

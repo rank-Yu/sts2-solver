@@ -163,21 +163,39 @@ public sealed class Expertise : CardDef
     public override IReadOnlyList<string> VarNames => ["Cards"];
 
     // CardDrawCardMirrors.ExpertiseOnPlay: draw Cards, then give every drawn card single-turn Retain.
+    // CardPileCmd.Draw returns the live CardModel objects after their draw hooks; an AfterCardDrawn
+    // hook may mutate a drawn card (ChainsOfBinding afflicts it), so the retained instance is located
+    // by its transient identity mark rather than by comparing the pre-hook value.
     public override void OnPlay(ref Exec x)
     {
         int count = (int)CardEffects.Var(x, 0);
-        for (int index = 0; index < count; index++)
+        if (count <= 0)
+            return;
+        if (count > Limits.Cards)
+            throw new CapacityException("DrawnCards", Limits.Cards);
+        Span<Card> drawn = stackalloc Card[count];
+        Span<byte> outerMarks = stackalloc byte[count];
+        Span<byte> markOf = stackalloc byte[count];
+        int markBase = Kernel.ReserveTransientMarks(ref x, count, out int markStart);
+        int drawnCount = 0;
+        try
         {
-            int before = x.B.HandCount;
-            if (!Kernel.TryDrawOne(ref x, fromHandDraw: false, out Card card))
+            drawnCount = Kernel.DrawIntoMarked(ref x, count, fromHandDraw: false, drawn,
+                outerMarks, markOf, markStart);
+            if (x.NeedsChoice)
                 return;
-            if (x.B.HandCount != before + 1)
-                continue;
-            ref Card drawn = ref x.B.Cards[x.B.HandCount - 1];
-            if (Fingerprint.Equal(drawn, card))
+            for (int index = 0; index < drawnCount; index++)
             {
-                drawn.Flags |= CardFlags.RetainThisTurn;
+                // A card that a draw hook moved out of combat has no live state left to mark.
+                if (!Kernel.TryFindUniqueTransientMark(x.B, markOf[index], out Pile pile, out int position))
+                    continue;
+                Piles.At(ref x.B, pile, position).Flags |= CardFlags.RetainThisTurn;
             }
+        }
+        finally
+        {
+            Kernel.RestoreDrawnTransientMarks(ref x.B, markOf[..drawnCount], outerMarks[..drawnCount]);
+            Kernel.ReleaseTransientMarks(ref x, markBase, markStart, count);
         }
     }
 }
@@ -274,9 +292,8 @@ public sealed class Expose : CardDef
     {
         if (x.Target == Limits.NoOwner)
             return;
-        ref Creature target = ref x.B.Creature(x.Target);
-        if (target.Block > 0)
-            Kernel.DamageBlock(ref target, target.Block, ValueProps.Move);
+        if (x.B.Creature(x.Target).Block > 0)
+            Kernel.LoseBlock(ref x, x.Target, x.B.Creature(x.Target).Block, Limits.PlayerOwner);
         if (Kernel.GetAmount(x.B, x.Target, Registry.PowerId<Powers.ArtifactPower>()) > 0)
             Kernel.SetPowerAmount(ref x.B, x.Target, Registry.PowerId<Powers.ArtifactPower>(), 0);
         CardEffects.ApplyToTarget(ref x, Registry.PowerId<Powers.VulnerablePower>(), 0);

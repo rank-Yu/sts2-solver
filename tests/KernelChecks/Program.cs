@@ -1259,6 +1259,7 @@ static void CheckIdKernel(Rules rules)
 
     // PaleBlueDot: the fifth completed play latches and grants next-turn draws once.
     Battle dotBattle = NewBattle();
+    dotBattle.Flags |= BattleFlags.PlayerHooksActive;
     Piles.Append(ref dotBattle, Pile.Hand, Kernel.CreateCard(rules, strike));
     dotBattle.SetCounter(Counter.CardsPlayedThisTurn, 4);
     Exec dotExec = new(ref dotBattle, rules, default);

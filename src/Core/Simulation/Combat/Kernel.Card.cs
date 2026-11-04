@@ -348,10 +348,7 @@ public static partial class Kernel
             }
             Registry.Card(card.Id).OnPlay(ref x);
             if (!x.NeedsChoice && identityScope)
-            {
                 ResolveMonologuePending(ref x, monologueBase);
-                AfterCardPlayPowerLifecycle(ref x);
-            }
             if (x.NeedsChoice)
             {
                 if (identityScope)
@@ -823,32 +820,6 @@ public static partial class Kernel
         }
         x.LampTriggerSerial = 0;
         x.LampInternalTypeCount = 0;
-    }
-
-    /// <summary>
-    /// <c>PowerLifecycleSupport.AfterCardPlayed</c>'s PaleBlueDot branch: every positive instance on the
-    /// player, when the fifth card of the turn has just been played, latches and grants next-turn draws.
-    /// </summary>
-    private static void AfterCardPlayPowerLifecycle(ref Exec x)
-    {
-        if (!x.R.HasIdentityContent)
-            return;
-        if (!Registry.TryPower("PALE_BLUE_DOT_POWER", out ushort paleBlueDot)
-            || !Registry.TryPower("DRAW_CARDS_NEXT_TURN_POWER", out ushort drawNextTurn))
-            return;
-        int cardsPlayed = x.B.Counter(Counter.CardsPlayedThisTurn);
-        for (int index = 0; index < x.B.PowerCount; index++)
-        {
-            ref Power power = ref x.B.Powers[index];
-            if (power.Id != paleBlueDot || power.Owner != Limits.PlayerOwner || power.Amount <= 0)
-                continue;
-            if (power.Aux0 != 0 || cardsPlayed + 1 < 5)
-                continue;
-            power.Aux0 = 1;
-            ApplyPower(ref x, Limits.PlayerOwner, drawNextTurn, power.Amount, Limits.PlayerOwner);
-            if (x.NeedsChoice)
-                return;
-        }
     }
 
     /// <summary>

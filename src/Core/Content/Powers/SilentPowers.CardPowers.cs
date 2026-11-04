@@ -170,5 +170,6 @@ public sealed class SerpentFormPower : PowerDef
         if (amount <= 0)
             return;
         CardEffects.DamageRandomEnemy(ref x, amount, ValueProps.Unpowered, self.Owner);
+        Kernel.ApplyEnemyDeathPowers(ref x);
     }
 }

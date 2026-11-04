@@ -43,6 +43,9 @@ public static partial class Kernel
         byte callerTarget = x.Target;
         bool callerAutoPlay = x.CurrentPlayIsAutoPlay;
         bool callerHistoryCourseDupe = x.CurrentPlayIsHistoryCourseDupe;
+        int callerXValue = x.XValue;
+        int callerStarValue = x.StarValue;
+        int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
         x.CurrentPlayIsHistoryCourseDupe = false;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
@@ -90,6 +93,12 @@ public static partial class Kernel
             x.Target = callerTarget;
             x.CurrentPlayIsAutoPlay = callerAutoPlay;
             x.CurrentPlayIsHistoryCourseDupe = callerHistoryCourseDupe;
+            // CardPlay.Resources is per CardPlay natively; the caller keeps its own X/star/energy
+            // values after a nested auto-play. Without this restore the next hook (for example the
+            // outer card's BlackHolePower.AfterCardPlayed) reads the nested card's values.
+            x.XValue = callerXValue;
+            x.StarValue = callerStarValue;
+            x.CurrentPlayEnergyValue = callerPlayEnergyValue;
         }
         return completed;
     }
@@ -121,6 +130,9 @@ public static partial class Kernel
         byte callerTarget = x.Target;
         bool callerAutoPlay = x.CurrentPlayIsAutoPlay;
         bool callerHistoryCourseDupe = x.CurrentPlayIsHistoryCourseDupe;
+        int callerXValue = x.XValue;
+        int callerStarValue = x.StarValue;
+        int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
         x.CurrentPlayIsHistoryCourseDupe = historyCourseDupe;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
@@ -171,6 +183,9 @@ public static partial class Kernel
             x.Target = callerTarget;
             x.CurrentPlayIsAutoPlay = callerAutoPlay;
             x.CurrentPlayIsHistoryCourseDupe = callerHistoryCourseDupe;
+            x.XValue = callerXValue;
+            x.StarValue = callerStarValue;
+            x.CurrentPlayEnergyValue = callerPlayEnergyValue;
         }
         return completed;
     }

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS5_EXPERTISE_BOUND_RETAIN",
+  "characterId": "SILENT",
+  "encounterId": "QUEEN_BOSS",
+  "seed": "FS5EXPERTISE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [120, 400],
+  "initialEnemyCurrentHps": [120, 400],
+  "initialEnemyMoveIds": ["STRONG_TACKLE_MOVE", "PUPPET_STRINGS_MOVE"],
+  "powers": [
+    { "powerId": "CHAINS_OF_BINDING_POWER", "target": "Player", "amount": 3 }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 180,
+  "cards": [
+    { "cardId": "EXPERTISE", "pile": "Hand", "count": 1 },
+    { "cardId": "STRIKE_SILENT", "pile": "Draw", "count": 2 },
+    { "cardId": "DEFEND_SILENT", "pile": "Draw", "count": 2 }
+  ]
+}

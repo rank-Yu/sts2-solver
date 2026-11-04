@@ -625,6 +625,23 @@ public static partial class Kernel
         return blocked;
     }
 
+    /// <summary>
+    /// Mirrors <c>CreatureCmd.LoseBlock</c>: remove block without going through the damage pipeline,
+    /// then dispatch <c>AfterBlockBroken</c> when the creature had block before and none remains.
+    /// </summary>
+    public static void LoseBlock(ref Exec x, byte target, decimal amount, byte remover)
+    {
+        if (IsOverOrEnding(x.B) || x.B.Creature(target).IsDead || amount <= 0m)
+            return;
+        ref Creature creature = ref x.B.Creature(target);
+        int before = creature.Block;
+        DamageBlock(ref creature, amount, ValueProps.Move);
+        if (before <= 0 || creature.Block > 0)
+            return;
+        AfterBlockBrokenHook broken = new() { Target = target, Breaker = remover };
+        HookDispatch.Dispatch(ref x, ref broken, gatedByEnding: false);
+    }
+
     /// <summary>Mirrors <c>SimCreatureState.LoseHp</c>.</summary>
     public static DamageResult LoseHp(ref Creature creature, byte owner, decimal amount, ValueProps props)
     {

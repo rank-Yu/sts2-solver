@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS5_UNSET_MOVE_SUMMON",
+  "characterId": "IRONCLAD",
+  "encounterId": "FABRICATOR_NORMAL",
+  "seed": "FS5UNSETMOVE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [300],
+  "initialEnemyCurrentHps": [300],
+  "initialEnemyMoveIds": ["FABRICATE_MOVE"],
+  "clearRunDeck": true,
+  "cards": [],
+  "timeoutSeconds": 180
+}

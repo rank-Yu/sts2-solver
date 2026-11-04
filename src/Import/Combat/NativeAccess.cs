@@ -26,6 +26,8 @@ internal static class NativeAccess
     private static readonly FieldInfo RuinedHelmetUsedField = RequiredField(typeof(RuinedHelmet), "_usedThisCombat");
     private static readonly FieldInfo ThrowingAxeUsedField = RequiredField(typeof(ThrowingAxe), "_usedThisCombat");
     private static readonly FieldInfo UnsettlingLampField = RequiredField(typeof(UnsettlingLamp), "_isFinishedTriggering");
+    private static readonly FieldInfo MonsterCurrentStateField =
+        RequiredField(typeof(MonsterMoveStateMachine), "_currentState");
 
     public static Assembly OriginalAssembly => GameAssembly;
 
@@ -175,9 +177,23 @@ internal static class NativeAccess
     }
 
     public static string CurrentMoveId(MonsterModel monster)
-        => monster.NextMove?.Id
+    {
+        string move = monster.NextMove?.Id
             ?? throw new UnsupportedImportException(ImportReason.MissingPrivateField,
                 $"{monster.Id.Entry} 没有当前行动");
+        if (!string.Equals(move, "UNSET_MOVE", StringComparison.Ordinal))
+            return move;
+        // A summon added during the enemy turn skips CreatureCmd.Add's PrepareForNextTurn call, so
+        // NextMove stays at the default UNSET_MOVE until the summoned monster's first move. The state
+        // machine still holds that first MoveState; it is the move the native game will perform.
+        MonsterMoveStateMachine machine = monster.MoveStateMachine
+            ?? throw new UnsupportedImportException(ImportReason.MissingPrivateField,
+                $"{monster.Id.Entry} 没有行动状态机");
+        if (MonsterCurrentStateField.GetValue(machine) is MonsterState state && state.IsMove)
+            return state.Id;
+        throw new UnsupportedImportException(ImportReason.Unrepresentable,
+            $"{monster.Id.Entry} 的行动 UNSET_MOVE 不在状态机中");
+    }
 
     public static IReadOnlyList<string> StateLog(MonsterModel monster)
     {

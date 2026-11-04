@@ -48,6 +48,7 @@ public sealed class Tingsha : RelicDef
             return;
         CardEffects.DamageRandomEnemy(ref x, x.R.RelicVar(Id, 0), ValueProps.Unpowered,
             Limits.PlayerOwner);
+        Kernel.ApplyEnemyDeathPowers(ref x);
     }
 }
 
@@ -189,6 +190,7 @@ public sealed class ParryingShield : RelicDef
             return;
         CardEffects.DamageRandomEnemy(ref x, x.R.RelicVar(Id, 1), ValueProps.Unpowered,
             Limits.PlayerOwner);
+        Kernel.ApplyEnemyDeathPowers(ref x);
     }
 }
 
@@ -370,6 +372,10 @@ public sealed class Kusarigama : RelicDef
             return;
         CardEffects.DamageRandomEnemy(ref x, x.R.RelicVar(Id, 1), ValueProps.Unpowered,
             Limits.PlayerOwner);
+        // CreatureCmd.Damage resolves the killed enemy's death triggers before the relic hook
+        // returns; the next replay of the same card must observe them (PossessStrengthPower's
+        // refund changes the following hit).
+        Kernel.ApplyEnemyDeathPowers(ref x);
     }
 
     public override void AfterSideTurnEnd(ref Exec x, Listener self, Side side)

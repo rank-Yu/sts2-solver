@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS5_EXPOSE_BLOCK_BREAK",
+  "characterId": "SILENT",
+  "encounterId": "TUNNELER_WEAK",
+  "seed": "FS5EXPOSE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [200],
+  "initialEnemyCurrentHps": [200],
+  "initialEnemyBlocks": [32],
+  "initialEnemyMoveIds": ["BITE_MOVE"],
+  "powers": [
+    { "powerId": "BURROWED_POWER", "target": "Enemy", "targetIndex": 0, "amount": 1 }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 180,
+  "cards": [
+    { "cardId": "EXPOSE", "pile": "Hand", "count": 1 },
+    { "cardId": "DEFEND_SILENT", "pile": "Draw", "count": 2 }
+  ]
+}

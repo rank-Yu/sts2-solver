@@ -72,6 +72,8 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 合成的 `STUNNED`、`REVIVE_MOVE` 只存在于 `MonsterModel.NextMove`，不在 `StateLog` 或 `MoveStateMachine.States` 里；后继统一从 `NextMove.FollowUpState?.Id ?? FollowUpStateId` 读取。当前行动是 `STUNNED` 且原生持有 `ImbalancedPower` 时，同时置 `EnemyFlags.SkipNextMove`，原因见 [内核语义](combat-semantics.md#12-强制行动与眩晕)。
 
+敌人回合内新增的召唤物会跳过 `CreatureCmd.Add` 的 `PrepareForNextTurn`，原生 `NextMove` 停在默认的 `UNSET_MOVE`；导入时改读 `MoveStateMachine` 的当前 `MoveState`（首次行动），不新增合成节点。当前状态也不是行动节点时显式拒绝。
+
 ## 4. 规则编译
 
 `RulesCompiler` 输入原生战斗、玩家与 `RunState`，输出 `Rules`。语义以 CombatSolver `src/Flash/Bridge/FlashRulesCompiler.cs`（`a62f1850`）为准：原引擎对模拟状态的访问改成读原生模型，不复制 `src/Engine` 的状态定义。

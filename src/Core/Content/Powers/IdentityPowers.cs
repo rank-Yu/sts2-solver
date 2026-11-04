@@ -110,6 +110,26 @@ public sealed class PaleBlueDotPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
+    // PaleBlueDotPower.cs: after the fifth finished card play this turn, each positive instance
+    // latches once (Aux0) and applies DrawCardsNextTurnPower with its amount. This runs from the
+    // normal AfterCardPlayed pass, after the played card's own choice and tail effects, so a
+    // DecisionsDecisions auto-play sequence counts toward the same threshold like the native
+    // CardPlaysFinished history.
+    public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
+    {
+        if (self.Owner != Limits.PlayerOwner)
+            return;
+        ref Power power = ref x.B.Powers[self.Index];
+        if (power.Amount <= 0 || power.Aux0 != 0)
+            return;
+        if (x.B.Counter(Counter.CardsPlayedThisTurn) + 1 < 5)
+            return;
+        if (!Registry.TryPower("DRAW_CARDS_NEXT_TURN_POWER", out ushort drawNextTurn))
+            throw new UnsupportedException("PaleBlueDot 需要 DRAW_CARDS_NEXT_TURN_POWER 定义。");
+        power.Aux0 = 1;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, drawNextTurn, power.Amount, Limits.PlayerOwner);
+    }
+
     public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates && self.Owner == Limits.PlayerOwner)

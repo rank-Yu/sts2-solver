@@ -90,6 +90,11 @@ public sealed class Goopy : EnchantmentDef
         return card.EnchantmentAmount - 1;
     }
 
+    // Goopy.cs: OnEnchant adds Exhaust; CardModel.DowngradeInternal re-runs it after resetting
+    // the card's local keywords.
+    public override void OnEnchant(ref Exec x, ref Card card)
+        => card.Keywords |= Keywords.Exhaust;
+
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (play.Position != self.Index)
@@ -117,6 +122,14 @@ public sealed class Goopy : EnchantmentDef
 public sealed class TezcatarasEmber : EnchantmentDef
 {
     private const decimal BonusDamage = 3m;
+
+    // TezcatarasEmber.cs: OnEnchant zeroes the base energy cost and adds Eternal. Both are replayed
+    // by CardModel.DowngradeInternal after Dampen resets the canonical cost and local keywords.
+    public override void OnEnchant(ref Exec x, ref Card card)
+    {
+        card.BaseCost = 0;
+        card.Keywords |= Keywords.Eternal;
+    }
 
     public override decimal EnchantDamageAdditive(in Card card, decimal damage, ValueProps props)
     {
@@ -256,11 +269,22 @@ public sealed class Clone : EnchantmentDef;
 
 /// <summary><c>Steady</c>: Retain keyword only, already in the imported card value (decompiled Steady.cs).</summary>
 [ContentId("STEADY")]
-public sealed class Steady : EnchantmentDef;
+public sealed class Steady : EnchantmentDef
+{
+    // Steady.cs: OnEnchant adds Retain; replayed after a downgrade resets local keywords.
+    public override void OnEnchant(ref Exec x, ref Card card)
+        => card.Keywords |= Keywords.Retain;
+}
 
 /// <summary><c>RoyallyApproved</c>: Innate/Retain only, already in the imported card value (decompiled RoyallyApproved.cs).</summary>
 [ContentId("ROYALLY_APPROVED")]
-public sealed class RoyallyApproved : EnchantmentDef;
+public sealed class RoyallyApproved : EnchantmentDef
+{
+    // RoyallyApproved.cs: OnEnchant adds Innate and Retain; replayed after a downgrade resets
+    // local keywords.
+    public override void OnEnchant(ref Exec x, ref Card card)
+        => card.Keywords |= Keywords.Innate | Keywords.Retain;
+}
 
 /// <summary>
 /// <c>SoulsPower</c>: removes Exhaust at enchant time (decompiled SoulsPower.cs). The imported card

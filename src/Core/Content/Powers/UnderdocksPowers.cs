@@ -107,6 +107,10 @@ public sealed class SuckPower : PowerDef
     {
         if (dealer != self.Owner || result.UnblockedDamage <= 0 || !result.Props.IsPoweredAttack())
             return;
+        // SuckPower.cs removes pet hits (and the pet owner's paired result) from each hit list;
+        // damage redirected to Osty therefore does not count as an unblocked hit for its owner.
+        if (result.Receiver == Limits.OstyOwner)
+            return;
         x.B.Powers[self.Index].Aux0++;
     }
 

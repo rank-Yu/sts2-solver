@@ -34,10 +34,12 @@
 - **ToolsOfTheTrade**：`ModifyHandDraw` 加层数；玩家回合开始按层数弃牌。对照 `TurnStartPowerSupport` 的 ToolsOfTheTrade 分支、`PlanChoiceEffect.Discard`。
 - **Mirage**：格挡 = `CalculationBase + CalculationExtra × 所有存活敌人的毒层数`，按 `Move` 卡牌格挡结算。对照 `CalculatedVarSpecRegistry` 的 Mirage。
 - **TheHunt**：攻击前记录目标是否允许致命击杀，击杀后施加 `TheHuntPower` 并记 30 长线资源。战斗内额外的卡牌奖励只存在于 `CombatRoom`，两个模拟状态都不表示它，评估按原引擎的 `missedTheHuntRewards` 扣分。对照 `CorePowerSupport` 的 TheHunt 分支。
+- **Expertise**：抽 `Cards` 张后给每张抽到的牌 `RetainThisTurn`。`AfterCardDrawn` 可能改写抽到的牌（例如 Queen 的 Bound 苦难），所以 Sts2Solver 用瞬态身份标记定位实际被打出的牌，不再比较抽牌前后的卡值。
+- **Expose**：先按 `CreatureCmd.LoseBlock` 移除目标全部格挡；格挡归零时派发 `AfterBlockBroken`（Tunneler 的 BurrowedPower 因此立即眩晕并移除），随后清 Artifact 并施加 Vulnerable。
 
 ### 1.2 遗物
 
-- **Tingsha**：玩家侧弃牌后随机打 3 点 Unpowered 伤害。
+- **Tingsha**：玩家侧弃牌后随机打 3 点 Unpowered 伤害；伤害返回后立即结算敌人死亡效果。
 - **HelicalDart**：Shiv 打出后施加 1 层临时敏捷（`HelicalDartPower`）。对照 `AfterCardPlayedMirrors.HandleHelicalDart`。
 - **SneckoSkull**：通过 `ModifyPowerAmountGiven` 查询，给玩家施加的毒 +1。对照 `PersistentRelicSupport.ModifyPowerAmountGiven`。
 - **PaperKrane**：在 `WeakPower` 的乘数里，对玩家目标减 0.15。对照 `ModifyDamageMirrors.HandleWeakPower`。
@@ -111,6 +113,8 @@
 
 **消耗。** `ManualPlay` 在卡进入打出区之前重算星费，写入 `StarValue`，扣星能后派发 `AfterStarsSpent`。原引擎这里的顺序不是监听者顺序：先 `TriggerRelicsAfterStarsSpent`（GalacticDust、MiniRegent，按遗物表顺序），再按 `EffectivePowers()` 顺序跑 `ChildOfTheStarsPower`。Sts2Solver 因此分“先遗物、后 Power”两遍派发。自动打出不支付星能，但在 `skipXCapture` 为假时同样记下 `StarValue`。
 
+**PaleBlueDotPower。** 在正常 `AfterCardPlayed` 阶段，于本回合第 5 张完成的出牌之后（`CardsPlayedThisTurn + 1 >= 5`）把 `Aux0` 锁存为 1，并按自身 `Amount` 施加 `DrawCardsNextTurnPower`。放在 `AfterCardPlayed` 而不是 `OnPlay` 之后，才会把 `DecisionsDecisions` 的嵌套自动打出计入同一次第 5 张出牌。玩家侧回合末清零 `Aux0`。对照 `PaleBlueDotPower.AfterCardPlayed` 与 `PowerLifecycleSupport.AfterCardPlayed`。
+
 **锻造。** `Kernel.Forge` 对应 `PersistentPowerSupport.Forge`：
 
 1. 有待处理选择时不执行。
@@ -176,6 +180,8 @@
 
 **伤害来源归属。** 原版判断“是不是玩家造成的”时并不总是比较 `dealer == 玩家`：部分钩子还把 `dealer.PetOwner`（Osty）算进来，或只看卡牌来源的持有者。内核按同一条条件实现：SkittishPower 在攻击上下文的 `AfterAttack` 里读该敌人的第一条伤害结果（Osty 攻击也触发）；PenNib、TheBoot、HandDrill 的 dealer/breaker 条件接受 `Owner.Creature || Owner.Osty`；StrikeDummy/FakeStrikeDummy/MiniatureCannon 只看卡来源是否属于玩家；GigantificationPower 按卡来源的 owner 加伤并消耗，Osty 攻击同样命中；VulnerablePower 的 Cruelty 修正回退到 dealer 的 PetOwner。PaperPhrog 的原版查询走 `dealer.Player`，因此 Osty 攻击不吃 PaperPhrog，内核保持这一差别。
 
+**SuckPower（FossilStalker）。** 原生 `AfterAttack` 按每次命中的结果列表统计“至少有一条未格挡伤害”的次数；统计前先移除 Osty 的命中以及同一次命中里打给 Osty 主人的结果。Sts2Solver 的 `AfterDamageGiven` 收到的是单条结果，因此跳过 `Receiver == OstyOwner` 的伤害；被 DieForYou 完全重定向的攻击不再给 FossilStalker 加力量。
+
 **Doom。**
 
 - 敌方侧回合末：对每个存活参与者求该侧的 Doom 总和，第一个满足 `CurrentHp <= Doom` 的监听者触发一次成批的 `DoomKill`，位置在 `TriggerEnemySideTurnEndEffects` 开头、Regen 与 Plating 之前。
@@ -221,7 +227,7 @@
 
 **GalvanicPower 的反伤打出牌的人。** 原引擎 `AfterCardPlayedMirrors.HandleGalvanicPower` 的伤害目标是打出这张牌的人（`PreviewCard.Owner`），不是 Power 的持有者。Globe Head 身上挂着它，玩家每出一张牌，反伤都落在玩家身上。Sts2Solver 里所有牌都属于玩家，所以定义直接以 `Limits.PlayerOwner` 为目标。
 
-**DampenPower（MagiKnight）。** 被降级的升级牌降到 0 级后仍可能被读取或打出，所以 `RulesCompiler` 为根上的升级牌补上 0 级规则。`DowngradeCard` 在 `AfterDowngraded` 之后，按 `PreservesVar0OnDowngrade` 恢复 Rampage、TheScythe 的累计伤害（原引擎的 `ExtraDamageFromPlays`、`IncreasedDamage`）。克隆、变化、替换产生的是新对象，`DampenOriginalUpgrade` 清零；离开战斗牌堆的 Dampen 记录按退役处理，不再被结算读取。牌在出牌中途被降级又被恢复时，`AddCurrentCardVar`、`SyncCurrentPlayCard` 以 `Exec.PlayPosition` 上的实时牌值为准（Rampage、TheScythe 在攻击后同步；原引擎读的是可变的 `CardModel`）。
+**DampenPower（MagiKnight）。** 被降级的升级牌降到 0 级后仍可能被读取或打出，所以 `RulesCompiler` 为根上的升级牌补上 0 级规则。`DowngradeCard` 在 `AfterDowngraded` 之后，按 `PreservesVar0OnDowngrade` 恢复 Rampage、TheScythe 的累计伤害（原引擎的 `ExtraDamageFromPlays`、`IncreasedDamage`）。降级重置本地关键字后重放附魔 `OnEnchant`：TezcatarasEmber 重新加 Eternal 并把基础费用归零，RoyallyApproved 加 Innate/Retain，Goopy 加 Exhaust，Steady 加 Retain。克隆、变化、替换产生的是新对象，`DampenOriginalUpgrade` 清零；离开战斗牌堆的 Dampen 记录按退役处理，不再被结算读取。牌在出牌中途被降级又被恢复时，`AddCurrentCardVar`、`SyncCurrentPlayCard` 以 `Exec.PlayPosition` 上的实时牌值为准（Rampage、TheScythe 在攻击后同步；原引擎读的是可变的 `CardModel`）。
 
 **ChainsOfBindingPower（Queen）。** 原引擎 `BeforeCardPlayedMirrors.HandleChainsOfBindingPower` 跳过的是 `CardModel.IsDupe`，不是 `IsClone`：复制品在准入时已经拒绝，克隆（Swift、AdaptiveStrike）必须照常设置束缚标记。`Aux1` 是原版按玩家回合统计的 `CardAfflictedEntry` 数：回合末只清打出标记和 Bound 苦难，`Aux1` 保留到下一个玩家回合开始才清零。不能提前在 `BeforeSideTurnEnd` 重置，否则回合末状态会和原引擎的 `ChainsOfBindingPredictionState` 不一致。
 
@@ -293,7 +299,8 @@
 | `CROSSBOW`、`CHOICES_PARADOX` | 在玩家侧回合开始用冻结的卡池生成牌 |
 | `TOASTY_MITTENS` | 用回合开始选择弃一张手牌，再加力量 |
 | `LAVA_LAMP` | `AfterDamageReceived` 只记录本场是否受过可格挡的未格挡伤害（`TookDamageThisCombat`），存在 `Counter` 并在写回时写回 |
-| `KUSARIGAMA` | 原生战斗进入结束（含 `PendingLoss`）时，`AfterSideTurnEnd` 不会派发。Sts2Solver 在玩家回合结束第二阶段的 `RelicPass(AfterSideTurnEnd)` 之前检查 `IsPendingLoss`，避免玩家在回合结束阶段死亡时错误清零 `Counter`；终局写回再按计数设置 `DisplayAmount`、`Status` |
+| `KUSARIGAMA` | 每第 3 次攻击的 6 点 Unpowered 伤害返回后立即结算敌人死亡效果，同一张牌后续重放能看到死亡 Power 的修正。原生战斗进入结束（含 `PendingLoss`）时，`AfterSideTurnEnd` 不会派发。Sts2Solver 在玩家回合结束第二阶段的 `RelicPass(AfterSideTurnEnd)` 之前检查 `IsPendingLoss`，避免玩家在回合结束阶段死亡时错误清零 `Counter`；终局写回再按计数设置 `DisplayAmount`、`Status` |
+| `HAPPY_FLOWER` | 只在该次玩家侧回合开始仍处于进行中时推进 `TurnsSeen` 并发放能量；战斗在敌人回合已经结束/正在结束时，原生 `StartTurn` 不再派发 `AfterSideTurnStart`，内核同样跳过 |
 | `FUR_COAT` | 命中的地图坐标在战斗外就固定了，导入时冻结为 `Rules.FurCoatSpawnHpOne`；`Kernel.AddCreatedMonster` 在入场 Power 之后、`PreparePredictedMonster` 之前，把新敌人的当前生命设为 1（`MonsterSpawnSupport.ApplyCreatureAddedRelics`） |
 | `UNSETTLING_LAMP` | 按实例身份：`BeforePowerAmountChanged` 记录触发卡的来源序号和临时 Power 内部类型，`ModifyPowerAmountGivenMultiplicative` 对同一来源、同一种临时 Power 内部类型的首次减益翻倍，完成的锁存写入 `Counter`（见下） |
 | `VAMBRACE` | `AfterCardPlayed` 用“触发卡的作用域序号”匹配；`OwnChoice` 弃置 Sly 牌触发的嵌套自动打出会完成自己的作用域，并改写 `LastCardPowerSourceSerial`，所以 `PlayFromPlay` 在嵌套打出返回后恢复外层的序号 |

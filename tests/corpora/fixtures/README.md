@@ -71,6 +71,20 @@ FS2D 修复批次的归类 fixture 同样是测试专用，不对应 d1 冻结�
 - `fs2d-thrash-squeeze`：Thrash 随机选中 SQUEEZE，读取其 CalculatedDamage 而不是 Damage/OstyDamage；
 - `fs2d-orb-channel-cap`：预测中的充能球生成达到 1000 次后记录 risk 并停止本次生成，不再拒绝整局。
 
+FS5 批次修好的对照 fixture：
+
+- `fs5-enchant-downgrade-keywords`：MagiKnight 的 Dampen 降级带 TezcatarasEmber/RoyallyApproved 的牌后，附魔 `OnEnchant` 重新加上 Eternal、Innate 与 Retain（并恢复 TezcatarasEmber 的零费）；
+- `fs5-expertise-bound-retain`：ChainsOfBinding 在 `AfterCardDrawn` 给抽到的牌加 Bound 后，Expertise 仍按身份给实际抽到的牌加 `RetainThisTurn`；
+- `fs5-expose-block-break`：Expose 按 `CreatureCmd.LoseBlock` 清空格挡并派发 `AfterBlockBroken`，Tunneler 的 BurrowedPower 立即移除并眩晕；
+- `fs5-suck-osty-hit`：DieForYou 把 FossilStalker 的未格挡攻击重定向给 Osty 时，SuckPower 不把该次命中算作吸取力量；
+- `fs5-pale-blue-dot-autoplay`：PaleBlueDotPower 在正常 `AfterCardPlayed` 阶段、把 DecisionsDecisions 的嵌套自动打出计入本回合第 5 张出牌；
+- `fs5-nested-autoplay-star`：嵌套自动打出返回后恢复外层的 `StarValue`，BlackHolePower 按外层出牌实际消耗的星能触发；
+- `fs5-kusarigama-death-trigger`：Kusarigama 的第 3 次攻击伤害后立即结算敌人死亡效果，PossessStrength 的返还影响下一次重放伤害；
+- `fs5-happy-flower-terminal`：战斗在敌人回合结束时，下一次玩家侧回合开始的 HappyFlower 不推进计数；
+- `fs5-unset-move-summon`：敌人在 FABRICATE_MOVE 召唤的 bot 以 `MoveStateMachine` 当前首次行动导入 `UNSET_MOVE`，后续行动与原版一致。
+
+前四个使用手工构造的场景；后五个是 FS4 抽样中对应根的原样请求（只改 `scenarioId`）。
+
 这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。

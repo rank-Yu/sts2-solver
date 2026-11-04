@@ -386,6 +386,15 @@ public static partial class Kernel
             while (card.Upgrade < level)
                 UpgradeCard(x.R, ref card);
         }
+        // The native restore mutates the played CardModel too; a card that kills the last Dampen
+        // caster during its own attack must read the restored values in its later effects. Only
+        // refresh when the play-pile slot still holds the current card (a nested effect may have
+        // changed the slot).
+        if (x.Card.Id != 0 && x.PlayPosition >= 0 && x.PlayPosition < x.B.PlayCount
+            && Piles.At(ref x.B, Pile.Play, x.PlayPosition).Id == x.Card.Id)
+        {
+            SyncCurrentPlayCard(ref x);
+        }
     }
 
     /// <summary>Upgrades the selected cards in selection order (no hook runs in between).</summary>

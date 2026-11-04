@@ -231,7 +231,9 @@ public sealed class RazorTooth : RelicDef
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         CardStats stats = x.R.Card(play.Card.Id, play.Card.Upgrade);
-        if (stats.Type is not (CardType.Attack or CardType.Skill))
+        // Native reads cardPlay.Card.Type, which for MadScience is the TinkerTime runtime type, not
+        // the canonical card type frozen in the rule table.
+        if (Kernel.ResolveCardType(x.B, x.R, play.Card) is not (CardType.Attack or CardType.Skill))
             return;
         if (play.Card.Upgrade >= stats.MaxUpgradeLevel)
             return;

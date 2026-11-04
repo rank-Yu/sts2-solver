@@ -92,9 +92,12 @@ internal sealed class LiveCombatTracker
         // CreaturesChanged event (one event per AddCreature) and append in that order. Creation
         // order is not a substitute: SurprisePower creates the fat gremlin first but adds the
         // sneaky gremlin first.
+        // A summon can be added and die before the next import (Fabricator's bot, Living Fog's Gas
+        // Bomb, Phrog's Wrigglers). The native list only reports aliveness now, but the comparison
+        // still needs the historical row so EnemyCount and the added card's status match.
         foreach (NativeCreature creature in _pendingAdds)
         {
-            if (creature.IsAlive && !Contains(creature))
+            if (!Contains(creature))
                 _known.Add(creature);
         }
         _pendingAdds.Clear();
@@ -177,7 +180,7 @@ internal sealed class LiveCombatTracker
     {
         foreach (NativeCreature creature in state.Enemies)
         {
-            if (!creature.IsAlive || Contains(creature) || _pendingAdds.Contains(creature))
+            if (Contains(creature) || _pendingAdds.Contains(creature))
                 continue;
             _pendingAdds.Add(creature);
         }

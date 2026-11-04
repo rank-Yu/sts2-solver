@@ -186,8 +186,9 @@ public sealed class Ectoplasm : RelicDef
 }
 
 /// <summary>
-/// <c>PhilosophersStone</c>: <c>ModifyMaxEnergy</c> adds Energy. The enemy Strength from
-/// <c>AfterRoomEntered</c> is applied before the root and imported.
+/// <c>PhilosophersStone</c>: <c>ModifyMaxEnergy</c> adds Energy, and every enemy added after the
+/// root gains its Strength (<c>AfterCreatureAddedToCombat</c>). The enemies present at the root got
+/// that Strength before the captured state and are imported with it.
 /// </summary>
 [ContentId("PHILOSOPHERS_STONE")]
 public sealed partial class PhilosophersStone : RelicDef
@@ -197,6 +198,19 @@ public sealed partial class PhilosophersStone : RelicDef
 
     public override decimal ModifyMaxEnergy(ref Exec x, Listener self, decimal amount)
         => amount + x.R.RelicVar(Id, 0);
+
+    public override void AfterCreatureAddedToCombat(ref Exec x, Listener self, byte creature)
+    {
+        if (!Kernel.IsEnemyOwner(creature))
+            return;
+        // The relic's StrengthPower var is not part of the compiled `RelicVar` table (its only
+        // canonical var there is Energy), so the importer freezes it in Relic.Aux.
+        int strength = x.B.Relics[self.Index].Aux;
+        if (strength <= 0)
+            return;
+        Kernel.ApplyPower(ref x, creature, Registry.PowerId<Powers.StrengthPower>(),
+            strength, Limits.NoOwner);
+    }
 }
 
 /// <summary>

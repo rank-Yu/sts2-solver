@@ -58,7 +58,13 @@ public static partial class Kernel
                     return false;
                 if (x.B.Creature(creature).IsDead)
                     break;
-                SetPowerAmount(ref x.B, creature, poison, current - 1);
+                // Steam Eruption rewrites a lethal Poison hit into the about-to-blow phase and its
+                // death cleanup removes the Poison instance. Native then decrements that detached
+                // model (a no-op); SetPowerAmount would re-insert a fresh row.
+                int remaining = GetAmount(x.B, creature, poison);
+                if (remaining <= 0)
+                    break;
+                SetPowerAmount(ref x.B, creature, poison, remaining - 1);
             }
         }
         return true;

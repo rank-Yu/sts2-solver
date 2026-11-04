@@ -350,6 +350,9 @@ public sealed class StockPower : PowerDef
     public override PowerStackType StackType => PowerStackType.Counter;
 
     public override bool SpawnsPrimaryEnemyOnDeath => true;
+
+    // Native StockPower.ShouldStopCombatFromEnding: the dead owner still spawns a replacement.
+    public override bool PreventsCombatEnding => true;
 }
 
 /// <summary>

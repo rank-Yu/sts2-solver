@@ -340,9 +340,10 @@ public sealed class TrashToTreasurePower : PowerDef
         int amount = x.B.Powers[self.Index].Amount;
         for (int index = 0; index < amount; index++)
         {
+            // Native draws the random orb before OrbCmd.Channel; a refused channel does not stop the
+            // loop, so every layer still consumes its CombatOrbGeneration draw.
             ushort orb = Kernel.RandomOrb(ref x.B);
-            if (!Kernel.ChannelOrb(ref x, orb))
-                return;
+            Kernel.ChannelOrb(ref x, orb);
             if (x.NeedsChoice)
                 return;
         }

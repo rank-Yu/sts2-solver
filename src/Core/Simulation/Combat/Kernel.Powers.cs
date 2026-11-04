@@ -108,10 +108,23 @@ public static partial class Kernel
     /// The clone path of the non-generic <c>PowerCmd.Apply</c>: <c>Misery</c> clones a debuff
     /// <c>PowerModel</c> (preserving its <c>Target</c>) and applies the clone, so the existing target
     /// must survive. This is not a new native write site: the source row's target is copied verbatim.
+    /// A temporary Strength/Dexterity power goes through the same first-application
+    /// <c>BeforeApplied</c> (internal stat before the temporary row) and stacking
+    /// <c>AfterPowerAmountChanged</c> (delta after the row) order as the native generic Apply.
     /// </summary>
     public static int ApplyPowerPreservingTarget(ref Exec x, byte target, ushort powerId, int amount,
         byte applier, byte powerTarget)
-        => ApplyPowerInternal(ref x, target, powerId, amount, applier, powerTarget);
+    {
+        PowerDef def = Registry.Power(powerId);
+        if (!def.IsTemporaryPower || def.InternallyAppliedPowerId is not { } internalId)
+            return ApplyPowerInternal(ref x, target, powerId, amount, applier, powerTarget);
+        int sign = def.TypeForAmount(amount) == PowerType.Debuff ? -1 : 1;
+        if (internalId == "STRENGTH_POWER")
+            return ApplyTemporaryStrength(ref x, target, powerId, amount, applier, sign, powerTarget);
+        if (internalId == "DEXTERITY_POWER")
+            return ApplyTemporaryDexterity(ref x, target, powerId, amount, applier, sign, powerTarget);
+        throw new UnsupportedException($"Misery 克隆的临时 Power {internalId} 没有内部数值实现。");
+    }
 
     private static int ApplyPowerInternal(ref Exec x, byte target, ushort powerId, int amount,
         byte applier, byte powerTarget)
@@ -194,7 +207,8 @@ public static partial class Kernel
     /// change by sign × amount follows when the requested amount differs from the resulting counter
     /// (the stacking case, native <c>AfterPowerAmountChanged</c>). Returns the applied delta.
     /// </summary>
-    public static int ApplyTemporaryStrength(ref Exec x, byte target, ushort temporaryId, int amount, byte applier, int sign)
+    public static int ApplyTemporaryStrength(ref Exec x, byte target, ushort temporaryId, int amount,
+        byte applier, int sign, byte powerTarget = Limits.NoOwner)
     {
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
@@ -217,7 +231,8 @@ public static partial class Kernel
             : throw new UnsupportedException("临时力量需要力量的 Sts2Solver 定义。");
         if (def.IsInstanced || GetAmount(x.B, target, temporaryId) == 0)
             ApplyPower(ref x, target, strength, sign * amount, applier);
-        int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out int resulting);
+        int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out int resulting,
+            powerTarget);
         if (amount != resulting)
             ApplyPower(ref x, target, strength, sign * amount, applier);
         return applied;
@@ -284,7 +299,7 @@ public static partial class Kernel
     /// applied delta afterwards.
     /// </summary>
     public static int ApplyTemporaryDexterity(ref Exec x, byte target, ushort temporaryId, int amount,
-        byte applier)
+        byte applier, int sign = 1, byte powerTarget = Limits.NoOwner)
     {
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
@@ -305,10 +320,11 @@ public static partial class Kernel
             : throw new UnsupportedException("临时敏捷需要敏捷的 Sts2Solver 定义。");
         bool alreadyApplied = GetAmount(x.B, target, temporaryId) != 0;
         if (def.IsInstanced || !alreadyApplied)
-            ApplyPower(ref x, target, dexterity, amount, applier);
-        int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out _);
+            ApplyPower(ref x, target, dexterity, sign * amount, applier);
+        int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out _,
+            powerTarget);
         if (alreadyApplied && applied != 0)
-            ApplyPower(ref x, target, dexterity, applied, applier);
+            ApplyPower(ref x, target, dexterity, sign * applied, applier);
         return applied;
     }
 

@@ -111,6 +111,24 @@ public static partial class HookDispatch
     };
 
     /// <summary>
+    /// Native <c>Hook.AfterCreatureAddedToCombat</c> in combat listener order. The only supported
+    /// listener is PhilosophersStone's enemy Strength; a spawn during the hook itself is not revisited.
+    /// </summary>
+    public static void AfterCreatureAddedToCombat(ref Exec x, byte creature)
+    {
+        if ((Registry.AnyHooksExt & HookMaskExt.AfterCreatureAddedToCombat) == 0)
+            return;
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
+        int count = CollectListeners(x.B, HookMaskExt.AfterCreatureAddedToCombat, listeners);
+        for (int index = 0; index < count; index++)
+        {
+            Definition(x.B, listeners[index]).AfterCreatureAddedToCombat(ref x, listeners[index], creature);
+            if (x.NeedsChoice)
+                return;
+        }
+    }
+
+    /// <summary>
     /// Mirrors <c>HookMirrors.ModifyDamage</c>: card enchantment, additive pass, multiplicative pass,
     /// then the minimum cap, clamped at zero. Decimal throughout, never rounded here.
     /// </summary>

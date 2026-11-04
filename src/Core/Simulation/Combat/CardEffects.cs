@@ -206,6 +206,9 @@ public static class CardEffects
         if (played.Id != x.Card.Id)
             throw new InvalidOperationException("打出堆顶不是当前卡。");
         Kernel.UpgradeCard(x.R, ref played);
+        // Native CardCmd.Upgrade mutates the CardModel that CardPlay.Card references. The next
+        // replay index (Spiral) and the late AfterCardPlayed hooks read the upgraded values.
+        Kernel.SyncCurrentPlayCard(ref x);
     }
 
     /// <summary>

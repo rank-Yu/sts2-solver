@@ -231,8 +231,11 @@ public sealed class Eidolon : CardDef
         for (int offset = 0; offset < x.B.ExhaustCount; offset++)
         {
             Card card = Piles.At(ref x.B, Pile.Exhaust, offset);
-            if (card.HasKeyword(Keywords.Ethereal) && !card.HasKeyword(Keywords.Unplayable))
+            if (Kernel.HasKeyword(x.B, card, Keywords.Ethereal)
+                && !Kernel.HasKeyword(x.B, card, Keywords.Unplayable))
+            {
                 positions[count++] = offset;
+            }
         }
         for (int index = 0; index < count; index++)
         {

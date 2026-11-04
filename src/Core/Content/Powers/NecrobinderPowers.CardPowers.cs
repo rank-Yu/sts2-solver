@@ -72,10 +72,9 @@ public sealed class CallOfTheVoidPower : PowerDef
 }
 
 /// <summary>
-/// Native <c>PagestormPower</c>: when a card with the local Ethereal keyword is drawn, draw Amount
-/// more (<c>AfterCardDrawnMirrors.HandlePagestormPower</c>). Hexed's lazily supplied Ethereal is not a
-/// local keyword in the native check, so this reads <see cref="Card.Keywords"/> directly instead
-/// of <c>Kernel.HasKeyword</c>.
+/// Native <c>PagestormPower</c>: when a card with the Ethereal keyword is drawn, draw Amount more
+/// (<c>AfterCardDrawnMirrors.HandlePagestormPower</c>). <c>CardModel.Keywords</c> includes HexPower's
+/// global Ethereal, so the battle-aware <c>Kernel.HasKeyword</c> is the source.
 /// </summary>
 [ContentId("PAGESTORM_POWER")]
 public sealed class PagestormPower : PowerDef
@@ -90,7 +89,7 @@ public sealed class PagestormPower : PowerDef
             return;
         if ((uint)drawnPosition >= (uint)x.B.CardCount)
             throw new UnsupportedException("Pagestorm 触发时抽到的牌已不在牌堆。");
-        if ((x.B.Cards[drawnPosition].Keywords & Keywords.Ethereal) == 0)
+        if (!Kernel.HasKeyword(x.B, x.B.Cards[drawnPosition], Keywords.Ethereal))
             return;
         Kernel.Draw(ref x, x.B.Powers[self.Index].Amount, fromHandDraw: false);
     }

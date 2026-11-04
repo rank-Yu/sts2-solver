@@ -51,6 +51,10 @@ public static partial class HookDispatch
 
         /// <summary>Index among byte-equal cards (or orbs) at snapshot time, or -1.</summary>
         public int Occurrence;
+
+        /// <summary>Card pile and pile-local index at snapshot time (card-attached listeners).</summary>
+        public Pile CardPile;
+        public int CardPileIndex;
     }
 
     /// <summary>
@@ -157,6 +161,17 @@ public static partial class HookDispatch
                 occurrence++;
         }
         entry.Occurrence = occurrence;
+        entry.CardPileIndex = -1;
+        foreach (Pile pile in Enum.GetValues<Pile>())
+        {
+            int start = Piles.Start(in battle, pile);
+            int count = Piles.Count(in battle, pile);
+            if ((uint)(listener.Index - start) >= (uint)count)
+                continue;
+            entry.CardPile = pile;
+            entry.CardPileIndex = listener.Index - start;
+            break;
+        }
         return entry;
     }
 
@@ -233,15 +248,27 @@ public static partial class HookDispatch
             case ListenerKind.Card:
             case ListenerKind.Affliction:
             case ListenerKind.Enchantment:
-                // The position is still valid while the card stays where it was (it may have been
-                // modified in place). Otherwise re-locate the snapshot value by its occurrence among
-                // equal cards, so a hook that moves cards cannot skip or double-visit a listener.
-                if (entry.Listener.Index < battle.CardCount && ListenerId(battle, entry.Listener) == entry.Id)
+                // The position is still valid while the same card identity stays there (it may have
+                // been modified in place). Otherwise re-locate the snapshot value by its occurrence
+                // among equal cards, so a hook that inserts a clone before the old position cannot
+                // redirect the listener to the clone.
+                if (entry.Listener.Index < battle.CardCount
+                    && ListenerId(battle, entry.Listener) == entry.Id
+                    && SameListenerCard(battle.Cards[entry.Listener.Index], entry.Card))
+                {
                     return true;
-                if (!TryLocateCard(battle, entry, out int located))
-                    return false;
-                current = new Listener(entry.Listener.Kind, (ushort)located, entry.Listener.Owner);
-                return true;
+                }
+                // A hook may insert a card into an earlier pile (Juggling's clone goes to the hand
+                // while the listener's card sits in the draw/discard pile). The card keeps its
+                // pile-local index, so try that before falling back to the equal-card occurrence.
+                int located;
+                if (TryLocateCardInPile(battle, entry, out located)
+                    || TryLocateCard(battle, entry, out located))
+                {
+                    current = new Listener(entry.Listener.Kind, (ushort)located, entry.Listener.Owner);
+                    return true;
+                }
+                return false;
             default:
                 return ListenerId(battle, entry.Listener) == entry.Id;
         }
@@ -258,6 +285,28 @@ public static partial class HookDispatch
                 or ListenerKind.Affliction or ListenerKind.Enchantment or ListenerKind.Orb => false,
             _ => true,
         };
+    }
+
+    /// <summary>Locates the snapshot card at the same pile-local index after insertions in earlier piles.</summary>
+    private static bool TryLocateCardInPile(in Battle battle, in SnapshotEntry entry, out int index)
+    {
+        index = -1;
+        if (entry.CardPileIndex < 0)
+            return false;
+        int start = Piles.Start(in battle, entry.CardPile);
+        int count = Piles.Count(in battle, entry.CardPile);
+        if ((uint)entry.CardPileIndex >= (uint)count)
+            return false;
+        int candidate = start + entry.CardPileIndex;
+        if (!SameListenerCard(battle.Cards[candidate], entry.Card))
+            return false;
+        if (ListenerId(battle, new Listener(entry.Listener.Kind, (ushort)candidate, entry.Listener.Owner))
+            != entry.Id)
+        {
+            return false;
+        }
+        index = candidate;
+        return true;
     }
 
     /// <summary>Locates the snapshot card by its value and occurrence over the whole battle.</summary>

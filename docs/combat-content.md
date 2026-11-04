@@ -79,7 +79,7 @@
 | 玻璃 | 取 `Modify(Aux)`，大于 0 时造成伤害并把 `Aux` 减 1 | `Modify(Aux) × 2`，伤害所有可命中敌人 |
 | 等离子 | +1 能量 | +2 能量 |
 
-闪电和玻璃的随机目标各取一次 `CombatTargets` 流的 `NextInt(0, count)`，候选为空时不消耗；闪电的显式目标（TeslaCoil）不消耗该流。Chaos 与 TrashToTreasure 的随机球取 `CombatOrbGeneration` 流，候选顺序是原版 `_validOrbs`：闪电、冰霜、暗、等离子、玻璃。
+闪电和玻璃的随机目标各取一次 `CombatTargets` 流的 `NextInt(0, count)`，候选为空时不消耗；闪电的显式目标（TeslaCoil）不消耗该流。Chaos 与 TrashToTreasure 的随机球取 `CombatOrbGeneration` 流，候选顺序是原版 `_validOrbs`：闪电、冰霜、暗、等离子、玻璃；TrashToTreasure 的每层都先取随机球再尝试充能，充能被拒绝不会停止后续层。
 
 ### 2.1 遗物
 

@@ -48,6 +48,20 @@ FS1B 批次由 FS2B 修好的 Osty/Doom/Power 类 fixture：
 - `fs1b-souls-power-exhaust`：卡牌被降级重置本地关键字后重新执行 SoulsPower 的移除 Exhaust；
 - `fs1b-hellraiser-aux`：Hellraiser 的 HittableEnemies 排除已死敌人，并识别 HardenedShellPower 的无限生命显示。
 
+FS1B 批次修好的遗物/怪物/卡牌类 fixture（FS2C）：
+
+- `fs1b-spiral-razor-block`、`fs1b-razor-tooth-genetic-algorithm`：Spiral 的重复出牌下标和 Razor Tooth 的升级时机；
+- `fs1b-gremlin-horn-respawn`、`fs1b-axebot-respawn-power`：Axebot 重生期间 Stock 阻止战斗提前结束，Philosophers Stone 在新增敌人入场后施加力量；
+- `fs1b-fabricator-enemy-count`、`fs1b-enemy-count-removal`、`fs1b-phrog-enemy-count`：导入保留已死亡召唤物的已知敌人顺序；
+- `fs1b-knights-hexed-hand`、`fs1b-knights-modifier-count`：Hexed 卡牌的全局 Ethereal 查询，以及 Stomp 监听者在出牌区挪动后的身份定位；
+- `fs1b-guiding-star-draw`：Dampen 恢复后同步本张出牌的数值；
+- `fs1b-kusarigama-terminal`：战斗在玩家回合第一阶段结束时不再重置 Kusarigama 计数；
+- `fs1b-cards-played-counter`：Eidolon 对 Hexed Ethereal 牌的全局关键字查询；
+- `fs1b-rng-divergence`：TrashToTreasure 每层先消耗随机球再尝试充能；
+- `fs1b-waterfall-power-count`：Null 的击杀/能力顺序与蒸汽死亡后的 Poison 清理；
+- `fs1b-nunchaku-energy`：Hexed 的 Veilpiercer 费用判断，以及 Misery 克隆临时 EnfeeblingTouch 时先执行内部负力量再插入临时 Power 行。
+
+
 这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。

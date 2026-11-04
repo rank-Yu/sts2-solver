@@ -71,19 +71,21 @@ public sealed class Null : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        // OrbCardMirrors.NullOnPlay mirrors attack then channel; CorePowerSupport applies Weak after.
+        // Native Null.OnPlay is attack, Weak, then channel. The channel can evoke a Dark Orb whose
+        // ThunderPower kill rewrites Waterfall Giant and strips its powers, so Weak must be applied
+        // before the channel for the death cleanup to see it.
         CardEffects.GeneralAttack(ref x, 0);
         if (x.NeedsChoice)
             return;
-        // CorePowerSupport.ApplyCardPowers runs ApplyEnemyDeathPowers after the mirror attack
-        // and before the card-specific compensation, so the debuff sees the post-death target.
+        // CorePowerSupport.ApplyCardPowers runs ApplyEnemyDeathPowers after the mirror attack and
+        // before the card-specific compensation, so the debuff sees the post-death target.
         Kernel.ApplyEnemyDeathPowers(ref x);
         if (x.NeedsChoice)
             return;
-        Kernel.ChannelOrb(ref x, Kernel.OrbId("DARK_ORB"));
+        CardEffects.ApplyToTarget(ref x, Registry.PowerId<Powers.WeakPower>(), 1);
         if (x.NeedsChoice)
             return;
-        CardEffects.ApplyToTarget(ref x, Registry.PowerId<Powers.WeakPower>(), 1);
+        Kernel.ChannelOrb(ref x, Kernel.OrbId("DARK_ORB"));
     }
 }
 

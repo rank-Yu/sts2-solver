@@ -315,6 +315,13 @@ public enum HookMaskExt : ulong
     /// Uses bits 3-15.
     /// </summary>
     AfterRelicRound = 1UL << 6,
+
+    /// <summary>
+    /// Native <c>Hook.AfterCreatureAddedToCombat</c>: a creature entered combat after the root.
+    /// PhilosophersStone applies its enemy Strength here; FurCoat's HP rewrite is handled by
+    /// <c>Kernel.AddCreatedMonster</c> because it runs before the monster's first move.
+    /// </summary>
+    AfterCreatureAddedToCombat = 1UL << 7,
 }
 
 /// <summary>
@@ -834,6 +841,11 @@ public abstract class ListenerDef : ContentDef
     /// <summary>Native <c>AfterModifyingPowerAmountReceived</c> for the listeners recorded by the received pass.</summary>
     public virtual void AfterModifyingPowerAmountReceived(ref Exec x, Listener self, ushort powerId,
         byte target)
+    {
+    }
+
+    /// <summary>Native <c>Hook.AfterCreatureAddedToCombat</c> for a creature added after the root.</summary>
+    public virtual void AfterCreatureAddedToCombat(ref Exec x, Listener self, byte creature)
     {
     }
 

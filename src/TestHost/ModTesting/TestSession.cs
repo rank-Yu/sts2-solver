@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
@@ -6,6 +8,7 @@ using Sts2Solver.TestHost;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Scoring;
+using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -24,6 +27,16 @@ namespace Sts2Solver;
 internal static class TestSession
 {
     public const string DirectoryVariable = "STS2_SOLVER_TEST_DIR";
+
+    private static readonly FieldInfo AssetLoaderInstanceField =
+        typeof(NAssetLoader).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("NAssetLoader._instance 缺失。");
+    private static readonly FieldInfo AssetLoaderSessionsField =
+        typeof(NAssetLoader).GetField("_sessions", BindingFlags.Instance | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("NAssetLoader._sessions 缺失。");
+    private static readonly FieldInfo AssetLoaderCurrentField =
+        typeof(NAssetLoader).GetField("_currentSession", BindingFlags.Instance | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("NAssetLoader._currentSession 缺失。");
 
     private static bool _started;
 
@@ -772,15 +785,15 @@ internal static class TestSession
         long deadline = Environment.TickCount64 + 120_000;
         while (Environment.TickCount64 < deadline)
         {
-            if (host.MainMenu != null && !RunManager.Instance.IsInProgress)
+            if (host.MainMenu != null && !RunManager.Instance.IsInProgress
+                && MainMenuAssetsIdle())
             {
-                await CombatFrameWaiter.NextFrameAsync(host);
-                await CombatFrameWaiter.NextFrameAsync(host);
+                await SettleAssetLoadingAsync(host);
                 return;
             }
             await CombatFrameWaiter.NextFrameAsync(host);
         }
-        throw new TimeoutException("等待主菜单就绪超时。");
+        throw new TimeoutException("等待主菜单就绪超时：" + MainMenuReadiness());
     }
 
     private static async Task ResetToMainMenuAsync(NGame host)
@@ -792,13 +805,60 @@ internal static class TestSession
         {
             if (!RunManager.Instance.IsInProgress
                 && host.MainMenu != null
-                && CombatManager.Instance.DebugOnlyGetState() == null)
+                && CombatManager.Instance.DebugOnlyGetState() == null
+                && MainMenuAssetsIdle())
             {
+                await SettleAssetLoadingAsync(host);
                 return;
             }
             await CombatFrameWaiter.NextFrameAsync(host);
         }
-        throw new TimeoutException("返回主菜单超时。");
+        throw new TimeoutException("返回主菜单超时：" + MainMenuReadiness());
+    }
+
+    /// <summary>
+    /// NGame.ReturnToMainMenu 只等预加载会话建立，不等它完成；如果这时开始下一场，
+    /// Common 与 characters 两套预加载会同时向 Godot 线程加载器提交共享子资源。
+    /// 资源加载队列为空、主菜单预加载集合全部进入缓存，才是下一次建局的可靠边界。
+    /// </summary>
+    private static bool MainMenuAssetsIdle()
+    {
+        if (AssetLoaderInstanceField.GetValue(null) is not NAssetLoader loader
+            || !loader.IsInsideTree())
+        {
+            return false;
+        }
+        var sessions =
+            (ConcurrentQueue<AssetLoadingSession?>)AssetLoaderSessionsField.GetValue(loader)!;
+        var current = (AssetLoadingSession?)AssetLoaderCurrentField.GetValue(loader);
+        if (!sessions.IsEmpty || current is { IsCompleted: false })
+            return false;
+        IReadOnlySet<string> loaded = PreloadManager.Cache.GetLoadedCacheAssets();
+        return AssetSets.CommonAssets.All(loaded.Contains)
+            && AssetSets.MainMenuSet.All(loaded.Contains);
+    }
+
+    private static async Task SettleAssetLoadingAsync(NGame host)
+    {
+        // LoadCommonAndMainMenuAssets 会把不再使用的资源排进 CallDeferred 释放队列。
+        // 等两个帧边界，让这些释放先执行，再开始下一套预加载。
+        await CombatFrameWaiter.NextFrameAsync(host);
+        await CombatFrameWaiter.NextFrameAsync(host);
+    }
+
+    private static string MainMenuReadiness()
+    {
+        IReadOnlySet<string> loaded = PreloadManager.Cache.GetLoadedCacheAssets();
+        int commonMissing = AssetSets.CommonAssets.Count(asset => !loaded.Contains(asset));
+        int mainMenuMissing = AssetSets.MainMenuSet.Count(asset => !loaded.Contains(asset));
+        bool loaderIdle = AssetLoaderInstanceField.GetValue(null) is NAssetLoader loader
+            && loader.IsInsideTree()
+            && ((ConcurrentQueue<AssetLoadingSession?>)AssetLoaderSessionsField.GetValue(loader)!)
+                .IsEmpty
+            && (AssetLoadingSession?)AssetLoaderCurrentField.GetValue(loader) is not
+                { IsCompleted: false };
+        return $"common_missing={commonMissing} main_menu_missing={mainMenuMissing} " +
+            $"loader_idle={loaderIdle}";
     }
 
     private static void WriteBytes(string path, byte[] bytes)

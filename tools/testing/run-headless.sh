@@ -12,12 +12,13 @@
 # commit a62f1850 (MIT, Copyright (c) 2026 Torch1230 and contributors).
 set -uo pipefail
 
-die() { echo "run-headless: $*" >&2; exit 1; }
+die() { failure_reason="$*"; echo "run-headless: $*" >&2; exit 1; }
 info() { echo "run-headless: $*"; }
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 instance=""
 instance_root="${STS2_SOLVER_HEADLESS_ROOT:-$repo_root/.local/headless-instances}"
+failure_root="${STS2_SOLVER_HEADLESS_FAILURE_ROOT:-$repo_root/.local/headless-failures}"
 game_root="$HOME/games/sts2"
 ritsu_root="$HOME/games/sts2/steamapps/workshop/content/2868840/3747602295"
 mod_dir="$repo_root/artifacts/mod-testing/Sts2Solver"
@@ -25,6 +26,7 @@ seed_data="$HOME/ss/CombatSolver/.local/headless-seed/data"
 offline_host="$repo_root/artifacts/bin/Differential/release/Differential.dll"
 requests_dir=""
 results_dir=""
+log_dir=""
 timeout_seconds=600
 shutdown_timeout_seconds=30
 cleanup_instance=0
@@ -50,6 +52,7 @@ usage() {
   --requests DIR               直接复制目录里的 *.json 请求（文件名即结果根名）
   --request FILE               直接复制单个请求 JSON（文件名即结果根名，可重复）
   --results DIR                完成后把结果目录复制到 DIR
+  --log-dir DIR                复制 Godot、启动器和 Mod 日志到 DIR（诊断用）
   --timeout-seconds N          等待 results/done.json 的秒数（默认 600）
   --shutdown-timeout-seconds N  结果写出后等待正常退出的秒数（默认 30）
   --cleanup-instance-on-exit   结束后删除整个实例目录
@@ -59,6 +62,7 @@ usage() {
   --full-combat                用 --roots-file/--root 生成整场自动战斗请求
   --search-tier NAME           整场自动战斗的搜索档位（Low/Medium/High/ExtraHigh，默认 Medium）
   --instance-root DIR          实例根（默认 .local/headless-instances）
+  --failure-root DIR           失败证据根（默认 .local/headless-failures）
   --game-root DIR              游戏目录（默认 ~/games/sts2）
   --ritsu-root DIR             RitsuLib 目录（默认 workshop 3747602295）
   --mod-dir DIR                Sts2Solver Mod 目录（默认 artifacts/mod-testing/Sts2Solver）
@@ -79,11 +83,13 @@ while (($#)); do
     case "$1" in
         --instance) instance="${2:-}"; shift 2 ;;
         --instance-root) instance_root="${2:-}"; shift 2 ;;
+        --failure-root) failure_root="${2:-}"; shift 2 ;;
         --roots-file) roots_file="${2:-}"; shift 2 ;;
         --root) roots+=("${2:-}"); shift 2 ;;
         --requests) requests_dir="${2:-}"; shift 2 ;;
         --request) request_files+=("${2:-}"); shift 2 ;;
         --results) results_dir="${2:-}"; shift 2 ;;
+        --log-dir) log_dir="${2:-}"; shift 2 ;;
         --timeout-seconds) timeout_seconds="${2:-}"; shift 2 ;;
         --shutdown-timeout-seconds) shutdown_timeout_seconds="${2:-}"; shift 2 ;;
         --cleanup-instance-on-exit) cleanup_instance=1; shift ;;
@@ -114,6 +120,8 @@ command -v jq >/dev/null || die "需要 jq"
 command -v realpath >/dev/null || die "需要 realpath"
 
 instance_root="$(realpath -m -- "$instance_root")"
+failure_root="$(realpath -m -- "$failure_root")"
+[[ -z $log_dir ]] || log_dir="$(realpath -m -- "$log_dir")"
 instance_dir="$instance_root/$instance"
 instance_dir="$(realpath -m -- "$instance_dir")"
 for protected in / "$HOME" "$repo_root" "$game_root" "$instance_root"; do
@@ -142,9 +150,61 @@ mkdir -p -- "$instance_dir"/{game,data,config,cache,run/requests,run/results} ||
 printf '%s\n' "$instance_dir" >"$instance_dir/.sts2-solver-headless-owned" || die "无法写实例标记"
 
 game_pid=""
-cleanup() {
-    local code=$?
-    if [[ -n $game_pid ]] && kill -0 "$game_pid" 2>/dev/null; then
+log_path=""
+launcher_log=""
+game_exit_status=""
+game_exit_description=""
+game_exit_recorded=0
+failure_reason=""
+failure_artifacts=""
+
+describe_game_status() {
+    local status=$1
+    if (( status > 128 )); then
+        local signal=$((status - 128))
+        local name
+        name="$(kill -l "$signal" 2>/dev/null || true)"
+        echo "code=$status signal=${name:-$signal} signal_number=$signal"
+    else
+        echo "code=$status"
+    fi
+}
+
+record_game_exit() {
+    (( game_exit_recorded == 0 )) || return 0
+    [[ -n $game_pid ]] || return 0
+    local status
+    wait "$game_pid" 2>/dev/null
+    status=$?
+    game_exit_recorded=1
+    game_exit_status=$status
+    game_exit_description="$(describe_game_status "$status")"
+    game_pid=""
+    local invalid_task_ids=0
+    local build_invalid_task_ids=0
+    if [[ -f $log_path ]]; then
+        invalid_task_ids="$(grep -c 'Invalid Task ID' -- "$log_path" 2>/dev/null || true)"
+        [[ -n $invalid_task_ids ]] || invalid_task_ids=0
+        build_invalid_task_ids="$(awk '
+            /\[Sts2Solver\] BUILD_STARTED/ { in_build = 1 }
+            /\[Sts2Solver\] BUILD_COMPLETED/ { in_build = 0 }
+            in_build && /Invalid Task ID/ { count++ }
+            END { print count + 0 }
+        ' "$log_path" 2>/dev/null || true)"
+        [[ -n $build_invalid_task_ids ]] || build_invalid_task_ids=0
+    fi
+    if [[ -d $instance_dir/run ]]; then
+        printf 'status=%s description=%s\n' "$status" "$game_exit_description" \
+            >"$instance_dir/run/game-exit.txt" 2>/dev/null || true
+    fi
+    echo "HEADLESS_GAME_EXIT $game_exit_description"
+    echo "HEADLESS_EXIT $game_exit_description"
+    echo "HEADLESS_GODOT_ERROR invalid_task_id=$invalid_task_ids build_invalid_task_id=$build_invalid_task_ids"
+}
+
+terminate_game() {
+    [[ -n $game_pid ]] || return 0
+    if kill -0 "$game_pid" 2>/dev/null; then
         kill -TERM -- "-$game_pid" 2>/dev/null || kill -TERM "$game_pid" 2>/dev/null || true
         for _ in $(seq 1 50); do
             kill -0 "$game_pid" 2>/dev/null || break
@@ -153,9 +213,83 @@ cleanup() {
         if kill -0 "$game_pid" 2>/dev/null; then
             kill -KILL -- "-$game_pid" 2>/dev/null || kill -KILL "$game_pid" 2>/dev/null || true
         fi
-        wait "$game_pid" 2>/dev/null || true
     fi
-    game_pid=""
+    record_game_exit
+}
+
+preserve_failure_evidence() {
+    local reason=$1
+    local launcher_exit=$2
+    [[ -z $failure_artifacts ]] || return 0
+    local stamp
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    local destination="$failure_root/$instance-$stamp"
+    local suffix=1
+    while [[ -e $destination ]]; do
+        destination="$failure_root/$instance-$stamp-$suffix"
+        suffix=$((suffix + 1))
+    done
+    mkdir -p -- "$destination/run" || {
+        echo "run-headless: 无法创建失败证据目录：$destination" >&2
+        return 1
+    }
+    if [[ -d $instance_dir/run ]]; then
+        cp -a -- "$instance_dir/run/." "$destination/run/" 2>/dev/null || true
+    fi
+    [[ ! -f $log_path ]] || cp -a -- "$log_path" "$destination/godot-headless.log" 2>/dev/null || true
+    [[ ! -f $launcher_log ]] || cp -a -- "$launcher_log" "$destination/launcher.log" 2>/dev/null || true
+    {
+        printf 'instance=%s\n' "$instance"
+        printf 'reason=%s\n' "$reason"
+        printf 'launcher_exit=%s\n' "$launcher_exit"
+        printf 'game_exit=%s\n' "${game_exit_description:-not_recorded}"
+        printf 'instance_dir=%s\n' "$instance_dir"
+    } >"$destination/failure.txt" 2>/dev/null || true
+    failure_artifacts="$destination"
+    echo "HEADLESS_FAILURE_ARTIFACTS path=$failure_artifacts"
+}
+
+copy_run_logs() {
+    [[ -n $log_dir ]] || return 0
+    mkdir -p -- "$log_dir" || {
+        echo "run-headless: 无法创建日志目录：$log_dir" >&2
+        return 1
+    }
+    [[ ! -f $log_path ]] || cp -a -- "$log_path" "$log_dir/godot-headless.log" 2>/dev/null || true
+    [[ ! -f $launcher_log ]] || cp -a -- "$launcher_log" "$log_dir/launcher.log" 2>/dev/null || true
+    [[ ! -f $instance_dir/run/mod.log ]] || cp -a -- "$instance_dir/run/mod.log" "$log_dir/mod.log" 2>/dev/null || true
+    [[ ! -f $instance_dir/run/game-exit.txt ]] || cp -a -- "$instance_dir/run/game-exit.txt" "$log_dir/game-exit.txt" 2>/dev/null || true
+    echo "HEADLESS_LOGS path=$log_dir"
+}
+
+print_failure_logs() {
+    if [[ -f $launcher_log ]]; then
+        echo "HEADLESS_LAUNCHER_LOG_TAIL path=$launcher_log lines=200" >&2
+        tail -200 -- "$launcher_log" >&2 || true
+    else
+        echo "HEADLESS_LAUNCHER_LOG missing path=$launcher_log" >&2
+    fi
+    if [[ -f $log_path ]]; then
+        echo "HEADLESS_GODOT_LOG_TAIL path=$log_path lines=100" >&2
+        tail -100 -- "$log_path" >&2 || true
+    else
+        echo "HEADLESS_GODOT_LOG_TAIL missing path=$log_path" >&2
+    fi
+}
+
+cleanup() {
+    local code=$?
+    trap - EXIT INT TERM
+    if [[ -n $game_pid ]]; then
+        [[ -n $failure_reason ]] || failure_reason="launcher_terminated"
+        terminate_game
+    fi
+    if (( code != 0 )); then
+        [[ -n $failure_reason ]] || failure_reason="launcher_exit_code_$code"
+        print_failure_logs
+        preserve_failure_evidence "$failure_reason" "$code"
+    fi
+    copy_run_logs
     if (( cleanup_instance == 1 )) && [[ -d $instance_dir ]]; then
         rm -rf -- "$instance_dir" || {
             echo "run-headless: failed to remove instance: $instance_dir" >&2
@@ -166,8 +300,8 @@ cleanup() {
     exit "$code"
 }
 trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+trap 'failure_reason=interrupted; exit 130' INT
+trap 'failure_reason=terminated; exit 143' TERM
 
 info "copying game to $instance_dir/game"
 cp -aL --reflink=auto -- "$game_root/." "$instance_dir/game/" || die "复制游戏失败"
@@ -285,7 +419,6 @@ if (( probe_only == 1 )); then
         sleep 0.2
     done
     if (( ok == 0 )); then
-        tail -100 "$log_path" >&2 || true
         die "等待 Mod 初始化日志超时"
     fi
     if (( coexist == 1 )); then
@@ -315,15 +448,12 @@ while (( SECONDS < deadline )); do
         break
     fi
     if ! kill -0 "$game_pid" 2>/dev/null; then
-        tail -100 "$log_path" >&2 || true
+        record_game_exit
         die "无头游戏在写 results/done.json 前退出"
     fi
     sleep 0.2
 done
-[[ -f $done_path ]] || {
-    tail -100 "$log_path" >&2 || true
-    die "等待 results/done.json 超时（${timeout_seconds}s）"
-}
+[[ -f $done_path ]] || die "等待 results/done.json 超时（${timeout_seconds}s）"
 
 if ! grep -q "\[Sts2Solver\] INIT id=Sts2Solver" "$log_path"; then
     die "Mod 未初始化：日志中没有 INIT"
@@ -353,10 +483,8 @@ done
 if kill -0 "$game_pid" 2>/dev/null; then
     die "游戏写出结果后 ${shutdown_timeout_seconds} 秒仍未退出"
 fi
-wait "$game_pid"
-game_exit=$?
-game_pid=""
-echo "HEADLESS_EXIT code=$game_exit"
-(( game_exit == 0 )) || die "无头游戏异常退出（code=$game_exit）"
+record_game_exit
+game_exit=$game_exit_status
+(( game_exit == 0 )) || die "无头游戏异常退出（${game_exit_description}）"
 (( failed == 0 )) || exit 1
 exit 0

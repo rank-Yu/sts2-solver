@@ -17,6 +17,7 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = REPO / "tests/corpora/scenarios/manifest.json"
 GENERATED_ROOT = REPO / ".local/scenario-regression"
+LOG_ROOT = GENERATED_ROOT / "logs"
 DIFFERENTIAL = REPO / "artifacts/bin/Differential/release/Differential.dll"
 MOD_DIR = REPO / "artifacts/mod-testing/Sts2Solver"
 RUN_HEADLESS = REPO / "tools/testing/run-headless.sh"
@@ -232,22 +234,29 @@ class ChunkResult:
     ok: bool
     failures: list[tuple[str, str]]
     output: str
+    failure_artifacts: list[str]
+    invalid_task_ids: int
+    build_invalid_task_ids: int
 
 
 def run_chunk(chunk: Chunk, requests_root: Path, results_root: Path,
               timeout_seconds: int) -> ChunkResult:
     request_directory = requests_root / chunk.name
     result_directory = results_root / chunk.name
+    log_directory = LOG_ROOT / chunk.name
     if result_directory.exists():
         shutil.rmtree(result_directory)
+    if log_directory.exists():
+        shutil.rmtree(log_directory)
     result_directory.parent.mkdir(parents=True, exist_ok=True)
     command = [
         str(RUN_HEADLESS),
         "--instance", f"scenario-{chunk.name}",
         "--requests", str(request_directory),
         "--results", str(result_directory),
+        "--log-dir", str(log_directory),
         "--timeout-seconds", str(timeout_seconds),
-        "--shutdown-timeout-seconds", "60",
+        "--shutdown-timeout-seconds", "120",
         "--cleanup-instance-on-exit",
     ]
     started = time.monotonic()
@@ -271,15 +280,39 @@ def run_chunk(chunk: Chunk, requests_root: Path, results_root: Path,
                                                        item.get("error"))))
     if not done_path.is_file():
         failures.append((chunk.name, f"没有 done.json；run-headless exit={completed.returncode}"))
+    elif completed.returncode != 0:
+        failures.append((chunk.name, f"run-headless exit={completed.returncode}"))
     ui_failure = read_ui_checks(result_directory) if result_directory.exists() else None
     if ui_failure is not None:
         failures.append((chunk.name, ui_failure))
+    failure_artifacts = []
+    invalid_task_ids = 0
+    build_invalid_task_ids = 0
+    for line in completed.stdout.splitlines():
+        marker = "HEADLESS_FAILURE_ARTIFACTS path="
+        if line.startswith(marker):
+            path = line[len(marker):].strip()
+            if path and path not in failure_artifacts:
+                failure_artifacts.append(path)
+        invalid_marker = "HEADLESS_GODOT_ERROR "
+        if line.startswith(invalid_marker):
+            invalid = re.search(r"\binvalid_task_id=(\d+)", line)
+            if invalid is not None:
+                invalid_task_ids += int(invalid.group(1))
+            build_invalid = re.search(r"\bbuild_invalid_task_id=(\d+)", line)
+            if build_invalid is not None:
+                build_invalid_task_ids += int(build_invalid.group(1))
     summary = (f"{chunk.name} requests={len(chunk.entries)} exit={completed.returncode} "
                f"elapsed={elapsed:.1f}s")
     if failures:
         summary += " failures=" + ",".join(entry_id for entry_id, _ in failures)
+    if failure_artifacts:
+        summary += " failureArtifacts=" + ",".join(failure_artifacts)
+    summary += (f" invalidTaskIds={invalid_task_ids}"
+                f" buildInvalidTaskIds={build_invalid_task_ids}")
     return ChunkResult(chunk, not failures, failures,
-                       completed.stdout + "\nSCENARIO_CHUNK " + summary)
+                       completed.stdout + "\nSCENARIO_CHUNK " + summary,
+                       failure_artifacts, invalid_task_ids, build_invalid_task_ids)
 
 
 def main() -> int:
@@ -374,6 +407,8 @@ def main() -> int:
                     if line.startswith(("HEADLESS_", "SCENARIO_CHUNK ", "run-headless:",
                                         "INSTANCE_REMOVED")):
                         print(line)
+                for path in result.failure_artifacts:
+                    print(f"SCENARIO_FAILURE_ARTIFACTS chunk={chunk.name} path={path}")
                 if not result.ok:
                     print(f"SCENARIO_CHUNK_FAILED {chunk.name}")
 
@@ -400,8 +435,18 @@ def main() -> int:
                       f"assertion={detail}")
             else:
                 print(f"FAIL group={group} instance={entry_id} assertion={detail}")
-    print(f"SCENARIO_SUMMARY total={total_entries} failed={total_failures} "
-          f"groups={len(groups)} results={args.results}")
+    all_artifacts = [path for result in completed_results
+                     for path in result.failure_artifacts]
+    total_invalid_task_ids = sum(result.invalid_task_ids for result in completed_results)
+    total_build_invalid_task_ids = sum(result.build_invalid_task_ids
+                                       for result in completed_results)
+    summary = (f"SCENARIO_SUMMARY total={total_entries} failed={total_failures} "
+               f"groups={len(groups)} invalidTaskIds={total_invalid_task_ids} "
+               f"buildInvalidTaskIds={total_build_invalid_task_ids} "
+               f"results={args.results}")
+    if all_artifacts:
+        summary += " failureArtifacts=" + ",".join(all_artifacts)
+    print(summary)
     return 1 if total_failures else 0
 
 

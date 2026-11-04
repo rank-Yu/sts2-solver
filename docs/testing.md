@@ -316,7 +316,47 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 
 负例：设置 `STS2_SOLVER_PILOT_TAMPER=hp`、`outcome` 或 `event` 篡改预测终局，检查分别报告 `player.hp`、`outcome`、`event-defeat is not covered`，退出码都为 1。
 
+对一个目录里的请求逐个对照时用 `--pilot-dir <目录>`：目录里的每个 `*.json` 是一份 `OfflineRequest`，父进程仍为每份请求启动独立子进程，`--pilot-jobs`、`--pilot-shard i n` 和 `--pilot-results <TSV>` 的含义与按根名运行时相同。子进程入口是 `--pilot-request <文件>`。`--pilot-results` 逐用例写 `case/status/reason/outcome/actions/turns/encounter/child_exit/first_diff/action/diag`，便于汇总差异类别；没有该参数时只打印汇总。
+
 内核回放评测（7.1）通过不等于这项对照通过，两类报告要分开写。
+
+### 7.3 sts2-sim 整局导出与批量对照
+
+`tools/sts2-sim-export/Sts2SimExport.csproj` 在 sts2-sim 里跑完整局，在每场战斗开始时导出一份 `OfflineRequest` 到本地目录。它不加入 `Sts2Solver.sln`，主构建不依赖 sts2-sim。
+
+准备外部检出（不修改 `~/ss/sts2-sim`）：
+
+```bash
+git clone ~/ss/sts2-sim .local/sts2-sim
+git -C .local/sts2-sim checkout 489c4b1
+dotnet build tools/sts2-sim-export/Sts2SimExport.csproj -c Release -p:NuGetAudit=false
+```
+
+工程默认读 `.local/sts2-sim`；也可以用 MSBuild 属性 `Sts2SimRepo` 或环境变量 `STS2_SIM_REPO` 指向其他固定检出。
+
+```bash
+dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-sim-export \
+  --runs 1000 --characters IRONCLAD,SILENT,DEFECT,REGENT,NECROBINDER --ascensions 0,10
+```
+
+每次运行输出：
+
+- `<scenarioId>.json`：战斗开始时的角色、进阶、幕、遭遇、生命、整副牌组、遗物状态和药水；
+- `combats.jsonl`：每个导出战斗的索引（角色、进阶、幕、房间类型、遭遇、种子、牌组/遗物/药水数量）；
+- `runs.jsonl`：整局种子与结果；`--resume` 会跳过已经记录的种子；
+- `summary.json`：按角色/进阶/幕/房间类型/遭遇的计数和跳过原因计数。
+
+导出器只记录能由 `OfflineRequest` 表达的运行状态；无法表达的牌或遗物状态、缺失内容的 id、空牌组等按 `EXPORT-SKIP <原因>=<次数>` 计数并跳过，不会构造近似请求。战斗种子由整局种子、幕、楼层、遭遇和该局战斗序号派生，重跑同一批种子得到同一组请求。
+
+导出的目录直接用 `--pilot-dir` 跑 7.2 的逐动作对照：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compare \
+  --pilot-dir .local/sts2-sim-export --pilot-jobs 4 \
+  --pilot-results .local/sts2-sim-diff/results.tsv
+```
+
+sts2-sim 的 `RunDriver` 只负责生成局面；判定仍由原版程序和本仓库内核完成，不和 sts2-sim 比较。该流程当前没有“在原版里随机走动作”的入口；随机动作对照的设计不在本文承诺范围内。
 
 ## 8. 搜索内存与计时
 

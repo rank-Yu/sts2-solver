@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1_THE_BOOT_OSTY",
+  "characterId": "NECROBINDER",
+  "encounterId": "GREMLIN_MERC_NORMAL",
+  "seed": "FS1BOOTOSTY",
+  "ascension": 0,
+  "initialPlayerHp": 66,
+  "initialPlayerMaxHp": 66,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 200,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THE_BOOT",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120
+}

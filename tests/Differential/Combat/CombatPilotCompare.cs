@@ -1,6 +1,8 @@
 // 原版战斗动作与终局对照：只通过原版建战斗，不依赖局外状态或开战预测。
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
@@ -20,6 +22,8 @@ namespace Differential;
 
 internal static class CombatPilotCompare
 {
+    private sealed record PilotCase(string Name, string? Root, string? RequestPath);
+
     public static int Run(string[] args)
     {
         string data = "tests/Golden/data";
@@ -28,6 +32,9 @@ internal static class CombatPilotCompare
         int shard = 0;
         int shards = 1;
         string? root = null;
+        string? fixtureDirectory = null;
+        string? requestPath = null;
+        string? resultsPath = null;
         for (int index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -48,6 +55,15 @@ internal static class CombatPilotCompare
                 case "--pilot-root" when index + 1 < args.Length:
                     root = args[++index];
                     break;
+                case "--pilot-dir" when index + 1 < args.Length:
+                    fixtureDirectory = args[++index];
+                    break;
+                case "--pilot-request" when index + 1 < args.Length:
+                    requestPath = args[++index];
+                    break;
+                case "--pilot-results" when index + 1 < args.Length:
+                    resultsPath = args[++index];
+                    break;
                 default:
                     Console.Error.WriteLine($"未知参数：{args[index]}");
                     return 2;
@@ -58,12 +74,19 @@ internal static class CombatPilotCompare
             Console.Error.WriteLine("--pilot-jobs 必须在 1 到 8 之间，分片参数必须合法。");
             return 2;
         }
+        if (requestPath != null)
+            return RunChild(data, corpora, root, requestPath);
+        if (fixtureDirectory != null && root != null)
+        {
+            Console.Error.WriteLine("--pilot-dir 和 --pilot-root 不能同时使用。");
+            return 2;
+        }
         if (root != null)
-            return RunChild(data, corpora, root);
-        return RunParent(data, corpora, jobs, shard, shards);
+            return RunChild(data, corpora, root, null);
+        return RunParent(data, corpora, jobs, shard, shards, fixtureDirectory, resultsPath);
     }
 
-    private static int RunChild(string data, string corpora, string root)
+    private static int RunChild(string data, string corpora, string? root, string? requestPath)
     {
         MainLoopContext loop = new();
         SynchronizationContext.SetSynchronizationContext(loop);
@@ -71,20 +94,28 @@ internal static class CombatPilotCompare
         GameBootstrap.SkipGodotNodeStaticConstructors();
         GameBootstrap.InitializeStaticState();
         TerminalBattleCapture.Install();
-        return ComparePilot(loop, data, corpora, root);
+        return ComparePilot(loop, data, corpora, root, requestPath);
     }
 
-    private static int RunParent(string data, string corpora, int jobs, int shard, int shards)
+    private static int RunParent(string data, string corpora, int jobs, int shard, int shards,
+        string? fixtureDirectory, string? resultsPath)
     {
-        List<string> cases = [];
-        foreach (string root in EnumeratePilotRoots(data, corpora))
-            cases.Add(root);
+        List<PilotCase> cases = EnumeratePilotCases(data, corpora, fixtureDirectory);
         if (shards > 1)
             cases = cases.Where((_, index) => index % shards == shard).ToList();
         if (cases.Count == 0)
         {
             Console.Error.WriteLine("没有 pilot 用例。");
             return 2;
+        }
+        if (resultsPath != null)
+        {
+            string fullResults = Path.GetFullPath(resultsPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullResults)!);
+            File.WriteAllText(fullResults,
+                "case\tstatus\treason\toutcome\tactions\tturns\tencounter\tchild_exit\t" +
+                "first_diff\taction\tdiag\n");
+            resultsPath = fullResults;
         }
 
         object gate = new();
@@ -95,10 +126,13 @@ internal static class CombatPilotCompare
         Dictionary<string, int> actionCoverage = new(StringComparer.Ordinal);
         Dictionary<string, int> effectCoverage = new(StringComparer.Ordinal);
         Console.WriteLine($"PILOT cases={cases.Count} jobs={jobs} shard={shard}/{shards}");
-        Parallel.ForEach(cases, new ParallelOptions { MaxDegreeOfParallelism = jobs }, root =>
+        Parallel.ForEach(cases, new ParallelOptions { MaxDegreeOfParallelism = jobs }, item =>
         {
-            (int code, string stdout, string stderr) = RunChildProcess(data, corpora,
-                ["--pilot-root", root]);
+            string[] childArgs = item.RequestPath != null
+                ? ["--pilot-request", item.RequestPath]
+                : ["--pilot-root", item.Root!];
+            (int code, string stdout, string stderr) =
+                RunChildProcess(data, corpora, childArgs);
             List<string> lines = stdout.Split('\n')
                 .Where(static line => line.StartsWith("PILOT ", StringComparison.Ordinal)
                     || line.StartsWith("PILOT-COVER ", StringComparison.Ordinal)
@@ -111,39 +145,52 @@ internal static class CombatPilotCompare
                 if (status == null)
                 {
                     crash++;
-                    Console.WriteLine($"PILOT-CRASH root={root} code={code}");
+                    Console.WriteLine($"PILOT-CRASH root={item.Name} code={code}");
                     string first = stderr.Split('\n').FirstOrDefault(static line => line.Length != 0)
                         ?? "no stderr";
                     Console.WriteLine("  " + first);
+                    WriteResult(resultsPath, item.Name, "crash", "no-status", "-", "0", "0", "-",
+                        code, "-", "-", "-");
                     return;
                 }
-                if (status.Contains(" status=same", StringComparison.Ordinal))
+                bool isSame = status.Contains(" status=same", StringComparison.Ordinal);
+                bool isReject = status.Contains(" status=reject", StringComparison.Ordinal);
+                string resultStatus;
+                if (isSame)
                 {
                     if (code != 0)
                     {
                         crash++;
-                        Console.WriteLine($"PILOT-CRASH root={root} code={code} status=same");
-                        return;
+                        Console.WriteLine($"PILOT-CRASH root={item.Name} code={code} status=same");
+                        resultStatus = "crash";
                     }
-                    same++;
+                    else
+                    {
+                        same++;
+                        resultStatus = "same";
+                    }
                 }
-                else if (status.Contains(" status=reject", StringComparison.Ordinal))
+                else if (isReject)
                 {
                     if (code != 0)
                     {
                         crash++;
-                        Console.WriteLine(
-                            $"PILOT-CRASH root={root} code={code} status=reject");
-                        return;
+                        Console.WriteLine($"PILOT-CRASH root={item.Name} code={code} status=reject");
+                        resultStatus = "crash";
                     }
-                    reject++;
-                    string reason = Field(status, "reason", "?");
-                    rejects[reason] = rejects.GetValueOrDefault(reason) + 1;
-                    Console.WriteLine($"PILOT-REJECT-CASE {root} {reason}");
+                    else
+                    {
+                        reject++;
+                        resultStatus = "reject";
+                        string reason = Field(status, "reason", "?");
+                        rejects[reason] = rejects.GetValueOrDefault(reason) + 1;
+                        Console.WriteLine($"PILOT-REJECT-CASE {item.Name} {reason}");
+                    }
                 }
                 else
                 {
                     diff++;
+                    resultStatus = "executor-diff";
                     Console.WriteLine(status);
                     foreach (string line in lines)
                     {
@@ -151,7 +198,7 @@ internal static class CombatPilotCompare
                             Console.WriteLine(line);
                     }
                     if (code != 0)
-                        Console.WriteLine($"PILOT-CHILD-EXIT root={root} code={code}");
+                        Console.WriteLine($"PILOT-CHILD-EXIT root={item.Name} code={code}");
                 }
                 string outcome = Field(status, "outcome", "-");
                 if (outcome is "victory")
@@ -160,7 +207,9 @@ internal static class CombatPilotCompare
                     defeats++;
                 else if (outcome is not ("reject" or "diff" or "executor-diff"))
                     otherOutcomes++;
-                actions += int.TryParse(Field(status, "actions", "0"), out int count) ? count : 0;
+                int actionCount = int.TryParse(Field(status, "actions", "0"), out int parsed)
+                    ? parsed : 0;
+                actions += actionCount;
                 foreach (string line in lines)
                 {
                     if (!line.StartsWith("PILOT-COVER ", StringComparison.Ordinal))
@@ -168,6 +217,25 @@ internal static class CombatPilotCompare
                     Accumulate(line, "actions=", actionCoverage);
                     Accumulate(line, "effects=", effectCoverage);
                 }
+                string firstDiff = lines
+                    .Select(static line => line.Trim())
+                    .FirstOrDefault(static line => line.StartsWith("+", StringComparison.Ordinal))
+                    ?? "-";
+                string differenceAction = lines
+                    .Select(static line => line.Trim())
+                    .FirstOrDefault(static line => line.StartsWith("PILOT-DIAG action=",
+                        StringComparison.Ordinal))
+                    ?? "-";
+                string diag = string.Join("; ", lines
+                    .Select(static line => line.Trim())
+                    .Where(static line => line.StartsWith("PILOT-DIAG ", StringComparison.Ordinal)));
+                if (diag.Length == 0)
+                    diag = "-";
+                WriteResult(resultsPath, item.Name, resultStatus,
+                    resultStatus == "same" ? "same" : Field(status, "reason", "-"),
+                    outcome, actionCount.ToString(CultureInfo.InvariantCulture),
+                    Field(status, "turns", "0"), Field(status, "encounter", "-"), code,
+                    firstDiff, differenceAction, diag);
             }
         });
         Console.WriteLine(
@@ -181,6 +249,39 @@ internal static class CombatPilotCompare
         foreach ((string effect, int count) in effectCoverage.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
             Console.WriteLine($"PILOT-EFFECT {effect}={count}");
         return diff == 0 && crash == 0 ? 0 : 1;
+    }
+
+    private static void WriteResult(string? path, string name, string status, string reason,
+        string outcome, string actions, string turns, string encounter, int exitCode,
+        string firstDiff, string differenceAction, string diag)
+    {
+        if (path == null)
+            return;
+        static string Clean(string value) => value.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
+        File.AppendAllText(path,
+            $"{Clean(name)}\t{Clean(status)}\t{Clean(reason)}\t{Clean(outcome)}\t" +
+            $"{Clean(actions)}\t{Clean(turns)}\t{Clean(encounter)}\t" +
+            $"{exitCode.ToString(CultureInfo.InvariantCulture)}\t{Clean(firstDiff)}\t" +
+            $"{Clean(differenceAction)}\t{Clean(diag)}\n");
+    }
+
+    private static List<PilotCase> EnumeratePilotCases(string data, string corpora,
+        string? fixtureDirectory)
+    {
+        if (fixtureDirectory == null)
+            return EnumeratePilotRoots(data, corpora)
+                .Select(static root => new PilotCase(root, root, null)).ToList();
+
+        string directory = Path.GetFullPath(fixtureDirectory);
+        if (!Directory.Exists(directory))
+            throw new DirectoryNotFoundException($"pilot 目录不存在：{directory}");
+        return Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly)
+            .Where(static path => Path.GetFileName(path) is not ("summary.json" or "manifest.json"
+                or "selection.json"))
+            .OrderBy(static path => path, StringComparer.Ordinal)
+            .Select(path => new PilotCase(Path.GetFileNameWithoutExtension(path), null,
+                Path.GetFullPath(path)))
+            .ToList();
     }
 
     private static void Accumulate(string line, string field, Dictionary<string, int> counts)
@@ -214,9 +315,15 @@ internal static class CombatPilotCompare
         return end < 0 ? line[start..] : line[start..end];
     }
 
-    private static int ComparePilot(MainLoopContext loop, string data, string corpora, string root)
+    private static int ComparePilot(MainLoopContext loop, string data, string corpora,
+        string? root, string? requestPath)
     {
-        OfflineRequest request = Program.LoadRequest(data, corpora, root);
+        string caseName = root ?? Path.GetFileNameWithoutExtension(requestPath!)
+            ?? throw new InvalidDataException("pilot 用例没有名称。");
+        OfflineRequest request = requestPath != null
+            ? LoadRequestFromPath(requestPath)
+            : Program.LoadRequest(data, corpora,
+                root ?? throw new InvalidDataException("pilot 用例没有根名。"));
         try
         {
             OfflineCombatWaiter waiter = new(loop);
@@ -242,8 +349,20 @@ internal static class CombatPilotCompare
                 SearchPolicyCapture.Capture(combat, combatPlayer), request, combatPlayer);
             NativePilotHost host = new(loop, combat, combatPlayer, nativeRules, tracker, opening,
                 policy, SearchPerformanceProfile.For(SearchPerformanceTier.Low), OfflineCombatSettings.DefaultMemoryBudgetBytes);
-            CombatPilotResult result = CombatPilot.RunAsync(host, root, CancellationToken.None)
+            CombatPilotResult result = CombatPilot.RunAsync(host, caseName, CancellationToken.None)
                 .GetAwaiter().GetResult();
+            if (result.Deviations == 0 && result.FailureLog.Length != 0
+                && IsImportFailure(result.FailureLog[0].Reason))
+            {
+                string importReason = result.FailureLog[0].Reason;
+                Console.WriteLine(
+                    $"PILOT root={caseName} status=reject reason={importReason} " +
+                    $"outcome=reject actions={DeployedActions(host.Coverage)} " +
+                    $"turns={result.Turns} encounter={encounterId}");
+                Console.WriteLine("  " + result.FailureLog[0].Detail);
+                WriteCoverage(host.Coverage);
+                return 0;
+            }
             if (result.DeploymentFailures != 0 || result.Deviations != 0
                 || result.Status is not ("victory" or "defeat" or "ended"))
             {
@@ -256,16 +375,22 @@ internal static class CombatPilotCompare
                     : result.PauseReason ?? "";
                 string status = result.Status == "rejected" ? "reject" : "executor-diff";
                 Console.WriteLine(
-                    $"PILOT root={root} status={status} reason={reason} " +
+                    $"PILOT root={caseName} status={status} reason={reason} " +
                     $"outcome={result.Outcome} actions={DeployedActions(host.Coverage)} " +
                     $"turns={result.Turns} encounter={encounterId}");
                 Console.WriteLine("  " + detail);
+                if (host.LastDifferenceAction is { Length: > 0 } differenceAction)
+                    Console.WriteLine("  PILOT-DIAG action=" + differenceAction);
+                if (result.Deviations != 0)
+                    DumpDeviationPile(combatPlayer, result.DeviationLog[0].Fields);
+                else if (result.FailureLog.Length != 0)
+                    DumpDeviationPile(combatPlayer, result.FailureLog[0].Detail.Split('\n'));
                 WriteCoverage(host.Coverage);
                 return status == "reject" ? 0 : 1;
             }
             string outcome = OutcomeName(host.Current.Outcome);
             Console.WriteLine(
-                $"PILOT root={root} status=same outcome={outcome} " +
+                $"PILOT root={caseName} status=same outcome={outcome} " +
                 $"actions={DeployedActions(host.Coverage)} turns={host.Current.PlayerTurn} " +
                 $"encounter={encounterId}");
             WriteCoverage(host.Coverage);
@@ -274,7 +399,7 @@ internal static class CombatPilotCompare
         catch (UnsupportedImportException error)
         {
             Console.WriteLine(
-                $"PILOT root={root} status=reject reason={error.Reason} " +
+                $"PILOT root={caseName} status=reject reason={error.Reason} " +
                 "outcome=reject actions=0");
             Console.WriteLine("  " + error.Detail);
             return 0;
@@ -282,7 +407,7 @@ internal static class CombatPilotCompare
         catch (Sts2Solver.Simulation.Combat.UnsupportedException error)
         {
             Console.WriteLine(
-                $"PILOT root={root} status=reject reason=core-unsupported " +
+                $"PILOT root={caseName} status=reject reason=core-unsupported " +
                 "outcome=reject actions=0");
             Console.WriteLine("  " + error.Message);
             return 0;
@@ -290,12 +415,75 @@ internal static class CombatPilotCompare
         catch (CapacityException error)
         {
             Console.WriteLine(
-                $"PILOT root={root} status=reject reason=capacity " +
+                $"PILOT root={caseName} status=reject reason=capacity " +
                 "outcome=reject actions=0");
             Console.WriteLine("  " + error.Message);
             return 0;
         }
     }
+
+    private static void DumpDeviationPile(Player player,
+        IReadOnlyList<string> fields)
+    {
+        foreach (string field in fields)
+        {
+            Match match = Regex.Match(field, @"(Hand|Draw|Discard|Exhaust|Play)\[(\d+)\]");
+            if (!match.Success || player.PlayerCombatState is not { } state)
+                continue;
+            string pileName = match.Groups[1].Value;
+            int index = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            IReadOnlyList<MegaCrit.Sts2.Core.Models.CardModel> pile = pileName switch
+            {
+                "Hand" => state.Hand.Cards,
+                "Draw" => state.DrawPile.Cards,
+                "Discard" => state.DiscardPile.Cards,
+                "Exhaust" => state.ExhaustPile.Cards,
+                "Play" => state.PlayPile.Cards,
+                _ => [],
+            };
+            if (index < 0 || index >= pile.Count)
+            {
+                Console.WriteLine($"  PILOT-DIAG pile={pileName} index={index} out-of-range count={pile.Count}");
+                continue;
+            }
+            MegaCrit.Sts2.Core.Models.CardModel card = pile[index];
+            string vars = string.Join(",", card.DynamicVars.Values.Select(variable =>
+                $"{variable.Name}={variable.BaseValue.ToString(CultureInfo.InvariantCulture)}"));
+            string enchantments = card.Enchantment is { } attachedEnchantment
+                ? $"{attachedEnchantment.Id.Entry}:{attachedEnchantment.Amount}"
+                : "-";
+            string affliction = card.Affliction is { } attached
+                ? $"{attached.Id.Entry}:{attached.Amount}"
+                : "-";
+            Console.WriteLine(
+                $"  PILOT-DIAG pile={pileName} index={index} card={card.Id.Entry} " +
+                $"upgrade={card.CurrentUpgradeLevel} vars=[{vars}] " +
+                $"enchant=[{enchantments}] affliction={affliction}");
+        }
+    }
+
+    private static OfflineRequest LoadRequestFromPath(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        OfflineRequest request = JsonSerializer.Deserialize<OfflineRequest>(
+            File.ReadAllText(fullPath), OfflineJson.Options)
+            ?? throw new InvalidDataException($"pilot 请求为空：{fullPath}");
+        if (request.GeneratedScenarioPath is { Length: > 0 } generated)
+        {
+            string specPath = Path.IsPathRooted(generated)
+                ? generated
+                : Path.Combine(Path.GetDirectoryName(fullPath)!, generated);
+            if (!File.Exists(specPath))
+                throw new FileNotFoundException(
+                    $"pilot 请求 {fullPath} 引用的生成场景不存在：{generated}", specPath);
+            request = request with { GeneratedScenarioPath = Path.GetFullPath(specPath) };
+        }
+        return request;
+    }
+
+    private static bool IsImportFailure(string reason) =>
+        reason.StartsWith("import_", StringComparison.Ordinal)
+        || string.Equals(reason, "request_invalid", StringComparison.Ordinal);
 
     private static string OutcomeName(Outcome outcome) => outcome switch
     {

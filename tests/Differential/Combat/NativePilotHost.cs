@@ -32,6 +32,8 @@ internal sealed class NativePilotHost(
 
     internal Battle Current => _current;
 
+    internal string? LastDifferenceAction { get; private set; }
+
     internal CombatActionCoverage Coverage { get; } = new();
 
     public ValueTask<CombatPilotTurn?> WaitForTurnAsync(CancellationToken token)
@@ -160,6 +162,7 @@ internal sealed class NativePilotHost(
             }
             else if (!CombatRouteDecision.ActionMatches(action, live))
             {
+                LastDifferenceAction = CombatPilotAction.Describe(action);
                 onDifference?.Invoke(action.After, live);
                 string[] diff = CombatRouteDecision.BoundaryDiff(action.After, live);
                 return ValueTask.FromResult(new CombatPilotDeployment(false, false,

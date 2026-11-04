@@ -25,6 +25,17 @@
   - `ts-k-two-relic-choices`：烤面包手套 + 赌博芯片，同一准备阶段产生两段可见选择；
   - `ts-ex-extra-turn`：PaelsEye + 烤面包手套，第 1 回合能量 0 且只抽防御牌，结束回合必触发额外回合，覆盖额外回合开始的准备选择。
 
+sts2-sim 整局导出批次（FS1）的归类 fixture 同样是测试专用，不对应 d1 冻结根：
+
+- `fs1-multi-hit-dagger-spray`、`fs1-multi-hit-volley`、`fs1-multi-hit-stardust-combat-end`：多段攻击的段数没有完整结算；
+- `fs1-skittish-osty`：Osty 攻击没有触发 Phantasmal Gardener 的 Skittish；
+- `fs1-the-boot-osty`：The Boot 没有把 Osty 攻击的最低伤害抬到 5；
+- `fs1-waterfall-steam-death`：Waterfall Giant 在蒸汽爆发状态下死亡时，原版与内核的 `SteamPhase` 不同；
+- `fs1-lagavulin-osty-plating`：Osty 攻击对 Lagavulin Matriarch 的伤害/格挡结算不同；
+- `fs1-import-unsupported-kaiser`：抽牌钩子移动过的牌无法按原位置弃置，导入明确拒绝。
+
+这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
+
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。
 
 控制器、回合准备和整场回归使用的长期请求清单在 [`../scenarios/`](../scenarios/README.md)，与冻结 fixture 输入分开维护。

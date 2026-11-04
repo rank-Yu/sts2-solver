@@ -32,6 +32,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | `src/TestHost/ModTesting` | 只编入测试版 Mod 的实机测试入口与补丁 |
 | `tests` | 内核合同、架构检查、冻结回归、原版差分与质量语料 |
 | `tools/testing` | 本地验证与无头实机测试脚本 |
+| `tools/sts2-sim-export` | 用 sts2-sim 跑整局并导出 `OfflineRequest` 的本地工具 |
 
 `Sts2Solver.sln` 只包含不需要游戏文件的 Core、KernelChecks、Golden 和 Architecture；Import、Mod、TestHost、Differential 单独构建。游戏加载器要求单一 Mod DLL，所以 Mod 把 Core 与 Import 的源码直接编入 `Sts2Solver.dll`，测试版再额外编入 TestHost。
 

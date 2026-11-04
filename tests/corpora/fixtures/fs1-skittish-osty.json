@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1_SKITTISH_OSTY",
+  "characterId": "NECROBINDER",
+  "encounterId": "PHANTASMAL_GARDENERS_ELITE",
+  "seed": "FS1SKITTISHOSTY",
+  "ascension": 0,
+  "initialPlayerHp": 66,
+  "initialPlayerMaxHp": 66,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 200,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "RATTLE",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "timeoutSeconds": 120
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1_WATERFALL_STEAM_DEATH",
+  "characterId": "REGENT",
+  "encounterId": "WATERFALL_GIANT_BOSS",
+  "seed": "5D4ADF757EA28526",
+  "ascension": 10,
+  "actIndexForTest": 0,
+  "targetRoomType": "Boss",
+  "targetMapPointType": "Boss",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 75,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "PHOTON_CUT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HEGEMONY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ORBIT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [],
+  "potions": [
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

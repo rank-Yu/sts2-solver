@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    用 sts2-sim 跑整局并导出战斗开局。sts2-sim 是外部依赖，通过 Sts2SimRepo
+    MSBuild 属性或 STS2_SIM_REPO 环境变量指定；默认使用工作树里的 .local/sts2-sim。
+    本工程不加入 Sts2Solver.sln，主构建不依赖 sts2-sim。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>13</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Sts2SimExport</AssemblyName>
+    <RootNamespace>Sts2SimExport</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Sts2SimRepo Condition="'$(Sts2SimRepo)' == '' and '$(STS2_SIM_REPO)' != ''">$(STS2_SIM_REPO)</Sts2SimRepo>
+    <Sts2SimRepo Condition="'$(Sts2SimRepo)' == ''">$(MSBuildThisFileDirectory)../../.local/sts2-sim</Sts2SimRepo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Core/Sts2Solver.Core.csproj" />
+    <ProjectReference Include="$(Sts2SimRepo)/src/Sts2Sim.Core/Sts2Sim.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="ValidateSts2SimCheckout" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(Sts2SimRepo)/src/Sts2Sim.Core/Sts2Sim.Core.csproj')"
+           Text="找不到 sts2-sim：$(Sts2SimRepo)。先 git clone ~/ss/sts2-sim .local/sts2-sim，或用 Sts2SimRepo / STS2_SIM_REPO 指定路径。" />
+  </Target>
+</Project>

@@ -1039,8 +1039,8 @@ internal static class Program
               dotnet Differential.dll --setup-enumerate <root> [--setup-turn 1]
               dotnet Differential.dll --rules-table-check
               dotnet Differential.dll --import-negative [--root <name>]
-              dotnet Differential.dll --combat-pilot-compare [--pilot-root <name>]
-                  [--pilot-jobs 1..8] [--pilot-shard i n]
+              dotnet Differential.dll --combat-pilot-compare [--pilot-root <name> | --pilot-dir <dir>]
+                  [--pilot-jobs 1..8] [--pilot-shard i n] [--pilot-results <file>]
               dotnet Differential.dll --compare-only <newDir> <referenceDir>
               dotnet Differential.dll --all --compare <referenceDir>
               dotnet Differential.dll --live-compare <resultDir>

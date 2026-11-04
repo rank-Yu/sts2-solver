@@ -270,6 +270,8 @@
 | `PendingPowerChanges`（容量 64） | 待派发的 Power 数量变化队列（见 [内核语义](combat-semantics.md#32-派发规则)）；原引擎同样要求分叉前 `_pendingPowerAmountChanges` 为空 |
 | `TransientMarkBase` | `TransientMark` 动态区间的分配游标 |
 | `CardDamageTotal`、`LastDamageTotal`、`LastDamageOverkill` | 本次出牌全部命中的伤害合计，以及最近一次伤害的结果（Fisticuffs、Omnislice 读；对应原引擎 `CombatPredictionDamageReceivedEntry.Result`）；每次出牌开始清零 |
+| `AttackProps`、`AttackHasCardSource` | 当前攻击上下文的伤害属性和卡来源事实（`AttackCommand.DamageProps`/`ModelSource is CardModel`），供 `AfterAttack` 监听者读取 |
+| `AttackFirstResultSeen`、`AttackFirstResultUnblocked`、`DamageCallDepth` | 当前攻击上下文内每个敌人的第一条伤害结果及是否未格挡；`DamageCallDepth` 区分攻击自身的伤害与结果钩子里的嵌套伤害。SkittishPower 的 `AfterAttack` 读取 |
 | `CurrentPlayIsHistoryCourseDupe` | 当前打出的是 HISTORY_COURSE 的复制品 |
 | `StarValue` | 本次出牌的星能 X 值（原版 `LastStarsSpent`） |
 | `BrightestFlameMaxHpSpent` | 本动作中至亮之焰请求消耗的最大生命合计：按每次打出（含自动打出和重放）卡牌的动态 `MaxHp` 累计；动作结束后由搜索读取，不进入 `Battle` |

@@ -337,6 +337,7 @@ public static partial class Kernel
             if (x.NeedsChoice)
                 return x.B.Player.IsDead;
             x.AttackUnblockedHits = 0;
+            BeginAttack(ref x, ValueProps.Move, hasCardSource: false);
             Span<byte> player = stackalloc byte[1];
             player[0] = Limits.PlayerOwner;
             int attackIndex = 0;
@@ -364,8 +365,7 @@ public static partial class Kernel
             }
         AttackDone:
             // EndAttackContext(completed): AfterAttack iterates the combat listeners without the ending gate.
-            AfterAttackHook after = new() { Attacker = owner };
-            HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
+            EndAttackContext(ref x, owner);
             if (x.NeedsChoice)
                 return x.B.Player.IsDead;
         }

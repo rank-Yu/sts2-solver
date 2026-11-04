@@ -19,7 +19,8 @@ public sealed class TheBoot : RelicDef
     public override decimal ModifyHpLostAfterOstyLate(ref Exec x, Listener self, in HpLossContext loss,
         decimal amount)
     {
-        if (loss.Dealer != self.Owner || loss.Target == self.Owner)
+        // TheBoot.cs: dealer == Owner.Creature || dealer == Owner.Osty.
+        if (!Kernel.IsOwnerOrOsty(self.Owner, loss.Dealer) || loss.Target == self.Owner)
             return amount;
         if (!loss.Props.IsPoweredAttack() || amount < 1m)
             return amount;
@@ -77,7 +78,8 @@ public sealed class HandDrill : RelicDef
 
     public override void AfterBlockBroken(ref Exec x, Listener self, byte target, byte breaker)
     {
-        if (breaker != self.Owner || target == Limits.PlayerOwner)
+        // HandDrill.cs: breaker == Owner.Creature || breaker.PetOwner == Owner.
+        if (!Kernel.IsOwnerOrOsty(self.Owner, breaker) || target == Limits.PlayerOwner)
             return;
         Kernel.ApplyPower(ref x, target, Registry.PowerId<VulnerablePower>(),
             (int)x.R.RelicVar(Id, 0), Limits.PlayerOwner);

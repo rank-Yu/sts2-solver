@@ -22,7 +22,17 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
 
     public void ProjectMonster(Creature creature, MonsterDef def, ref Enemy target)
     {
-        target.SteamPhase = SteamPhase.None;
+        // Waterfall Giant expresses SteamPhase with two native moves: TriggerAboutToBlowState
+        // installs ABOUT_TO_BLOW_MOVE, and its follow-up is EXPLODE_MOVE. Both are stable boundary
+        // states, so project the phase instead of dropping a state the kernel models.
+        target.SteamPhase = def.NativeId == "WATERFALL_GIANT"
+            ? NativeAccess.CurrentMoveId(creature.Monster!) switch
+            {
+                "ABOUT_TO_BLOW_MOVE" => SteamPhase.AboutToBlow,
+                "EXPLODE_MOVE" => SteamPhase.Explode,
+                _ => SteamPhase.None,
+            }
+            : SteamPhase.None;
         if (def.AiRegisterNames.Count > Limits.EnemyAiRegisters)
             throw new UnsupportedImportException(ImportReason.Capacity,
                 $"{creature.Monster?.Id.Entry} AI 寄存器 {def.AiRegisterNames.Count}");

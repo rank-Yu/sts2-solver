@@ -554,7 +554,7 @@ public sealed class HellraiserPower : PowerDef
     /// <summary>
     /// <c>HittableEnemies.All(c =&gt; c.HpDisplay.IsInfinite())</c>: hittable enemies are the roster
     /// entries not in a death phase. The only infinite display is a Waterfall Giant rewritten by
-    /// <c>TryTriggerSteamEruptionDeath</c>; Sts2Solver records that as the steam phase or the value-clamp HP
+    /// <c>TriggerSteamEruptionDeath</c>; Sts2Solver records that as the steam phase or the value-clamp HP
     /// (the Explode phase clears SteamPhase but keeps the rewritten HP until the forced kill).
     /// </summary>
     private static bool AllHittableEnemiesInfinite(ref Exec x)

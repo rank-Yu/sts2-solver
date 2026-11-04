@@ -258,26 +258,20 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// <c>SimulatedCombatState.TryTriggerSteamEruptionDeath</c>: a dead Waterfall Giant that still
-    /// holds Steam Eruption is rewritten to its forced about-to-blow phase instead of dying. HP and
-    /// max HP become the value clamp, the current move is forced to <c>ABOUT_TO_BLOW_MOVE</c>, the
-    /// phase is armed and the death power cleanup runs (Steam Eruption itself is kept by
-    /// <c>ShouldPowerBeRemovedAfterOwnerDeath</c>).
+    /// <c>SteamEruptionPower.AfterDeath</c> plus <c>WaterfallGiant.TriggerAboutToBlowState</c>: a
+    /// Waterfall Giant that dies while holding Steam Eruption is rewritten to its forced about-to-blow
+    /// phase instead of dying. HP and max HP become the value clamp, the current move is forced to
+    /// <c>ABOUT_TO_BLOW_MOVE</c>, the phase is armed, and the death power cleanup runs (Steam Eruption
+    /// itself is kept by <c>ShouldPowerBeRemovedAfterOwnerDeath</c>). The native AfterDeath hook runs
+    /// immediately inside the kill, so later damage in the same action hits the rewritten creature.
     /// </summary>
-    public static bool TryTriggerSteamEruptionDeath(ref Exec x, byte owner)
+    public static void TriggerSteamEruptionDeath(ref Exec x, byte owner)
     {
         if (!IsEnemyOwner(owner))
-            return false;
+            throw new UnsupportedException("SteamEruptionPower 只能作用于敌方生物。");
         ref Enemy enemy = ref x.B.Enemy(owner);
         if (Registry.Monster(enemy.MonsterId).NativeId != "WATERFALL_GIANT")
-            return false;
-        if (enemy.SteamPhase != SteamPhase.None || x.B.Creature(owner).IsAlive)
-            return false;
-        if (!Registry.TryPower("STEAM_ERUPTION_POWER", out ushort steam)
-            || GetAmount(x.B, owner, steam) <= 0)
-        {
-            return false;
-        }
+            throw new UnsupportedException("SteamEruptionPower 只支持 Waterfall Giant。");
         ref Creature creature = ref x.B.Creature(owner);
         creature.MaxHp = Limits.ValueClamp;
         creature.CurrentHp = Limits.ValueClamp;
@@ -285,7 +279,6 @@ public static partial class Kernel
         ForceMonsterMove(ref x, owner, rules.NodeIndex("ABOUT_TO_BLOW_MOVE"));
         enemy.SteamPhase = SteamPhase.AboutToBlow;
         RemovePowersAfterDeath(ref x, owner);
-        return true;
     }
 
     /// <summary>

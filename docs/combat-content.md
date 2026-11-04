@@ -171,6 +171,8 @@
 
 **Osty 攻击。** 带 `CardTag.OstyAttack` 的牌以 `OstyOwner` 为攻击者调用 `CardAttack`，力量、虚弱和攻击历史都归宠物；宠物已死时直接返回。攻击结束后 `OstyAttacksThisTurn` 加一；这个计数只在 `OstyWasRootPet` 时于玩家回合开始清零（原引擎 `BeginSideTurn(player)` 走的是原生 `ownerPlayer.Osty`）。
 
+**伤害来源归属。** 原版判断“是不是玩家造成的”时并不总是比较 `dealer == 玩家`：部分钩子还把 `dealer.PetOwner`（Osty）算进来，或只看卡牌来源的持有者。内核按同一条条件实现：SkittishPower 在攻击上下文的 `AfterAttack` 里读该敌人的第一条伤害结果（Osty 攻击也触发）；PenNib、TheBoot、HandDrill 的 dealer/breaker 条件接受 `Owner.Creature || Owner.Osty`；StrikeDummy/FakeStrikeDummy/MiniatureCannon 只看卡来源是否属于玩家；GigantificationPower 按卡来源的 owner 加伤并消耗，Osty 攻击同样命中；VulnerablePower 的 Cruelty 修正回退到 dealer 的 PetOwner。PaperPhrog 的原版查询走 `dealer.Player`，因此 Osty 攻击不吃 PaperPhrog，内核保持这一差别。
+
 **Doom。**
 
 - 敌方侧回合末：对每个存活参与者求该侧的 Doom 总和，第一个满足 `CurrentHp <= Doom` 的监听者触发一次成批的 `DoomKill`，位置在 `TriggerEnemySideTurnEndEffects` 开头、Regen 与 Plating 之前。
@@ -210,7 +212,7 @@
 **依赖本次出牌伤害的卡。** 这几张读的是本次出牌期间的瞬态伤害合计（字段见 [状态布局](combat-state-layout.md#42-动作期间的瞬态exec)）：
 
 - **Fisticuffs**：镜像攻击后先结算敌人死亡，再按本次出牌全部命中的伤害合计获得格挡（`CorePowerSupport` 的 Fisticuffs 分支）。
-- **Omnislice**：第一击后结算死亡，再把最近一次伤害的“格挡 + 未格挡 + 溢出”以 `Unpowered | Move` 打给目标以外的所有可命中敌人（`CardOnPlaySupport.Batch042.ApplyOmnislice`）。它的死亡结算也只遍历当前名单，所以击杀后离场的 Infested 尸体不会在复制伤害前生成 Wriggler。
+- **Omnislice**：第一击后结算死亡，再把最近一次伤害的“格挡 + 未格挡 + 溢出”以 `Unpowered | Move` 打给目标以外的所有可命中敌人（`CardOnPlaySupport.Batch042.ApplyOmnislice`）。原始命中与复制命中在同一个 `AttackContext` 里：`BeforeAttack` 一次、`AfterAttack` 在两者都结束后一次，`AddHit` 不增加出牌的攻击历史计数。它的死亡结算也只遍历当前名单，所以击杀后离场的 Infested 尸体不会在复制伤害前生成 Wriggler。
 - **HandOfGreed**：镜像攻击后检查本次出牌是否击杀了目标、且目标所有 Power 都允许致命（`ShouldOwnerDeathTriggerFatal`），成功则加金币和 `LongTermResourceValue`。BowlerHat、Ectoplasm、DragonFruit 这类金币修正遗物只影响战斗外的金币收入，已有空定义或能量定义，不改变战斗内结算。
 - **GoldAxe**：`FinishedCardPlays` 计数器导入根历史的 `GetFinishedPlaysBeforePrediction`，每次完成出牌加一，作为 `CalculatedVarSpecRegistry` 的乘数。
 
@@ -269,7 +271,7 @@
 - 复制品的身份经栈上的 `Exec.CurrentPlayIsHistoryCourseDupe` 传播：它的结果去向是移出战斗（`PileType.None`），不写回“本回合最后一次攻击”；Feral、Rebound、ChainsOfBinding 等按 `IsDupe` 跳过的 Hook 在这里同样跳过。
 - `Rules.HasHistoryCourse` 为假时，记录和复制都跳过。
 
-**Pen Nib。** 第十次攻击的锁存保存触发它那次出牌的 `Exec.PlayIdentity`（在 `Relic.Aux`），不是布尔值。`ModifyDamageMultiplicative` 只在当前 `PlayIdentity` 与它相等时加倍，`AfterCardPlayed` 只在 `LastPlayIdentity` 相等时清除。这样，弃牌选择里嵌套自动打出的 Sly 牌（另一次出牌）不会继承加倍。玩家死亡等原因留下的未完成锁存，由 `Rules.PenNibRelicIndex` 在稳定边界清掉。对照 `BeforeCardPlayedMirrors.HandlePenNib`、`ModifyDamageMirrors.HandlePenNib`、`AfterCardPlayedMirrors.HandlePenNib` 的 `AttackToDouble == CardSource.Original`。
+**Pen Nib。** 第十次攻击的锁存保存触发它那次出牌的 `Exec.PlayIdentity`（在 `Relic.Aux`），不是布尔值。`ModifyDamageMultiplicative` 只在当前 `PlayIdentity` 与它相等、且 dealer 是玩家或玩家的 Osty 时加倍，`AfterCardPlayed` 只在 `LastPlayIdentity` 相等时清除。这样，弃牌选择里嵌套自动打出的 Sly 牌（另一次出牌）不会继承加倍。玩家死亡等原因留下的未完成锁存，由 `Rules.PenNibRelicIndex` 在稳定边界清掉。对照 `PenNib.ModifyDamageMultiplicative` 的 `dealer == Owner.Creature || dealer == Owner.Osty`，以及 `BeforeCardPlayedMirrors.HandlePenNib`、`ModifyDamageMirrors.HandlePenNib`、`AfterCardPlayedMirrors.HandlePenNib` 的 `AttackToDouble == CardSource.Original`。
 
 ### 7.3 其它有战斗内结算的遗物
 

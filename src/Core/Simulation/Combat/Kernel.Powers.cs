@@ -505,6 +505,13 @@ public static partial class Kernel
 
     public static bool IsPlayerSide(byte owner) => owner == Limits.PlayerOwner || owner == Limits.OstyOwner;
 
+    /// <summary>
+    /// Native <c>dealer == Owner.Creature || dealer == Owner.Osty</c>: the owner's creature or its
+    /// pet. Osty is the only pet in the supported content.
+    /// </summary>
+    public static bool IsOwnerOrOsty(byte owner, byte dealer)
+        => dealer == owner || (owner == Limits.PlayerOwner && dealer == Limits.OstyOwner);
+
     /// <summary>Mirrors <c>SimulatedCombatState.ConsumeArtifact</c>.</summary>
     private static bool ConsumeArtifact(ref Battle battle, byte target)
     {

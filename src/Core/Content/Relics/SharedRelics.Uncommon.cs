@@ -522,8 +522,9 @@ public sealed class PenNib : RelicDef
     public override decimal ModifyDamageMultiplicative(ref Exec x, Listener self,
         in DamageContext damage, decimal amount)
     {
+        // PenNib.cs: dealer == Owner.Creature || dealer == Owner.Osty.
         if (!damage.Props.IsPoweredAttack() || !damage.HasCardSource
-            || damage.Dealer != Limits.PlayerOwner)
+            || !Kernel.IsOwnerOrOsty(self.Owner, damage.Dealer))
             return 1m;
         // Native: `AttackToDouble == context.CardSource.Original`. The play identity names the
         // CardPlay that owns the latch; a nested auto-play has already replaced x.PlayIdentity.

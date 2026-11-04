@@ -6,7 +6,7 @@
     "d2": "75217006903195bc94654680423bb9ca580ec48a",
     "d1Config": "66a43838d89e7a03b05c0f04d5e4941ff555baec",
     "formatMigration": "v4\u2192v5\uFF1ABattle \u5220\u9664\u539F\u5F15\u64CE\u7EE7\u627F\u7684 ShufflesCrossed \u8BA1\u6570\uFF0C\u5934\u90E8 3,868\u21923,860 \u5B57\u8282\uFF0C\u663E\u5F0F\u586B\u5145 5\u21921 \u5B57\u8282\uFF1BD1 \u6839\u72B6\u6001\u6309\u7248\u672C 4 \u6295\u5F71\u5220\u9664\u8BE5\u5B57\u6BB5\u540E\u91CD\u5F55\uFF0C\u53EA\u6539\u683C\u5F0F\u4E0E\u72B6\u6001\u8EAB\u4EFD\uFF0C\u4E0D\u8BFB\u53D6\u8BE5\u5B57\u6BB5\u7684\u8BC4\u5206\u3001\u526A\u679D\u3001\u5408\u6CD5\u52A8\u4F5C\u6216\u98CE\u9669\u5224\u65AD\u90FD\u4E0D\u53D8\u3002",
-    "refreeze": "extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700a19d8e092a16d7d8697",
+    "refreeze": "fs1-fidelity-fixes sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700a19d8e092a16d7d8697",
     "d1Rerecord": "roots=pr-c-relics reason=extra-turn-setup sha256=9a2a9a50d7135c454ad9825d9f6bf37850dce702df28b11d1548614d566bc5a4"
   },
   "compression": "brotli",

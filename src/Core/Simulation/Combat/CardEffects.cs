@@ -31,14 +31,15 @@ public static class CardEffects
 
     /// <summary>Mirrors <c>GeneralCardMirrors.GeneralAttackOnPlay</c> for a plain damage variable and one hit.</summary>
     public static void GeneralAttack(ref Exec x, int damageVar, int hitCount = 1,
-        bool recordAttack = true)
-        => Attack(ref x, Var(x, damageVar), hitCount, recordAttack);
+        bool recordAttack = true, bool endAttack = true)
+        => Attack(ref x, Var(x, damageVar), hitCount, recordAttack, endAttack);
 
     /// <summary>
     /// The attack half of the general recipe with an already-calculated damage value (BodySlam,
     /// PerfectedStrike and the other <c>CalculatedDamageVar</c> cards).
     /// </summary>
-    public static void Attack(ref Exec x, decimal damage, int hitCount = 1, bool recordAttack = true)
+    public static void Attack(ref Exec x, decimal damage, int hitCount = 1, bool recordAttack = true,
+        bool endAttack = true)
     {
         CardStats stats = x.Stats ?? throw new InvalidOperationException("当前没有正在打出的卡。");
         TargetType targetType = Registry.Card(x.Card.Id).ResolveTargetType(x.B, x.R, x.Card);
@@ -49,7 +50,8 @@ public static class CardEffects
             TargetType.RandomEnemy => AttackTargeting.Random,
             _ => throw new UnsupportedException($"攻击目标类型 {targetType} 尚未实现。"),
         };
-        Kernel.CardAttack(ref x, damage, hitCount, targeting, x.Target, recordAttack: recordAttack);
+        Kernel.CardAttack(ref x, damage, hitCount, targeting, x.Target, recordAttack: recordAttack,
+            endAttack: endAttack);
     }
 
     /// <summary>

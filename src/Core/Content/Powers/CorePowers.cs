@@ -50,9 +50,17 @@ public sealed class VulnerablePower : PowerDef
             && OwnsPaperPhrog(x.B))
             multiplier += 0.25m;
         // ModifyDamageMirrors.HandleVulnerablePower adds CrueltyPower.Amount / 100m; the native
-        // CrueltyPower.ModifyVulnerableMultiplier uses the same percentage divisor.
+        // CrueltyPower.ModifyVulnerableMultiplier uses the same percentage divisor and reads the
+        // dealer's power, falling back to the dealer's pet owner (Osty -> player).
         if (damage.Dealer != Limits.NoOwner)
-            multiplier += (decimal)Kernel.GetAmount(x.B, damage.Dealer, Registry.PowerId<CrueltyPower>()) / 100m;
+        {
+            ushort crueltyId = Registry.PowerId<CrueltyPower>();
+            int row = Kernel.FindPower(x.B, damage.Dealer, crueltyId);
+            if (row < 0 && damage.Dealer == Limits.OstyOwner)
+                row = Kernel.FindPower(x.B, Limits.PlayerOwner, crueltyId);
+            if (row >= 0)
+                multiplier += (decimal)x.B.Powers[row].Amount / 100m;
+        }
         // ModifyDamageMirrors.HandleVulnerablePower applies DebilitatePower on the vulnerable target:
         // multiplier += multiplier - 1.
         if (Registry.TryPower("DEBILITATE_POWER", out ushort debilitate)

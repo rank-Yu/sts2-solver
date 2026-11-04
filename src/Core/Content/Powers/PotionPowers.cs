@@ -279,7 +279,9 @@ public sealed class GigantificationPower : PowerDef
         // from it, so a player death during the same action leaves the power in place. The flag lets
         // Kernel.HandlePlayerDeath keep the row; Step clears it at the stable boundary.
         x.B.Powers[self.Index].Flags |= PowerFlags.PendingAmountState;
-        if (self.Owner != attacker || !props.IsPoweredAttack())
+        // GigantificationPower.BeforeAttack keys on the card source's owner, not on the attacker:
+        // an Osty attack is still the player's Attack card.
+        if (self.Owner != Limits.PlayerOwner || !props.IsPoweredAttack())
             return;
         if (x.Card.Id == 0 || x.Stats?.Type != CardType.Attack)
             return;
@@ -299,7 +301,7 @@ public sealed class GigantificationPower : PowerDef
 
     public override void AfterAttack(ref Exec x, Listener self, byte attacker)
     {
-        if (self.Owner != attacker)
+        if (self.Owner != Limits.PlayerOwner)
             return;
         ref Power power = ref x.B.Powers[self.Index];
         if (power.Aux0 == 0)

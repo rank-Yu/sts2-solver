@@ -17,7 +17,10 @@ public sealed class StrikeDummy : RelicDef
     public override decimal ModifyDamageAdditive(ref Exec x, Listener self,
         in DamageContext damage, decimal amount)
     {
-        if (!damage.Props.IsPoweredAttack() || !damage.HasCardSource || damage.Dealer != Limits.PlayerOwner)
+        // StrikeDummy.cs: reject only when neither the dealer is the owner's creature nor the
+        // card source belongs to the owner. Every card source in a root is the player's, so an
+        // Osty attack still satisfies the card-source branch.
+        if (!damage.Props.IsPoweredAttack() || !damage.HasCardSource)
             return 0m;
         return (x.R.Card(damage.CardSource.Id, damage.CardSource.Upgrade).Tags & CardTag.Strike) != 0
             ? x.R.RelicVar(Id, 0)

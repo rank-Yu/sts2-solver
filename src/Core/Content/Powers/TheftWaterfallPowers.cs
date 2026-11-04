@@ -116,11 +116,10 @@ public sealed class SurprisePower : PowerDef
 }
 
 /// <summary>
-/// Native <c>SteamEruptionPower</c> (Waterfall Giant): a counter that stops the combat from ending
-/// and keeps the dead owner in the roster. The death rewrite itself is kernel-side
-/// (<c>SimulatedCombatState.TryTriggerSteamEruptionDeath</c> in
-/// <c>CorePowerSupport.ApplyEnemyDeathPowers</c>), and the power survives the owner's death cleanup
-/// (<c>ShouldPowerBeRemovedAfterOwnerDeath</c>).
+/// Native <c>SteamEruptionPower</c> (Waterfall Giant): a counter that stops the combat from ending,
+/// keeps the dead owner in the roster and rewrites its death into the forced about-to-blow phase
+/// (<c>SteamEruptionPower.AfterDeath</c> → <c>WaterfallGiant.TriggerAboutToBlowState</c>). The power
+/// survives the owner's death cleanup (<c>ShouldPowerBeRemovedAfterOwnerDeath</c>).
 /// </summary>
 [ContentId("STEAM_ERUPTION_POWER")]
 public sealed class SteamEruptionPower : PowerDef
@@ -134,6 +133,13 @@ public sealed class SteamEruptionPower : PowerDef
     public override bool PreventsCombatEnding => true;
 
     public override bool ShouldPowerBeRemovedAfterOwnerDeath => false;
+
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    {
+        if (wasRemovalPrevented || creature != self.Owner)
+            return;
+        Kernel.TriggerSteamEruptionDeath(ref x, self.Owner);
+    }
 }
 
 /// <summary>

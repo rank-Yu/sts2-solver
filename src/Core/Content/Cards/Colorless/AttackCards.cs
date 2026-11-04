@@ -213,7 +213,7 @@ public sealed class Omnislice : CardDef
     {
         // AttackContext.AddHit does not call AttackCommand.Execute, so Omnislice must not increment
         // the per-turn attack counters (EchoingSlash uses the same context for its waves).
-        CardEffects.GeneralAttack(ref x, 0, recordAttack: false);
+        CardEffects.GeneralAttack(ref x, 0, recordAttack: false, endAttack: false);
         if (x.NeedsChoice)
             return;
         int amount = x.LastDamageTotal + x.LastDamageOverkill;
@@ -221,8 +221,13 @@ public sealed class Omnislice : CardDef
         // death pass, so a lethal hit that already left the roster does not spawn Infested minions
         // before the copied hit is resolved.
         Kernel.ApplyEnemyDeathPowersInRoster(ref x);
-        if (x.NeedsChoice || amount <= 0)
+        if (x.NeedsChoice)
             return;
+        if (amount <= 0)
+        {
+            Kernel.EndAttackContext(ref x, Limits.PlayerOwner);
+            return;
+        }
         Span<byte> targets = stackalloc byte[Limits.Enemies];
         int count = 0;
         for (int position = 0; position < x.B.RosterCount; position++)
@@ -233,12 +238,20 @@ public sealed class Omnislice : CardDef
             targets[count++] = owner;
         }
         if (count == 0)
+        {
+            Kernel.EndAttackContext(ref x, Limits.PlayerOwner);
             return;
+        }
         Kernel.Damage(ref x, targets[..count], amount,
             ValueProps.Unpowered | ValueProps.Move, Limits.PlayerOwner,
             hasCardSource: true, x.Card);
-        if (!x.NeedsChoice)
-            Kernel.ApplyEnemyDeathPowersInRoster(ref x);
+        if (x.NeedsChoice)
+            return;
+        Kernel.ApplyEnemyDeathPowersInRoster(ref x);
+        if (x.NeedsChoice)
+            return;
+        // AttackContext.DisposeAsync: the original hit and the copied hits are one attack.
+        Kernel.EndAttackContext(ref x, Limits.PlayerOwner);
     }
 }
 

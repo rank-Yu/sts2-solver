@@ -47,7 +47,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | `Flags` | `CombatManager.IsAboutToLose`、`Player.IsActiveForHooks`、`Player.Osty`、原引擎快照风险 | 直接读 + 根事实 |
 | `Player`、`Osty` | `Creature.CurrentHp/MaxHp/Block`；本回合未格挡伤害来自原生 History | 直接读 + History |
 | `Rng`（9 条） | `RunState.Rng` 的 9 条流 | 直接读 |
-| `Enemies` | `CombatState.Enemies`、`MonsterModel.NextMove/StateLog`、`MoveStateMachine`、`Rules.MonsterRule` | 直接读；AI 节点映射由规则编译器冻结 |
+| `Enemies` | `CombatState.Enemies`、`MonsterModel.NextMove/StateLog`、`MoveStateMachine`、`Rules.MonsterRule` | 直接读；AI 节点映射由规则编译器冻结。Waterfall Giant 的 `ABOUT_TO_BLOW_MOVE`/`EXPLODE_MOVE` 分别投影为 `SteamPhase.AboutToBlow`/`Explode`，其余移动为 `None` |
 | `Powers` | `Creature.Powers` 的原生顺序，按 owner 分组 | 移植自原导入层 `FlashStateProjections` 的分支表；私有字段由 `NativeAccess` 集中读取 |
 | `Relics` | `Player.Relics` 顺序 | 移植自 `ProjectRelic`；`StatefulRelicState` 从原生字段或原生 History 读取 |
 | `Cards` | 五个牌堆的原生顺序、`CardModel`、`Rules.Card(id, upgrade)` | 移植自 `FlashStateImporter.Card` |

@@ -35,7 +35,7 @@ public static partial class Kernel
     /// </summary>
     public static void CardAttack(ref Exec x, decimal damagePerHit, int hitCount, AttackTargeting targeting,
         byte singleTarget, ValueProps props = ValueProps.Move, byte attacker = Limits.PlayerOwner,
-        bool recordAttack = true)
+        bool recordAttack = true, bool endAttack = true)
     {
         // Single-target attacks read Creature(singleTarget); a missing target is an unsupported
         // caller assumption, not an index error.
@@ -55,6 +55,7 @@ public static partial class Kernel
         HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);
         if (x.NeedsChoice)
             return;
+        BeginAttack(ref x, props, hasCardSource: true);
         Span<byte> targets = stackalloc byte[Limits.Enemies + 1];
         for (int hit = 0; hit < hitCount; hit++)
         {
@@ -102,8 +103,8 @@ public static partial class Kernel
             else if (attacker == Limits.OstyOwner)
                 x.B.AddCounter(Counter.OstyAttacksThisTurn, 1);
         }
-        AfterAttackHook after = new() { Attacker = attacker };
-        HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
+        if (endAttack)
+            EndAttackContext(ref x, attacker);
     }
 
     /// <summary>
@@ -124,6 +125,7 @@ public static partial class Kernel
         HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);
         if (x.NeedsChoice)
             return;
+        BeginAttack(ref x, props, hasCardSource: true);
         Span<byte> targets = stackalloc byte[Limits.Enemies];
         int waves = initialWaves;
         int totalKills = 0;
@@ -163,8 +165,7 @@ public static partial class Kernel
         }
         // EchoingSlash uses one AttackContext around every wave (CardOnPlaySupport.Batch042), so its
         // History.CreatureAttacked is never recorded; only AfterAttack fires on context dispose.
-        AfterAttackHook after = new() { Attacker = attacker };
-        HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
+        EndAttackContext(ref x, attacker);
     }
 
     /// <summary>
@@ -177,51 +178,105 @@ public static partial class Kernel
     {
         if (dealer != Limits.NoOwner && x.B.Creature(dealer).IsDead || targets.Length == 0)
             return false;
-        Span<DamageResult> results = stackalloc DamageResult[MaxDamageResults];
-        int count = 0;
-        x.LastDamageKills = 0;
-        foreach (byte target in targets)
+        x.DamageCallDepth++;
+        try
         {
-            if (!TryDamageTarget(ref x, target, amount, props, dealer, hasCardSource, cardSource, results, ref count))
-                return false;
-        }
-        // Capture the damage before the result hooks run: a hook may deal nested damage and overwrite
-        // the "last damage" fields. Fisticuffs sums the whole card play; Omnislice reads this call's
-        // amount (TotalDamage + OverkillDamage) for the copied hit.
-        int total = 0;
-        int overkill = 0;
-        for (int index = 0; index < count; index++)
-        {
-            // Native DamageResult.TotalDamage is BlockedDamage + UnblockedDamage; OverkillDamage is
-            // the part beyond the target's HP. Fisticuffs sums TotalDamage + OverkillDamage.
-            total += results[index].BlockedDamage + results[index].UnblockedDamage;
-            overkill += results[index].OverkillDamage;
-            if (hasCardSource)
+            Span<DamageResult> results = stackalloc DamageResult[MaxDamageResults];
+            int count = 0;
+            x.LastDamageKills = 0;
+            foreach (byte target in targets)
             {
-                x.CardDamageTotal += results[index].BlockedDamage + results[index].UnblockedDamage
-                    + results[index].OverkillDamage;
-                if (results[index].WasTargetKilled)
+                if (!TryDamageTarget(ref x, target, amount, props, dealer, hasCardSource, cardSource, results, ref count))
+                    return false;
+            }
+            // Capture the damage before the result hooks run: a hook may deal nested damage and overwrite
+            // the "last damage" fields. Fisticuffs sums the whole card play; Omnislice reads this call's
+            // amount (TotalDamage + OverkillDamage) for the copied hit.
+            int total = 0;
+            int overkill = 0;
+            for (int index = 0; index < count; index++)
+            {
+                // Native DamageResult.TotalDamage is BlockedDamage + UnblockedDamage; OverkillDamage is
+                // the part beyond the target's HP. Fisticuffs sums TotalDamage + OverkillDamage.
+                total += results[index].BlockedDamage + results[index].UnblockedDamage;
+                overkill += results[index].OverkillDamage;
+                if (hasCardSource)
                 {
-                    x.LastDamageKills++;
-                    if (dealer == Limits.PlayerOwner)
+                    x.CardDamageTotal += results[index].BlockedDamage + results[index].UnblockedDamage
+                        + results[index].OverkillDamage;
+                    if (results[index].WasTargetKilled)
+                    {
+                        x.LastDamageKills++;
                         x.CardKilledTarget = true;
+                    }
                 }
             }
+            x.LastDamageTotal = total;
+            x.LastDamageOverkill = overkill;
+            // The outermost Damage call belongs to the current attack context. Nested damage from a
+            // result hook is a separate native Damage call and must not become a hit of the attack.
+            if (x.DamageCallDepth == 1)
+                RecordAttackResults(ref x, results[..count]);
+            ProcessDamageResults(ref x, results[..count], dealer);
+            for (int index = 0; index < count; index++)
+            {
+                if (results[index].Receiver == Limits.PlayerOwner && results[index].UnblockedDamage > 0)
+                    x.AttackUnblockedHits++;
+            }
+            for (int index = 0; index < count; index++)
+            {
+                if (results[index].WasFullyBlocked)
+                    return true;
+            }
+            return false;
         }
-        x.LastDamageTotal = total;
-        x.LastDamageOverkill = overkill;
-        ProcessDamageResults(ref x, results[..count], dealer);
-        for (int index = 0; index < count; index++)
+        finally
         {
-            if (results[index].Receiver == Limits.PlayerOwner && results[index].UnblockedDamage > 0)
-                x.AttackUnblockedHits++;
+            x.DamageCallDepth--;
         }
-        for (int index = 0; index < count; index++)
+    }
+
+    /// <summary>
+    /// Native <c>AttackCommand</c> results: the first damage result per enemy in the attack context.
+    /// SkittishPower.AfterAttack reads the first result for its owner.
+    /// </summary>
+    private static void RecordAttackResults(ref Exec x, scoped ReadOnlySpan<DamageResult> results)
+    {
+        foreach (DamageResult result in results)
         {
-            if (results[index].WasFullyBlocked)
-                return true;
+            if (!IsEnemyOwner(result.Receiver))
+                continue;
+            ulong bit = 1UL << (result.Receiver - Limits.FirstEnemyOwner);
+            if ((x.AttackFirstResultSeen & bit) != 0)
+                continue;
+            x.AttackFirstResultSeen |= bit;
+            if (result.UnblockedDamage != 0)
+                x.AttackFirstResultUnblocked |= bit;
         }
-        return false;
+    }
+
+    /// <summary>BeginAttackContext: the props and card-source fact every AfterAttack listener reads.</summary>
+    private static void BeginAttack(ref Exec x, ValueProps props, bool hasCardSource)
+    {
+        x.AttackProps = props;
+        x.AttackHasCardSource = hasCardSource;
+        x.AttackFirstResultSeen = 0;
+        x.AttackFirstResultUnblocked = 0;
+    }
+
+    /// <summary>
+    /// EndAttackContext(completed): AfterAttack over the listeners without the ending gate, then the
+    /// attack-only facts are cleared. Omnislice opens one context around its original hit and the
+    /// copied hits and ends it here.
+    /// </summary>
+    public static void EndAttackContext(ref Exec x, byte attacker)
+    {
+        AfterAttackHook after = new() { Attacker = attacker };
+        HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
+        x.AttackProps = ValueProps.None;
+        x.AttackHasCardSource = false;
+        x.AttackFirstResultSeen = 0;
+        x.AttackFirstResultUnblocked = 0;
     }
 
     /// <summary>
@@ -678,15 +733,6 @@ public static partial class Kernel
             if (enemy.DeathPhase is DeathPhase.PermanentlyDead)
             {
                 enemy.Flags |= EnemyFlags.DeathProcessed;
-                continue;
-            }
-            // CorePowerSupport.ApplyEnemyDeathPowers: a dead Waterfall Giant still holding Steam
-            // Eruption is rewritten to its forced phase before the death powers run; it is alive again
-            // after the rewrite, so it is neither marked processed nor visited by DeathPowerSupport.
-            if (TryTriggerSteamEruptionDeath(ref x, EnemyOwner((byte)index)))
-            {
-                if (x.NeedsChoice)
-                    return;
                 continue;
             }
             newlyDead[count++] = (byte)index;

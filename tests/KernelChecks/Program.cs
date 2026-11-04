@@ -593,7 +593,7 @@ static void CheckTwKernel()
     Kernel.ApplyPower(ref steamExec, Kernel.EnemyOwner(0), Registry.PowerId<SteamEruptionPower>(), 18,
         Kernel.EnemyOwner(0));
     steam.Enemies[0].Creature.CurrentHp = 0;
-    Kernel.ApplyEnemyDeathPowers(ref steamExec);
+    Kernel.Kill(ref steamExec, [Kernel.EnemyOwner(0)], force: false);
     Check(steam.Enemies[0].Creature.CurrentHp == Limits.ValueClamp
         && steam.Enemies[0].Creature.MaxHp == Limits.ValueClamp, "蒸汽爆发的死亡改写应把 HP/最大 HP 设为钳制值");
     Check(steam.Enemies[0].SteamPhase == SteamPhase.AboutToBlow, "死亡改写应进入 AboutToBlow 阶段");

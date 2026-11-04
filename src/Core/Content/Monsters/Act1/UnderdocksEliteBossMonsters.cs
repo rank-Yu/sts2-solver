@@ -124,7 +124,7 @@ public sealed partial class TerrorEel : MonsterDef
 /// <c>MonsterMoveEffects</c> lines 870-905; the pressure-gun bonus and Steam Eruption damage live in
 /// the AI registers projected from <c>SimulatedCombatState._pressureGunBonus</c> /
 /// <c>_steamEruptionDamage</c>. The death rewrite and forced phases are kernel-side
-/// (<see cref="Kernel.TryTriggerSteamEruptionDeath"/> / <see cref="Kernel.TryConsumeSteamForcedMove"/>).
+/// (<see cref="Kernel.TriggerSteamEruptionDeath"/> / <see cref="Kernel.TryConsumeSteamForcedMove"/>).
 /// </summary>
 [ContentId("WATERFALL_GIANT")]
 public sealed partial class WaterfallGiant : MonsterDef

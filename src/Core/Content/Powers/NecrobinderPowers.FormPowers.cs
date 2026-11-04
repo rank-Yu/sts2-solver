@@ -42,7 +42,7 @@ public sealed class ReaperFormPower : PowerDef
     public override void AfterDamageGiven(ref Exec x, Listener self, in DamageResult result,
         byte dealer)
     {
-        if (dealer != Limits.PlayerOwner && dealer != Limits.OstyOwner)
+        if (!Kernel.IsOwnerOrOsty(self.Owner, dealer))
             return;
         if (!result.Props.IsPoweredAttack())
             return;

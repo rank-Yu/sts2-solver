@@ -366,6 +366,21 @@ public ref struct Exec
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
 
+    /// <summary>Damage properties of the current attack context (native <c>AttackCommand.DamageProps</c>).</summary>
+    public ValueProps AttackProps;
+
+    /// <summary>Whether the current attack context has a card model source (native <c>AttackCommand.ModelSource is CardModel</c>).</summary>
+    public bool AttackHasCardSource;
+
+    /// <summary>Enemy owners with at least one damage result in the current attack context.</summary>
+    public ulong AttackFirstResultSeen;
+
+    /// <summary>Enemy owners whose first damage result in the current attack context had unblocked damage.</summary>
+    public ulong AttackFirstResultUnblocked;
+
+    /// <summary>Nesting depth of <c>Kernel.Damage</c>; only the outermost call belongs to an attack context.</summary>
+    internal int DamageCallDepth;
+
     /// <summary>Number of carried choices already consumed (the pending request's index).</summary>
     public readonly int ChoicesTaken => _choicesTaken;
 

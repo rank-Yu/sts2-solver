@@ -109,9 +109,9 @@ public sealed class IllusionPower : PowerDef
 /// still unblocked makes it gain its amount as Unpowered block, at most once per player side
 /// (<c>AfterAttackMirrors.HandleSkittishPower</c> through <c>SkittishPredictionState</c>). The flag
 /// resets at the end of the player side (<c>SkittishPower.AfterSideTurnEnd</c>).
-/// Aux0 = HasGainedBlockThisTurn; Aux1 = a result for the owner was already seen in the current
-/// attack (the native hook inspects the first result for the owner only). The bridge projects Aux0
-/// from the prediction state, falling back to the model's live flag.
+/// Aux0 = HasGainedBlockThisTurn. The first result for the owner is kept on <see cref="Exec"/> for
+/// the duration of the attack context; the bridge projects Aux0 from the prediction state, falling
+/// back to the model's live flag.
 /// </summary>
 [ContentId("SKITTISH_POWER")]
 public sealed class SkittishPower : PowerDef
@@ -120,28 +120,24 @@ public sealed class SkittishPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    // AfterAttackMirrors.HandleSkittishPower reads the first result for the owner out of the attack
-    // command; a result is only considered when the attack is a powered card attack.
-    public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
+    // SkittishPower.AfterAttack: at most once per player side, when the attack is a card attack
+    // with Move props and the first damage result against the owner is unblocked. The attack's
+    // results are recorded per hit on Exec; the hook itself runs once at the end of the attack.
+    public override void AfterAttack(ref Exec x, Listener self, byte attacker)
     {
-        if (result.Receiver != self.Owner)
-            return;
         ref Power power = ref x.B.Powers[self.Index];
-        if (power.Aux1 != 0)
+        if (power.Aux0 != 0 || power.Amount <= 0)
             return;
-        if (dealer != Limits.PlayerOwner || !result.Props.IsPoweredAttack())
+        if ((x.AttackProps & ValueProps.Move) == 0 || !x.AttackHasCardSource)
             return;
-        power.Aux1 = 1;
-        if (power.Aux0 != 0 || result.UnblockedDamage == 0)
+        if (!Kernel.IsEnemyOwner(self.Owner))
+            return;
+        ulong bit = 1UL << (self.Owner - Limits.FirstEnemyOwner);
+        if ((x.AttackFirstResultSeen & bit) == 0 || (x.AttackFirstResultUnblocked & bit) == 0)
             return;
         power.Aux0 = 1;
         Kernel.GainBlock(ref x, self.Owner, power.Amount, ValueProps.Unpowered, fromCard: false);
     }
-
-    // The native hook runs once per attack command; this is the end-of-attack reset of the
-    // "first result seen" latch.
-    public override void AfterAttack(ref Exec x, Listener self, byte attacker)
-        => x.B.Powers[self.Index].Aux1 = 0;
 
     // SkittishPower.AfterSideTurnEnd resets HasGainedBlockThisTurn when the ending side is not the
     // owner's side; the owner is an enemy, so that is the player side end.

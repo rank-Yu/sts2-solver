@@ -81,6 +81,20 @@ internal static class ExecCoverage
         nameof(Exec.EnemySideTurnEndReached),
     ];
 
+    /// <summary>
+    /// Attack-context facts read only between BeginAttack and EndAttack. A branch that stops at an
+    /// uncarried choice may leave them set; they are never carried into a continuation or a stable
+    /// action boundary.
+    /// </summary>
+    private static readonly string[] AttackTransient =
+    [
+        nameof(Exec.AttackProps),
+        nameof(Exec.AttackHasCardSource),
+        nameof(Exec.AttackFirstResultSeen),
+        nameof(Exec.AttackFirstResultUnblocked),
+        nameof(Exec.DamageCallDepth),
+    ];
+
     private static readonly string[] ResetAtPlayerStart =
     [
         nameof(Exec.PendingBlockBreakOwners),
@@ -110,6 +124,7 @@ internal static class ExecCoverage
         [
             ("ExecContinuation", Snapshot),
             ("捕获断言为空", AssertedEmpty),
+            ("攻击上下文瞬态", AttackTransient),
             ("AdvanceRoundPlayerStart 入口重置", ResetAtPlayerStart),
             ("步骤阶段标记", StepTransient),
             ("单独处理", Special),

@@ -53,7 +53,7 @@ internal static class CompareCommand
         string dataDirectory = args[0];
         int jobs = Environment.ProcessorCount;
         int searchThreads = 1;
-        string config = "all";
+        string config = "all-fill";
         string? output = null;
         string? only = null;
         bool verify = false;

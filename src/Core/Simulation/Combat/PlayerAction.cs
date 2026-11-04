@@ -689,8 +689,9 @@ public ref struct Exec
     public int CardPowerSourceSerial;
 
     /// <summary>
-    /// Base of the transient identity-byte range reserved by nested Sly discard batches
-    /// (<see cref="Kernel.DiscardAndDraw"/>). Zero outside them; transient, never part of state.
+    /// Base of the transient identity-byte range reserved by nested identity batches
+    /// (<see cref="Kernel.DiscardAndDraw"/>, Scrape's drawn-card discard and the other mark users).
+    /// Zero outside them; transient, never part of state.
     /// </summary>
     public byte TransientMarkBase;
 

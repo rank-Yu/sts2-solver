@@ -16,6 +16,8 @@
 
 难点是弃完到自动打出之间可能抽牌、洗牌，牌的位置全变了。原引擎拿着 `CardModel` 对象，不怕牌移动；Sts2Solver 的牌没有对象身份，所以弃牌时给每张 Sly 牌写一个一次性标记 `Card.TransientMark`，打出时按标记找牌。两张字节完全相同的 Sly 牌也不能互换，因为选哪张会改变手牌和弃牌堆的分配。标记的分配区间、嵌套规则和找不到牌时的处理见 [状态布局](combat-state-layout.md#36-卡牌)。
 
+**Scrape 的抽牌弃置。** 原版 `Scrape.OnPlay` 先 `CardPileCmd.Draw` 收集抽到的 `CardModel` 对象，再交给 `CardCmd.Discard`；抽牌钩子把牌自动打出、放回抽牌堆或放进弃牌堆都不影响对象身份。Sts2Solver 在每张牌进入手牌、`AfterCardDrawn` 之前写入本批的 `TransientMark`（`markStart + 抽牌序号`），`Kernel.DiscardDrawn` 再按标记在当前所有战斗牌堆中定位并逐张弃置；全部弃置完成后，才按弃置顺序自动打出其中的 Sly 牌。手中字节相同的旧副本不会被误弃；同一张牌在一批里被自动打出、洗回抽牌堆后再次抽到，按出现次数各弃一次。标记在 `finally` 中恢复外层批次的标记并释放 `TransientMarkBase`。标记丢失或牌完全离开战斗牌堆时显式抛 `UnsupportedException`。
+
 **回合末清手牌不算弃牌。** 回合末手牌清理（`CorePowerSupport.FlushPlayerHandAtTurnEnd`）直接用 `AddToPile` 移入弃牌堆，不派发 `AfterCardDiscarded`，也不触发 Sly。Sts2Solver 保持相同行为。
 
 **空选择。** `BuildRequiredEmptyChoice` 列出的牌（HiddenDaggers、Brand）在手牌为空时：手动打出会提出一个 0..0 的空选择；在自动打出里，嵌套选择由 `ResolveNestedCardChoice` 直接结算这个空选择，不提问。Sts2Solver 用 `Exec.CurrentPlayIsAutoPlay` 区分两种情形，之后照常执行 `ApplyPostChoiceEffects`。
@@ -24,6 +26,7 @@
 
 ### 1.1 其它卡牌
 
+- **Scrape**：攻击后抽 `Cards` 张，弃掉其中费用不为 0 的牌（X 费也算；不可打出的 -1 费会保留负值，因此会被弃掉）。抽牌钩子移动或自动打出抽到的牌后仍按对象身份弃置。对照 `CardDrawCardMirrors.ScrapeOnPlay` 与 `CardCmd.Discard`。
 - **KnifeTrap**：按消耗堆顺序取出 Shiv（按“值 + 同值第几张”定位），升级版先把该 Shiv 升一级，再自动打出到同一目标；Shiv 带消耗关键字，打出后回到消耗堆。位置假设不成立（抽牌钩子移动了牌）时抛 `UnsupportedException`。对照 `CardOnPlaySupport.Batch043.ApplyKnifeTrap`。
 - **EchoingSlash**：`Kernel.CardAttackRepeating` 在一个攻击上下文里分波打全体敌人，`BeforeAttack`、`AfterAttack` 各只派发一次。每波对当前全部存活敌人造成一次伤害，随后用**当前名单**结算死亡，每击杀一名敌人追加一波。每波开始前从 `Exec.PlayPosition` 重新读取当前打出的牌和伤害变量（原引擎每波读 `base.DynamicVars.Damage`）：Dampen 的最后一位施法者在本波死亡时会恢复卡牌升级，后续波次必须用恢复后的伤害。因为死亡结算只遍历当前名单，击杀后已离场的 Infested 尸体不会在下一波伤害前生成 Wriggler。对照 `CardOnPlaySupport.Batch042.ApplyEchoingSlash`。
 - **Burst**：`BurstPower.ModifyCardPlayCount` 给技能牌 +1 次重放，`AfterModifyingCardPlayCount` 减一层，`EndTurnRegular` 移除。对照 `ModifyCardPlayCountMirrors` 与 `CorePowerSupport` 的 Burst 分支。

@@ -172,22 +172,52 @@ public sealed class Scrape : CardDef
         if (x.NeedsChoice)
             return;
         int request = (int)CardEffects.Var(x, 1);
-        int capacity = Math.Min(request, x.B.CardCount);
+        // Draw returns one entry per requested draw, including the same CardModel drawn again after a
+        // draw hook put it back into the draw pile; the batch identity range is sized by that request.
+        if (request < 0 || request > Limits.Cards)
+            throw new CapacityException("DrawnCards", Limits.Cards);
+        int capacity = request;
         Span<Card> drawn = stackalloc Card[capacity];
-        Span<int> positions = stackalloc int[capacity];
-        int count = Kernel.DrawInto(ref x, request, fromHandDraw: false, drawn, positions);
-        if (x.NeedsChoice)
-            return;
-        Span<int> chosen = stackalloc int[count];
-        int discard = 0;
-        for (int index = 0; index < count; index++)
+        Span<byte> outerMarks = stackalloc byte[capacity];
+        Span<byte> markOf = stackalloc byte[capacity];
+        int markBase = Kernel.ReserveTransientMarks(ref x, capacity, out int markStart);
+        int drawnCount = 0;
+        try
         {
-            Card card = drawn[index];
-            int cost = Kernel.EnergyCostValueWithModifiers(x.B, x.R, card, Pile.Hand);
-            if ((card.Flags & CardFlags.CostsX) != 0 || cost != 0)
-                chosen[discard++] = index;
+            drawnCount = Kernel.DrawIntoMarked(ref x, request, fromHandDraw: false, drawn,
+                outerMarks, markOf, markStart);
+            if (x.NeedsChoice)
+                return;
+            Span<int> chosen = stackalloc int[drawnCount];
+            int discard = 0;
+            for (int index = 0; index < drawnCount; index++)
+            {
+                // The existing engine filters the live CardModel list after the whole draw, so a
+                // draw hook that changed the card's cost is visible here. The mark locates that same
+                // card even if the hook moved it; the pre-mark value is only used in the error path.
+                if (!Kernel.TryFindUniqueTransientMark(x.B, markOf[index], out Pile pile,
+                        out int position))
+                {
+                    throw new UnsupportedException(
+                        $"Scrape 抽到的 {Registry.Card(drawn[index].Id).NativeId}+{drawn[index].Upgrade} "
+                        + $"在费用判定前失去瞬态标记（mark={markOf[index]}）。");
+                }
+                Card card = Piles.At(ref x.B, pile, position);
+                int cost = Kernel.EnergyCostValueWithModifiers(x.B, x.R, card, Pile.Hand);
+                if ((card.Flags & CardFlags.CostsX) != 0 || cost != 0)
+                    chosen[discard++] = index;
+            }
+            if (discard > 0)
+            {
+                Kernel.DiscardDrawn(ref x, drawn[..drawnCount], outerMarks[..drawnCount],
+                    markOf[..drawnCount], markStart, chosen[..discard]);
+            }
         }
-        if (discard > 0)
-            CardEffects.DiscardDrawn(ref x, drawn, positions, chosen[..discard]);
+        finally
+        {
+            Kernel.RestoreDrawnTransientMarks(ref x.B, markOf[..drawnCount],
+                outerMarks[..drawnCount]);
+            Kernel.ReleaseTransientMarks(ref x, markBase, markStart, capacity);
+        }
     }
 }

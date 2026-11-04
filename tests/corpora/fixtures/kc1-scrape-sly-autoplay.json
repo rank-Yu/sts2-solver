@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "KC1-SCRAPE-SLY-AUTOPLAY",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "KC1SCRAPESLY",
+  "ascension": 0,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerHp": 500,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [500, 500],
+  "initialEnemyCurrentHps": [500, 500],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "timeoutSeconds": 180,
+  "powers": [
+    { "powerId": "HELLRAISER_POWER", "target": "Player", "amount": 1 }
+  ],
+  "cards": [
+    { "cardId": "SCRAPE", "pile": "Hand" },
+    { "cardId": "STRIKE_IRONCLAD", "pile": "Draw" },
+    { "cardId": "REFLEX", "pile": "Draw" },
+    { "cardId": "DEFEND_IRONCLAD", "pile": "Draw", "count": 2 }
+  ]
+}

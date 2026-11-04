@@ -62,42 +62,57 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Mirrors <c>CombatPredictionSimulator.Draw</c> while recording each drawn card value in order.
-    /// <c>ShouldDraw</c> is asked once for the whole draw, as the existing engine does; a drawn card may
-    /// already have moved (a draw hook auto-played it), but its value is still reported. Returns the
-    /// number of drawn cards written to <paramref name="drawn"/>.
+    /// Mirrors <c>CombatPredictionSimulator.Draw</c> while recording each drawn card value in order and
+    /// stamping it with a caller-reserved transient identity byte before <c>AfterCardDrawn</c> runs.
+    /// <c>ShouldDraw</c> is asked once for the whole draw. Each occurrence gets
+    /// <c>markOf[i]</c>; a card that this same batch already marked and that is drawn again (a draw
+    /// hook put it back into the draw pile) keeps its existing inner mark, because the existing engine
+    /// returns the same <c>CardModel</c> object for every occurrence. <c>outerMarks[i]</c> is the
+    /// enclosing batch's mark to restore in <c>finally</c>. Returns the number of occurrences written.
     /// </summary>
-    public static int DrawInto(ref Exec x, int count, bool fromHandDraw, scoped Span<Card> drawn)
-        => DrawInto(ref x, count, fromHandDraw, drawn, default);
-
-    /// <summary>
-    /// <see cref="DrawInto(ref Exec, int, bool, Span{Card})"/> that also reports each drawn
-    /// card's hand position at draw time (or -1 when an <c>AfterCardDrawn</c> hook moved it). Scrape
-    /// uses the positions so that a drawn copy equal to a card already in hand discards the drawn
-    /// instance, not the older one.
-    /// </summary>
-    public static int DrawInto(ref Exec x, int count, bool fromHandDraw, scoped Span<Card> drawn,
-        scoped Span<int> positions)
+    public static int DrawIntoMarked(ref Exec x, int count, bool fromHandDraw, scoped Span<Card> drawn,
+        scoped Span<byte> outerMarks, scoped Span<byte> markOf, int markStart)
     {
+        if (drawn.Length != outerMarks.Length || drawn.Length != markOf.Length)
+            throw new ArgumentException("抽牌记录、外层标记和身份标记的容量必须一致。");
         if (IsOverOrEnding(x.B) || !ShouldDraw(ref x, fromHandDraw))
             return 0;
+        Span<byte> outerByMark = stackalloc byte[drawn.Length];
         int written = 0;
         for (int index = 0; index < count; index++)
         {
-            if (!DrawOneCore(ref x, fromHandDraw, out Card card, out int position) || x.NeedsChoice)
+            if (written >= drawn.Length)
+                throw new CapacityException("DrawnCards", drawn.Length);
+            if (!TryDrawToHand(ref x, out Card card, out int position))
                 return written;
-            if (written < drawn.Length)
+            int currentMark = x.B.Cards[position].TransientMark;
+            byte inner;
+            byte outer;
+            if (currentMark >= markStart && currentMark < markStart + drawn.Length)
             {
-                drawn[written] = card;
-                if (!positions.IsEmpty)
-                    positions[written] = position >= 0 && position < x.B.HandCount
-                        && Fingerprint.Equal(x.B.Cards[position], card) ? position : -1;
-                written++;
+                int offset = currentMark - markStart;
+                inner = checked((byte)currentMark);
+                outer = outerByMark[offset];
             }
             else
             {
-                throw new CapacityException("DrawnCards", drawn.Length);
+                if (markStart < DynamicTransientMarkStart
+                    || markStart + written >= DynamicTransientMarkStart + DynamicTransientMarkCapacity)
+                {
+                    throw new CapacityException("TransientMarks", DynamicTransientMarkCapacity);
+                }
+                inner = checked((byte)(markStart + written));
+                outer = checked((byte)currentMark);
+                outerByMark[written] = outer;
             }
+            x.B.Cards[position].TransientMark = inner;
+            drawn[written] = card;
+            outerMarks[written] = outer;
+            markOf[written] = inner;
+            written++;
+            bool completed = CompleteDraw(ref x, card, position, fromHandDraw);
+            if (!completed || x.NeedsChoice)
+                return written;
         }
         return written;
     }
@@ -115,10 +130,20 @@ public static partial class Kernel
         return DrawOneCore(ref x, fromHandDraw, out card) && !x.NeedsChoice;
     }
 
+    /// <summary>Draws one unmarked card and runs its after-draw hooks.</summary>
     private static bool DrawOneCore(ref Exec x, bool fromHandDraw, out Card card)
-        => DrawOneCore(ref x, fromHandDraw, out card, out _);
+    {
+        card = default;
+        if (!TryDrawToHand(ref x, out card, out int position))
+            return false;
+        return CompleteDraw(ref x, card, position, fromHandDraw);
+    }
 
-    private static bool DrawOneCore(ref Exec x, bool fromHandDraw, out Card card, out int position)
+    /// <summary>
+    /// Moves the top draw-pile card into the hand and returns its pre-hook value. No draw history or
+    /// hook has run yet, so a caller can stamp an identity byte first.
+    /// </summary>
+    private static bool TryDrawToHand(ref Exec x, out Card card, out int position)
     {
         card = default;
         position = -1;
@@ -133,6 +158,12 @@ public static partial class Kernel
         Piles.DrawTopToHand(ref x.B);
         position = x.B.HandCount - 1;
         card = x.B.Cards[position];
+        return true;
+    }
+
+    /// <summary><c>RecordCardDrawn</c> and the three <c>AfterCardDrawn</c> passes for a card now in hand.</summary>
+    private static bool CompleteDraw(ref Exec x, in Card card, int position, bool fromHandDraw)
+    {
         RecordCardDrawn(ref x, card, fromHandDraw);
         AfterCardDrawn(ref x, position, fromHandDraw);
         return !x.NeedsChoice;

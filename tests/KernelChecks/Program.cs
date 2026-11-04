@@ -98,6 +98,7 @@ CheckA3Kernel(rules);
 CheckKaAttachments();
 CheckP16Kernel(rules);
 CheckSkKernel();
+CheckScrapeDrawnIdentity();
 CheckLsKernel();
 CheckNbKernel();
 CheckMbKernel(rules);
@@ -1393,29 +1394,6 @@ static void CheckLsKernel()
         Check(card.Id == shiv && card.Upgrade == 1, "升级版 KnifeTrap 应把每张 Shiv 升级");
     }
 
-    // Drawn-card discard positions are an explicit assumption: a hook that moved the drawn card
-    // leaves a different byte-equal copy at the slot, which must be rejected rather than discarded.
-    battle = NewBattle();
-    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, shiv));
-    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, echoing));
-    Span<Card> drawn = stackalloc Card[1];
-    Span<int> positions = stackalloc int[1];
-    drawn[0] = Kernel.CreateCard(rules, knifeTrap);
-    positions[0] = 0;
-    Span<int> selected = stackalloc int[1];
-    selected[0] = 0;
-    x = new(ref battle, rules, default);
-    bool positionUnsupported = false;
-    try
-    {
-        CardEffects.DiscardDrawn(ref x, drawn, positions, selected);
-    }
-    catch (UnsupportedException)
-    {
-        positionUnsupported = true;
-    }
-    Check(positionUnsupported, "抓牌位置不匹配时应抛 UnsupportedException");
-
     // Burst adds one replay to the next Skill; the block card counter and block gain both run twice.
     battle = NewBattle();
     battle.Energy = 9;
@@ -2068,6 +2046,294 @@ static void CheckSkKernel()
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, energyNext, 2, Limits.PlayerOwner);
     Check(Kernel.ConsumeEnergyNextTurn(ref battle) == 2, "下回合能量应为 2");
     Check(Kernel.GetAmount(battle, Limits.PlayerOwner, energyNext) == 0, "下回合能量应被消费");
+}
+
+// Scrape: the drawn card identities are stamped before AfterCardDrawn, so the discard step follows
+// the same value through auto-play, a move to the draw pile or a re-discard, and the Sly auto-play
+// runs only after every AfterCardDiscarded. Equal copies in hand must survive.
+static void CheckScrapeDrawnIdentity()
+{
+    Rules rules = ScrapeRules();
+    Check(Registry.TryCard("SCRAPE", out ushort scrape), "缺少 SCRAPE");
+    Check(Registry.TryCard("KS_SCRAPE_DRAWN", out ushort drawnId), "缺少 KS_SCRAPE_DRAWN");
+    Check(Registry.TryCard("KS_SCRAPE_SLY", out ushort slyId), "缺少 KS_SCRAPE_SLY");
+    Check(Registry.TryCard("KS_SCRAPE_OTHER", out ushort otherId), "缺少 KS_SCRAPE_OTHER");
+    Check(Registry.TryRelic("KS_SCRAPE_DRAW_RELIC", out ushort drawRelic), "缺少 KS_SCRAPE_DRAW_RELIC");
+    Check(Registry.TryRelic("KS_SCRAPE_LOG_RELIC", out ushort logRelic), "缺少 KS_SCRAPE_LOG_RELIC");
+    Check(Registry.TryRelic("KS_SCRAPE_CHOICE_RELIC", out ushort choiceRelic), "缺少 KS_SCRAPE_CHOICE_RELIC");
+
+    // The Sly card drawn by Scrape is only auto-played after both selected cards were discarded;
+    // its own draw then appends the two remaining draw-pile cards.
+    Battle battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = logRelic };
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, slyId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, otherId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, otherId));
+    KsScrapeLog.Clear();
+    KsScrapeDrawRelic.Reset();
+    Exec x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "Scrape 批量弃牌不应中断");
+    Check(KsScrapeLog.Lines.SequenceEqual(["discard", "discard", "sly-play"]),
+        $"Scrape 应先弃完再自动打出 Sly，实际顺序 {string.Join(',', KsScrapeLog.Lines)}");
+    Check(battle.HandCount == 2
+        && Piles.At(ref battle, Pile.Hand, 0).Id == otherId
+        && Piles.At(ref battle, Pile.Hand, 1).Id == otherId,
+        $"Sly 自动打出应再抽两张，手牌实际 {battle.HandCount}");
+    Check(battle.DiscardCount == 2
+        && Piles.At(ref battle, Pile.Discard, 0).Id == drawnId
+        && Piles.At(ref battle, Pile.Discard, 1).Id == slyId,
+        "Sly 自动打出后弃牌堆应是先弃的普通牌、后落下的 Sly 牌");
+    Check(x.TransientMarkBase == 0, "Scrape 的瞬态身份范围应在结算后释放");
+    CheckNoDynamicMarks(in battle, "Scrape 批量弃牌后");
+
+    // A draw hook auto-plays the drawn card. The identity mark follows it to the discard pile, while
+    // the byte-equal copy already in hand must not be discarded instead.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = drawRelic };
+    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
+    battle.Cards[0].TransientMark = 1;
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Set(KsScrapeDrawMode.AutoPlay, drawnId, 1);
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "抽牌钩子自动打出不应中断 Scrape");
+    Check(battle.HandCount == 1 && battle.Cards[0].TransientMark == 1,
+        "Scrape 应弃掉被自动打出的抽牌，保留手中字节相同的旧副本");
+    Check(battle.DiscardCount == 2 && battle.DrawCount == 0,
+        $"自动打出的抽牌和被弃的抽牌都应在弃牌堆，实际 discard={battle.DiscardCount} draw={battle.DrawCount}");
+    Check(x.TransientMarkBase == 0, "自动打出路径应释放瞬态身份范围");
+    CheckNoDynamicMarks(in battle, "自动打出路径");
+
+    // The only draw-pile card is auto-played by the draw hook, lands in the discard pile, and the
+    // next draw shuffles that same card back: the existing engine returns the same CardModel twice.
+    // Both occurrences must be discarded, reusing one inner identity byte.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = drawRelic };
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    battle.RngStream(RngStream.Shuffle) = RngState.FromSerializable(0, 1, 2, 3, 4);
+    KsScrapeDrawRelic.Set(KsScrapeDrawMode.AutoPlay, drawnId, 2);
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "同一张牌重复抽到不应中断 Scrape");
+    Check(battle.Counter(Counter.CardsDiscardedThisTurn) == 2,
+        $"同一张牌抽到两次应弃置两次，实际计数 {battle.Counter(Counter.CardsDiscardedThisTurn)}");
+    Check(battle.HandCount == 0 && battle.DiscardCount == 1,
+        $"同一张牌抽到两次仍只留下一个牌值，实际 hand={battle.HandCount} discard={battle.DiscardCount}");
+    Check(x.TransientMarkBase == 0, "重复抽到的路径应释放瞬态身份范围");
+    CheckNoDynamicMarks(in battle, "重复抽到路径");
+
+    // A draw hook moves the drawn card to the bottom of the draw pile. The second draw takes the
+    // remaining copy; both are then discarded by identity, and the older hand copy stays.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = drawRelic };
+    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
+    battle.Cards[0].TransientMark = 1;
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Set(KsScrapeDrawMode.MoveToDrawBottom, drawnId, 1);
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "抽牌钩子移动不应中断 Scrape");
+    Check(battle.HandCount == 1 && battle.Cards[0].TransientMark == 1,
+        "Scrape 应按标记弃掉移到抽牌堆的抽牌，保留旧副本");
+    Check(battle.DrawCount == 0 && battle.DiscardCount == 2,
+        $"移到抽牌堆的抽牌也应被弃置，实际 draw={battle.DrawCount} discard={battle.DiscardCount}");
+    Check(x.TransientMarkBase == 0, "移动路径应释放瞬态身份范围");
+    CheckNoDynamicMarks(in battle, "移到抽牌堆路径");
+
+    // A draw hook puts the drawn card into the discard pile before Scrape discards it. The existing
+    // engine removes and re-appends that same object, moving it to the bottom; the old discard-pile
+    // sentinel must stay above it.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = drawRelic };
+    Piles.Append(ref battle, Pile.Discard, Kernel.CreateCard(rules, otherId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Set(KsScrapeDrawMode.MoveToDiscardTop, drawnId, 1);
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "已进入弃牌堆的抽牌不应中断 Scrape");
+    Check(battle.DiscardCount == 3
+        && Piles.At(ref battle, Pile.Discard, 0).Id == otherId
+        && Piles.At(ref battle, Pile.Discard, 1).Id == drawnId
+        && Piles.At(ref battle, Pile.Discard, 2).Id == drawnId,
+        "已在弃牌堆的抽牌应重新移到弃牌堆底");
+    Check(x.TransientMarkBase == 0, "弃牌堆路径应释放瞬态身份范围");
+    CheckNoDynamicMarks(in battle, "已在弃牌堆路径");
+
+    // The existing engine filters the live CardModel after the whole draw. A draw hook that makes
+    // the drawn card free must exclude it from the discard even though its draw-time value had cost 1.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = drawRelic };
+    Card freeScrape = Kernel.CreateCard(rules, scrape);
+    Piles.Append(ref battle, Pile.Play, freeScrape);
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Set(KsScrapeDrawMode.MakeFree, drawnId, 1);
+    x = new(ref battle, rules, default)
+    {
+        Card = freeScrape,
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+    };
+    Registry.Card(scrape).OnPlay(ref x);
+    Check(!x.NeedsChoice, "抽牌钩子改费不应中断 Scrape");
+    Check(battle.HandCount == 1 && battle.DiscardCount == 0,
+        $"抽牌钩子改成 0 费后不应弃置，实际 hand={battle.HandCount} discard={battle.DiscardCount}");
+    Check(x.TransientMarkBase == 0, "改费路径应释放瞬态身份范围");
+    CheckNoDynamicMarks(in battle, "改费路径");
+
+    // A listener raises a choice after the first discard. Scrape must unwind through finally,
+    // restore every inner mark (including the card that triggered the choice) and its base.
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.RelicCount = 1;
+    battle.Relics[0] = new Relic { Id = choiceRelic };
+    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
+    battle.Cards[0].TransientMark = 65;
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Reset();
+    KsScrapeChoiceRelic.RequestChoice = true;
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+        TransientMarkBase = 3,
+    };
+    try
+    {
+        Registry.Card(scrape).OnPlay(ref x);
+    }
+    finally
+    {
+        KsScrapeChoiceRelic.RequestChoice = false;
+    }
+    Check(x.NeedsChoice, "弃牌钩子提出选择时应停在 NeedsChoice");
+    Check(x.TransientMarkBase == 3, $"选择中断后应恢复外层 TransientMarkBase=3，实际 {x.TransientMarkBase}");
+    Check(battle.Cards[0].TransientMark == 65, "内层批次必须保留外层 65 标记");
+    CheckNoDynamicMarksInRange(in battle, 67, 2, "选择中断");
+    Check(battle.DiscardCount == 1 && battle.HandCount == 2,
+        "选择中断时应只完成第一张弃牌");
+
+    // Reserving more identity bytes than the 64..255 range has is an explicit capacity error.
+    battle = NewBattle();
+    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
+    battle.Cards[0].TransientMark = 1;
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
+    KsScrapeDrawRelic.Reset();
+    x = new(ref battle, rules, default)
+    {
+        Card = Kernel.CreateCard(rules, scrape),
+        Stats = rules.Card(scrape, 0),
+        Target = Kernel.EnemyOwner(0),
+        TransientMarkBase = 191,
+    };
+    bool capacity = false;
+    try
+    {
+        Registry.Card(scrape).OnPlay(ref x);
+    }
+    catch (CapacityException)
+    {
+        capacity = true;
+    }
+    Check(capacity, "Scrape 瞬态身份范围耗尽时应抛 CapacityException");
+    Check(x.TransientMarkBase == 191, "容量失败后 TransientMarkBase 应保持不变");
+    CheckNoDynamicMarks(in battle, "容量失败");
+}
+
+static void CheckNoDynamicMarks(in Battle battle, string context)
+{
+    for (int position = 0; position < battle.CardCount; position++)
+    {
+        Check(battle.Cards[position].TransientMark < 64,
+            $"{context}: 卡牌 {position} 残留动态标记 {battle.Cards[position].TransientMark}");
+    }
+    for (int slot = 0; slot < Limits.DetachedCards; slot++)
+    {
+        Check(battle.DetachedCards[slot].TransientMark < 64,
+            $"{context}: detached {slot} 残留动态标记 {battle.DetachedCards[slot].TransientMark}");
+    }
+}
+
+static void CheckNoDynamicMarksInRange(in Battle battle, int markStart, int count, string context)
+{
+    for (int position = 0; position < battle.CardCount; position++)
+    {
+        int mark = battle.Cards[position].TransientMark;
+        Check(mark < markStart || mark >= markStart + count,
+            $"{context}: 卡牌 {position} 残留内层标记 {mark}");
+    }
+    for (int slot = 0; slot < Limits.DetachedCards; slot++)
+    {
+        int mark = battle.DetachedCards[slot].TransientMark;
+        Check(mark < markStart || mark >= markStart + count,
+            $"{context}: detached {slot} 残留内层标记 {mark}");
+    }
+}
+
+static Rules ScrapeRules()
+{
+    RulesDraft builder = new() { BaseMaxEnergy = 3, HasEncounter = true, EncounterSlots = ["first"], RootEnemyCount = 0 };
+    Registry.TryCard("SCRAPE", out ushort scrape);
+    Registry.TryCard("KS_SCRAPE_DRAWN", out ushort drawn);
+    Registry.TryCard("KS_SCRAPE_SLY", out ushort sly);
+    Registry.TryCard("KS_SCRAPE_OTHER", out ushort other);
+    builder.SetCard(scrape, 0, ScrapeStats(CardType.Attack, TargetType.AnyEnemy, 1, [7m, 2m]));
+    builder.SetCard(drawn, 0, ScrapeStats(CardType.Skill, TargetType.Self, 1));
+    builder.SetCard(sly, 0, ScrapeStats(CardType.Skill, TargetType.Self, 1, [2m], Keywords.Sly));
+    builder.SetCard(other, 0, ScrapeStats(CardType.Skill, TargetType.Self, 1));
+    return builder.Build();
+
+    static CardStats ScrapeStats(CardType type, TargetType target, int cost,
+        decimal[]? vars = null, Keywords keywords = Keywords.None) => new()
+    {
+        Type = type, Target = target, Rarity = CardRarity.Basic, EnergyCost = cost, CostsX = false,
+        StarCost = -1, StarCostsX = false, Keywords = keywords, MaxUpgradeLevel = 1,
+        Vars = vars ?? [],
+    };
 }
 
 static Rules SilentRules()
@@ -4071,6 +4337,124 @@ public sealed class KsTestDiscardRelic : RelicDef
 
 [ContentId("KS_TEST_SLY_RELIC")]
 public sealed class KsTestSlyRelic : RelicDef;
+
+public enum KsScrapeDrawMode
+{
+    None,
+    AutoPlay,
+    MoveToDrawBottom,
+    MoveToDiscardTop,
+    MakeFree,
+}
+
+[ContentId("KS_SCRAPE_DRAWN")]
+public sealed class KsScrapeDrawn : CardDef
+{
+    public override void OnPlay(ref Exec x)
+    {
+    }
+}
+
+[ContentId("KS_SCRAPE_SLY")]
+public sealed class KsScrapeSly : CardDef
+{
+    public override void OnPlay(ref Exec x)
+    {
+        KsScrapeLog.Lines.Add("sly-play");
+        Kernel.Draw(ref x, (int)CardEffects.Var(x, 0), fromHandDraw: false);
+    }
+}
+
+[ContentId("KS_SCRAPE_OTHER")]
+public sealed class KsScrapeOther : CardDef
+{
+    public override void OnPlay(ref Exec x)
+    {
+    }
+}
+
+[ContentId("KS_SCRAPE_DRAW_RELIC")]
+public sealed class KsScrapeDrawRelic : RelicDef
+{
+    public static KsScrapeDrawMode Mode { get; set; }
+    public static ushort FilterId { get; set; }
+    public static int Remaining { get; set; }
+
+    public static void Set(KsScrapeDrawMode mode, ushort filterId, int remaining)
+    {
+        Mode = mode;
+        FilterId = filterId;
+        Remaining = remaining;
+    }
+
+    public static void Reset()
+    {
+        Mode = KsScrapeDrawMode.None;
+        FilterId = 0;
+        Remaining = 0;
+    }
+
+    public override void AfterCardDrawn(ref Exec x, Listener self, int drawnPosition, bool fromHandDraw)
+    {
+        if (Mode == KsScrapeDrawMode.None || Remaining <= 0
+            || (uint)drawnPosition >= (uint)x.B.HandCount)
+            return;
+        ref Card card = ref Piles.At(ref x.B, Pile.Hand, drawnPosition);
+        if (FilterId != 0 && card.Id != FilterId)
+            return;
+        Remaining--;
+        switch (Mode)
+        {
+            case KsScrapeDrawMode.AutoPlay:
+                Kernel.AutoPlay(ref x, Pile.Hand, drawnPosition);
+                break;
+            case KsScrapeDrawMode.MoveToDrawBottom:
+                Kernel.MoveCard(ref x.B, Pile.Hand, drawnPosition, Pile.Draw, PilePosition.Bottom);
+                break;
+            case KsScrapeDrawMode.MoveToDiscardTop:
+                Kernel.MoveCard(ref x.B, Pile.Hand, drawnPosition, Pile.Discard, PilePosition.Top);
+                break;
+            case KsScrapeDrawMode.MakeFree:
+                card.BaseCost = 0;
+                break;
+            default:
+                throw new InvalidOperationException($"未知的抽牌钩子模式 {Mode}。");
+        }
+    }
+}
+
+[ContentId("KS_SCRAPE_LOG_RELIC")]
+public sealed class KsScrapeLogRelic : RelicDef
+{
+    public override void AfterCardDiscarded(ref Exec x, Listener self, in Card card)
+        => KsScrapeLog.Lines.Add("discard");
+}
+
+[ContentId("KS_SCRAPE_CHOICE_RELIC")]
+public sealed class KsScrapeChoiceRelic : RelicDef
+{
+    public static bool RequestChoice { get; set; }
+
+    public override void AfterCardDiscarded(ref Exec x, Listener self, in Card card)
+    {
+        if (!RequestChoice)
+            return;
+        int handCount = x.B.HandCount;
+        Span<int> options = stackalloc int[handCount];
+        for (int index = 0; index < handCount; index++)
+            options[index] = index;
+        Span<int> selected = stackalloc int[1];
+        Kernel.ChooseCardsInRange(ref x, ChoiceEffect.DiscardAndDraw, Pile.Hand, options, 1, 1,
+            selected, out _);
+    }
+}
+
+static class KsScrapeLog
+{
+    public static List<string> Lines { get; } = [];
+
+    public static void Clear() => Lines.Clear();
+}
 
 [ContentId("RG_TEST_STAR_CARD")]
 public sealed class RgTestStarCard : CardDef

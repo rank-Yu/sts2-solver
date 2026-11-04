@@ -248,7 +248,7 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 来源：`S/CombatPredictionSimulator.CardPile.cs`。
 
 - 小数抽牌数向上取整；`ShouldDraw` 失败则整次不抽。Pagestorm 在每张本地 Ethereal 牌抽到后追加一次抽牌（`AfterCardDrawn`）。
-- 逐张：结束中或手牌达到上限则停止；抽牌堆空且弃牌堆非空时洗牌；取抽牌堆顶入手；历史 → `AfterCardDrawn` Early → 普通 → 被抽卡自身 Hook。`TryDrawOne` 在抽牌前保存被抽卡的值；Pillage 用它判断“刚抽到的牌是否攻击”，即使 `AfterCardDrawn` 中的 Hellraiser 已把该牌自动打出并从手牌移除。
+- 逐张：结束中或手牌达到上限则停止；抽牌堆空且弃牌堆非空时洗牌；取抽牌堆顶入手；历史 → `AfterCardDrawn` Early → 普通 → 被抽卡自身 Hook。`TryDrawOne` 在抽牌前保存被抽卡的值；Pillage 用它判断“刚抽到的牌是否攻击”，即使 `AfterCardDrawn` 中的 Hellraiser 已把该牌自动打出并从手牌移除。`DrawIntoMarked` 在进入手牌后、`AfterCardDrawn` 之前写入本批的瞬态身份字节，供 Scrape 在抽牌钩子移动牌后仍按对象身份弃置。
 - 洗牌：列表 = 弃牌堆（原顺序）+ 抽牌堆；按卡牌排序键稳定排序后用 `Shuffle` 流做不稳定洗牌（与 `StableShuffleProjection` 相同）；`ModifyShuffleOrder`；全部放到抽牌堆底；`ShuffleEventCount + 1`；战斗未结束时 `AfterShuffle`（TheAbacus 获得其 Unpowered 格挡）。排序键来自原版 `CardModel.CompareTo`，在根导入时编译进 `Rules`。
 - 随机插入牌堆位置用 `Shuffle` 流的 `NextInt(n + 1)`。手牌满时加入手牌的卡改进弃牌堆。
 

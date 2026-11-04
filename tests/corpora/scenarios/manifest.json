@@ -50,6 +50,19 @@
       "threads": 1
     },
     {
+      "id": "hl2-blessed-antler-preroot",
+      "scenario": "search_dazed_root",
+      "group": "controller",
+      "fixture": "hl2-blessed-antler-preroot",
+      "request": {
+        "settingsModeForTest": "Manual",
+        "controllerScenarioForTest": "search_dazed_root",
+        "fullCombatForTest": false
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
       "id": "hl1f2-silent-skulking-power-potion",
       "scenario": null,
       "group": "full-combat",
@@ -84,6 +97,21 @@
       "scenario": null,
       "group": "full-combat",
       "fixture": "hl1f2-scrolls-blessed-antler-dazed",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "hl2-blessed-antler-preroot-full",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hl2-blessed-antler-preroot",
       "request": {
         "controllerScenarioForTest": null,
         "fullCombatForTest": true,

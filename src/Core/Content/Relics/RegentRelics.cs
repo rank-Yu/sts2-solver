@@ -127,7 +127,7 @@ public sealed partial class FencingManual : RelicDef;
 [ContentId("ORANGE_DOUGH")]
 public sealed class OrangeDough : RelicDef
 {
-    public override IReadOnlyList<string> SetupOnlyCardPools => [CardPools.ColorlessAll];
+    public override IReadOnlyList<string> GeneratedCardPools => [CardPools.ColorlessAll];
 
 }
 

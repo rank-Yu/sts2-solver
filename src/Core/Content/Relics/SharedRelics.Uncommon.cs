@@ -31,6 +31,8 @@ public sealed class BookRepairKnife : RelicDef
 [ContentId("FUNERARY_MASK")]
 public sealed partial class FuneraryMask : RelicDef
 {
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SOUL", 0)];
+
 }
 
 /// <summary>

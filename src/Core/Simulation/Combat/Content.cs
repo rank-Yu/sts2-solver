@@ -415,8 +415,6 @@ public abstract class ContentDef
     /// </summary>
     public virtual IReadOnlyList<string> SetupOnlyCardPools => [];
 
-    public virtual IReadOnlyList<(string CardId, int Upgrade)> SetupOnlyGeneratedCards => [];
-
     public virtual bool SetupOnlyOutOfCombatPotionPool => false;
 }
 

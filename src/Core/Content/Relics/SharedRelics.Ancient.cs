@@ -147,12 +147,15 @@ public sealed class PaelsTears : RelicDef
 /// <summary>
 /// <c>BlessedAntler</c>: <c>ModifyMaxEnergy</c> adds Energy. The native turn-1 Dazed generation runs at
 /// the turn start before the play-phase root and is imported; later turns do not satisfy its condition.
+/// The rules are compiled at combat start, before that generation, so the card is declared here.
 /// </summary>
 [ContentId("BLESSED_ANTLER")]
 public sealed class BlessedAntler : RelicDef
 {
     // BlessedAntler.cs: EnergyVar(1), CardsVar(3).
     public override IReadOnlyList<string> VarNames => ["Energy"];
+
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
 
     public override decimal ModifyMaxEnergy(ref Exec x, Listener self, decimal amount)
         => amount + x.R.RelicVar(Id, 0);

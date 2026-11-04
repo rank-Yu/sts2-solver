@@ -312,5 +312,5 @@
 ### 7.4 没有原引擎镜像的遗物
 
 - 有战斗内行为：`BOOK_REPAIR_KNIFE`（Doom 击杀后治疗）、`INFUSED_CORE`（闪电球值）、`LUNAR_PASTRY`（星能）、`PHYLACTERY_UNBOUND`（Osty 召唤）、`SEAL_OF_GOLD`（金币换能量）、`SNECKO_EYE`（抽牌数）、`WHISPERING_EARRING`（最大能量；也是自动预打出的计划来源，但没有战斗内效果）。
-- 只在战斗外或根捕获之前生效，定义为空并注明原版 Hook：`BING_BONG`、`DARKSTONE_PERIAPT`、`DATA_DISK`、`DELICATE_FROND`、`DIAMOND_DIADEM`、`DIVINE_DESTINY`、`FAKE_SNECKO_EYE`、`FUNERARY_MASK`、`NINJA_SCROLL`、`RADIANT_PEARL`。
+- 只在战斗外或根捕获之前生效，定义没有战斗内钩子并注明原版 Hook：`BING_BONG`、`DARKSTONE_PERIAPT`、`DATA_DISK`、`DELICATE_FROND`、`DIAMOND_DIADEM`、`DIVINE_DESTINY`、`FAKE_SNECKO_EYE`。根捕获前生成牌的遗物在定义里声明规则闭包：`FUNERARY_MASK`（`SOUL`）、`NINJA_SCROLL`（`SHIV`）、`RADIANT_PEARL`（`LUMINESCE`）。
 - 没有定义，导入时按 `unsupported-relic` 拒绝：`BYRDPIP`（原版宠物；原引擎不模拟 Osty 以外的宠物）、`DEPRECATED_RELIC`（Rarity None，无法获得）。

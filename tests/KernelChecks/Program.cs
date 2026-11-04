@@ -118,6 +118,7 @@ CheckEcKernel(rules);
 CheckDx5Kernel(rules);
 CheckCardPoolContracts();
 CheckStatusCardContracts();
+CheckPrerootGeneratedCardContracts();
 var benchmark = Benchmark(rules);
 
 Console.WriteLine(JsonSerializer.Serialize(new
@@ -331,6 +332,40 @@ static void CheckStatusCardContracts()
     RequireMonster("SOUL_FYSH", "BECKON");
     RequireMonster("NOISEBOT", "DAZED");
     Console.WriteLine($"STATUS_CARD_CONTRACTS statuses={statusIds.Length} generated={generated.Count}");
+}
+
+static void CheckPrerootGeneratedCardContracts()
+{
+    // The controller compiles rules in the CombatStartingEvent prefix, before Hook.BeforeCombatStart
+    // and the first turn's BeforeHandDraw. Every native generation in those pre-root hooks must be
+    // visible to the rule closure even though the generated card is only in the imported battle.
+    void RequireCard(string relicId, string cardId, int upgrade)
+    {
+        Check(Registry.TryRelic(relicId, out ushort id), $"缺少遗物 {relicId}");
+        Check(Registry.Relic(id).GeneratedCards.Any(item =>
+                item.CardId == cardId && item.Upgrade == upgrade),
+            $"{relicId} 必须在规则编译闭包里声明 {cardId}+{upgrade}");
+    }
+    void RequirePool(string relicId, string pool)
+    {
+        Check(Registry.TryRelic(relicId, out ushort id), $"缺少遗物 {relicId}");
+        Check(Registry.Relic(id).GeneratedCardPools.Contains(pool),
+            $"{relicId} 必须在规则编译闭包里声明卡池 {pool}");
+    }
+
+    RequireCard("BLESSED_ANTLER", "DAZED", 0);
+    RequireCard("TEA_OF_DISCOURTESY", "DAZED", 0);
+    RequireCard("FUNERARY_MASK", "SOUL", 0);
+    RequireCard("NINJA_SCROLL", "SHIV", 0);
+    RequireCard("RADIANT_PEARL", "LUMINESCE", 0);
+    RequireCard("RADIANT_PEARL", "LUMINESCE", 1);
+    RequirePool("ORANGE_DOUGH", CardPools.ColorlessAll);
+    RequirePool("TOOLBOX", CardPools.ColorlessAll);
+    RequirePool("CHOICES_PARADOX", CardPools.CharacterAll);
+    RequirePool("CROSSBOW", CardPools.CharacterAttacks);
+    RequirePool("BIG_HAT", CardPools.CharacterAll);
+    RequirePool("VEXING_PUZZLEBOX", CardPools.CharacterAll);
+    Console.WriteLine("PREROOT_GENERATED_CARD_CONTRACTS relics=11");
 }
 
 static void CheckGrowthRewards()

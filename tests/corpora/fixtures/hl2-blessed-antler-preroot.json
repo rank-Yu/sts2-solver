@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "HL2-BLESSED-ANTLER-PREROOT",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "HL2ANTLER",
+  "ascension": 0,
+  "enemyCurrentHp": 120,
+  "relics": [
+    { "relicId": "BLESSED_ANTLER", "addWithoutObtainedEffects": true }
+  ],
+  "preserveNativeCombatStateForTest": true,
+  "timeoutSeconds": 300
+}

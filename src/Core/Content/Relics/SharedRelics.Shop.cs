@@ -34,7 +34,7 @@ public sealed class UndyingSigil : RelicDef
 [ContentId("NINJA_SCROLL")]
 public sealed class NinjaScroll : RelicDef
 {
-    public override IReadOnlyList<(string CardId, int Upgrade)> SetupOnlyGeneratedCards => [("SHIV", 0)];
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SHIV", 0)];
 
 }
 

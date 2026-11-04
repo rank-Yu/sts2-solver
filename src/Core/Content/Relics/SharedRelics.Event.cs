@@ -337,7 +337,7 @@ public sealed class RoyalPoison : RelicDef
 [ContentId("TEA_OF_DISCOURTESY")]
 public sealed class TeaOfDiscourtesy : RelicDef
 {
-    public override IReadOnlyList<(string CardId, int Upgrade)> SetupOnlyGeneratedCards => [("DAZED", 0)];
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
 
 }
 

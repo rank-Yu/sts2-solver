@@ -80,6 +80,8 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 卡牌规范值不读根上的卡，因为根卡可能带 Dampen、附魔或临时修饰。编译器取 `CanonicalInstance`，按目标升级等级逐级克隆并升级；升级后的 `CurrentUpgradeLevel` 必须等于目标等级，否则以 `unsupported-card` 拒绝。卡池和药水池都使用玩家 `UnlockState` 里的同一份解锁状态。
 
+生产 Mod 在 `CombatStartingEvent` 里编译规则，该事件是原版 `Hook.BeforeCombatStart` 的前缀，早于 `BeforeCombatStart` 和第 1 回合的 `BeforeHandDraw`。这些根前钩子生成的牌必须在内容定义的 `GeneratedCards`/`GeneratedCardPools` 里声明，规则闭包才能冻结它们的统计；实际导入的牌堆仍按当时的牌逐张扫描。当前声明包括：`BLESSED_ANTLER`、`TEA_OF_DISCOURTESY` → `DAZED`，`FUNERARY_MASK` → `SOUL`，`NINJA_SCROLL` → `SHIV`，`RADIANT_PEARL` → `LUMINESCE`，`ORANGE_DOUGH`、`TOOLBOX` → `colorless.all`，`CHOICES_PARADOX`、`BIG_HAT`、`VEXING_PUZZLEBOX` → `character.all`，`CROSSBOW` → `character.attacks`。声明是静态的，可能比某个具体根的根前生成更宽。
+
 已知敌人的静态参数与初始 AI 寄存器由 `NativeAccess.MonsterInt` 读取。召唤物在一个私有的临时 `CombatState` 里通过 `ToMutable` + `SetUpForCombat` 创建，所以它的状态机、初始节点和静态值不依赖根上的同类型敌人。召唤闭包保持原生的 BFS 顺序。
 
 ### 4.1 30 个字段

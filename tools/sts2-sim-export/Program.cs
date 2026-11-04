@@ -85,15 +85,31 @@ internal static class Program
         Console.WriteLine(
             $"EXPORT-SUMMARY runs={summary.Runs} failed={summary.RunsFailed} won={summary.RunsWon} " +
             $"combats={summary.CombatsSeen} exported={summary.ExportedCombats} " +
-            $"forceWin={options.ForceWin} out={output}");
+            $"forceWin={options.ForceWin} forceWinRandomized={options.RandomizeForceWin} " +
+            $"out={output}");
         if (options.ForceWin)
             Console.WriteLine(
                 $"FORCE-WIN injected={summary.InjectedCombatOutcomes} " +
                 $"missingOpening={summary.InjectionWithoutOpening} " +
                 $"nestedRoomSkipped={summary.InjectionNestedRoomSkipped} " +
+                $"potionsAvailable={summary.InjectedPotionsAvailable} " +
                 $"consumedPotionSlots={summary.InjectedConsumedPotionSlots} " +
                 $"finalHpChecked={summary.InjectedFinalHpChecked} " +
-                $"finalHpMismatch={summary.InjectedFinalHpMismatch}");
+                $"finalHpMismatch={summary.InjectedFinalHpMismatch} " +
+                $"settlementHpChecked={summary.InjectedSettlementHpChecked} " +
+                $"settlementHpMismatch={summary.InjectedSettlementHpMismatch} " +
+                $"settlementPotionChecked={summary.InjectedSettlementPotionChecked} " +
+                $"settlementPotionMismatch={summary.InjectedSettlementPotionMismatch} " +
+                $"nextOpeningHpChecked={summary.NextOpeningHpChecked} " +
+                $"nextOpeningHpMismatch={summary.NextOpeningHpMismatch} " +
+                $"nextOpeningHpHigher={summary.NextOpeningHpHigher} " +
+                $"nextOpeningHpLower={summary.NextOpeningHpLower} " +
+                $"nextOpeningMaxHpChanged={summary.NextOpeningMaxHpChanged} " +
+                $"nextOpeningHpHigherWithMaxHpChange={summary.NextOpeningHpHigherWithMaxHpChange} " +
+                $"nextOpeningHpHigherWithSameMaxHp={summary.NextOpeningHpHigherWithSameMaxHp} " +
+                $"nextOpeningPotionChecked={summary.NextOpeningPotionChecked} " +
+                $"nextOpeningPotionMismatch={summary.NextOpeningPotionMismatch} " +
+                $"nextOpeningUnchecked={summary.NextOpeningUnchecked}");
         foreach ((string reason, int count) in summary.SkippedByReason
                      .OrderBy(static pair => pair.Key, StringComparer.Ordinal))
             Console.WriteLine($"EXPORT-SKIP {reason}={count}");
@@ -132,14 +148,36 @@ internal static class Program
             runsFailed = summary.RunsFailed,
             runsWon = summary.RunsWon,
             forceWin = options.ForceWin,
+            forceWinRandomized = options.RandomizeForceWin,
+            forceWinRandomMinimumHpPercent = options.RandomizeForceWin
+                ? RandomizedForceWinCombatOutcomeProvider.MinimumHpPercent
+                : (int?)null,
             combatsSeen = summary.CombatsSeen,
             combatsExported = summary.ExportedCombats,
             injectedCombatOutcomes = summary.InjectedCombatOutcomes,
             injectionWithoutOpening = summary.InjectionWithoutOpening,
             injectionNestedRoomSkipped = summary.InjectionNestedRoomSkipped,
+            injectedPotionsAvailable = summary.InjectedPotionsAvailable,
             injectedConsumedPotionSlots = summary.InjectedConsumedPotionSlots,
             injectedFinalHpChecked = summary.InjectedFinalHpChecked,
             injectedFinalHpMismatch = summary.InjectedFinalHpMismatch,
+            injectedSettlementHpChecked = summary.InjectedSettlementHpChecked,
+            injectedSettlementHpMismatch = summary.InjectedSettlementHpMismatch,
+            injectedSettlementPotionChecked = summary.InjectedSettlementPotionChecked,
+            injectedSettlementPotionMismatch = summary.InjectedSettlementPotionMismatch,
+            nextOpeningHpChecked = summary.NextOpeningHpChecked,
+            nextOpeningHpMismatch = summary.NextOpeningHpMismatch,
+            nextOpeningHpHigher = summary.NextOpeningHpHigher,
+            nextOpeningHpLower = summary.NextOpeningHpLower,
+            nextOpeningMaxHpChanged = summary.NextOpeningMaxHpChanged,
+            nextOpeningHpHigherWithMaxHpChange = summary.NextOpeningHpHigherWithMaxHpChange,
+            nextOpeningHpHigherWithSameMaxHp = summary.NextOpeningHpHigherWithSameMaxHp,
+            nextOpeningPotionChecked = summary.NextOpeningPotionChecked,
+            nextOpeningPotionMismatch = summary.NextOpeningPotionMismatch,
+            nextOpeningUnchecked = summary.NextOpeningUnchecked,
+            injectedHpPercentBuckets = summary.InjectedHpPercentBuckets,
+            injectedConsumedPotionBuckets = summary.InjectedConsumedPotionBuckets,
+            injectedPotionCountBuckets = summary.InjectedPotionCountBuckets,
             exportedByCharacter = summary.ExportedByCharacter,
             exportedByAscension = summary.ExportedByAscension,
             exportedByAct = summary.ExportedByAct,

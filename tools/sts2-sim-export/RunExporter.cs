@@ -26,6 +26,9 @@ internal sealed class ExportSummary
     internal Dictionary<string, int> ExportedByRoomType { get; } = new(StringComparer.Ordinal);
     internal Dictionary<string, int> ExportedByEncounter { get; } = new(StringComparer.Ordinal);
     internal Dictionary<string, int> SkippedByReason { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, int> InjectedHpPercentBuckets { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, int> InjectedConsumedPotionBuckets { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, int> InjectedPotionCountBuckets { get; } = new(StringComparer.Ordinal);
     internal int ExportedCombats { get; set; }
     internal int Runs { get; set; }
     internal int RunsFailed { get; set; }
@@ -35,8 +38,23 @@ internal sealed class ExportSummary
     internal int InjectionWithoutOpening { get; set; }
     internal int InjectionNestedRoomSkipped { get; set; }
     internal int InjectedConsumedPotionSlots { get; set; }
+    internal int InjectedPotionsAvailable { get; set; }
     internal int InjectedFinalHpChecked { get; set; }
     internal int InjectedFinalHpMismatch { get; set; }
+    internal int InjectedSettlementHpChecked { get; set; }
+    internal int InjectedSettlementHpMismatch { get; set; }
+    internal int InjectedSettlementPotionChecked { get; set; }
+    internal int InjectedSettlementPotionMismatch { get; set; }
+    internal int NextOpeningHpChecked { get; set; }
+    internal int NextOpeningHpMismatch { get; set; }
+    internal int NextOpeningHpHigher { get; set; }
+    internal int NextOpeningHpLower { get; set; }
+    internal int NextOpeningMaxHpChanged { get; set; }
+    internal int NextOpeningHpHigherWithMaxHpChange { get; set; }
+    internal int NextOpeningHpHigherWithSameMaxHp { get; set; }
+    internal int NextOpeningPotionChecked { get; set; }
+    internal int NextOpeningPotionMismatch { get; set; }
+    internal int NextOpeningUnchecked { get; set; }
 
     internal void CountExport(CombatExportContext context)
     {
@@ -59,12 +77,41 @@ internal sealed class ExportSummary
         InjectionWithoutOpening += stats.MissingOpening;
         InjectionNestedRoomSkipped += stats.NestedRoomSkipped;
         InjectedConsumedPotionSlots += stats.ConsumedPotionSlots;
+        InjectedPotionsAvailable += stats.PotionsAvailable;
         InjectedFinalHpChecked += stats.FinalHpChecked;
         InjectedFinalHpMismatch += stats.FinalHpMismatch;
+        InjectedSettlementHpChecked += stats.SettlementHpChecked;
+        InjectedSettlementHpMismatch += stats.SettlementHpMismatch;
+        InjectedSettlementPotionChecked += stats.SettlementPotionChecked;
+        InjectedSettlementPotionMismatch += stats.SettlementPotionMismatch;
+        NextOpeningHpChecked += stats.NextOpeningHpChecked;
+        NextOpeningHpMismatch += stats.NextOpeningHpMismatch;
+        NextOpeningHpHigher += stats.NextOpeningHpHigher;
+        NextOpeningHpLower += stats.NextOpeningHpLower;
+        NextOpeningMaxHpChanged += stats.NextOpeningMaxHpChanged;
+        NextOpeningHpHigherWithMaxHpChange += stats.NextOpeningHpHigherWithMaxHpChange;
+        NextOpeningHpHigherWithSameMaxHp += stats.NextOpeningHpHigherWithSameMaxHp;
+        NextOpeningPotionChecked += stats.NextOpeningPotionChecked;
+        NextOpeningPotionMismatch += stats.NextOpeningPotionMismatch;
+        NextOpeningUnchecked += stats.NextOpeningUnchecked;
+        foreach (int percent in stats.InjectedHpPercents)
+            Add(InjectedHpPercentBuckets, PercentBucket(percent));
+        foreach (int count in stats.InjectedConsumedCounts)
+            Add(InjectedConsumedPotionBuckets, count.ToString(CultureInfo.InvariantCulture));
+        foreach (int count in stats.InjectedPotionCounts)
+            Add(InjectedPotionCountBuckets, count.ToString(CultureInfo.InvariantCulture));
     }
 
     internal static void Add(Dictionary<string, int> counts, string key) =>
         counts[key] = counts.GetValueOrDefault(key) + 1;
+
+    private static string PercentBucket(int percent)
+    {
+        if (percent >= 100)
+            return "100";
+        int low = percent / 10 * 10;
+        return string.Create(CultureInfo.InvariantCulture, $"{low}-{low + 9}");
+    }
 }
 
 internal sealed record CombatExportContext(
@@ -85,6 +132,7 @@ internal sealed class RunExporter
     private readonly string _indexPath;
     private readonly CombatOutcomeCoordinator _outcomes;
     private int _combatOrdinalInRun;
+    private string _runSeed = string.Empty;
     private PendingFloor? _pending;
 
     internal RunExporter(ExportOptions options)
@@ -93,8 +141,9 @@ internal sealed class RunExporter
         _outputDirectory = Path.GetFullPath(options.OutputDirectory);
         Directory.CreateDirectory(_outputDirectory);
         _indexPath = Path.Combine(_outputDirectory, "combats.jsonl");
-        _outcomes = new CombatOutcomeCoordinator(
-            options.ForceWin ? new ForceWinCombatOutcomeProvider() : null);
+        _outcomes = new CombatOutcomeCoordinator(options.RandomizeForceWin
+            ? new RandomizedForceWinCombatOutcomeProvider()
+            : options.ForceWin ? new ForceWinCombatOutcomeProvider() : null);
     }
 
     internal string IndexPath => _indexPath;
@@ -103,6 +152,7 @@ internal sealed class RunExporter
         int ascension, ExportSummary summary)
     {
         _combatOrdinalInRun = 0;
+        _runSeed = seed;
         _pending = null;
         RunState runState = new(seed, ActDefinition.GetRandomList(seed), ascension);
         Player player = Player.CreateForNewRun(character, runState);
@@ -167,11 +217,16 @@ internal sealed class RunExporter
 
     internal void EnterFloor(MapPoint point, RoomType roomType)
     {
+        if (_currentRun is not null)
+            _outcomes.ObserveFloorStart(_currentRun);
         _pending = null;
         if (roomType is not (RoomType.Monster or RoomType.Elite or RoomType.Boss))
             return;
         _pending = BuildPending(roomType);
     }
+
+    internal void ObserveCombatSettlement(RunState runState) =>
+        _outcomes.ObserveCombatSettlement(runState);
 
     internal void EndCombat(PlayerSnapshot finalPlayer) => _outcomes.ObserveCombatEnd(finalPlayer.Hp);
 
@@ -181,7 +236,8 @@ internal sealed class RunExporter
         summary.CountSeen();
         _combatOrdinalInRun++;
         Player? openingPlayer = combatState.Players.Count == 1 ? combatState.Players[0] : null;
-        _outcomes.NoteCombatOpening(null, openingPlayer?.Creature.CurrentHp ?? 0);
+        _outcomes.NoteCombatOpening(null, openingPlayer?.Creature.CurrentHp ?? 0, _runSeed,
+            runState.TotalFloor, _combatOrdinalInRun);
         PendingFloor? pending = _pending;
         _pending = null;
         if (pending == null)
@@ -242,7 +298,8 @@ internal sealed class RunExporter
         string roomType = room.RoomType.ToString();
         string runTag = RunTag(runState.Rng.StringSeed);
         string scenarioId = string.Create(CultureInfo.InvariantCulture,
-            $"FS1-{pending.CharacterId}-A{pending.Ascension}-{runTag}-Act{actIndex}-F{floor:D3}-" +
+            $"{_options.SeedPrefix}-{pending.CharacterId}-A{pending.Ascension}-{runTag}-" +
+            $"Act{actIndex}-F{floor:D3}-" +
             $"{roomType}-{encounterId}-{_combatOrdinalInRun:D2}");
         string combatSeed = DeriveSeed(runState.Rng.StringSeed, actIndex, floor, encounterId,
             _combatOrdinalInRun);
@@ -264,7 +321,8 @@ internal sealed class RunExporter
             Potions = pending.Potions,
             ClearRunDeck = true,
         };
-        _outcomes.NoteCombatOpening(scenarioId, player.Creature.CurrentHp);
+        _outcomes.NoteCombatOpening(scenarioId, player.Creature.CurrentHp, _runSeed,
+            floor, _combatOrdinalInRun);
         string path = Path.Combine(_outputDirectory, scenarioId + ".json");
         string json = JsonSerializer.Serialize(request, OfflineRequestDto.JsonOptions);
         File.WriteAllText(path, json + Environment.NewLine);
@@ -287,6 +345,8 @@ internal sealed class RunExporter
             deckSize = pending.Deck.Length,
             relicCount = pending.Relics.Length,
             potionCount = pending.Potions.Length,
+            initialHp = player.Creature.CurrentHp,
+            initialMaxHp = player.Creature.MaxHp,
         }, OfflineRequestDto.JsonLineOptions) + Environment.NewLine);
     }
 

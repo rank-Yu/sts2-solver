@@ -93,6 +93,9 @@ internal sealed class ExportRecorder : IRunRecorder
     {
     }
 
+    public void ObserveCombatSettlement(RunState runState, CombatState combatState) =>
+        _exporter.ObserveCombatSettlement(runState);
+
     public void EndCombat(bool victory, PlayerSnapshot finalPlayer,
         IReadOnlyList<EnemySnapshot> finalEnemies, CombatRewards rewards) =>
         _exporter.EndCombat(finalPlayer);

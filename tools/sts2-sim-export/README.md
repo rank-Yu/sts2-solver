@@ -33,10 +33,11 @@ dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-s
 
 加 `--force-win` 时，每场战斗仍然先走正常的房间进入和 `BeginCombat`（导出开局），然后由
 `ICombatOutcomeProvider` 注入按胜利结算的结果。强制胜利把剩余生命固定为进入战斗时的值，且不消耗
-药水，因此整局能继续推进到第二、三幕；不加该参数时行为不变。当前提供者只用于分布导出，后续可用
-同一个接口替换成求解器在原版里真实打出的剩余生命和药水消耗。注入结果只在 sts2-sim 的 imagination
-clone 中生效，因此 `--force-win` 会从请求种子派生一个 `run-clone-<hex>` 种子再跑整局；请求和结果
-都可以用同一请求种子稳定重放。
+药水，因此整局能继续推进到第二、三幕；不加该参数时行为不变。`--force-win-random` 同样强制胜利，
+但把剩余生命随机为最大生命的 20%..100%（不超过进入战斗时的生命），并随机消耗 0 到全部已有药水，
+用来让后续开局的生命和药水栏更分散。两种强制胜利的结果只在 sts2-sim 的 imagination clone 中生效，
+因此会从请求种子派生一个 `run-clone-<hex>` 种子再跑整局；请求和结果都可以用同一请求种子稳定重放。
+后续可用同一个提供者接口替换成求解器在原版里真实打出的剩余生命和药水消耗。
 
 参数：
 
@@ -50,10 +51,14 @@ clone 中生效，因此 `--force-win` 会从请求种子派生一个 `run-clone
 - `--ascensions <逗号分隔>`：默认 `0,10`。
 - `--resume`：跳过 `runs.jsonl` 里已有种子的整局。
 - `--force-win`：每场战斗先导出开局，再按胜利结算；剩余生命保持进入战斗时的值，不消耗药水。
+- `--force-win-random`：同样强制胜利；剩余生命从最大生命的 20%..100% 中随机（不超过进入战斗
+  时的生命），并随机消耗 0 到全部已有药水。随机数由整局种子、楼层和该局战斗序号派生，同样的
+  参数和种子重跑得到相同结果；与 `--force-win` 二选一。
 
 ## 决策策略
 
-导出器使用确定性的启发式策略，不使用随机策略：
+导出器不使用真实随机源：决策策略是确定性的启发式，强制胜利的随机结果也由整局种子、楼层和
+战斗序号派生。
 
 - 战斗：先处理致死/低血量喝药，然后对每个可出的牌做一回合 rollout（克隆战斗、打完本回合、
   结束回合、按原版结算后的血量/敌人血量/格挡/能量/手牌评分），取最高分；卡牌选择统一取前
@@ -70,24 +75,39 @@ clone 中生效，因此 `--force-win` 会从请求种子派生一个 `run-clone
 牌组、遗物和药水仍在 `EnterFloor` 快照；`CombatOutcomeCoordinator` 在 `BeginCombat`
 记录导出请求真正使用的初始生命和 `scenarioId`，随后由
 `ICombatOutcomeProvider.Resolve(CombatOutcomeContext)` 决定注入结果。上下文包含整局状态、战斗房间、
-`scenarioId`（未导出时为 null）、遭遇、幕和进入战斗时的生命。当前实现
-`ForceWinCombatOutcomeProvider` 返回 `InjectedCombatOutcome(Died: false, RemainingHp: 进入战斗生命)`。
-后续批次可以实现同一个接口，按 `scenarioId` 查询求解器在原版中真实打出的结果，并在
-`ConsumedPotionSlots` 里给出用掉的药水槽。
+`scenarioId`（未导出时为 null）、遭遇、幕、进入战斗时的生命、请求整局种子、楼层和该局战斗序号。
+`ForceWinCombatOutcomeProvider` 返回 `InjectedCombatOutcome(Died: false, RemainingHp: 进入战斗生命)`，
+行为与最初的强制胜利一致。`RandomizedForceWinCombatOutcomeProvider` 用
+`SHA-256("fs4-force-win-random:v1|整局种子|楼层|战斗序号")` 派生 SplitMix64 流：剩余生命在
+`[ceil(最大生命 × 20%), min(最大生命, 进入战斗生命)]` 内均匀取整数；对已有药水先均匀取消耗数量
+（0..全部），再用同一流抽取对应数量的槽位，升序写入 `ConsumedPotionSlots`。进入战斗时生命已低于
+20% 时只能保持进入值，不通过注入回血。后续批次可以实现同一个接口，按 `scenarioId` 查询求解器在
+原版中真实打出的结果，并在 `ConsumedPotionSlots` 里给出用掉的药水槽。
 
 sts2-sim 不接受事件强制战斗的结果注入（`RunDriver` 会拒绝 `forcedEnemies` 路径），这类战斗会退回
 原有战斗策略并计入 `FORCE-WIN nestedRoomSkipped`；事件本身造成的非战斗伤害也不由注入控制，因此
-强制胜利模式下仍可能出现整局提前结束。`summary.json` 的 `injectedFinalHpChecked` /
-`injectedFinalHpMismatch` 记录注入后 `EndCombat` 时实际生命与注入值的核对结果。
+强制胜利模式下仍可能出现整局提前结束。导出器做三层核对，计数写进 `summary.json`：
+
+- `injectedSettlementHpChecked` / `injectedSettlementHpMismatch`：注入后、奖励选择前的
+  `ObserveCombatSettlement` 里，实际生命和药水序列必须分别等于注入值及“进入战斗药水减去
+  `ConsumedPotionSlots`”；
+- `injectedFinalHpChecked` / `injectedFinalHpMismatch`：`EndCombat` 时再次核对最终生命；
+- `nextOpeningHpChecked` / `nextOpeningHpMismatch`：下一层 `EnterFloor`（上一层奖励已结算、新房间
+  尚未生效）时核对生命和药水。生命允许因战斗奖励获得芒果/草莓等提高最大生命或回血的遗物而
+  上升（`nextOpeningHpHigher`，其中按 `nextOpeningMaxHpChanged` 区分最大生命是否同时变化）；
+  下降或消耗过的药水重新出现都计入 mismatch。`nextOpeningPotionChecked` /
+  `nextOpeningPotionMismatch` 允许奖励新增药水，但要求注入后留下的药水仍在、注入消耗掉的药水
+  不在。整局在最后一场战斗后结束时没有下一层，计入 `nextOpeningUnchecked`。
 
 ## 输出
 
-- `<scenarioId>.json`：一场战斗开局的 `OfflineRequest`。`scenarioId` 包含角色、进阶、整局种子
-  短哈希、幕、楼层、房间类型、遭遇和该局战斗序号，因此不同整局不会互相覆盖。
+- `<scenarioId>.json`：一场战斗开局的 `OfflineRequest`。`scenarioId` 以 `--seed-prefix` 开头，
+  并包含角色、进阶、整局种子短哈希、幕、楼层、房间类型、遭遇和该局战斗序号，因此不同整局不会
+  互相覆盖。
 - `combats.jsonl`：每场导出战斗一行索引，字段包括角色、进阶、幕名、房间类型、遭遇、种子、
-  牌组/遗物/药水数量和整局种子。
+  牌组/遗物/药水数量、开局生命/最大生命和整局种子。
 - `runs.jsonl`：每局一行结果，供 `--resume` 和报告使用。
-- `summary.json`：运行、导出、跳过和分布计数。
+- `summary.json`：运行、导出、跳过、分布计数，以及强制胜利的注入/结算/下一层核对计数。
 
 导出器只写 `OfflineRequest` 能表达的字段。以下情况按原因计数并跳过，不构造近似请求：
 

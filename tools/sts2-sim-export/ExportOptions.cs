@@ -15,6 +15,7 @@ internal sealed record ExportOptions
     internal int[] Ascensions { get; init; } = [0, 10];
     internal bool Resume { get; init; }
     internal bool ForceWin { get; init; }
+    internal bool RandomizeForceWin { get; init; }
 
     internal static bool TryParse(string[] args, out ExportOptions options, out string error)
     {
@@ -80,7 +81,10 @@ internal sealed record ExportOptions
                     options = options with { Resume = true };
                     break;
                 case "--force-win":
-                    options = options with { ForceWin = true };
+                    options = options with { ForceWin = true, RandomizeForceWin = false };
+                    break;
+                case "--force-win-random":
+                    options = options with { ForceWin = true, RandomizeForceWin = true };
                     break;
                 case "--help" or "-h":
                     error = string.Empty;
@@ -99,11 +103,15 @@ internal sealed record ExportOptions
           dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-sim-export \
               [--runs 300] [--target-combats 1000] [--max-floors 60] [--seed-prefix FS1]
               [--characters IRONCLAD,SILENT,DEFECT,REGENT,NECROBINDER]
-              [--ascensions 0,10] [--resume] [--force-win]
+              [--ascensions 0,10] [--resume] [--force-win | --force-win-random]
 
         --force-win 让每场战斗在导出开局后直接按胜利结算，剩余生命保持进入战斗时的值，
-        不消耗药水；用于让整局推进到第二、三幕。sts2-sim 路径默认是 .local/sts2-sim，
-        可用 MSBuild 属性 Sts2SimRepo 或环境变量 STS2_SIM_REPO 指向另一份固定提交的检出。
+        不消耗药水；用于让整局推进到第二、三幕。
+        --force-win-random 同样强制胜利，但剩余生命在最大生命的 20%..100% 之间随机
+        （不超过进入战斗时的生命），并随机消耗 0 到全部已有药水；随机数由整局种子、
+        楼层和战斗序号派生，同样的参数可以重跑出同样的结果。两种强制胜利二选一。
+        sts2-sim 路径默认是 .local/sts2-sim，可用 MSBuild 属性 Sts2SimRepo 或环境变量
+        STS2_SIM_REPO 指向另一份固定提交的检出。
         """;
 
     private static bool TryInt(string text, out int value) =>

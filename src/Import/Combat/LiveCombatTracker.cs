@@ -201,8 +201,12 @@ internal sealed class LiveCombatTracker
             RootCards = _rootCards,
             Reconciliation = true,
         };
+        IReadOnlySet<int>? reviving = null;
         if (_hasPredicted)
-            options = options with { RevivingEnemies = RevivingEnemies(in _predicted) };
+            reviving = RevivingEnemies(in _predicted);
+        reviving = MergeReviving(reviving, RootRevivingEnemies(state));
+        if (reviving != null)
+            options = options with { RevivingEnemies = reviving };
         Battle live = BattleImporter.Import(state, player, rules, options);
         AddEscapedLoot(ref live);
         if (_hasPredicted)
@@ -233,8 +237,12 @@ internal sealed class LiveCombatTracker
             RootCards = _rootCards,
             Reconciliation = true,
         };
+        IReadOnlySet<int>? reviving = null;
         if (_hasPredicted)
-            options = options with { RevivingEnemies = RevivingEnemies(in _predicted) };
+            reviving = RevivingEnemies(in _predicted);
+        reviving = MergeReviving(reviving, RootRevivingEnemies(state));
+        if (reviving != null)
+            options = options with { RevivingEnemies = reviving };
         Battle live = BattleImporter.Import(state, player, rules, options);
         AddEscapedLoot(ref live);
         if (_hasPredicted)
@@ -262,7 +270,8 @@ internal sealed class LiveCombatTracker
             RootEnemyCount = _rootEnemyCount,
             HasRisk = (expected.Flags & BattleFlags.HasRisk) != 0,
             RootCards = _rootCards,
-            RevivingEnemies = RevivingEnemies(in expected),
+            RevivingEnemies = MergeReviving(RevivingEnemies(in expected),
+                RootRevivingEnemies(state)),
             Reconciliation = true,
         };
         Battle live = BattleImporter.Import(state, player, rules, options);
@@ -325,6 +334,48 @@ internal sealed class LiveCombatTracker
                 reviving.Add(index);
         }
         return reviving;
+    }
+
+    /// <summary>
+    /// Dead rows that are still in the native roster because a removal-preventing power keeps them
+    /// pending a revive (Test Subject's Adaptable, Illusion). The native game removes a creature with
+    /// no such power, so a dead row that is still listed is reviving even before any predicted boundary.
+    /// </summary>
+    private IReadOnlySet<int>? RootRevivingEnemies(CombatState state)
+    {
+        HashSet<int>? reviving = null;
+        for (int index = 0; index < _known.Count; index++)
+        {
+            NativeCreature creature = _known[index];
+            if (creature.IsAlive || !ContainsCreature(state.Enemies, creature)
+                || !HasRemovalPreventingPower(creature))
+                continue;
+            (reviving ??= []).Add(index);
+        }
+        return reviving;
+    }
+
+    private static bool HasRemovalPreventingPower(NativeCreature creature)
+    {
+        foreach (PowerModel power in creature.Powers)
+        {
+            if (power.Amount > 0 && Registry.TryPower(power.Id.Entry, out ushort id)
+                && Registry.Power(id).PreventsRemovalAfterDeath)
+                return true;
+        }
+        return false;
+    }
+
+    private static IReadOnlySet<int>? MergeReviving(IReadOnlySet<int>? left,
+        IReadOnlySet<int>? right)
+    {
+        if (left == null)
+            return right;
+        if (right == null)
+            return left;
+        HashSet<int> merged = [.. left];
+        merged.UnionWith(right);
+        return merged;
     }
 
     private bool Contains(NativeCreature creature)

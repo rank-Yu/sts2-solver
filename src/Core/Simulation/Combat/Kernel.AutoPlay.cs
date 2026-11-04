@@ -176,75 +176,87 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Queue identity of a card moved to the play pile for <c>AutoPlayFromDrawPile</c>. The existing
-    /// engine holds live <c>CardModel</c> references, so state mutations during an auto-play (upgrade,
-    /// affliction/enchantment, cost modifiers, PowerAfflictionChecked) do not change the queue order;
-    /// only a different native card or a clone versus its original does. Duplicate cards are
-    /// interchangeable for that order check.
-    /// </summary>
-    private static bool SameAutoPlayQueueCard(in Card left, in Card right)
-        => left.Id == right.Id && left.IsClone == right.IsClone;
-
-    /// <summary>
     /// Mirrors <c>CardPileCmd.AutoPlayFromDrawPile</c>: first move up to <paramref name="count"/>
     /// cards from the top of the draw pile to the play pile (shuffling between moves), then auto-play
     /// them in order, setting <c>ExhaustOnNextPlay</c> from <paramref name="forceExhaust"/>.
     /// </summary>
+    /// <remarks>
+    /// The native loop holds <c>CardModel</c> references. A queued card can be moved out of the play
+    /// pile by an earlier auto-play (for example by a draw/discard hook), and the native loop still
+    /// sets its flag and plays it from where it currently is. Sts2Solver has no card object identity,
+    /// so each queued occurrence is stamped with a transient mark and located again before use.
+    /// </remarks>
     public static void AutoPlayFromDrawPile(ref Exec x, int count, bool forceExhaust)
     {
         if (IsOverOrEnding(x.B) || count <= 0)
             return;
         if (count > Limits.Cards)
             throw new CapacityException("AutoPlayCards", Limits.Cards);
-        int start = x.B.PlayCount;
-        int moved = 0;
-        Span<Card> cards = stackalloc Card[count];
-        for (int index = 0; index < count; index++)
+        int markBase = ReserveTransientMarks(ref x, count, out int markStart);
+        Span<byte> marks = stackalloc byte[count];
+        Span<byte> outerMarks = stackalloc byte[count];
+        // Only the first `moved` entries are written; the rest are read by the finally restore.
+        marks.Clear();
+        outerMarks.Clear();
+        try
         {
-            ShuffleIfNecessary(ref x);
-            if (x.NeedsChoice)
-                return;
-            if (x.B.DrawCount == 0)
-                break;
-            Card card = Piles.At(ref x.B, Pile.Draw, 0);
-            Piles.MoveToEnd(ref x.B, Pile.Draw, 0, Pile.Play);
-            cards[moved++] = card;
-        }
-        for (int index = 0; index < moved; index++)
-        {
-            if (x.B.Player.IsDead)
-                return;
-            // ContinueAutoPlayCards still writes ExhaustOnNextPlay on every remaining queued card
-            // before its AutoPlay call returns immediately because the combat is over/ending. The
-            // card that ended the combat moved itself to the tail; the not-yet-played cards stay
-            // contiguous at the index recorded before the move phase.
-            if (IsOverOrEnding(x.B))
+            int moved = 0;
+            for (int index = 0; index < count; index++)
             {
-                for (int remaining = index; remaining < moved; remaining++)
-                {
-                    int position = start + remaining - index;
-                    if (position >= x.B.PlayCount)
-                        throw new UnsupportedException("自动打出的牌堆顺序在结算中被改变。");
-                    ref Card queued = ref Piles.At(ref x.B, Pile.Play, position);
-                    if (forceExhaust)
-                        queued.Flags |= CardFlags.ExhaustOnNextPlay;
-                    else
-                        queued.Flags &= ~CardFlags.ExhaustOnNextPlay;
-                }
-                return;
+                ShuffleIfNecessary(ref x);
+                if (x.NeedsChoice)
+                    return;
+                if (x.B.DrawCount == 0)
+                    break;
+                Card card = Piles.At(ref x.B, Pile.Draw, 0);
+                Piles.MoveToEnd(ref x.B, Pile.Draw, 0, Pile.Play);
+                int position = x.B.PlayCount - 1;
+                ref Card queued = ref Piles.At(ref x.B, Pile.Play, position);
+                marks[moved] = checked((byte)(markStart + moved));
+                outerMarks[moved] = queued.TransientMark;
+                queued.TransientMark = marks[moved];
+                moved++;
             }
-            // The moved cards stay contiguous at the play-pile index recorded before the move phase;
-            // earlier auto-plays remove themselves (or move to another pile) and shift the rest left.
-            if (start >= x.B.PlayCount || !SameAutoPlayQueueCard(Piles.At(ref x.B, Pile.Play, start), cards[index]))
-                throw new UnsupportedException("自动打出的牌堆顺序在结算中被改变。");
-            ref Card played = ref Piles.At(ref x.B, Pile.Play, start);
-            if (forceExhaust)
-                played.Flags |= CardFlags.ExhaustOnNextPlay;
-            else
-                played.Flags &= ~CardFlags.ExhaustOnNextPlay;
-            AutoPlay(ref x, Pile.Play, start);
-            if (x.NeedsChoice)
-                return;
+            for (int index = 0; index < moved; index++)
+            {
+                if (x.B.Player.IsDead)
+                    return;
+                // ContinueAutoPlayCards still writes ExhaustOnNextPlay on every remaining queued card
+                // before its AutoPlay call returns immediately because the combat is over/ending.
+                if (IsOverOrEnding(x.B))
+                {
+                    for (int remaining = index; remaining < moved; remaining++)
+                    {
+                        if (!TryFindUniqueTransientMark(x.B, marks[remaining],
+                                out Pile queuedPile, out int queuedIndex))
+                        {
+                            throw new UnsupportedException(
+                                "自动打出的牌在战斗结束时离开了战斗牌堆。");
+                        }
+                        ref Card queued = ref Piles.At(ref x.B, queuedPile, queuedIndex);
+                        if (forceExhaust)
+                            queued.Flags |= CardFlags.ExhaustOnNextPlay;
+                        else
+                            queued.Flags &= ~CardFlags.ExhaustOnNextPlay;
+                    }
+                    return;
+                }
+                if (!TryFindUniqueTransientMark(x.B, marks[index], out Pile pile, out int position))
+                    throw new UnsupportedException("自动打出的牌在结算前离开了战斗牌堆。");
+                ref Card played = ref Piles.At(ref x.B, pile, position);
+                if (forceExhaust)
+                    played.Flags |= CardFlags.ExhaustOnNextPlay;
+                else
+                    played.Flags &= ~CardFlags.ExhaustOnNextPlay;
+                AutoPlay(ref x, pile, position);
+                if (x.NeedsChoice)
+                    return;
+            }
+        }
+        finally
+        {
+            RestoreMarkedCards(ref x.B, marks, outerMarks);
+            ReleaseTransientMarks(ref x, markBase, markStart, count);
         }
     }
 

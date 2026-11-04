@@ -154,6 +154,7 @@ internal static class ScenarioBuilder
                 RoomType.Boss => MapPointType.Boss,
                 _ => throw new InvalidOperationException($"只支持战斗房间，收到 {request.TargetRoomType}。"),
             };
+        TurnSetupRootCapture.PrepareEarlyEnemyHp(request, guardAgainstSetupDeaths: !waitForTurnSetupPage);
         TestHostLog.Trace("scenario.enter_room");
         await RunManager.Instance.EnterRoomDebug(
             request.TargetRoomType, targetMapPointType, mutableEncounter);
@@ -163,6 +164,7 @@ internal static class ScenarioBuilder
             ? await waiter.WaitForTurnSetupPageAsync()
             : await waiter.WaitForPlayableCombatAsync();
         TestHostLog.Trace("scenario.playable");
+        TurnSetupRootCapture.RestoreEarlyEnemyMaxHp();
         Player combatPlayer = LocalContext.GetMe(combat)
             ?? throw new InvalidOperationException("进入战斗后找不到本地玩家。");
         generatedSelector?.AssertConsumed();

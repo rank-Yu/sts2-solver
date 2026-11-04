@@ -15,10 +15,13 @@ public static partial class Kernel
         if (IsOverOrEnding(x.B) || x.NeedsChoice)
             return false;
         ref Battle battle = ref x.B;
-        // SimulatedCombatState caps the simulated channels at 1000 and records a risk instead of
-        // continuing. Sts2Solver has no risk bookkeeping for this cap; reaching it is an explicit boundary.
+        // CombatPredictionSimulator caps the simulated channels at 1000, records the risk and stops
+        // this channel. The risk travels with the battle and is carried into live-root comparisons.
         if (battle.Counter(Counter.OrbChannels) >= MaxChanneledOrbs)
-            throw new UnsupportedException("充能球生成次数达到预测上限 1000。");
+        {
+            battle.Flags |= BattleFlags.HasRisk;
+            return false;
+        }
         if (x.R.BaseOrbSlotCount == 0 && battle.OrbCapacity == 0)
             AddOrbSlots(ref battle, 1);
         Orb orb = new() { Id = checked((byte)orbId), Aux = Registry.Orb(orbId).InitialAux };

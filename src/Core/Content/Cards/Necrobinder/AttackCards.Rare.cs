@@ -60,6 +60,24 @@ public sealed class Squeeze : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    /// <summary>
+    /// Native <c>CalculatedDamageVar</c> for Thrash reading this card's damage: CalculationBase +
+    /// ExtraDamage × the number of other Osty-attack cards in every combat pile.
+    /// </summary>
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target,
+        out decimal damage)
+    {
+        int others = NecrobinderContent.CountOstyAttackCards(x.B, x.R) - 1;
+        CardStats stats = x.R.Card(self.Id, self.Upgrade);
+        if (stats.Vars.Length < 2)
+            throw new UnsupportedException(
+                $"SQUEEZE 规则表只有 {stats.Vars.Length} 个动态变量，需要 CalculationBase 和 ExtraDamage。");
+        decimal baseValue = stats.Vars[0] + DecimalVars.Delta(in x.B, in self, 0);
+        decimal extra = stats.Vars[1] + DecimalVars.Delta(in x.B, in self, 1);
+        damage = baseValue + extra * others;
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
         if (!NecrobinderContent.HasOsty(x.B))

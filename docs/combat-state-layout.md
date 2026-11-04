@@ -56,7 +56,7 @@
 | 5 | `OstyEverPresent` | 原生 `Player.Osty` 已非空（根捕获或搜索中首次召唤后）；只会从 0 变 1 |
 | 6 | `HistoryCourseCardPresent` | `HistoryCourseCard` 里有有效卡值 |
 
-`HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`，只在根导入时置位，并保持到战斗结束。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择不在补偿目录里，内核在提出该选择前置位。
+`HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`：根导入时读取，预测中遇到未补偿风险时置位，并保持到战斗结束。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择不在补偿目录里，内核在提出该选择前置位；充能球生成达到 1000 次上限时也置位并停止该次生成。
 
 **结局 `Outcome`。** 除胜负外，枚举值 3 是 `EventDefeat`：战损假人限时 Power 走完时的结局，结算见 [内容专属机制](combat-content.md#6-事件内容)。
 

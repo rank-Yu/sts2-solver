@@ -29,7 +29,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | 事件失败边界 | 根捕获 | `EventDefeat` 根 |
 | `TurnSetupRoot`、`RootCards` | 离线宿主 | 回合准备根，以及 Start 时刻的卡牌对象集合 |
 | `KnownEnemies`、`AllowDeadEnemies`、`RootEnemyCount` | `LiveCombatTracker` | 实时导入时固定敌人行的顺序，保留死亡墓碑 |
-| `RevivingEnemies` | `LiveCombatTracker` | 预测为复活中的死亡行 |
+| `RevivingEnemies` | `LiveCombatTracker` | 预测为复活中、或根上仍由移除阻止 Power 保留的死亡行 |
 | `Reconciliation` | `LiveCombatTracker` | 从原生 History 重建本回合和整场计数 |
 
 最后三组字段只由 `src/Import/Combat/LiveCombatTracker.cs` 使用；根捕获不设置它们，结果与冻结快照一致。
@@ -65,7 +65,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 - `CardsPlayedThisTurn`、`SkillCardsPlayedThisTurn` 按“已完成的出牌”计数，与内核的 `RecordCardPlayed` 一致；根捕获保留原导入层“序列第一张”的口径。
 - `CumulativeHpLost`、`PlayerUnblockedDamageEvents`、`OrbChannels` 从整场 History 现算；根捕获写 0 或本回合值，与冻结快照一致。
 - `SkillPlayedThisSideTurn` 从本回合已完成的技能推导；根捕获写 0。
-- 原生会在敌人死亡后把它移出 `CombatState.Enemies` 并重置行动状态机。实时导入用会话开始时冻结的已知敌人顺序保留墓碑行；预测为 `Reviving` 的行按复活行导入，行动和 AI 仍从原生 `MonsterModel` 读；永久死亡的行不读已经重置的状态机。
+- 原生会在敌人死亡后把它移出 `CombatState.Enemies` 并重置行动状态机。实时导入用会话开始时冻结的已知敌人顺序保留墓碑行；预测为 `Reviving` 的行按复活行导入，行动和 AI 仍从原生 `MonsterModel` 读。没有预测边界时，仍在原生名单、且带有 `PreventsRemovalAfterDeath` Power 的死行（Test Subject 的 Adaptable、Illusion）也推断为 `Reviving`；永久死亡的行不读已经重置的状态机。
 - `Roster` 按 `CombatState.Enemies` 的当前顺序导入（原生 `AddCreature` 后按遭遇槽稳定排序）。冻结的已知顺序只决定敌人行的下标；之后出现的召唤物按 `CombatId` 升序追加，恢复内核的创建顺序，而不是原生的槽位顺序。
 - 卡牌 `Keywords` 只读 `CardModel.GetKeywordsWithSources(KeywordSources.Local)`。`CardModel.Keywords` 还会运行 `TryModifyKeywordsInCombat`（HexPower 给 Hexed 的牌加虚无）；这个授予在内核里是惰性查询，写进卡行的话，Hex 移除后会残留并被重复计算。
 - `SOVEREIGN_BLADE` 的 `Private` 写成当前 `SWORD_SAGE_POWER` 的层数，因为原生 `BaseReplayCount` 已经包含这张牌见过的每次 SwordSage 加成；根捕获仍写 `Rules.RootSwordSageAmount`，保持冻结基线。
@@ -229,7 +229,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `unrepresentable-state` | 原生值无法用 `Battle` 表示（小数、越界、复制品等） |
 | `capacity` | 固定容量不足 |
 | `rules-mismatch` | 原生根与传入的 `Rules` 不一致，或 `RunState` 不是同一个实例 |
-| `known-enemy-history` | 已逃离或已死亡的敌人破坏了 `KnownEnemies` 的顺序 |
+| `known-enemy-history` | 已逃离的敌人、丢失已知顺序的死亡敌人，或没有可编译行动状态机的死亡敌人 |
 | `prefix-plan` | 前缀动作或选择无法按 CombatSolver 的计划语义翻译和回放（缺手牌、目标、选项，或选择次数不符） |
 | `turn-setup-root` | 回合准备计划或根集合无法编成一个搜索请求：终局分支、阶段/回合/最大生命/药水槽/敌人数不一致 |
 | `run-deck-hook` | 牌组里的卡实现了局外监听 Hook |

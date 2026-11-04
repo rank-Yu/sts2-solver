@@ -62,6 +62,15 @@ FS1B 批次修好的遗物/怪物/卡牌类 fixture（FS2C）：
 - `fs1b-nunchaku-energy`：Hexed 的 Veilpiercer 费用判断，以及 Misery 克隆临时 EnfeeblingTouch 时先执行内部负力量再插入临时 Power 行。
 
 
+FS2D 修复批次的归类 fixture 同样是测试专用，不对应 d1 冻结根：
+
+- `fs2d-end-turn-ethereal-moved`：回合末以太牌被先结算的以太牌/弃牌钩子移到其他牌堆后，仍按原牌对象找到并耗尽；
+- `fs2d-selected-card-moved`：同一回合末流程中，先结算的以太牌把另一张已选中的以太牌移出原牌堆；
+- `fs2d-autoplay-pile-order`：Cascade/Imbued 自动打出时，前一张自动打出的牌移动了尚未打出的排队牌；
+- `fs2d-known-enemy-revive`：Test Subject 在回合准备自动打出后进入 RESPAWN_MOVE，根仍以 AdaptablePower 保留死亡行；
+- `fs2d-thrash-squeeze`：Thrash 随机选中 SQUEEZE，读取其 CalculatedDamage 而不是 Damage/OstyDamage；
+- `fs2d-orb-channel-cap`：预测中的充能球生成达到 1000 次后记录 risk 并停止本次生成，不再拒绝整局。
+
 这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。

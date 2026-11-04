@@ -57,6 +57,43 @@ public static partial class Kernel
     }
 
     /// <summary>
+    /// Stamps each selected card of one pile with a distinct identity byte in
+    /// <paramref name="marks"/> (starting at <paramref name="markStart"/>), remembering the outer
+    /// byte in <paramref name="outerMarks"/>. Selected indexes must be distinct and ascending is not
+    /// required; duplicates by value remain distinct occurrences.
+    /// </summary>
+    internal static void MarkPileCards(ref Battle battle, Pile pile, scoped ReadOnlySpan<int> selected,
+        scoped Span<byte> marks, scoped Span<byte> outerMarks, int markStart)
+    {
+        if (selected.Length != marks.Length || selected.Length != outerMarks.Length)
+            throw new ArgumentException("选择、身份标记和外层标记的容量必须一致。");
+        int start = Piles.Start(battle, pile);
+        int count = Piles.Count(battle, pile);
+        for (int item = 0; item < selected.Length; item++)
+        {
+            if ((uint)selected[item] >= (uint)count)
+                throw new UnsupportedException("身份标记选中的卡不在原牌堆。");
+            ref Card card = ref battle.Cards[start + selected[item]];
+            marks[item] = checked((byte)(markStart + item));
+            outerMarks[item] = card.TransientMark;
+            card.TransientMark = marks[item];
+        }
+    }
+
+    /// <summary>
+    /// Puts the enclosing batch's identity byte back on every marked card that is still tracked.
+    /// Cards that left every combat pile have no value left to restore.
+    /// </summary>
+    internal static void RestoreMarkedCards(ref Battle battle, scoped ReadOnlySpan<byte> marks,
+        scoped ReadOnlySpan<byte> outerMarks)
+    {
+        if (marks.Length != outerMarks.Length)
+            throw new ArgumentException("身份标记和外层标记的容量必须一致。");
+        for (int item = 0; item < marks.Length; item++)
+            RestoreTransientMark(ref battle, marks[item], outerMarks[item]);
+    }
+
+    /// <summary>
     /// Restores the enclosing batch's identity byte on the card carrying <paramref name="inner"/>.
     /// A missing inner mark means the card left every tracked pile; there is no value left to
     /// restore. Two cards carrying the inner mark are an explicit unsupported state.

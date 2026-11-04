@@ -11,6 +11,7 @@ using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using NativeCreature = MegaCrit.Sts2.Core.Entities.Creatures.Creature;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
@@ -20,6 +21,10 @@ namespace Sts2Solver.TestHost;
 internal static class TurnSetupRootCapture
 {
     private static Harmony? _harmony;
+    private static int _earlyEnemyCurrentHp;
+    private static int[]? _earlyInitialEnemyCurrentHps;
+    private static bool _earlyMaxHpGuard;
+    private static List<(NativeCreature Enemy, int MaxHp)>? _earlyOriginalMaxHp;
 
     public static bool Enabled { get; set; }
 
@@ -63,6 +68,44 @@ internal static class TurnSetupRootCapture
             prefix: new HarmonyMethod(typeof(TurnSetupRootCapture), nameof(Prefix)));
     }
 
+    /// <summary>
+    /// Applies the request's enemy HP before the first <c>SetupPlayerTurn</c>, and therefore before
+    /// the auto-pre-play phase. Start-of-combat auto-plays (Imbued, Whispering Earring) can otherwise
+    /// kill a naturally spawned enemy before the normal Play-root injection runs, ending the combat
+    /// while the caller is still waiting for the play phase. <see cref="int.MaxValue"/> is the
+    /// exporter's "full HP" sentinel; it is applied uncapped temporarily so the setup cannot kill
+    /// the enemy, and the normal injection later resets the current HP to the native maximum.
+    /// </summary>
+    public static void PrepareEarlyEnemyHp(OfflineRequest request, bool guardAgainstSetupDeaths)
+    {
+        _earlyInitialEnemyCurrentHps = request.InitialEnemyCurrentHps.Length > 0
+            ? [.. request.InitialEnemyCurrentHps]
+            : null;
+        _earlyEnemyCurrentHp = _earlyInitialEnemyCurrentHps == null && request.EnemyCurrentHp > 1
+            ? request.EnemyCurrentHp
+            : 0;
+        // The exporter writes int.MaxValue when the root has full enemy HP. Start-of-combat
+        // auto-plays can deal more damage than the native maximum before the Play root is reached;
+        // temporarily inflate the maximum so the combat survives the preamble, then restore it
+        // before the normal Play-root injection.
+        _earlyMaxHpGuard = guardAgainstSetupDeaths
+            && _earlyInitialEnemyCurrentHps == null
+            && request.EnemyCurrentHp == int.MaxValue;
+    }
+
+    /// <summary>Restores the native maximum HP changed by the temporary setup guard.</summary>
+    public static void RestoreEarlyEnemyMaxHp()
+    {
+        if (_earlyOriginalMaxHp is not { } originals)
+            return;
+        _earlyOriginalMaxHp = null;
+        foreach ((NativeCreature enemy, int maxHp) in originals)
+        {
+            enemy.SetMaxHpInternal(maxHp);
+            enemy.SetCurrentHpInternal(maxHp);
+        }
+    }
+
     public static void BeginBuild(bool captureStartBattle = false)
     {
         Reset();
@@ -85,10 +128,15 @@ internal static class TurnSetupRootCapture
         StartRules = null;
         StartTakingExtraTurn = false;
         StartTurn = 0;
+        _earlyEnemyCurrentHp = 0;
+        _earlyInitialEnemyCurrentHps = null;
+        _earlyMaxHpGuard = false;
+        _earlyOriginalMaxHp = null;
     }
 
     internal static bool Prefix(CombatManager __instance, CombatTurnState turnState)
     {
+        ApplyEarlyEnemyHp(__instance);
         if (!Enabled || StartCards != null)
             return true;
         CombatState? combat = __instance.DebugOnlyGetState();
@@ -124,6 +172,48 @@ internal static class TurnSetupRootCapture
             ProductionStartBattle = tracker.ImportSetupRoot(combat, player, rules);
         }
         return true;
+    }
+
+    private static void ApplyEarlyEnemyHp(CombatManager manager)
+    {
+        if (_earlyEnemyCurrentHp <= 1 && _earlyInitialEnemyCurrentHps == null)
+            return;
+        CombatState? combat = manager.DebugOnlyGetState();
+        if (combat == null)
+            return;
+        if (_earlyInitialEnemyCurrentHps is { } currentHps)
+        {
+            if (currentHps.Length != combat.Enemies.Count)
+                throw new InvalidDataException(
+                    $"逐敌生命数量 {currentHps.Length} 与敌人数 {combat.Enemies.Count} 不同。");
+            for (int index = 0; index < currentHps.Length; index++)
+            {
+                NativeCreature enemy = combat.Enemies[index];
+                enemy.SetCurrentHpInternal(Math.Clamp(currentHps[index], 0, enemy.MaxHp));
+            }
+        }
+        else
+        {
+            _earlyOriginalMaxHp = _earlyMaxHpGuard ? [] : null;
+            foreach (NativeCreature enemy in combat.Enemies)
+            {
+                if (!enemy.IsAlive)
+                    continue;
+                if (_earlyMaxHpGuard)
+                {
+                    _earlyOriginalMaxHp!.Add((enemy, enemy.MaxHp));
+                    enemy.SetMaxHpInternal(999_999_999);
+                    enemy.SetCurrentHpInternal(999_999_999);
+                }
+                else
+                {
+                    enemy.SetCurrentHpInternal(Math.Min(_earlyEnemyCurrentHp, enemy.MaxHp));
+                }
+            }
+        }
+        _earlyEnemyCurrentHp = 0;
+        _earlyInitialEnemyCurrentHps = null;
+        _earlyMaxHpGuard = false;
     }
 
     private static void AddCards(HashSet<CardModel> cards, CardPile pile)

@@ -103,6 +103,10 @@ internal static class GameBootstrap
         SaveManager.MockInstanceForTesting(saveManager);
         saveManager.InitSettingsDataForTest();
         saveManager.InitPrefsDataForTest();
+        // NGame calls InitProfileId after loading the profile. The offline host has no Godot
+        // user:// path (UserDataPathProvider asks OS.HasFeature) and a pure memory store, so set
+        // the id directly; otherwise caught save-progress calls log "InitProfileId must be called".
+        AccessTools.Field(typeof(SaveManager), "_currentProfileId").SetValue(saveManager, 1);
 
         OfflineLocalization.Install("eng");
         AssemblyInfo.Init();

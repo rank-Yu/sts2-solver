@@ -105,9 +105,9 @@ public static partial class RulesCompiler
         {
             if (enemy.Monster == null)
                 throw new UnsupportedImportException(ImportReason.UnsupportedMonster, $"{enemy.Name} 没有怪物模型");
-            if (!enemy.IsAlive)
+            if (!enemy.IsAlive && enemy.Monster.MoveStateMachine == null)
                 throw new UnsupportedImportException(ImportReason.KnownEnemyHistory,
-                    $"敌人 {enemy.Monster.Id.Entry} 已死亡，规则无法从未保留的 KnownEnemies 顺序编译");
+                    $"敌人 {enemy.Monster.Id.Entry} 已死亡且没有行动状态机");
             NativeAccess.RequireOriginal(enemy.Monster);
         }
         if (NativeAccess.HasNonVanillaModels(player,

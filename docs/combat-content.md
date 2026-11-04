@@ -55,7 +55,7 @@
 1. 战斗正在结束或有待处理选择时不做。
 2. 基础槽数为 0 且容量为 0 时，先加 1 槽（`OrbCmd.AddSlots`）。
 3. 容量已满时，先 `EvokeNext` 激发最左侧的球，再入队。如果激发的副作用又同步充能、把槽填满，原引擎会记录 `MethodMirrorIncomplete` 风险并放弃；Sts2Solver 抛 `UnsupportedException`，不自行追加激发（K0 合同覆盖了满槽先激发）。
-4. 容量仍为 0 时返回 false。成功入队后记录 `OrbChannels`，闪电球另记 `LightningChannels`，再派发 `AfterOrbChanneled`。预测历史达到 1000 次充能时显式拒绝。
+4. 容量仍为 0 时返回 false。成功入队后记录 `OrbChannels`，闪电球另记 `LightningChannels`，再派发 `AfterOrbChanneled`。预测历史达到 1000 次充能时置 `HasRisk` 并放弃本次充能（对应原引擎的 `OrbChannelLimitExceeded`）。
 
 `AddOrbSlots` 按 `min(10 - capacity, amount)` 增长；`RemoveOrbSlots` 对应 `SimOrbQueue.RemoveCapacity`，从队尾删球，不触发任何球的 Hook。
 

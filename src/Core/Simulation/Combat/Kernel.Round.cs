@@ -416,46 +416,68 @@ public static partial class Kernel
             else if (HasKeyword(x.B, card, Keywords.Ethereal))
                 ethereal[etherealCount++] = index;
         }
-        Span<SelectedCard> etherealCards = stackalloc SelectedCard[etherealCount];
-        SnapshotSelected(x.B, Pile.Hand, ethereal[..etherealCount], etherealCards);
-        Span<SelectedCard> turnEndCards = stackalloc SelectedCard[turnEndCount];
-        SnapshotSelected(x.B, Pile.Hand, turnEnd[..turnEndCount], turnEndCards);
-        for (int item = 0; item < etherealCount; item++)
+        int selectedCount = etherealCount + turnEndCount;
+        if (selectedCount == 0)
+            return;
+        // The native turn-end lists hold CardModel references: a hook may move the next selected
+        // card to another pile, and the later exhaust/discard still acts on that object. A pile
+        // index cannot follow such a move, so stamp each selected occurrence with an identity byte
+        // and locate it wherever it currently is (same mechanism as the draw/discard batch).
+        Span<byte> marks = stackalloc byte[selectedCount];
+        Span<byte> outerMarks = stackalloc byte[selectedCount];
+        int markBase = ReserveTransientMarks(ref x, selectedCount, out int markStart);
+        try
         {
-            Exhaust(ref x, Pile.Hand, LocateSelected(x.B, Pile.Hand, etherealCards, item), causedByEthereal: true);
-            if (x.NeedsChoice)
-                return;
-        }
-        for (int item = 0; item < turnEndCount; item++)
-        {
-            int index = LocateSelected(x.B, Pile.Hand, turnEndCards, item);
-            Card card = turnEndCards[item].Card;
-            MoveCard(ref x.B, Pile.Hand, index, Pile.Play);
-            x.Card = card;
-            x.Stats = x.R.Card(card.Id, card.Upgrade);
-            x.Target = Limits.NoOwner;
-            Registry.Card(card.Id).OnTurnEndInHand(ref x);
-            if (x.NeedsChoice)
-                return;
-            // An in-hand turn-end effect (Infection) may kill the player; the existing engine stops
-            // the lifecycle there, so the card is no longer required to sit in the play pile.
-            if (x.B.Player.IsDead)
-                return;
-            // The effect may change the card's own state (a private counter), never its identity or place.
-            int position = x.B.PlayCount - 1;
-            if (position < 0 || Piles.At(ref x.B, Pile.Play, position).Id != card.Id
-                || Piles.At(ref x.B, Pile.Play, position).Upgrade != card.Upgrade)
-                throw new UnsupportedException("回合末在手效果移动了打出区的卡。");
-            if (HasKeyword(x.B, Piles.At(ref x.B, Pile.Play, position), Keywords.Ethereal))
+            MarkPileCards(ref x.B, Pile.Hand, ethereal[..etherealCount], marks[..etherealCount],
+                outerMarks[..etherealCount], markStart);
+            MarkPileCards(ref x.B, Pile.Hand, turnEnd[..turnEndCount],
+                marks[etherealCount..], outerMarks[etherealCount..], markStart + etherealCount);
+            for (int item = 0; item < etherealCount; item++)
             {
-                Exhaust(ref x, Pile.Play, position, causedByEthereal: true);
+                if (!TryFindUniqueTransientMark(x.B, marks[item], out Pile pile, out int index))
+                    throw new UnsupportedException("回合末以太牌在结算前离开了战斗牌堆。");
+                Exhaust(ref x, pile, index, causedByEthereal: true);
                 if (x.NeedsChoice)
                     return;
             }
-            else
+            for (int item = 0; item < turnEndCount; item++)
             {
-                MoveCard(ref x.B, Pile.Play, position, Pile.Discard);
+                int markIndex = etherealCount + item;
+                if (!TryFindUniqueTransientMark(x.B, marks[markIndex], out Pile pile, out int index))
+                    throw new UnsupportedException("回合末在手牌在结算前离开了战斗牌堆。");
+                Card card = Piles.At(ref x.B, pile, index);
+                MoveCard(ref x.B, pile, index, Pile.Play);
+                x.Card = card;
+                x.Stats = x.R.Card(card.Id, card.Upgrade);
+                x.Target = Limits.NoOwner;
+                Registry.Card(card.Id).OnTurnEndInHand(ref x);
+                if (x.NeedsChoice)
+                    return;
+                // An in-hand turn-end effect (Infection) may kill the player; the existing engine stops
+                // the lifecycle there, so the card is no longer required to sit in the play pile.
+                if (x.B.Player.IsDead)
+                    return;
+                // The effect may move its own played card (or another selected card); the native
+                // card object is then exhausted/discarded from the pile it currently occupies.
+                if (!TryFindUniqueTransientMark(x.B, marks[markIndex], out pile, out index))
+                    throw new UnsupportedException("回合末在手效果移除了打出区的卡。");
+                card = Piles.At(ref x.B, pile, index);
+                if (HasKeyword(x.B, card, Keywords.Ethereal))
+                {
+                    Exhaust(ref x, pile, index, causedByEthereal: true);
+                    if (x.NeedsChoice)
+                        return;
+                }
+                else
+                {
+                    MoveCard(ref x.B, pile, index, Pile.Discard);
+                }
             }
+        }
+        finally
+        {
+            RestoreMarkedCards(ref x.B, marks, outerMarks);
+            ReleaseTransientMarks(ref x, markBase, markStart, selectedCount);
         }
     }
 

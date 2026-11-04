@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fs2d-thrash-squeeze",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "FS2DTHRASHSQUEEZE",
+  "ascension": 0,
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 1,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "timeoutSeconds": 180,
+  "cards": [
+    {
+      "cardId": "THRASH",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SQUEEZE",
+      "pile": "Hand"
+    }
+  ]
+}

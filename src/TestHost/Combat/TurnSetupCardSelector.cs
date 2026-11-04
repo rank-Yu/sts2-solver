@@ -59,13 +59,14 @@ internal sealed class TurnSetupCardSelector : ICardSelector
         if (!setupPage)
         {
             // End-of-turn or other non-setup selections are not part of the plan; answer with the
-            // first option (or an empty selection when the page allows it) so the rebuild reaches
-            // the turn-setup pages.
-            page = remaining.Count == 0 || minSelect == 0 ? [] : [_requestedIndex < 0 ? 0 : _requestedIndex];
+            // preferred option and fill any remaining required slots so a multi-select discard
+            // (Hidden Daggers, Charge, ...) can reach the turn-setup pages. An optional page still
+            // selects nothing, as before.
+            page = DefaultOtherPage(remaining.Count, minSelect, _requestedIndex);
         }
         else if (_plan == null)
         {
-            page = [_requestedIndex];
+            page = DefaultSetupPage(remaining.Count, minSelect, _requestedIndex);
         }
         else
         {
@@ -74,7 +75,7 @@ internal sealed class TurnSetupCardSelector : ICardSelector
                 throw new InvalidDataException(
                     $"回合准备计划只有 {_plan.Count} 段选择，原生请求了第 {Calls + 1} 段。");
             }
-            page = _plan[Calls];
+            page = FillPage(_plan[Calls], remaining.Count, minSelect);
         }
         if (setupPage)
         {
@@ -85,10 +86,12 @@ internal sealed class TurnSetupCardSelector : ICardSelector
         }
         if (remaining.Count == 0)
             return Task.FromResult<IEnumerable<CardModel>>([]);
-        if (page.Count < minSelect || page.Count > maxSelect)
+        int actualMin = Math.Min(minSelect, remaining.Count);
+        int actualMax = Math.Min(maxSelect, remaining.Count);
+        if (page.Count < actualMin || page.Count > actualMax)
         {
             throw new InvalidDataException(
-                $"回合准备计划选了 {page.Count} 张，原生要求 {minSelect}..{maxSelect}。");
+                $"回合准备计划选了 {page.Count} 张，原生要求 {actualMin}..{actualMax}。");
         }
         List<CardModel> selected = new(page.Count);
         foreach (int index in page)
@@ -111,6 +114,47 @@ internal sealed class TurnSetupCardSelector : ICardSelector
     {
         CardModel? selected = options.FirstOrDefault()?.Card;
         return selected == null ? default : new CardRewardSelection { card = selected };
+    }
+
+    /// <summary>
+    /// The setup-page single-selector answer: the preferred option followed by ascending unselected
+    /// options until the native minimum is met. A setup page keeps the historical "always take one"
+    /// choice even when it allows zero. The native multi-select pages appear when an Imbued card
+    /// auto-plays a card such as Hidden Daggers during the setup pause.
+    /// </summary>
+    private static int[] DefaultSetupPage(int optionCount, int minSelect, int preferred)
+        => DefaultPage(optionCount, minSelect, preferred, takeOneWhenOptional: true);
+
+    /// <summary>The non-setup answer: empty when the page allows it, otherwise the same fill.</summary>
+    private static int[] DefaultOtherPage(int optionCount, int minSelect, int preferred)
+        => DefaultPage(optionCount, minSelect, preferred, takeOneWhenOptional: false);
+
+    private static int[] DefaultPage(int optionCount, int minSelect, int preferred,
+        bool takeOneWhenOptional)
+    {
+        if (optionCount == 0 || minSelect == 0 && !takeOneWhenOptional)
+            return [];
+        List<int> page = [(uint)preferred < (uint)optionCount ? preferred : 0];
+        for (int index = 0; page.Count < minSelect && index < optionCount; index++)
+        {
+            if (!page.Contains(index))
+                page.Add(index);
+        }
+        return [.. page];
+    }
+
+    /// <summary>Extends a recorded plan page to the native minimum with unselected options.</summary>
+    private static int[] FillPage(int[] page, int optionCount, int minSelect)
+    {
+        if (page.Length >= minSelect || optionCount == 0)
+            return page;
+        List<int> filled = [.. page];
+        for (int index = 0; filled.Count < minSelect && index < optionCount; index++)
+        {
+            if (!filled.Contains(index))
+                filled.Add(index);
+        }
+        return [.. filled];
     }
 
     private static bool IsPlayerTurnStart()

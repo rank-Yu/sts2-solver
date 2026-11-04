@@ -114,8 +114,9 @@ public static class BattleDump
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
             Card card = battle.DetachedCards[slot];
-            if (card.Id != 0)
-                AddCard(records, Offset(nameof(Battle.DetachedCards), slot * Marshal.SizeOf<Card>()), $"Detached[{slot}]", card);
+            if (!card.IsDetachedCardPresent)
+                continue;
+            AddCard(records, Offset(nameof(Battle.DetachedCards), slot * Marshal.SizeOf<Card>()), $"Detached[{slot}]", card);
         }
         for (int slot = 0; slot < battle.DecimalVarCount && slot < Limits.DecimalCardVars; slot++)
             records.Add(new(FieldOffset(nameof(Battle.DecimalVars)) + slot * sizeof(decimal),

@@ -76,14 +76,25 @@ FS5 批次修好的对照 fixture：
 - `fs5-enchant-downgrade-keywords`：MagiKnight 的 Dampen 降级带 TezcatarasEmber/RoyallyApproved 的牌后，附魔 `OnEnchant` 重新加上 Eternal、Innate 与 Retain（并恢复 TezcatarasEmber 的零费）；
 - `fs5-expertise-bound-retain`：ChainsOfBinding 在 `AfterCardDrawn` 给抽到的牌加 Bound 后，Expertise 仍按身份给实际抽到的牌加 `RetainThisTurn`；
 - `fs5-expose-block-break`：Expose 按 `CreatureCmd.LoseBlock` 清空格挡并派发 `AfterBlockBroken`，Tunneler 的 BurrowedPower 立即移除并眩晕；
-- `fs5-suck-osty-hit`：DieForYou 把 FossilStalker 的未格挡攻击重定向给 Osty 时，SuckPower 不把该次命中算作吸取力量；
+- `fs5-suck-osty-hit`：DieForYou 把 FossilStalker 的攻击重定向给 Osty 时，SuckPower 按原生命中列表只计一次，不把宠物结果和玩家溢出结果重复计为两次；
 - `fs5-pale-blue-dot-autoplay`：PaleBlueDotPower 在正常 `AfterCardPlayed` 阶段、把 DecisionsDecisions 的嵌套自动打出计入本回合第 5 张出牌；
 - `fs5-nested-autoplay-star`：嵌套自动打出返回后恢复外层的 `StarValue`，BlackHolePower 按外层出牌实际消耗的星能触发；
 - `fs5-kusarigama-death-trigger`：Kusarigama 的第 3 次攻击伤害后立即结算敌人死亡效果，PossessStrength 的返还影响下一次重放伤害；
 - `fs5-happy-flower-terminal`：战斗在敌人回合结束时，下一次玩家侧回合开始的 HappyFlower 不推进计数；
 - `fs5-unset-move-summon`：敌人在 FABRICATE_MOVE 召唤的 bot 以 `MoveStateMachine` 当前首次行动导入 `UNSET_MOVE`，后续行动与原版一致。
 
-前四个使用手工构造的场景；后五个是 FS4 抽样中对应根的原样请求（只改 `scenarioId`）。
+FS6 批次修好的对照 fixture（均为原 FS6 请求，只改 `scenarioId`）：
+
+- `fs6-suck-hit-list`：SuckPower 按原生 `AttackCommand.Results` 的每个命中列表计数；Osty 代受的命中保留宠物结果、移除同一列表里的玩家结果，因此整次命中只算一次（FossilStalker 的 LATCH 打中 Osty 并溢出给玩家时仍加一次力量）；
+- `fs6-uproar-post-attack-death`：Uproar 的两段攻击后先结算敌人死亡 Power，再读取抽牌堆自动打出下一张攻击；击杀 ShrinkerBeetle 后 ShrinkPower 已移除，后续攻击按未缩小伤害计算；
+- `fs6-corrosive-wave-card-source`：CorrosiveWavePower 的 Poison 以 `cardSource: null` 施加，UnsettlingLamp 不得观察或翻倍这些 Poison；
+- `fs6-memento-mori-thrash`：Thrash 读取 Memento Mori 的 CalculatedDamage（CalculationBase + ExtraDamage × 本回合弃牌数）作为附加伤害，不再按缺失 Damage 变量拒绝；
+- `fs6-crossbow-tools-order`：ToolsOfTheTradePower 的弃牌选择在读取手牌前先运行原生回合准备暂停，暂停期间 Crossbow 的 AfterSideTurnStart 生成的攻击牌进入候选；
+- `fs6-terminal-turn-end-hooks`：玩家回合末 `Hook.AfterSideTurnEnd` 在进入阶段二时是否已结束决定整次监听器迭代是否运行；ArtOfWar 在阶段二入口已结束时保持本回合攻击标记；
+- `fs6-kusarigama-turn-end-reset`：同一阶段二入口未结束时 Kusarigama 的 AfterSideTurnEnd 即使迭代过程中战斗才进入结束也照常清零；
+- `fs6-terminal-pendulum-ending`：战斗在回合准备阶段已进入结束时，`ModifyHandDraw` 监听器为空，Pendulum 不推进 TurnsSeen；
+- `fs6-detached-card-id-zero`：牌 Id 0 是有效内容；DetachedCards 的占用标记不再只靠 Id 判断，Nightmare 选中的 Accuracy 正确保留在 detached 槽位；
+- `fs6-terminal-action-queue`：原版战斗结束清理会取消排队中的 Godot GameAction；离线差分宿主在终局前缀捕获后不再驱动该队列，避免无 Godot 的 `CallDeferred`/`PopAction` 崩溃。
 
 这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
 

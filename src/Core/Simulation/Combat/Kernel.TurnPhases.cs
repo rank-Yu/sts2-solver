@@ -577,6 +577,11 @@ public static partial class Kernel
     /// <summary><c>CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects</c> plus the relic and late passes of phase two.</summary>
     internal static void PlayerTurnEndPhaseTwo(ref Exec x)
     {
+        // Hook.AfterSideTurnEnd is one listener iteration: its over/ending check runs when the
+        // iterator starts, before any power or relic listener. A listener later in that same pass
+        // can kill the last enemy, and the remaining listeners still run. Capture the phase-entry
+        // state for the relic pass instead of re-reading IsOverOrEnding after the power passes.
+        bool sideTurnEndStarted = !IsOverOrEnding(x.B);
         Span<byte> participants = stackalloc byte[1];
         participants[0] = Limits.PlayerOwner;
         PowerTypeSequence(ref x, PowerPhase.PlayerSideTurnEnd, Limits.PlayerOwner, PlayerSideTurnEndIds.Value, Side.Player, participates: true);
@@ -589,13 +594,13 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
         TriggerTransientSideTurnEndPowers(ref x, Side.Player, participants);
-        // CompleteRelicsAfterSideTurnEnd is not a listener filter: the existing engine always runs its
-        // ArtOfWar/Kusarigama resets and JossPaper/LunarPastry/ParryingShield effects, even when the
-        // last primary enemy died during this phase. Only the late listener pass uses
-        // HookMirrors.IterateCombatHookListeners, which is empty once IsOverOrEnding (DEFECT-011).
-        // A pending loss is different: the native Hook.AfterSideTurnEnd is dropped once the combat is
-        // ending, so a player death during this phase must not reset the turn-end relic counters.
-        if (!IsPendingLoss(x.B))
+        // Native Hook.AfterSideTurnEnd iterates combat listeners, and IsOverOrEnding makes that
+        // iterator empty before the pass starts. The check is therefore at the phase entry: a
+        // listener that kills the last enemy later in the same pass still lets the remaining
+        // listeners run (the native iterator snapshot), while a combat already ending when this
+        // phase starts must not reset ArtOfWar/Kusarigama or run the other turn-end relics.
+        // This also covers a pending loss: both ending paths drop the whole pass.
+        if (sideTurnEndStarted)
         {
             RelicPass(ref x, RelicPhase.AfterSideTurnEnd, Side.Player);
             if (x.NeedsChoice)
@@ -840,6 +845,12 @@ public static partial class Kernel
     /// <summary><c>PersistentPowerSupport.GetModifiedHandDraw</c>: normal pass then late pass over the combat listeners.</summary>
     internal static int ModifiedHandDraw(ref Exec x, int baseDraw)
     {
+        // Native Hook.ModifyHandDraw goes through IterateCombatHookListeners, which is empty while
+        // the combat is over or ending. A turn can still be prepared at that boundary (the native
+        // StartTurn keeps running), but the listeners must not advance their state (Pendulum's
+        // TurnsSeen, DrawCardsNextTurn and the other ModifyHandDraw powers/relics).
+        if (IsOverOrEnding(x.B))
+            return Math.Max(0, baseDraw);
         decimal result = baseDraw;
         Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
         int count = HookDispatch.CollectListeners(x.B, HookMask.ModifyHandDraw, listeners);

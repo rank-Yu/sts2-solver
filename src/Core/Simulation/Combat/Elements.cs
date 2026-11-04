@@ -167,6 +167,16 @@ public struct Card
     /// </summary>
     public byte TransientMark;
 
+    /// <summary>
+    /// Whether this card occupies a <see cref="Battle.DetachedCards"/> slot. Card id 0 is a valid
+    /// content row, so the native table cannot use <see cref="Id"/> alone as the empty sentinel.
+    /// A detached card has passed the one-time power-affliction entry check; the kernel keeps that
+    /// bit set on the detached value (imported cards and <c>CloneCard</c> snapshots both reach the
+    /// slot through that fact), while an unused slot is all zero.
+    /// </summary>
+    public readonly bool IsDetachedCardPresent
+        => Id != 0 || (Flags & CardFlags.PowerAfflictionChecked) != 0;
+
     public int EnergyModifierCount
     {
         readonly get => ModifierCount;

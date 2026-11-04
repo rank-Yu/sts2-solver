@@ -49,6 +49,7 @@ public static partial class Kernel
         if (x.B.Creature(attacker).IsDead)
             return;
         x.AttackUnblockedHits = 0;
+        x.AttackSuckHitLists = 0;
         // BeginAttackContext: BeforeAttack iterates the combat listeners behind the ending gate
         // (HookMirrors.BeforeAttack). ModifyAttackHitCount has no supported listeners yet.
         BeforeAttackHook before = new() { Attacker = attacker, Props = props };
@@ -216,7 +217,23 @@ public static partial class Kernel
             // The outermost Damage call belongs to the current attack context. Nested damage from a
             // result hook is a separate native Damage call and must not become a hit of the attack.
             if (x.DamageCallDepth == 1)
+            {
                 RecordAttackResults(ref x, results[..count]);
+                bool playerSideUnblocked = false;
+                for (int index = 0; index < count; index++)
+                {
+                    if ((results[index].Receiver == Limits.PlayerOwner
+                         || results[index].Receiver == Limits.OstyOwner)
+                        && results[index].UnblockedDamage > 0)
+                        playerSideUnblocked = true;
+                }
+                // SuckPower.AfterAttack removes the player result paired with a pet hit, but keeps
+                // the pet hit itself; one native hit list therefore counts once when either the
+                // player or Osty took unblocked damage. A redirected hit with overkill spilling
+                // back to the player is still exactly one list, not two.
+                if (playerSideUnblocked)
+                    x.AttackSuckHitLists++;
+            }
             ProcessDamageResults(ref x, results[..count], dealer);
             for (int index = 0; index < count; index++)
             {
@@ -262,6 +279,7 @@ public static partial class Kernel
         x.AttackHasCardSource = hasCardSource;
         x.AttackFirstResultSeen = 0;
         x.AttackFirstResultUnblocked = 0;
+        x.AttackSuckHitLists = 0;
     }
 
     /// <summary>
@@ -277,6 +295,7 @@ public static partial class Kernel
         x.AttackHasCardSource = false;
         x.AttackFirstResultSeen = 0;
         x.AttackFirstResultUnblocked = 0;
+        x.AttackSuckHitLists = 0;
     }
 
     /// <summary>

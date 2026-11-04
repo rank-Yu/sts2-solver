@@ -83,9 +83,15 @@ public sealed class ToolsOfTheTradePower : PowerDef
 
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
-        int hand = x.B.HandCount;
         int amount = x.B.Powers[self.Index].Amount;
-        if (hand == 0 || amount <= 0)
+        if (amount <= 0)
+            return;
+        // CardSelectCmd.FromHand signals the setup pause before it reads the hand. A side-start
+        // card generated during that pause (Crossbow) must be part of the discard candidates, so
+        // run the pause before taking the hand size.
+        x.RunSetupPause();
+        int hand = x.B.HandCount;
+        if (hand == 0)
             return;
         Span<int> options = stackalloc int[hand];
         for (int index = 0; index < hand; index++)

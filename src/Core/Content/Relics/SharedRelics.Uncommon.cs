@@ -380,9 +380,10 @@ public sealed class Kusarigama : RelicDef
 
     public override void AfterSideTurnEnd(ref Exec x, Listener self, Side side)
     {
-        // Native phase two (the reset) is skipped when the last enemy died during phase one; the
-        // kernel's relic pass still runs, so the ending gate lives here.
-        if (side == Side.Player && !Kernel.IsOverOrEnding(x.B))
+        // The dispatch itself is skipped when the combat is already ending at the start of phase two
+        // (Kernel.PlayerTurnEndPhaseTwo); once the pass runs, every listener executes even if an
+        // earlier listener in the same pass killed the last enemy.
+        if (side == Side.Player)
             x.B.Relics[self.Index].Counter = 0;
     }
 }

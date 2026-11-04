@@ -236,6 +236,8 @@
 
 同一场战斗里 ThievingHopper 只有一个、THIEVERY 只发生一次，所以 Nightmare 的两个实例加一张被偷卡正好够用。第 4 张并存的卡按 `CapacityException` 丢弃该子状态，不覆盖、不逐出。
 
+卡 Id 0 是有效内容（例如 Accuracy），所以槽位占用不能只检查 `Id != 0`。`Card.IsDetachedCardPresent` 用 `Id != 0` 或 `CardFlags.PowerAfflictionChecked` 判断占用：所有进入 detached 槽位的卡都带这个一次性检查位（导入卡和 `CloneCard` 快照都经 `AllocateDetachedCard` 补齐），未用槽位保持全零。`BattleReconciler.Normalize` 只清除 Id 非零槽位的该标志，保留 Id 0 卡的占用身份。
+
 ### 3.10 小数卡牌变量
 
 原引擎的 Thrash 把 `ModifyDamage` 的 `decimal` 结果同时加进 `DynamicVars.Damage.BaseValue` 和私有的 `ExtraDamage`，降级后再加回，克隆按模型字段复制。Sts2Solver 在头部 `DecimalVars` 保存“当前 `BaseValue` 减规则表规范值”的精确 `decimal`，卡上的 `Private` 存槽位 + 1。

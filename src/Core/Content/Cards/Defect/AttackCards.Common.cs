@@ -207,6 +207,12 @@ public sealed class Uproar : CardDef
         CardEffects.Attack(ref x, CardEffects.Var(x, 0), 2);
         if (x.NeedsChoice)
             return;
+        // DamageCmd.Attack.Execute returns after the killed enemies' death powers have resolved.
+        // The auto-play decision below must observe that state; for example, killing the Shrinker
+        // Beetle removes its ShrinkPower before the chosen attack's damage is calculated.
+        Kernel.ApplyEnemyDeathPowers(ref x);
+        if (x.NeedsChoice)
+            return;
         int drawCount = x.B.DrawCount;
         if (drawCount == 0)
             return;

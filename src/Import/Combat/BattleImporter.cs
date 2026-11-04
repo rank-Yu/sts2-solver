@@ -571,7 +571,7 @@ public static class BattleImporter
         Card value = Card(ref battle, selected, rules, rootCard: false, dampenOriginalUpgrade: -1);
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
-            if (battle.DetachedCards[slot].Id != 0)
+            if (battle.DetachedCards[slot].IsDetachedCardPresent)
                 continue;
             battle.DetachedCards[slot] = value;
             battle.Powers[row].Aux0 = slot + 1;
@@ -587,7 +587,7 @@ public static class BattleImporter
         Card value = Card(ref battle, power.StolenCard, rules, rootCard: true, dampenOriginalUpgrade: -1);
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
-            if (battle.DetachedCards[slot].Id != 0)
+            if (battle.DetachedCards[slot].IsDetachedCardPresent)
                 continue;
             battle.DetachedCards[slot] = value;
             battle.Powers[row].Aux0 = slot + 1;

@@ -75,6 +75,9 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 - **`AmountOnTurnStart` 只为三个 Power 保存。** 只有 `DrawCardsNextTurnPower`、`SummonNextTurnPower`、`HelloWorldPower` 的这个值会被结算读取（`PowerLifecycleSupport.SemanticallyRelevantAmountOnTurnStart`）。其余 Power 的这个值只反映原生模型的数量，而原引擎的镜像扣层（`PowerAmountPredictionState`）要到动作边界才同步回模型；Sts2Solver 是立即扣层的，所以这些 Power 的 `AmountOnTurnStart` 在导入和回合开始快照时都归零，不去复制一个只存在于原生模型里的滞后值。
 - **批量顺序。** 只有原版监听者时，原引擎对回合阶段 Hook、Power 反应、最大能量与抽牌数、`BeforeHandDraw` 用的是“先全部 Power、再全部遗物”的批量顺序，而不是逐监听者顺序。Sts2Solver 在相同位置用相同的批量顺序；这处和原版的偏差以原引擎为准。
 
+
+**回合末监听器迭代。** `Hook.AfterSideTurnEnd` 在进入阶段二时创建一次监听器迭代；`IsOverOrEnding` 只在迭代开始时检查。阶段二的 Power 监听先运行、随后才是遗物监听，如果前一个监听在本次迭代中击杀最后一名主要敌人，剩余监听（ArtOfWar、Kusarigama 等）仍按原版快照继续执行。相反，阶段二入口已经结束或玩家已进入失败结算时整次迭代为空，遗物不得清零。回合准备的 `ModifyHandDraw` 在战斗已结束/结束中时同样为空，Pendulum 等监听不推进计数。
+
 ### 3.3 Hook 目录
 
 内核为下列 Hook 提供派发点，名称与原版一致；回合阶段方法见第 7 节。内容需要新的 Hook 时，在内核增加派发点并补差分测试：
@@ -167,6 +170,10 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 5. **击杀**：扣光剩余 HP 并触发 `AfterCurrentHpChanged` → `BeforeDeath` → `ShouldDie`（第一个阻止者生效）。死亡：`AfterDeath` → 移出阵容 → 主敌人死亡且只剩附属时附属一并死亡。被阻止：`AfterDeath(prevented)` 与 `AfterPreventingDeath`，最多递归 10 次。
 6. **敌人死亡效果**：由 `ApplyEnemyDeathPowers` 结算（`P/CorePowerSupport.cs:597-674`）：死亡 Power（Ravenous、Surrounded、召唤）→ 清除死者施加的 Constrict、Hex、Shrink、MagicBomb。卡牌攻击在 `ApplyCardPowers` 的位置统一结算；遗物和 Power 在回合/出牌 Hook 里独立造成的伤害（Kusarigama、Tingsha、ParryingShield、ForgottenSoul、SerpentForm）在伤害调用返回后立即结算，下一次重放能看到死亡 Power 的效果。`SteamEruptionPower.AfterDeath` 属于普通 `AfterDeath` 监听者，在 `Kill` 内部立即改写死亡，不进入这条清算；见 [偷窃与瀑布巨兽](#14-偷窃与瀑布巨兽)。
 
+**攻击后的死亡结算。** 原版 `DamageCmd.Attack.Execute` 返回前已结算被击杀敌人的死亡 Power；同一张卡在攻击之后立刻读取状态时必须看到这些结算。Uproar 在两段攻击后先结算敌人死亡 Power，再抽牌选择自动打出的攻击，所以击杀 ShrinkerBeetle 后 ShrinkPower 已移除，后续伤害按未缩小计算。
+
+**SuckPower 的命中列表。** 原生 `SuckPower.AfterAttack` 按 `AttackCommand.Results` 的每个命中列表计数：先移除宠物命中对应的宠物主人结果，但保留宠物命中本身，列表里任一结果有未格挡伤害就计一次。Osty 代受并溢出给玩家的整次命中只算一次，不因宠物和玩家两个结果重复计数。内核用 `Exec.AttackSuckHitLists` 在每次最外层 `Damage` 调用上记录该布尔结果。
+
 ## 6. 格挡与 Power
 
 格挡和 Power 施加都先经过一串修正 Hook，再写入状态；Power 的衰减时点按类型固定。
@@ -230,6 +237,8 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 ### 7.1.1 准备暂停处的侧回合开始与球
 
 准备暂停时，侧回合开始和球 `AfterTurnStart` 在恢复选择前执行。原版 v0.111.0 没有内容能在这两个位置请求新的玩家选择：`Hook.AfterSideTurnStart` 不接收 `PlayerChoiceContext`（[GAME AbstractModel.cs:1268、Hook.cs:1175]），51 个覆写里没有 `CardSelectCmd` 调用；InfusedCore 和 SymbioticVirus 用 `BlockingPlayerChoiceContext` 只是 `OrbCmd.Channel`。球只有 PlasmaOrb 覆写 `AfterTurnStartOrbTrigger`，它触发 passive 获得能量，不选牌。内核仍对这两个位置检查 `NeedsChoice`/`ChoicesTaken`，一旦出现无法表示的请求就显式抛 `UnsupportedException`；当前内容不会走到。
+准备暂停期间，原生 `CardSelectCmd.FromHand` 先暂停、再读取手牌候选；暂停中 `AfterSideTurnStart` 的 Crossbow 会把生成的攻击牌加入手牌，因此 ToolsOfTheTradePower 等基于手牌的回合开始选择必须先运行 `Exec.RunSetupPause`，再取手牌数量。`CardSelectCmd.FromHand` 即使手牌为空也会暂停。
+
 ### 7.2 实现形状
 
 对照 `Kernel.TurnPhases.cs`。原引擎的回合阶段有两种写法，Sts2Solver 分别对应：

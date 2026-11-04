@@ -136,7 +136,7 @@ public static class DecimalVars
         int nextCount = 0;
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
-            if (battle.DetachedCards[slot].Id == 0)
+            if (!battle.DetachedCards[slot].IsDetachedCardPresent)
                 continue;
             if (!MapSlot(in battle.DetachedCards[slot], oldValues[..oldCount], next, ref nextCount, mapped,
                     out required))
@@ -156,7 +156,7 @@ public static class DecimalVars
         }
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
-            if (battle.DetachedCards[slot].Id != 0)
+            if (battle.DetachedCards[slot].IsDetachedCardPresent)
                 ApplySlot(ref battle.DetachedCards[slot], mapped);
         }
         if ((battle.Flags & BattleFlags.HistoryCourseCardPresent) != 0)

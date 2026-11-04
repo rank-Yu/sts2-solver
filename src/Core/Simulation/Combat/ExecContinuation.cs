@@ -16,6 +16,7 @@ internal readonly struct ExecContinuation
 {
     internal readonly bool HistoryRisk;
     internal readonly int AttackUnblockedHits;
+    internal readonly int AttackSuckHitLists;
     internal readonly int CardDamageTotal;
     internal readonly bool CardKilledTarget;
     internal readonly int LastDamageKills;
@@ -59,7 +60,8 @@ internal readonly struct ExecContinuation
     internal readonly int BrightestFlameMaxHpSpent;
 
     internal ExecContinuation(
-        bool historyRisk, int attackUnblockedHits, int cardDamageTotal, bool cardKilledTarget,
+        bool historyRisk, int attackUnblockedHits, int attackSuckHitLists, int cardDamageTotal,
+        bool cardKilledTarget,
         int lastDamageKills, int lastDamageTotal, int lastDamageOverkill, in Card card,
         CardStats? stats, byte target, int xValue, int starValue, int playIndex, int playPosition,
         int drawnCardPosition, bool intrinsicDrawHandled, in GeneratedChoiceOptions generatedOptions,
@@ -75,6 +77,7 @@ internal readonly struct ExecContinuation
     {
         HistoryRisk = historyRisk;
         AttackUnblockedHits = attackUnblockedHits;
+        AttackSuckHitLists = attackSuckHitLists;
         CardDamageTotal = cardDamageTotal;
         CardKilledTarget = cardKilledTarget;
         LastDamageKills = lastDamageKills;

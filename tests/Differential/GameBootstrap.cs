@@ -4,6 +4,8 @@
 using System.Reflection;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Assets;
+using MegaCrit.Sts2.Core.Entities.Actions;
+using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Localization;
@@ -57,6 +59,12 @@ internal static class GameBootstrap
         Patch(typeof(Godot.Time), nameof(Godot.Time.GetTicksMsec), prefix: nameof(TicksMsecPrefix));
         Patch(typeof(RunManager), nameof(RunManager.WriteReplay), prefix: nameof(SkipPrefix),
             args: [typeof(bool)]);
+        // Godot's Callable.CallDeferred dereferences the native engine, which this host does not
+        // start. Combat cleanup cancels queued actions and GameAction.Cancel uses that call only to
+        // complete its TaskCompletionSource. Run the same state/event sequence but post the
+        // completion to the host synchronization context, preserving CallDeferred's next-frame
+        // ordering after the queue mutation returns.
+        Patch(typeof(GameAction), nameof(GameAction.Cancel), prefix: nameof(GameActionCancelPrefix));
         Patch(typeof(MegaCrit.Sts2.Core.Nodes.HoverTips.NHoverTipSet), nameof(MegaCrit.Sts2.Core.Nodes.HoverTips.NHoverTipSet.Clear),
             prefix: nameof(SkipPrefix));
         // CardRewardAlternative's constructor builds Godot StringName hotkeys; TestMode never
@@ -247,6 +255,38 @@ internal static class GameBootstrap
     private static bool PlatformBranchPrefix(ref MegaCrit.Sts2.Core.Platform.PlatformBranch __result)
     {
         __result = MegaCrit.Sts2.Core.Platform.PlatformBranch.None;
+        return false;
+    }
+
+    private static bool GameActionCancelPrefix(GameAction __instance)
+    {
+        MethodInfo state = AccessTools.PropertySetter(typeof(GameAction), nameof(GameAction.State))
+            ?? throw new MissingMethodException(typeof(GameAction).FullName, nameof(GameAction.State));
+        state.Invoke(__instance, [GameActionState.Canceled]);
+        FieldInfo cancelled = AccessTools.Field(typeof(GameAction), "BeforeCancelled")
+            ?? throw new MissingFieldException(typeof(GameAction).FullName, "BeforeCancelled");
+        if (cancelled.GetValue(__instance) is Action<GameAction> beforeCancelled)
+            beforeCancelled(__instance);
+        MethodInfo cancelAction = __instance.GetType()
+            .GetMethod("CancelAction", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(__instance.GetType().FullName, "CancelAction");
+        cancelAction.Invoke(__instance, null);
+        FieldInfo completionField = AccessTools.Field(typeof(GameAction), "_completionSource")
+            ?? throw new MissingFieldException(typeof(GameAction).FullName, "_completionSource");
+        if (completionField.GetValue(__instance) is not TaskCompletionSource completion)
+        {
+            throw new InvalidOperationException(
+                $"{typeof(GameAction).FullName}._completionSource 不是 TaskCompletionSource。");
+        }
+        // CallDeferred runs on the next engine frame, after the queue mutation that called
+        // Cancel has finished. Complete later on the host's synchronization context as well:
+        // setting the source inline would resume ActionExecutor while CombatEnded still holds
+        // the action in its queue, so the action could pop itself and corrupt the queue.
+        SynchronizationContext? context = SynchronizationContext.Current;
+        if (context != null)
+            context.Post(_ => completion.TrySetCanceled(), null);
+        else
+            ThreadPool.QueueUserWorkItem(_ => completion.TrySetCanceled());
         return false;
     }
 

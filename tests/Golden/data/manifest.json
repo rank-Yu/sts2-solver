@@ -7,7 +7,7 @@
     "d1Config": "66a43838d89e7a03b05c0f04d5e4941ff555baec",
     "formatMigration": "v4\u2192v5\uFF1ABattle \u5220\u9664\u539F\u5F15\u64CE\u7EE7\u627F\u7684 ShufflesCrossed \u8BA1\u6570\uFF0C\u5934\u90E8 3,868\u21923,860 \u5B57\u8282\uFF0C\u663E\u5F0F\u586B\u5145 5\u21921 \u5B57\u8282\uFF1BD1 \u6839\u72B6\u6001\u6309\u7248\u672C 4 \u6295\u5F71\u5220\u9664\u8BE5\u5B57\u6BB5\u540E\u91CD\u5F55\uFF0C\u53EA\u6539\u683C\u5F0F\u4E0E\u72B6\u6001\u8EAB\u4EFD\uFF0C\u4E0D\u8BFB\u53D6\u8BE5\u5B57\u6BB5\u7684\u8BC4\u5206\u3001\u526A\u679D\u3001\u5408\u6CD5\u52A8\u4F5C\u6216\u98CE\u9669\u5224\u65AD\u90FD\u4E0D\u53D8\u3002",
     "refreeze": "fs2c sha256=d6f97b806d0aa6e9497473bf642e3a8c90bcfad3d64beee1c575ebad4c5530d2",
-    "d1Rerecord": "roots=r2-b-relic-turns reason=fs5 sha256=6614b9332608d3d5f545e5d4f13b20e5e0fea544f24c4e29e888a45d83f0861a"
+    "d1Rerecord": "roots=id-b-nightmare-phantom,qt2-art-of-war-endturn,quality-DEFECT-015,quality-IRONCLAD-021,quality-NECROBINDER-005,quality-SILENT-018 reason=fs6 sha256=e99cd4ebd398c6b431680d524fddb022034026fe165d1abe7ef8aa46d0e40920"
   },
   "compression": "brotli",
   "counts": {
@@ -29,7 +29,7 @@
       "timeAffected": 0
     }
   },
-  "totalBytes": 23757596,
+  "totalBytes": 23757602,
   "targetBytes": 52428800,
   "files": [
     {
@@ -1119,8 +1119,8 @@
     },
     {
       "path": "d1/id-b-nightmare-phantom/golden.br",
-      "bytes": 12842,
-      "sha256": "7939a5ab758854ad26921f8458bf4e018537ca101815220405ff9446aaaa5c90"
+      "bytes": 12858,
+      "sha256": "c103101ee2e32cf02b174269fead53d7bce8387551126443feb038e9a2849eea"
     },
     {
       "path": "d1/id-b-nightmare-phantom/meta.json",
@@ -3924,8 +3924,8 @@
     },
     {
       "path": "d1/qt2-art-of-war-endturn/golden.br",
-      "bytes": 897,
-      "sha256": "c60405cc92e89c070870887135b9b55d3d067e9d2c0aa855a919aeb5597044a4"
+      "bytes": 889,
+      "sha256": "97591467a47adb0683ee7247ca62b17c484d9489eff0ca0d1422151f9c824b21"
     },
     {
       "path": "d1/qt2-art-of-war-endturn/meta.json",
@@ -4179,8 +4179,8 @@
     },
     {
       "path": "d1/quality-DEFECT-015/golden.br",
-      "bytes": 24406,
-      "sha256": "28030e815974b4315019d8bba7d4de9d2a2337feae770088fe31469631a5ab2d"
+      "bytes": 24426,
+      "sha256": "6182ec7ad2c73d801f6cca583744593c6c012c528483a6214e5a6c226fee13db"
     },
     {
       "path": "d1/quality-DEFECT-015/meta.json",
@@ -4629,8 +4629,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-021/golden.br",
-      "bytes": 28525,
-      "sha256": "1bb0b2ccae5ef593a82c93f9d8eaae0931ae786feeb12313892d715649d5d5c4"
+      "bytes": 28524,
+      "sha256": "7e68dc824f3358740b4286e34a9239ecf9c0f6d60724cce0bea96dff2748a75d"
     },
     {
       "path": "d1/quality-IRONCLAD-021/meta.json",
@@ -4749,8 +4749,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-005/golden.br",
-      "bytes": 41372,
-      "sha256": "589905f2a8066a7efa3286eebfbe821dca587defc9a13dd23f00df17f5dbb447"
+      "bytes": 41358,
+      "sha256": "7604896211646031deb5e53c378adb4bd91de419c4e5c82f3afe133ad03b398c"
     },
     {
       "path": "d1/quality-NECROBINDER-005/meta.json",
@@ -5664,8 +5664,8 @@
     },
     {
       "path": "d1/quality-SILENT-018/golden.br",
-      "bytes": 23592,
-      "sha256": "8f63135753bb8f0787e7ca3fb24e384aaa9ff3a0a590643b43b1ee7aa2e3e897"
+      "bytes": 23585,
+      "sha256": "5bef917f5818d0211ba576b3ac06af2a565d686915c09bdd3067988dc165dbfd"
     },
     {
       "path": "d1/quality-SILENT-018/meta.json",

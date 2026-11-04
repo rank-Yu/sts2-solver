@@ -15,6 +15,7 @@ internal static class ExecCoverage
     [
         nameof(Exec.HistoryRisk),
         nameof(Exec.AttackUnblockedHits),
+        nameof(Exec.AttackSuckHitLists),
         nameof(Exec.CardDamageTotal),
         nameof(Exec.CardKilledTarget),
         nameof(Exec.LastDamageKills),

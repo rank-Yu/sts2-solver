@@ -54,10 +54,23 @@ public sealed class MementoMori : CardDef
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
     // CalculatedVarSpecRegistry.MementoMori: CalculationBase + ExtraDamage * cards discarded this turn.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target,
+        out decimal damage)
+    {
+        CardStats stats = x.R.Card(self.Id, self.Upgrade);
+        if (stats.Vars.Length < 2)
+            throw new UnsupportedException(
+                $"MEMENTO_MORI 规则表只有 {stats.Vars.Length} 个动态变量，需要 CalculationBase 和 ExtraDamage。");
+        decimal baseValue = stats.Vars[0] + DecimalVars.Delta(in x.B, in self, 0);
+        decimal extra = stats.Vars[1] + DecimalVars.Delta(in x.B, in self, 1);
+        damage = baseValue + extra * x.B.Counter(Counter.CardsDiscardedThisTurn);
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
-        decimal damage = CardEffects.Var(x, 0)
-            + CardEffects.Var(x, 1) * x.B.Counter(Counter.CardsDiscardedThisTurn);
+        if (!TryGetCalculatedDamage(ref x, x.Card, x.Target, out decimal damage))
+            throw new UnsupportedException("MEMENTO_MORI 没有可读取的 CalculatedDamage。");
         CardEffects.Attack(ref x, damage);
     }
 }

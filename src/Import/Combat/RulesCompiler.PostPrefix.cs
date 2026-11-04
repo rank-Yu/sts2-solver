@@ -176,7 +176,7 @@ public static partial class RulesCompiler
         for (int index = 0; index < Limits.DetachedCards; index++)
         {
             ref readonly Card card = ref root.DetachedCards[index];
-            if (card.Id != 0)
+            if (card.IsDetachedCardPresent)
                 detachedCards.Add((Registry.Card(card.Id).NativeId, card.Upgrade));
         }
         AddGeneratedCardClosure(builder, root, player, spawnClosure, detachedCards);

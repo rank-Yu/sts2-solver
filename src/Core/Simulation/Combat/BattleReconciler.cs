@@ -64,6 +64,9 @@ internal static class BattleReconciler
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
             ref Card detached = ref copy.DetachedCards[slot];
+            if (!detached.IsDetachedCardPresent)
+                continue;
+            // An id-0 card keeps the presence bit: it is the only distinction from an unused slot.
             if (detached.Id != 0)
                 detached.Flags &= ~CardFlags.PowerAfflictionChecked;
         }

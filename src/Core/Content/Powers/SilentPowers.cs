@@ -460,7 +460,9 @@ public sealed class CorrosiveWavePower : PowerDef
             byte enemy = Kernel.EnemyOwner(x.B.Roster[position]);
             if (!Kernel.IsHittable(x.B, enemy))
                 continue;
-            Kernel.ApplyPower(ref x, enemy, poison, amount, self.Owner);
+            // CorrosiveWavePower passes cardSource: null, so UnsettlingLamp must not observe or
+            // double these Poison applications even though they happen during a card play.
+            Kernel.ApplyPowerWithoutCardSource(ref x, enemy, poison, amount, self.Owner);
             if (x.NeedsChoice)
                 return;
         }

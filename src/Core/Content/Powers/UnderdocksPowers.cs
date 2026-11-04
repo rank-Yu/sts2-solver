@@ -89,10 +89,10 @@ public sealed class PlatingPower : PowerDef
 /// <summary>
 /// Native <c>SuckPower</c> (FossilStalker, three stacks applied in <c>AfterAddedToRoom</c>): after its
 /// owner's powered attack, the owner gains <c>Amount</c> Strength once per hit list that dealt
-/// unblocked damage to the other side (<c>AfterAttackMirrors.HandleSuckPower</c>). The single-player
-/// target side has one creature, so each unblocked hit is one hit list.
-/// Aux0 = unblocked hits counted in the current attack; the bridge projects no slot because the
-/// existing engine keeps no state for this power and the counter is zero at every action boundary.
+/// unblocked damage to the other side (<c>SuckPower.AfterAttack</c>). The native method first removes
+/// every pet hit and the paired result for that pet's owner from each hit list, then counts a list
+/// when any remaining result has unblocked damage. <see cref="Exec.AttackSuckHitLists"/> keeps that
+/// per-hit-list count for the current attack context; it is zero at every stable boundary.
 /// </summary>
 [ContentId("SUCK_POWER")]
 public sealed class SuckPower : PowerDef
@@ -101,29 +101,14 @@ public sealed class SuckPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    // AfterDamageGiven runs for every damage result, including a hit that kills the target; the
-    // native AfterAttack counts those hit lists as well.
-    public override void AfterDamageGiven(ref Exec x, Listener self, in DamageResult result, byte dealer)
-    {
-        if (dealer != self.Owner || result.UnblockedDamage <= 0 || !result.Props.IsPoweredAttack())
-            return;
-        // SuckPower.cs removes pet hits (and the pet owner's paired result) from each hit list;
-        // damage redirected to Osty therefore does not count as an unblocked hit for its owner.
-        if (result.Receiver == Limits.OstyOwner)
-            return;
-        x.B.Powers[self.Index].Aux0++;
-    }
-
     public override void AfterAttack(ref Exec x, Listener self, byte attacker)
     {
-        if (attacker != self.Owner)
+        if (attacker != self.Owner || !x.AttackProps.IsPoweredAttack())
             return;
-        ref Power power = ref x.B.Powers[self.Index];
-        int hits = power.Aux0;
+        int hits = x.AttackSuckHitLists;
         if (hits == 0)
             return;
-        int amount = power.Amount;
-        power.Aux0 = 0;
+        int amount = x.B.Powers[self.Index].Amount;
         Kernel.ApplyPower(ref x, self.Owner, Registry.PowerId<StrengthPower>(), amount * hits, self.Owner);
     }
 }

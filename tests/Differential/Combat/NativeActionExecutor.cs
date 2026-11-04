@@ -331,7 +331,11 @@ internal sealed class NativeActionExecutor(
             {
                 if (expected.Outcome != Outcome.None)
                 {
-                    WaitForQueueIdle(watch);
+                    // TerminalBattleCapture already captured the native state at the EndCombatInternal
+                    // / ProcessPendingLoss prefix. The remaining native cleanup can enqueue and
+                    // cancel hook actions whose Godot-deferred completion this host cannot service;
+                    // pumping that queue both hangs and corrupts the ActionQueueSet. The terminal
+                    // contract only needs the captured prefix, so stop here.
                     return;
                 }
                 throw new OfflineDeploymentException("combat_ended",
@@ -365,13 +369,6 @@ internal sealed class NativeActionExecutor(
             }
             loop.Pump(TimeSpan.FromMilliseconds(5));
         }
-    }
-
-    private void WaitForQueueIdle(Stopwatch watch)
-    {
-        _ = watch;
-        Task finished = RunManager.Instance.ActionExecutor.FinishedExecutingActions();
-        loop.RunUntilCompleted(finished, BoundaryTimeout, "战斗结束清理");
     }
 
     private static string PredictedPotionName(ushort stored)

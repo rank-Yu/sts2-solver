@@ -366,6 +366,13 @@ public ref struct Exec
     /// <summary>Unblocked-player hits in the current attack context (PainfulStabs after the attack).</summary>
     public int AttackUnblockedHits;
 
+    /// <summary>
+    /// Player-side hit lists in the current attack context that still had unblocked damage after the
+    /// native SuckPower pet filtering (a hit redirected to Osty removes both the pet result and the
+    /// paired player result). One list per native <c>Damage</c> call.
+    /// </summary>
+    public int AttackSuckHitLists;
+
     /// <summary>Damage properties of the current attack context (native <c>AttackCommand.DamageProps</c>).</summary>
     public ValueProps AttackProps;
 
@@ -470,7 +477,7 @@ public ref struct Exec
     {
         AssertPlayerStartBoundary();
         return new ExecContinuation(
-            HistoryRisk, AttackUnblockedHits, CardDamageTotal, CardKilledTarget,
+            HistoryRisk, AttackUnblockedHits, AttackSuckHitLists, CardDamageTotal, CardKilledTarget,
             LastDamageKills, LastDamageTotal, LastDamageOverkill, Card, Stats, Target, XValue,
             StarValue, PlayIndex, PlayPosition, DrawnCardPosition, IntrinsicDrawHandled,
             GeneratedOptions, GeneratedOptionCount, PendingPowerChanges, PendingPowerChangeCount,
@@ -488,6 +495,7 @@ public ref struct Exec
     {
         HistoryRisk = continuation.HistoryRisk;
         AttackUnblockedHits = continuation.AttackUnblockedHits;
+        AttackSuckHitLists = continuation.AttackSuckHitLists;
         CardDamageTotal = continuation.CardDamageTotal;
         CardKilledTarget = continuation.CardKilledTarget;
         LastDamageKills = continuation.LastDamageKills;

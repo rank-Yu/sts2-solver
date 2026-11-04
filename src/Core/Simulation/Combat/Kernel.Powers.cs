@@ -632,9 +632,12 @@ public static partial class Kernel
     {
         for (int slot = 0; slot < Limits.DetachedCards; slot++)
         {
-            if (battle.DetachedCards[slot].Id != 0)
+            if (battle.DetachedCards[slot].IsDetachedCardPresent)
                 continue;
             battle.DetachedCards[slot] = card;
+            // Keep the presence marker for id-0 cards; CloneCard clears the affliction check on the
+            // new object, so the slot itself has to stamp the bit.
+            battle.DetachedCards[slot].Flags |= CardFlags.PowerAfflictionChecked;
             return slot;
         }
         throw new CapacityException("DetachedCards", Limits.DetachedCards);

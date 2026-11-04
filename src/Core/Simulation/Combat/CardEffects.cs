@@ -55,19 +55,6 @@ public static class CardEffects
     }
 
     /// <summary>
-    /// Self damage from the compensation path: <c>simulator.Damage(owner, HpLoss, Unblockable |
-    /// Unpowered | Move, owner)</c> with no card source (BloodWall, Breakthrough, Hemokinesis).
-    /// </summary>
-    public static void LoseHp(ref Exec x, decimal amount)
-    {
-        Span<byte> targets = stackalloc byte[1];
-        targets[0] = Limits.PlayerOwner;
-        Kernel.Damage(ref x, targets, amount,
-            ValueProps.Unblockable | ValueProps.Unpowered | ValueProps.Move,
-            Limits.PlayerOwner, hasCardSource: false, default);
-    }
-
-    /// <summary>
     /// Self damage from a card that keeps the card as its damage source, matching
     /// <c>Simulator.Damage(..., playedCard, cardPlay)</c> (Offering, Bloodletting).
     /// </summary>

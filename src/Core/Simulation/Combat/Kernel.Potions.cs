@@ -91,10 +91,7 @@ public static partial class Kernel
         ResolvePowerAmountChanges(ref x);
         if (x.NeedsChoice)
             return;
-        // PotionExecutionSupport.Complete compensates the history before the enemy-death pass.
-        ApplyBlockBreakCompensations(ref x);
-        if (x.NeedsChoice)
-            return;
+        // PotionExecutionSupport.Complete runs the enemy-death pass after the effect.
         ApplyEnemyDeathPowers(ref x);
         if (x.NeedsChoice)
             return;

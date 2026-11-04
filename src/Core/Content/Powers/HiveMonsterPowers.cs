@@ -85,14 +85,10 @@ public sealed class BurrowedPower : PowerDef
     public override bool ShouldClearBlock(ref Exec x, Listener self, byte owner)
         => owner != self.Owner;
 
-    // TriggeredPowerSupport.CompensateBurrow runs from CompensateHistorySince after the effect's
-    // damage pass has applied the enemy death powers: a hit that kills the Tunneler removes
-    // BurrowedPower first, so a lethal hit never forces the stun. This is not the native
-    // AfterBlockBroken hook (which the existing engine only mirrors for HandDrill), and it must
-    // not see block breaks from the enemy turn or from a phase-two evoke.
-    public override bool CompensatesBlockBreakAfterDamage => true;
-
-    public override void AfterBlockBrokenCompensated(ref Exec x, Listener self, byte target, byte breaker)
+    // BurrowedPower.cs: AfterBlockBroken stuns the Tunneler and removes this power. Unlike the old
+    // engine's deferred compensation, the native hook runs for every block break (including Thorns
+    // and the enemy turn) and before the damage result's death pass.
+    public override void AfterBlockBroken(ref Exec x, Listener self, byte target, byte breaker)
     {
         if (target != self.Owner || x.B.Powers[self.Index].Amount <= 0)
             return;

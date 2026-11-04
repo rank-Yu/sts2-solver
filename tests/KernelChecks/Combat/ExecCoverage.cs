@@ -38,7 +38,6 @@ internal static class ExecCoverage
         nameof(Exec.MonologuePending),
         nameof(Exec.MonologuePendingCount),
         nameof(Exec.CurrentMonologueBase),
-        nameof(Exec.MonologuesResolved),
         nameof(Exec.CardPowerSourceActive),
         nameof(Exec.CardPowerSourceSerial),
         nameof(Exec.CardPowerSourceSerialCounter),
@@ -97,7 +96,6 @@ internal static class ExecCoverage
 
     private static readonly string[] ResetAtPlayerStart =
     [
-        nameof(Exec.PendingBlockBreakOwners),
         nameof(Exec.ChoiceTiming),
     ];
 

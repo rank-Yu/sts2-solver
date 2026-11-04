@@ -17,10 +17,11 @@ public sealed class Hemokinesis : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        CardEffects.GeneralAttack(ref x, 1);
+        // Hemokinesis.cs: lose HP first, with the card as the damage source, then attack.
+        CardEffects.LoseHpFromCard(ref x, CardEffects.Var(x, 0));
         if (x.NeedsChoice)
             return;
-        CardEffects.LoseHp(ref x, CardEffects.Var(x, 0));
+        CardEffects.GeneralAttack(ref x, 1);
     }
 }
 

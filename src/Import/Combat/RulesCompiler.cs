@@ -525,8 +525,15 @@ public static partial class RulesCompiler
         ushort[]? outOfCombatPotionPool = null;
         bool needsPotionPool = false;
         bool needsOutOfCombatPotionPool = false;
+        // The root scan above only sees content that already exists. A generated identity-ledger
+        // card (Forge's Sovereign Blade) requires the same scans. Only the card that owns a
+        // per-object ledger counts here: whether a generated pool contains some card that could
+        // generate identity content is not enough (Entropy's pools do), and the root flag is part
+        // of the frozen rules encoding.
+        bool generatedIdentityContent = false;
         void Declare(ContentDef def)
         {
+            generatedIdentityContent |= def is CardDef { UsesIdentityLedger: true };
             needsPotionPool |= def.GeneratesRandomPotion;
             needsOutOfCombatPotionPool |= def.GeneratesOutOfCombatPotion;
             if (def is PotionDef && !seenPotionDefs.Add(def.Id))
@@ -641,6 +648,7 @@ public static partial class RulesCompiler
             }
             break;
         }
+        builder.HasIdentityContent |= generatedIdentityContent;
 
         // Root potions identify "this slot still holds the potion the search started with". The
         // reference compiler records them inside this closure; the value is independent of order.

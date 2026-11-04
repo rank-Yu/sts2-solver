@@ -262,9 +262,15 @@ public sealed class Steady : EnchantmentDef;
 [ContentId("ROYALLY_APPROVED")]
 public sealed class RoyallyApproved : EnchantmentDef;
 
-/// <summary><c>SoulsPower</c>: removes Exhaust at enchant time, already in the imported card value (decompiled SoulsPower.cs).</summary>
+/// <summary>
+/// <c>SoulsPower</c>: removes Exhaust at enchant time (decompiled SoulsPower.cs). The imported card
+/// value already has the removal; the hook is replayed after a downgrade resets local keywords.
+/// </summary>
 [ContentId("SOULS_POWER")]
-public sealed class SoulsPower : EnchantmentDef;
+public sealed class SoulsPower : EnchantmentDef
+{
+    public override void OnEnchant(ref Exec x, ref Card card) => card.Keywords &= ~Keywords.Exhaust;
+}
 
 /// <summary>
 /// <c>Imbued</c>: on the first player turn, after the scheduled auto-plays, every card with this

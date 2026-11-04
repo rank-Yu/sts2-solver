@@ -196,6 +196,12 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
             case Vambrace vambrace:
                 target.Counter = vambrace._blockGainedThisCombat ? 1 : 0;
                 break;
+            case PhilosophersStone stone:
+                // AfterCreatureAddedToCombat applies the canonical StrengthPower var to each new
+                // enemy. The value is not in the compiled relic var table, so freeze it in Aux for
+                // the spawn path (PhilosophersStone.cs's only combat-run model constant).
+                target.Aux = stone.DynamicVars["StrengthPower"].IntValue;
+                break;
             case UnsettlingLamp:
                 target.Counter = Stateful(relic).Current != 0 ? 1 : 0;
                 break;

@@ -8,9 +8,9 @@ namespace Sts2Solver.Simulation.Combat;
 ///
 /// The fields that cannot be carried by value are asserted at capture time instead:
 /// <see cref="Exec.NeedsChoice"/>, <see cref="Exec.Request"/>, the pending choice count, the effect
-/// depth and the nested Sly mark range. <see cref="Exec.ChoiceTiming"/> and
-/// <see cref="Exec.PendingBlockBreakOwners"/> are overwritten by the continuation entry, and
-/// <see cref="Exec.TakingExtraTurn"/> is false on any shared prefix (extra turns are not shared).
+/// depth and the nested Sly mark range. <see cref="Exec.ChoiceTiming"/> is overwritten by the
+/// continuation entry, and <see cref="Exec.TakingExtraTurn"/> is false on any shared prefix (extra
+/// turns are not shared).
 /// </summary>
 internal readonly struct ExecContinuation
 {
@@ -39,7 +39,6 @@ internal readonly struct ExecContinuation
     internal readonly MonologuePendingArray MonologuePending;
     internal readonly int MonologuePendingCount;
     internal readonly int CurrentMonologueBase;
-    internal readonly bool MonologuesResolved;
     internal readonly bool CardPowerSourceActive;
     internal readonly int CardPowerSourceSerial;
     internal readonly int CardPowerSourceSerialCounter;
@@ -66,7 +65,7 @@ internal readonly struct ExecContinuation
         int drawnCardPosition, bool intrinsicDrawHandled, in GeneratedChoiceOptions generatedOptions,
         int generatedOptionCount, in PowerAmountChanges pendingPowerChanges, int pendingPowerChangeCount,
         in CardPlayPairs cardPlayPairs, int cardPlayPairCount, in MonologuePendingArray monologuePending,
-        int monologuePendingCount, int currentMonologueBase, bool monologuesResolved,
+        int monologuePendingCount, int currentMonologueBase,
         bool cardPowerSourceActive, int cardPowerSourceSerial, int cardPowerSourceSerialCounter,
         int lampTriggerSerial, int lampInternalTypeCount, in LampInternalPowerTypes lampInternalTypes,
         bool vambraceTriggerActive, int vambraceTriggerPosition, int vambraceTriggerSerial,
@@ -99,7 +98,6 @@ internal readonly struct ExecContinuation
         MonologuePending = monologuePending;
         MonologuePendingCount = monologuePendingCount;
         CurrentMonologueBase = currentMonologueBase;
-        MonologuesResolved = monologuesResolved;
         CardPowerSourceActive = cardPowerSourceActive;
         CardPowerSourceSerial = cardPowerSourceSerial;
         CardPowerSourceSerialCounter = cardPowerSourceSerialCounter;

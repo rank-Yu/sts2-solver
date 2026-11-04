@@ -241,7 +241,9 @@ public sealed class JugglingPower : PowerDef
     public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
+        {
             x.B.Powers[self.Index].Aux0 = 0;
+        }
     }
 }
 
@@ -546,7 +548,9 @@ public sealed class HellraiserPower : PowerDef
     {
         // CorePowerSupport/EndTurnPowerSupport resets the turn counter when the owner participates.
         if (participates)
+        {
             x.B.Powers[self.Index].Aux0 = 0;
+        }
     }
 
     private const int InfiniteAutoPlayCap = 9;
@@ -559,24 +563,38 @@ public sealed class HellraiserPower : PowerDef
     /// </summary>
     private static bool AllHittableEnemiesInfinite(ref Exec x)
     {
+        ushort hardenedShell = Registry.TryPower("HARDENED_SHELL_POWER", out ushort shell)
+            ? shell
+            : ushort.MaxValue;
         for (int position = 0; position < x.B.RosterCount; position++)
         {
             byte owner = Kernel.EnemyOwner(x.B.Roster[position]);
+            // HittableEnemies is Enemies.Where(IsHittable): a lethal hit excludes the creature
+            // immediately (its HP is already 0), before the deferred death pass changes DeathPhase.
+            if (!Kernel.IsHittable(x.B, owner))
+                continue;
             ref Enemy enemy = ref x.B.Enemy(owner);
             if (enemy.DeathPhase != DeathPhase.None)
                 continue;
-            // A non-empty hittable set needs the one native infinite-display source. An empty set
-            // (every enemy reviving, as with the Test Subject's first form) makes All() true.
-            if (!x.R.HasInfiniteHpDisplayMonster
-                || Registry.Monster(enemy.MonsterId).NativeId != "WATERFALL_GIANT")
+            // Waterfall Giant's steam phases and HardenedShellPower's per-turn latch both set
+            // HpDisplay.Infinite*; an empty hittable set makes All() true.
+            if (x.R.HasInfiniteHpDisplayMonster
+                && Registry.Monster(enemy.MonsterId).NativeId == "WATERFALL_GIANT"
+                && (enemy.SteamPhase != SteamPhase.None
+                    || x.B.Creature(owner).CurrentHp >= Limits.ValueClamp))
             {
-                return false;
+                continue;
             }
-            if (enemy.SteamPhase == SteamPhase.None
-                && x.B.Creature(owner).CurrentHp < Limits.ValueClamp)
+            if (hardenedShell != ushort.MaxValue)
             {
-                return false;
+                int row = Kernel.FindPower(x.B, owner, hardenedShell);
+                if (row >= 0 && x.B.Powers[row].Amount > 0
+                    && x.B.Powers[row].Aux0 >= x.B.Powers[row].Amount)
+                {
+                    continue;
+                }
             }
+            return false;
         }
         return true;
     }

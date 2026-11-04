@@ -56,11 +56,13 @@ public enum BattleFlags : byte
     HasRisk = 1 << 4,
 
     /// <summary>
-    /// Osty existed in the root's native <c>PlayerCombatState</c> (<c>Player.Osty != null</c>). The existing
-    /// engine's <c>BeginSideTurn(player)</c> resets Osty's per-turn counters only through that native pet
-    /// field, so an Osty created during the search never resets them. Constant for the solve; imported.
+    /// The native <c>Player.Osty</c> pet exists. It is set by the root import when the pet is present
+    /// and by the first <see cref="Kernel.SummonOsty"/>. Native keeps the pet object (and its
+    /// <c>DieForYouPower</c>) after death, so this is monotonic for the combat. The existing engine's
+    /// <c>BeginSideTurn(player)</c> reaches the pet through <c>Player.Osty</c>; resetting Osty's
+    /// per-turn counters therefore also applies to a pet summoned during the search.
     /// </summary>
-    OstyWasRootPet = 1 << 5,
+    OstyEverPresent = 1 << 5,
 
     /// <summary>
     /// <see cref="Battle.HistoryCourseCard"/> holds the last attack the player finished this turn
@@ -179,9 +181,10 @@ public enum Counter : byte
 
     /// <summary>
     /// Creature attacks by Osty this turn (<c>SimulatedCombatState._creatureAttacksThisTurn</c> for the
-    /// Osty pet): the Rattle calculated-hit multiplier. Reset in <c>BeginSideTurn(player)</c> only when
-    /// <see cref="BattleFlags.OstyWasRootPet"/> is set, matching the existing engine's
-    /// <c>ownerPlayer.Osty</c> lookup. Root history is imported.
+    /// Osty pet): the Rattle calculated-hit multiplier. Reset in <c>BeginSideTurn(player)</c> when
+    /// <see cref="BattleFlags.OstyEverPresent"/> is set, matching the existing engine's
+    /// <c>ownerPlayer.Osty</c> lookup (which also contains a pet summoned during the search). Root
+    /// history is imported.
     /// </summary>
     OstyAttacksThisTurn,
 

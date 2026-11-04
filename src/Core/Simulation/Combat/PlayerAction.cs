@@ -432,7 +432,6 @@ public ref struct Exec
         MonologuePending = default;
         MonologuePendingCount = 0;
         CurrentMonologueBase = 0;
-        MonologuesResolved = false;
         CardPowerSourceActive = false;
         CardPowerSourceSerial = 0;
         TransientMarkBase = 0;
@@ -453,7 +452,6 @@ public ref struct Exec
         CurrentPlayEnergyValue = 0;
         CardDamageTotal = 0;
         CardKilledTarget = false;
-        PendingBlockBreakOwners = 0;
         LastDamageTotal = 0;
         LastDamageOverkill = 0;
         TakingExtraTurn = false;
@@ -477,7 +475,7 @@ public ref struct Exec
             StarValue, PlayIndex, PlayPosition, DrawnCardPosition, IntrinsicDrawHandled,
             GeneratedOptions, GeneratedOptionCount, PendingPowerChanges, PendingPowerChangeCount,
             CardPlayPairs, CardPlayPairCount, MonologuePending, MonologuePendingCount,
-            CurrentMonologueBase, MonologuesResolved, CardPowerSourceActive, CardPowerSourceSerial,
+            CurrentMonologueBase, CardPowerSourceActive, CardPowerSourceSerial,
             CardPowerSourceSerialCounter, LampTriggerSerial, LampInternalTypeCount,
             LampInternalTypes, VambraceTriggerActive, VambraceTriggerPosition,
             VambraceTriggerSerial, LastCardPowerSourceSerial, PlayIdentity, LastPlayIdentity,
@@ -513,7 +511,6 @@ public ref struct Exec
         MonologuePending = continuation.MonologuePending;
         MonologuePendingCount = continuation.MonologuePendingCount;
         CurrentMonologueBase = continuation.CurrentMonologueBase;
-        MonologuesResolved = continuation.MonologuesResolved;
         CardPowerSourceActive = continuation.CardPowerSourceActive;
         CardPowerSourceSerial = continuation.CardPowerSourceSerial;
         CardPowerSourceSerialCounter = continuation.CardPowerSourceSerialCounter;
@@ -587,7 +584,6 @@ public ref struct Exec
     /// after the effect's death pass, so a lethal hit has already removed BurrowedPower. Transient;
     /// never part of the battle state or fingerprint.
     /// </summary>
-    public ulong PendingBlockBreakOwners;
 
     /// <summary>The round being advanced is an extra turn (<c>ShouldTakeExtraTurn</c>).</summary>
     public bool TakingExtraTurn;
@@ -677,7 +673,6 @@ public ref struct Exec
     public int CurrentMonologueBase;
 
     /// <summary>Whether the current card play already resolved its pending Monologue Strength.</summary>
-    public bool MonologuesResolved;
 
     /// <summary>
     /// True while a card's OnPlay/compensated effects run (the existing engine's

@@ -58,10 +58,6 @@ public sealed class EmotionChip : RelicDef
             if (x.NeedsChoice)
                 return;
         }
-        // SimulatedCombatState.ReactiveRelics.TriggerEmotionChip runs
-        // TriggeredPowerSupport.CompensateHistorySince after all passives; this is the one old call
-        // site outside the card/potion/turn-end boundaries, so flush the deferred block-break here.
-        Kernel.ApplyBlockBreakCompensations(ref x);
     }
 
     public override void AfterRelicRound(ref Exec x, Listener self)

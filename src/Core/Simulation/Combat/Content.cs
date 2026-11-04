@@ -510,18 +510,6 @@ public abstract class ListenerDef : ContentDef
     {
     }
 
-    /// <summary>
-    /// The existing engine's deferred block-break compensation (<c>TriggeredPowerSupport.CompensateBurrow</c>,
-    /// driven by <c>CompensateHistorySince</c>) rather than the native <c>AfterBlockBroken</c> hook.
-    /// The kernel records broken-block owners during the effect and calls this after the effect's
-    /// death pass, so a lethal hit has already removed the power.
-    /// </summary>
-    public virtual bool CompensatesBlockBreakAfterDamage => false;
-
-    public virtual void AfterBlockBrokenCompensated(ref Exec x, Listener self, byte target, byte breaker)
-    {
-    }
-
     // Action hooks. Each dispatch point in the kernel names the existing-engine call it mirrors.
 
     /// <summary>
@@ -932,62 +920,6 @@ public abstract class ListenerDef : ContentDef
 
 public abstract class CardDef : ListenerDef
 {
-    /// <summary>
-    /// Cards whose power compensation lives in <c>CorePowerSupport.ApplyCardPowers</c>'s switch after
-    /// <c>ResolveMonologues</c>. The kernel resolves pending Monologue Strength before such a card's
-    /// first power application so the power table keeps the existing engine's acquisition order. The
-    /// list is the case-label set of that switch (the Sts2Solver content split is by native card id).
-    /// </summary>
-    public bool ResolvesMonologuesBeforeCompensation => NativeId is
-            "ABRASIVE"
-            or "ACCELERANT"
-            or "ACCURACY"
-            or "AFTERIMAGE"
-            or "AGGRESSION"
-            or "ANGER"
-            or "ANTICIPATE"
-            or "ASSASSINATE"
-            or "BARRICADE"
-            or "BASH"
-            or "BATTLE_TRANCE"
-            or "BEAM_CELL"
-            or "BIASED_COGNITION"
-            or "BREAK"
-            or "BUFFER"
-            or "BULK_UP"
-            or "CAPACITOR"
-            or "CORRUPTION"
-            or "CREATIVE_AI"
-            or "CRIMSON_MANTLE"
-            or "DARK_EMBRACE"
-            or "DEFRAGMENT"
-            or "DEMON_FORM"
-            or "DODGE_AND_ROLL"
-            or "DOMINATE"
-            or "ECHO_FORM"
-            or "ENVENOM"
-            or "FEAR"
-            or "FEEL_NO_PAIN"
-            or "FISTICUFFS"
-            or "FOOTWORK"
-            or "FRIENDSHIP"
-            or "FURNACE"
-            or "GAMMA_BLAST"
-            or "HIGH_FIVE"
-            or "INFLAME"
-            or "KNOW_THY_PLACE"
-            or "LEG_SWEEP"
-            or "METEOR_SHOWER"
-            or "PIERCING_WAIL"
-            or "PROWESS"
-            or "REFINE_BLADE"
-            or "RESONANCE"
-            or "SHOCKWAVE"
-            or "SIDESTEP"
-            or "SUCKER_PUNCH"
-            or "THUNDERCLAP"
-            or "TREMBLE";
-
     /// <summary>
     /// Card effect in the existing engine's order: mirrored attack/block/draw first, then the
     /// compensated power/resource/generation effects.
@@ -1540,6 +1472,14 @@ public abstract class EnchantmentDef : ListenerDef
     public virtual decimal EnchantBlockAdditive(in Card card, decimal block) => 0m;
 
     public virtual decimal EnchantBlockMultiplicative(in Card card, decimal block) => 1m;
+
+    /// <summary>
+    /// <c>EnchantmentModel.OnEnchant</c> for the local card mutations the kernel models. Called on
+    /// downgrade, where native resets the local keywords and then runs <c>ModifyCard</c> again.
+    /// </summary>
+    public virtual void OnEnchant(ref Exec x, ref Card card)
+    {
+    }
 
     /// <summary><c>CardModel.GetEnchantedReplayCount</c>: the base replay count with this enchantment's modifier.</summary>
     public virtual int EnchantPlayCount(in Card card, int replayCount) => replayCount;

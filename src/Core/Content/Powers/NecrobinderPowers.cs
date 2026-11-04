@@ -359,7 +359,8 @@ public sealed class VeilpiercerPower : PowerDef
     public override decimal TryModifyEnergyCostInCombatLate(in Battle battle, Rules rules,
         Listener self, in Card card, Pile pile, decimal amount)
     {
-        if (self.Owner != Limits.PlayerOwner || !card.HasKeyword(Keywords.Ethereal)
+        // CardModel.Keywords runs Hook.ModifyKeywords: HexPower grants Ethereal to a Hexed card.
+        if (self.Owner != Limits.PlayerOwner || !Kernel.HasKeyword(battle, card, Keywords.Ethereal)
             || pile is not (Pile.Hand or Pile.Play))
         {
             return amount;
@@ -371,7 +372,7 @@ public sealed class VeilpiercerPower : PowerDef
     {
         ref readonly Power power = ref x.B.Powers[self.Index];
         if (self.Owner != Limits.PlayerOwner || power.Amount <= 0
-            || !play.Card.HasKeyword(Keywords.Ethereal))
+            || !Kernel.HasKeyword(x.B, play.Card, Keywords.Ethereal))
         {
             return;
         }

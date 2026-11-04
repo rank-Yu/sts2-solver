@@ -22,7 +22,7 @@ public static partial class Kernel
             // (the DieForYouPower application has no HP reader), so Sts2Solver initializes the target HP
             // directly instead of hard-coding the model's initial value.
             x.B.NextCombatId = unchecked(x.B.NextCombatId + 1);
-            x.B.Flags |= BattleFlags.OstyPresent;
+            x.B.Flags |= BattleFlags.OstyPresent | BattleFlags.OstyEverPresent;
             x.B.Osty = new Creature
             {
                 MaxHp = amount,

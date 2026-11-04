@@ -116,7 +116,6 @@ public static partial class Kernel
     private static int ApplyPowerInternal(ref Exec x, byte target, ushort powerId, int amount,
         byte applier, byte powerTarget)
     {
-        TryResolveMonologuesBeforeCompensation(ref x);
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(powerId);
@@ -197,7 +196,6 @@ public static partial class Kernel
     /// </summary>
     public static int ApplyTemporaryStrength(ref Exec x, byte target, ushort temporaryId, int amount, byte applier, int sign)
     {
-        TryResolveMonologuesBeforeCompensation(ref x);
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
@@ -234,7 +232,6 @@ public static partial class Kernel
     public static int ApplyTemporaryFocus(ref Exec x, byte target, ushort temporaryId, int amount,
         byte applier, int sign)
     {
-        TryResolveMonologuesBeforeCompensation(ref x);
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
@@ -289,7 +286,6 @@ public static partial class Kernel
     public static int ApplyTemporaryDexterity(ref Exec x, byte target, ushort temporaryId, int amount,
         byte applier)
     {
-        TryResolveMonologuesBeforeCompensation(ref x);
         if (amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
@@ -497,6 +493,11 @@ public static partial class Kernel
     /// <summary>Mirrors <c>SimulatedCombatState.CanReceivePredictedPowers</c>.</summary>
     public static bool CanReceivePowers(in Battle battle, byte owner)
     {
+        // DieForYouPower.ShouldAllowHitting returns creature.IsAlive for every creature while Osty
+        // exists; PowerCmd.Apply therefore refuses powers on a dead target even before the death
+        // pass (ReaperFormPower's lethal AfterDamageGiven is the observable case).
+        if ((battle.Flags & BattleFlags.OstyEverPresent) != 0 && battle.Creature(owner).IsDead)
+            return false;
         if (!IsEnemyOwner(owner))
             return true;
         ref readonly Enemy enemy = ref battle.Enemies[owner - Limits.FirstEnemyOwner];

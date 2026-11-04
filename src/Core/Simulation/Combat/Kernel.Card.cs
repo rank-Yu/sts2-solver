@@ -335,7 +335,6 @@ public static partial class Kernel
             int outerSourceSerial = 0;
             bool outerSourceActive = false;
             int outerMonologueBase = 0;
-            bool outerMonologuesResolved = false;
             if (identityScope)
             {
                 monologueBase = x.MonologuePendingCount;
@@ -343,20 +342,14 @@ public static partial class Kernel
                 outerSourceSerial = x.CardPowerSourceSerial;
                 outerSourceActive = x.CardPowerSourceActive;
                 outerMonologueBase = x.CurrentMonologueBase;
-                outerMonologuesResolved = x.MonologuesResolved;
                 x.CurrentMonologueBase = monologueBase;
-                x.MonologuesResolved = false;
                 x.CardPowerSourceSerial = ++x.CardPowerSourceSerialCounter;
                 x.CardPowerSourceActive = true;
             }
             Registry.Card(card.Id).OnPlay(ref x);
             if (!x.NeedsChoice && identityScope)
             {
-                if (!x.MonologuesResolved)
-                {
-                    ResolveMonologuePending(ref x, monologueBase);
-                    x.MonologuesResolved = true;
-                }
+                ResolveMonologuePending(ref x, monologueBase);
                 AfterCardPlayPowerLifecycle(ref x);
             }
             if (x.NeedsChoice)
@@ -367,7 +360,6 @@ public static partial class Kernel
                     x.CardPowerSourceSerial = outerSourceSerial;
                     x.CardPowerSourceActive = outerSourceActive;
                     x.CurrentMonologueBase = outerMonologueBase;
-                    x.MonologuesResolved = outerMonologuesResolved;
                 }
                 completed = false;
                 break;
@@ -383,7 +375,6 @@ public static partial class Kernel
                     x.CardPowerSourceSerial = outerSourceSerial;
                     x.CardPowerSourceActive = outerSourceActive;
                     x.CurrentMonologueBase = outerMonologueBase;
-                    x.MonologuesResolved = outerMonologuesResolved;
                 }
                 completed = false;
                 break;
@@ -393,8 +384,6 @@ public static partial class Kernel
             // that kills the Phrog Parasite must spawn its Wrigglers before the next queued auto-play
             // picks a target.
             ApplyEnemyDeathPowers(ref x);
-            if (!x.NeedsChoice)
-                ApplyBlockBreakCompensations(ref x);
             if (x.NeedsChoice)
             {
                 if (identityScope)
@@ -403,7 +392,6 @@ public static partial class Kernel
                     x.CardPowerSourceSerial = outerSourceSerial;
                     x.CardPowerSourceActive = outerSourceActive;
                     x.CurrentMonologueBase = outerMonologueBase;
-                    x.MonologuesResolved = outerMonologuesResolved;
                 }
                 completed = false;
                 break;
@@ -419,7 +407,6 @@ public static partial class Kernel
                 x.CardPowerSourceSerial = outerSourceSerial;
                 x.CardPowerSourceActive = outerSourceActive;
                 x.CurrentMonologueBase = outerMonologueBase;
-                x.MonologuesResolved = outerMonologuesResolved;
             }
             if (x.NeedsChoice)
             {
@@ -790,24 +777,6 @@ public static partial class Kernel
                 x.PushMonologuePending(occurrence, power.Aux0);
             occurrence++;
         }
-    }
-
-    /// <summary>
-    /// Resolves the current card's pending Monologue Strength before the first power application when
-    /// the card's compensation is the engine's post-Monologue switch. Cards whose powers are applied in
-    /// CardPowerOnPlaySupport keep the default (resolve after OnPlay).
-    /// </summary>
-    internal static void TryResolveMonologuesBeforeCompensation(ref Exec x)
-    {
-        if (x.MonologuesResolved
-            || x.CurrentMonologueBase >= x.MonologuePendingCount
-            || x.Card.Id == 0
-            || !Registry.Card(x.Card.Id).ResolvesMonologuesBeforeCompensation)
-        {
-            return;
-        }
-        x.MonologuesResolved = true;
-        ResolveMonologuePending(ref x, x.CurrentMonologueBase);
     }
 
     /// <summary>

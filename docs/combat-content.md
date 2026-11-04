@@ -166,13 +166,13 @@
 
 来源：`S/CombatPredictionSimulator.Damage.cs`、`Attack.cs`，`Q/SimulatedCombatState.CardLifecycle.cs`、`Q/SimulatedCombatState.Doom.cs`、`P/MonsterMoveSemantics.cs`、`P/BeforeSideTurnEndMirrors`、`P/EndTurnPowerSupport`、`P/PowerLifecycleSupport`，以及各卡牌的镜像与补偿位置。
 
-**状态。** `Battle.Osty` 是玩家侧宠物。`OstyPresent` 表示宠物存在（死亡后仍在），`OstyWasRootPet` 表示根捕获时原生 `Player.Osty` 非空。Osty 的生命和格挡用 `Creature`，Power 的 owner 是 `Limits.OstyOwner`；监听顺序排在玩家的 Power、遗物、药水之后，敌人之前。
+**状态。** `Battle.Osty` 是玩家侧宠物。`OstyPresent` 表示宠物存在（死亡后仍在），`OstyEverPresent` 表示原生 `Player.Osty` 已非空（根捕获时存在，或搜索中首次召唤后；`DieForYouPower` 让死亡的宠物仍留在这个字段里，所以它一旦置位就不再清除）。Osty 的生命和格挡用 `Creature`，Power 的 owner 是 `Limits.OstyOwner`；监听顺序排在玩家的 Power、遗物、药水之后，敌人之前。
 
 **召唤与治疗。** `SummonOsty` 对应原引擎对 `OstyCmd.Summon` 的实现：不存在时创建（消耗一个 `NextCombatId`，以 amount 初始化生命，施加 1 层没有 applier 的 `DieForYouPower`）；存活时提高最大生命并等量治疗；已死亡时保留对象，按 amount 重置。`HealOsty` 只加当前生命，不超上限。Osty 死亡不触发玩家死亡、不移出战斗、不清 Power；玩家死亡时，在清空球之后以 `force` 击杀仍存活的 Osty。
 
 **代受伤害。** 格挡按宠物的主人取（Osty 被打时消耗玩家的格挡）。先跑 Osty 之前的 `ModifyHpLost`，再由 `ModifyUnblockedDamageTarget` 链式选接收者（`DieForYouPower` 在 Osty 存活、目标是主人、强化攻击时返回 Osty），然后对接收者跑 Osty 之后的修正。接收者变了时产生两个 `DamageResult`：Osty 先承受，溢出的 `OverkillDamage` 经 Osty 之后的修正再打给原目标；两者的格挡字段都取自原目标。怪物行动的攻击在 `Damage` 之前临时清零“已死 Osty 的 DieForYou”，之后恢复（等价原引擎 `MonsterMoveSemantics.DamagePlayer`）；非攻击伤害不重定向。
 
-**Osty 攻击。** 带 `CardTag.OstyAttack` 的牌以 `OstyOwner` 为攻击者调用 `CardAttack`，力量、虚弱和攻击历史都归宠物；宠物已死时直接返回。攻击结束后 `OstyAttacksThisTurn` 加一；这个计数只在 `OstyWasRootPet` 时于玩家回合开始清零（原引擎 `BeginSideTurn(player)` 走的是原生 `ownerPlayer.Osty`）。
+**Osty 攻击。** 带 `CardTag.OstyAttack` 的牌以 `OstyOwner` 为攻击者调用 `CardAttack`，力量、虚弱和攻击历史都归宠物；宠物已死时直接返回。攻击结束后 `OstyAttacksThisTurn` 加一；这个计数在 `OstyEverPresent` 时于玩家回合开始清零（原引擎 `BeginSideTurn(player)` 走原生 `ownerPlayer.Osty`，搜索中召唤的宠物同样会出现在该字段）。
 
 **伤害来源归属。** 原版判断“是不是玩家造成的”时并不总是比较 `dealer == 玩家`：部分钩子还把 `dealer.PetOwner`（Osty）算进来，或只看卡牌来源的持有者。内核按同一条条件实现：SkittishPower 在攻击上下文的 `AfterAttack` 里读该敌人的第一条伤害结果（Osty 攻击也触发）；PenNib、TheBoot、HandDrill 的 dealer/breaker 条件接受 `Owner.Creature || Owner.Osty`；StrikeDummy/FakeStrikeDummy/MiniatureCannon 只看卡来源是否属于玩家；GigantificationPower 按卡来源的 owner 加伤并消耗，Osty 攻击同样命中；VulnerablePower 的 Cruelty 修正回退到 dealer 的 PetOwner。PaperPhrog 的原版查询走 `dealer.Player`，因此 Osty 攻击不吃 PaperPhrog，内核保持这一差别。
 
@@ -181,7 +181,7 @@
 - 敌方侧回合末：对每个存活参与者求该侧的 Doom 总和，第一个满足 `CurrentHp <= Doom` 的监听者触发一次成批的 `DoomKill`，位置在 `TriggerEnemySideTurnEndEffects` 开头、Regen 与 Plating 之前。
 - 玩家侧回合末：走 `EndTurnRegular` 的单监听者 `Kill`。
 - 原版 `DoomPower.DoomKill` 逐个 `CreatureCmd.Kill`（每次击杀立即完成 `AfterDeath` 和 Power 移除），全部击杀后才派发 `AfterDiedToDoom`。Sts2Solver 与原引擎都在每次 `Kill` 后结算这一批的敌人死亡效果，最后按 `ShouldOwnerDeathTriggerFatal` 统计每个玩家的致命击杀数（排除玩家本身），再按已定义的 `BookRepairKnife` 治疗；没有定义时导入阶段拒绝该根。
-- `DoomAppliedThisTurn` 记录玩家本回合是否施加过正层 Doom（DeathsDoor），玩家回合开始清零。
+- `DoomAppliedThisTurn` 记录玩家本回合是否施加过正层 Doom（DeathsDoor），玩家回合开始清零。已经死亡的生物不接收 Power：有 Osty 时 `DieForYouPower.ShouldAllowHitting` 对任何死亡生物返回 false，即使死亡清理还没跑完也一样。
 
 **其它计数。** `EtherealPlays` 是整场计数：导入根历史后，每次打出完成时，按这张牌本地的虚无关键字加一（BansheesCry、PullFromBelow）。
 
@@ -227,7 +227,7 @@
 
 **RampartPower（Turret Operator）。** 原引擎 `PersistentPowerSupport.TriggerRampart` 遍历 `EffectivePowers()`，只按数量过滤；Living Shield 已经离开名单时，它的 Rampart 行仍会派发。`RampartPass` 因此直接按 Power 表的行顺序遍历，不用会跳过离场 owner 的 `CollectListeners`。
 
-**HellraiserPower。** 本回合的无限自动打出计数（`InfiniteAutoPlaysThisTurn`）存在 `Power.Aux0`，导入时状态条目优先，没有时取模型内部数据。`HittableEnemies.All(HpDisplay.IsInfinite())` 在集合为空时为真（TestSubject 的复活窗口）；非空时只有 Waterfall Giant 的蒸汽爆发会让它为真。计数达到 9 后不再自动打出但仍然自增，有限分支清零，`EndTurnBatch048` 在 owner 参与时清零。
+**HellraiserPower。** 本回合的无限自动打出计数（`InfiniteAutoPlaysThisTurn`）存在 `Power.Aux0`，导入时状态条目优先，没有时取模型内部数据。`HittableEnemies.All(HpDisplay.IsInfinite())` 先按原生 `IsHittable` 排除已死/正在复活的敌人（TestSubject 的复活窗口因此得到空集合，`All` 为真）；非空时，Waterfall Giant 的蒸汽爆发或 `HardenedShellPower` 本回合累计伤害达到层数都会让 `HpDisplay` 成为无限。计数达到 9 后不再自动打出但仍然自增，有限分支清零，`EndTurnBatch048` 在 owner 参与时清零。
 
 **GigantificationPower。** 原引擎的 `PowerAmountPredictionState` 在动作边界把数量写回模型；玩家在同一次动作中死亡时，`BeforeAttack` 已登记的层数会把被死亡清理清零的 Power 恢复回来。Sts2Solver 在 `BeforeAttack` 标记 `PowerFlags.PendingAmountState`，`HandlePlayerDeath`、`RemovePowersAfterDeath` 保留带这个标记的行，`Kernel.Step` 在稳定边界清除标记。
 

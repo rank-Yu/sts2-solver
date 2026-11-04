@@ -144,8 +144,13 @@ public static partial class Kernel
         def.ApplyEntrancePowers(ref x, owner, source);
         if (x.NeedsChoice)
             return owner;
-        // MonsterSpawnSupport.ApplyCreatureAddedRelics: FurCoat sets a newly added enemy's current HP
-        // to 1 (never its max HP) after the entrance powers and before PreparePredictedMonster.
+        // MonsterSpawnSupport.ApplyCreatureAddedRelics: PhilosophersStone applies its
+        // AfterCreatureAddedToCombat Strength to every newly added enemy, and FurCoat sets a newly
+        // added enemy's current HP to 1 (never its max HP). Both run after the entrance powers and
+        // before PreparePredictedMonster; the relic Strength row must precede MinionPower.
+        ApplyPhilosophersStoneSpawnStrength(ref x, owner);
+        if (x.NeedsChoice)
+            return owner;
         if (x.R.FurCoatSpawnHpOne)
         {
             x.B.Creature(owner).CurrentHp = 1;
@@ -159,6 +164,30 @@ public static partial class Kernel
             ApplyPower(ref x, owner, minionPower, 1, source);
         }
         return owner;
+    }
+
+    /// <summary>
+    /// Native <c>PhilosophersStone.AfterCreatureAddedToCombat</c>: every enemy added after the root
+    /// receives the relic's canonical StrengthPower value with no applier. The value is frozen in
+    /// <see cref="Relic.Aux"/> by the importer (see <c>BattleProjections.ProjectRelic</c>).
+    /// </summary>
+    private static void ApplyPhilosophersStoneSpawnStrength(ref Exec x, byte owner)
+    {
+        if (!IsEnemyOwner(owner) || !HasRelic(x.B, "PHILOSOPHERS_STONE")
+            || !Registry.TryRelic("PHILOSOPHERS_STONE", out ushort relicId)
+            || !Registry.TryPower("STRENGTH_POWER", out ushort strength))
+        {
+            return;
+        }
+        for (int index = 0; index < x.B.RelicCount; index++)
+        {
+            ref readonly Relic relic = ref x.B.Relics[index];
+            if (relic.Id != relicId || (relic.Flags & RelicFlags.Melted) != 0)
+                continue;
+            if (relic.Aux > 0)
+                ApplyPower(ref x, owner, strength, relic.Aux, Limits.NoOwner);
+            return;
+        }
     }
 
     /// <summary>

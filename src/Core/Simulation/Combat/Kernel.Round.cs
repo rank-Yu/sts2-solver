@@ -55,10 +55,6 @@ public static partial class Kernel
             TriggerBeforeTurnEndOrbs(ref x);
             if (x.NeedsChoice)
                 return false;
-            // OrbLifecycleSupport.TriggerBeforeTurnEnd compensates the block breaks of the orb pass.
-            ApplyBlockBreakCompensations(ref x);
-            if (x.NeedsChoice)
-                return false;
             if (!IsOverOrEnding(x.B))
             {
                 DoTurnEnd(ref x);
@@ -99,10 +95,6 @@ public static partial class Kernel
         else
         {
             x.ChoiceTiming = ChoiceTiming.EnemyTurn;
-            // Block breaks from the player's turn end were settled at their own compensation points;
-            // an enemy-turn break is never compensated (the existing engine only replays card, orb,
-            // potion and reactive-relic history).
-            x.PendingBlockBreakOwners = 0;
             RunEnemyTurn(ref x);
         }
         // The performed-move marks only carry information within one enemy turn. The
@@ -310,9 +302,9 @@ public static partial class Kernel
         // BeginSideTurn's ResetTurnCounter(_starsGainedThisTurn) for the player.
         battle.SetCounter(Counter.StarsGainedThisTurn, 0);
         // SimulatedCombatState.BeginSideTurn(player): Osty's per-turn counters are reset through the
-        // native `ownerPlayer.Osty` pet field, which only exists for a pet that was already present when
-        // the root was captured. A pet created during the search keeps accumulating (existing behavior).
-        if ((battle.Flags & BattleFlags.OstyWasRootPet) != 0)
+        // native `ownerPlayer.Osty` pet field. DieForYouPower keeps the pet object there after death,
+        // and a pet summoned during the search is present as soon as the summon completes.
+        if ((battle.Flags & BattleFlags.OstyEverPresent) != 0)
             battle.SetCounter(Counter.OstyAttacksThisTurn, 0);
         battle.SetCounter(Counter.DoomAppliedThisTurn, 0);
         // BeginSideTurn -> ResetCardLifecycleTurn: _fetchCardsPlayedThisTurn is cleared for this side.
@@ -657,7 +649,6 @@ public static partial class Kernel
     private static bool AdvanceRoundPlayerStartPrefix(ref Exec x, bool takingExtraTurn)
     {
         // Enemy-turn damage is not part of any compensated history window.
-        x.PendingBlockBreakOwners = 0;
         x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
         SetSide(ref x.B, Side.Player);
         if (!takingExtraTurn)

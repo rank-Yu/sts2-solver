@@ -35,6 +35,19 @@ sts2-sim 整局导出批次（FS1）的归类 fixture 同样是测试专用，�
 - `fs1-import-unsupported-kaiser`：抽牌钩子移动过的牌无法按原位置弃置，导入明确拒绝；Scrape 按抽牌身份弃置后已转 same。
 - `kc1-scrape-sly-autoplay`：Scrape 抽到 Strike（Hellraiser 在 `AfterCardDrawn` 自动打出）、Sly 的 Reflex（弃置后自动打出并再抽两张）和两张 Defend，覆盖抽牌钩子移走牌后的按身份弃置。
 
+FS1B 批次由 FS2B 修好的 Osty/Doom/Power 类 fixture：
+
+- `fs1b-osty-summon-flags`：搜索中召唤 Osty 后同步原生 `Player.Osty` 的“已存在”标志，后续玩家回合开始会清零 Osty 的攻击计数；
+- `fs1b-power-order-footwork`：Monologue 的待结算 Strength 在卡牌效果之后结算，力量/敏捷按原版获得顺序进入 Power 表；
+- `fs1b-power-count-missing`：PhilosophersStone 的 `AfterCreatureAddedToCombat` 力量在新敌人获得 MinionPower 之前施加；
+- `fs1b-power-count-extra`：Tunneler 的 BurrowedPower 在 `AfterBlockBroken` 立即眩晕并移除，覆盖玩家攻击与反伤造成的破甲；
+- `fs1b-blight-strike-doom`：BlightStrike 在敌人死亡 Power 结算前保存本次攻击的伤害，Doom 数量按原版攻击结果施加；
+- `fs1b-doom-counter`：死亡的敌人不再接收 Power（有 Osty 时原版 `DieForYouPower` 阻止），DoomAppliedThisTurn 不再记录未实际施加的 Doom；
+- `fs1b-danse-macabre-block`：DanseMacabrePower 每次出牌读取当前解析费用，重放中已过期的费用修饰不会再次触发格挡；
+- `fs1b-sovereign-blade-private`：闭环生成的 Sovereign Blade 进入战斗时初始化 identity ledger，不再保留未初始化哨兵；
+- `fs1b-souls-power-exhaust`：卡牌被降级重置本地关键字后重新执行 SoulsPower 的移除 Exhaust；
+- `fs1b-hellraiser-aux`：Hellraiser 的 HittableEnemies 排除已死敌人，并识别 HardenedShellPower 的无限生命显示。
+
 这些 fixture 不在 d1 冻结根中；需要逐个对照时，把要跑的 fixture 复制到一个只含这些文件的目录，再用 `--combat-pilot-compare --pilot-dir <目录>`。归类结论和复现命令保存在本地批次报告里。
 
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。

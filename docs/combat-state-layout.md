@@ -53,7 +53,7 @@
 | 2 | `OstyPresent` | 宠物 Osty 存在（死亡后对象仍在） |
 | 3 | `PendingLoss` | 原生战斗已进入失败结算 |
 | 4 | `HasRisk` | 根快照带有原引擎未补偿的风险（见下） |
-| 5 | `OstyWasRootPet` | 根捕获时原生 `Player.Osty` 非空；整场不变 |
+| 5 | `OstyEverPresent` | 原生 `Player.Osty` 已非空（根捕获或搜索中首次召唤后）；只会从 0 变 1 |
 | 6 | `HistoryCourseCardPresent` | `HistoryCourseCard` 里有有效卡值 |
 
 `HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`，只在根导入时置位，并保持到战斗结束。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择不在补偿目录里，内核在提出该选择前置位。
@@ -64,7 +64,7 @@
 
 ### 3.2 生物与敌人
 
-`Player` 和 `Osty` 都是 `Creature`。Osty 只在 `Osty` 区块和 `OstyPresent` 标志里表示，死亡后对象仍在，`Osty.CurrentHp <= 0` 就是死亡；它的 Power 和其它生物一样占 `Powers` 的行，`Owner = Limits.OstyOwner`。`OstyWasRootPet` 供“玩家回合开始时宠物计数清零”的语义使用（见 [内容专属机制](combat-content.md#4-亡灵契约师ostydoom-与灵魂)）。
+`Player` 和 `Osty` 都是 `Creature`。Osty 只在 `Osty` 区块和 `OstyPresent` 标志里表示，死亡后对象仍在，`Osty.CurrentHp <= 0` 就是死亡；它的 Power 和其它生物一样占 `Powers` 的行，`Owner = Limits.OstyOwner`。`OstyEverPresent` 供“玩家回合开始时宠物计数清零”的语义使用（见 [内容专属机制](combat-content.md#4-亡灵契约师ostydoom-与灵魂)）。
 
 `Enemy` 每项 64 字节：
 

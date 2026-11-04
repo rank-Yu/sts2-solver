@@ -20,7 +20,12 @@ public sealed class DanseMacabrePower : PowerDef
     {
         if (self.Owner != Limits.PlayerOwner)
             return;
-        if (x.CurrentPlayEnergyValue < x.R.PowerVar(Id, 0))
+        // DanseMacabrePower.BeforeCardPlayed reads cardPlay.Card.EnergyCost.GetResolved(), not the
+        // play's captured EnergyValue: a replay can see a WhenPlayed cost modifier already expired.
+        int resolvedCost = (play.Card.Flags & CardFlags.CostsX) != 0
+            ? x.XValue
+            : Kernel.EnergyCostWithModifiers(x.B, x.R, play.Card, Pile.Play);
+        if (resolvedCost < x.R.PowerVar(Id, 0))
             return;
         Kernel.GainBlock(ref x, Limits.PlayerOwner, x.B.Powers[self.Index].Amount,
             ValueProps.Unpowered, fromCard: false);

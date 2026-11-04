@@ -15,14 +15,16 @@ public sealed class BlightStrike : CardDef
     public override void OnPlay(ref Exec x)
     {
         CardEffects.GeneralAttack(ref x, 0);
+        // BlightStrike.cs sums this attack command's DamageResult.TotalDamage. Capture it before
+        // ApplyEnemyDeathPowers, whose nested damage overwrites the per-call "last damage" fields.
+        int damage = x.LastDamageTotal;
         // CorePowerSupport.ApplyCardPowers runs ApplyEnemyDeathPowers after the mirror attack
         // and before the card-specific compensation, so the debuff sees the post-death target.
         Kernel.ApplyEnemyDeathPowers(ref x);
         if (x.NeedsChoice)
             return;
-        if (x.NeedsChoice || x.Target == Limits.NoOwner)
+        if (x.Target == Limits.NoOwner)
             return;
-        int damage = x.LastDamageTotal;
         if (damage > 0)
             Kernel.ApplyPower(ref x, x.Target, Registry.PowerId<Powers.DoomPower>(), damage,
                 Limits.PlayerOwner);

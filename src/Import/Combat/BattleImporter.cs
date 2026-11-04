@@ -148,7 +148,7 @@ public static class BattleImporter
                 throw new UnsupportedImportException(ImportReason.UnsupportedMonster, "Osty 没有怪物模型");
             battle.Osty = Vitals(osty, history.HasLostHpThisTurn(osty));
             battle.Flags |= BattleFlags.OstyPresent;
-            battle.Flags |= BattleFlags.OstyWasRootPet;
+            battle.Flags |= BattleFlags.OstyEverPresent;
         }
 
         ImportCounters(ref battle, state, player, known, osty, history, options);

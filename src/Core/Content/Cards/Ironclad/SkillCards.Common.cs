@@ -95,10 +95,11 @@ public sealed class BloodWall : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        CardEffects.GeneralBlock(ref x, 1);
+        // BloodWall.cs: lose HP first, with the card as the damage source, then gain block.
+        CardEffects.LoseHpFromCard(ref x, CardEffects.Var(x, 0));
         if (x.NeedsChoice)
             return;
-        CardEffects.LoseHp(ref x, CardEffects.Var(x, 0));
+        CardEffects.GeneralBlock(ref x, 1);
     }
 }
 

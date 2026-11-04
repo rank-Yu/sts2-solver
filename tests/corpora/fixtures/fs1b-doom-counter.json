@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_DOOM_COUNTER",
+  "characterId": "NECROBINDER",
+  "encounterId": "TURRET_OPERATOR_WEAK",
+  "seed": "B2CA2F40A5B41BCE",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 74,
+  "initialPlayerMaxHp": 74,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BODYGUARD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DRAMATIC_ENTRANCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEATH_MARCH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RATTLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SLEIGHT_OF_FLESH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFILE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEATHS_DOOR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SPUR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "IMBUED",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEMESNE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEAR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HANG",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEBILITATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DIRGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEVOUR_LIFE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PULL_FROM_BELOW",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RATTLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DELAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEMESNE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAPER_FORM",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "LEAD_PAPERWEIGHT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "VAMBRACE",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "_blockGainedThisCombat": false
+      }
+    },
+    {
+      "relicId": "CANDELABRA",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ELECTRIC_SHRYMP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "THE_ABACUS",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "REGAL_PILLOW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GLITTER",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

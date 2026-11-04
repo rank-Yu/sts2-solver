@@ -85,7 +85,15 @@ internal static class Program
         Console.WriteLine(
             $"EXPORT-SUMMARY runs={summary.Runs} failed={summary.RunsFailed} won={summary.RunsWon} " +
             $"combats={summary.CombatsSeen} exported={summary.ExportedCombats} " +
-            $"out={output}");
+            $"forceWin={options.ForceWin} out={output}");
+        if (options.ForceWin)
+            Console.WriteLine(
+                $"FORCE-WIN injected={summary.InjectedCombatOutcomes} " +
+                $"missingOpening={summary.InjectionWithoutOpening} " +
+                $"nestedRoomSkipped={summary.InjectionNestedRoomSkipped} " +
+                $"consumedPotionSlots={summary.InjectedConsumedPotionSlots} " +
+                $"finalHpChecked={summary.InjectedFinalHpChecked} " +
+                $"finalHpMismatch={summary.InjectedFinalHpMismatch}");
         foreach ((string reason, int count) in summary.SkippedByReason
                      .OrderBy(static pair => pair.Key, StringComparer.Ordinal))
             Console.WriteLine($"EXPORT-SKIP {reason}={count}");
@@ -123,8 +131,15 @@ internal static class Program
             runsAttempted = summary.Runs,
             runsFailed = summary.RunsFailed,
             runsWon = summary.RunsWon,
+            forceWin = options.ForceWin,
             combatsSeen = summary.CombatsSeen,
             combatsExported = summary.ExportedCombats,
+            injectedCombatOutcomes = summary.InjectedCombatOutcomes,
+            injectionWithoutOpening = summary.InjectionWithoutOpening,
+            injectionNestedRoomSkipped = summary.InjectionNestedRoomSkipped,
+            injectedConsumedPotionSlots = summary.InjectedConsumedPotionSlots,
+            injectedFinalHpChecked = summary.InjectedFinalHpChecked,
+            injectedFinalHpMismatch = summary.InjectedFinalHpMismatch,
             exportedByCharacter = summary.ExportedByCharacter,
             exportedByAscension = summary.ExportedByAscension,
             exportedByAct = summary.ExportedByAct,

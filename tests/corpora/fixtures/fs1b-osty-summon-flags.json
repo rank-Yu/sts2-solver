@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_OSTY_SUMMON_FLAGS",
+  "characterId": "IRONCLAD",
+  "encounterId": "GLOBE_HEAD_NORMAL",
+  "seed": "FS1BOSTYFLAGS",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 9,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "count": 2
+    },
+    {
+      "cardId": "SPUR",
+      "pile": "Hand",
+      "count": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "runCards": [],
+  "relics": [],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "initialEnemyMaxHps": [
+    500
+  ],
+  "initialEnemyCurrentHps": [
+    500
+  ]
+}

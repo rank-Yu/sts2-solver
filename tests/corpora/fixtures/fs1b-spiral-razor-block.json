@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_SPIRAL_RAZOR_BLOCK",
+  "characterId": "IRONCLAD",
+  "encounterId": "DEVOTED_SCULPTOR_WEAK",
+  "seed": "2E41585CF849A4EF",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 1,
+  "initialPlayerMaxHp": 500,
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand",
+      "count": 1,
+      "enchantmentId": "SPIRAL"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "count": 3
+    }
+  ],
+  "runCards": [],
+  "relics": [
+    {
+      "relicId": "RAZOR_TOOTH",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "initialPlayerEnergy": 1,
+  "initialEnemyMaxHps": [
+    500
+  ],
+  "initialEnemyCurrentHps": [
+    500
+  ]
+}

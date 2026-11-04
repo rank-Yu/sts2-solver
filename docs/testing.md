@@ -339,12 +339,18 @@ dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-s
   --runs 1000 --characters IRONCLAD,SILENT,DEFECT,REGENT,NECROBINDER --ascensions 0,10
 ```
 
+`--force-win` 会在每场战斗照常导出开局后注入胜利（剩余生命保持进入战斗时的值，不消耗药水），
+用于把整局推进到第二、三幕。注入只在 sts2-sim 的 imagination clone 中生效，导出器会从请求种子派生
+clone 种子；事件强制战斗不能注入，会退回普通战斗策略并计入 `nestedRoomSkipped`。不加该参数时
+行为不变。
+
 每次运行输出：
 
 - `<scenarioId>.json`：战斗开始时的角色、进阶、幕、遭遇、生命、整副牌组、遗物状态和药水；
 - `combats.jsonl`：每个导出战斗的索引（角色、进阶、幕、房间类型、遭遇、种子、牌组/遗物/药水数量）；
 - `runs.jsonl`：整局种子与结果；`--resume` 会跳过已经记录的种子；
-- `summary.json`：按角色/进阶/幕/房间类型/遭遇的计数和跳过原因计数。
+- `summary.json`：按角色/进阶/幕/房间类型/遭遇的计数、跳过原因计数，以及 `--force-win` 的注入、
+  缺少开局快照、事件强制战斗和注入后生命核对计数。
 
 导出器只记录能由 `OfflineRequest` 表达的运行状态；无法表达的牌或遗物状态、缺失内容的 id、空牌组等按 `EXPORT-SKIP <原因>=<次数>` 计数并跳过，不会构造近似请求。战斗种子由整局种子、幕、楼层、遭遇和该局战斗序号派生，重跑同一批种子得到同一组请求。
 

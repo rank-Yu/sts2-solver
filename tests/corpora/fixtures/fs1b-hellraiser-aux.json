@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_HELLRAISER_AUX",
+  "characterId": "IRONCLAD",
+  "encounterId": "TEST_SUBJECT_BOSS",
+  "seed": "A1E45193719E4D06",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Boss",
+  "targetMapPointType": "Boss",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 80,
+  "initialPlayerMaxHp": 80,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BASH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "THE_BOMB",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STONE_ARMOR",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEEL_NO_PAIN",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "VICIOUS",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DOMINATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HEMOKINESIS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STONE_ARMOR",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FORGOTTEN_RITUAL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MANGLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HELLRAISER",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "THUNDERCLAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BATTLE_TRANCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RAMPAGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "IMPERVIOUS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PILLAGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 2,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEEL_NO_PAIN",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RUPTURE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STAMPEDE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RAGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ULTIMATE_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CRUELTY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HOWL_FROM_BEYOND",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "INSTINCT",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DISMANTLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "INSTINCT",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MANGLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "INSTINCT",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STOMP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SECOND_WIND",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RAMPAGE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BLOOD_WALL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BATTLE_TRANCE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CRIMSON_MANTLE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MOLTEN_FIST",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FIEND_FIRE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "JUGGLING",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "LEAD_PAPERWEIGHT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "DREAM_CATCHER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GREMLIN_HORN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MERCURY_HOURGLASS",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GLASS_EYE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "AKABEKO",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "TRI_BOOMERANG",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BEATING_REMNANT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "HAPPY_FLOWER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 2
+      }
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

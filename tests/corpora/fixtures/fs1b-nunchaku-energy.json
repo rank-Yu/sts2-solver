@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_NUNCHAKU_ENERGY",
+  "characterId": "NECROBINDER",
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "105272D48E946512",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Elite",
+  "targetMapPointType": "Elite",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 73,
+  "initialPlayerMaxHp": 73,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BODYGUARD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "IMBUED",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SOUL_STORM",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PAGESTORM",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "VEILPIERCER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAVE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEBILITATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LETHALITY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LETHALITY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MISERY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PAGESTORM",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DIRGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TIMES_UP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FETCH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SENTRY_MODE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CALCIFY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FRIENDSHIP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COUNTDOWN",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEAR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ERADICATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FLATTEN",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DELAY",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEVOUR_LIFE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "VEILPIERCER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CALL_OF_THE_VOID",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ENFEEBLING_TOUCH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SPUR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BLIGHT_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFILE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

@@ -1,0 +1,451 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_RNG_DIVERGENCE",
+  "characterId": "DEFECT",
+  "encounterId": "TEST_SUBJECT_BOSS",
+  "seed": "BF5FD8AE52CABD6B",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "targetRoomType": "Boss",
+  "targetMapPointType": "Boss",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 11,
+  "initialPlayerMaxHp": 11,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ZAP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DUALCAST",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SUBROUTINE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LOOP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BEAM_CELL",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ROCKET_PUNCH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "GO_FOR_THE_EYES",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PECK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STORM",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CHILL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FTL",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CHAOS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TRASH_TO_TREASURE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "WHITE_NOISE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SMOKESTACK",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SYNCHRONIZE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FTL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FERAL",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHADOW_SHIELD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "THUNDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SUNDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FOCUSED_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "WHITE_NOISE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SIGNAL_BOOST",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COLD_SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFRAGMENT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HOLOGRAM",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COLD_SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SCRAPE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "WHITE_NOISE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BOOT_SEQUENCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COMPILE_DRIVER",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BULK_UP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TESLA_COIL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COOLANT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "GUNK_UP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "GLASSWORK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TURBO",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BULK_UP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RAINBOW",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BOOST_AWAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "OVERCLOCK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "GLAM",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "FISHING_ROD",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CLOAK_CLASP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BLOOD_VIAL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MEAL_TICKET",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "TOOLBOX",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "NUTRITIOUS_SOUP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PRAYER_WHEEL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "HORN_CLEAT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BAG_OF_PREPARATION",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GLITTER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GAME_PIECE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RIPPLE_BASIN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "POTION_BELT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PENDULUM",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 0
+      }
+    },
+    {
+      "relicId": "TUNGSTEN_ROD",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

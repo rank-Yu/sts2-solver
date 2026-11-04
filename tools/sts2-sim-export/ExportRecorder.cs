@@ -94,9 +94,8 @@ internal sealed class ExportRecorder : IRunRecorder
     }
 
     public void EndCombat(bool victory, PlayerSnapshot finalPlayer,
-        IReadOnlyList<EnemySnapshot> finalEnemies, CombatRewards rewards)
-    {
-    }
+        IReadOnlyList<EnemySnapshot> finalEnemies, CombatRewards rewards) =>
+        _exporter.EndCombat(finalPlayer);
 
     public void ExitFloor()
     {

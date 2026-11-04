@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_BLIGHT_STRIKE_DOOM",
+  "characterId": "NECROBINDER",
+  "encounterId": "OWL_MAGISTRATE_NORMAL",
+  "seed": "DEE8EEEBE8A8CBDE",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 64,
+  "initialPlayerMaxHp": 66,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BODYGUARD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SIC_EM",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SIC_EM",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FRIENDSHIP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SLEIGHT_OF_FLESH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SOW",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SEVERANCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFILE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAPER_FORM",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEATH_MARCH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DREDGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FLATTEN",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BLIGHT_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEBILITATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RATTLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NECRO_MASTERY",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SPUR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "LOST_COFFER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "WHITE_BEAST_STATUE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LUCKY_FYSH",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GREMLIN_HORN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "NUTRITIOUS_SOUP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "JOSS_PAPER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "CardsExhausted": 0,
+        "_etherealCount": 0
+      }
+    },
+    {
+      "relicId": "HAPPY_FLOWER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 0
+      }
+    },
+    {
+      "relicId": "BELT_BUCKLE",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "_dexterityApplied": false
+      }
+    },
+    {
+      "relicId": "KUNAI",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "_attacksPlayedThisTurn": 0
+      }
+    },
+    {
+      "relicId": "FROZEN_EGG",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BRILLIANT_SCARF",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

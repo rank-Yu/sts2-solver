@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_PEN_NIB_OSTY",
+  "characterId": "NECROBINDER",
+  "encounterId": "SCROLLS_OF_BITING_NORMAL",
+  "seed": "34F777794A2FBFC6",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 72,
+  "initialPlayerMaxHp": 73,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BODYGUARD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FRIENDSHIP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BORROWED_TIME",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAVE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PARSE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FRIENDSHIP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SPUR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAVE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LETHALITY",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NEUROSURGE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHROUD",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FRIENDSHIP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REAVE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NO_ESCAPE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFILE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEAR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PUTREFY",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SOW",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NECRO_MASTERY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POKE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHROUD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ENFEEBLING_TOUCH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PARSE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "BOOMING_CONCH",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "TOXIC_EGG",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BELT_BUCKLE",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "_dexterityApplied": false
+      }
+    },
+    {
+      "relicId": "GREMLIN_HORN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "VELVET_CHOKER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "_cardsPlayedThisTurn": 0
+      }
+    },
+    {
+      "relicId": "STRAWBERRY",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ORNAMENTAL_FAN",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "_attacksPlayedThisTurn": 0
+      }
+    },
+    {
+      "relicId": "VENERABLE_TEA_SET",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "GainEnergyInNextCombat": false
+      }
+    },
+    {
+      "relicId": "OLD_COIN",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BRILLIANT_SCARF",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BOOK_OF_FIVE_RINGS",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "AttacksPlayed": 4
+      }
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "BLESSING_OF_THE_FORGE"
+    },
+    {
+      "potionId": "COLORLESS_POTION"
+    }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

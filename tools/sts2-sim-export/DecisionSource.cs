@@ -11,6 +11,7 @@ using Sts2Sim.Core.Models.Cards;
 using Sts2Sim.Core.MonsterMoves.Intents;
 using Sts2Sim.Core.Random;
 using Sts2Sim.Core.Rewards;
+using Sts2Sim.Core.Rooms;
 using Sts2Sim.Core.Runs;
 
 namespace Sts2SimExport;
@@ -22,18 +23,23 @@ namespace Sts2SimExport;
 /// healthy and rest sites while hurt so that the export covers all room types without dying out
 /// in act one.
 /// </summary>
-internal sealed class DecisionSource : IRunDecisionSource
+internal sealed class DecisionSource : IRunDecisionSource, ICombatOutcomeOverride
 {
     private readonly RunState _runState;
     private readonly Rng _rng;
+    private readonly CombatOutcomeCoordinator _outcomes;
     private readonly HashSet<string> _attemptedPotionPurchases = new(StringComparer.Ordinal);
     private MerchantInventory? _lastShopInventory;
 
-    internal DecisionSource(RunState runState, string seed)
+    internal DecisionSource(RunState runState, string seed, CombatOutcomeCoordinator outcomes)
     {
         _runState = runState;
         _rng = new Rng(unchecked((ulong)StringHelper.GetDeterministicHashCode("fs1-policy:" + seed)));
+        _outcomes = outcomes;
     }
+
+    public InjectedCombatOutcome? TryInject(RunState run, CombatRoom room) =>
+        _outcomes.TryInject(run, room);
 
     public Task<MapPoint> ChooseMapPointAsync(IReadOnlyList<MapPoint> options)
     {

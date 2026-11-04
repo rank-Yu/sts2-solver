@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_POWER_COUNT_MISSING",
+  "characterId": "REGENT",
+  "encounterId": "FABRICATOR_NORMAL",
+  "seed": "C5C4CCED1F2F6E52",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 92,
+  "initialPlayerMaxHp": 92,
+  "cards": [],
+  "runCards": [],
+  "relics": [
+    {
+      "relicId": "NUTRITIOUS_OYSTER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "JOSS_PAPER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "CardsExhausted": 2,
+        "_etherealCount": 0
+      }
+    },
+    {
+      "relicId": "PHILOSOPHERS_STONE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "FESTIVE_POPPER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "STONE_CRACKER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "UNCEASING_TOP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "WHISPERING_EARRING",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "AMETHYST_AUBERGINE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "POTION_BELT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BOOK_OF_FIVE_RINGS",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "INTIMIDATING_HELMET",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "HAPPY_FLOWER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 0
+      }
+    },
+    {
+      "relicId": "LANTERN",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true
+}

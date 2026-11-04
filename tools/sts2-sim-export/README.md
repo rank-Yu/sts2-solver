@@ -31,6 +31,13 @@ dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-s
   --runs 1000 --characters IRONCLAD,SILENT,DEFECT,REGENT,NECROBINDER --ascensions 0,10
 ```
 
+加 `--force-win` 时，每场战斗仍然先走正常的房间进入和 `BeginCombat`（导出开局），然后由
+`ICombatOutcomeProvider` 注入按胜利结算的结果。强制胜利把剩余生命固定为进入战斗时的值，且不消耗
+药水，因此整局能继续推进到第二、三幕；不加该参数时行为不变。当前提供者只用于分布导出，后续可用
+同一个接口替换成求解器在原版里真实打出的剩余生命和药水消耗。注入结果只在 sts2-sim 的 imagination
+clone 中生效，因此 `--force-win` 会从请求种子派生一个 `run-clone-<hex>` 种子再跑整局；请求和结果
+都可以用同一请求种子稳定重放。
+
 参数：
 
 - `--out <目录>`：输出目录，默认 `.local/sts2-sim-export`。
@@ -42,6 +49,7 @@ dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-s
 - `--characters <逗号分隔>`：默认五个角色。
 - `--ascensions <逗号分隔>`：默认 `0,10`。
 - `--resume`：跳过 `runs.jsonl` 里已有种子的整局。
+- `--force-win`：每场战斗先导出开局，再按胜利结算；剩余生命保持进入战斗时的值，不消耗药水。
 
 ## 决策策略
 
@@ -56,6 +64,21 @@ dotnet artifacts/bin/Sts2SimExport/release/Sts2SimExport.dll --out .local/sts2-s
 - 商店：优先买便宜遗物，其次删一张基础打击/防御，最后在有空药水槽时买药水。
 
 这些选择只影响导出的分布，不参与对照判定。
+
+## 战斗结果提供者
+
+牌组、遗物和药水仍在 `EnterFloor` 快照；`CombatOutcomeCoordinator` 在 `BeginCombat`
+记录导出请求真正使用的初始生命和 `scenarioId`，随后由
+`ICombatOutcomeProvider.Resolve(CombatOutcomeContext)` 决定注入结果。上下文包含整局状态、战斗房间、
+`scenarioId`（未导出时为 null）、遭遇、幕和进入战斗时的生命。当前实现
+`ForceWinCombatOutcomeProvider` 返回 `InjectedCombatOutcome(Died: false, RemainingHp: 进入战斗生命)`。
+后续批次可以实现同一个接口，按 `scenarioId` 查询求解器在原版中真实打出的结果，并在
+`ConsumedPotionSlots` 里给出用掉的药水槽。
+
+sts2-sim 不接受事件强制战斗的结果注入（`RunDriver` 会拒绝 `forcedEnemies` 路径），这类战斗会退回
+原有战斗策略并计入 `FORCE-WIN nestedRoomSkipped`；事件本身造成的非战斗伤害也不由注入控制，因此
+强制胜利模式下仍可能出现整局提前结束。`summary.json` 的 `injectedFinalHpChecked` /
+`injectedFinalHpMismatch` 记录注入后 `EndCombat` 时实际生命与注入值的核对结果。
 
 ## 输出
 

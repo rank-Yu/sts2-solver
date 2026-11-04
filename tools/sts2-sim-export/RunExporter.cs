@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,6 +31,12 @@ internal sealed class ExportSummary
     internal int RunsFailed { get; set; }
     internal int RunsWon { get; set; }
     internal int CombatsSeen { get; set; }
+    internal int InjectedCombatOutcomes { get; set; }
+    internal int InjectionWithoutOpening { get; set; }
+    internal int InjectionNestedRoomSkipped { get; set; }
+    internal int InjectedConsumedPotionSlots { get; set; }
+    internal int InjectedFinalHpChecked { get; set; }
+    internal int InjectedFinalHpMismatch { get; set; }
 
     internal void CountExport(CombatExportContext context)
     {
@@ -45,6 +52,16 @@ internal sealed class ExportSummary
     internal void CountSkip(string reason) => Add(SkippedByReason, reason);
 
     internal void CountSeen() => CombatsSeen++;
+
+    internal void AddOutcomeStats(CombatOutcomeStats stats)
+    {
+        InjectedCombatOutcomes += stats.Injected;
+        InjectionWithoutOpening += stats.MissingOpening;
+        InjectionNestedRoomSkipped += stats.NestedRoomSkipped;
+        InjectedConsumedPotionSlots += stats.ConsumedPotionSlots;
+        InjectedFinalHpChecked += stats.FinalHpChecked;
+        InjectedFinalHpMismatch += stats.FinalHpMismatch;
+    }
 
     internal static void Add(Dictionary<string, int> counts, string key) =>
         counts[key] = counts.GetValueOrDefault(key) + 1;
@@ -66,6 +83,7 @@ internal sealed class RunExporter
     private readonly ExportOptions _options;
     private readonly string _outputDirectory;
     private readonly string _indexPath;
+    private readonly CombatOutcomeCoordinator _outcomes;
     private int _combatOrdinalInRun;
     private PendingFloor? _pending;
 
@@ -75,6 +93,8 @@ internal sealed class RunExporter
         _outputDirectory = Path.GetFullPath(options.OutputDirectory);
         Directory.CreateDirectory(_outputDirectory);
         _indexPath = Path.Combine(_outputDirectory, "combats.jsonl");
+        _outcomes = new CombatOutcomeCoordinator(
+            options.ForceWin ? new ForceWinCombatOutcomeProvider() : null);
     }
 
     internal string IndexPath => _indexPath;
@@ -84,12 +104,19 @@ internal sealed class RunExporter
     {
         _combatOrdinalInRun = 0;
         _pending = null;
-        var runState = new RunState(seed, ActDefinition.GetRandomList(seed), ascension);
+        RunState runState = new(seed, ActDefinition.GetRandomList(seed), ascension);
         Player player = Player.CreateForNewRun(character, runState);
         runState.AddPlayer(player);
+        if (_options.ForceWin)
+        {
+            // RunDriver only accepts ICombatOutcomeOverride in an imagination clone. Cloning at the
+            // run boundary keeps the requested-seed run reproducible while replacing the hidden
+            // encounter future with a seed derived from it.
+            runState = runState.CloneReseeded(ForceWinImaginationSeed(seed));
+        }
         SetRun(runState, ascension);
         var recorder = new ExportRecorder(runState, ascension, this, summary);
-        var decisions = new DecisionSource(runState, seed);
+        var decisions = new DecisionSource(runState, seed, _outcomes);
         var driver = new RunDriver(runState, decisions, createAncientEventRoom: null,
             recorder: recorder, useAvailablePotions: false);
         RunDriver.Result result;
@@ -127,6 +154,10 @@ internal sealed class RunExporter
             Console.Error.WriteLine($"RUN-FAILED seed={seed} reason={error.Message}");
             return null;
         }
+        finally
+        {
+            summary.AddOutcomeStats(_outcomes.TakeStats());
+        }
         Console.WriteLine(
             $"RUN seed={seed} character={character.Id.Entry} ascension={ascension} " +
             $"outcome={result.Outcome} won={result.Won} floors={result.FloorsVisited} " +
@@ -142,11 +173,15 @@ internal sealed class RunExporter
         _pending = BuildPending(roomType);
     }
 
+    internal void EndCombat(PlayerSnapshot finalPlayer) => _outcomes.ObserveCombatEnd(finalPlayer.Hp);
+
     internal void BeginCombat(RunState runState, RoomType encounterType, CombatState combatState,
         ExportSummary summary)
     {
         summary.CountSeen();
         _combatOrdinalInRun++;
+        Player? openingPlayer = combatState.Players.Count == 1 ? combatState.Players[0] : null;
+        _outcomes.NoteCombatOpening(null, openingPlayer?.Creature.CurrentHp ?? 0);
         PendingFloor? pending = _pending;
         _pending = null;
         if (pending == null)
@@ -229,6 +264,7 @@ internal sealed class RunExporter
             Potions = pending.Potions,
             ClearRunDeck = true,
         };
+        _outcomes.NoteCombatOpening(scenarioId, player.Creature.CurrentHp);
         string path = Path.Combine(_outputDirectory, scenarioId + ".json");
         string json = JsonSerializer.Serialize(request, OfflineRequestDto.JsonOptions);
         File.WriteAllText(path, json + Environment.NewLine);
@@ -330,6 +366,12 @@ internal sealed class RunExporter
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(runSeed));
         return Convert.ToHexString(hash.AsSpan(0, 4));
+    }
+
+    private static ulong ForceWinImaginationSeed(string seed)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes("fs1b-force-win:" + seed));
+        return BinaryPrimitives.ReadUInt64LittleEndian(hash);
     }
 
     private static string DeriveSeed(string runSeed, int actIndex, int floor, string encounterId,

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_GREMLIN_HORN_RESPAWN",
+  "characterId": "DEFECT",
+  "encounterId": "AXEBOTS_NORMAL",
+  "seed": "E9BF1BF86C85425B",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "cards": [
+    {
+      "cardId": "REFRACT",
+      "pile": "Hand",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "CORRUPTED"
+    }
+  ],
+  "runCards": [],
+  "relics": [
+    {
+      "relicId": "GREMLIN_HORN",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [
+    1
+  ],
+  "initialEnemyCurrentHps": [
+    1
+  ]
+}

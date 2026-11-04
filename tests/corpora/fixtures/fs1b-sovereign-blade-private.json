@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_SOVEREIGN_BLADE_PRIVATE",
+  "characterId": "DEFECT",
+  "encounterId": "SCROLLS_OF_BITING_NORMAL",
+  "seed": "263176642DB98362",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 75,
+  "initialPlayerMaxHp": 75,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ZAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DUALCAST",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "COLD_SNAP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BULK_UP",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FOCUSED_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHATTER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "METEOR_STRIKE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "REFRACT",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FLAK_CANNON",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FUSION",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ICE_LANCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SUCKER_PUNCH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PULL_FROM_BELOW",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "GUIDING_STAR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SUBROUTINE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UPROAR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "WELL_LAID_PLANS",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DARK_EMBRACE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "KINGLY_PUNCH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FURNACE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FERAL",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DRUM_OF_BATTLE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "PHIAL_HOLSTER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PLANISPHERE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "POTION_BELT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "TINY_MAILBOX",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PRISMATIC_GEM",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "FESTIVE_POPPER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BURNING_STICKS",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "_wasUsedThisCombat": false
+      }
+    },
+    {
+      "relicId": "STRIKE_DUMMY",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CENTENNIAL_PUZZLE",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "UsedThisCombat": false
+      }
+    },
+    {
+      "relicId": "WHISPERING_EARRING",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BRONZE_SCALES",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "JOSS_PAPER",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "CardsExhausted": 0,
+        "_etherealCount": 0
+      }
+    },
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LANTERN",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

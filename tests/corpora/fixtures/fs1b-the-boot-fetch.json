@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS1B_FS1B_THE_BOOT_FETCH",
+  "characterId": "NECROBINDER",
+  "encounterId": "SEAPUNK_NORMAL",
+  "seed": "FCEEE66E33BC8F90",
+  "ascension": 0,
+  "actIndexForTest": 0,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "cards": [
+    {
+      "cardId": "FETCH",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "runCards": [],
+  "relics": [
+    {
+      "relicId": "THE_BOOT",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [
+    500,
+    500
+  ],
+  "initialEnemyCurrentHps": [
+    500,
+    500
+  ]
+}

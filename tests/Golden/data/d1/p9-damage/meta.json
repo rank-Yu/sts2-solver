@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p9-damage",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-damage.json\u0022}",
-  "rulesSha256": "71c6892d22fbc45f2d0b135398cebdc41fa96b708c666ef7c3d676c1e8ec1f70",
+  "rulesSha256": "20ace1c61a25dc232d2ba0df5be75b95c27ce7402567616bfed79c85938871b4",
   "counts": {
     "roots": 1,
     "k1": 7,

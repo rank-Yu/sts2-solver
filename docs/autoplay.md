@@ -103,7 +103,7 @@
 
 上一回合的部署被下一回合 setup 接管时标记 `SupersededByTurnSetup`：结束回合的实机边界不再和旧路线比较，不计偏差、不重搜，下一回合由 setup 的结果接手。下一回合优先沿用上一回合 EndTurn 动作里的 `PlayerTurnStart` 计划；没有可沿用的选择时才从 Start 根枚举并搜索。
 
-下一回合的准备根携带最近一次已核对的预测边界（上一回合 EndTurn 动作的 `Before`）里的非原生账本：成长额度用量、自动/生成用药计数、免死计数与回血、`RecoveredHp`、`LongTermResourceValue` 和复活中的敌人行。准备接管时如果上一回合的部署结果还在，先用内核把这个 EndTurn（带旧路线的选择）推进到下一回合玩家 `Phase == Start`，和实机 `ImportSetupRoot` 逐字节比较：一致就用预测 Start 根，不一致记一条 `TURN_SETUP_START_PREDICTION_MISMATCH` 并退回实机导入（仍带同一份已验证账本）。两种口径都遵守回合准备根自己的事实：`VitalSparkNormalizedAmount = 0`、`ShuffleEventCount = 0`，`ShufflesCrossed`/`HasRisk` 从 tracker 继承。原生可重建的计数（例如 `CumulativeHpLost`、`OrbChannels`）仍从实机 History 读取。
+下一回合的准备根携带最近一次已核对的预测边界（上一回合 EndTurn 动作的 `Before`）里的非原生账本：成长额度用量、自动/生成用药计数、免死计数与回血、`RecoveredHp`、`LongTermResourceValue` 和复活中的敌人行。准备接管时如果上一回合的部署结果还在，先用内核把这个 EndTurn（带旧路线的选择）推进到下一回合玩家 `Phase == Start`，和实机 `ImportSetupRoot` 逐字节比较：一致就用预测 Start 根，不一致记一条 `TURN_SETUP_START_PREDICTION_MISMATCH` 并退回实机导入（仍带同一份已验证账本）。两种口径都遵守回合准备根自己的事实：`VitalSparkNormalizedAmount = 0`、`ShuffleEventCount = 0`，`HasRisk` 从 tracker 继承。原生可重建的计数（例如 `CumulativeHpLost`、`OrbChannels`）仍从实机 History 读取。
 
 ### 停止执行
 

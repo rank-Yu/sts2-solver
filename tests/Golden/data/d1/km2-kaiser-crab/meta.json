@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "km2-kaiser-crab",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-kaiser-crab.json\u0022}",
-  "rulesSha256": "ed925603cc4736fe276aae6223d06a6c6a14bd012d5be347a87ed19cd590b961",
+  "rulesSha256": "15f29102cec4b6841e6bd76bf8a89e27e21bac9dcf3e4698492e359d009edd80",
   "counts": {
     "roots": 1,
     "k1": 11,

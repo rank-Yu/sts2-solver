@@ -25,7 +25,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 | `options` 字段 | 谁设置 | 用途 |
 | --- | --- | --- |
-| `ShufflesCrossed`、`HasRisk` | 根捕获 | 原引擎快照里的根事实 |
+| `HasRisk` | 根捕获 | 原引擎快照里的根事实 |
 | 事件失败边界 | 根捕获 | `EventDefeat` 根 |
 | `TurnSetupRoot`、`RootCards` | 离线宿主 | 回合准备根，以及 Start 时刻的卡牌对象集合 |
 | `KnownEnemies`、`AllowDeadEnemies`、`RootEnemyCount` | `LiveCombatTracker` | 实时导入时固定敌人行的顺序，保留死亡墓碑 |
@@ -43,7 +43,6 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | `Round`、`PlayerTurn`、`Energy`、`Stars`、`Gold`、`Side`、`Phase` | `CombatState`、`PlayerCombatState`、`Player` | 直接读 |
 | `NextCombatId` | `CombatState._nextCreatureId` | 直接读 |
 | `ShuffleEventCount` | 模拟器创建时为 0 | 根事实 |
-| `ShufflesCrossed` | 原引擎 `SimulationSnapshot` | 根事实（`ImportOptions`） |
 | `Outcome` | 只有 `EventDefeat` 边界需要外部事实 | 根事实 |
 | `Flags` | `CombatManager.IsAboutToLose`、`Player.IsActiveForHooks`、`Player.Osty`、原引擎快照风险 | 直接读 + 根事实 |
 | `Player`、`Osty` | `Creature.CurrentHp/MaxHp/Block`；本回合未格挡伤害来自原生 History | 直接读 + History |
@@ -261,7 +260,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 `qf2-gradient-failure`、`ts-b-toolbox`、`ts-a-toasty` 是冻结的回合准备 fixture，`golden.br` 里分别有 4、3、4 个根。`ts-a-toasty` 和 `qf2-gradient-failure` 的 4 个根里各有一对 `Fingerprint.Equal` 的根：按内核去重规则，三个 fixture 的 Play 根数都是 3。原导入层在 `CombatManager.SetupPlayerTurn` 之前捕获 Start 根，再在影子引擎上枚举准备选择。离线宿主在同一个原生入口用 Harmony 前缀记录 Start 时刻的卡牌对象集合，并同时导入两份 Start 根：
 
 - 冻结口径：`ImportOptions{RequirePlayPhase=false, TurnSetupRoot=true, RootCards=...}`，不给 `golden.br`/`config.br` 对照使用；
-- 生产口径：`LiveCombatTracker.ImportSetupRoot`，`Reconciliation=true`、`RequirePlayPhase=false`、`TurnSetupRoot=true`，供 `TurnSetupRootEnumerator` 和生产比对使用。生产 setup 根携带最近一次已核对预测边界的非原生账本与复活行；`VitalSparkNormalizedAmount` 按准备根写 0，`ShuffleEventCount` 写 0，`ShufflesCrossed`/`HasRisk` 从 tracker 继承。原生 History 能重建的计数仍从实机读取。
+- 生产口径：`LiveCombatTracker.ImportSetupRoot`，`Reconciliation=true`、`RequirePlayPhase=false`、`TurnSetupRoot=true`，供 `TurnSetupRootEnumerator` 和生产比对使用。生产 setup 根携带最近一次已核对预测边界的非原生账本与复活行；`VitalSparkNormalizedAmount` 按准备根写 0，`ShuffleEventCount` 写 0，`HasRisk` 从 tracker 继承。原生 History 能重建的计数仍从实机读取。
 
 然后按原生准备页的每个枚举计划重建一次同一场战斗（每次跳过测试宿主的初始注入），Play 根用同一个 tracker 的 `ImportForComparison`（`Reconciliation=true`）导入，和内核枚举根比较。这样准备选择本身仍由原版执行，内核不需要重写 `SetupPlayerTurn`。现有第 1 回合 fixture 的 Start 根在两种口径下逐字节相同；第 2 回合起历史计数可能不同（例如 `CumulativeHpLost`、`OrbChannels`），生产口径从 History 重建，内核前奏也按同样的 History 语义累计。
 

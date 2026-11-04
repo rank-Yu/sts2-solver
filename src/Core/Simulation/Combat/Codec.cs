@@ -13,7 +13,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 internal static class Codec
 {
-    internal const ushort FormatVersion = 4;
+    internal const ushort FormatVersion = 5;
 
     internal static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);

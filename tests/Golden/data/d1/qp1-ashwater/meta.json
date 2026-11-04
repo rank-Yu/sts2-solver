@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "qp1-ashwater",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qp1-ashwater.json\u0022}",
-  "rulesSha256": "66e1c4a18ba96e21c64739ad982f03d4c1f336ec8afc142ce0f263bd69b821b7",
+  "rulesSha256": "278f403f77c7e6317912bc712a7edd7c2ccc223477d86dca6a525accda9210d8",
   "counts": {
     "roots": 1,
     "k1": 74,

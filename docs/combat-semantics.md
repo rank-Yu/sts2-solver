@@ -214,8 +214,6 @@ Power 施加（`Q/SimulatedCombatState.cs:648-711`）：数量为 0 或目标不
 
 EndTurn 路径与 `PreparePlayerPlayPhase` 共用同一套 `Exec.SetupPause`/`RunSetupPause` 机制：正常结束回合进入下一回合时也按 `rootSetup` 语义执行装填，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。额外回合不进入这套暂停前奏。
 
-**`ShufflesCrossed` 的记账。** 这个字段是从原版引擎 `SimulationSnapshot` 继承的洗牌跨越计数，不是原生 `CombatState` 的可见状态；导入时作为根事实写入，根之后由内核在首次回合开始、玩家回合结束、药水等动作和抽牌洗牌时更新。它进入 `Fingerprint` 的整段打包状态，因此影响状态身份和去重；搜索评分、下界与 `Scorer` 不读它，`BattleReconciler.Normalize` 在与实机对账前把 `ShuffleEventCount` 和 `ShufflesCrossed` 清零，Mod 只在预测边界和回合准备根之间携带它。记账规则按路径区分：普通的首次回合开始和普通动作照旧计数；回合准备前奏（`rootSetup`）不改变导入根值；正常 EndTurn 进入下一回合时，先按旧的 EndTurn 规则把本次 setup 抽牌的洗牌数记入延迟槽，只有 setup 没有在 `PlayerTurnStart` 选择处暂停时才补回字段，发生暂停时丢弃这笔增量。这样有暂停的 EndTurn 与前奏逐字节一致，无暂停的 EndTurn 仍保持历史边界；差别只落在状态身份上，不改变搜索评分。
-
 ### 7.1 额外回合
 
 AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌方回合被跳过。

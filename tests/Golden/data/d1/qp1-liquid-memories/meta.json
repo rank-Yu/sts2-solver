@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "qp1-liquid-memories",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qp1-liquid-memories.json\u0022}",
-  "rulesSha256": "3a1722c5f2e5993ed752ed09a487fe5563e4ab6c7eace92a2aedb873a4fb2cac",
+  "rulesSha256": "88de82441d8950d68af741ae4a67426d056349ae9ea7e3bf925ca8916b1d4e3f",
   "counts": {
     "roots": 1,
     "k1": 9,

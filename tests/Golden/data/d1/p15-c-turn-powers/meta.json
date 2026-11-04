@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p15-c-turn-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-c-turn-powers.json\u0022}",
-  "rulesSha256": "e7108b32b1f724d0ab8e184c47f7f9613429c6cdb49d5b29e9025b23954d9abb",
+  "rulesSha256": "eb70200e3c3d642253cab0446cdfafcb23685d7578e6421d829b1326fe3c8474",
   "counts": {
     "roots": 1,
     "k1": 29,

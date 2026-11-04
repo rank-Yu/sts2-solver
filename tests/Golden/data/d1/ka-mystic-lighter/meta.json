@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "ka-mystic-lighter",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ka-mystic-lighter.json\u0022}",
-  "rulesSha256": "75535a19f9539dbc40a4b9925af71eca4c547e10543dee419ea3c74f6580b0fb",
+  "rulesSha256": "6618e63a842455075b9979045c935b980e68281821b3f8bc7c5ee434d969d915",
   "counts": {
     "roots": 1,
     "k1": 7,

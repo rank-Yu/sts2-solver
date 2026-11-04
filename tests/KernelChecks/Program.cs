@@ -32,39 +32,39 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard))
         + Unsafe.SizeOf<Card>() == Battle.HeaderSize,
     "HistoryCourseCard 应紧挨在 Cards 之前");
-Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 62748,
-    "满牌打包前缀应为 62748 字节");
-Check(Battle.ExpectedSize == 62752, $"Battle 满容量大小应为 62752，实际 {Battle.ExpectedSize}");
+Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 62740,
+    "满牌打包前缀应为 62740 字节");
+Check(Battle.ExpectedSize == 62744, $"Battle 满容量大小应为 62744，实际 {Battle.ExpectedSize}");
 Check(Battle.ExpectedSize <= 65535, "Battle 结构体应不超过 .NET 数组元素上限");
 // Header anchors: every field starts where the preceding explicit field size ends, so the widened
-// pile counts and the five alignment bytes introduce no compiler-inserted padding.
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HandCount)) == 36,
+// pile counts and the alignment byte introduce no compiler-inserted padding.
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HandCount)) == 32,
     "HandCount 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.MaxHandSize)) == 46,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.MaxHandSize)) == 42,
     "MaxHandSize 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DetachedCards)) == 60,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DetachedCards)) == 52,
     "DetachedCards 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 336,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 328,
     "DecimalVars 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 400,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 392,
     "Roster 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 412,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 404,
     "Potions 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 424,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 416,
     "Player 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 456,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 448,
     "Counters 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 648,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 640,
     "Rng 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 1008,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 1000,
     "Enemies 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1776,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1768,
     "Powers 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Relics)) == 3312,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Relics)) == 3304,
     "Relics 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 3696,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 3688,
     "Orbs 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 3776,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 3768,
     "HistoryCourseCard 偏移");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");

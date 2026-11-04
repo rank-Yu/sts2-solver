@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p15-d-attacks",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-d-attacks.json\u0022}",
-  "rulesSha256": "ba5f00b57df03ca4b3ef10629ed11dc4d080f02216b656669f9535c1bf7b4187",
+  "rulesSha256": "ddadd9a7941bda1012a8f4c59c63d29128c8970ecf7d105de4d14c208153a868",
   "counts": {
     "roots": 1,
     "k1": 17,

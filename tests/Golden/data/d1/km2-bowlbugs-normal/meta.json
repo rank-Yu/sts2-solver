@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "km2-bowlbugs-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-bowlbugs-normal.json\u0022}",
-  "rulesSha256": "53f98a9e61d483eaec6b592619cb9c16df3dc2cad957948befbe5550e22deeba",
+  "rulesSha256": "91869427d82fb2eead7944d6febd20b438dd1bea5b54cbf55d5fb14d56d73021",
   "counts": {
     "roots": 1,
     "k1": 13,

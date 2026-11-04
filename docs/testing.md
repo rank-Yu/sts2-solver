@@ -74,7 +74,7 @@ dotnet run --project tests/Golden -c Release --no-build -- k0
 - `tests/KernelChecks` 输出 `"contracts": "Passed"`。它检查 `Battle`、`Card`、`Enemy`、`Power`、`Orb`、`RngState` 的字节尺寸与牌区偏移；随机数对照原版参考向量；洗牌排序；牌堆操作与容量失败；`CostState` 各位互不干扰；选择协议、注册表与编码合同；成长计数的打包；TheGambit 让玩家死亡后不再调用后续玩家监听、LizardTail 阻止死亡后监听照常执行；以及 `Exec` 字段覆盖合同（见 4.3）。
 - `UiLogicChecks` 在无头测试启动时运行，覆盖设置默认值/往返、schema 1–4 迁移到 5、药水逐瓶策略对账、面板文案和本地化目录。
 - `JitChecks` 在同一个启动检查里对 Mod/Core 程序集的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`（含 async 状态机的 `MoveNext`；泛型方法跳过），任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让 `ui-checks.json` 失败。规则见 [Battle 状态布局](combat-state-layout.md#大结构体与-jit-限制)。
-- `Golden k0` 输出形如 `K0 Passed fields=30 battleBytes=62752 formatVersion=4 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 30 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。
+- `Golden k0` 输出形如 `K0 Passed fields=30 battleBytes=62744 formatVersion=5 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 30 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。
 
 K0 证明内核的布局、编码与纯函数合同在只有 BCL 的环境下成立；不证明搜索语义、冻结输入的求值路径或实机状态。
 
@@ -168,13 +168,13 @@ STS2_SOLVER_VERIFY_SEARCH_EQUIVALENCE=1 \
 
 ```bash
 dotnet run --project tests/Golden -c Release --no-build -- \
-  compare tests/Golden/data --jobs 6 --config all --shard 0/4 \
-  --out .local/compare-all-0.csv
+  compare tests/Golden/data --jobs 6 --shard 0/4 \
+  --out .local/compare-0.csv
 ```
 
 改了会影响搜索结果的代码后，先用它看看哪些请求变好、变差。
 
-- `--config none|play|choice|all|choice-fill|all-fill`：`none` 关闭两项去重；`play` 只开完全等价的出牌去重；`choice` 只开旧的选牌等价类（每个类向量一个代表）；`all` 是 `play + choice`；`choice-fill` 是类优先、再补位置变体；`all-fill` 是 `play + choice-fill`，也是正式默认。
+- `--config none|play|choice|all|choice-fill|all-fill`：`none` 关闭两项去重；`play` 只开完全等价的出牌去重；`choice` 只开旧的选牌等价类（每个类向量一个代表）；`all` 是 `play + choice`；`choice-fill` 是类优先、再补位置变体；`all-fill` 是 `play + choice-fill`，是正式默认，也是不写 `--config` 时的默认。冻结的期望结果都是在 `all-fill` 下算的；用别的配置对照时，变化里混着配置本身的差别，不能当成代码改动的影响。
 - `--shard i/n`：与 `verify` 相同的权重分片；全量对照按 4 片运行。
 - `--search-threads N`：每个请求内部的展开线程数，默认 1；结果应与单线程逐字节相同。
 - `--out`：逐请求的 CSV，含质量分类、路线是否逐动作相同、展开/转移、分数、胜负、耗时和等价计数；质量比较因冻结路线重放失败而记 `unknown` 时，末尾的 `qualityError` 列写具体异常类型和消息。

@@ -74,13 +74,11 @@ public static partial class Kernel
         if (!IsInProgress(x.B))
             return false;
         FlushPlayerHandAtTurnEnd(ref x);
-        int turnEndShuffleEvents = x.B.ShuffleEventCount;
         // PlayerTurnEndLifecycle.RunPhaseTwo.
         PlayerTurnEndPhaseTwo(ref x);
         if (x.NeedsChoice)
             return false;
         x.B.Phase = PlayerPhase.None;
-        x.B.ShufflesCrossed += x.B.ShuffleEventCount - turnEndShuffleEvents;
         ApplyEnemyDeathPowers(ref x);
 
         // HookMirrors.ShouldTakeExtraTurn after the player turn-end phases, before the enemy turn.
@@ -648,19 +646,12 @@ public static partial class Kernel
         x.SetupPause = setup.OnPause;
         try
         {
-            ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: true, setup,
-                trackEndTurnShuffles: true);
+            ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: true, setup);
         }
         finally
         {
             x.SetupPause = null;
         }
-        // The search's historical EndTurn path counted the setup draw's shuffles in
-        // ShufflesCrossed. Preserve that value when the setup did not pause; a native setup pause
-        // instead uses the rootSetup accounting (the imported root value), exactly like
-        // PreparePlayerPlayPhase.
-        if (!setup.PauseOccurred)
-            x.B.ShufflesCrossed += setup.DeferredShufflesCrossed;
     }
 
     /// <summary>
@@ -705,18 +696,14 @@ public static partial class Kernel
     /// <c>AfterPlayerTurnStart</c> pass, the player side start, deferred enemy deaths, orbs, the
     /// auto-pre-play phase, then <c>Phase = Play</c>.
     /// <paramref name="rootSetup"/> marks the native <c>SetupPlayerTurn</c> sequence: the native
-    /// <c>Hook.BeforeHandDraw</c> relic stage runs on every turn [GAME CombatManager.cs:903],
+    /// <c>Hook.BeforeHandDraw</c> relic stage runs on every turn [GAME CombatManager.cs:903] and
     /// <c>CheckForEmptyHand</c> runs after <c>Phase = AutoPrePlay</c> and before the auto-plays
-    /// [GAME CombatManager.cs:862-869], and <c>ShufflesCrossed</c> stays at the imported root value
-    /// (the original engine's <c>rootSetup</c> flag). <see cref="PreparePlayerPlayPhase"/> and a
-    /// normal EndTurn both use it; a normal EndTurn restores its historical shuffle accounting when
-    /// the setup did not pause via <paramref name="trackEndTurnShuffles"/>.
+    /// [GAME CombatManager.cs:862-869]. <see cref="PreparePlayerPlayPhase"/> and a normal EndTurn
+    /// both use it.
     /// </summary>
     internal static void ContinuePlayerPlayPhase(ref Exec x, bool firstTurn, bool rootSetup,
-        SetupPauseState? setup = null, bool trackEndTurnShuffles = false)
+        SetupPauseState? setup = null)
     {
-        if (trackEndTurnShuffles && setup == null)
-            throw new InvalidOperationException("EndTurn 的 ShufflesCrossed 记账需要准备暂停状态。");
         // GAME CombatManager.cs:888-900: reset energy (or keep it when a listener says so), then
         // Hook.AfterEnergyReset before Hook.BeforeHandDraw.
         if (HookDispatch.ShouldPlayerResetEnergy(x.B, x.R, Limits.PlayerOwner))
@@ -735,7 +722,6 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
 
-        int beforeHandShuffles = x.B.ShuffleEventCount;
         x.B.Phase = PlayerPhase.Start;
         if (rootSetup)
         {
@@ -761,11 +747,6 @@ public static partial class Kernel
         ResolvePowerAmountChanges(ref x);
         if (x.NeedsChoice)
             return;
-        int handDrawShuffles = x.B.ShuffleEventCount - beforeHandShuffles;
-        if (!rootSetup)
-            x.B.ShufflesCrossed += handDrawShuffles;
-        else if (trackEndTurnShuffles)
-            setup!.DeferredShufflesCrossed += handDrawShuffles;
         // ConsumeModifiedHandDraw: base + the not-yet-snapshotted DrawCardsNextTurn amount, then the
         // listener passes (DrawCardsNextTurnPower.ModifyHandDraw adds its snapshotted amount).
         int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount + DrawNextTurnNotYetSnapshotted(x.B));
@@ -777,15 +758,7 @@ public static partial class Kernel
             drawCount = ApplyFirstTurnDrawOrder(ref x.B, drawCount);
         }
         int effectiveDraw = Math.Min(drawCount, x.B.MaxHandSize - x.B.HandCount);
-        bool willShuffle = effectiveDraw > x.B.DrawCount && x.B.DiscardCount != 0;
         Draw(ref x, drawCount, fromHandDraw: true);
-        if (willShuffle)
-        {
-            if (!rootSetup)
-                x.B.ShufflesCrossed++;
-            else if (trackEndTurnShuffles)
-                setup!.DeferredShufflesCrossed++;
-        }
         if (x.NeedsChoice)
             return;
         // Draw history compensation: no supported sources.
@@ -851,20 +824,9 @@ public static partial class Kernel
     {
         internal bool SideStarted;
         internal bool OrbsStarted;
-        internal bool PauseOccurred;
-
-        /// <summary>
-        /// EndTurn's historical ShufflesCrossed increments for the setup draw. Applied after the
-        /// continuation only when the setup did not pause; a paused setup uses the rootSetup
-        /// accounting shared with <see cref="PreparePlayerPlayPhase"/>.
-        /// </summary>
-        internal int DeferredShufflesCrossed;
 
         internal void OnPause(ref Exec x)
-        {
-            PauseOccurred = true;
-            StartSetupSide(ref x, this, runOrbs: true);
-        }
+            => StartSetupSide(ref x, this, runOrbs: true);
     }
 
     /// <summary>

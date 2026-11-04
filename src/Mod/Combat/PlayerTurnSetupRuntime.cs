@@ -524,13 +524,12 @@ internal static class PlayerTurnSetupRuntime
     /// <summary>
     /// Applies the turn-setup root facts on top of a native or predicted root: Vital Spark is
     /// normalized to zero at the native setup entry, there are no action-local shuffle events yet,
-    /// and ShufflesCrossed/risk come from the tracker's last verified boundary.
+    /// and risk comes from the tracker's last verified boundary.
     /// </summary>
     private static void NormalizeSetupStartRoot(ref Battle root, LiveCombatTracker tracker)
     {
         root.SetCounter(Counter.VitalSparkNormalizedAmount, 0);
         root.ShuffleEventCount = 0;
-        root.ShufflesCrossed = tracker.ShufflesCrossed;
         root.Flags = (root.Flags & ~BattleFlags.HasRisk)
             | (tracker.HasRisk ? BattleFlags.HasRisk : 0);
     }

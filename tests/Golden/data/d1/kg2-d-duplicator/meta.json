@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "kg2-d-duplicator",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-d-duplicator.json\u0022}",
-  "rulesSha256": "8cdf61aea30a4fdc2307eb60a3cd4cfc0eecd0ce513551727d2caf412adab78c",
+  "rulesSha256": "327ca7b9519c453637462cb64d3e5166cea51a6de3cdc3a7a04ff5c88007c4bd",
   "counts": {
     "roots": 1,
     "k1": 10,

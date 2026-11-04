@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "kb-a-thrash-decimal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kb-a-thrash-decimal.json\u0022}",
-  "rulesSha256": "d869f0a8382e42ad700e75a430acd2c891bec158c34bd14ad84e16c8517b1b40",
+  "rulesSha256": "3f835db97be69d4e9eaee5edec350cafad20869b94367a0c86e9bbf9c3ee5546",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -42,7 +42,6 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
 
-        int beforeHandShuffles = x.B.ShuffleEventCount;
         RelicBeforeHandDraw(ref x);
         if (x.NeedsChoice)
             return;
@@ -52,7 +51,6 @@ public static partial class Kernel
         ResolvePowerAmountChanges(ref x);
         if (x.NeedsChoice)
             return;
-        x.B.ShufflesCrossed += x.B.ShuffleEventCount - beforeHandShuffles;
         int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount + DrawNextTurnNotYetSnapshotted(x.B));
         drawCount = ApplyFirstTurnDrawOrder(ref x.B, drawCount);
         Draw(ref x, drawCount, fromHandDraw: true);

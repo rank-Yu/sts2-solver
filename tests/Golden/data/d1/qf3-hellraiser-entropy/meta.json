@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "qf3-hellraiser-entropy",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-hellraiser-entropy.json\u0022}",
-  "rulesSha256": "8247e0be6c37e125b76d9dfc6d0410272ff1fe6f4a6706940b5ccbce0d85f838",
+  "rulesSha256": "57e8f8054a5ec62d12054a82a6919288c5bc8c768c9407e4d8cc4ee99503e201",
   "counts": {
     "roots": 1,
     "k1": 3,

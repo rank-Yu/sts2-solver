@@ -7,8 +7,8 @@ namespace Sts2Solver.Simulation.Combat;
 public static class Limits
 {
     /// <summary>
-    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 62,752 bytes (packed prefix
-    /// 62,748), below the CLR's 65,535-byte array-element limit (and lets
+    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 62,744 bytes (packed prefix
+    /// 62,740), below the CLR's 65,535-byte array-element limit (and lets
     /// <c>Marshal.OffsetOf</c> keep working). A pile count and every card position are 16-bit;
     /// exceeding 640 still throws
     /// <see cref="CapacityException"/> instead of truncating.

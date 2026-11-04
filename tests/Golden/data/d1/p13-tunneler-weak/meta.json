@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p13-tunneler-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-tunneler-weak.json\u0022}",
-  "rulesSha256": "e747d5fa1eaf7ecb4ba43a84b3dffae30492a4cf50fceba362010c4a400e504c",
+  "rulesSha256": "60bc5ea533492749b87ef1626f777ac2668c3b6f0c9546ea2757457d2f3da44a",
   "counts": {
     "roots": 1,
     "k1": 7,

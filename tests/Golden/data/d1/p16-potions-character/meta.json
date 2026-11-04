@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p16-potions-character",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-potions-character.json\u0022}",
-  "rulesSha256": "8e46b03498bbe379cbedad3c8fed1a9f5cf15546a65b5f040aec92c207254f38",
+  "rulesSha256": "772271179ebc85de50d535413ef9d1ad683dacf394bbfe0a0310f134b1e8c192",
   "counts": {
     "roots": 1,
     "k1": 24,

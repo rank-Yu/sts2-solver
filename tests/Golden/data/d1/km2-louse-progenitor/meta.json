@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "km2-louse-progenitor",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-louse-progenitor.json\u0022}",
-  "rulesSha256": "f9916b27486f4e9a1c1f24dc55d0913aac76473aec9e26bfd3db9deeb957e75a",
+  "rulesSha256": "0a4c063c8eba00a849aa9942ed5348e4bc08dfc38e901888acff2a57be585f23",
   "counts": {
     "roots": 1,
     "k1": 7,

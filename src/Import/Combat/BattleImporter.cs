@@ -124,7 +124,6 @@ public static class BattleImporter
         battle.PlayerTurn = playerState.TurnNumber;
         // The simulator is created at this root, so its own event counters start at zero.
         battle.ShuffleEventCount = 0;
-        battle.ShufflesCrossed = options.ShufflesCrossed;
         battle.NextCombatId = state._nextCreatureId;
         battle.Energy = playerState.Energy;
         battle.Stars = playerState.Stars;

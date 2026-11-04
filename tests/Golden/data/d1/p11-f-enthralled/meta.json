@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p11-f-enthralled",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-f-enthralled.json\u0022}",
-  "rulesSha256": "578c82c082caa5ef953e27ca32b0295d9ba9ee68732966de0b254584e8892e82",
+  "rulesSha256": "c2680883e0e1b3f5d357c7a435574a87a68f529aa2326f64661f490080e98dde",
   "counts": {
     "roots": 1,
     "k1": 2,

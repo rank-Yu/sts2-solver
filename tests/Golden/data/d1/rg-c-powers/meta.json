@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "rg-c-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-c-powers.json\u0022}",
-  "rulesSha256": "bed0392daeb0992b67b24987da08febf02d890591dc507c36e0bed035c87970f",
+  "rulesSha256": "50d1f91ad04e22cb3b2e931d1667c8faddc51517f6955a7e966142fc962f3524",
   "counts": {
     "roots": 1,
     "k1": 11,

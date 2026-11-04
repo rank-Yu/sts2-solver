@@ -14,8 +14,8 @@ namespace Sts2Solver.Golden;
 internal static class SearchResumeContracts
 {
     private const string PlainRoot =
-        "cb3f5c80fc3dca8240911e4fee6678465a959c60d6572ed71e3bf0ad776f910e";
-    private const string PotionRoot = "79ba7974d0e4";
+        "21fa57140c860d0758e752c80e115b1385cfc2c5eab2252cc29dd6fa97f50b40";
+    private const string PotionRoot = "09ee063adf2c";
 
     private static readonly SearchPlan Plan =
         new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };

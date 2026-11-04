@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p9-stat-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-stat-powers.json\u0022}",
-  "rulesSha256": "27b2f5c32e00114f0878600c4ac22dc02c732755c1f5b5a585100ecca2b6b324",
+  "rulesSha256": "d97e91441d7845ea1febaa6e22aea4d34d7803451781418d60a397e5d97e2914",
   "counts": {
     "roots": 1,
     "k1": 6,

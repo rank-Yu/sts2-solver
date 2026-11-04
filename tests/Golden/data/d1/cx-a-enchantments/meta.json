@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "cx-a-enchantments",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-cx-a-enchantments.json\u0022}",
-  "rulesSha256": "383613fb9b07b8428446a9bc95c96235f4fe55c7b6943745a8bfe70d68714976",
+  "rulesSha256": "c6487612c087e8071af381c1ccbff4bc63693f31d7b7130fa2493b7913675c63",
   "counts": {
     "roots": 1,
     "k1": 5,

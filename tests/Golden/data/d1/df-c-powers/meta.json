@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "df-c-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-c-powers.json\u0022}",
-  "rulesSha256": "1e9e5cbc4c0811250d0ba34e591e0635cf04e5493ccf8aa39c95637e303df08e",
+  "rulesSha256": "5f38dd50222a56e1844a880baef76739dfc59a642788329d9545ac55a7d928e6",
   "counts": {
     "roots": 1,
     "k1": 11,

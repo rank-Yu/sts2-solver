@@ -9,9 +9,6 @@ namespace Sts2Solver.Import;
 /// </summary>
 public sealed record ImportOptions
 {
-    /// <summary><c>SimulationSnapshot.ShufflesCrossed</c>; zero for a fresh root.</summary>
-    public int ShufflesCrossed { get; init; }
-
     /// <summary><c>SimulationSnapshot.HasRisk</c>; false unless the caller carries a recorded risk.</summary>
     public bool HasRisk { get; init; }
 

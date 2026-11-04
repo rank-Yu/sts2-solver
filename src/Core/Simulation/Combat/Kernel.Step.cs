@@ -164,7 +164,6 @@ public static partial class Kernel
             throw new ArgumentOutOfRangeException(nameof(action), action.HandIndex, "手牌位置越界。");
         if (!CanPlayCard(x.B, x.R, action.HandIndex))
             throw new InvalidOperationException($"手牌位置 {action.HandIndex} 的卡当前不能打出。");
-        int shuffleEvents = x.B.ShuffleEventCount;
         ManualPlay(ref x, action.HandIndex, action.Target);
         if (x.NeedsChoice)
             return;
@@ -172,8 +171,6 @@ public static partial class Kernel
         ApplyEnemyDeathPowers(ref x);
         ApplyEnemyDeathPowers(ref x);
         // SettleReplayActionBoundary: no supported power reactions or normalizations.
-        if (x.B.ShuffleEventCount != shuffleEvents)
-            x.B.ShufflesCrossed++;
         CheckWinCondition(ref x.B);
         if ((x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0)
         {

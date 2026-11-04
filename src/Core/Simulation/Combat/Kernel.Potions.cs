@@ -39,7 +39,6 @@ public static partial class Kernel
         if (stored == 0)
             throw new InvalidOperationException($"药水槽位 {action.PotionSlot} 为空。");
         PotionDef def = Registry.Potion((ushort)(stored - 1));
-        int shuffleEvents = x.B.ShuffleEventCount;
         // SimulatedCombatState.ConsumePotion: a freeFromEntropic slot records a zero strategic cost and
         // clears its free flag. The root-slot diff cannot see generated potions, so the scorer adds the
         // generated-use counter; this explicit use is one of them.
@@ -100,8 +99,6 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
         // SettleReplayActionBoundary: no supported power reactions or normalizations.
-        if (x.B.ShuffleEventCount != shuffleEvents)
-            x.B.ShufflesCrossed++;
         CheckWinCondition(ref x.B);
         if ((x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0)
         {

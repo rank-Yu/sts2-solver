@@ -13,7 +13,7 @@ internal static class SearchContracts
 
     internal static void Run()
     {
-        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/cb3f5c80fc3dca8240911e4fee6678465a959c60d6572ed71e3bf0ad776f910e.request.br");
+        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/21fa57140c860d0758e752c80e115b1385cfc2c5eab2252cc29dd6fa97f50b40.request.br");
         using BrotliStream compressed = new(input, CompressionMode.Decompress);
         using MemoryStream bytes = new();
         compressed.CopyTo(bytes);

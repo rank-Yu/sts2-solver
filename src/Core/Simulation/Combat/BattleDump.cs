@@ -69,7 +69,6 @@ public static class BattleDump
         Add(records, nameof(Battle.Round), battle.Round);
         Add(records, nameof(Battle.PlayerTurn), battle.PlayerTurn);
         Add(records, nameof(Battle.ShuffleEventCount), battle.ShuffleEventCount);
-        Add(records, nameof(Battle.ShufflesCrossed), battle.ShufflesCrossed);
         Add(records, nameof(Battle.NextCombatId), battle.NextCombatId);
         Add(records, nameof(Battle.Energy), battle.Energy);
         Add(records, nameof(Battle.Stars), battle.Stars);

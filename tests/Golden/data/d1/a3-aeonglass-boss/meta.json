@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "a3-aeonglass-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-aeonglass-boss.json\u0022}",
-  "rulesSha256": "e6522019401906d642d0929973bd64be7b5655f4c81dd2244d2f8bb1875ff9c4",
+  "rulesSha256": "c31590910b68bf49fb1c6ed8db406979cc4bdc90ab114c713f21db88a57cbb03",
   "counts": {
     "roots": 1,
     "k1": 7,

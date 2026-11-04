@@ -266,20 +266,19 @@ public struct Battle
     /// Offset of <see cref="Cards"/>: the end of the packed header. The complete header (including
     /// <see cref="HistoryCourseCard"/>) is <c>PackedSize</c> bytes for an empty state.
     /// </summary>
-    public const int HeaderSize = 3868;
+    public const int HeaderSize = 3860;
 
     /// <summary>
     /// <see cref="System.Runtime.CompilerServices.Unsafe.SizeOf{T}"/> of the complete struct. The
-    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 92 = 62748</c> bytes; the
-    /// struct itself is 62752 bytes after its 4-byte tail alignment. Both are below the CLR's
+    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 92 = 62740</c> bytes; the
+    /// struct itself is 62744 bytes after its 4-byte tail alignment. Both are below the CLR's
     /// 65,535-byte array-element limit.
     /// </summary>
-    public const int ExpectedSize = 62752;
+    public const int ExpectedSize = 62744;
 
     public int Round;
     public int PlayerTurn;
     public int ShuffleEventCount;
-    public int ShufflesCrossed;
     public uint NextCombatId;
     public int Energy;
     public int Stars;
@@ -313,14 +312,10 @@ public struct Battle
     /// <summary>Used entries of <see cref="DecimalVars"/> (canonical: contiguous 0..count-1).</summary>
     public byte DecimalVarCount;
 
-    // Explicit padding: DecimalVars is 8-byte aligned and DetachedCards is 276 bytes, so the byte
-    // block before it must leave the decimal array at an 8-byte offset. Written as explicit bytes so
-    // the header has no compiler-inserted padding; the v3 decoder and projection preserve them as 0.
+    // Explicit padding: DetachedCards is 276 bytes and DecimalVars is 8-byte aligned, so one byte
+    // leaves the decimal array at an 8-byte offset. Written as an explicit byte so the header has no
+    // compiler-inserted padding; the decoder and projection preserve it as 0.
     private byte _padding1;
-    private byte _padding2;
-    private byte _padding3;
-    private byte _padding4;
-    private byte _padding5;
 
     /// <summary>
     /// Selected-card values of instanced powers that clone them at a later turn (NightmarePower).

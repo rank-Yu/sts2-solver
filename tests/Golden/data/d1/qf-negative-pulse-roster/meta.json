@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "qf-negative-pulse-roster",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-negative-pulse-roster.json\u0022}",
-  "rulesSha256": "e98dd560cf56056ce534795de93b06839ae62b549c412cee3c217a19441c4388",
+  "rulesSha256": "addf0b5a8345efacb20360038752480bb660352e6acaed1b7c85907fb2d63133",
   "counts": {
     "roots": 1,
     "k1": 2,

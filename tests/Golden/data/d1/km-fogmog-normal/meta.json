@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "km-fogmog-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km-fogmog-normal.json\u0022}",
-  "rulesSha256": "f7c9fffa33b42491bad074fa200f21702e62bc4249a0d86217ff85e1dc5c2981",
+  "rulesSha256": "afb434dc96446450f7290b86c357c7986f93eb2e3ceb55785de7b6d3777f684f",
   "counts": {
     "roots": 1,
     "k1": 7,

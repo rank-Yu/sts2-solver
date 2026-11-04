@@ -54,11 +54,10 @@ internal static class BattleReconciler
     {
         Unsafe.SkipInit(out Battle copy);
         Battle.CopyPacked(in battle, ref copy);
-        // The two legacy shuffle counters are carried from the route by LiveCombatTracker because
-        // the native game does not expose them. Zero them in the comparison view so a carried value
+        // The action-local shuffle counter is carried from the route by LiveCombatTracker because
+        // the native game does not expose it. Zero it in the comparison view so a carried value
         // cannot hide a real card-pile/RNG divergence.
         copy.ShuffleEventCount = 0;
-        copy.ShufflesCrossed = 0;
         // A detached card is a value snapshot, not a pile card that entered combat. The importer's
         // one-time power-affliction entry marker is not observable for it, and the kernel's clone
         // semantics clear it; normalize it on both sides.

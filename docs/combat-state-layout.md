@@ -23,7 +23,7 @@
 
 | 区块 | 内容 | 容量 |
 | --- | --- | --- |
-| 头部标量 | 轮次、玩家回合数、洗牌计数、`ShufflesCrossed`、下一个 CombatId、能量、星能、金币、当前方、玩家阶段、结局、标志位、五个 `ushort` 牌堆张数、手牌上限、各数组的已用数 | — |
+| 头部标量 | 轮次、玩家回合数、洗牌计数、下一个 CombatId、能量、星能、金币、当前方、玩家阶段、结局、标志位、五个 `ushort` 牌堆张数、手牌上限、各数组的已用数 | — |
 | `DetachedCards` | 不在任何牌堆、但之后还要用到的完整卡值（见 3.9） | 3 |
 | `DecimalVars` | 精确的 `decimal` 卡牌变量偏移（见 3.10） | 4 |
 | `Roster` | 名单：在场敌人在 `Enemies` 里的下标，按原生名单顺序 | 12 |
@@ -38,7 +38,7 @@
 | `HistoryCourseCard` | 上一次攻击的完整卡值（见 3.11） | 1 |
 | `Cards` | 五个牌堆的卡（见 3.6、3.7）；最后一个字段 | 640 |
 
-`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 3868` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用 5 个显式填充字节让 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 92`。
+`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 3860` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用 1 个显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 92`。
 
 ## 3. 各部分的含义
 
@@ -345,14 +345,14 @@
 | `Power` | 24 | — |
 | `Orb` | 8 | `Id` + `Aux` |
 | `RngState` | 40 | 计数器 + 四个 64 位状态字 |
-| `Battle` | 62,752 | 头部 3,868 + 满牌 640 × 92 = 62,748（打包前缀），结构体尾部对齐到 62,752 |
+| `Battle` | 62,744 | 头部 3,860 + 满牌 640 × 92 = 62,740（打包前缀），结构体尾部对齐到 62,744 |
 
 典型的 23 张牌状态打包后约 5.9 KiB。
 
 ### 大结构体与 JIT 限制
 
-`Battle` 的 62,752 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
+`Battle` 的 62,744 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
 
-C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。`Battle` 本身刚好在安全范围内：两个 `Battle` 的元组是 125,504 字节，可以编译；三个 `Battle` 的元组是 188,256 字节，不能编译。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：62,752 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
+C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。`Battle` 本身刚好在安全范围内：两个 `Battle` 的元组是 125,488 字节，可以编译；三个 `Battle` 的元组是 188,232 字节，不能编译。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：62,744 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
 
 这类错误只看方法是否被 JIT 编译，与牌组大小无关：一条很少执行的分支第一次运行就可能让整个方法报 `InvalidProgramException`。测试版 Mod 启动时由 `JitChecks` 对 Mod/Core 程序集（测试构建里是同一个 `Sts2Solver.dll`）的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`，包括 async 状态机的 `MoveNext`；泛型方法因缺少闭合类型参数跳过。任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让启动检查失败。

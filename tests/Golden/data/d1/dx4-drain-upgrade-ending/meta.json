@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "dx4-drain-upgrade-ending",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx4-drain-upgrade-ending.json\u0022}",
-  "rulesSha256": "d58392b02a4ca20961d4c77a8a1e870871bb0aab8aa7183de68b152638487917",
+  "rulesSha256": "abb77d3bfa981737a87a22109fb7f8d6fef27ed1068a3c8b88e1128ce420a5df",
   "counts": {
     "roots": 1,
     "k1": 2,

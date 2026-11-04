@@ -52,7 +52,6 @@ internal sealed class LiveCombatTracker
     private readonly int _rootEnemyCount;
     private int _escapedGold;
     private int _escapedCards;
-    private int _shufflesCrossed;
     private bool _hasRisk;
     private bool _hasPredicted;
     private Battle _predicted;
@@ -76,9 +75,6 @@ internal sealed class LiveCombatTracker
 
     /// <summary>Whether an <see cref="Observe"/>d route boundary is available for carrying.</summary>
     internal bool HasPredictedBoundary => _hasPredicted;
-
-    /// <summary>The last observed route score key, taken from the verified boundary.</summary>
-    internal int ShufflesCrossed => _shufflesCrossed;
 
     /// <summary>The last observed search risk flag, taken from the verified boundary.</summary>
     internal bool HasRisk => _hasRisk;
@@ -198,7 +194,6 @@ internal sealed class LiveCombatTracker
             AllowDeadEnemies = true,
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
-            ShufflesCrossed = _shufflesCrossed,
             HasRisk = _hasRisk,
             RootCards = _rootCards,
             Reconciliation = true,
@@ -231,7 +226,6 @@ internal sealed class LiveCombatTracker
             AllowDeadEnemies = true,
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
-            ShufflesCrossed = _shufflesCrossed,
             HasRisk = _hasRisk,
             RootCards = _rootCards,
             Reconciliation = true,
@@ -244,7 +238,6 @@ internal sealed class LiveCombatTracker
             CarryNonNativeForSetup(ref live, _predicted);
         live.SetCounter(Counter.VitalSparkNormalizedAmount, 0);
         live.ShuffleEventCount = 0;
-        live.ShufflesCrossed = _shufflesCrossed;
         live.Flags = (live.Flags & ~BattleFlags.HasRisk)
             | (_hasRisk ? BattleFlags.HasRisk : 0);
         return live;
@@ -264,7 +257,6 @@ internal sealed class LiveCombatTracker
             AllowDeadEnemies = true,
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
-            ShufflesCrossed = expected.ShufflesCrossed,
             HasRisk = (expected.Flags & BattleFlags.HasRisk) != 0,
             RootCards = _rootCards,
             RevivingEnemies = RevivingEnemies(in expected),
@@ -291,7 +283,6 @@ internal sealed class LiveCombatTracker
     {
         _predicted = predicted;
         _hasPredicted = true;
-        _shufflesCrossed = predicted.ShufflesCrossed;
         _hasRisk = (predicted.Flags & BattleFlags.HasRisk) != 0;
     }
 
@@ -299,20 +290,17 @@ internal sealed class LiveCombatTracker
     {
         foreach (Counter counter in CarriedCounters)
             live.SetCounter(counter, predicted.Counter(counter));
-        // Shuffle counters are search-only: ShuffleEventCount is an action-local kernel counter and
-        // ShufflesCrossed is a state-identity key (it participates in Fingerprint state identity and
-        // dedup, not in scorer/bound evaluation). The importer cannot recover either from the native
-        // game; the predicted values are carried so later searches keep the same state identity.
-        // Card piles and all nine RNG streams remain strictly compared.
+        // ShuffleEventCount is an action-local kernel counter: the importer cannot recover it from
+        // the native game, so the predicted value is carried. Card piles and all nine RNG streams
+        // remain strictly compared.
         live.ShuffleEventCount = predicted.ShuffleEventCount;
-        live.ShufflesCrossed = predicted.ShufflesCrossed;
         live.Flags = (live.Flags & ~BattleFlags.HasRisk) | (predicted.Flags & BattleFlags.HasRisk);
     }
 
     /// <summary>
     /// Carries the non-native ledgers into a turn-setup root. Vital Spark is a setup-root fact
     /// (normalized to zero at the native setup entry), so it is deliberately not copied; the caller
-    /// zeroes the action-local shuffle counter and takes ShufflesCrossed/HasRisk from the tracker.
+    /// zeroes the action-local shuffle counter and takes HasRisk from the tracker.
     /// </summary>
     private static void CarryNonNativeForSetup(ref Battle live, in Battle predicted)
     {

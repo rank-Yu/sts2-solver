@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "p8-c-rage-juggling-dark-embrace",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p8-c-rage-juggling-dark-embrace.json\u0022}",
-  "rulesSha256": "573947ed9b2b43a5cfe03af5b552f9e199e544a36eb93fbfa4a4a28bd8bb4733",
+  "rulesSha256": "b946fd64928d54f058914fc1070e086b001946b32117078873e774fd3d2aa7a7",
   "counts": {
     "roots": 1,
     "k1": 14,

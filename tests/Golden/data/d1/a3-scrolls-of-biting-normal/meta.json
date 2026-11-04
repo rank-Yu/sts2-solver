@@ -1,9 +1,9 @@
 {
-  "formatVersion": 4,
-  "battleSize": 62752,
+  "formatVersion": 5,
+  "battleSize": 62744,
   "root": "a3-scrolls-of-biting-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-scrolls-of-biting-normal.json\u0022}",
-  "rulesSha256": "9e82299638b225fe18a4de68889f14045143aebc115d939687fd84e5b617956e",
+  "rulesSha256": "c54a0575b8c379913b49d94127e6950ae47699edcf9ce440401e5477d4c1f815",
   "counts": {
     "roots": 1,
     "k1": 16,

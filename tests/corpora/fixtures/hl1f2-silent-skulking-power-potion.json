@@ -1,0 +1,164 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "FS4-SILENT-A0-4D639D0C-Act0-F008-Elite-SKULKING_COLONY_ELITE-07",
+ "characterId": "SILENT",
+ "encounterId": "SKULKING_COLONY_ELITE",
+ "seed": "6D888A55ECAB5BD7",
+ "ascension": 0,
+ "actIndexForTest": 0,
+ "targetRoomType": "Elite",
+ "targetMapPointType": "Elite",
+ "enemyCurrentHp": 2147483647,
+ "initialPlayerHp": 14,
+ "initialPlayerMaxHp": 70,
+ "cards": [],
+ "runCards": [
+  {
+   "cardId": "STRIKE_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_SILENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "NEUTRALIZE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "SURVIVOR",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ESCAPE_PLAN",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "CORROSIVE_WAVE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "SKEWER",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "SUCKER_PUNCH",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ASSASSINATE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "BUBBLE_BUBBLE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  }
+ ],
+ "relics": [
+  {
+   "relicId": "SMALL_CAPSULE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "AKABEKO",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "potions": [
+  {
+   "potionId": "SKILL_POTION"
+  }
+ ],
+ "clearRunDeck": true,
+ "timeoutSeconds": 1800,
+ "fullCombatForTest": true,
+ "deterministicSearchForTest": false,
+ "searchTier": "Medium",
+ "searchThreadsForTest": 2
+}

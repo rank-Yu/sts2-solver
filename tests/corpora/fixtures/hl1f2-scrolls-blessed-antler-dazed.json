@@ -1,0 +1,332 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "FS6-IRONCLAD-A0-52BFB3FF-Act2-F039-Monster-SCROLLS_OF_BITING_NORMAL-19",
+ "characterId": "IRONCLAD",
+ "encounterId": "SCROLLS_OF_BITING_NORMAL",
+ "seed": "82283AAB2C4FB9F4",
+ "ascension": 0,
+ "actIndexForTest": 2,
+ "targetRoomType": "Monster",
+ "targetMapPointType": "Monster",
+ "enemyCurrentHp": 2147483647,
+ "initialPlayerHp": 1,
+ "initialPlayerMaxHp": 1,
+ "cards": [],
+ "runCards": [
+  {
+   "cardId": "STRIKE_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STONE_ARMOR",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "INFERNAL_BLADE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "TWIN_STRIKE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "IRON_WAVE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "UNRELENTING",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "OFFERING",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "HEMOKINESIS",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "PECK",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "CRUELTY",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "VICIOUS",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "EVIL_EYE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "PACTS_END",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ARMAMENTS",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "MOLTEN_FIST",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "INFERNO",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "COLOSSUS",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "FIEND_FIRE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "TWIN_STRIKE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ENLIGHTENMENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ENLIGHTENMENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "ASHEN_STRIKE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DISMANTLE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEMON_FORM",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "BULLY",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "MANGLE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "SPITE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "JUGGERNAUT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "PERFECTED_STRIKE",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "UNRELENTING",
+   "count": 1,
+   "upgradeLevels": 1,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "MAD_SCIENCE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1,
+   "enumMembers": {
+    "TinkerTimeType": "Skill",
+    "TinkerTimeRider": "Energized"
+   }
+  }
+ ],
+ "relics": [
+  {
+   "relicId": "NEW_LEAF",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "SWORD_OF_STONE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "BOOK_OF_FIVE_RINGS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "TUNGSTEN_ROD",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "GLASS_EYE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "ODDLY_SMOOTH_STONE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "CENTENNIAL_PUZZLE",
+   "addWithoutObtainedEffects": true,
+   "booleanMembers": {
+    "UsedThisCombat": false
+   }
+  },
+  {
+   "relicId": "MEAL_TICKET",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "BLESSED_ANTLER",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "WHETSTONE",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "potions": [
+  {
+   "potionId": "POTION_OF_BINDING"
+  },
+  {
+   "potionId": "WEAK_POTION"
+  }
+ ],
+ "clearRunDeck": true,
+ "timeoutSeconds": 1800,
+ "fullCombatForTest": true,
+ "deterministicSearchForTest": false,
+ "searchTier": "Medium",
+ "searchThreadsForTest": 2
+}

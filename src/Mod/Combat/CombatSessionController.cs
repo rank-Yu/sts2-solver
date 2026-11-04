@@ -49,6 +49,13 @@ internal static partial class CombatSessionController
     private static int? _autoTurnStartTurn;
     private static int? _continuationSetupTurn;
 #if STS2_SOLVER_TESTING
+    /// <summary>
+    /// The first failure that has not been followed by a successful search. Panel mode switches
+    /// clear the visible error state, but a whole-combat test must still fail instead of waiting
+    /// for its timeout when the controller can no longer recover on its own.
+    /// </summary>
+    private static string? _unrecoveredFailureForTest;
+
     internal static int ContinuationReuseSuccessesForTest { get; private set; }
     internal static int ContinuationReuseMissesForTest { get; private set; }
     internal static string? ContinuationReuseMissDetailForTest { get; private set; }
@@ -143,6 +150,38 @@ internal static partial class CombatSessionController
     internal static bool AutomaticSearchPaused => _automaticSearchPaused;
 
     internal static bool IsPaused => _phase == CombatUiPhase.Paused;
+
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// Test-only: a failure or a stopped automation that leaves the controller unable to advance
+    /// the combat, with the reason the whole-combat test must report instead of waiting forever.
+    /// Paused combats are excluded because the caller stops on <see cref="IsPaused"/> first and
+    /// classifies expected pauses such as <c>death_turn</c> from the completed result.
+    /// </summary>
+    internal static string? NonProgressingReasonForTest
+    {
+        get
+        {
+            if (_unrecoveredFailureForTest is { } unrecovered)
+                return $"controller_failed {unrecovered}";
+            if (_phase == CombatUiPhase.Failed)
+                return $"controller_failed code={_errorCode ?? "unknown"} {_errorDetail}".TrimEnd();
+            if (_automaticSearchPaused && !IsBusy
+                && _phase is CombatUiPhase.WaitingTurn or CombatUiPhase.Idle)
+            {
+                return $"controller_stopped code={_pauseCode ?? "unknown"} {_pauseReason}"
+                    .TrimEnd();
+            }
+            return null;
+        }
+    }
+
+    private static void RecordUnrecoveredFailureForTest(string code, string? detail)
+        => _unrecoveredFailureForTest = $"code={code} {detail}".TrimEnd();
+
+    private static void ClearUnrecoveredFailureForTest()
+        => _unrecoveredFailureForTest = null;
+#endif
 
     internal static bool IsBusy => _search != null || _deployment != null
         || PlayerTurnSetupRuntime.IsBusy;
@@ -270,6 +309,9 @@ internal static partial class CombatSessionController
         _tracker?.Detach(_state);
         _rules = RulesCompiler.Compile(_state, _player, runState);
         _tracker = new LiveCombatTracker(_state);
+#if STS2_SOLVER_TESTING
+        ClearUnrecoveredFailureForTest();
+#endif
         _trackerSeeded = false;
         _names = null;
         _importErrorCode = null;
@@ -396,6 +438,9 @@ internal static partial class CombatSessionController
         _importErrorDetail = null;
         _rejectCode = null;
         _finishedSearch = null;
+#if STS2_SOLVER_TESTING
+        ClearUnrecoveredFailureForTest();
+#endif
         _lastProgress = null;
         _lastProgressPublishAt = 0;
         _lastCandidateVersion = 0;

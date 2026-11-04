@@ -238,6 +238,18 @@ internal static class TestSession
                 ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
                 stage = "settle";
                 await CombatFrameWaiter.SettleAsync(host);
+                // ScenarioBuilder applies the request's initial injections after the native
+                // combat has started, but the controller compiled its rules at combat start.
+                // Recompile from the injected live state before any automatic search can use a
+                // potion, card or power that brought an additional generation pool with it.
+                bool initialInjectionApplied = !request.PreserveNativeCombatStateForTest
+                    && !request.FlashTurnSetupRootForTest
+                    && !(turnSetupTakeover && !turnSetupTurnTwo);
+                if (initialInjectionApplied && !turnSetupTurnTwo
+                    && (request.FullCombatForTest || request.ControllerScenarioForTest != null))
+                {
+                    CombatSessionController.RefreshImportForTest();
+                }
                 if (turnSetupTurnTwo)
                 {
                     // The build ran the native turn-one setup and initial injection. The controller
@@ -692,8 +704,12 @@ internal static class TestSession
             }
             long deadline = Environment.TickCount64
                 + (long)Math.Max(request.TimeoutSeconds, 480d) * 1000L;
+            // A search or import failure leaves the phase at Failed rather than Paused, so the
+            // loop must treat it as terminal instead of waiting for the whole-combat timeout.
             while (CombatManager.Instance.IsInProgress && !CombatSessionController.IsPaused)
             {
+                if (CombatSessionController.NonProgressingReasonForTest is { } reason)
+                    throw new InvalidOperationException($"控制器已停止推进：{reason}");
                 if (Environment.TickCount64 >= deadline)
                     throw new TimeoutException("等待控制器整场结束超时。");
                 await CombatFrameWaiter.NextFrameAsync(host);

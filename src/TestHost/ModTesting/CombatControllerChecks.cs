@@ -305,6 +305,18 @@ internal static class CombatControllerChecks
                 case "forced_potion":
                     await ForcedPotionAsync(host, Check, Action);
                     break;
+                case "search_character_pool":
+                    await SearchRulePoolsAsync(host, Check, Action, "search_character_pool",
+                        [Sts2Solver.Simulation.Combat.CardPools.CharacterAll], []);
+                    break;
+                case "search_colorless_pool":
+                    await SearchRulePoolsAsync(host, Check, Action, "search_colorless_pool",
+                        [Sts2Solver.Simulation.Combat.CardPools.ColorlessAll], []);
+                    break;
+                case "search_dazed_root":
+                    await SearchRulePoolsAsync(host, Check, Action, "search_dazed_root",
+                        [], ["DAZED"]);
+                    break;
                 case "panel_strategy":
                     await PanelStrategyAsync(host, Check, Action);
                     break;
@@ -2633,6 +2645,10 @@ internal static class CombatControllerChecks
         check("search_failed_turn", failed.Turn == turn, $"{turn}->{failed.Turn}");
         check("search_failed_can_retry", failed.CanStartSearch);
         check("search_failed_no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
+        string? terminalReason = CombatSessionController.NonProgressingReasonForTest;
+        check("search_failed_terminal_reason",
+            terminalReason?.StartsWith("controller_failed code=search_failed",
+                StringComparison.Ordinal) == true, terminalReason ?? "-");
         await WaitStatusAsync(host, SolverText.Get("求解器消息"));
         check("search_failed_status", Status() == SolverText.Get("求解器消息"), Status());
         check("search_failed_reason_kind",
@@ -2662,6 +2678,9 @@ internal static class CombatControllerChecks
             900, "search failure cleared by retry");
         check("retry_phase", retried.Phase == CombatUiPhase.WaitingTurn, retried.Phase.ToString());
         check("retry_error_cleared", retried.ErrorCode == null, retried.ErrorCode);
+        check("retry_terminal_reason_cleared",
+            CombatSessionController.NonProgressingReasonForTest == null,
+            CombatSessionController.NonProgressingReasonForTest ?? "-");
         await WaitIdleAsync(host, "retry search done");
 
         CombatControllerTestHooks.ForceSearchFailure = static _ => "forced_potion_unusable";
@@ -2731,6 +2750,10 @@ internal static class CombatControllerChecks
             SolverPanelText.ErrorReason(failed.ErrorReason));
         check("no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
         check("can_retry", failed.CanStartSearch);
+        string? terminal = CombatSessionController.NonProgressingReasonForTest;
+        check("terminal_reason",
+            terminal?.StartsWith("controller_failed code=import_capacity",
+                StringComparison.Ordinal) == true, terminal ?? "-");
         await WaitStatusAsync(host, SolverText.Get("求解器消息"));
         check("status", Status() == SolverText.Get("求解器消息"), Status());
         check("title", Summary().Contains(SolverText.Get("搜索初始化失败"), StringComparison.Ordinal),
@@ -2742,6 +2765,15 @@ internal static class CombatControllerChecks
             && button.Text == SolverText.Get("重新搜索"),
             panel?.SearchButtonForTest?.Text);
         check("no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+        // Mode switches clear the visible failure state. The whole-combat test must still see the
+        // unrecovered import failure afterwards.
+        check("mode_clear", CombatUiCommands.Instance.SetMode(SolverMode.Manual));
+        action("set_mode_manual_after_failure");
+        await Frames(host, 4);
+        string? terminalAfterMode = CombatSessionController.NonProgressingReasonForTest;
+        check("terminal_reason_after_mode_clear",
+            terminalAfterMode?.StartsWith("controller_failed code=import_capacity",
+                StringComparison.Ordinal) == true, terminalAfterMode ?? "-");
     }
 
     private static async Task ImportFailureAsync(NGame host, Check check, Action action)
@@ -2762,6 +2794,10 @@ internal static class CombatControllerChecks
                 or CombatReasonKind.ImportUnsupported or CombatReasonKind.ImportCapacity,
             failed.ErrorReason?.Kind ?? "-");
         check("no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
+        string? terminal = CombatSessionController.NonProgressingReasonForTest;
+        check("terminal_reason",
+            terminal?.StartsWith("controller_failed code=import_", StringComparison.Ordinal) == true,
+            terminal ?? "-");
         await WaitStatusAsync(host, SolverText.Get("求解器消息"));
         string title = SolverPanelText.Error(failed.ErrorCode ?? "search_failed");
         string reason = SolverPanelText.ErrorReason(failed.ErrorReason);
@@ -3329,6 +3365,50 @@ internal static class CombatControllerChecks
         check("reset_strategy", reset, "strategy commands");
         await Frames(host, 4);
         await UiPanelChecks.StrategyAsync(host, check, action);
+    }
+
+    /// <summary>
+    /// Regression for content that appears before the first play-phase root (injected potions or
+    /// turn-one generation): the controller must recompile its rules from the live state, so the
+    /// search request contains every pool/card the root can generate. Before that refresh a
+    /// potion-enabled member could fail at solve time or the root import could reject a status card.
+    /// </summary>
+    private static async Task SearchRulePoolsAsync(NGame host, Check check, Action action,
+        string name, string[] expectedPools, string[] expectedCards)
+    {
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        action("set_mode:manual");
+        await WaitIdleAsync(host, "manual idle");
+        int before = Snapshot().Searches;
+        check("search_start", CombatUiCommands.Instance.StartOrRecalculateSearch());
+        action(name);
+        CombatUiSnapshot done = await WaitAsync(host,
+            s => s.Searches > before && !s.IsSearching && !s.IsDeploying, 1800,
+            name);
+        SearchCase request = CombatSessionController.LastSearchCaseForTest
+            ?? throw new InvalidDataException($"{name} search request missing");
+        foreach (string pool in expectedPools)
+        {
+            check("pool_" + pool, request.Rules.TryCardPool(pool, out _), pool);
+        }
+        foreach (string card in expectedCards)
+            check("card_" + card, HasRuleCard(request.Rules, card), card);
+        check("no_error", done.ErrorCode == null, done.ErrorCode ?? "-");
+    }
+
+    private static bool HasRuleCard(Sts2Solver.Simulation.Combat.Rules rules, string nativeId)
+    {
+        if (!Sts2Solver.Simulation.Combat.Registry.TryCard(nativeId, out ushort id))
+            return false;
+        try
+        {
+            _ = rules.Card(id, 0);
+            return true;
+        }
+        catch (Sts2Solver.Simulation.Combat.UnsupportedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

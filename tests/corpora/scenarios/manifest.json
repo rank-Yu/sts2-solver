@@ -14,6 +14,102 @@
   },
   "scenarios": [
     {
+      "id": "search_character_pool",
+      "scenario": "search_character_pool",
+      "group": "controller",
+      "fixture": "p16-potions-character",
+      "request": {
+        "settingsModeForTest": "Manual",
+        "controllerScenarioForTest": "search_character_pool",
+        "fullCombatForTest": false
+      },
+      "threads": 1
+    },
+    {
+      "id": "search_colorless_pool",
+      "scenario": "search_colorless_pool",
+      "group": "controller",
+      "fixture": "hl1f2-chompers-colorless-potion",
+      "request": {
+        "settingsModeForTest": "Manual",
+        "controllerScenarioForTest": "search_colorless_pool",
+        "fullCombatForTest": false
+      },
+      "threads": 1
+    },
+    {
+      "id": "search_dazed_root",
+      "scenario": "search_dazed_root",
+      "group": "controller",
+      "fixture": "hl1f2-scrolls-blessed-antler-dazed",
+      "request": {
+        "settingsModeForTest": "Manual",
+        "controllerScenarioForTest": "search_dazed_root",
+        "fullCombatForTest": false
+      },
+      "threads": 1
+    },
+    {
+      "id": "hl1f2-silent-skulking-power-potion",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hl1f2-silent-skulking-power-potion",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "hl1f2-chompers-colorless-potion",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hl1f2-chompers-colorless-potion",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "hl1f2-scrolls-blessed-antler-dazed",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hl1f2-scrolls-blessed-antler-dazed",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "hl1f-infested-prisms-power-potion",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hl1f-infested-prisms-power-potion",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
       "id": "manual_start_stop",
       "scenario": "manual_start_stop",
       "group": "controller"

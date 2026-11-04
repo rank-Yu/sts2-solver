@@ -316,6 +316,9 @@ internal static partial class CombatSessionController
         _finishedSearch = BuildFinishedSearch(session, null, "failed", code);
         _errorCode = code;
         _errorDetail = detail;
+#if STS2_SOLVER_TESTING
+        RecordUnrecoveredFailureForTest(code, detail);
+#endif
         _pendingCompleteBaseline = null;
         if (RecordConsecutiveFailure(session.StartTurn, code, detail))
             return;
@@ -507,6 +510,9 @@ internal static partial class CombatSessionController
                 run.ErrorCode ?? "search_failed");
             _errorCode = run.ErrorCode ?? "search_failed";
             _errorDetail = run.ErrorDetail;
+#if STS2_SOLVER_TESTING
+            RecordUnrecoveredFailureForTest(_errorCode, _errorDetail);
+#endif
             _phase = session.StopRequested ? CombatUiPhase.Paused : CombatUiPhase.Failed;
             if (session.StopRequested)
                 _pauseCode = "stopped";
@@ -542,6 +548,9 @@ internal static partial class CombatSessionController
             return;
         }
 
+#if STS2_SOLVER_TESTING
+        ClearUnrecoveredFailureForTest();
+#endif
         CombatControllerResult result = new(run.Plan, run.Plan.Outcome, session.Stamp,
             run.FinalProgress?.CandidateVersion ?? 0, run.Outcome.Adoption, 0, 0, false,
             run.Tier, run.Outcome.ElapsedMilliseconds, run.Outcome.TotalExpandedNodes,
@@ -857,6 +866,9 @@ internal static partial class CombatSessionController
         _finishedSearch = null;
         _errorCode = code;
         _errorDetail = detail;
+#if STS2_SOLVER_TESTING
+        RecordUnrecoveredFailureForTest(code, detail);
+#endif
         _phase = CombatUiPhase.Failed;
         _pauseCode = null;
         _pendingCompleteBaseline = null;

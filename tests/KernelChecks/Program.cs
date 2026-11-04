@@ -116,6 +116,8 @@ CheckDx3Kernel(rules);
 CheckPrKernel();
 CheckEcKernel(rules);
 CheckDx5Kernel(rules);
+CheckCardPoolContracts();
+CheckStatusCardContracts();
 var benchmark = Benchmark(rules);
 
 Console.WriteLine(JsonSerializer.Serialize(new
@@ -181,6 +183,154 @@ static void CheckHookDeactivation(Rules rules)
     Check(!revived.Player.IsDead, "LizardTail 应阻止 TheGambit 的死亡");
     Check(revived.Relics[1].Counter == 1, "LizardTail 应记录已用");
     Check(revived.Relics[0].Counter == 1, "死亡被阻止后 LavaLamp 仍应收到后续伤害回调");
+}
+
+static void CheckCardPoolContracts()
+{
+    string[] known = [.. typeof(CardPools).GetFields(BindingFlags.Public | BindingFlags.Static)
+        .Where(static field => field.IsLiteral && field.FieldType == typeof(string))
+        .Select(static field => (string?)field.GetRawConstantValue()
+            ?? throw new InvalidOperationException($"卡池常量 {field.Name} 没有值。"))
+        .Order(StringComparer.Ordinal)];
+    Check(known.Length == 10, $"CardPools 常量应为 10 个，实际 {known.Length}");
+    HashSet<string> knownSet = [.. known];
+    HashSet<string> declared = new(StringComparer.Ordinal);
+    void Declare(ContentDef def)
+    {
+        foreach (string pool in def.GeneratedCardPools.Concat(def.SetupOnlyCardPools))
+        {
+            Check(knownSet.Contains(pool), $"{def.NativeId} 声明了未知卡池 {pool}");
+            declared.Add(pool);
+        }
+    }
+    foreach (ContentDef def in AllContentDefinitions())
+        Declare(def);
+    foreach (string pool in known)
+        Check(declared.Contains(pool), $"卡池 {pool} 没有内容声明");
+
+    void RequirePotionPool(string nativeId, string pool)
+    {
+        Check(Registry.TryPotion(nativeId, out ushort id), $"缺少药水 {nativeId}");
+        Check(Registry.Potion(id).GeneratedCardPools.Contains(pool),
+            $"{nativeId} 必须声明卡池 {pool}");
+    }
+    RequirePotionPool("ATTACK_POTION", CardPools.CharacterAll);
+    RequirePotionPool("SKILL_POTION", CardPools.CharacterAll);
+    RequirePotionPool("POWER_POTION", CardPools.CharacterAll);
+    RequirePotionPool("OROBIC_ACID", CardPools.CharacterAll);
+    RequirePotionPool("COLORLESS_POTION", CardPools.ColorlessAll);
+    RequirePotionPool("COSMIC_CONCOCTION", CardPools.ColorlessAll);
+
+    void RequireCardPool(string nativeId, string pool)
+    {
+        Check(Registry.TryCard(nativeId, out ushort id), $"缺少卡牌 {nativeId}");
+        Check(Registry.Card(id).GeneratedCardPools.Contains(pool),
+            $"{nativeId} 必须声明卡池 {pool}");
+    }
+    RequireCardPool("INFERNAL_BLADE", CardPools.CharacterAttacks);
+    RequireCardPool("DISCOVERY", CardPools.CharacterAll);
+    RequireCardPool("STOKE", CardPools.CharacterAll);
+    Console.WriteLine($"CARD_POOL_CONTRACTS keys={known.Length} declared={declared.Count}");
+}
+
+static IEnumerable<ContentDef> AllContentDefinitions()
+{
+    for (int id = 0; id < Registry.CardCount; id++)
+        yield return Registry.Card((ushort)id);
+    for (int id = 0; id < Registry.PowerCount; id++)
+        yield return Registry.Power((ushort)id);
+    for (int id = 0; id < Registry.RelicCount; id++)
+        yield return Registry.Relic((ushort)id);
+    for (int id = 0; id < Registry.PotionCount; id++)
+        yield return Registry.Potion((ushort)id);
+    for (int id = 0; id < Registry.MonsterCount; id++)
+        yield return Registry.Monster((ushort)id);
+    for (int id = 0; id < Registry.OrbCount; id++)
+        yield return Registry.Orb((ushort)id);
+    for (int id = 0; id < Registry.EnchantmentCount; id++)
+        yield return Registry.Enchantment((ushort)id);
+    for (int id = 0; id < Registry.AfflictionCount; id++)
+        yield return Registry.Affliction((ushort)id);
+    for (int id = 0; id < Registry.EncounterCount; id++)
+        yield return Registry.Encounter((ushort)id);
+}
+
+static void CheckStatusCardContracts()
+{
+    string[] statusIds =
+    [
+        "BECKON", "BURN", "DAZED", "DEBRIS", "FRANTIC_ESCAPE", "INFECTION",
+        "WITHER", "SLIMED", "SOOT", "TOXIC", "VOID", "WOUND",
+    ];
+    HashSet<string> statusSet = [.. statusIds];
+    foreach (string status in statusIds)
+        Check(Registry.TryCard(status, out _), $"缺少状态牌定义 {status}");
+    HashSet<string> generated = new(StringComparer.Ordinal);
+    foreach (ContentDef def in AllContentDefinitions())
+    {
+        foreach ((string cardId, _) in def.GeneratedCards)
+        {
+            if (statusSet.Contains(cardId))
+                generated.Add(cardId);
+        }
+    }
+    foreach (string status in statusIds)
+        Check(generated.Contains(status), $"状态牌 {status} 没有任何内容声明为生成卡");
+
+    void RequireCard(string defId, string status)
+    {
+        Check(Registry.TryCard(defId, out ushort id), $"缺少卡牌 {defId}");
+        Check(Registry.Card(id).GeneratedCards.Any(item => item.CardId == status),
+            $"{defId} 必须声明生成状态牌 {status}");
+    }
+    void RequirePower(string defId, string status)
+    {
+        Check(Registry.TryPower(defId, out ushort id), $"缺少 Power {defId}");
+        Check(Registry.Power(id).GeneratedCards.Any(item => item.CardId == status),
+            $"{defId} 必须声明生成状态牌 {status}");
+    }
+    void RequireMonster(string defId, string status)
+    {
+        Check(Registry.TryMonster(defId, out ushort id), $"缺少怪物 {defId}");
+        Check(Registry.Monster(id).GeneratedCards.Any(item => item.CardId == status),
+            $"{defId} 必须声明生成状态牌 {status}");
+    }
+    void RequireRelic(string defId, string status)
+    {
+        Check(Registry.TryRelic(defId, out ushort id), $"缺少遗物 {defId}");
+        Check(Registry.Relic(id).GeneratedCards.Any(item => item.CardId == status),
+            $"{defId} 必须声明生成状态牌 {status}");
+    }
+
+    RequireCard("OVERCLOCK", "BURN");
+    RequireCard("FIGHT_THROUGH", "WOUND");
+    RequireCard("TURBO", "VOID");
+    RequireCard("BOOST_AWAY", "DAZED");
+    RequireCard("GUNK_UP", "SLIMED");
+    RequireCard("COLLISION_COURSE", "DEBRIS");
+    RequireCard("CRASH_LANDING", "DEBRIS");
+    RequirePower("WITHERING_PRESENCE_POWER", "WITHER");
+    RequirePower("PAINFUL_STABS_POWER", "WOUND");
+    RequirePower("PERSONAL_HIVE_POWER", "DAZED");
+    RequireRelic("BIIIG_HUG", "SOOT");
+    RequireMonster("CHOMPER", "DAZED");
+    RequireMonster("EYE_WITH_TEETH", "DAZED");
+    RequireMonster("VANTOM", "WOUND");
+    RequireMonster("MECHA_KNIGHT", "BURN");
+    RequireMonster("TWIG_SLIME_M", "SLIMED");
+    RequireMonster("LEAF_SLIME_M", "SLIMED");
+    RequireMonster("LEAF_SLIME_S", "SLIMED");
+    RequireMonster("SLIMED_BERSERKER", "SLIMED");
+    RequireMonster("TEST_SUBJECT", "BURN");
+    RequireMonster("AEONGLASS", "WITHER");
+    RequireMonster("PHROG_PARASITE", "INFECTION");
+    RequireMonster("WRIGGLER", "INFECTION");
+    RequireMonster("THE_INSATIABLE", "FRANTIC_ESCAPE");
+    RequireMonster("MYTE", "TOXIC");
+    RequireMonster("HAUNTED_SHIP", "DAZED");
+    RequireMonster("SOUL_FYSH", "BECKON");
+    RequireMonster("NOISEBOT", "DAZED");
+    Console.WriteLine($"STATUS_CARD_CONTRACTS statuses={statusIds.Length} generated={generated.Count}");
 }
 
 static void CheckGrowthRewards()

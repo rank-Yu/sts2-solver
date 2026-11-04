@@ -160,6 +160,12 @@ internal static class CombatControllerChecks
                 case "turn_setup_turn2":
                     await TurnSetupTurnTwoAsync(host, Check, Action, fullAuto: true);
                     break;
+                case "turn_setup_extra_turn":
+                    await TurnSetupExtraTurnAsync(host, Check, Action);
+                    break;
+                case "turn_setup_extra_turn_search":
+                    await TurnSetupExtraTurnSearchAsync(host, Check, Action);
+                    break;
                 case "turn_setup_autopreplay":
                     await TurnSetupAutoPrePlayAsync(host, Check, Action);
                     break;
@@ -1872,6 +1878,68 @@ internal static class CombatControllerChecks
     /// Full-auto scenario for a turn whose setup page appears after the solver ended the previous
     /// turn. The request is built to turn-one Play and the takeover is enabled before turn two.
     /// </summary>
+    /// <summary>
+    /// Same takeover/continuation path as turn two, but the native turn loop is taking an extra
+    /// turn (PaelsEye with no cards played on turn one). The setup page, its plan and the first
+    /// deployment boundary must all belong to that extra turn.
+    /// </summary>
+    private static async Task TurnSetupExtraTurnAsync(NGame host, Check check, Action action)
+    {
+        await TurnSetupTurnTwoAsync(host, check, action, fullAuto: true);
+        check("extra_turn_setup", PlayerTurnSetupRuntime.TestLastInterceptTakingExtraTurn,
+            "the intercepted SetupPlayerTurn is an extra turn");
+    }
+
+    /// <summary>
+    /// The player ends turn one manually, so no EndTurn setup plan exists; the extra turn's
+    /// PaelsEye/Toasty setup page must be enumerated and searched from the live Start root.
+    /// </summary>
+    private static async Task TurnSetupExtraTurnSearchAsync(NGame host, Check check, Action action)
+    {
+        check("mode_manual", Snapshot().Mode == SolverMode.Manual, Snapshot().Mode.ToString());
+        check("no_turn_one_search", Snapshot().Searches == 0, Snapshot().Searches.ToString());
+        CombatSessionController.HoldAutoSearchForTest = true;
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        action("set_mode:auto_search");
+        await StartEndTurnAsync(host);
+        action("end_turn_one");
+        CombatUiSnapshot page = await WaitAsync(host,
+            static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600,
+            "extra turn setup page");
+        check("turn_two", page.Turn == 2, page.Turn.ToString());
+        check("intercept_once", PlayerTurnSetupRuntime.TestInterceptCount == 1,
+            PlayerTurnSetupRuntime.TestInterceptCount.ToString());
+        check("selector_null_at_intercept", PlayerTurnSetupRuntime.TestSelectorNullAtLastIntercept);
+        check("extra_turn_setup", PlayerTurnSetupRuntime.TestLastInterceptTakingExtraTurn,
+            "the intercepted SetupPlayerTurn is an extra turn");
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("plan_ready", plan.TurnSetupPlanReady);
+        check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
+        check("no_continuation", !plan.TurnSetupContinuation,
+            plan.TurnSetupContinuation.ToString());
+        check("no_continuation_plan", PlayerTurnSetupRuntime.TestContinuationPlanCount == 0,
+            PlayerTurnSetupRuntime.TestContinuationPlanCount.ToString());
+        check("setup_search_started", plan.TurnSetupSearchStarted,
+            plan.TurnSetupSearchStarted.ToString());
+        check("no_pause", plan.PauseCode == null, plan.PauseCode);
+        int searches = plan.Searches;
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_two_setup");
+        action("press_execute_turn_two_setup");
+        CombatSessionController.HoldAutoSearchForTest = false;
+        CombatSessionController.ResumeAutoSearchForTest();
+        action("resume_auto_search");
+        CombatUiSnapshot activated = await WaitAsync(host,
+            static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
+            "extra turn search setup activated");
+        check("one_setup_search", activated.Searches == searches,
+            $"{searches}->{activated.Searches}");
+        check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());
+        check("page_closed", !activated.TurnSetupPageOpen);
+        check("no_blocker_after", !PlayerTurnSetupRuntime.TestBlockerActive);
+        check("no_deviation", activated.Deviations == 0, activated.Deviations.ToString());
+        check("no_error", activated.ErrorCode == null, activated.ErrorCode);
+    }
+
     private static async Task TurnSetupTurnTwoAsync(NGame host, Check check, Action action,
         bool fullAuto)
     {

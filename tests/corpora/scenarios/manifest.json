@@ -560,6 +560,34 @@
       }
     },
     {
+      "id": "turn_setup_extra_turn",
+      "scenario": "turn_setup_extra_turn",
+      "group": "turn-setup",
+      "fixture": "ts-ex-extra-turn",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "FullAuto",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 2000
+      }
+    },
+    {
+      "id": "turn_setup_extra_turn_search",
+      "scenario": "turn_setup_extra_turn_search",
+      "group": "turn-setup",
+      "fixture": "ts-ex-extra-turn",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsModeForTest": "Manual",
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 2000
+      }
+    },
+    {
       "id": "turn_setup_autopreplay",
       "scenario": "turn_setup_autopreplay",
       "group": "turn-setup",

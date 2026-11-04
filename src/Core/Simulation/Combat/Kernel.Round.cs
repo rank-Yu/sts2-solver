@@ -620,8 +620,10 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Mirrors <c>CombatBeamSolver.AdvanceRoundPlayerStart</c> and <c>ContinuePlayerStart</c> for a
-    /// round without turn-start choices.
+    /// Mirrors <c>CombatBeamSolver.AdvanceRoundPlayerStart</c> and <c>ContinuePlayerStart</c>. Both a
+    /// normal round and an extra turn use the native <c>SetupPlayerTurn</c> sequence and its setup
+    /// pause; the extra-turn fact only changes the round increment and the side-start Rampart pass,
+    /// both handled by <see cref="AdvanceRoundPlayerStartPrefix"/>.
     /// </summary>
     private static void AdvanceRoundPlayerStart(ref Exec x, bool takingExtraTurn = false)
     {
@@ -629,18 +631,10 @@ public static partial class Kernel
             return;
 
         // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish.
-        // A normal EndTurn runs the same native rootSetup sequence as PreparePlayerPlayPhase, with
-        // the same pause callback: the first turn-start choice releases the setup task, the side
-        // start and orb turn-start pass run, and only then does the requesting listener resume.
-        // [GAME CombatManager.cs:777-790, 880-925]
-        if (takingExtraTurn)
-        {
-            // Extra turns keep the historical continuation (and therefore no setup pause): the
-            // native extra-turn start skips pieces of the normal setup and the single-prefix
-            // preamble explicitly rejects it.
-            ContinuePlayerPlayPhase(ref x, firstTurn: false, rootSetup: false);
-            return;
-        }
+        // EndTurn runs the same native rootSetup sequence as PreparePlayerPlayPhase, with the same
+        // pause callback: the first turn-start choice releases the setup task, the side start and
+        // orb turn-start pass run, and only then does the requesting listener resume.
+        // [GAME CombatManager.cs:700-830, 880-925]
         SetupPauseState setup = new();
         x.SetupPreamble = true;
         x.SetupPause = setup.OnPause;
@@ -886,16 +880,20 @@ public static partial class Kernel
     /// requests the preamble asks. Returns <see cref="StepResult.NeedsChoice"/> with the partial
     /// battle when another selection is needed; the caller must discard it and replay from the Start
     /// root with one more selection.
-    /// <para>GAME CombatManager.cs:880-925 (SetupPlayerTurn), 862-869 (RunAutoPrePlayPhase).</para>
-    /// <para>Taking an extra turn is not supported in this batch: the native turn loop skips part of
-    /// the start for <c>PlayersTakingExtraTurn</c>, and guessing the skipped pieces would produce a
-    /// different Play root.</para>
+    /// <para>GAME CombatManager.cs:700-830 (StartTurn/SetupPlayerTurn), 862-869 (RunAutoPrePlayPhase).
+    /// An extra turn runs the same setup sequence; <c>PlayersTakingExtraTurn</c> only selects the
+    /// starting creature set and skips the enemy <c>PrepareForNextTurn</c>, which is already outside
+    /// this preamble.</para>
     /// </summary>
+    /// <param name="takingExtraTurn">
+    /// The turn being prepared was granted by <c>ShouldTakeExtraTurn</c>. The caller supplies it: the
+    /// EndTurn path gets it from the same <c>ShouldTakeExtraTurn</c> pass, the Mod from the native
+    /// <c>CombatTurnState.PlayersTakingExtraTurn</c>, and the offline setup harness captures it at the
+    /// native <c>SetupPlayerTurn</c> entry. It is not stored in <see cref="Battle"/>.
+    /// </param>
     public static StepResult PreparePlayerPlayPhase(ref Battle battle, Rules rules,
         ReadOnlySpan<ulong> choices, out ChoiceRequest request, bool takingExtraTurn = false)
     {
-        if (takingExtraTurn)
-            throw new UnsupportedException("回合准备前奏不支持额外回合。");
         if (!IsInProgress(battle))
             throw new InvalidOperationException("战斗已经结束，不能再准备玩家出牌阶段。");
         if (battle.Phase != PlayerPhase.Start)
@@ -908,7 +906,7 @@ public static partial class Kernel
             action = action.WithChoice(selection);
         Exec x = new(ref battle, rules, action);
         x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
-        x.TakingExtraTurn = false;
+        x.TakingExtraTurn = takingExtraTurn;
         x.SetupPreamble = true;
         SetupPauseState setup = new();
         x.SetupPause = setup.OnPause;

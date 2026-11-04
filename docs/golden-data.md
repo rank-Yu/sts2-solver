@@ -178,12 +178,12 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 当前冻结数据的来源记录保存在 manifest 中，两者都由对应工具写入，不手改：
 
 ```text
-d1Rerecord = roots=<全部 418 个根> reason=drop-shuffles-crossed
-  sha256=92e7a2edd2221f8bb5c024a490f5ccd2cfab37f1472c3a362a104cf397842216
-refreeze = drop-shuffles-crossed sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700a19d8e092a16d7d8697
+d1Rerecord = roots=pr-c-relics reason=extra-turn-setup
+  sha256=9a2a9a50d7135c454ad9825d9f6bf37850dce702df28b11d1548614d566bc5a4
+refreeze = extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700a19d8e092a16d7d8697
 ```
 
-这次重冻的 1,982 个期望结果与上一次（`endturn-setup-pause`）的结果投影到格式 5 后逐字节相同：删掉 `ShufflesCrossed` 只改了格式和状态字节，没有改变任何搜索结果。
+当前 D1 为 418 个根、5,063 个 K1、15,296 条游走、482,217 个游走状态、469,342 个转移；D2 为 1,982 个请求、1,982 个期望结果。`extra-turn-setup` 只重录了 `pr-c-relics`（额外回合的准备选择改在侧回合开始之后回答，K1 21→22、游走状态 617→613、转移 585→581）；D2 的 1,982 个结果逐字节不变，重冻只更新了结果集来源记录。
 
 ## 9. 重录与重冻会改什么
 

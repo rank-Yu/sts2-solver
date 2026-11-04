@@ -26,7 +26,7 @@
 
 - 快照包含当时的 `Battle`，以及后半段可能读取的全部 `Exec` 瞬态：力量变化队列、伤害、击杀与溢出暂存、出牌身份与来源序号、手牌与生成选项、Monologue、Vambrace、Lamp 等。
 - 拍快照时，选择游标、效果深度和嵌套 Sly 标记区间都必须为空，逐项断言。
-- 遇到额外回合，或前半段已经请求选择，返回“不可共享”（`EndTurnPrefixStatus`），调用方改跑完整的 `Step`，不做近似。
+- 遇到额外回合，或前半段已经请求选择，返回“不可共享”（`EndTurnPrefixStatus`），调用方改跑完整的 `Step`，不做近似；完整 `Step` 的额外回合仍使用同一套 setup 暂停语义。
 - 前半段在玩家回合开始前就结束了战斗时，仍会拍快照；续跑跳过玩家回合开始，只做动作收尾，与完整 `Step` 相同。
 - 后半段包含下一回合的 setup 暂停：首次选择仍会让出 `NeedsChoice`，前缀可以继续复用；侧回合开始、球与选择顺序和完整 `Step` 相同。
 
@@ -212,7 +212,7 @@ Power 施加（`Q/SimulatedCombatState.cs:648-711`）：数量为 0 或目标不
 7. 没有选择时，玩家己方回合开始效果（`TriggerSideTurnStart`：第 1 回合之后 Plating 递减，Rampart 只在非额外回合执行等）在 `AfterPlayerTurnStart` 之后执行；有选择时它已经在暂停处跑过，不再重复。
 8. 敌人死亡效果 → 苦难归一化 → 回合开始的附魔与球触发 → 自动预打出 → 胜负判定。有选择时球在暂停处已经触发，此步不再重复。
 
-EndTurn 路径与 `PreparePlayerPlayPhase` 共用同一套 `Exec.SetupPause`/`RunSetupPause` 机制：正常结束回合进入下一回合时也按 `rootSetup` 语义执行装填，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。额外回合不进入这套暂停前奏。
+EndTurn 路径与 `PreparePlayerPlayPhase` 共用同一套 `Exec.SetupPause`/`RunSetupPause` 机制：正常结束回合进入下一回合时也按 `rootSetup` 语义执行装填，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。额外回合（PaelsEye、AmbergrisPower）使用同一套前奏和暂停语义：原生 `StartTurn` 在额外回合只把起始生物限定为 `PlayersTakingExtraTurn` 并跳过敌方 `PrepareForNextTurn`，`SetupPlayerTurn` 的抽牌、`AfterPlayerTurnStart` 选择、`AfterSideTurnStart` 和 `OrbQueue.AfterTurnStart` 顺序与普通回合相同 [GAME CombatManager.cs:701-706, 725-733, 777-830]。
 
 ### 7.1 额外回合
 
@@ -224,9 +224,12 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 
 1. 先跑 `AfterRelicRoundPass`（原引擎 `RecordRelicRoundDamage` 的位置）：EmotionChip 在这里把“本回合失血”翻到“上一回合”。
 2. 再在固定的监听快照上跑 `AfterTakingExtraTurnPass`：Ambergris 自减一层，PaelsEye 置已用。
-3. **跳过整个敌方回合**和 `PrepareMonsterMovesForNextRound`，以 `AdvanceRoundPlayerStart(takingExtraTurn: true)` 进入玩家回合开始：轮次不加一，玩家回合数加一，`TriggerSideTurnStart` 的 Rampart 不执行。
+3. **跳过整个敌方回合**和 `PrepareMonsterMovesForNextRound`，以 `AdvanceRoundPlayerStart(takingExtraTurn: true)` 进入玩家回合开始：轮次不加一，玩家回合数加一，`TriggerSideTurnStart` 的 Rampart 不执行。随后的 `StartTurn` 与普通回合走同一个 `SetupPlayerTurn`：额外回合只把起始生物限定为 `PlayersTakingExtraTurn`，并跳过敌方 `PrepareForNextTurn` [GAME CombatManager.cs:701-706, 725-733]；抽牌、`AfterPlayerTurnStart` 的选择、`AfterSideTurnStart` 和球 `AfterTurnStart` 都按同一顺序执行，第一次选择处同样暂停 [GAME CombatManager.cs:777-830]。
 4. 本回合失血标记：原引擎的 `AdvancePlayerTurn` 只清空 `_unblockedDamageThisTurn` 缓存，之后从不可变的根历史重算 `HasLostHpThisTurn`。Sts2Solver 在额外回合用 `Rules.RootLostHpMask`（根捕获时每个 owner 的答案）恢复这些标记；普通回合换轮时全部清零。根历史之外的预测期伤害不计入，与原引擎一致。
 
+### 7.1.1 准备暂停处的侧回合开始与球
+
+准备暂停时，侧回合开始和球 `AfterTurnStart` 在恢复选择前执行。原版 v0.111.0 没有内容能在这两个位置请求新的玩家选择：`Hook.AfterSideTurnStart` 不接收 `PlayerChoiceContext`（[GAME AbstractModel.cs:1268、Hook.cs:1175]），51 个覆写里没有 `CardSelectCmd` 调用；InfusedCore 和 SymbioticVirus 用 `BlockingPlayerChoiceContext` 只是 `OrbCmd.Channel`。球只有 PlasmaOrb 覆写 `AfterTurnStartOrbTrigger`，它触发 passive 获得能量，不选牌。内核仍对这两个位置检查 `NeedsChoice`/`ChoicesTaken`，一旦出现无法表示的请求就显式抛 `UnsupportedException`；当前内容不会走到。
 ### 7.2 实现形状
 
 对照 `Kernel.TurnPhases.cs`。原引擎的回合阶段有两种写法，Sts2Solver 分别对应：

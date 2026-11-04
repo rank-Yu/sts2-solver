@@ -19,7 +19,7 @@ internal enum TurnSetupEnumerationStatus
     /// <summary>Every enumerated outcome ended the combat during setup; there is no Play root.</summary>
     Terminal,
 
-    /// <summary>The setup cannot be represented: an extra turn, or more choices than a PlayerAction holds.</summary>
+    /// <summary>The setup cannot be represented: more choices than a PlayerAction holds.</summary>
     Unsupported,
 }
 
@@ -73,8 +73,9 @@ internal sealed class TurnSetupEnumeration
 /// Multi-stage plans are supported (choices may occur in <c>BeforeHandDraw</c>,
 /// <c>AfterPlayerTurnStart</c> and the auto-pre-play phase). A plan longer than
 /// <see cref="Limits.MaxChoices"/> cannot fit in a <see cref="PlayerAction"/> and is reported as
-/// <see cref="TurnSetupEnumerationStatus.Unsupported"/>, not truncated. Extra turns are likewise
-/// unsupported in this batch.
+/// <see cref="TurnSetupEnumerationStatus.Unsupported"/>, not truncated. An extra turn uses the same
+/// native setup sequence; <see cref="Enumerate"/>'s <c>takingExtraTurn</c> argument is passed through
+/// to <see cref="Kernel.PreparePlayerPlayPhase"/>.
 /// </para>
 /// </summary>
 internal static class TurnSetupRootEnumerator
@@ -97,7 +98,6 @@ internal static class TurnSetupRootEnumerator
 
     private sealed class Visitor
     {
-        private const string ExtraTurnReason = "回合准备前奏不支持额外回合。";
         private const string TooManyChoicesReason =
             "回合准备连续选择超过 PlayerAction 的 8 个选择位。";
 
@@ -160,15 +160,7 @@ internal static class TurnSetupRootEnumerator
             }
         }
 
-        internal void Run()
-        {
-            if (_takingExtraTurn)
-            {
-                _unsupported = ExtraTurnReason;
-                return;
-            }
-            Visit([]);
-        }
+        internal void Run() => Visit([]);
 
         private void Visit(ulong[] selections)
         {
@@ -177,7 +169,7 @@ internal static class TurnSetupRootEnumerator
             Unsafe.SkipInit(out Battle partial);
             Battle.CopyPacked(in _start, ref partial);
             StepResult step = Kernel.PreparePlayerPlayPhase(ref partial, _rules, selections,
-                out ChoiceRequest request);
+                out ChoiceRequest request, _takingExtraTurn);
             if (step == StepResult.Completed)
             {
                 bool terminal = partial.Outcome != Outcome.None

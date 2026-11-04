@@ -166,7 +166,8 @@ internal static class SetupEnumerationCheck
         TurnSetupEnumeration enumeration = TurnSetupRootEnumerator.Enumerate(start, rules, extraTurn);
         List<TurnSetupBranch> branches = [.. enumeration.Branches];
         Console.WriteLine(
-            $"SETUP_ENUM root={root} turn={turn} nativeTurn={startTurn} status={enumeration.Status} "
+            $"SETUP_ENUM root={root} turn={turn} nativeTurn={startTurn} extraTurn={extraTurn} "
+            + $"status={enumeration.Status} "
             + $"branches={branches.Count} play={branches.Count(static b => !b.Terminal)} "
             + $"terminal={branches.Count(static b => b.Terminal)} dropped={enumeration.DroppedByBudget} "
             + $"rules={(rulesSame ? "same" : "diff")} startTurn={start.PlayerTurn} "

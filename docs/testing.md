@@ -111,7 +111,7 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 
 ### 4.1 模拟回归
 
-输出 `SIMULATION_OK`，汇总文件、根、游走、状态、特征和差异的计数，失败时以非零退出。除下面列出的重放外，模拟回归还在每个根、K1 和 K2 转移上检查结束回合的 setup 暂停合同：凡是 EndTurn 进入下一回合且请求 `PlayerTurnStart` 选择的转移，`EndTurn.After` 必须逐字节等于 `PreparePlayerPlayPhase(TryAdvanceToPlayerSetupStart(EndTurn.Before), 同样的准备选择)`；每个根另跑一条确定的 EndTurn 路径覆盖记录里没有结束回合的根。额外回合不属于准备前奏，单独计入 `setupPauseExtraTurns`。对每个根重放：
+输出 `SIMULATION_OK`，汇总文件、根、游走、状态、特征和差异的计数，失败时以非零退出。除下面列出的重放外，模拟回归还在每个根、K1 和 K2 转移上检查结束回合的 setup 暂停合同：凡是 EndTurn 进入下一回合且请求 `PlayerTurnStart` 选择的转移，`EndTurn.After` 必须逐字节等于 `PreparePlayerPlayPhase(TryAdvanceToPlayerSetupStart(EndTurn.Before), 同样的准备选择, takingExtraTurn)`；额外回合的转移和普通回合一样逐个比较，`takingExtraTurn` 由同一个 `ShouldTakeExtraTurn` 前导得到。每个根另跑一条确定的 EndTurn 路径覆盖记录里没有结束回合的根。对每个根重放：
 
 - `golden.br` 里的根状态、K1 单步动作与完整选择序列；
 - K2 固定种子游走的每一步状态、合法动作顺序、选择请求与实际选择；
@@ -404,7 +404,7 @@ tools/testing/run-scenario-regression.py --jobs 4
 - **界面**：无头测试只检查面板的结构和状态（见 9.3），不证明可见渲染、字体、排版、拖动与缩放手感；这些要在可见游戏里看。
 - **非选牌模态**：选择驱动只覆盖 `CardSelectCmd` 的 `ICardSelector` 路径，没有验证未来或第三方 Mod 的其它模态请求。
 - **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖。
-- **回合准备多根**：实机 Mod 在自动搜索/全自动档接管第一张可见准备页及其后的 AutoPrePlay 页，自动搜索只显示、全自动驱动；两者共用同一个页面会话和计划，只搜索一次。纯隐式选择不启动准备搜索。`ts-k-two-relic-choices` 在同一准备阶段产生两段可见选择，驱动按顺序消费；`ts-j-crossbow-one-card` / `ts-j-crossbow-many` 覆盖暂停后由侧回合开始加入手牌的候选。差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合和多段选择。准备暂停时侧回合开始或球的触发如果自己请求选择，当前显式不支持；额外回合也不支持。
+- **回合准备多根**：实机 Mod 在自动搜索/全自动档接管第一张可见准备页及其后的 AutoPrePlay 页，自动搜索只显示、全自动驱动；两者共用同一个页面会话和计划，只搜索一次。纯隐式选择不启动准备搜索。`ts-k-two-relic-choices` 在同一准备阶段产生两段可见选择，驱动按顺序消费；`ts-j-crossbow-one-card` / `ts-j-crossbow-many` 覆盖暂停后由侧回合开始加入手牌的候选。差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合、额外回合和多段选择（`ts-ex-extra-turn` 用 PaelsEye + Toasty Mittens 在第 2 个玩家回合开始触发选择）。准备暂停时侧回合开始或球的触发如果自己请求选择，当前显式不支持；原版 v0.111.0 没有这样的内容（`AfterSideTurnStart` 不接收选择上下文且没有 `CardSelectCmd` 调用，球只有 PlasmaOrb 覆写回合开始触发且只获得能量）。
 - **第三方 Mod**：没有实机 Mod 根；导入层只显式拒绝非 `sts2` 程序集的模型，没有兼容层。
 - **Windows/Steam**：当前的计时与验证都在 Linux 上，Windows 的 `.ps1` 启动脚本还没有。
 

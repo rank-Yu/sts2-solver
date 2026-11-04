@@ -115,10 +115,12 @@ public static partial class Kernel
     /// This is the turn-setup prediction entry: the ordinary EndTurn path still runs
     /// <c>ContinuePlayerPlayPhase</c> to Play. The action may carry more choices than the prefix
     /// consumes (the next turn's setup choices), so the partial finish does not require all of them.
-    /// Returns false when the action needs a choice, ends the combat, or takes an extra turn.
+    /// Returns false when the action needs a choice or ends the combat. <paramref name="takingExtraTurn"/>
+    /// reports whether <c>ShouldTakeExtraTurn</c> granted the turn being prepared; the Start root is
+    /// otherwise the same native <c>SetupPlayerTurn</c> entry for both kinds of turn.
     /// </summary>
     internal static bool TryAdvanceToPlayerSetupStart(in Battle endTurnBefore, Rules rules,
-        in PlayerAction endTurnAction, out Battle setupStart)
+        in PlayerAction endTurnAction, out Battle setupStart, out bool takingExtraTurn)
     {
         Unsafe.SkipInit(out setupStart);
         if (endTurnAction.Kind != PlayerActionKind.EndTurn)
@@ -127,9 +129,9 @@ public static partial class Kernel
         Unsafe.SkipInit(out Battle battle);
         Battle.CopyPacked(in endTurnBefore, ref battle);
         Exec x = new(ref battle, rules, endTurnAction);
-        if (!AdvanceRoundToPlayerStart(ref x, out bool takingExtraTurn) || takingExtraTurn)
+        if (!AdvanceRoundToPlayerStart(ref x, out takingExtraTurn))
             return false;
-        if (!AdvanceRoundPlayerStartPrefix(ref x, takingExtraTurn: false))
+        if (!AdvanceRoundPlayerStartPrefix(ref x, takingExtraTurn))
             return false;
         x.B.Phase = PlayerPhase.Start;
         x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;

@@ -1,0 +1,38 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "TS-EX-EXTRA-TURN",
+ "characterId": "IRONCLAD",
+ "encounterId": "SHRINKER_BEETLE_WEAK",
+ "seed": "TSEX1",
+ "ascension": 0,
+ "initialPlayerMaxHp": 500,
+ "initialPlayerHp": 500,
+ "initialPlayerEnergy": 0,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "initialEnemyMaxHps": [
+  2000
+ ],
+ "initialEnemyCurrentHps": [
+  2000
+ ],
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "PAELS_EYE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "cards": [
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "pile": "Draw",
+   "count": 10
+  }
+ ]
+}

@@ -101,6 +101,8 @@
 
 `ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会在等待下一回合边界之前释放 `PlannedNativeSelector`。之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。结束回合的内核预测也使用同一套暂停语义，准备阶段侧回合开始生成或改变候选时，EndTurn 动作携带的计划和原生页面从第一段起就一致；`ts-g-multi-choice` 的熔炉不再因为计划少一个候选而落入入口校验失败后的新搜索。
 
+额外回合（PaelsEye、AmbergrisPower）的回合准备走同一条接管和沿用路径：额外回合事实来自原生 `CombatTurnState.PlayersTakingExtraTurn`，EndTurn 预测的 `PlayerTurnStart` 计划和额外回合的 `SetupPlayerTurn` 使用同一暂停顺序；准备根、候选枚举和沿用校验都带这个事实，不需要另建一套流程。
+
 上一回合的部署被下一回合 setup 接管时标记 `SupersededByTurnSetup`：结束回合的实机边界不再和旧路线比较，不计偏差、不重搜，下一回合由 setup 的结果接手。下一回合优先沿用上一回合 EndTurn 动作里的 `PlayerTurnStart` 计划；没有可沿用的选择时才从 Start 根枚举并搜索。
 
 下一回合的准备根携带最近一次已核对的预测边界（上一回合 EndTurn 动作的 `Before`）里的非原生账本：成长额度用量、自动/生成用药计数、免死计数与回血、`RecoveredHp`、`LongTermResourceValue` 和复活中的敌人行。准备接管时如果上一回合的部署结果还在，先用内核把这个 EndTurn（带旧路线的选择）推进到下一回合玩家 `Phase == Start`，和实机 `ImportSetupRoot` 逐字节比较：一致就用预测 Start 根，不一致记一条 `TURN_SETUP_START_PREDICTION_MISMATCH` 并退回实机导入（仍带同一份已验证账本）。两种口径都遵守回合准备根自己的事实：`VitalSparkNormalizedAmount = 0`、`ShuffleEventCount = 0`，`HasRisk` 从 tracker 继承。原生可重建的计数（例如 `CumulativeHpLost`、`OrbChannels`）仍从实机 History 读取。

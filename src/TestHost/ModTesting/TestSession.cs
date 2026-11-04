@@ -596,7 +596,9 @@ internal static class TestSession
         or "turn_setup_stop_keep" or "turn_setup_stop_drop" or "turn_setup_stop_drive"
         or "turn_setup_fail" or "turn_setup_scene_exit"
         or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause"
-        or "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
+        or "turn_setup_turn2" or "turn_setup_extra_turn" or "turn_setup_extra_turn_search"
+        or "turn_setup_autopreplay"
+        or "turn_setup_plasma"
         or "turn_setup_manual_end" or "turn_setup_multi" or "turn_setup_crossbow"
         or "turn_setup_crossbow_many" or "turn_setup_carry"
         or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
@@ -607,7 +609,9 @@ internal static class TestSession
         or "deviation_boundary_setup" or "deviation_setup_stamp";
 
     private static bool TurnSetupTurnTwoScenario(string? scenario) => scenario is
-        "turn_setup_turn2" or "turn_setup_autopreplay" or "turn_setup_plasma"
+        "turn_setup_turn2" or "turn_setup_extra_turn" or "turn_setup_extra_turn_search"
+        or "turn_setup_autopreplay"
+        or "turn_setup_plasma"
         or "turn_setup_manual_end" or "turn_setup_carry"
         or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
         or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"

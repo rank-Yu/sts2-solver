@@ -522,11 +522,19 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return false;
         }
-        if (result.SetupPlayStamp is not { } expected || !expected.Matches(live))
+        CombatStateStamp? expected = result.SetupPlayStamp;
+        if (expected is null || !expected.Matches(live))
         {
+            string first = "<missing>";
+            if (expected != null)
+            {
+                List<string> diff = BattleDump.Diff(expected.Normalized,
+                    BattleReconciler.Normalize(live), "plan", "live");
+                first = diff.Count == 0 ? "<bytes>" : diff[0];
+            }
             ModLog.Warn(
                 $"[Sts2Solver] CONTROLLER_TURN_SETUP_STATE_MISMATCH turn={turn} " +
-                "validation=exact_state_text boundary_deviation=true");
+                $"validation=exact_state_text boundary_deviation=true field={first}");
             PauseForTurnStop(turn, "boundary_deviation",
                 "turn_setup_live_state_changed", countDeviation: true);
             return true;

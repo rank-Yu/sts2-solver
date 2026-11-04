@@ -22,6 +22,8 @@
 | `turn_setup_continuation_*` | `ts-a-toasty` | 500/500 对 500，全自动或自动搜索 + 接管 |
 | `turn_setup_continuation_gap` | `ts-g-multi-choice` | 500/500 对 500，全自动 + 接管 |
 | `turn_setup_turn2` / `turn_setup_plasma` / `turn_setup_autopreplay` | `ts-a-toasty` / `ts-i-plasma-pause` / `ts-d-autopreplay-choice` | 500/500 对 500 |
+| `turn_setup_extra_turn` | `ts-ex-extra-turn` | 第 1 回合能量 0、PaelsEye 触发额外回合，全自动 + 接管；校验额外回合的准备沿用计划、无偏差 |
+| `turn_setup_extra_turn_search` | `ts-ex-extra-turn` | 同上但玩家手动结束第 1 回合，额外回合的准备页没有可沿用的 EndTurn 计划，必须重新枚举和搜索 |
 | `deviation_boundary_setup` / `deviation_setup_stamp` | `ts-a-toasty` | 500/500 对 500，全自动 + 接管 |
 | `live_end_turn_risk_retained` | `k3-basic-potions` | 生命 65/80、敌人 200，结束回合前注入 60 伤害 |
 | `import_capacity` / `import_failure` | `k3-basic-potions` | 清空跑局牌组后注入 641 张 `STRIKE_IRONCLAD`，超过 `Limits.Cards` |

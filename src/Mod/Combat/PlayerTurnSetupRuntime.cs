@@ -101,11 +101,7 @@ internal static class PlayerTurnSetupRuntime
             ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=selector_active");
             return false;
         }
-        if (turnState.PlayersTakingExtraTurn.Count > 0)
-        {
-            ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=extra_turn");
-            return false;
-        }
+        bool takingExtraTurn = turnState.PlayersTakingExtraTurn.Count > 0;
         int setupTurn = player.PlayerCombatState!.TurnNumber;
         bool continuation = CombatSessionController.TryGetPlannedTurnSetupContinuation(
             setupTurn, out CombatControllerResult continuationResult, out Battle expectedPlayRoot);
@@ -154,6 +150,7 @@ internal static class PlayerTurnSetupRuntime
         }
         NormalizeSetupStartRoot(ref liveStart, tracker);
         Battle startRoot = liveStart;
+        bool startRootTakingExtraTurn = takingExtraTurn;
         bool compared = false;
         bool matched = false;
         if (CombatSessionController.TryGetVerifiedEndTurn(setupTurn - 1,
@@ -163,13 +160,15 @@ internal static class PlayerTurnSetupRuntime
             try
             {
                 if (Kernel.TryAdvanceToPlayerSetupStart(endTurnBefore, rules, endTurnAction,
-                        out Battle predicted))
+                        out Battle predicted, out bool predictedExtraTurn))
                 {
                     NormalizeSetupStartRoot(ref predicted, tracker);
-                    matched = Fingerprint.Equal(predicted, liveStart);
+                    matched = predictedExtraTurn == takingExtraTurn
+                        && Fingerprint.Equal(predicted, liveStart);
                     if (matched)
                     {
                         startRoot = predicted;
+                        startRootTakingExtraTurn = predictedExtraTurn;
                     }
                     else
                     {
@@ -239,8 +238,8 @@ internal static class PlayerTurnSetupRuntime
         {
             continuationResult = TamperContinuationPlanBeforeValidationForTest(continuationResult);
             ContinuationValidation validation = ValidateContinuationPlan(
-                startRoot, rules, continuationResult.SetupChoices, expectedPlayRoot,
-                out string validationDetail);
+                startRoot, rules, startRootTakingExtraTurn, continuationResult.SetupChoices,
+                expectedPlayRoot, out string validationDetail);
             switch (validation)
             {
                 case ContinuationValidation.Ok:
@@ -291,7 +290,7 @@ internal static class PlayerTurnSetupRuntime
             CancellationTokenSource.CreateLinkedTokenSource(CombatSessionController.CombatToken);
         TurnSetupTransaction transaction = new(
             combat, player, rules, tracker, turnState, choiceContext, startRoot, choices,
-            cancellation, setupTurn,
+            cancellation, setupTurn, startRootTakingExtraTurn,
             continuation ? continuationResult : null);
         _active = transaction;
         _lastTurn = setupTurn;
@@ -300,6 +299,7 @@ internal static class PlayerTurnSetupRuntime
 #if STS2_SOLVER_TESTING
         TestInterceptCount++;
         TestLastInterceptTurn = setupTurn;
+        TestLastInterceptTakingExtraTurn = takingExtraTurn;
         TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
 #endif
         CombatSessionController.OnTurnSetupIntercepted(setupTurn);
@@ -351,7 +351,7 @@ internal static class PlayerTurnSetupRuntime
     /// game did something unexpected.
     /// </summary>
     private static ContinuationValidation ValidateContinuationPlan(Battle startRoot, Rules rules,
-        PlannedChoice[] planned, in Battle expectedPlayRoot, out string detail)
+        bool takingExtraTurn, PlannedChoice[] planned, in Battle expectedPlayRoot, out string detail)
     {
         detail = "";
         if (planned.Length > Limits.MaxChoices)
@@ -369,7 +369,7 @@ internal static class PlayerTurnSetupRuntime
                 Battle partial = default;
                 Battle.CopyPacked(in startRoot, ref partial);
                 StepResult step = Kernel.PreparePlayerPlayPhase(ref partial, rules,
-                    selections[..count], out ChoiceRequest request);
+                    selections[..count], out ChoiceRequest request, takingExtraTurn);
                 if (count < planned.Length)
                 {
                     if (step != StepResult.NeedsChoice)
@@ -588,7 +588,7 @@ internal static class PlayerTurnSetupRuntime
             t.Stopped = false;
             t.DeployAfterSetup = false;
             t.EnumerationTask = Task.Run(
-                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules),
+                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules, t.TakingExtraTurn),
                 t.Cancellation.Token);
             _ = RecalculateFromContinuationAsync(t, t.EnumerationTask);
             return true;
@@ -847,6 +847,9 @@ internal static class PlayerTurnSetupRuntime
 
     internal static bool TestSelectorNullAtLastIntercept { get; private set; }
 
+    /// <summary>The last intercepted <c>SetupPlayerTurn</c> belonged to an extra turn.</summary>
+    internal static bool TestLastInterceptTakingExtraTurn { get; private set; }
+
     internal static int TestAutoPrePlayInterceptCount { get; private set; }
 
     internal static bool TestLastSearchStartedInAutoPrePlay { get; private set; }
@@ -869,6 +872,7 @@ internal static class PlayerTurnSetupRuntime
         TestLastContinuationValidationDetail = null;
         TestInterceptCount = 0;
         TestLastInterceptTurn = 0;
+        TestLastInterceptTakingExtraTurn = false;
         TestSelectorNullAtLastIntercept = false;
         TestAutoPrePlayInterceptCount = 0;
         TestLastSearchStartedInAutoPrePlay = false;
@@ -938,7 +942,8 @@ internal static class PlayerTurnSetupRuntime
         if (t.ContinuationResult == null)
         {
             enumerationTask = Task.Run(
-                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules), t.Cancellation.Token);
+                () => TurnSetupRootEnumerator.Enumerate(t.StartRoot, t.Rules, t.TakingExtraTurn),
+                t.Cancellation.Token);
             t.EnumerationTask = enumerationTask;
         }
         try
@@ -1463,6 +1468,7 @@ internal static class PlayerTurnSetupRuntime
         NativeChoiceSession choices,
         CancellationTokenSource cancellation,
         int turn,
+        bool takingExtraTurn,
         CombatControllerResult? continuationResult)
     {
         internal CombatState Combat { get; } = combat;
@@ -1475,6 +1481,7 @@ internal static class PlayerTurnSetupRuntime
         internal NativeChoiceSession Choices { get; } = choices;
         internal CancellationTokenSource Cancellation { get; } = cancellation;
         internal int Turn { get; } = turn;
+        internal bool TakingExtraTurn { get; } = takingExtraTurn;
         internal bool PageOpen { get; set; }
         internal bool SearchStarted { get; set; }
         internal bool PlanReady { get; set; }

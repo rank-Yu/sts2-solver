@@ -5,9 +5,9 @@
     "d1": "75217006903195bc94654680423bb9ca580ec48a",
     "d2": "75217006903195bc94654680423bb9ca580ec48a",
     "d1Config": "66a43838d89e7a03b05c0f04d5e4941ff555baec",
-    "formatMigration": "\u8BF7\u6C42 v7\u2192v8\u3001\u7ED3\u679C\u4ECD\u4E3A v6\uFF1ASREQ \u5220\u9664 ScoreRules \u7684\u9057\u7269\u8BA1\u6570\u89C4\u5219\u3001BeamOptions.InitialActionCount \u548C ScoreRules \u7684\u4E09\u4E2A\u521D\u59CB\u836F\u6C34\u8BA1\u6570\uFF1BD1 config.br \u4E0E D2 request.br \u673A\u68B0\u91CD\u7F16\u7801\uFF0CD1 \u7684 13 \u4E2A\u524D\u7F00\u6839\u6309\u8BA1\u6570\u4E3A 0 \u91CD\u5F55 scoreHash\uFF0C\u5176\u4E2D qf-misery-roster \u7684\u521D\u59CB\u663E\u5F0F\u7528\u836F\u8FD8\u5F71\u54CD\u5176\u6839/K1/K2 \u7684 score \u4E0E bound \u54C8\u5E0C\uFF0C\u7ED3\u6784\u6570\u636E\u4E0E\u5176\u5B83 12 \u4E2A\u6839\u53EA\u66F4\u65B0\u6839 scoreHash\u3002SRES \u4E0D\u7F16\u7801\u8FD9\u4E9B\u5B57\u6BB5\uFF0CD2 \u671F\u671B\u7ED3\u679C\u9010\u5B57\u8282\u4E0D\u53D8\u3002",
+    "formatMigration": "\u8BF7\u6C42 v7\u2192v8\u3001\u7ED3\u679C\u4ECD\u4E3A v6\uFF1ASREQ \u5220\u9664 ScoreRules \u7684\u9057\u7269\u8BA1\u6570\u89C4\u5219\u3001BeamOptions.InitialActionCount \u548C ScoreRules \u7684\u4E09\u4E2A\u521D\u59CB\u836F\u6C34\u8BA1\u6570\uFF1BD1 config.br \u4E0E D2 request.br \u673A\u68B0\u91CD\u7F16\u7801\uFF0CD1 \u7684 13 \u4E2A\u524D\u7F00\u6839\u6309\u8BA1\u6570\u4E3A 0 \u91CD\u5F55 scoreHash\uFF0C\u5176\u4E2D qf-misery-roster \u7684\u521D\u59CB\u663E\u5F0F\u7528\u836F\u8FD8\u5F71\u54CD\u5176\u6839/K1/K2 \u7684 score \u4E0E bound \u54C8\u5E0C\uFF0C\u7ED3\u6784\u6570\u636E\u4E0E\u5176\u5B83 12 \u4E2A\u6839\u53EA\u66F4\u65B0\u6839 scoreHash\u3002SRES \u4E0D\u7F16\u7801\u8FD9\u4E9B\u5B57\u6BB5\uFF0CD2 \u671F\u671B\u7ED3\u679C\u9010\u5B57\u8282\u4E0D\u53D8\u3002D1 \u8BC4\u5206\u54C8\u5E0C\u540C\u65F6\u6539\u4E3A\u53EA\u5199\u5F53\u524D ScoreFeatures \u5B57\u6BB5\uFF0C\u5220\u9664\u9057\u7269\u8BA1\u6570\u5360\u4F4D\u69FD\u548C\u91CD\u590D\u7684\u7B56\u7565\u5360\u4F4D\uFF1B\u6240\u6709 D1 \u6839\u7684\u6839/K1/\u6E38\u8D70\u72B6\u6001 score \u54C8\u5E0C\u6309\u65B0\u5B57\u6BB5\u96C6\u5408\u91CD\u7B97\uFF0C\u5B57\u6BB5\u503C\u3001bound \u54C8\u5E0C\u548C\u7ED3\u6784\u4E0D\u53D8\u3002",
     "refreeze": "rl2-cleanup sha256=d48e3c36a2427f983e0f414ef0b572a2f9320a1ed920e55d071263f93fb7d4c1",
-    "d1Rerecord": "roots=dx4-dread-baseline,dx5-pen-nib-sly,dx6-dampen-echoing,hs-chains-turn-reset,hs3-stoke-identity,qf-fisticuffs-replay,qf-misery-roster,qf-negative-pulse-roster,qf-nightmare-detached,qf3-seeking-edge-order,qf5-anger-dampen-clone,qt2-art-of-war-endturn,qt2-kusarigama-endturn reason=remove D1 fixed-prefix action and potion counters sha256=1974825849a1b2d81c16d2cba98c27a36c4b8ab40e522ebf5c50923733c4aa2b"
+    "d1Rerecord": "roots=a3-aeonglass-boss,a3-axebots-normal,a3-construct-menagerie-normal,a3-devoted-sculptor-weak,a3-fabricator-normal,a3-frog-knight-normal,a3-globe-head-normal,a3-knights-elite,a3-mecha-knight-elite,a3-owl-magistrate-normal,a3-queen-boss,a3-queen-chains,a3-scrolls-of-biting-normal,a3-scrolls-of-biting-weak,a3-slimed-berserker-normal,a3-soul-nexus-elite,a3-test-subject-boss,a3-the-lost-and-forgotten-normal,a3-turret-operator-weak,c1-choice-cards,cx-a-enchantments,cx-b-melancholy,df-a-orbs,df-b-attacks,df-c-powers,df-d-generation,df-e-relics,df-f-starters,df-g-extra,df-h-creator,dt-doom-fatal-timing,dx3-axebot-stock,dx3-chains-clone,dx3-dampen-level-zero,dx3-galvanic,dx3-gigantification-pending,dx3-hellraiser-infinite,dx3-hellraiser-revive,dx3-lamp-envenom,dx3-rampage-dampen,dx3-rampart-offroster,dx3-scythe-dampen,dx3-spawn-initial-log,dx3-vambrace-sly,dx4-drain-upgrade-ending,dx4-dread-baseline,dx4-sly-identity,dx5-battleworn-dummy-v1,dx5-battleworn-dummy-v2,dx5-battleworn-dummy-v3,dx5-history-course,dx5-history-course-choice,dx5-pen-nib-sly,dx6-dampen-echoing,dx7-distilled-chaos,dx7-droplet-fetched-power,dx7-duplicate-stomp,dx7-end-of-days-shroud,ec-a-event-attacks,ec-b-event-skills,ec-c-ancient,ec-d-quest-token,ec-e-mad-science,hs-chains-turn-reset,hs2-sword-sage-forge,hs3-calamity-nested,hs3-regent13-rolling,hs3-stoke-hand-cost,hs3-stoke-identity,hs4-dread-root-dexterity,hs4-testsubject-multiclaw,id-a-monologue-swordsage,id-b-nightmare-phantom,id-c-instanced-powers,id-d-fetch-delay,id-e-vambrace-lamp,id-f-generation,id-g-callofthevoid,k2-temporary-strength-artifact,k3-basic-potions,k4-player-plating-thorns,k5-intangible,ka-ceremonial-beast-boss,ka-infested-prisms-elite,ka-living-fog-normal,ka-mystic-lighter,ka-vine-shambler-normal,kb-a-thrash-decimal,kb-b-thrash-decimal-upgraded,kb-c-beatdown-relocate,kb-d-beatdown-relocate-upgraded,kg1-a-autoplay,kg1-b-autoplay-piles,kg1-c-transform-jackpot,kg2-a-corruption-unrelenting,kg2-b-stomp,kg2-c-one-two-punch,kg2-d-duplicator,kg2-e-vicious,kg2-f-the-abacus,kg2-g-chemical-x,kg2-h-ice-cream,kg2-i-ruined-helmet,kg2-j-ghost-seed,kg2-k-tear-asunder,kg2-l-unrelenting,kg2-m-thrash,km-fogmog-normal,km-two-tailed-rats-normal,km2-bowlbugs-normal,km2-bowlbugs-weak,km2-decimillipede,km2-hunter-killer,km2-kaiser-crab,km2-louse-progenitor,km2-phrog-parasite,km2-slumbering-beetle,ks-corpse-slugs-normal,ks-corpse-slugs-weak,ks-lagavulin-matriarch-boss,ks-terror-eel-elite,lr-a-choices,lr-b-decisions,lr-c1-history,lr-c2-generation,ls-a-silent-attacks,ls-b-silent-powers,ls-c-the-hunt,ls-d-necro,ls-e-defect,ls-g-mirage,ls-h-reptile,mb-entropic-brew,mb-insatiable,mb-knowledge-demon,nb-a-osty,nb-b-doom,nb-c-utility,nb-d-powers,nb-g-utility2,nb-h-powers3,nb-i-sacrifice,nb-j-eidolon,nb-k-doomkill,nb-l-osty-defense,p1-fuzzy-wurm-weak,p1-nibbits-normal,p1-nibbits-weak,p10-a-turn-end-status,p10-b-turn-end-curses,p10-c-empty-status,p10-d-empty-curses,p11-a-beating-remnant,p11-b-lizard-tail,p11-c-red-skull,p11-d-potions,p11-e-status-cards,p11-f-enthralled,p11-g-normality,p11-h-bygone-effigy-kill,p12-phantasmal-gardeners-elite,p12-skulking-colony-elite,p12-soul-fysh-boss,p12-the-kin-boss,p12-vantom-boss,p13-chompers-normal,p13-entomancer-elite,p13-exoskeletons-normal,p13-exoskeletons-weak,p13-mytes-normal,p13-ovicopter-normal,p13-spiny-toad-normal,p13-the-obscura-normal,p13-tunneler-weak,p14-a-power-cards,p14-b-aggression-discard,p14-c-unmovable-multi-block,p14-d-rupture,p15-a-skills,p15-b-draw-search,p15-c-turn-powers,p15-d-attacks,p15-e-attack-skill-mix,p15-f-powers-block,p15-g-hand-conditions,p15-h-restlessness,p16-a-damage-history,p16-b-selection-random,p16-c-instanced-powers,p16-d-entropy,p16-potions-character,p16-potions-colorless,p16-potions-gigantification,p2-a-basic-attacks,p2-b-calculated,p2-c-powers,p2-d-x-random,p3-a-power-cards,p3-b-block-exhaust,p3-c-self-damage,p3-d-feed-fatal,p4-a-power-cards,p4-b-temporary-powers,p4-c-attacks,p4-d-exhaust-draw,p7-class1-a,p7-class1-b,p7-class2,p7-class3-cards,p7-class3-empty-hand,p7-class3-turn2,p7-class3-turn3,p7-class3-turn7,p8-a-counters,p8-b-turn-relics,p8-c-rage-juggling-dark-embrace,p8-d-crimson-inferno,p9-card-flow,p9-damage,p9-debuff-damage,p9-defensive-powers,p9-draw,p9-heal,p9-heal-block,p9-offensive-powers,p9-replay-select,p9-stat-powers,p9-temp-powers,p9-upgrade,p9-utility-powers,pr-a-potions,pr-b-potions2,pr-c-relics,pr-d-inert,pr-e-osty-doom,pr-f-whispering,pr-g-orbs,pr-h-potions3,qf-fisticuffs-replay,qf-misery-roster,qf-negative-pulse-roster,qf-nightmare-detached,qf-seance-soul,qf-turn-start-choice-forge,qf2-gradient-failure,qf3-burrowed-compensation,qf3-decisions-duplicate,qf3-decisions-repeat,qf3-defect-endturn-orbs,qf3-hellraiser-entropy,qf3-mangle-plow,qf3-mayhem-summon-forth,qf3-seeking-edge-order,qf4-touch-of-insanity-xcost,qf5-anger-dampen-clone,qp1-ashwater,qp1-gamblers-brew,qp1-liquid-memories,qp1-touch-of-insanity,qt2-art-of-war-endturn,qt2-kusarigama-endturn,quality-DEFECT-000,quality-DEFECT-001,quality-DEFECT-002,quality-DEFECT-003,quality-DEFECT-004,quality-DEFECT-005,quality-DEFECT-006,quality-DEFECT-007,quality-DEFECT-008,quality-DEFECT-009,quality-DEFECT-010,quality-DEFECT-011,quality-DEFECT-012,quality-DEFECT-013,quality-DEFECT-014,quality-DEFECT-015,quality-DEFECT-016,quality-DEFECT-017,quality-DEFECT-018,quality-DEFECT-019,quality-DEFECT-020,quality-DEFECT-021,quality-DEFECT-022,quality-DEFECT-023,quality-IRONCLAD-000,quality-IRONCLAD-001,quality-IRONCLAD-002,quality-IRONCLAD-003,quality-IRONCLAD-004,quality-IRONCLAD-005,quality-IRONCLAD-006,quality-IRONCLAD-007,quality-IRONCLAD-008,quality-IRONCLAD-009,quality-IRONCLAD-010,quality-IRONCLAD-011,quality-IRONCLAD-012,quality-IRONCLAD-013,quality-IRONCLAD-014,quality-IRONCLAD-015,quality-IRONCLAD-016,quality-IRONCLAD-017,quality-IRONCLAD-018,quality-IRONCLAD-019,quality-IRONCLAD-020,quality-IRONCLAD-021,quality-IRONCLAD-022,quality-IRONCLAD-023,quality-NECROBINDER-000,quality-NECROBINDER-001,quality-NECROBINDER-002,quality-NECROBINDER-003,quality-NECROBINDER-004,quality-NECROBINDER-005,quality-NECROBINDER-006,quality-NECROBINDER-007,quality-NECROBINDER-008,quality-NECROBINDER-009,quality-NECROBINDER-010,quality-NECROBINDER-011,quality-NECROBINDER-012,quality-NECROBINDER-013,quality-NECROBINDER-014,quality-NECROBINDER-015,quality-NECROBINDER-016,quality-NECROBINDER-017,quality-NECROBINDER-018,quality-NECROBINDER-019,quality-NECROBINDER-020,quality-NECROBINDER-021,quality-NECROBINDER-022,quality-NECROBINDER-023,quality-REGENT-000,quality-REGENT-001,quality-REGENT-002,quality-REGENT-003,quality-REGENT-004,quality-REGENT-005,quality-REGENT-006,quality-REGENT-007,quality-REGENT-008,quality-REGENT-009,quality-REGENT-010,quality-REGENT-011,quality-REGENT-012,quality-REGENT-013,quality-REGENT-014,quality-REGENT-015,quality-REGENT-016,quality-REGENT-017,quality-REGENT-018,quality-REGENT-019,quality-REGENT-020,quality-REGENT-021,quality-REGENT-022,quality-REGENT-023,quality-SILENT-000,quality-SILENT-001,quality-SILENT-002,quality-SILENT-003,quality-SILENT-004,quality-SILENT-005,quality-SILENT-006,quality-SILENT-007,quality-SILENT-008,quality-SILENT-009,quality-SILENT-010,quality-SILENT-011,quality-SILENT-012,quality-SILENT-013,quality-SILENT-014,quality-SILENT-015,quality-SILENT-016,quality-SILENT-017,quality-SILENT-018,quality-SILENT-019,quality-SILENT-020,quality-SILENT-021,quality-SILENT-022,quality-SILENT-023,r2-a-relic-combat,r2-b-relic-turns,r2-c-fiddle-draw,r2-d-no-combat,r2-e-no-combat,r2-f-no-combat,r2-g-no-combat,r3-a-distilled-chaos,r3-b-distilled-chaos-shuffle,r3-c-distilled-chaos-short,rg-a-star,rg-b-forge,rg-c-powers,rg-d-forge-create,sk-a-discard-sly,sk-b-shiv,sk-c-poison,sk-d-simple,sk-e-powers,sk-f-xcalc,sk-g-starters-upgraded,sw2-entropy-transform,sw2-smart-bound-relic,ts-a-toasty,ts-b-toolbox,tw-gremlin-merc,tw-thieving-hopper,tw-thieving-hopper-recover,tw-waterfall-giant reason=goldenHash: write only current ScoreFeatures fields; remove retired relic-counter placeholders sha256=ae75c34b089f7a9a7ac08a491e12363c2d3c52d89f83c93926d3a8e657ce3417"
   },
   "compression": "brotli",
   "counts": {
@@ -29,7 +29,7 @@
       "timeAffected": 0
     }
   },
-  "totalBytes": 23729646,
+  "totalBytes": 23729858,
   "targetBytes": 52428800,
   "files": [
     {
@@ -39,8 +39,8 @@
     },
     {
       "path": "d1/a3-aeonglass-boss/golden.br",
-      "bytes": 43774,
-      "sha256": "dd2f1a4c8cd432b9c48da3f81f9ac20113542f50b2e2fc121957144a2067884f"
+      "bytes": 43789,
+      "sha256": "1bdb5fad8a24fd1dcee4b2bc73597c778d40776d8a6ce7e5d6b0bb8b5b17873c"
     },
     {
       "path": "d1/a3-aeonglass-boss/meta.json",
@@ -54,8 +54,8 @@
     },
     {
       "path": "d1/a3-axebots-normal/golden.br",
-      "bytes": 42299,
-      "sha256": "4885d0b377f483b067e223427b5b452a954aa00a648362ba809283562b34bc49"
+      "bytes": 42304,
+      "sha256": "9dff6fc23d162abb26985cce68971d827830025508cb945b3a86cd603a7d1eb4"
     },
     {
       "path": "d1/a3-axebots-normal/meta.json",
@@ -69,8 +69,8 @@
     },
     {
       "path": "d1/a3-construct-menagerie-normal/golden.br",
-      "bytes": 42969,
-      "sha256": "b1c7bcf5536dd573ba08bc3646148f2a821c0166b281a5783c0a9c0817b6cf55"
+      "bytes": 42960,
+      "sha256": "24f0737623a0fbfe77f4df2554c1aaf3997481825fc731a9490ca907b1f6b099"
     },
     {
       "path": "d1/a3-construct-menagerie-normal/meta.json",
@@ -84,8 +84,8 @@
     },
     {
       "path": "d1/a3-devoted-sculptor-weak/golden.br",
-      "bytes": 18397,
-      "sha256": "c50091342664841ceb5f9a3408b0d465299f305662fe887b9cbdb5b1cab93f93"
+      "bytes": 18426,
+      "sha256": "fcff5daef347840c08e9cba829739af33c4a7a022d147ec43f229dc5e0d9795a"
     },
     {
       "path": "d1/a3-devoted-sculptor-weak/meta.json",
@@ -99,8 +99,8 @@
     },
     {
       "path": "d1/a3-fabricator-normal/golden.br",
-      "bytes": 1314,
-      "sha256": "401430389a616f1a48e80c1fd9da9bc1c95182ab1eca398b54be44932766047a"
+      "bytes": 1286,
+      "sha256": "1ecbc67cb9426d03e576b87c91ecd2181e71aa84f21ab0a343bc8601a4bc87c2"
     },
     {
       "path": "d1/a3-fabricator-normal/meta.json",
@@ -114,8 +114,8 @@
     },
     {
       "path": "d1/a3-frog-knight-normal/golden.br",
-      "bytes": 41761,
-      "sha256": "3e1c0da6c78180676c00606cf14eef1c6dd33991910f5031cf858c7baf6d9c62"
+      "bytes": 41767,
+      "sha256": "32c8e96a0dea9bfab646302135ff28ba8502b853970469954aff9fc98f0239cf"
     },
     {
       "path": "d1/a3-frog-knight-normal/meta.json",
@@ -129,8 +129,8 @@
     },
     {
       "path": "d1/a3-globe-head-normal/golden.br",
-      "bytes": 17160,
-      "sha256": "ca86a45916b5670c93eb9ac88d6c6b46d265fce25f5af59e5f4828f5e7fbefef"
+      "bytes": 17168,
+      "sha256": "6ea6845da99639fba6958631995d0fc63c97f48dd278b6ee97eead91d5767e4c"
     },
     {
       "path": "d1/a3-globe-head-normal/meta.json",
@@ -144,8 +144,8 @@
     },
     {
       "path": "d1/a3-knights-elite/golden.br",
-      "bytes": 44044,
-      "sha256": "5c6fa6e11b51c79cb4c4fda35eeaf807d4a3cf41ebd0c842f36f5c2ae4301e9e"
+      "bytes": 44035,
+      "sha256": "7f9db7e2f4bf35c3435d386e1c95c2760c415dd1b703efe6973d84e1356f03fd"
     },
     {
       "path": "d1/a3-knights-elite/meta.json",
@@ -159,8 +159,8 @@
     },
     {
       "path": "d1/a3-mecha-knight-elite/golden.br",
-      "bytes": 41407,
-      "sha256": "c95c84d0739299bae09a3602823a753a705ecdda44d19cb170a26e09aea69ab7"
+      "bytes": 41393,
+      "sha256": "a95e9b46d0f9d0137322cb702ac8d35d552eecad41539e77936c40b5f3e52aca"
     },
     {
       "path": "d1/a3-mecha-knight-elite/meta.json",
@@ -174,8 +174,8 @@
     },
     {
       "path": "d1/a3-owl-magistrate-normal/golden.br",
-      "bytes": 31478,
-      "sha256": "6e9fdf54f27eb94312039c558fe135e054c0bcfd18b69f316b3c9bf8bbb6e79a"
+      "bytes": 31460,
+      "sha256": "22bddd14800b9692be4533a658e66f509a8d7fcd1e0620fa346a89d48e4bfa7b"
     },
     {
       "path": "d1/a3-owl-magistrate-normal/meta.json",
@@ -189,8 +189,8 @@
     },
     {
       "path": "d1/a3-queen-boss/golden.br",
-      "bytes": 43927,
-      "sha256": "44e997869d6623fe3cec5e11d87263ebe7e79d8e6377348acfef499bd4e9357c"
+      "bytes": 43928,
+      "sha256": "0a4fe53d1bfe80020e842bf924bb0875e3b245aef7e59adf576a916601698b0f"
     },
     {
       "path": "d1/a3-queen-boss/meta.json",
@@ -204,8 +204,8 @@
     },
     {
       "path": "d1/a3-queen-chains/golden.br",
-      "bytes": 45450,
-      "sha256": "a89ac2a3b061a5caf9bbc5e140fe2dda241636a72cca616454bd489ca8a95b32"
+      "bytes": 45458,
+      "sha256": "58321d4436a0e3fa1b9544ea2373aed8b874ea861cd1d3c8744488cd6c7e72ab"
     },
     {
       "path": "d1/a3-queen-chains/meta.json",
@@ -219,8 +219,8 @@
     },
     {
       "path": "d1/a3-scrolls-of-biting-normal/golden.br",
-      "bytes": 28564,
-      "sha256": "262d3b5d286c4104dd0b3db8b70199c031a45921082fdf4d93bc457a1f0eee56"
+      "bytes": 28580,
+      "sha256": "b12bc6c87a563eefb25063ae52f0820dc98588e38c87c019085d944a3ae9f29d"
     },
     {
       "path": "d1/a3-scrolls-of-biting-normal/meta.json",
@@ -234,8 +234,8 @@
     },
     {
       "path": "d1/a3-scrolls-of-biting-weak/golden.br",
-      "bytes": 22710,
-      "sha256": "a6f0f827deda75e9d769c47f775a7e15160ebe85118c198a48b771ac42ea00d7"
+      "bytes": 22743,
+      "sha256": "9632b0ba3f6c729a34fb0b49f0499fc7eeab3f93c9fb31057e0da0b2775656c5"
     },
     {
       "path": "d1/a3-scrolls-of-biting-weak/meta.json",
@@ -249,8 +249,8 @@
     },
     {
       "path": "d1/a3-slimed-berserker-normal/golden.br",
-      "bytes": 41808,
-      "sha256": "d410526fa0d6621e95aa2a0b5ebb1e6722ea805b6f561b3046dbe2ffcc2756b4"
+      "bytes": 41844,
+      "sha256": "9ce59cd423fd402d12bd109b419aab6c6ee64c88892271673d1456c9b8a95e1e"
     },
     {
       "path": "d1/a3-slimed-berserker-normal/meta.json",
@@ -264,8 +264,8 @@
     },
     {
       "path": "d1/a3-soul-nexus-elite/golden.br",
-      "bytes": 39838,
-      "sha256": "87d1f9337d7e02aa5be369f31e9a8aa54e65c53c6d81c9024194b3c49f22f11a"
+      "bytes": 39812,
+      "sha256": "0e1880070376e546ae9a51078ca375513c78f58189f0f643d94834b4647765dd"
     },
     {
       "path": "d1/a3-soul-nexus-elite/meta.json",
@@ -279,8 +279,8 @@
     },
     {
       "path": "d1/a3-test-subject-boss/golden.br",
-      "bytes": 23263,
-      "sha256": "17042b9c86b746d1c3e42183767258c140d71e55bc37a241b5aee259d6183fb6"
+      "bytes": 23266,
+      "sha256": "ab5de3f3609540507e021cd878ccacc62a4ed66d1c055c053223bfb160f2ff17"
     },
     {
       "path": "d1/a3-test-subject-boss/meta.json",
@@ -294,8 +294,8 @@
     },
     {
       "path": "d1/a3-the-lost-and-forgotten-normal/golden.br",
-      "bytes": 7601,
-      "sha256": "1e86c9ff98071d9bbb9ddae833fe590e701ff5657b9859956e72f65e16ddd01b"
+      "bytes": 7606,
+      "sha256": "5499136b5815aef4bb24003b6c21bcbeb0494a8f5a9948ea84c5ee76dc20a5e3"
     },
     {
       "path": "d1/a3-the-lost-and-forgotten-normal/meta.json",
@@ -309,8 +309,8 @@
     },
     {
       "path": "d1/a3-turret-operator-weak/golden.br",
-      "bytes": 1781,
-      "sha256": "51819cd51cc6a0ff3ec29de5ca3edb4581a768ed4748a195a8b6af717c74ce46"
+      "bytes": 1772,
+      "sha256": "fa7658567b353ed00db09cd1445070e8d16138c95e420047f420884830431d95"
     },
     {
       "path": "d1/a3-turret-operator-weak/meta.json",
@@ -325,7 +325,7 @@
     {
       "path": "d1/c1-choice-cards/golden.br",
       "bytes": 28995,
-      "sha256": "9e12e256ce3733341635fac9c415d4d243c492bc48653507e235548a51f0941e"
+      "sha256": "e1d6a8390212da8537d6d7fe7a89aec9ed02634960448b0fb72f144ef1aea0c8"
     },
     {
       "path": "d1/c1-choice-cards/meta.json",
@@ -339,8 +339,8 @@
     },
     {
       "path": "d1/cx-a-enchantments/golden.br",
-      "bytes": 2507,
-      "sha256": "6fee2dcc895497bde9d6173c137e58f9275eac265bf208b6cc58563d46646af3"
+      "bytes": 2497,
+      "sha256": "3fc66524ffd65bce648e112fe4ef542c91536d4a946ff86a99fb7e233ef6a33d"
     },
     {
       "path": "d1/cx-a-enchantments/meta.json",
@@ -354,8 +354,8 @@
     },
     {
       "path": "d1/cx-b-melancholy/golden.br",
-      "bytes": 2242,
-      "sha256": "81fc159933b444a9522f5f4ee2c6d8b69faa820334160cc2f1039448957c42b8"
+      "bytes": 2255,
+      "sha256": "71143518eb7cabfb1bc312a2d94fd3f6f71c3dc9c72383adf796cf5d2b0809e6"
     },
     {
       "path": "d1/cx-b-melancholy/meta.json",
@@ -369,8 +369,8 @@
     },
     {
       "path": "d1/df-a-orbs/golden.br",
-      "bytes": 46818,
-      "sha256": "5a4dec78c0bbd9f7ee0abb122b9eab2a37535ab01b820e85f9a94151be0e7335"
+      "bytes": 46845,
+      "sha256": "7e53c803056075899e818323ed0190e555d46c6a5a1adccbe27abbd022526fa6"
     },
     {
       "path": "d1/df-a-orbs/meta.json",
@@ -384,8 +384,8 @@
     },
     {
       "path": "d1/df-b-attacks/golden.br",
-      "bytes": 49390,
-      "sha256": "5871bd5b9b94360666d619b6ec75281e81915609cd1e3f91e582031847526a13"
+      "bytes": 49369,
+      "sha256": "cd78767a6b8cc6c1b5baa05ed856d7f30f1b5e97b0ef57ebde6161b9d8548312"
     },
     {
       "path": "d1/df-b-attacks/meta.json",
@@ -399,8 +399,8 @@
     },
     {
       "path": "d1/df-c-powers/golden.br",
-      "bytes": 25475,
-      "sha256": "ef617eb98bd0c84fb796c4146f064f8af998eb16e3cc19cadcf102e3594df279"
+      "bytes": 25460,
+      "sha256": "14e0ea989385d6afc851e706c551dedce8767f00a41399f0fd404e7135e57c9c"
     },
     {
       "path": "d1/df-c-powers/meta.json",
@@ -414,8 +414,8 @@
     },
     {
       "path": "d1/df-d-generation/golden.br",
-      "bytes": 51994,
-      "sha256": "f3f58df9cccdfdb211b2b6c7cd0afdd20e3a10bc27cad55846b526c5aaa4efc8"
+      "bytes": 51984,
+      "sha256": "d24372c3f27867b36b355f2e99ebb276c4c1fdb0074c05cc94e59893b1a4691f"
     },
     {
       "path": "d1/df-d-generation/meta.json",
@@ -429,8 +429,8 @@
     },
     {
       "path": "d1/df-e-relics/golden.br",
-      "bytes": 43533,
-      "sha256": "b07d404205f28804362c5b640211b3094229061124d6fe8bf88d88d7c67c083b"
+      "bytes": 43572,
+      "sha256": "083ff3fd980fceec4e83cb211480b1febad186cda074eda1dacd1bba23fa5d38"
     },
     {
       "path": "d1/df-e-relics/meta.json",
@@ -444,8 +444,8 @@
     },
     {
       "path": "d1/df-f-starters/golden.br",
-      "bytes": 39340,
-      "sha256": "4abdaf627d3506d060607fd23f48f0ff34449f439201e32d64ba3623aefa87df"
+      "bytes": 39283,
+      "sha256": "94a4ea67d9075ea82e5134ac0fa3fb721c8b223b6de8e77bffba343dfc7f7fbf"
     },
     {
       "path": "d1/df-f-starters/meta.json",
@@ -459,8 +459,8 @@
     },
     {
       "path": "d1/df-g-extra/golden.br",
-      "bytes": 43904,
-      "sha256": "c1780faec4b91f3a5204e8355afa4490624d9ec32aa71bd2ad0bad306dd5d0e9"
+      "bytes": 43894,
+      "sha256": "d3a7cd3c53eb860089e3429b9e442edab230700f522781785596ac83e4dfe4de"
     },
     {
       "path": "d1/df-g-extra/meta.json",
@@ -474,8 +474,8 @@
     },
     {
       "path": "d1/df-h-creator/golden.br",
-      "bytes": 46849,
-      "sha256": "5d65bdaa0a9d4233f6f7f481452937b1334bf0a1a907cda2894b91cc7a222843"
+      "bytes": 46851,
+      "sha256": "6b0a7646c961daaffea501480a3548d968c6a20dea9e0bb38c794998b8d6777b"
     },
     {
       "path": "d1/df-h-creator/meta.json",
@@ -489,8 +489,8 @@
     },
     {
       "path": "d1/dt-doom-fatal-timing/golden.br",
-      "bytes": 791,
-      "sha256": "9a9c639b8deee40e837a491fd55939e6819e28b6ba48d0b981fa5fdb45669a5b"
+      "bytes": 797,
+      "sha256": "8f8ee6e46487591ccc51134eb2dbe792e8ddcbdc28b83946886e016e4779fc44"
     },
     {
       "path": "d1/dt-doom-fatal-timing/meta.json",
@@ -504,8 +504,8 @@
     },
     {
       "path": "d1/dx3-axebot-stock/golden.br",
-      "bytes": 43878,
-      "sha256": "6608a5a6fb20e08a5d250be2a298a404c653e576ae53eff461d30a0b5800529b"
+      "bytes": 43883,
+      "sha256": "aef86a4f4c87f5ca06a0dece32360999d34969d975617c10808292cdfbf0a2db"
     },
     {
       "path": "d1/dx3-axebot-stock/meta.json",
@@ -519,8 +519,8 @@
     },
     {
       "path": "d1/dx3-chains-clone/golden.br",
-      "bytes": 44778,
-      "sha256": "cf16a87be3b5fb03694ff4d4defa6676c28496d6f3e929fcf94d6d97ace2d8ba"
+      "bytes": 44790,
+      "sha256": "e45170e6de9b26aac55b44f33d6bbe07ed061dc23b778c0706a1876d6756b380"
     },
     {
       "path": "d1/dx3-chains-clone/meta.json",
@@ -534,8 +534,8 @@
     },
     {
       "path": "d1/dx3-dampen-level-zero/golden.br",
-      "bytes": 46213,
-      "sha256": "9d90d95a8e976100bf6c3f6f6163d1f5baf2a63a81561b3e017639cee4b4d23f"
+      "bytes": 46198,
+      "sha256": "5787f3a71969d5b1d0afd171ddb9343897ab1f02d529fd2dd8f78abd7703ca3b"
     },
     {
       "path": "d1/dx3-dampen-level-zero/meta.json",
@@ -549,8 +549,8 @@
     },
     {
       "path": "d1/dx3-galvanic/golden.br",
-      "bytes": 18602,
-      "sha256": "ce9f9f21443356d6549e00eae49419e6d9e73b8932f4754faf41712441c9b888"
+      "bytes": 18585,
+      "sha256": "bb1bca78e2068890f9603f000abdce4fb789327ca20d1f1138913a64ce985ee0"
     },
     {
       "path": "d1/dx3-galvanic/meta.json",
@@ -564,8 +564,8 @@
     },
     {
       "path": "d1/dx3-gigantification-pending/golden.br",
-      "bytes": 915,
-      "sha256": "d98924f47c279ea597a5ee7bd71bca5270a1bb825a3e7427a19685935f3e8008"
+      "bytes": 910,
+      "sha256": "8cd771f6ce8c60797cfc473380f93d156c952900adc61041ebce51ee61af6646"
     },
     {
       "path": "d1/dx3-gigantification-pending/meta.json",
@@ -579,8 +579,8 @@
     },
     {
       "path": "d1/dx3-hellraiser-infinite/golden.br",
-      "bytes": 2311,
-      "sha256": "d9f6cacd7fc70cc4780e8d25722a22f9b41727e43086ddb26f9acbfc30e06d28"
+      "bytes": 2317,
+      "sha256": "a497f5e272afe399be841ea0511f4c24e5e50737686ff33e61be6a44d21de307"
     },
     {
       "path": "d1/dx3-hellraiser-infinite/meta.json",
@@ -594,8 +594,8 @@
     },
     {
       "path": "d1/dx3-hellraiser-revive/golden.br",
-      "bytes": 6109,
-      "sha256": "cf6e5d7cb9e5f295c4a3d81cfb57081e8fb7bb240a3fa6288adf13ad7299fd3e"
+      "bytes": 6107,
+      "sha256": "9e765dfb12afa8bc5a62cafb7c18d218a18e241c30b9a8ff6bf160820c8d7aa7"
     },
     {
       "path": "d1/dx3-hellraiser-revive/meta.json",
@@ -609,8 +609,8 @@
     },
     {
       "path": "d1/dx3-lamp-envenom/golden.br",
-      "bytes": 44380,
-      "sha256": "cd3243f22e11f40134760ed499e79ec42e957bcc8de440197fdb6ff2271ed916"
+      "bytes": 44442,
+      "sha256": "518b6bf0f9673165d62c29624ff6e1f52923f9545f06a56dcb1c978b83a2d443"
     },
     {
       "path": "d1/dx3-lamp-envenom/meta.json",
@@ -624,8 +624,8 @@
     },
     {
       "path": "d1/dx3-rampage-dampen/golden.br",
-      "bytes": 45975,
-      "sha256": "b9ba5eb6858195103c9181214a52f36ade8cb8a69b3fa9ea70621f639d8d7ba5"
+      "bytes": 45994,
+      "sha256": "53a80280bcbef39f4f6372135c57c2a1dcdb472e602a64349f533633cbd2938b"
     },
     {
       "path": "d1/dx3-rampage-dampen/meta.json",
@@ -639,8 +639,8 @@
     },
     {
       "path": "d1/dx3-rampart-offroster/golden.br",
-      "bytes": 43621,
-      "sha256": "608c313d7e9e69aaf0a63efcdb8872004a995daf9c2a24fccf3e9dcef74db7fb"
+      "bytes": 43589,
+      "sha256": "fab837602a227f8a2e55b2839630406b180b9888bc67819abd2de99f569abd8b"
     },
     {
       "path": "d1/dx3-rampart-offroster/meta.json",
@@ -654,8 +654,8 @@
     },
     {
       "path": "d1/dx3-scythe-dampen/golden.br",
-      "bytes": 46146,
-      "sha256": "ef8b278d68d65709f8e4a52b67358545a21dba3c8f602f889e4e97d10ed8d062"
+      "bytes": 46112,
+      "sha256": "e29c4ea742f481863ee1050edb4dac49864e5404f364a9de2a59c1a95922db4e"
     },
     {
       "path": "d1/dx3-scythe-dampen/meta.json",
@@ -669,8 +669,8 @@
     },
     {
       "path": "d1/dx3-spawn-initial-log/golden.br",
-      "bytes": 804,
-      "sha256": "1a5f14fd8030ccb508d79c6ab6935b8fecea4bc83fad5e0b46522c58feaf12bb"
+      "bytes": 801,
+      "sha256": "cc8c5c9a9ab2430d9c84504bd23fdce49ba1007dfd1eaf4c583638c39d7155e6"
     },
     {
       "path": "d1/dx3-spawn-initial-log/meta.json",
@@ -684,8 +684,8 @@
     },
     {
       "path": "d1/dx3-vambrace-sly/golden.br",
-      "bytes": 47164,
-      "sha256": "513f1573daa4ece4f8564598f8d17ff1fd11aeeda601227c94aaed5cb547839d"
+      "bytes": 47172,
+      "sha256": "4c42829e010d8164a98859443a35149a90e603154b80fd098169c1e0c3431d48"
     },
     {
       "path": "d1/dx3-vambrace-sly/meta.json",
@@ -699,8 +699,8 @@
     },
     {
       "path": "d1/dx4-drain-upgrade-ending/golden.br",
-      "bytes": 969,
-      "sha256": "6b4afde5a95dc7b768a9215d4db019acdc55a2931366655a4c9dbf6129938518"
+      "bytes": 1055,
+      "sha256": "12d1ecdbf3c826b3e981f5abb4399b0cee631fb9d530a5384b54a43a7246a8bc"
     },
     {
       "path": "d1/dx4-drain-upgrade-ending/meta.json",
@@ -714,8 +714,8 @@
     },
     {
       "path": "d1/dx4-dread-baseline/golden.br",
-      "bytes": 42190,
-      "sha256": "7426ab7ce337eec47aa3ce142d783b57f6c1d9833022964c02cd84dbc6b3b847"
+      "bytes": 42171,
+      "sha256": "031dc56272543871db97003af217181fdb390dadca393b1eed6289353511a97a"
     },
     {
       "path": "d1/dx4-dread-baseline/meta.json",
@@ -729,8 +729,8 @@
     },
     {
       "path": "d1/dx4-sly-identity/golden.br",
-      "bytes": 46997,
-      "sha256": "a64efb3233daa1a9bf129e93e51905be4495944498d93cb00ef498778fd93a39"
+      "bytes": 46927,
+      "sha256": "52118408d20371b162a0d178f433a92ef60b0a81e4a42ecb0cd906461049a6b0"
     },
     {
       "path": "d1/dx4-sly-identity/meta.json",
@@ -744,8 +744,8 @@
     },
     {
       "path": "d1/dx5-battleworn-dummy-v1/golden.br",
-      "bytes": 1005,
-      "sha256": "8699fd0dfabb3f9b62484d027c47a5ff21dd0dd90fa2bebc823b438140f7c953"
+      "bytes": 928,
+      "sha256": "f7dbb33ab9e2b1d5bb0fb607f6615ce858d9267bd18efd407b0b6b9d3bd9b3d8"
     },
     {
       "path": "d1/dx5-battleworn-dummy-v1/meta.json",
@@ -759,8 +759,8 @@
     },
     {
       "path": "d1/dx5-battleworn-dummy-v2/golden.br",
-      "bytes": 924,
-      "sha256": "7096e92d82cd0571b91690a20262cd5ed7e864f37b5c54d16b74459514209705"
+      "bytes": 988,
+      "sha256": "3cf63de01a912788e3834341db43565f26dfeddf5a81fd4b810a00046510cc9c"
     },
     {
       "path": "d1/dx5-battleworn-dummy-v2/meta.json",
@@ -774,8 +774,8 @@
     },
     {
       "path": "d1/dx5-battleworn-dummy-v3/golden.br",
-      "bytes": 930,
-      "sha256": "f5c81687809506857d9861cef031ed9f96a5322b9a13dee23fbcc69fcec6edc6"
+      "bytes": 929,
+      "sha256": "f2c4b86bcf79347f64bb657e82b58eea64098528f9805186e34f338461e038c4"
     },
     {
       "path": "d1/dx5-battleworn-dummy-v3/meta.json",
@@ -789,8 +789,8 @@
     },
     {
       "path": "d1/dx5-history-course-choice/golden.br",
-      "bytes": 43636,
-      "sha256": "19b6fe99a9119db9a5772e1830bc3b142f67dcb5b1607761e0b4c48de8734896"
+      "bytes": 43626,
+      "sha256": "fccc82635808ea90a5863d158a65f65513745d5c3c53a0917386c1b7c8d83db5"
     },
     {
       "path": "d1/dx5-history-course-choice/meta.json",
@@ -804,8 +804,8 @@
     },
     {
       "path": "d1/dx5-history-course/golden.br",
-      "bytes": 40729,
-      "sha256": "44d4e56ca4deb2d53520f0547050e21868e7f9ff2125b6068d928cda5d3fb399"
+      "bytes": 40745,
+      "sha256": "e892ef035bd8d7aa9f34e87a1e515fd7d095f117501692c84d288ca16e353269"
     },
     {
       "path": "d1/dx5-history-course/meta.json",
@@ -819,8 +819,8 @@
     },
     {
       "path": "d1/dx5-pen-nib-sly/golden.br",
-      "bytes": 37591,
-      "sha256": "31e703ca31e28761e13921ac5cf4f59aa5f60875ba277d9970c1da9e1b770aaf"
+      "bytes": 37625,
+      "sha256": "1ed99c01ea68c78b98f372277ab5a2aeab76ea268d7ce0b87dc310d869362d1a"
     },
     {
       "path": "d1/dx5-pen-nib-sly/meta.json",
@@ -834,8 +834,8 @@
     },
     {
       "path": "d1/dx6-dampen-echoing/golden.br",
-      "bytes": 24136,
-      "sha256": "697b7971ba660c31666f8218139c7cf3a5650a30e7a355f41dd94b43390c842f"
+      "bytes": 24170,
+      "sha256": "19960f1a798d12df2f8a3a4d349fac6af37125a69a2123822801242cdc9d2d2a"
     },
     {
       "path": "d1/dx6-dampen-echoing/meta.json",
@@ -849,8 +849,8 @@
     },
     {
       "path": "d1/dx7-distilled-chaos/golden.br",
-      "bytes": 24765,
-      "sha256": "8278f7c2e40fb6aafa77c778a3a1eb49831eb8b20d1629c1b1ad0bc619f1fd85"
+      "bytes": 24767,
+      "sha256": "7010182dc648b469fe5ced540a669371d54643227c59d471c0743d261bfb42cd"
     },
     {
       "path": "d1/dx7-distilled-chaos/meta.json",
@@ -864,8 +864,8 @@
     },
     {
       "path": "d1/dx7-droplet-fetched-power/golden.br",
-      "bytes": 21343,
-      "sha256": "e91dfc0c3e1e015c772eb8ad8eaa3ff16653a3dcdbbfec49b375e733b1157c3e"
+      "bytes": 21342,
+      "sha256": "f89d50cd1c46a89c91038d8183b93989dc51e6e2316c9937635a3270245de463"
     },
     {
       "path": "d1/dx7-droplet-fetched-power/meta.json",
@@ -879,8 +879,8 @@
     },
     {
       "path": "d1/dx7-duplicate-stomp/golden.br",
-      "bytes": 8216,
-      "sha256": "b5e24188605f3c280ad75dcedb553ec09f2d8d6431ca3e5d710ca3c415a8aaa4"
+      "bytes": 8215,
+      "sha256": "08c3f7d2aaef1af2811fd56fd214c2350124f1f2c43081efab00e0a052777ca3"
     },
     {
       "path": "d1/dx7-duplicate-stomp/meta.json",
@@ -894,8 +894,8 @@
     },
     {
       "path": "d1/dx7-end-of-days-shroud/golden.br",
-      "bytes": 12877,
-      "sha256": "a98075063deeb15586ff117583b4aae848ac770270f80e12f10dab87de26da72"
+      "bytes": 12875,
+      "sha256": "7849a49942881c7a1ae77d3d5204f4da4c1a5d04b1027ccdb17c4dad3273e09a"
     },
     {
       "path": "d1/dx7-end-of-days-shroud/meta.json",
@@ -909,8 +909,8 @@
     },
     {
       "path": "d1/ec-a-event-attacks/golden.br",
-      "bytes": 6945,
-      "sha256": "dd75f59362a08ba43fe80d42137e73b4d009f7351442cb8c45952aa15c061b71"
+      "bytes": 6941,
+      "sha256": "4d3be80130d42dc09be03e091939e8c639d1612a0ff65b1848b7f4bceadf7669"
     },
     {
       "path": "d1/ec-a-event-attacks/meta.json",
@@ -924,8 +924,8 @@
     },
     {
       "path": "d1/ec-b-event-skills/golden.br",
-      "bytes": 25464,
-      "sha256": "65b62bba1ae1e763586fd1e288af9714e44de02b2051d97540a71a42a26f242b"
+      "bytes": 25463,
+      "sha256": "5861e7aa6451c71b03ca9f8c427440d323ede58d236b53a4dc1d7518e5f7d1cd"
     },
     {
       "path": "d1/ec-b-event-skills/meta.json",
@@ -939,8 +939,8 @@
     },
     {
       "path": "d1/ec-c-ancient/golden.br",
-      "bytes": 22791,
-      "sha256": "19518a8a525e5b15b6e6b321d8f45ac05c46da4a96e08bfc107120e1629ed20f"
+      "bytes": 22807,
+      "sha256": "5fd5170bf80f3678b00e33cb552480860ab2efa381f5e3d2137f313a9e0580f6"
     },
     {
       "path": "d1/ec-c-ancient/meta.json",
@@ -955,7 +955,7 @@
     {
       "path": "d1/ec-d-quest-token/golden.br",
       "bytes": 24113,
-      "sha256": "baa5f7702712963bbcffb6ba94af10a9a78b67080f534e1810360f2142d64171"
+      "sha256": "ed0100168163d0170b92b57013d189c5e8a9858facf5af8c543ed75bdafcba95"
     },
     {
       "path": "d1/ec-d-quest-token/meta.json",
@@ -969,8 +969,8 @@
     },
     {
       "path": "d1/ec-e-mad-science/golden.br",
-      "bytes": 11302,
-      "sha256": "97046f840757a9424dde662c6a53dcdbb73c7ac3f30a39262aa848cc70c64320"
+      "bytes": 11301,
+      "sha256": "7ddc13de92012cce2817725bf6ccf82fcb45bfa4483527ffe5745482841549a6"
     },
     {
       "path": "d1/ec-e-mad-science/meta.json",
@@ -984,8 +984,8 @@
     },
     {
       "path": "d1/hs-chains-turn-reset/golden.br",
-      "bytes": 41795,
-      "sha256": "4f0bba8cdb5a750c248a7b1831d635d749a220d8723c828b2ab607a7de05e222"
+      "bytes": 41782,
+      "sha256": "77007dab9b751a4a07255274c78861c5c2087a13bb8162b4147b22ab265efb77"
     },
     {
       "path": "d1/hs-chains-turn-reset/meta.json",
@@ -999,8 +999,8 @@
     },
     {
       "path": "d1/hs2-sword-sage-forge/golden.br",
-      "bytes": 19291,
-      "sha256": "2a1119629327522c1720249008f0fce229c70419189a51c183a4581a7e7d093c"
+      "bytes": 19276,
+      "sha256": "8276b7c6e9dc163a445a777027428b67536b2a5de0ef1af8196b4cae02bec318"
     },
     {
       "path": "d1/hs2-sword-sage-forge/meta.json",
@@ -1014,8 +1014,8 @@
     },
     {
       "path": "d1/hs3-calamity-nested/golden.br",
-      "bytes": 26053,
-      "sha256": "555826b384a13504939ae330c252a3d77792bc2907e2eeb3f0b30559bdd3dfc4"
+      "bytes": 26088,
+      "sha256": "5638ccbe2231060ee7232b15327abc5eb82368ab6e01623c0cd00552cde14a94"
     },
     {
       "path": "d1/hs3-calamity-nested/meta.json",
@@ -1029,8 +1029,8 @@
     },
     {
       "path": "d1/hs3-regent13-rolling/golden.br",
-      "bytes": 36966,
-      "sha256": "5182a693aae8094259cfefda319c9e0ef4d325521a62f59d0e27db17879c58b7"
+      "bytes": 36974,
+      "sha256": "ae6cd33b51f6ab5fced3f2d7f7017027791a8a957eeb86befa39b6a8a5b26c41"
     },
     {
       "path": "d1/hs3-regent13-rolling/meta.json",
@@ -1044,8 +1044,8 @@
     },
     {
       "path": "d1/hs3-stoke-hand-cost/golden.br",
-      "bytes": 21539,
-      "sha256": "505e0e84d9f9f30855348fbc6952ff1492cad0efbd53e4fc123076b777d28c00"
+      "bytes": 21527,
+      "sha256": "dff2c33dd78b1a70902b37a5c35cd45d72b892a4f3fde0a43439b28b7c057c63"
     },
     {
       "path": "d1/hs3-stoke-hand-cost/meta.json",
@@ -1059,8 +1059,8 @@
     },
     {
       "path": "d1/hs3-stoke-identity/golden.br",
-      "bytes": 26182,
-      "sha256": "a21730f502bc069ebf8d1f05168fd47c8a090fca7dea2758cf6a86ac9ecb6bac"
+      "bytes": 26172,
+      "sha256": "014c86b568fc2cd3396ef4b3bada47fd241c49857c8a88273ac593fb0f7939db"
     },
     {
       "path": "d1/hs3-stoke-identity/meta.json",
@@ -1074,8 +1074,8 @@
     },
     {
       "path": "d1/hs4-dread-root-dexterity/golden.br",
-      "bytes": 1246,
-      "sha256": "f4def73d195d8b9a319beb2b86e84f2a4d6f650c3c0f31c23c3cbb20aa2db78f"
+      "bytes": 1253,
+      "sha256": "ad27bdcdd6c1668160e18a8208b32953aa007f0c7c8bebd4d9b723faaf2ba9c2"
     },
     {
       "path": "d1/hs4-dread-root-dexterity/meta.json",
@@ -1089,8 +1089,8 @@
     },
     {
       "path": "d1/hs4-testsubject-multiclaw/golden.br",
-      "bytes": 986,
-      "sha256": "22c1288d15503e692b39fb05bae4541ca388d6bed9808853ba31fca30b36d61f"
+      "bytes": 967,
+      "sha256": "82785650e3c0fd7e566ea7792e32f2033f65c15732cda7f0d961169b23c9e4c7"
     },
     {
       "path": "d1/hs4-testsubject-multiclaw/meta.json",
@@ -1104,8 +1104,8 @@
     },
     {
       "path": "d1/id-a-monologue-swordsage/golden.br",
-      "bytes": 6177,
-      "sha256": "c47c3f5d8831b736dd8ee038d9e8fa27264f7e4761aae7790a08613ae959f804"
+      "bytes": 6159,
+      "sha256": "62d3ca49437da8250eb681375d3e181df2ba243726f5153c4131fa9574174cd4"
     },
     {
       "path": "d1/id-a-monologue-swordsage/meta.json",
@@ -1119,8 +1119,8 @@
     },
     {
       "path": "d1/id-b-nightmare-phantom/golden.br",
-      "bytes": 12858,
-      "sha256": "c103101ee2e32cf02b174269fead53d7bce8387551126443feb038e9a2849eea"
+      "bytes": 12829,
+      "sha256": "5792108e13079cb40942fad16b6b293be4393899314c5ea19cbc416dbe19e128"
     },
     {
       "path": "d1/id-b-nightmare-phantom/meta.json",
@@ -1134,8 +1134,8 @@
     },
     {
       "path": "d1/id-c-instanced-powers/golden.br",
-      "bytes": 11688,
-      "sha256": "a909be1a6a2e7b86f2b4f164c82dc5423d99028e64ef7fb410447812c54533f9"
+      "bytes": 11691,
+      "sha256": "2dcde782a5c2daae6e1be9e2c2f9b9bcb034be928b939d71c195657ff465c142"
     },
     {
       "path": "d1/id-c-instanced-powers/meta.json",
@@ -1149,8 +1149,8 @@
     },
     {
       "path": "d1/id-d-fetch-delay/golden.br",
-      "bytes": 14525,
-      "sha256": "3970f42d52b66e08fee8d69075ca8e2641e7e17a1b59312f1dafd1a34dc601cf"
+      "bytes": 14512,
+      "sha256": "86efb6e586885b45fa7a1273679e42c23421f0e9646e6d5251331075d4fe8e43"
     },
     {
       "path": "d1/id-d-fetch-delay/meta.json",
@@ -1164,8 +1164,8 @@
     },
     {
       "path": "d1/id-e-vambrace-lamp/golden.br",
-      "bytes": 7666,
-      "sha256": "376299baa87bf92a1696ba94dece2bddbb916793a091214a11e3f0b88be9b082"
+      "bytes": 7673,
+      "sha256": "45df5cad1801e57a7309e170cfa061a391a921c9d7a23ae270a2852356500ca8"
     },
     {
       "path": "d1/id-e-vambrace-lamp/meta.json",
@@ -1179,8 +1179,8 @@
     },
     {
       "path": "d1/id-f-generation/golden.br",
-      "bytes": 13479,
-      "sha256": "b5a37024b144f51b1ca7fe26bde34f4882b3dae81b5d3ee89156c56e6aebce1e"
+      "bytes": 13454,
+      "sha256": "2d1c219ee439e42df85e687e9907352abd0b66c5e740dc45358a91bf426a14a0"
     },
     {
       "path": "d1/id-f-generation/meta.json",
@@ -1194,8 +1194,8 @@
     },
     {
       "path": "d1/id-g-callofthevoid/golden.br",
-      "bytes": 15379,
-      "sha256": "6bc6412dea9e683c6dacd9165f13e624b852e2bb9b2353d442615b3718d67a8d"
+      "bytes": 15382,
+      "sha256": "fcf1c17b0f2bff94371e6b739fd85503f83aa2a3c3755212aad6e1dbf4b95643"
     },
     {
       "path": "d1/id-g-callofthevoid/meta.json",
@@ -1209,8 +1209,8 @@
     },
     {
       "path": "d1/k2-temporary-strength-artifact/golden.br",
-      "bytes": 7733,
-      "sha256": "7deb1e34429984b0fc4c0a276122460b5b3a72f248589e3843d0ee439d1ba78d"
+      "bytes": 7752,
+      "sha256": "875560c1f7a68a2500ee181c7d62564beaf84a7069217ddc3e33a9e33edc9a1a"
     },
     {
       "path": "d1/k2-temporary-strength-artifact/meta.json",
@@ -1224,8 +1224,8 @@
     },
     {
       "path": "d1/k3-basic-potions/golden.br",
-      "bytes": 17742,
-      "sha256": "a8da6a88649cc90a21e3a5c6d6c3418e71389f8b136ea65e5f80a8e3a7fcccfa"
+      "bytes": 17748,
+      "sha256": "846677e9a539b7cb8bbaadf0e47b348480800b59354e4acd14093873c2395459"
     },
     {
       "path": "d1/k3-basic-potions/meta.json",
@@ -1239,8 +1239,8 @@
     },
     {
       "path": "d1/k4-player-plating-thorns/golden.br",
-      "bytes": 17734,
-      "sha256": "77602e18957a9ecf327344657ee3ebd04bcf58648d66e990059d05c516f30f51"
+      "bytes": 17694,
+      "sha256": "c089c8d32d75be9ac46ce80391fcaca01f4307f1c4eb867bed9ce144c0814957"
     },
     {
       "path": "d1/k4-player-plating-thorns/meta.json",
@@ -1254,8 +1254,8 @@
     },
     {
       "path": "d1/k5-intangible/golden.br",
-      "bytes": 24891,
-      "sha256": "2b167385861051824101ec6a42df046c5e4b6f404126d5b147ebdba4150bfee9"
+      "bytes": 24892,
+      "sha256": "0905109cb046ada30a5ff85adfa0be0f8c24e2babeb96a91913447e279bdc17b"
     },
     {
       "path": "d1/k5-intangible/meta.json",
@@ -1269,8 +1269,8 @@
     },
     {
       "path": "d1/ka-ceremonial-beast-boss/golden.br",
-      "bytes": 40487,
-      "sha256": "23cf1a08685154859256b1f915ad4350561f63661d31f5e19d51e4b17af609aa"
+      "bytes": 40508,
+      "sha256": "0e22724bb5c2e3cfba93732a380a2e4505b916fd139c1a6cb411e7ea74ae08f1"
     },
     {
       "path": "d1/ka-ceremonial-beast-boss/meta.json",
@@ -1284,8 +1284,8 @@
     },
     {
       "path": "d1/ka-infested-prisms-elite/golden.br",
-      "bytes": 41969,
-      "sha256": "e9fc7d2879dc3521e89436e249fd1d6a6879df4c84607bb86044e45c564b65d1"
+      "bytes": 41954,
+      "sha256": "65d20c852fce89584759d32b5ab905103b95fabf4ac21cb03ef533ce4a065864"
     },
     {
       "path": "d1/ka-infested-prisms-elite/meta.json",
@@ -1299,8 +1299,8 @@
     },
     {
       "path": "d1/ka-living-fog-normal/golden.br",
-      "bytes": 23414,
-      "sha256": "720ac3513f2a98adfcea234f8b49026b08a2ffc7dcfb729749b482d93463c6a1"
+      "bytes": 23421,
+      "sha256": "7b886e60a68a9c5bd03c45d8bba1051d213d2d0e96aa11053ec4cffe8f3fae01"
     },
     {
       "path": "d1/ka-living-fog-normal/meta.json",
@@ -1314,8 +1314,8 @@
     },
     {
       "path": "d1/ka-mystic-lighter/golden.br",
-      "bytes": 14569,
-      "sha256": "c976aa3c2c9086e489b921cecc6c3a335f724a98085cc075d4d748503a648efc"
+      "bytes": 14563,
+      "sha256": "a76131594da93e27b59b59398e993e129ad8ec76a47f402f9c3e2d4c3f15c436"
     },
     {
       "path": "d1/ka-mystic-lighter/meta.json",
@@ -1329,8 +1329,8 @@
     },
     {
       "path": "d1/ka-vine-shambler-normal/golden.br",
-      "bytes": 41723,
-      "sha256": "ae503efe15fd6633fb77000341971950b4f384f16e0176a33c054e18f3adf91a"
+      "bytes": 41761,
+      "sha256": "123dba67a0ee24bbde0e0cbf7fd5f4db3d8f6ff33e20757724b942e04c7d2e72"
     },
     {
       "path": "d1/ka-vine-shambler-normal/meta.json",
@@ -1344,8 +1344,8 @@
     },
     {
       "path": "d1/kb-a-thrash-decimal/golden.br",
-      "bytes": 18374,
-      "sha256": "b809cb3880201af5de5e4b57b9607ae79a29dfe68f8cf8aec86633218d68b041"
+      "bytes": 18348,
+      "sha256": "262755d7ef37fda22902e0b42a74db0e231d4c2fb8f76401a0a900c8da093ca7"
     },
     {
       "path": "d1/kb-a-thrash-decimal/meta.json",
@@ -1360,7 +1360,7 @@
     {
       "path": "d1/kb-b-thrash-decimal-upgraded/golden.br",
       "bytes": 16266,
-      "sha256": "076e1239f011dbd3f56deef61c69b30a7c78ab140c94c99437312c4ccbd23444"
+      "sha256": "cf8d95a306b8f77dfa9bddca7269f5127e890ae3a7a79d536a0b5d18a7145c8d"
     },
     {
       "path": "d1/kb-b-thrash-decimal-upgraded/meta.json",
@@ -1374,8 +1374,8 @@
     },
     {
       "path": "d1/kb-c-beatdown-relocate/golden.br",
-      "bytes": 8909,
-      "sha256": "452c5eac9e746ecaece93c4f535e5a2dffffeb1766380daab2e93211373f1bcc"
+      "bytes": 8890,
+      "sha256": "8ce2f55124814e6ec4268b013d37c6a28bfe3e84d7f031fe35a94e0d61029d6d"
     },
     {
       "path": "d1/kb-c-beatdown-relocate/meta.json",
@@ -1389,8 +1389,8 @@
     },
     {
       "path": "d1/kb-d-beatdown-relocate-upgraded/golden.br",
-      "bytes": 10251,
-      "sha256": "9883c8d72e72bf289f38e4a4f257db2075fa74f7dd5e8ee8eb6e78d1848cbf1a"
+      "bytes": 10248,
+      "sha256": "620ccd4c8e1f75dd20606be21e0e0a4969d122f9d9dcf94d4a7b787f076e42d5"
     },
     {
       "path": "d1/kb-d-beatdown-relocate-upgraded/meta.json",
@@ -1404,8 +1404,8 @@
     },
     {
       "path": "d1/kg1-a-autoplay/golden.br",
-      "bytes": 5665,
-      "sha256": "f8b3fb07ff19c279bdf526aad8e97a266b12618bc08bbb048b15e8d5b463dce0"
+      "bytes": 5654,
+      "sha256": "c77183cf367dbc80582e160af8ad6fd85921638cfb02a09b2a3819306697800d"
     },
     {
       "path": "d1/kg1-a-autoplay/meta.json",
@@ -1419,8 +1419,8 @@
     },
     {
       "path": "d1/kg1-b-autoplay-piles/golden.br",
-      "bytes": 14639,
-      "sha256": "2e793bf35b58c3d0024c9d0e584792806a2e3b125a860e2e7a2bd5a3ad59b156"
+      "bytes": 14600,
+      "sha256": "b69ba047ec3b11b095bfcdd3ac6326f9f2f14b8f1e05b58a654d76c488433b39"
     },
     {
       "path": "d1/kg1-b-autoplay-piles/meta.json",
@@ -1434,8 +1434,8 @@
     },
     {
       "path": "d1/kg1-c-transform-jackpot/golden.br",
-      "bytes": 12554,
-      "sha256": "d613c230df4a3dd5ad1ce2d1c19f4c085c53ebfe46a624f453885e99ff0a2646"
+      "bytes": 12544,
+      "sha256": "1bc79d84c3b89acf8f1677a8c13ea8d2ea10e966d6f8fbd95a322b186d438fa4"
     },
     {
       "path": "d1/kg1-c-transform-jackpot/meta.json",
@@ -1449,8 +1449,8 @@
     },
     {
       "path": "d1/kg2-a-corruption-unrelenting/golden.br",
-      "bytes": 18027,
-      "sha256": "adc12d1acfee7b08fd6349c8df37a372f97e0961afbf2059ac710b93c2b55fe2"
+      "bytes": 18008,
+      "sha256": "dc89dd3657e23cb65cd72446be4b69d72e18943f10fc7535d95e216f6e1d1c67"
     },
     {
       "path": "d1/kg2-a-corruption-unrelenting/meta.json",
@@ -1464,8 +1464,8 @@
     },
     {
       "path": "d1/kg2-b-stomp/golden.br",
-      "bytes": 10082,
-      "sha256": "6309a4177de0408ed9fca1c7785baa150a92f38ce869a7f3afef0e239a5856ba"
+      "bytes": 10110,
+      "sha256": "814f04a6274d46ff141bb4414ba0d952d1836efc62a4078892b52f3d64f7ad30"
     },
     {
       "path": "d1/kg2-b-stomp/meta.json",
@@ -1479,8 +1479,8 @@
     },
     {
       "path": "d1/kg2-c-one-two-punch/golden.br",
-      "bytes": 21565,
-      "sha256": "8eb428923db1049714b1cc13d999178d4b5b61c1ea96a3f8fd2af612f9b6cc3e"
+      "bytes": 21560,
+      "sha256": "366f5516513c5711be9d51980bcaf11f90da03aad35f544283d19397334f095e"
     },
     {
       "path": "d1/kg2-c-one-two-punch/meta.json",
@@ -1494,8 +1494,8 @@
     },
     {
       "path": "d1/kg2-d-duplicator/golden.br",
-      "bytes": 19790,
-      "sha256": "f4848861e0c7eefac3d97cad0a80da26c31baa46e1819f00b26be8688665f383"
+      "bytes": 19762,
+      "sha256": "4cf30ac9f0a923c646ba8896cb6f7af8fb0e3185ad0633afbb5d1286da641d51"
     },
     {
       "path": "d1/kg2-d-duplicator/meta.json",
@@ -1509,8 +1509,8 @@
     },
     {
       "path": "d1/kg2-e-vicious/golden.br",
-      "bytes": 49055,
-      "sha256": "48bafc4f972d2cfbda18ecf2c1d40e0f3a9c9928397c82fd55d25a7c1e7ada2a"
+      "bytes": 49042,
+      "sha256": "ddc7f69499e0e0246ac03a773aad81bed7ba04dcf8c4d49b250a931c811f4e30"
     },
     {
       "path": "d1/kg2-e-vicious/meta.json",
@@ -1524,8 +1524,8 @@
     },
     {
       "path": "d1/kg2-f-the-abacus/golden.br",
-      "bytes": 26167,
-      "sha256": "7fd842d770b87086e2d09cab1ec07e350d78c1352e2ae33eadb6afc95aed4a56"
+      "bytes": 26180,
+      "sha256": "9bd0f9f2353c5b1711a46dfc824c73c525d1795d3d2229bad8744bdf2e47eb09"
     },
     {
       "path": "d1/kg2-f-the-abacus/meta.json",
@@ -1539,8 +1539,8 @@
     },
     {
       "path": "d1/kg2-g-chemical-x/golden.br",
-      "bytes": 1119,
-      "sha256": "47fbed4ac3e6d5ee3b68a33ac9d92ebf4800782342bd109fb90ca65e53d90b8a"
+      "bytes": 1134,
+      "sha256": "7cc5ce2009cdaded53f5e79b5da8b7517b79c3891ec84598786072cfd15a9ccd"
     },
     {
       "path": "d1/kg2-g-chemical-x/meta.json",
@@ -1554,8 +1554,8 @@
     },
     {
       "path": "d1/kg2-h-ice-cream/golden.br",
-      "bytes": 26472,
-      "sha256": "951e9a74295eb91710a0f6cd0172834efa5d6530f6047ad8a581b78a2b8f19c0"
+      "bytes": 26479,
+      "sha256": "1e68381017225ca07d892b7802264d39f56ca9f548951eb325a61079ac343b34"
     },
     {
       "path": "d1/kg2-h-ice-cream/meta.json",
@@ -1569,8 +1569,8 @@
     },
     {
       "path": "d1/kg2-i-ruined-helmet/golden.br",
-      "bytes": 31124,
-      "sha256": "4929702235bd88396a956bf4eec16d67c0ad23419cd2d907514a5170876554cb"
+      "bytes": 31102,
+      "sha256": "dc0173c883e8b4c68b186b446e3ba98daaa7f10d826f744cc5b40e7873ae6df3"
     },
     {
       "path": "d1/kg2-i-ruined-helmet/meta.json",
@@ -1584,8 +1584,8 @@
     },
     {
       "path": "d1/kg2-j-ghost-seed/golden.br",
-      "bytes": 18877,
-      "sha256": "50d4f392477f2d318b0bc07a55d0caffaddc5142059dfb012b4acd0a76ac1fae"
+      "bytes": 18892,
+      "sha256": "e83c19a71e8232cc39733dee100e1fdf4eb1cb446aa4208f1c6d5c82185f0dee"
     },
     {
       "path": "d1/kg2-j-ghost-seed/meta.json",
@@ -1599,8 +1599,8 @@
     },
     {
       "path": "d1/kg2-k-tear-asunder/golden.br",
-      "bytes": 28051,
-      "sha256": "cd246af4ec3e87a4a4e68eac72d935ccd872e9fccc31226d9b79cdce8f916522"
+      "bytes": 28030,
+      "sha256": "d6578dc063dab8b5501f2623d7c16d3f227e4e099310d06712f1aeca9633b371"
     },
     {
       "path": "d1/kg2-k-tear-asunder/meta.json",
@@ -1614,8 +1614,8 @@
     },
     {
       "path": "d1/kg2-l-unrelenting/golden.br",
-      "bytes": 12743,
-      "sha256": "ad4c16f7f500e1089cd4f774f9e68e7097c57ec01e75336b73dbdb053d249092"
+      "bytes": 12734,
+      "sha256": "47c866d88eaadc465c657ac0b4c51877eaa9a6db2ed91ffc616062b9595636f1"
     },
     {
       "path": "d1/kg2-l-unrelenting/meta.json",
@@ -1629,8 +1629,8 @@
     },
     {
       "path": "d1/kg2-m-thrash/golden.br",
-      "bytes": 17527,
-      "sha256": "6f0a77a96b6154e03730fc2d258463e9a96ac3d956dfd1ace5fd4398ee5a433a"
+      "bytes": 17503,
+      "sha256": "87d3842f2178a021290eafc2f7c2a7afb6f1292628f307d4019d45762bf306e6"
     },
     {
       "path": "d1/kg2-m-thrash/meta.json",
@@ -1644,8 +1644,8 @@
     },
     {
       "path": "d1/km-fogmog-normal/golden.br",
-      "bytes": 13900,
-      "sha256": "dd5fb2fb9a633087f2ead3efbd95ec3daabd8e306aca485869283d9aad3c0558"
+      "bytes": 13870,
+      "sha256": "c02b2a2f072118d6378687afdd424cb84c5bac98241d9716c587625f08105adb"
     },
     {
       "path": "d1/km-fogmog-normal/meta.json",
@@ -1659,8 +1659,8 @@
     },
     {
       "path": "d1/km-two-tailed-rats-normal/golden.br",
-      "bytes": 33551,
-      "sha256": "174891e2a4e16f01837c25783856dd3e7763c703110624a4e4e40a52833a8269"
+      "bytes": 33568,
+      "sha256": "ddc8c85fe414bc36b9a323b4e66f0cd60a81b6b6cdfb457d9c813868076856fb"
     },
     {
       "path": "d1/km-two-tailed-rats-normal/meta.json",
@@ -1674,8 +1674,8 @@
     },
     {
       "path": "d1/km2-bowlbugs-normal/golden.br",
-      "bytes": 45733,
-      "sha256": "7e52ad2f81e277528606b7c15e092f0571cd3a07e66e366106115fad43b774b0"
+      "bytes": 45744,
+      "sha256": "e6e3f2877cfe5550ef7c99f82d832e72e28dba370b4ef99361ea7236551278fe"
     },
     {
       "path": "d1/km2-bowlbugs-normal/meta.json",
@@ -1689,8 +1689,8 @@
     },
     {
       "path": "d1/km2-bowlbugs-weak/golden.br",
-      "bytes": 21109,
-      "sha256": "adabfb0c8789fce866d1873bbc08254cf12b1b892506196ec63d8508d3e9e2ca"
+      "bytes": 21163,
+      "sha256": "ae7046cda79be94f07dc349237bf28edf80f401e27a28d2cd3b41ff1fbe52eb9"
     },
     {
       "path": "d1/km2-bowlbugs-weak/meta.json",
@@ -1704,8 +1704,8 @@
     },
     {
       "path": "d1/km2-decimillipede/golden.br",
-      "bytes": 43459,
-      "sha256": "8e393f663389d7eacc62dcdbe3ac6c84dbe6aaddf5c983328a8c2b05b65a496e"
+      "bytes": 43471,
+      "sha256": "494407f27dc0c7b8c2ac1a3e6d3f31c00ae8943a86a10a01f8f8028a4efe749b"
     },
     {
       "path": "d1/km2-decimillipede/meta.json",
@@ -1719,8 +1719,8 @@
     },
     {
       "path": "d1/km2-hunter-killer/golden.br",
-      "bytes": 43213,
-      "sha256": "1fe0fc6d80d92a4b308d7adc32bfb231cb566800af23d05c97b9b358570b580d"
+      "bytes": 43228,
+      "sha256": "d2e2917aa78b6f03e5c1b0a434885a0825f8713725ea97c7a5dd8e1f2ba47ab5"
     },
     {
       "path": "d1/km2-hunter-killer/meta.json",
@@ -1734,8 +1734,8 @@
     },
     {
       "path": "d1/km2-kaiser-crab/golden.br",
-      "bytes": 36301,
-      "sha256": "100cb4189e4eb603e6001b20b5f302f2d3388e74ecb3829047bb308bfae7a4ee"
+      "bytes": 36297,
+      "sha256": "2ac16d3312671b882418c553a1588cc48c28e372431cd82bf7d4ede67508913b"
     },
     {
       "path": "d1/km2-kaiser-crab/meta.json",
@@ -1749,8 +1749,8 @@
     },
     {
       "path": "d1/km2-louse-progenitor/golden.br",
-      "bytes": 26198,
-      "sha256": "1de3b5a6729c250ca8aad02349289a8aad738b61f01b59148ee14dce14045f23"
+      "bytes": 26173,
+      "sha256": "e0a826425164dabb59fd902508b98835a73d57e56fb5bd447c41ccb799036d6f"
     },
     {
       "path": "d1/km2-louse-progenitor/meta.json",
@@ -1764,8 +1764,8 @@
     },
     {
       "path": "d1/km2-phrog-parasite/golden.br",
-      "bytes": 27274,
-      "sha256": "cc80bf6b0692611b36ee7eefd760e9cc3f75fd57bcf256d25d1df765aa4e5a4a"
+      "bytes": 27298,
+      "sha256": "a0f79bc29dd9c85fb2601fc9f323e225a37f71ffaf596b6f6b604bb368667a44"
     },
     {
       "path": "d1/km2-phrog-parasite/meta.json",
@@ -1779,8 +1779,8 @@
     },
     {
       "path": "d1/km2-slumbering-beetle/golden.br",
-      "bytes": 41699,
-      "sha256": "4c2032d716e83c23eb5a7983c49ce30fb8d9a85b160e9f1bddb7c71c285c73e7"
+      "bytes": 41718,
+      "sha256": "4c7477bf750e2f09d5ac6f0116c137875475bd078930fff01f2c36f5c002c2ec"
     },
     {
       "path": "d1/km2-slumbering-beetle/meta.json",
@@ -1794,8 +1794,8 @@
     },
     {
       "path": "d1/ks-corpse-slugs-normal/golden.br",
-      "bytes": 20142,
-      "sha256": "2fd086a9e60b40dd59dd634cb637f811e5a3b4c4ad92525d9054e6afe792d99c"
+      "bytes": 20157,
+      "sha256": "8cc555d2f11eedef62868cc9db3822183f2700beadd59dbe07bfe1f47cc9b568"
     },
     {
       "path": "d1/ks-corpse-slugs-normal/meta.json",
@@ -1809,8 +1809,8 @@
     },
     {
       "path": "d1/ks-corpse-slugs-weak/golden.br",
-      "bytes": 13528,
-      "sha256": "c12f264aced9f8730287062ce1ff316112350d7917db9f607720496a6768a57d"
+      "bytes": 13519,
+      "sha256": "e33c6982f2d5a06bf7acad54ced8630ce2b34b0f97af2006bdfa32f757ec0b4d"
     },
     {
       "path": "d1/ks-corpse-slugs-weak/meta.json",
@@ -1824,8 +1824,8 @@
     },
     {
       "path": "d1/ks-lagavulin-matriarch-boss/golden.br",
-      "bytes": 41853,
-      "sha256": "c97c2fb335b58c03e669035515bc4b003f93e1de1aea563f9a45234903f1452a"
+      "bytes": 41869,
+      "sha256": "7b45bc74d20e616edf371b1180fcabcd1f21872b164bded5ca3f4d1102205077"
     },
     {
       "path": "d1/ks-lagavulin-matriarch-boss/meta.json",
@@ -1839,8 +1839,8 @@
     },
     {
       "path": "d1/ks-terror-eel-elite/golden.br",
-      "bytes": 32940,
-      "sha256": "bbbb2d84f67104baa6c69ef1ea90559a3bf9a4e97062161a2cee92f99d1ba174"
+      "bytes": 32958,
+      "sha256": "6c1936432d43736667fbc67aef77707b9364c734a84454f2d6eaec7f1f04f4cb"
     },
     {
       "path": "d1/ks-terror-eel-elite/meta.json",
@@ -1854,8 +1854,8 @@
     },
     {
       "path": "d1/lr-a-choices/golden.br",
-      "bytes": 13941,
-      "sha256": "9d6c8605bfed392627075e1fc6e824ba63d592557ad9bed0f1395c3360cca04f"
+      "bytes": 13915,
+      "sha256": "e492a262fcf305766fccb936ec49929ff5f2c434a76d5960842bb0cf98cf63b9"
     },
     {
       "path": "d1/lr-a-choices/meta.json",
@@ -1869,8 +1869,8 @@
     },
     {
       "path": "d1/lr-b-decisions/golden.br",
-      "bytes": 19627,
-      "sha256": "5b07a30700aa8e0dccd511dd373bd061f061e0ece114ade1ac444652f93938a9"
+      "bytes": 19620,
+      "sha256": "d44ba257ca61a4d55eb0e782fabe411032801ac10e74d6b3784c373625b57332"
     },
     {
       "path": "d1/lr-b-decisions/meta.json",
@@ -1884,8 +1884,8 @@
     },
     {
       "path": "d1/lr-c1-history/golden.br",
-      "bytes": 4377,
-      "sha256": "00d3e0e57da2561ade5b0d7849263df296ae489840a705ff64aa5c05bac0af6d"
+      "bytes": 4381,
+      "sha256": "0d23fa756be2dea56dd5a0abd7e48ac3ca224a824a028542adc471bcba40822a"
     },
     {
       "path": "d1/lr-c1-history/meta.json",
@@ -1899,8 +1899,8 @@
     },
     {
       "path": "d1/lr-c2-generation/golden.br",
-      "bytes": 9837,
-      "sha256": "1b3106989f0b7f51748d9bc085e71ae6b4f046d0c3c812b89363e532646c3f7b"
+      "bytes": 9839,
+      "sha256": "664b72529708e05a44dcd94e66801ff87124a04d551d229cff04db1570f08390"
     },
     {
       "path": "d1/lr-c2-generation/meta.json",
@@ -1914,8 +1914,8 @@
     },
     {
       "path": "d1/ls-a-silent-attacks/golden.br",
-      "bytes": 50286,
-      "sha256": "8b16c5717f72c7104677f91a555f97454bc7a19187772db572d707c440baf7fc"
+      "bytes": 50288,
+      "sha256": "dd5e12a8a8c7143d9b47d6d9508dd102b7f6df517bcbe5c16a27a088f375f04e"
     },
     {
       "path": "d1/ls-a-silent-attacks/meta.json",
@@ -1929,8 +1929,8 @@
     },
     {
       "path": "d1/ls-b-silent-powers/golden.br",
-      "bytes": 21640,
-      "sha256": "345eff9b688b723eb97fd54c93b9e135732328a8da4f554101a86ca1135154a5"
+      "bytes": 21643,
+      "sha256": "72402c5b6cf23d30571316aeb9812064c795f2e09a733e9a810b46a5d0cc10c4"
     },
     {
       "path": "d1/ls-b-silent-powers/meta.json",
@@ -1944,8 +1944,8 @@
     },
     {
       "path": "d1/ls-c-the-hunt/golden.br",
-      "bytes": 1180,
-      "sha256": "aad5484d3c4b65e35ff2eecb73518a08bf92197c71f4a59c7126f915d3778094"
+      "bytes": 1171,
+      "sha256": "edc9f040f8f551ea996b52d2425ceab038a92d8079ecb0882891d5564ade1751"
     },
     {
       "path": "d1/ls-c-the-hunt/meta.json",
@@ -1959,8 +1959,8 @@
     },
     {
       "path": "d1/ls-d-necro/golden.br",
-      "bytes": 39691,
-      "sha256": "3920afcb47c1f6559fd172002afaa2ffc297182dc7e52f0a8f499aa0cf3fcf00"
+      "bytes": 39701,
+      "sha256": "10dc8c4ab89fa7b61efa932794914ede5e704d0c42970e9e36a295ee293d1a4a"
     },
     {
       "path": "d1/ls-d-necro/meta.json",
@@ -1974,8 +1974,8 @@
     },
     {
       "path": "d1/ls-e-defect/golden.br",
-      "bytes": 8244,
-      "sha256": "e6872ddddcbe37b99667e50925f3ff022f12019b5232be2453fd48adbeda7356"
+      "bytes": 8245,
+      "sha256": "e72bae8735f6afbc319028039f95ee7caec44a2c710eba8f4389060cde469ffa"
     },
     {
       "path": "d1/ls-e-defect/meta.json",
@@ -1990,7 +1990,7 @@
     {
       "path": "d1/ls-g-mirage/golden.br",
       "bytes": 4177,
-      "sha256": "cd8369386572aa46967faa8c3dd76f160a51f8a89c5b70f92290d3e821dbc2d7"
+      "sha256": "acdc6d1a009ffdfd1a71d11354eaff90ecf84adb31e3124d1e555a5788dbedc7"
     },
     {
       "path": "d1/ls-g-mirage/meta.json",
@@ -2004,8 +2004,8 @@
     },
     {
       "path": "d1/ls-h-reptile/golden.br",
-      "bytes": 19921,
-      "sha256": "5daf722ed7a0234c512473d3438f32401f92b97403ba096858f9dad94b46b9ee"
+      "bytes": 19924,
+      "sha256": "73b2740a276b2a6262f796a8dd0d284977cc95996b0a5e4a97dd3820aa3bf64e"
     },
     {
       "path": "d1/ls-h-reptile/meta.json",
@@ -2019,8 +2019,8 @@
     },
     {
       "path": "d1/mb-entropic-brew/golden.br",
-      "bytes": 30324,
-      "sha256": "acf591c616f8223181b2bffdffb82699ed511fc7838b29bbfd39a96b5289d10c"
+      "bytes": 30288,
+      "sha256": "4ad20e0b7e040730f25eec9338088afb86808baf214460670e74583d0aa03636"
     },
     {
       "path": "d1/mb-entropic-brew/meta.json",
@@ -2034,8 +2034,8 @@
     },
     {
       "path": "d1/mb-insatiable/golden.br",
-      "bytes": 35276,
-      "sha256": "c5e76e555dc8373f44c2e97188c177d6e39f9fbcc755d62543fd82566462904c"
+      "bytes": 35307,
+      "sha256": "e2b3c9d13fcd8d892d4b119cc11cb609d753561632feb8461557222317520b32"
     },
     {
       "path": "d1/mb-insatiable/meta.json",
@@ -2049,8 +2049,8 @@
     },
     {
       "path": "d1/mb-knowledge-demon/golden.br",
-      "bytes": 44343,
-      "sha256": "e136330c74a35b8a144810bf02861d223ab0443348ec480c5fb124eaa03d9040"
+      "bytes": 44330,
+      "sha256": "2b3fb6d422bd5b1874907d8f6d83993d770b20411a8998aa41e996d0b244185c"
     },
     {
       "path": "d1/mb-knowledge-demon/meta.json",
@@ -2064,8 +2064,8 @@
     },
     {
       "path": "d1/nb-a-osty/golden.br",
-      "bytes": 33740,
-      "sha256": "c2fab3e511e7dde5c6fe82ff6c48e253abfa79b6f1881a943424abf3817ff956"
+      "bytes": 33720,
+      "sha256": "c00363b7808c29a0216937127548b0b8b7e4a2630a4a0fccb2cc8adf79b386dd"
     },
     {
       "path": "d1/nb-a-osty/meta.json",
@@ -2079,8 +2079,8 @@
     },
     {
       "path": "d1/nb-b-doom/golden.br",
-      "bytes": 20971,
-      "sha256": "6c2db6f7567506a40fbfa885619f96f05c52c03df1f156fc0bd1c6fabe6477a0"
+      "bytes": 20962,
+      "sha256": "aa45a58a4cb9ade0fcc893c7998653b56aa934d489f66bb6dfb6ff54fee38209"
     },
     {
       "path": "d1/nb-b-doom/meta.json",
@@ -2094,8 +2094,8 @@
     },
     {
       "path": "d1/nb-c-utility/golden.br",
-      "bytes": 56904,
-      "sha256": "e20c9932307cfbbe281f3b97badb90da8560ffee56c1f741b72a6ec84eeda6a8"
+      "bytes": 56982,
+      "sha256": "595d16b43260025f55d90e77075c95776d0dcb87d3ed116210ca10e2a287b795"
     },
     {
       "path": "d1/nb-c-utility/meta.json",
@@ -2109,8 +2109,8 @@
     },
     {
       "path": "d1/nb-d-powers/golden.br",
-      "bytes": 46029,
-      "sha256": "d21c56610a7685cb7fc63db20d5dc960ff1d0446d1bfe2269da21b51b04ccb56"
+      "bytes": 46040,
+      "sha256": "537f18134b39786a05e9bc8d4c33665080346b79a728c2be73aab1647eed430b"
     },
     {
       "path": "d1/nb-d-powers/meta.json",
@@ -2124,8 +2124,8 @@
     },
     {
       "path": "d1/nb-g-utility2/golden.br",
-      "bytes": 34356,
-      "sha256": "9b1fa071c72ebc16c4647d1fd3b0ae69a66119ee946d6b47bbd0ed96313f399a"
+      "bytes": 34362,
+      "sha256": "975a13f5fd578924fe02581b3337d20700cabf7beaeda6bc40baeea9dd276407"
     },
     {
       "path": "d1/nb-g-utility2/meta.json",
@@ -2139,8 +2139,8 @@
     },
     {
       "path": "d1/nb-h-powers3/golden.br",
-      "bytes": 32976,
-      "sha256": "15c2b924773b016711a05f115810548c68165a8a6cbe988c7f2e03070cd294d7"
+      "bytes": 32946,
+      "sha256": "0c82af36905c069b6356e37ca0db055dba334dec4f2dbb415e8c0300a0ad0cac"
     },
     {
       "path": "d1/nb-h-powers3/meta.json",
@@ -2154,8 +2154,8 @@
     },
     {
       "path": "d1/nb-i-sacrifice/golden.br",
-      "bytes": 42076,
-      "sha256": "fb1e15afda5a5592b2e635cf57628d24352f66c9aeeb068a5c437c1042c0e2ea"
+      "bytes": 42169,
+      "sha256": "6ed8dfffbfe6f70edc18ea1edf7268a1d1c607042f8ccf76f30a5ca1b696aff3"
     },
     {
       "path": "d1/nb-i-sacrifice/meta.json",
@@ -2170,7 +2170,7 @@
     {
       "path": "d1/nb-j-eidolon/golden.br",
       "bytes": 30297,
-      "sha256": "0952371942e784f12be8d5d9ba52ed2ab67e1e174b41ed3ff5138d65aea3823b"
+      "sha256": "9e2734cecd6e9a0fcd6e521ddfd10aa3e8b8f4963e1459dd1ee60c1971145ffa"
     },
     {
       "path": "d1/nb-j-eidolon/meta.json",
@@ -2184,8 +2184,8 @@
     },
     {
       "path": "d1/nb-k-doomkill/golden.br",
-      "bytes": 4226,
-      "sha256": "13b5ae0d72d5a6cfa6800ab08a0f6680024e93f25ba368c1d3f535aa0f7cede5"
+      "bytes": 4222,
+      "sha256": "ea1a9615c02bd1b1567536aff013981ad9531d25f5f82ee1c0ce4f2c0d49d345"
     },
     {
       "path": "d1/nb-k-doomkill/meta.json",
@@ -2199,8 +2199,8 @@
     },
     {
       "path": "d1/nb-l-osty-defense/golden.br",
-      "bytes": 44392,
-      "sha256": "248b8f247c73957f2379e7089ee66d0c76fdc4961ebec8555dc93183bec76447"
+      "bytes": 44347,
+      "sha256": "fdf5bb48f1f478420025ee3ff856692410f4deb5faa3204faf314a5eb6f90527"
     },
     {
       "path": "d1/nb-l-osty-defense/meta.json",
@@ -2214,8 +2214,8 @@
     },
     {
       "path": "d1/p1-fuzzy-wurm-weak/golden.br",
-      "bytes": 8215,
-      "sha256": "a94fa7f4c43b45a809e0c8df7b7ad454c14ba2cc164578c58b32e0016b9ea582"
+      "bytes": 8213,
+      "sha256": "914c2db78953a1be34ceac68ee2b928c47b374fcbc5d266049c62407b87022cd"
     },
     {
       "path": "d1/p1-fuzzy-wurm-weak/meta.json",
@@ -2229,8 +2229,8 @@
     },
     {
       "path": "d1/p1-nibbits-normal/golden.br",
-      "bytes": 16015,
-      "sha256": "3b8149d7b666069554f901a96b91f3908c483da2eb7761f5e39c764db262c50b"
+      "bytes": 16056,
+      "sha256": "1091672d41ef3f9f2ea88c3c98795c68947e4f10277a9b685400cd26ab16ecc4"
     },
     {
       "path": "d1/p1-nibbits-normal/meta.json",
@@ -2245,7 +2245,7 @@
     {
       "path": "d1/p1-nibbits-weak/golden.br",
       "bytes": 5829,
-      "sha256": "d2338bdbb6692c547e2da1df758a62b4a2bdb22aa2693c7d8cf6bcb9b4fa5cf5"
+      "sha256": "5c3199526ec700d85032938ac57df1448bf939da6b1dbac0f8a851ea2b4a7cce"
     },
     {
       "path": "d1/p1-nibbits-weak/meta.json",
@@ -2259,8 +2259,8 @@
     },
     {
       "path": "d1/p10-a-turn-end-status/golden.br",
-      "bytes": 38647,
-      "sha256": "5351708714db4b6e40ef8f750ff6a51aeda70afc91fe5bd6d6068de48b807f9f"
+      "bytes": 38636,
+      "sha256": "7fb8757bcc6e760e919cc2b7c4a166279457b3040884e4279ac6ffd84240c394"
     },
     {
       "path": "d1/p10-a-turn-end-status/meta.json",
@@ -2274,8 +2274,8 @@
     },
     {
       "path": "d1/p10-b-turn-end-curses/golden.br",
-      "bytes": 40366,
-      "sha256": "95a9df027c067810756576c46b25f948692538ac9c54417757fff5207173cd45"
+      "bytes": 40360,
+      "sha256": "08ad9de2a0cc8a4fd0a890616aed0332e1e59ef58d567d02c51b0cc9487e5046"
     },
     {
       "path": "d1/p10-b-turn-end-curses/meta.json",
@@ -2289,8 +2289,8 @@
     },
     {
       "path": "d1/p10-c-empty-status/golden.br",
-      "bytes": 35901,
-      "sha256": "36d524619e1b565e5ba43f64be669b4db402d4c0e3d0fdb47cf498a81707f95b"
+      "bytes": 35903,
+      "sha256": "ac159825b2413658f922b5d4da79bb0b469df9272b75626ad278800ccc1aa7fc"
     },
     {
       "path": "d1/p10-c-empty-status/meta.json",
@@ -2304,8 +2304,8 @@
     },
     {
       "path": "d1/p10-d-empty-curses/golden.br",
-      "bytes": 35992,
-      "sha256": "baa4289c56fd4a102c48c1b8ed7731374861388bfc1dfd38b22a88e0c349effa"
+      "bytes": 35981,
+      "sha256": "bcfa81cb289bef2ef5d0076ac490ed8f1a0816850b205f1a500f3d1f224b2e3a"
     },
     {
       "path": "d1/p10-d-empty-curses/meta.json",
@@ -2319,8 +2319,8 @@
     },
     {
       "path": "d1/p11-a-beating-remnant/golden.br",
-      "bytes": 9922,
-      "sha256": "a441fca524756e35b7b36c9046fda077db07aec9227006ec6edde0a7ba6a0768"
+      "bytes": 9928,
+      "sha256": "e28e09d4e221a9b40bf85e284191c702f76cecc86e52e802f7f7952e9ad2a91c"
     },
     {
       "path": "d1/p11-a-beating-remnant/meta.json",
@@ -2334,8 +2334,8 @@
     },
     {
       "path": "d1/p11-b-lizard-tail/golden.br",
-      "bytes": 6580,
-      "sha256": "3a13a9401864f1791f36d61026647e45badd0316714f6ed95c1a8771141da616"
+      "bytes": 6570,
+      "sha256": "b48b7e83418a4725a187acd900a7e2f5b0d47ce5c287826e87f63acf957286f5"
     },
     {
       "path": "d1/p11-b-lizard-tail/meta.json",
@@ -2349,8 +2349,8 @@
     },
     {
       "path": "d1/p11-c-red-skull/golden.br",
-      "bytes": 3588,
-      "sha256": "a44866e1bec556032eb5161982afff3329be7309484b82ce56f869aa88e47146"
+      "bytes": 3580,
+      "sha256": "ff1edbab1bb01d51a007326700b9d65ea1ea8734252750d504b6bdc40200cb7a"
     },
     {
       "path": "d1/p11-c-red-skull/meta.json",
@@ -2364,8 +2364,8 @@
     },
     {
       "path": "d1/p11-d-potions/golden.br",
-      "bytes": 30728,
-      "sha256": "cc94f5e92bbf786198dcb7d91f86ad37a73096e65121bbc9c49ef47589323ac0"
+      "bytes": 30731,
+      "sha256": "a5194fc0c476c21e14bbc58df33a7f4b173f1641f9e595fafe45a32393f3874c"
     },
     {
       "path": "d1/p11-d-potions/meta.json",
@@ -2379,8 +2379,8 @@
     },
     {
       "path": "d1/p11-e-status-cards/golden.br",
-      "bytes": 35820,
-      "sha256": "0e964c85c188ffb16ad4124e89e69cb32e751629e6bb10e491f3c61d889bed12"
+      "bytes": 35847,
+      "sha256": "0a5a8947a8e157b47caad373f9fdc656ec87fa677e97db9d4745e387cd8aa129"
     },
     {
       "path": "d1/p11-e-status-cards/meta.json",
@@ -2394,8 +2394,8 @@
     },
     {
       "path": "d1/p11-f-enthralled/golden.br",
-      "bytes": 35119,
-      "sha256": "69a95e495c7b023b6c373a41268d549f4f5141cdd8f7a5cb01f8f18831ade79b"
+      "bytes": 35107,
+      "sha256": "b8af8f2903aa22e83dc59bd1d30f6a04f4ec633f3ba0a6e171aeaffd1cffdba2"
     },
     {
       "path": "d1/p11-f-enthralled/meta.json",
@@ -2409,8 +2409,8 @@
     },
     {
       "path": "d1/p11-g-normality/golden.br",
-      "bytes": 22780,
-      "sha256": "5bea8008848c097ec51d682af5fbd51d755b6c7eec1c65590294f1192987ed10"
+      "bytes": 22792,
+      "sha256": "27edd36144887d488baf981b566a36b4e9223fa2127933af5cac95187f88fc53"
     },
     {
       "path": "d1/p11-g-normality/meta.json",
@@ -2424,8 +2424,8 @@
     },
     {
       "path": "d1/p11-h-bygone-effigy-kill/golden.br",
-      "bytes": 3100,
-      "sha256": "5fe9b31f657fbe816a290563b0bbbcc81bcdb6a840087ff025909b840823b6e1"
+      "bytes": 3115,
+      "sha256": "1da15cb279d61f89e6347d27d0c7993111ce68aba6868dee2c98b60deb618370"
     },
     {
       "path": "d1/p11-h-bygone-effigy-kill/meta.json",
@@ -2439,8 +2439,8 @@
     },
     {
       "path": "d1/p12-phantasmal-gardeners-elite/golden.br",
-      "bytes": 33288,
-      "sha256": "3c22c535640b111e03c32e89ebe64dad7e2887f7a26e8b137e339cfb6d4b1192"
+      "bytes": 33301,
+      "sha256": "16b71476808ec4fb32255ef3a4849fe894d0157d58730c1dbe75866019ea911c"
     },
     {
       "path": "d1/p12-phantasmal-gardeners-elite/meta.json",
@@ -2454,8 +2454,8 @@
     },
     {
       "path": "d1/p12-skulking-colony-elite/golden.br",
-      "bytes": 29374,
-      "sha256": "3ca261b2a4e672d4067c09d2fbf535f8ce07800dce7bef2d7178c02774fe7f95"
+      "bytes": 29378,
+      "sha256": "d1251e813d7ae18f6affd83527eda6cf1d6d8fe7cbfc4f1f1492029aa46dc9db"
     },
     {
       "path": "d1/p12-skulking-colony-elite/meta.json",
@@ -2469,8 +2469,8 @@
     },
     {
       "path": "d1/p12-soul-fysh-boss/golden.br",
-      "bytes": 39108,
-      "sha256": "5380f9ad5a5046f262801a7cc81966ba81382e174c4af0a08ef7885437bb5e9c"
+      "bytes": 39092,
+      "sha256": "1f4ddb27b3c81a5a535ce7d01de0be10c58fda2f806229a670b54784b46cdc89"
     },
     {
       "path": "d1/p12-soul-fysh-boss/meta.json",
@@ -2484,8 +2484,8 @@
     },
     {
       "path": "d1/p12-the-kin-boss/golden.br",
-      "bytes": 46195,
-      "sha256": "ca47814cfeff10fb25fbbf1245f7a34a29c88a37b481c81576ab8165d6d07f9c"
+      "bytes": 46160,
+      "sha256": "e711d8d91a47060aa5b17f3510cc53f8dd68ba5aaacc37d1800b487f2f56c77d"
     },
     {
       "path": "d1/p12-the-kin-boss/meta.json",
@@ -2499,8 +2499,8 @@
     },
     {
       "path": "d1/p12-vantom-boss/golden.br",
-      "bytes": 32779,
-      "sha256": "f4a04082a08434f6c4bf7753e53f53c086ca48f1548076035c2ba8960c525210"
+      "bytes": 32773,
+      "sha256": "1fc7713224d98f9bd6ad8999f5afa8f240165679c62e7d9f980975a6107dd320"
     },
     {
       "path": "d1/p12-vantom-boss/meta.json",
@@ -2514,8 +2514,8 @@
     },
     {
       "path": "d1/p13-chompers-normal/golden.br",
-      "bytes": 32170,
-      "sha256": "914c150bb504756450a76623a44e7c2a194f3041d6d843e792ffe11cf1d19906"
+      "bytes": 32144,
+      "sha256": "a71d77c74a3e4f01ee409b0fbdc1eeec4d792c698bc975e6b6b1bc5ce0976de4"
     },
     {
       "path": "d1/p13-chompers-normal/meta.json",
@@ -2529,8 +2529,8 @@
     },
     {
       "path": "d1/p13-entomancer-elite/golden.br",
-      "bytes": 25737,
-      "sha256": "8ea10cee28344e50076a35a80e807ace5a454d196f0fe0fe12fd31e20dab5be3"
+      "bytes": 25718,
+      "sha256": "186c917ad96c8d624b5695f1ac41b9d5fcc92817e7921b565c3fc80041f7ca4a"
     },
     {
       "path": "d1/p13-entomancer-elite/meta.json",
@@ -2544,8 +2544,8 @@
     },
     {
       "path": "d1/p13-exoskeletons-normal/golden.br",
-      "bytes": 38906,
-      "sha256": "86acc5d2ec0631bac02d465eaa57ded0727f125e0308020cb17fdd9580fe5efe"
+      "bytes": 38930,
+      "sha256": "fd5db36d8633d5e329b8318985e92d2be27a5936959a417fdedf2e2c085c434a"
     },
     {
       "path": "d1/p13-exoskeletons-normal/meta.json",
@@ -2559,8 +2559,8 @@
     },
     {
       "path": "d1/p13-exoskeletons-weak/golden.br",
-      "bytes": 29427,
-      "sha256": "85c70ef15b748c797bdf171de44c8df7a6c224d4edfa9b2d5ae6e5c6964ff24c"
+      "bytes": 29455,
+      "sha256": "468e0d69596f80c5f90b96fa9318990abdba39fc5c311dd3940118b7ea9a1dce"
     },
     {
       "path": "d1/p13-exoskeletons-weak/meta.json",
@@ -2574,8 +2574,8 @@
     },
     {
       "path": "d1/p13-mytes-normal/golden.br",
-      "bytes": 47451,
-      "sha256": "69ba2964a8f56157794fcdbe5074051ecbfea80742c8b170c24dcbc2535acd58"
+      "bytes": 47482,
+      "sha256": "6c6e648c6c376b1eceef32a6fc3cc96d7102d21baf8b2af4c48d3442bc2f62b6"
     },
     {
       "path": "d1/p13-mytes-normal/meta.json",
@@ -2589,8 +2589,8 @@
     },
     {
       "path": "d1/p13-ovicopter-normal/golden.br",
-      "bytes": 15776,
-      "sha256": "43a0996264e79646401294dcbc762762f1f16bfa308cd64973cc95ced378b7b5"
+      "bytes": 15778,
+      "sha256": "10a19a7633ae59f2076b2e125d9f226ba191db6295b01bb6439c141a18450be6"
     },
     {
       "path": "d1/p13-ovicopter-normal/meta.json",
@@ -2604,8 +2604,8 @@
     },
     {
       "path": "d1/p13-spiny-toad-normal/golden.br",
-      "bytes": 17631,
-      "sha256": "a3258b896ce062808bd04d03543ad19b85e7957e5137e522252cd6a3c95b37a8"
+      "bytes": 17626,
+      "sha256": "53defb4f1126677d71d3ad8ae20190e618e2e90cb2029ed7f468296023ee2d73"
     },
     {
       "path": "d1/p13-spiny-toad-normal/meta.json",
@@ -2619,8 +2619,8 @@
     },
     {
       "path": "d1/p13-the-obscura-normal/golden.br",
-      "bytes": 42105,
-      "sha256": "fb80daa092a5fac6989b4a4cddc7f53e3af68cf580d390313cfabedb378e2b91"
+      "bytes": 42103,
+      "sha256": "e4d5a09d61931e6a081bc5a4f2cce2028d8d4c909f00a653cbc1a63655516eb6"
     },
     {
       "path": "d1/p13-the-obscura-normal/meta.json",
@@ -2634,8 +2634,8 @@
     },
     {
       "path": "d1/p13-tunneler-weak/golden.br",
-      "bytes": 36422,
-      "sha256": "22a3d0a47fdf92005389c42c887469ab7be11c39ea3578a5930d5cb9f6e3b601"
+      "bytes": 36430,
+      "sha256": "bc3d2247cd7a93eb0dc113fba8f1c215c34f26befe051f51d6119639bea74c09"
     },
     {
       "path": "d1/p13-tunneler-weak/meta.json",
@@ -2649,8 +2649,8 @@
     },
     {
       "path": "d1/p14-a-power-cards/golden.br",
-      "bytes": 43814,
-      "sha256": "319710999b336a1e6c8b293ea006c046015aded0826338f40d2d63057f2a0982"
+      "bytes": 43815,
+      "sha256": "9e92770db4ee08aaf3f6ce5612f77568c4ab94142cb4125ec2eb278aa94e7d6c"
     },
     {
       "path": "d1/p14-a-power-cards/meta.json",
@@ -2664,8 +2664,8 @@
     },
     {
       "path": "d1/p14-b-aggression-discard/golden.br",
-      "bytes": 37654,
-      "sha256": "f6cc3449233c518046c40ecf6bdc807ea9f02a81105809d59a5dfad9986a1b9f"
+      "bytes": 37681,
+      "sha256": "da66cc5346731c7d551d5be4cfcf961c2d37d46643baeea24d5f047838f4a6a1"
     },
     {
       "path": "d1/p14-b-aggression-discard/meta.json",
@@ -2679,8 +2679,8 @@
     },
     {
       "path": "d1/p14-c-unmovable-multi-block/golden.br",
-      "bytes": 43106,
-      "sha256": "caa6391e39d2190286b382741f0b11a22f3791e6a5faac44121c22611ee8e91f"
+      "bytes": 43079,
+      "sha256": "59440cfeafb4aad2ab208f6621a49f6a0566015ee8a84620d53f7f4219feebf3"
     },
     {
       "path": "d1/p14-c-unmovable-multi-block/meta.json",
@@ -2694,8 +2694,8 @@
     },
     {
       "path": "d1/p14-d-rupture/golden.br",
-      "bytes": 35577,
-      "sha256": "b5aa4473929336b32b7f1c71a6ae9631da9a11c99b91055ff2736e709bd92cb4"
+      "bytes": 35574,
+      "sha256": "61777cd8346da07e87cb014a222c968cce0b41f48fa32afe617972248c251f74"
     },
     {
       "path": "d1/p14-d-rupture/meta.json",
@@ -2709,8 +2709,8 @@
     },
     {
       "path": "d1/p15-a-skills/golden.br",
-      "bytes": 47105,
-      "sha256": "c2123e68c2418d5c79e120e64c7306068dea4fd9147866ebb40abd9ff21347a7"
+      "bytes": 47068,
+      "sha256": "4a982dc8e38242ca4ac393c212d73721733d7cab9822494e86d5fe49fe0d5d69"
     },
     {
       "path": "d1/p15-a-skills/meta.json",
@@ -2724,8 +2724,8 @@
     },
     {
       "path": "d1/p15-b-draw-search/golden.br",
-      "bytes": 48730,
-      "sha256": "2030447f76f455cf5764d5c80d89132db8826c1d15ca0f690ad8ddfddec05912"
+      "bytes": 48756,
+      "sha256": "15544dfaca50814818c4a670fa105f8d5568be884a7f2730e5a54bb5e209060d"
     },
     {
       "path": "d1/p15-b-draw-search/meta.json",
@@ -2739,8 +2739,8 @@
     },
     {
       "path": "d1/p15-c-turn-powers/golden.br",
-      "bytes": 45661,
-      "sha256": "84541e18a3afde152cc2898bf64b4a98ffea735fbcb6a0c058d44e99b6a7ea2a"
+      "bytes": 45707,
+      "sha256": "24cbefada54d3c60a30d8ed73a4dcd95b76a67fae3bb5a014ebea07d50f6605b"
     },
     {
       "path": "d1/p15-c-turn-powers/meta.json",
@@ -2754,8 +2754,8 @@
     },
     {
       "path": "d1/p15-d-attacks/golden.br",
-      "bytes": 6289,
-      "sha256": "d102cca7d15f891d50f4492bc5473d2d44d3d5c1359ec88d901f207276b4062f"
+      "bytes": 6272,
+      "sha256": "4b491fdb3b62cb79182adf0b68a1a2727c8e9f6d6b26a27a10f016069c3943d4"
     },
     {
       "path": "d1/p15-d-attacks/meta.json",
@@ -2769,8 +2769,8 @@
     },
     {
       "path": "d1/p15-e-attack-skill-mix/golden.br",
-      "bytes": 11076,
-      "sha256": "a3a2b6123bb1fed8c131273221ac0cb119c249f0aeea3ee30113f2bfa257bf6d"
+      "bytes": 11079,
+      "sha256": "f2ed13cb809b5e66308a2b6ccae7671805f9ac1f2e552ff7a8d1ee2070518449"
     },
     {
       "path": "d1/p15-e-attack-skill-mix/meta.json",
@@ -2784,8 +2784,8 @@
     },
     {
       "path": "d1/p15-f-powers-block/golden.br",
-      "bytes": 6466,
-      "sha256": "ebbdee17f62f4277dc94a12c1770d9fd4e6f27ba788e6781978c976a29e0fb04"
+      "bytes": 6463,
+      "sha256": "f21d010267cc51750a79e7b54775af1d0f2eda7877c46f0b2c252d75b05722d9"
     },
     {
       "path": "d1/p15-f-powers-block/meta.json",
@@ -2799,8 +2799,8 @@
     },
     {
       "path": "d1/p15-g-hand-conditions/golden.br",
-      "bytes": 43664,
-      "sha256": "fa60ccba1ccf951113a8420d18812735fb664943e125f741de3e7fc61730d847"
+      "bytes": 43712,
+      "sha256": "6d649a7b1878ca3713c00aa9a2ccc5acf121a7a2a4f1e777a80fcc5c7f2a06b3"
     },
     {
       "path": "d1/p15-g-hand-conditions/meta.json",
@@ -2814,8 +2814,8 @@
     },
     {
       "path": "d1/p15-h-restlessness/golden.br",
-      "bytes": 37499,
-      "sha256": "9034f0aa165b4a8f1eb1631390b726dd28d278e75896180a3055953067496802"
+      "bytes": 37496,
+      "sha256": "b3a2177c8946c4cb7b4cf15222e9729cb44baad8307ff115864d9b9c05c3c065"
     },
     {
       "path": "d1/p15-h-restlessness/meta.json",
@@ -2829,8 +2829,8 @@
     },
     {
       "path": "d1/p16-a-damage-history/golden.br",
-      "bytes": 9242,
-      "sha256": "c68284c1a9e5d5cd3645a5059bbf22f5fa4755168b6c6df2c2eedbd00f325dbc"
+      "bytes": 9261,
+      "sha256": "5caf949254a7c36481d9f481a10de42ca03d2184f53e4ebad843850cfb7c4b6f"
     },
     {
       "path": "d1/p16-a-damage-history/meta.json",
@@ -2844,8 +2844,8 @@
     },
     {
       "path": "d1/p16-b-selection-random/golden.br",
-      "bytes": 19914,
-      "sha256": "89569236856c7b4ba644ba2c5c361d0dd2846217b3fa09a44568b6c7fc08b3ba"
+      "bytes": 19928,
+      "sha256": "071922b26441d4a202739d92cb66be741f580b7d32702fb69608e23462c5c57c"
     },
     {
       "path": "d1/p16-b-selection-random/meta.json",
@@ -2859,8 +2859,8 @@
     },
     {
       "path": "d1/p16-c-instanced-powers/golden.br",
-      "bytes": 11890,
-      "sha256": "5089506fe83b7b6ccab737534fa6ba12d403f503e0ac51785f65bc83e6e2d0f5"
+      "bytes": 11892,
+      "sha256": "6e9a329874046ab8674acd11a587af2bf718125b348883c28fd23319f39276a9"
     },
     {
       "path": "d1/p16-c-instanced-powers/meta.json",
@@ -2874,8 +2874,8 @@
     },
     {
       "path": "d1/p16-d-entropy/golden.br",
-      "bytes": 23310,
-      "sha256": "fe129d36555e2f2ec911c9568a1e011dbcd13cfae38967a8867956d4fc4ace1f"
+      "bytes": 23329,
+      "sha256": "29d855d5595f1d738aabeec4f21dde8192c620ec1f42015c1840c166d7ee3a24"
     },
     {
       "path": "d1/p16-d-entropy/meta.json",
@@ -2889,8 +2889,8 @@
     },
     {
       "path": "d1/p16-potions-character/golden.br",
-      "bytes": 27739,
-      "sha256": "6f18cc44c0d1e4ab3c88cf2ddc4076d7586abf0eab44617c8d7623c766d34bb4"
+      "bytes": 27718,
+      "sha256": "38a549ee25ee5ca67077a1de2a7d3996496ce5639872cd51a8d2b26a4ff78186"
     },
     {
       "path": "d1/p16-potions-character/meta.json",
@@ -2904,8 +2904,8 @@
     },
     {
       "path": "d1/p16-potions-colorless/golden.br",
-      "bytes": 26317,
-      "sha256": "a7377492faf71b9a833ffa051143a66895dfc6ede413a2d0d465a64bcb7fe495"
+      "bytes": 26362,
+      "sha256": "722e86a986fe1d07c91ff51faf1854d600225f272311c7a25e13f8f4ce219bd2"
     },
     {
       "path": "d1/p16-potions-colorless/meta.json",
@@ -2919,8 +2919,8 @@
     },
     {
       "path": "d1/p16-potions-gigantification/golden.br",
-      "bytes": 19606,
-      "sha256": "1a8824b6f1285780c0034065f39aeec387c84d64515dda4b6dceb12157cb776a"
+      "bytes": 19601,
+      "sha256": "09111d8b4d3efbb9171e31306ab031f2a8eb0632e6366b5c1a2aa73c80fe4dc1"
     },
     {
       "path": "d1/p16-potions-gigantification/meta.json",
@@ -2934,8 +2934,8 @@
     },
     {
       "path": "d1/p2-a-basic-attacks/golden.br",
-      "bytes": 9370,
-      "sha256": "a33a7d243f4e4f552eb1b4a36da6cd4f8d10ab8ca8bac6b2954af1e1a4af4c75"
+      "bytes": 9363,
+      "sha256": "e239c7dba783602795405a1ef813857da74133911bc792925689f54b89bd8249"
     },
     {
       "path": "d1/p2-a-basic-attacks/meta.json",
@@ -2949,8 +2949,8 @@
     },
     {
       "path": "d1/p2-b-calculated/golden.br",
-      "bytes": 2125,
-      "sha256": "953037a4073e2205b7536e58ab631c56e65ec0caaa9e2f69d5ae91d70fc6328b"
+      "bytes": 2135,
+      "sha256": "39174663822d3f4bc77e3b0e527b9609f499c9ad365b7e2e99e0460743d5e07e"
     },
     {
       "path": "d1/p2-b-calculated/meta.json",
@@ -2964,8 +2964,8 @@
     },
     {
       "path": "d1/p2-c-powers/golden.br",
-      "bytes": 11854,
-      "sha256": "8fce822a399b85843614721edaaadabb60c316a5280732a53cb056b1ff01ac87"
+      "bytes": 11861,
+      "sha256": "e5944911a34f0632c7fece0e081ec113b9c49f1eca2b5a31b4232a7258cad796"
     },
     {
       "path": "d1/p2-c-powers/meta.json",
@@ -2979,8 +2979,8 @@
     },
     {
       "path": "d1/p2-d-x-random/golden.br",
-      "bytes": 11605,
-      "sha256": "6f76750b4d2a918b0d2035b3c15c0742be6fcb7bebd907b49a4ab0fa10b45b99"
+      "bytes": 11621,
+      "sha256": "f7c7d974c76f593960da5295d49f8d2493605081a3b1660a4059784acc2a8c63"
     },
     {
       "path": "d1/p2-d-x-random/meta.json",
@@ -2994,8 +2994,8 @@
     },
     {
       "path": "d1/p3-a-power-cards/golden.br",
-      "bytes": 6125,
-      "sha256": "3b7cfc576fef4f61f1b812d483b7db691bada03de539c14e6d98de9d9bf17156"
+      "bytes": 6118,
+      "sha256": "905bd97ab3b00018cbc01b48c85d2b73469b6b661a70cdeaaf34634c1dc55bed"
     },
     {
       "path": "d1/p3-a-power-cards/meta.json",
@@ -3009,8 +3009,8 @@
     },
     {
       "path": "d1/p3-b-block-exhaust/golden.br",
-      "bytes": 2503,
-      "sha256": "19dcbc27e9e2fb8c28603bd268bdaaec45b545ba169628646f9b506273239a4c"
+      "bytes": 2521,
+      "sha256": "fbce9e40bc0a88f93d0cec59ade92dc07e4984eda4dee6d62023629a8147b90d"
     },
     {
       "path": "d1/p3-b-block-exhaust/meta.json",
@@ -3024,8 +3024,8 @@
     },
     {
       "path": "d1/p3-c-self-damage/golden.br",
-      "bytes": 14165,
-      "sha256": "e52070a2f671cebad5a0cf3da6c72305853adb6a99ed0c528633d6a411c3dd36"
+      "bytes": 14174,
+      "sha256": "0562dda181b0c0347c3730300e4f781e1102f866941215dd24f4371b05ba125b"
     },
     {
       "path": "d1/p3-c-self-damage/meta.json",
@@ -3040,7 +3040,7 @@
     {
       "path": "d1/p3-d-feed-fatal/golden.br",
       "bytes": 954,
-      "sha256": "747b7cbd23978fa98293c6e3eb7cccef44d343ee89ef1adb5118a00ec6f64e42"
+      "sha256": "bd7b6cc9a07a07f76a25497591fbb9ddc1cf4243028c3bfddd6d70c1fa1672a5"
     },
     {
       "path": "d1/p3-d-feed-fatal/meta.json",
@@ -3054,8 +3054,8 @@
     },
     {
       "path": "d1/p4-a-power-cards/golden.br",
-      "bytes": 11087,
-      "sha256": "bd015ec4948114ceb6e489a3bfeae3609ebed9642a254ca5076602884e23909c"
+      "bytes": 11063,
+      "sha256": "233054e25f6b3a4f6e6ba88b39dc762f40bdcf2c3ca9b0a94dbb68acd9766cb6"
     },
     {
       "path": "d1/p4-a-power-cards/meta.json",
@@ -3069,8 +3069,8 @@
     },
     {
       "path": "d1/p4-b-temporary-powers/golden.br",
-      "bytes": 16650,
-      "sha256": "f6e3618bdaa68fcacd2a16413834321566dbb42ce0ac7e29565a470f359df27a"
+      "bytes": 16645,
+      "sha256": "20e3a6482554bfee92c00e5ca7a6e2d27f96d5981726c461f4969b94d948646d"
     },
     {
       "path": "d1/p4-b-temporary-powers/meta.json",
@@ -3084,8 +3084,8 @@
     },
     {
       "path": "d1/p4-c-attacks/golden.br",
-      "bytes": 16962,
-      "sha256": "b5fb16a62c954f331f5d4cca8dff8ee578d168e4a0be3578f24a2e5ee36526ff"
+      "bytes": 17010,
+      "sha256": "cde66e257d11c599cc02fc8838e8240b6b7b7b8a450184aa3fe9f55ee864a318"
     },
     {
       "path": "d1/p4-c-attacks/meta.json",
@@ -3099,8 +3099,8 @@
     },
     {
       "path": "d1/p4-d-exhaust-draw/golden.br",
-      "bytes": 24077,
-      "sha256": "6e6da01f6829a7f891b00da9bd41ed6134c10f0b402d1f5b36d50e6f2d9e73f8"
+      "bytes": 24087,
+      "sha256": "17bcac5a5328b401f1795c6423cd218844f353581c8b221874fb26ef46a4e05e"
     },
     {
       "path": "d1/p4-d-exhaust-draw/meta.json",
@@ -3114,8 +3114,8 @@
     },
     {
       "path": "d1/p7-class1-a/golden.br",
-      "bytes": 20108,
-      "sha256": "1e2f5d88fc57f85df3ddd2cc4f716f082566de9e0cc0127fb1bc85754aeeb414"
+      "bytes": 20097,
+      "sha256": "4a83170a5fd2e4f418ff62601e9c561b78fb4a883cd99f4941dbbc44613e2fd1"
     },
     {
       "path": "d1/p7-class1-a/meta.json",
@@ -3129,8 +3129,8 @@
     },
     {
       "path": "d1/p7-class1-b/golden.br",
-      "bytes": 21489,
-      "sha256": "b0c5a1d530ab389d035d3ee6b1d9e37f221ebd2fe7a50a2dd8d5e37b1c1f36ef"
+      "bytes": 21535,
+      "sha256": "7b579ca85641ed1b6c849e280f62c7078b8b398aa661c5e625e26c8ac291871e"
     },
     {
       "path": "d1/p7-class1-b/meta.json",
@@ -3144,8 +3144,8 @@
     },
     {
       "path": "d1/p7-class2/golden.br",
-      "bytes": 12531,
-      "sha256": "4692811528cd6b52d272dbf4fa8f6795aaab126b5ee9fb576f039929fda93b3c"
+      "bytes": 12548,
+      "sha256": "45980ef38d612a0b6c712640ba8274381cb3eb723fa1dbc4716822c1b392fb54"
     },
     {
       "path": "d1/p7-class2/meta.json",
@@ -3159,8 +3159,8 @@
     },
     {
       "path": "d1/p7-class3-cards/golden.br",
-      "bytes": 11359,
-      "sha256": "918c59864fd85c24a71254014bc4d40af2650033a765b1a17a793e9c5ebbb1c2"
+      "bytes": 11333,
+      "sha256": "027206e51946151d70f2370c075adb568ec2af7fdd04c2ba1aef08299d37728a"
     },
     {
       "path": "d1/p7-class3-cards/meta.json",
@@ -3174,8 +3174,8 @@
     },
     {
       "path": "d1/p7-class3-empty-hand/golden.br",
-      "bytes": 2079,
-      "sha256": "5dd12847aa038b2304c8794c791dceafcec303c073f0002dcec1b3970eced5d5"
+      "bytes": 2040,
+      "sha256": "9ce9d2ac560c60125014933994997a12db2d15d4dfa375ef9ff70319b6c43766"
     },
     {
       "path": "d1/p7-class3-empty-hand/meta.json",
@@ -3189,8 +3189,8 @@
     },
     {
       "path": "d1/p7-class3-turn2/golden.br",
-      "bytes": 8235,
-      "sha256": "4c3411a0698b7b2cd84238295b1347ef996f62899c6a718d2562fb67622fee26"
+      "bytes": 8228,
+      "sha256": "dba31b5584fad0be648802a0e9fdfb47570b957bfcf9e5c1e553bd3567b40907"
     },
     {
       "path": "d1/p7-class3-turn2/meta.json",
@@ -3204,8 +3204,8 @@
     },
     {
       "path": "d1/p7-class3-turn3/golden.br",
-      "bytes": 22550,
-      "sha256": "5cb94a79662991b0a697a98ef00fd91b1ce619c367aed15ce6daff2364381df5"
+      "bytes": 22557,
+      "sha256": "d37deec5885786d22840bda8baab45e16a3c0273004a37f61a15995d705d39df"
     },
     {
       "path": "d1/p7-class3-turn3/meta.json",
@@ -3219,8 +3219,8 @@
     },
     {
       "path": "d1/p7-class3-turn7/golden.br",
-      "bytes": 2377,
-      "sha256": "b8cc42b283f9c6efb6e3823812052a8487ac9ddd2924d25b576861b799a870a7"
+      "bytes": 2370,
+      "sha256": "dde815b5ec497d7fd8071a7b609435317bf501a0d92c6d2906aa692133325c10"
     },
     {
       "path": "d1/p7-class3-turn7/meta.json",
@@ -3234,8 +3234,8 @@
     },
     {
       "path": "d1/p8-a-counters/golden.br",
-      "bytes": 14432,
-      "sha256": "098209e6b769d4d09fc79849eefe6dd76cc274e77dc9ee49f97af15cd859dc91"
+      "bytes": 14408,
+      "sha256": "172d0b3e920c03f8c663d11e6a00eee3718187f78c236dc4d8acd439992796f5"
     },
     {
       "path": "d1/p8-a-counters/meta.json",
@@ -3249,8 +3249,8 @@
     },
     {
       "path": "d1/p8-b-turn-relics/golden.br",
-      "bytes": 36739,
-      "sha256": "5725c6dc341324febe1e018d0749a1d2aabc776900b803a4eb2d09547a7eb7dc"
+      "bytes": 36757,
+      "sha256": "3f80246b35c9315322a42cb9bf72d4e5e672584efed715dc54c2e28ac82e3f0f"
     },
     {
       "path": "d1/p8-b-turn-relics/meta.json",
@@ -3264,8 +3264,8 @@
     },
     {
       "path": "d1/p8-c-rage-juggling-dark-embrace/golden.br",
-      "bytes": 25732,
-      "sha256": "243c264b1778d7758b06674ce182c9d8ff96d08e8ead05ffb557adbfada6152e"
+      "bytes": 25686,
+      "sha256": "5f0d6b36c1163e750daa375590f24b198a4decd62fcdb7ea3ce9721628089188"
     },
     {
       "path": "d1/p8-c-rage-juggling-dark-embrace/meta.json",
@@ -3279,8 +3279,8 @@
     },
     {
       "path": "d1/p8-d-crimson-inferno/golden.br",
-      "bytes": 8880,
-      "sha256": "6462c8af8a21f4e554803f441282dd48a919c1c127cc216ff27902f00ac7685a"
+      "bytes": 8855,
+      "sha256": "89717b38e1009775eaf04f12266d09f87054814d3e3012e8a36189b31ed56d79"
     },
     {
       "path": "d1/p8-d-crimson-inferno/meta.json",
@@ -3294,8 +3294,8 @@
     },
     {
       "path": "d1/p9-card-flow/golden.br",
-      "bytes": 42199,
-      "sha256": "3a4e950ea73457a8d2a22b9ee3ff1c675de002eacbe6631c60bfa7293a899deb"
+      "bytes": 42200,
+      "sha256": "fb345e6bbe81fc87c24a5607790c8a835fa250668629135d6ee5ce6d6bf82456"
     },
     {
       "path": "d1/p9-card-flow/meta.json",
@@ -3309,8 +3309,8 @@
     },
     {
       "path": "d1/p9-damage/golden.br",
-      "bytes": 36756,
-      "sha256": "d8ccc85e2bcbc0251abce52a673374bc4ea6e350496de52fae738d219e655bc6"
+      "bytes": 36792,
+      "sha256": "48e02a6d8736b3e9ebce7b5a4e717ba175bcc6a1bc3fc5928c3a03a1f65fb769"
     },
     {
       "path": "d1/p9-damage/meta.json",
@@ -3324,8 +3324,8 @@
     },
     {
       "path": "d1/p9-debuff-damage/golden.br",
-      "bytes": 39933,
-      "sha256": "4551a9d064414d855a41c164cfe50f67351f12adeb270f6d3fb5e32593ab7d7a"
+      "bytes": 39890,
+      "sha256": "e8a9b64d159c7ca6e4168dcce995d62fc927cab0fcf27a219a4ea6d6d0e5a64f"
     },
     {
       "path": "d1/p9-debuff-damage/meta.json",
@@ -3339,8 +3339,8 @@
     },
     {
       "path": "d1/p9-defensive-powers/golden.br",
-      "bytes": 39804,
-      "sha256": "46c5d9c09a6236dbec59907e291daa308c496ed2093710ca4ca3faf8f7e0b2c5"
+      "bytes": 39827,
+      "sha256": "476f0726bb36c40160d195c416a971702ee532ebdab2485186bc324ac69635b8"
     },
     {
       "path": "d1/p9-defensive-powers/meta.json",
@@ -3354,8 +3354,8 @@
     },
     {
       "path": "d1/p9-draw/golden.br",
-      "bytes": 42578,
-      "sha256": "e788633522c8c46676b2e0f773a0ac958db5db8b92262b69f01b57ff94cc2426"
+      "bytes": 42572,
+      "sha256": "0463bc5df7b35c80a78631f5a381ae063c94a625c96f64cf835661c2139194dd"
     },
     {
       "path": "d1/p9-draw/meta.json",
@@ -3369,8 +3369,8 @@
     },
     {
       "path": "d1/p9-heal-block/golden.br",
-      "bytes": 44644,
-      "sha256": "4094fef3fb0f9dbf9cc0b47cf5af541772531fcbf7fac779d8ac05168129163f"
+      "bytes": 44659,
+      "sha256": "9a935f86ca7eb894002138dad5c94d049123184e97da7843f7dc309ddcd5939a"
     },
     {
       "path": "d1/p9-heal-block/meta.json",
@@ -3384,8 +3384,8 @@
     },
     {
       "path": "d1/p9-heal/golden.br",
-      "bytes": 31257,
-      "sha256": "c0774ed10dc182dd143b58d770f19ab8570a8576811599b41770bfd70542a862"
+      "bytes": 31258,
+      "sha256": "d36c7908191b85097817066f8fb5c758c38a4c0504422fe447f7b39843346235"
     },
     {
       "path": "d1/p9-heal/meta.json",
@@ -3399,8 +3399,8 @@
     },
     {
       "path": "d1/p9-offensive-powers/golden.br",
-      "bytes": 37376,
-      "sha256": "c788f8ea9845c1843cde7385b724c659fc03a865d21392ba4299a9385e2152ac"
+      "bytes": 37371,
+      "sha256": "96668bb35278b0a1a6022d4c8ab771b8b75fe34df042facdf996a77b1ad9b5ff"
     },
     {
       "path": "d1/p9-offensive-powers/meta.json",
@@ -3414,8 +3414,8 @@
     },
     {
       "path": "d1/p9-replay-select/golden.br",
-      "bytes": 47274,
-      "sha256": "3715bab7003706cbcc3c5c15e7f7f2cc9a5e6d084e9eba4c5eb814c535756ac8"
+      "bytes": 47161,
+      "sha256": "81610294e356965c55f68b6fb00950c620bc055a625a6112333a82e1f7021e69"
     },
     {
       "path": "d1/p9-replay-select/meta.json",
@@ -3429,8 +3429,8 @@
     },
     {
       "path": "d1/p9-stat-powers/golden.br",
-      "bytes": 41069,
-      "sha256": "b6f1df7171892541b654ef7f80e01c2213ae300b7e20731d79e4e948df69c104"
+      "bytes": 41114,
+      "sha256": "77eef1472705c81402fbd185b310514e2422a501b07375020e310ffd152e514e"
     },
     {
       "path": "d1/p9-stat-powers/meta.json",
@@ -3444,8 +3444,8 @@
     },
     {
       "path": "d1/p9-temp-powers/golden.br",
-      "bytes": 38504,
-      "sha256": "ba1dd5dcb468ea9732080df9ff50387d0f26a49b206e0c9cb09a5b3d9482508d"
+      "bytes": 38503,
+      "sha256": "eb6b3f02251a9500d21e2806143266a44dc376f1753566f891172ad6a48674f3"
     },
     {
       "path": "d1/p9-temp-powers/meta.json",
@@ -3459,8 +3459,8 @@
     },
     {
       "path": "d1/p9-upgrade/golden.br",
-      "bytes": 44171,
-      "sha256": "b4e1d357d99326937021036847ab37da40772508396339dc232794b1883e4236"
+      "bytes": 44163,
+      "sha256": "f814b2345d624c6aeedbe1f936f254e5658202f20dcec73efdcd5d7eff315073"
     },
     {
       "path": "d1/p9-upgrade/meta.json",
@@ -3474,8 +3474,8 @@
     },
     {
       "path": "d1/p9-utility-powers/golden.br",
-      "bytes": 46371,
-      "sha256": "4232a79fd3e25f905735d1aac0f2fbda8d0cce906f677cd674a1fa6994564a94"
+      "bytes": 46361,
+      "sha256": "a59635a8726d85ea0af409450cbc68510393ce396b842b865aa057f9f503507f"
     },
     {
       "path": "d1/p9-utility-powers/meta.json",
@@ -3489,8 +3489,8 @@
     },
     {
       "path": "d1/pr-a-potions/golden.br",
-      "bytes": 18393,
-      "sha256": "e79b7b6e002002a7f76bad51f67908c1b269845daf2ae364bea19f3a088a4881"
+      "bytes": 18407,
+      "sha256": "f6462e416a023b90288b44e95c0566c92c3f4839fc1164d8ae48b0f8897fa3c3"
     },
     {
       "path": "d1/pr-a-potions/meta.json",
@@ -3504,8 +3504,8 @@
     },
     {
       "path": "d1/pr-b-potions2/golden.br",
-      "bytes": 18200,
-      "sha256": "64b83865cecbc22b3b522473fba83d26464588889ece0de6ab8f074c7473c026"
+      "bytes": 18199,
+      "sha256": "78665bc11933fce28d0287eef12ff5454b42fdd3270faf36511fd637ece459e0"
     },
     {
       "path": "d1/pr-b-potions2/meta.json",
@@ -3519,8 +3519,8 @@
     },
     {
       "path": "d1/pr-c-relics/golden.br",
-      "bytes": 15526,
-      "sha256": "1a79b954a1004c35f020c658da9c2309ab6c3762df7b29a9eb7a9739e4b7ad5d"
+      "bytes": 15548,
+      "sha256": "c2d34d979977eaa1bafaa831fc19b0435826684d77f7e5f14c86c0fba5f0202f"
     },
     {
       "path": "d1/pr-c-relics/meta.json",
@@ -3534,8 +3534,8 @@
     },
     {
       "path": "d1/pr-d-inert/golden.br",
-      "bytes": 44632,
-      "sha256": "c14cb107a9266b1b83acfcd6708c0b9e7ee066e823a934688a40bdad80204d3e"
+      "bytes": 44608,
+      "sha256": "c71796e0822d71c906ade8000f19bae1aec2a162bd3fa0fa98e5635af378d1cd"
     },
     {
       "path": "d1/pr-d-inert/meta.json",
@@ -3549,8 +3549,8 @@
     },
     {
       "path": "d1/pr-e-osty-doom/golden.br",
-      "bytes": 14595,
-      "sha256": "21cd25a7895434e4c9f056da4df03b76741f5e8245c451c8455ed6b6cd880088"
+      "bytes": 14608,
+      "sha256": "0dd19a77b97dc059a1a4d4722d45d0e334e9e46d6ea7215f73bbbc60e87d9280"
     },
     {
       "path": "d1/pr-e-osty-doom/meta.json",
@@ -3564,8 +3564,8 @@
     },
     {
       "path": "d1/pr-f-whispering/golden.br",
-      "bytes": 1245,
-      "sha256": "e10b52784ef643fb9de9a46bdf5ee16452fd2e725af6e7b6fa17833419924ab7"
+      "bytes": 1211,
+      "sha256": "c8137e3921d53932badb13f8ce5e3e6fb320bcb13c806978b493fb75496fa49c"
     },
     {
       "path": "d1/pr-f-whispering/meta.json",
@@ -3579,8 +3579,8 @@
     },
     {
       "path": "d1/pr-g-orbs/golden.br",
-      "bytes": 7443,
-      "sha256": "8568c1c0a01b0f4a88b16f38c41c6884b4f154ed5a61c672eb16db9680b8f5e3"
+      "bytes": 7457,
+      "sha256": "ff22cd57765eaf3c8cdfa721a78c21fa7ffcb9875f3cd907f5368dc59ac2a562"
     },
     {
       "path": "d1/pr-g-orbs/meta.json",
@@ -3594,8 +3594,8 @@
     },
     {
       "path": "d1/pr-h-potions3/golden.br",
-      "bytes": 18296,
-      "sha256": "b3b8d4e6b4572f2a5f3a335877283ed65841500bb616dbd10ce5753b05157089"
+      "bytes": 18291,
+      "sha256": "2d4439d9d3c12ab034843502aa053eb2ddbda0fffc2c106762d090ebf1d1b34c"
     },
     {
       "path": "d1/pr-h-potions3/meta.json",
@@ -3609,8 +3609,8 @@
     },
     {
       "path": "d1/qf-fisticuffs-replay/golden.br",
-      "bytes": 42050,
-      "sha256": "28ef6c557a221c1784aa2147eca875f179ba355b7bbbbdbfe522dea6273f79da"
+      "bytes": 42048,
+      "sha256": "82a4542f7db08ad0a3fe3152b7ed5195386e2853310841712b55d2abc25a70be"
     },
     {
       "path": "d1/qf-fisticuffs-replay/meta.json",
@@ -3624,8 +3624,8 @@
     },
     {
       "path": "d1/qf-misery-roster/golden.br",
-      "bytes": 18497,
-      "sha256": "525eec5c7316c30dc12af2f66d923e25bd1c33f995839cfac36f749be5a3f70a"
+      "bytes": 18508,
+      "sha256": "b4551eccc0d4690a9a560dd63b97cc1f84ea25f43bbb5be92bc06749f47b69c1"
     },
     {
       "path": "d1/qf-misery-roster/meta.json",
@@ -3639,8 +3639,8 @@
     },
     {
       "path": "d1/qf-negative-pulse-roster/golden.br",
-      "bytes": 28010,
-      "sha256": "e1c42621f9bd948e0b6cdc8da5c0fae47b5f5451d2ccd398059c455635320704"
+      "bytes": 28017,
+      "sha256": "aa3f93184674f2f169f23e4ee54888a226ae19ad1894491e66f953bea1b1e7ad"
     },
     {
       "path": "d1/qf-negative-pulse-roster/meta.json",
@@ -3654,8 +3654,8 @@
     },
     {
       "path": "d1/qf-nightmare-detached/golden.br",
-      "bytes": 37734,
-      "sha256": "be032cfd4a7389d9ffc225fe863c4d21e33622783d55a155023ac5ff674ced8a"
+      "bytes": 37675,
+      "sha256": "e2480cafb02e16ffc5ef31124a9ee6281b273d05f35a7b5ec071977c6d27e8c9"
     },
     {
       "path": "d1/qf-nightmare-detached/meta.json",
@@ -3669,8 +3669,8 @@
     },
     {
       "path": "d1/qf-seance-soul/golden.br",
-      "bytes": 31122,
-      "sha256": "82436ba808bbbacbe966c237df6e5106c3754faa969f72f07b9ff15f2f188bbe"
+      "bytes": 31184,
+      "sha256": "c571cae579a528583ef02aa574e603d6ce9f8ac8128572b2419e705e4bf7b711"
     },
     {
       "path": "d1/qf-seance-soul/meta.json",
@@ -3684,8 +3684,8 @@
     },
     {
       "path": "d1/qf-turn-start-choice-forge/golden.br",
-      "bytes": 39656,
-      "sha256": "6674759cc258bd2e151ee925678114a908ed95ea937f44b5b79888b2d35ee1b6"
+      "bytes": 39673,
+      "sha256": "f5f8ff1d78a4d00f66fce09b6dd7e937b54ffcbfb1dd3fa0c74389f6580ac07b"
     },
     {
       "path": "d1/qf-turn-start-choice-forge/meta.json",
@@ -3699,8 +3699,8 @@
     },
     {
       "path": "d1/qf2-gradient-failure/golden.br",
-      "bytes": 44538,
-      "sha256": "a8946d4b8191dac6e4f34e10eab35531f4882f84219fd395c3d82baa04ef5b83"
+      "bytes": 44463,
+      "sha256": "821912f9c04a208795480704503f256d0cc79ce7ce17147755ea466097705f93"
     },
     {
       "path": "d1/qf2-gradient-failure/meta.json",
@@ -3714,8 +3714,8 @@
     },
     {
       "path": "d1/qf3-burrowed-compensation/golden.br",
-      "bytes": 18946,
-      "sha256": "f217f4e1bb45356e24b35cf8cec6856eea3a78607cc2d9051acbd54f004f5852"
+      "bytes": 18957,
+      "sha256": "bb590bba5471a71dcc6ebd74298584bcd7d80170cb5f7618f6014de0f1a66615"
     },
     {
       "path": "d1/qf3-burrowed-compensation/meta.json",
@@ -3729,8 +3729,8 @@
     },
     {
       "path": "d1/qf3-decisions-duplicate/golden.br",
-      "bytes": 29035,
-      "sha256": "ffb46915a338b3223dc13783a18f62649e7fea109327261d7791776272272460"
+      "bytes": 29116,
+      "sha256": "97dcd046fcb3eb383b29875df75de4c3f53bb2144db2e21fd682080e799c2802"
     },
     {
       "path": "d1/qf3-decisions-duplicate/meta.json",
@@ -3744,8 +3744,8 @@
     },
     {
       "path": "d1/qf3-decisions-repeat/golden.br",
-      "bytes": 33956,
-      "sha256": "bcdc7ae4d140bbe60190b9c93cfec83b8ac8ad5408b08c10ebc1a3ef88197ac9"
+      "bytes": 33924,
+      "sha256": "8f9ee66432a41611c1b23c265c47cd8379bc477721b8bf0ccde4ad697e9928f0"
     },
     {
       "path": "d1/qf3-decisions-repeat/meta.json",
@@ -3759,8 +3759,8 @@
     },
     {
       "path": "d1/qf3-defect-endturn-orbs/golden.br",
-      "bytes": 897,
-      "sha256": "32803fcdfd1d411f40c83c36b8ed345debdf7eb78129fb8f40ff9aea1619795e"
+      "bytes": 870,
+      "sha256": "6ae637ee2c746a86e281576a7daa403d0ebcd545efd99ea4783753b00bdd5902"
     },
     {
       "path": "d1/qf3-defect-endturn-orbs/meta.json",
@@ -3775,7 +3775,7 @@
     {
       "path": "d1/qf3-hellraiser-entropy/golden.br",
       "bytes": 847,
-      "sha256": "b664036adef4d4a369cfb729512002d9fd5249aff91f86e36963770ccc7c048d"
+      "sha256": "3fcfa925f08fdcb6c661d1674f97ef483466398c2b397fadb3af6c895365f6af"
     },
     {
       "path": "d1/qf3-hellraiser-entropy/meta.json",
@@ -3789,8 +3789,8 @@
     },
     {
       "path": "d1/qf3-mangle-plow/golden.br",
-      "bytes": 5846,
-      "sha256": "83e495e3d9704efd81ab3073edd262ee64094d172656d5740dfa022f2419fbc6"
+      "bytes": 5841,
+      "sha256": "740c92c417d6e7093ba3c2fb6b2104241c0cbfc8c3e7b41043abd7e1c8a052c5"
     },
     {
       "path": "d1/qf3-mangle-plow/meta.json",
@@ -3804,8 +3804,8 @@
     },
     {
       "path": "d1/qf3-mayhem-summon-forth/golden.br",
-      "bytes": 35205,
-      "sha256": "119d43a70a6ec0ef90c8f0fc867f9b5f076009bba75c9d9f5ddd137c97d80a71"
+      "bytes": 35176,
+      "sha256": "c5db74bcedc38765ff9bdb5ec6eee5c9deab9a6c8d7a5227e95911d7bcc24c1e"
     },
     {
       "path": "d1/qf3-mayhem-summon-forth/meta.json",
@@ -3819,8 +3819,8 @@
     },
     {
       "path": "d1/qf3-seeking-edge-order/golden.br",
-      "bytes": 11957,
-      "sha256": "ad4fb343f72c30f12fb2da2d416b4c7c0fa28d8cd6bf604c13ba7392e6d35b0b"
+      "bytes": 11956,
+      "sha256": "39f5f5062a37f074ce781ef673690c1f673492daf075ed898b003fcffbce06b0"
     },
     {
       "path": "d1/qf3-seeking-edge-order/meta.json",
@@ -3834,8 +3834,8 @@
     },
     {
       "path": "d1/qf4-touch-of-insanity-xcost/golden.br",
-      "bytes": 41648,
-      "sha256": "5e8a3942c6f91773f526ed586c7ec03a49209155ff4e989fc10c8f28c4f536df"
+      "bytes": 41668,
+      "sha256": "94b8ca3fa7221f4b78a479a776908759d86209ee89a4146e2214dc7f2549bbea"
     },
     {
       "path": "d1/qf4-touch-of-insanity-xcost/meta.json",
@@ -3849,8 +3849,8 @@
     },
     {
       "path": "d1/qf5-anger-dampen-clone/golden.br",
-      "bytes": 42020,
-      "sha256": "5733b2075b051a2441be4b18adb38def099865b49b7ad13c9d62342ec04850d1"
+      "bytes": 42014,
+      "sha256": "80cdf5f3c208b2e638cc899fa33e814e8483085af56ef4d272751f55ee68007a"
     },
     {
       "path": "d1/qf5-anger-dampen-clone/meta.json",
@@ -3865,7 +3865,7 @@
     {
       "path": "d1/qp1-ashwater/golden.br",
       "bytes": 38389,
-      "sha256": "0566c9d5a0d374e57ca2c8f8b9cb5689c4e535d987b94bd49a0620fb591d11b4"
+      "sha256": "b3956cfe467731026fb0a037cc07cdf5d8f5f6fedb78ec17a14a8f20c7802f9a"
     },
     {
       "path": "d1/qp1-ashwater/meta.json",
@@ -3879,8 +3879,8 @@
     },
     {
       "path": "d1/qp1-gamblers-brew/golden.br",
-      "bytes": 38858,
-      "sha256": "dac07f8ee9595425191350701bebceaa63386719fc21d95e6f5082cece335c6f"
+      "bytes": 38863,
+      "sha256": "0e7c9ca6c80fe37bb42968ff76625e2fda6e80e1fca8b80edcb25666380e5853"
     },
     {
       "path": "d1/qp1-gamblers-brew/meta.json",
@@ -3894,8 +3894,8 @@
     },
     {
       "path": "d1/qp1-liquid-memories/golden.br",
-      "bytes": 43363,
-      "sha256": "8e28851b42b835d22e16952cc0990fe4b6180dffe21ba0e7f05bd136815836ab"
+      "bytes": 43371,
+      "sha256": "420c6183153bf2ff244b0bec0ac7e35fcb76b35039e67323539462dda7f3f0dd"
     },
     {
       "path": "d1/qp1-liquid-memories/meta.json",
@@ -3909,8 +3909,8 @@
     },
     {
       "path": "d1/qp1-touch-of-insanity/golden.br",
-      "bytes": 44102,
-      "sha256": "994693dab6ba81e8c58cf05904dcaed5d4708584131bcdce1fda1be2c4e7fbfb"
+      "bytes": 44119,
+      "sha256": "793c1776d413b62e590abedf13421e698e1a90ff8b60bf140f414b4680dfdd99"
     },
     {
       "path": "d1/qp1-touch-of-insanity/meta.json",
@@ -3924,8 +3924,8 @@
     },
     {
       "path": "d1/qt2-art-of-war-endturn/golden.br",
-      "bytes": 889,
-      "sha256": "8714848d891f736ae6ea812084d7e9f00c835598bbf81ef4e778af19f8b95f2a"
+      "bytes": 888,
+      "sha256": "03b47f0b02becb679012c661e0d6aa64494dd5454e44b11c30e3cbb113257ca2"
     },
     {
       "path": "d1/qt2-art-of-war-endturn/meta.json",
@@ -3939,8 +3939,8 @@
     },
     {
       "path": "d1/qt2-kusarigama-endturn/golden.br",
-      "bytes": 879,
-      "sha256": "d5c4102aae54352c99640b89905a398d453ba74a303daa6efffdd10cbd4d1d27"
+      "bytes": 917,
+      "sha256": "b8e43b21f72bbf74f9c515876f7c3217ced9d3e45cfd7c5749ce6573e23e4b12"
     },
     {
       "path": "d1/qt2-kusarigama-endturn/meta.json",
@@ -3954,8 +3954,8 @@
     },
     {
       "path": "d1/quality-DEFECT-000/golden.br",
-      "bytes": 28658,
-      "sha256": "f8fc21cb1ed958e98659824dc32c9aeff871ee99554ffbabfd5ffaa89eb3171a"
+      "bytes": 28707,
+      "sha256": "604e413c1b2176d8b1b8be43133a6214bc668f461e05a3ca32c58606bfeca483"
     },
     {
       "path": "d1/quality-DEFECT-000/meta.json",
@@ -3969,8 +3969,8 @@
     },
     {
       "path": "d1/quality-DEFECT-001/golden.br",
-      "bytes": 19480,
-      "sha256": "cd74f7a5bb76cedd0fe17c8f73f681c6fddd5c1165ed475dbd0791a406ff77c6"
+      "bytes": 19485,
+      "sha256": "051b8abc0e120477aa9b54064c3e0ab03827baf4359e440acaad8489f3178032"
     },
     {
       "path": "d1/quality-DEFECT-001/meta.json",
@@ -3984,8 +3984,8 @@
     },
     {
       "path": "d1/quality-DEFECT-002/golden.br",
-      "bytes": 34209,
-      "sha256": "9c38e5056fe305b4e3dad6a3bdfaf4f3937d3fe35890573c3db74c23c4626cb9"
+      "bytes": 34202,
+      "sha256": "24abb2c792bdc4a71626a50db4593604190727cc40aa8f4bf496868d61daaafc"
     },
     {
       "path": "d1/quality-DEFECT-002/meta.json",
@@ -3999,8 +3999,8 @@
     },
     {
       "path": "d1/quality-DEFECT-003/golden.br",
-      "bytes": 16344,
-      "sha256": "078e5df81216c9a52a5a2a30acda771a1489bf7934c74d5bf24608ba41aa41df"
+      "bytes": 16371,
+      "sha256": "8552dbc3f4a820e592ada4b1c88828615eca1d527c16da591b267a1403d94d97"
     },
     {
       "path": "d1/quality-DEFECT-003/meta.json",
@@ -4014,8 +4014,8 @@
     },
     {
       "path": "d1/quality-DEFECT-004/golden.br",
-      "bytes": 34425,
-      "sha256": "bc2f6c4fea37287ccb2536533be93612d6c81f5dc994d2df690b7ed56dfa490e"
+      "bytes": 34438,
+      "sha256": "0726b84d302dbd80d15fad399830262f5ded1ce064b3f82056d5b77e725e08ab"
     },
     {
       "path": "d1/quality-DEFECT-004/meta.json",
@@ -4029,8 +4029,8 @@
     },
     {
       "path": "d1/quality-DEFECT-005/golden.br",
-      "bytes": 45867,
-      "sha256": "61bd1f7997cde8e322dd2697727dae5dadd5c9b47737ea2369ec8323240f69c7"
+      "bytes": 45818,
+      "sha256": "cd574c86c9e71aa2b1b41ea41a94b006fda1f96aa2a77a0fc84acb68a931d51f"
     },
     {
       "path": "d1/quality-DEFECT-005/meta.json",
@@ -4044,8 +4044,8 @@
     },
     {
       "path": "d1/quality-DEFECT-006/golden.br",
-      "bytes": 24636,
-      "sha256": "3ef5128c3b005260d817110bdd841a7a974a9d60760ea238f43aa76307405617"
+      "bytes": 24631,
+      "sha256": "29063e7c3cf08db31e935f9dca75200136fee46d20424ae99454451519b3cbef"
     },
     {
       "path": "d1/quality-DEFECT-006/meta.json",
@@ -4059,8 +4059,8 @@
     },
     {
       "path": "d1/quality-DEFECT-007/golden.br",
-      "bytes": 23016,
-      "sha256": "bec75bf595074ec7c06950cc68e6a119b20b2037f866832b356db76729d7defe"
+      "bytes": 23019,
+      "sha256": "fc413e255c53cf9fdac47e40e7fb49f5c02dc38ed6fee5d9f19d0aa1cd9b236b"
     },
     {
       "path": "d1/quality-DEFECT-007/meta.json",
@@ -4074,8 +4074,8 @@
     },
     {
       "path": "d1/quality-DEFECT-008/golden.br",
-      "bytes": 26161,
-      "sha256": "66f68ff36ca9739dc5e232a0e4b6e136e47e12f837484dada427d2e39f15e47a"
+      "bytes": 26145,
+      "sha256": "625d7173fb994cd2d8e212618f0b8f84a20a2c0587db209efe7312aa820538b4"
     },
     {
       "path": "d1/quality-DEFECT-008/meta.json",
@@ -4089,8 +4089,8 @@
     },
     {
       "path": "d1/quality-DEFECT-009/golden.br",
-      "bytes": 25028,
-      "sha256": "da0b292132cc27ab07b41f0a1dfbe3d0e87017cdfb5f4fd76412cf6112e80bfd"
+      "bytes": 25001,
+      "sha256": "e557c28f4335e711209732c87dff2fb597e19c6ef0d17d115fb0ca381fddc4f2"
     },
     {
       "path": "d1/quality-DEFECT-009/meta.json",
@@ -4104,8 +4104,8 @@
     },
     {
       "path": "d1/quality-DEFECT-010/golden.br",
-      "bytes": 24843,
-      "sha256": "d6b91f96d4c04671768159e6059124276888d0f7d272340e6c679d4d57933bce"
+      "bytes": 24833,
+      "sha256": "80ac1255ae5614249d8526936364e265a2e6701ebb4d9bc2ef4f51863b3f3150"
     },
     {
       "path": "d1/quality-DEFECT-010/meta.json",
@@ -4119,8 +4119,8 @@
     },
     {
       "path": "d1/quality-DEFECT-011/golden.br",
-      "bytes": 30287,
-      "sha256": "840186d9a05fe08045f00a70e635e8cb5c32dba9366b7a005cc5cbdd36cd623d"
+      "bytes": 30291,
+      "sha256": "cc7dfd5413e6a193f549d093809a552eb2a2786f2d848ea8aa721b403652f367"
     },
     {
       "path": "d1/quality-DEFECT-011/meta.json",
@@ -4134,8 +4134,8 @@
     },
     {
       "path": "d1/quality-DEFECT-012/golden.br",
-      "bytes": 26729,
-      "sha256": "12ee88e62f7bfa1f48d8d8246f4a4552d26761ca2c652ec536fc29d76754ebf5"
+      "bytes": 26682,
+      "sha256": "11f52d38eeae0ebb87e06fb9134dccd29b679268b3d98faca838588c22637ea4"
     },
     {
       "path": "d1/quality-DEFECT-012/meta.json",
@@ -4149,8 +4149,8 @@
     },
     {
       "path": "d1/quality-DEFECT-013/golden.br",
-      "bytes": 16144,
-      "sha256": "b3c03dd7a070336a628a1abbee4e95c341c98de7f681d20903983a5c5fdc3372"
+      "bytes": 16142,
+      "sha256": "e1e5a98f2e05149bf689d6edbf9d436929ca3994f80b02f1d29d7d303ac099ed"
     },
     {
       "path": "d1/quality-DEFECT-013/meta.json",
@@ -4164,8 +4164,8 @@
     },
     {
       "path": "d1/quality-DEFECT-014/golden.br",
-      "bytes": 22077,
-      "sha256": "f2ef833a80691cd2b9696a13d3695268c5669cc12ccecd13b8acd67e743c7564"
+      "bytes": 22057,
+      "sha256": "94130d14aa2c835b7564cacd5eef4908300baa9b7fcdb14f34c6517fb1082f6c"
     },
     {
       "path": "d1/quality-DEFECT-014/meta.json",
@@ -4179,8 +4179,8 @@
     },
     {
       "path": "d1/quality-DEFECT-015/golden.br",
-      "bytes": 24426,
-      "sha256": "6182ec7ad2c73d801f6cca583744593c6c012c528483a6214e5a6c226fee13db"
+      "bytes": 24434,
+      "sha256": "c4649d73a20ac8b46c946867506cad9b33e58717df4aede67827243e613a0193"
     },
     {
       "path": "d1/quality-DEFECT-015/meta.json",
@@ -4194,8 +4194,8 @@
     },
     {
       "path": "d1/quality-DEFECT-016/golden.br",
-      "bytes": 23371,
-      "sha256": "ccf2d634dbfacdb78125d6764336086d56c8acc1cbf805a7f909aa8d8de832dd"
+      "bytes": 23351,
+      "sha256": "58a5b1a7719fec1e8ec28f2e30bf179c7dd021a9c302064b928eda03bbfd22ab"
     },
     {
       "path": "d1/quality-DEFECT-016/meta.json",
@@ -4209,8 +4209,8 @@
     },
     {
       "path": "d1/quality-DEFECT-017/golden.br",
-      "bytes": 27122,
-      "sha256": "deee5638d8c84e7f56903b8700851517d22efbe8467e27eb959f68703ae38206"
+      "bytes": 27101,
+      "sha256": "f0bf9c17210b15142949b3a57ebcd1fcbd672021bb726b4ab55dd49b338efc5f"
     },
     {
       "path": "d1/quality-DEFECT-017/meta.json",
@@ -4224,8 +4224,8 @@
     },
     {
       "path": "d1/quality-DEFECT-018/golden.br",
-      "bytes": 24743,
-      "sha256": "10c0305f88fd97d0f549ac2147d5ba3a73f54b451556bcf7767cc8806e535e04"
+      "bytes": 24749,
+      "sha256": "551697ee9b6e34eb45df07cb5f63351e8db2c31b67a40ca19750c66f01a29f26"
     },
     {
       "path": "d1/quality-DEFECT-018/meta.json",
@@ -4239,8 +4239,8 @@
     },
     {
       "path": "d1/quality-DEFECT-019/golden.br",
-      "bytes": 14439,
-      "sha256": "b234a0c75b8d5b65318cd06b6608a7755fe9d1be53165ef1486a28a7cbfb8489"
+      "bytes": 14438,
+      "sha256": "b97f299fa8fdd539054898ae37bdeccb1f68232ae2331a58e2a37ff07dc02780"
     },
     {
       "path": "d1/quality-DEFECT-019/meta.json",
@@ -4255,7 +4255,7 @@
     {
       "path": "d1/quality-DEFECT-020/golden.br",
       "bytes": 20383,
-      "sha256": "ac425b7f47a7a8b935cbabdbb9eca260aa4bb1dff49964789a69467ed6c5dec4"
+      "sha256": "c44c6abf294a388291e442ca0b9c4e0c45a858fbf53d1716bc86d6a5d2fb3b2b"
     },
     {
       "path": "d1/quality-DEFECT-020/meta.json",
@@ -4269,8 +4269,8 @@
     },
     {
       "path": "d1/quality-DEFECT-021/golden.br",
-      "bytes": 44819,
-      "sha256": "fb5270b02c332cfaf414bebcb3ba8234bce72e816070e3889d6329c3f7b2ae35"
+      "bytes": 44816,
+      "sha256": "d9d771cb5deac12408e20246f52fb0d5d172526ca87cff063610fc55bd8d7a3b"
     },
     {
       "path": "d1/quality-DEFECT-021/meta.json",
@@ -4284,8 +4284,8 @@
     },
     {
       "path": "d1/quality-DEFECT-022/golden.br",
-      "bytes": 31141,
-      "sha256": "0ff5f28c61b22adc9f573a79069a16f0329de9b8b39b28a0638adab863681020"
+      "bytes": 31121,
+      "sha256": "1019a501229acdcff0a570a54fd6396eb739dc1c9bdcf7b8926a118c2a48c6e3"
     },
     {
       "path": "d1/quality-DEFECT-022/meta.json",
@@ -4299,8 +4299,8 @@
     },
     {
       "path": "d1/quality-DEFECT-023/golden.br",
-      "bytes": 14600,
-      "sha256": "e89f30fd79c0a2b79121a97d0b4eaaabb67b19e734d2831465417f15e73a6acf"
+      "bytes": 14631,
+      "sha256": "7973886c30736bc0da08f2465a6943763dfa414fabbc0193e0ef8a7812c15e8f"
     },
     {
       "path": "d1/quality-DEFECT-023/meta.json",
@@ -4314,8 +4314,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-000/golden.br",
-      "bytes": 26481,
-      "sha256": "04e251397db5cb56db6b757c032a097fdbeca73fd8724b6032cf0a18614b9913"
+      "bytes": 26520,
+      "sha256": "add192a938c6024df3be0ef2976130434d31535a1e9705275e9d5c3eb7e21894"
     },
     {
       "path": "d1/quality-IRONCLAD-000/meta.json",
@@ -4329,8 +4329,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-001/golden.br",
-      "bytes": 20764,
-      "sha256": "1579b2c1d02dd67430a8a671d8af70ad50ea8c97a513d76a85dda2059e6318ee"
+      "bytes": 20767,
+      "sha256": "d897d9ed750790b198336858a6328f931f55cbd308cb73664e4a6316b551708c"
     },
     {
       "path": "d1/quality-IRONCLAD-001/meta.json",
@@ -4344,8 +4344,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-002/golden.br",
-      "bytes": 27606,
-      "sha256": "1025d87c61b575aff9902d387bc6ede70372c2d76b56b904daa4eb1bad9a93d1"
+      "bytes": 27592,
+      "sha256": "193f7ccde1c299bf8d9589455b9329a8558d9d24d5e9efa2b171a76affaa6d86"
     },
     {
       "path": "d1/quality-IRONCLAD-002/meta.json",
@@ -4359,8 +4359,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-003/golden.br",
-      "bytes": 31136,
-      "sha256": "44535da73997acabb005fe4a496776414395ead42fbbba66766c9c5a5b1b9f41"
+      "bytes": 31137,
+      "sha256": "485afd0a42f0f2da713c3a469c09e1220dc86450f74d4608298754ee81d215f8"
     },
     {
       "path": "d1/quality-IRONCLAD-003/meta.json",
@@ -4374,8 +4374,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-004/golden.br",
-      "bytes": 18639,
-      "sha256": "604cc4790ad43d38a5745891b6da91f952cfef399a51af5503dfc3753767d41a"
+      "bytes": 18665,
+      "sha256": "4ee3659dd0cb1d30d2a772c3187b6f1ea088297a19e4c3b7e8fd00b69c020a57"
     },
     {
       "path": "d1/quality-IRONCLAD-004/meta.json",
@@ -4389,8 +4389,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-005/golden.br",
-      "bytes": 29097,
-      "sha256": "db0dbc3e75a09454415a51d23a5624016ee86239a0022dea5f1aed55b9cd21c7"
+      "bytes": 29084,
+      "sha256": "dc96bda5fe2752b5202ecae5770fb57305ceb7cba8405afbca63a92963835020"
     },
     {
       "path": "d1/quality-IRONCLAD-005/meta.json",
@@ -4404,8 +4404,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-006/golden.br",
-      "bytes": 26023,
-      "sha256": "b2c2f2cb13ef6e803bd0da41121a23a244b82c0f0a592e01700a2012088cbd6c"
+      "bytes": 26015,
+      "sha256": "69f7be3ee3771d3bbc2d8df6dc7590cfbad09300515dc670fccc4ff07b0abe66"
     },
     {
       "path": "d1/quality-IRONCLAD-006/meta.json",
@@ -4419,8 +4419,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-007/golden.br",
-      "bytes": 19080,
-      "sha256": "53c71df1478684362c722c2f46164f0115da1e6ffd44643f95246824328028cf"
+      "bytes": 19068,
+      "sha256": "0536b24accfd5864e4754abe8d6751dd14ccc39c5ad1734bfffd6ef704d73a7f"
     },
     {
       "path": "d1/quality-IRONCLAD-007/meta.json",
@@ -4434,8 +4434,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-008/golden.br",
-      "bytes": 27542,
-      "sha256": "e1ee6e9918fb854375bfd4b809d850da443b65ce60458d519dd8c4a541ad7e5a"
+      "bytes": 27561,
+      "sha256": "de0b623f22e8bdc20bb8b02f54010df0a02530cb07280aa8ac0d122758cf7118"
     },
     {
       "path": "d1/quality-IRONCLAD-008/meta.json",
@@ -4449,8 +4449,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-009/golden.br",
-      "bytes": 20784,
-      "sha256": "af68cbc91ec07e11d7715fca37a6892a0cba31bbbc59218a3f8899976143c61e"
+      "bytes": 20763,
+      "sha256": "55d678504082dd45ae42a699e568cc1ffc945cd73dad8919434d554a700fb0df"
     },
     {
       "path": "d1/quality-IRONCLAD-009/meta.json",
@@ -4464,8 +4464,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-010/golden.br",
-      "bytes": 25261,
-      "sha256": "7f28c8897d44ec6c776ddb1db8b18dd3dfba432b223e1b3daf9259e276328d51"
+      "bytes": 25266,
+      "sha256": "154e126732cf4b2428511703802cf4d0a0b595f95fc3cf38e54b6b9b957e4069"
     },
     {
       "path": "d1/quality-IRONCLAD-010/meta.json",
@@ -4479,8 +4479,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-011/golden.br",
-      "bytes": 30769,
-      "sha256": "afa30fd82eec14ad1b7eec1654578d378160a37c40c56cb50c3699109970e92d"
+      "bytes": 30783,
+      "sha256": "cff08094a2f2ea148fb033770a3bc3e0c98554e99070c085a1888500dad06499"
     },
     {
       "path": "d1/quality-IRONCLAD-011/meta.json",
@@ -4494,8 +4494,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-012/golden.br",
-      "bytes": 23765,
-      "sha256": "c0c44962d3536fc5e81605821b0a93efc5d2db948166fc8d3a6cc219ab1f000e"
+      "bytes": 23716,
+      "sha256": "a22f8f389dc7a7f76e4d851434eb452359b2d687171d5f3ab5fd0e40c176380a"
     },
     {
       "path": "d1/quality-IRONCLAD-012/meta.json",
@@ -4509,8 +4509,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-013/golden.br",
-      "bytes": 15493,
-      "sha256": "dcc23a4d4307252fdeae9d8b6b7f3ad3f09b49d31748a5af120aef12119c59f6"
+      "bytes": 15507,
+      "sha256": "a3853df8f6f7c86c81b5417efe94740827492cff92e0e1bb870da9b7c97065d3"
     },
     {
       "path": "d1/quality-IRONCLAD-013/meta.json",
@@ -4524,8 +4524,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-014/golden.br",
-      "bytes": 31796,
-      "sha256": "467c721d2c3aee844110c753f35b20f3fbbad8fdff361bcd0542ae1893b45cf0"
+      "bytes": 31766,
+      "sha256": "8c73aba2eb1370edba37961aaf23592eaae78fcbc5d911dbe198312bed54d32e"
     },
     {
       "path": "d1/quality-IRONCLAD-014/meta.json",
@@ -4539,8 +4539,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-015/golden.br",
-      "bytes": 38149,
-      "sha256": "439e713d7225df562fb5eea70580e896d5f6941784f7f0f1616f8bfbbcdc497b"
+      "bytes": 38167,
+      "sha256": "58ce9c26893471bb59865c5e1511064999f57bbb9553d21d52faf24c4ed45abe"
     },
     {
       "path": "d1/quality-IRONCLAD-015/meta.json",
@@ -4554,8 +4554,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-016/golden.br",
-      "bytes": 21925,
-      "sha256": "a7af1a78c892f29fe3429a270e33787f4b1caa7c32b88a2f2dd843c0902be67b"
+      "bytes": 21940,
+      "sha256": "14d786a2bb148ed53940d1a31ceec995b9f23fb4a5b91343852432a8f674e2e6"
     },
     {
       "path": "d1/quality-IRONCLAD-016/meta.json",
@@ -4569,8 +4569,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-017/golden.br",
-      "bytes": 23553,
-      "sha256": "ec6f0a2b9023e4011206f68f0b863d4b007458850986974e1160e4979bc4720f"
+      "bytes": 23559,
+      "sha256": "26eb0ad564fe2ef0afe33f2c065844f8b6055c7d6d90624140420c220f188947"
     },
     {
       "path": "d1/quality-IRONCLAD-017/meta.json",
@@ -4584,8 +4584,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-018/golden.br",
-      "bytes": 30476,
-      "sha256": "62b62cf1c3573ce54c09403014dac07fdb5e9d5b38acef02eb2083b97fc04d99"
+      "bytes": 30472,
+      "sha256": "494b39b9b09973c21ea43c722a7a00458a3fc5c422fcb5b572574dacf9ec78a4"
     },
     {
       "path": "d1/quality-IRONCLAD-018/meta.json",
@@ -4599,8 +4599,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-019/golden.br",
-      "bytes": 15479,
-      "sha256": "ce1ef1536499c432cb0a85982d1dc46a0eb2676e24fb8fdd756e4847454f6181"
+      "bytes": 15482,
+      "sha256": "5a36db4fd102e9d6b33a1334e6e07ef6a789489ee3df56efdef6fb30429e533a"
     },
     {
       "path": "d1/quality-IRONCLAD-019/meta.json",
@@ -4614,8 +4614,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-020/golden.br",
-      "bytes": 19289,
-      "sha256": "64550d6ac67a8695033757d6d6c260758859e415dcc8e5fc6a625cafdbcd870c"
+      "bytes": 19269,
+      "sha256": "3be830c45d07133cfd76b829bb530d050b237853f26ec59fbea7eca5dab8af89"
     },
     {
       "path": "d1/quality-IRONCLAD-020/meta.json",
@@ -4629,8 +4629,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-021/golden.br",
-      "bytes": 28524,
-      "sha256": "7e68dc824f3358740b4286e34a9239ecf9c0f6d60724cce0bea96dff2748a75d"
+      "bytes": 28515,
+      "sha256": "cca531049f03f6f55a5af119f430b1cc39b9fac31485fd9c3d4c17f954ae6aa5"
     },
     {
       "path": "d1/quality-IRONCLAD-021/meta.json",
@@ -4644,8 +4644,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-022/golden.br",
-      "bytes": 14975,
-      "sha256": "a65e552705a68d01bffb9729d2960f03840a24bea7df75d0a58e318bacd2c51e"
+      "bytes": 14991,
+      "sha256": "d8dca7e96ea561e04b596b9cbc4b67e856d94c4988006e5f72b0c032a62fcc66"
     },
     {
       "path": "d1/quality-IRONCLAD-022/meta.json",
@@ -4659,8 +4659,8 @@
     },
     {
       "path": "d1/quality-IRONCLAD-023/golden.br",
-      "bytes": 16543,
-      "sha256": "5f25d6b55784fa3b2407ca59b3c0dfe0269aee71bc7485070c2b6369058f8734"
+      "bytes": 16548,
+      "sha256": "a52469df9016253da224c89f3a0889ffa95b8e8e6427c9959575bbf991d5483c"
     },
     {
       "path": "d1/quality-IRONCLAD-023/meta.json",
@@ -4674,8 +4674,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-000/golden.br",
-      "bytes": 20225,
-      "sha256": "755dd807517f7477e9ba02094acbccc858ea88542d132142444a8ad7aa9ea9db"
+      "bytes": 20233,
+      "sha256": "4319cbb8d026d1073a777532df0e65bd0deb2c250d132b859e8877d6ff26ca9f"
     },
     {
       "path": "d1/quality-NECROBINDER-000/meta.json",
@@ -4689,8 +4689,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-001/golden.br",
-      "bytes": 26639,
-      "sha256": "b29dd2c766dfe07a128669402e62663eb37b472bf4064a6348f9c4b704715201"
+      "bytes": 26616,
+      "sha256": "2b6b332ca971cfab596e219545cbf1738f7d3b9ccdf28cee3c0660065d6c4a2a"
     },
     {
       "path": "d1/quality-NECROBINDER-001/meta.json",
@@ -4704,8 +4704,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-002/golden.br",
-      "bytes": 53879,
-      "sha256": "5a0a0a1feb44037d8dd80411e23b010d6725becde02d708934f86b9afe073dc5"
+      "bytes": 53892,
+      "sha256": "ab90d7d89726d869705b8f785cfbf81138cabd61c4dec7d234bf3cd12f5e80f7"
     },
     {
       "path": "d1/quality-NECROBINDER-002/meta.json",
@@ -4719,8 +4719,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-003/golden.br",
-      "bytes": 16287,
-      "sha256": "c27f79b241992c517fd821992d5fdef9343ab923c46608b380a32fb9f1158826"
+      "bytes": 16299,
+      "sha256": "859a6362c1a413a9a1dbd572fcc4d046c2de379a19e956a12101980154b22505"
     },
     {
       "path": "d1/quality-NECROBINDER-003/meta.json",
@@ -4734,8 +4734,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-004/golden.br",
-      "bytes": 43682,
-      "sha256": "008b98803e3302a33aa4a661c00ec4fec1c8a89ed6bf107c729a05d79f078421"
+      "bytes": 43718,
+      "sha256": "bfadafa9360959a473e8e2efc1f8f18a83af04e47352304d2764387252f6f54a"
     },
     {
       "path": "d1/quality-NECROBINDER-004/meta.json",
@@ -4749,8 +4749,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-005/golden.br",
-      "bytes": 41358,
-      "sha256": "7604896211646031deb5e53c378adb4bd91de419c4e5c82f3afe133ad03b398c"
+      "bytes": 41342,
+      "sha256": "b59bfb323886ef7765dc885233415483994bf09ecca9865d2ebef453cd2a2f8a"
     },
     {
       "path": "d1/quality-NECROBINDER-005/meta.json",
@@ -4764,8 +4764,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-006/golden.br",
-      "bytes": 11997,
-      "sha256": "378b0f444412c2aa3b85835c1f3441993534e9748b9e274549131c20e32af12b"
+      "bytes": 12010,
+      "sha256": "75363c3da60c2cf7d36a3043fb5bde960cccd9681fc85b580d9b19286c6cda2b"
     },
     {
       "path": "d1/quality-NECROBINDER-006/meta.json",
@@ -4779,8 +4779,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-007/golden.br",
-      "bytes": 45352,
-      "sha256": "33a86922988f0f3bd111c26934d8c6b4c42e9fab856db306f848698ec4051376"
+      "bytes": 45362,
+      "sha256": "95dda7978d125e9491b011b0e33cab0c95b01352b79c07dccc18422767a46d71"
     },
     {
       "path": "d1/quality-NECROBINDER-007/meta.json",
@@ -4794,8 +4794,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-008/golden.br",
-      "bytes": 29478,
-      "sha256": "937f11553795fbfff1a1978228d048882347effb0209f763e1fe89f958595251"
+      "bytes": 29459,
+      "sha256": "74aecefcea5bb5c19a2a6324dffc05c04e87e6b7e9764a176b993bff7a06e1eb"
     },
     {
       "path": "d1/quality-NECROBINDER-008/meta.json",
@@ -4809,8 +4809,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-009/golden.br",
-      "bytes": 33289,
-      "sha256": "3657a0614cab066932681b7182df5c54e5b1c45146daf0302f5e02d01ce741e7"
+      "bytes": 33274,
+      "sha256": "741e1da6de5d06b58615a33d03d816b1a645033b9c387fdb31e2107fed09453d"
     },
     {
       "path": "d1/quality-NECROBINDER-009/meta.json",
@@ -4824,8 +4824,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-010/golden.br",
-      "bytes": 20817,
-      "sha256": "d939515edd87bbb74b14b6f905fdb6ffdd46893c8539d90b94b99746902be4f8"
+      "bytes": 20809,
+      "sha256": "fbaf535c38385e435ee7b273540dfc1bf3303d818d7f0759fbef77c2b54e45c5"
     },
     {
       "path": "d1/quality-NECROBINDER-010/meta.json",
@@ -4839,8 +4839,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-011/golden.br",
-      "bytes": 28788,
-      "sha256": "b3da141d3233e2e4c11167c69bbb1c74f9381334c7c0743ef534223ca805de87"
+      "bytes": 28778,
+      "sha256": "c8dcf3a259daa962c01cb4558680f8df932eb38f0960afe35556a0f4170df04c"
     },
     {
       "path": "d1/quality-NECROBINDER-011/meta.json",
@@ -4854,8 +4854,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-012/golden.br",
-      "bytes": 19379,
-      "sha256": "804765db7785096b08949dfb174337a894c48e30f1ba0a11e6721859dd807f07"
+      "bytes": 19359,
+      "sha256": "24c966f05af9ea7466ea2c917c9062517266241ccdd8cedc306be42f4aa973e1"
     },
     {
       "path": "d1/quality-NECROBINDER-012/meta.json",
@@ -4869,8 +4869,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-013/golden.br",
-      "bytes": 36464,
-      "sha256": "2f2c5746493fe6a90e5902581c5470f96b39b96dd3fae7635c47aa04bbe93215"
+      "bytes": 36439,
+      "sha256": "5d5d2aa32898e064c8786e7976a8f2b49362ca9c4fee745ca44aa3706a18e45e"
     },
     {
       "path": "d1/quality-NECROBINDER-013/meta.json",
@@ -4884,8 +4884,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-014/golden.br",
-      "bytes": 20385,
-      "sha256": "889de74a9ffcf1d2bf40b882839a2d8e81616c23949770314a4a50dfad0459d1"
+      "bytes": 20403,
+      "sha256": "b34189f9776e73bb956e53734dcfb645ceba89f64dad2235727319ff508c0fb8"
     },
     {
       "path": "d1/quality-NECROBINDER-014/meta.json",
@@ -4899,8 +4899,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-015/golden.br",
-      "bytes": 18136,
-      "sha256": "10d73a830056b0a91ae8c46b2c9b7e45984398218f2bc1ba25a5356116964a2c"
+      "bytes": 18148,
+      "sha256": "73d5cc53e5b688f7282437d58ce0d63e80e95ad7186b76744fa3155e124deaa7"
     },
     {
       "path": "d1/quality-NECROBINDER-015/meta.json",
@@ -4914,8 +4914,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-016/golden.br",
-      "bytes": 22822,
-      "sha256": "d779c688d54e21e34268e516d2de48a06218ae83ba5da0e9d58c5c519d2c41f5"
+      "bytes": 22814,
+      "sha256": "7aff444d6bf551a01687d6895cd210b86f8224fb704741b63888733a86fe75ab"
     },
     {
       "path": "d1/quality-NECROBINDER-016/meta.json",
@@ -4929,8 +4929,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-017/golden.br",
-      "bytes": 32543,
-      "sha256": "f588709d64bd65261e2e5d70146ea5b26e64bd53899178d6aae4105cbc60fb3b"
+      "bytes": 32535,
+      "sha256": "5d632ca3815038022e179e54524e1cb14b1f73a48d973a57cdd67fd0fd555ee7"
     },
     {
       "path": "d1/quality-NECROBINDER-017/meta.json",
@@ -4944,8 +4944,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-018/golden.br",
-      "bytes": 38045,
-      "sha256": "392f9c4493a923258e823b6ad22d95f0c77894746341ef256943e5cc4def1a19"
+      "bytes": 38061,
+      "sha256": "1738298f79cf62fdb22068764b2230373f70400986184c5b027a4da281e176a2"
     },
     {
       "path": "d1/quality-NECROBINDER-018/meta.json",
@@ -4959,8 +4959,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-019/golden.br",
-      "bytes": 13319,
-      "sha256": "22d6a87bf46826b38b5aa8557da8a4bce5cd094edcdd40e01c3b4933b3a8389a"
+      "bytes": 13325,
+      "sha256": "1adeb7758881520d94937baaabd73e54746cefbe66838766a2cbcce8ad13bf3e"
     },
     {
       "path": "d1/quality-NECROBINDER-019/meta.json",
@@ -4974,8 +4974,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-020/golden.br",
-      "bytes": 10986,
-      "sha256": "63719f088ccc39c4c9b0d71037bc3d71248f4cf0aa7b85c1a4790a83f00a9283"
+      "bytes": 10985,
+      "sha256": "3272687fff02dc2fc4c1871eb1e54edeaae2de8cae546ddda02df75b1fbe28b3"
     },
     {
       "path": "d1/quality-NECROBINDER-020/meta.json",
@@ -4989,8 +4989,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-021/golden.br",
-      "bytes": 32686,
-      "sha256": "3449c836a33fcbd29d947b3c8b988c6f4fdad56cbf15248bef5da005f3977158"
+      "bytes": 32555,
+      "sha256": "f08c02cef9daab29246bfe4bd0328f8441e6ce483aeca74d00c84b9eae1bb5bd"
     },
     {
       "path": "d1/quality-NECROBINDER-021/meta.json",
@@ -5004,8 +5004,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-022/golden.br",
-      "bytes": 28683,
-      "sha256": "b55b0ac6bc0a14fdd4e405da9dff0e7537230b41c11373c5f711f04243bbfe6e"
+      "bytes": 28657,
+      "sha256": "716a2107ddb2bd0887bcbaba3255a3d80533b5b679d6d2226846c686c7d3cee7"
     },
     {
       "path": "d1/quality-NECROBINDER-022/meta.json",
@@ -5019,8 +5019,8 @@
     },
     {
       "path": "d1/quality-NECROBINDER-023/golden.br",
-      "bytes": 17400,
-      "sha256": "a58751ecfc5b7da690e704452ad5619d6767706fccd8494af864d1d9a1737cef"
+      "bytes": 17404,
+      "sha256": "a19e629551d38ae831504c275c5ed506bbe35b0876c8d8b6a5c59d1777a7cace"
     },
     {
       "path": "d1/quality-NECROBINDER-023/meta.json",
@@ -5034,8 +5034,8 @@
     },
     {
       "path": "d1/quality-REGENT-000/golden.br",
-      "bytes": 7713,
-      "sha256": "853a6d28e7b0d322802e2a77d04823be77c70417aa1e78a38ee48f9ec94b492e"
+      "bytes": 7706,
+      "sha256": "4e8193dd0796b1eba86c18512968268b6c578435324f19ff14aefd6a3f666723"
     },
     {
       "path": "d1/quality-REGENT-000/meta.json",
@@ -5049,8 +5049,8 @@
     },
     {
       "path": "d1/quality-REGENT-001/golden.br",
-      "bytes": 37916,
-      "sha256": "3e1dc9e78a29d792286ced70988282f2c44c69a022b66cc5539da5a85794bfc6"
+      "bytes": 37957,
+      "sha256": "5d756401a2667928df63aa427ef4569634891d1cfa2230a696bd766f1695fc45"
     },
     {
       "path": "d1/quality-REGENT-001/meta.json",
@@ -5064,8 +5064,8 @@
     },
     {
       "path": "d1/quality-REGENT-002/golden.br",
-      "bytes": 40265,
-      "sha256": "b2a41645d425728ad580542f166d967068d479e0cccb96c78f70dbe40993f378"
+      "bytes": 40286,
+      "sha256": "49e9924f2b234176f7ca5472808325b45282a9fff27aac7b2818f3ca4a53ce5e"
     },
     {
       "path": "d1/quality-REGENT-002/meta.json",
@@ -5079,8 +5079,8 @@
     },
     {
       "path": "d1/quality-REGENT-003/golden.br",
-      "bytes": 21805,
-      "sha256": "0c1057d287890826f588f318c4d53ec7a73ae2ec243b2ca1c805dff60e845826"
+      "bytes": 21816,
+      "sha256": "67df01006c404c5ebd3e716d94fd7d1462e6d2e61e082d10cb6ed38eb5fe25a9"
     },
     {
       "path": "d1/quality-REGENT-003/meta.json",
@@ -5094,8 +5094,8 @@
     },
     {
       "path": "d1/quality-REGENT-004/golden.br",
-      "bytes": 33331,
-      "sha256": "d9821fed7d32542e68780b37e27d6ea31de8165cb6b7ccf0b0557b3be0b546de"
+      "bytes": 33339,
+      "sha256": "925db055bbda409dd7a58c05b1bc98dbae82fa4b961b84f8a5baf7aa9205a8fa"
     },
     {
       "path": "d1/quality-REGENT-004/meta.json",
@@ -5109,8 +5109,8 @@
     },
     {
       "path": "d1/quality-REGENT-005/golden.br",
-      "bytes": 35505,
-      "sha256": "d039a45ab708700a0ec161ad8d1009da2044205c572dbbed848bcea7227a742c"
+      "bytes": 35501,
+      "sha256": "160087543a232aa3f15e1bb05168a8cf96442c0909831edab43176872fc2d533"
     },
     {
       "path": "d1/quality-REGENT-005/meta.json",
@@ -5124,8 +5124,8 @@
     },
     {
       "path": "d1/quality-REGENT-006/golden.br",
-      "bytes": 26679,
-      "sha256": "1067e8be7fdc69a4866e80e5210da7638d849c71115df02478fb6c0401271c56"
+      "bytes": 26638,
+      "sha256": "d7159250be67c6bbb74b33d67f7b8d978cd721c46964c98125d8b0bdcc20a127"
     },
     {
       "path": "d1/quality-REGENT-006/meta.json",
@@ -5139,8 +5139,8 @@
     },
     {
       "path": "d1/quality-REGENT-007/golden.br",
-      "bytes": 28498,
-      "sha256": "26d2b7122a22838c940096b7b2e531c02d609c1f2307544e1d8603ef93bccf2f"
+      "bytes": 28503,
+      "sha256": "14d4cf038c241d987c5f925a7ad1829a41cbd64788fe95154b4519eab234b850"
     },
     {
       "path": "d1/quality-REGENT-007/meta.json",
@@ -5154,8 +5154,8 @@
     },
     {
       "path": "d1/quality-REGENT-008/golden.br",
-      "bytes": 31175,
-      "sha256": "cadd300f1d7faa11b61a4422e6bb402bb34733a8ddcb243aeccfa64548d9a316"
+      "bytes": 31190,
+      "sha256": "b69c24e02e9d2ebc8878b43f7771aff39c041fe2770fca7d89887d1456c66f18"
     },
     {
       "path": "d1/quality-REGENT-008/meta.json",
@@ -5169,8 +5169,8 @@
     },
     {
       "path": "d1/quality-REGENT-009/golden.br",
-      "bytes": 33851,
-      "sha256": "2962aaab957fc43b7d79218db742c4606278d7a9750102830f0b4f70c40e1698"
+      "bytes": 33858,
+      "sha256": "eb6be03ea37ee31423f99831ce1816efe0504ebaf2135bcdbddbf47cb04c93c0"
     },
     {
       "path": "d1/quality-REGENT-009/meta.json",
@@ -5184,8 +5184,8 @@
     },
     {
       "path": "d1/quality-REGENT-010/golden.br",
-      "bytes": 22159,
-      "sha256": "b8078bc1d504fbed5827b2f4b269823bb323905cf03724b9a679d57e9a613a8a"
+      "bytes": 22204,
+      "sha256": "e45fa4a4c3c83993874942bd00263f3f54e09888c655bb1cced03b121572a2fc"
     },
     {
       "path": "d1/quality-REGENT-010/meta.json",
@@ -5199,8 +5199,8 @@
     },
     {
       "path": "d1/quality-REGENT-011/golden.br",
-      "bytes": 30074,
-      "sha256": "eff36ab6702dc6693099ed7e2824a29f91606a2a72da35b2fcaf571af13ad054"
+      "bytes": 30052,
+      "sha256": "cac5e0fdff6fa4f1256e0c35770d35f4bdee7ae0932b71bf8c55a41066b6db60"
     },
     {
       "path": "d1/quality-REGENT-011/meta.json",
@@ -5214,8 +5214,8 @@
     },
     {
       "path": "d1/quality-REGENT-012/golden.br",
-      "bytes": 45731,
-      "sha256": "a99c0a9583d7a835bc8c7209feb51026403a9bbd262458da7940881f6452b9e9"
+      "bytes": 45743,
+      "sha256": "3ae6cad626f97a1728ae41f56e8a6175168fdcf8a2cce61bbca0e06d5f86b355"
     },
     {
       "path": "d1/quality-REGENT-012/meta.json",
@@ -5229,8 +5229,8 @@
     },
     {
       "path": "d1/quality-REGENT-013/golden.br",
-      "bytes": 32553,
-      "sha256": "b4cf82cc7a8189c6fd476cb115ff24c9f3d24534db2c169bdc6ed34c257aecd1"
+      "bytes": 32581,
+      "sha256": "80fad10af83a7cc4d87e428a241524c5925b1864fd8bb1ec1bff55f3a22f2913"
     },
     {
       "path": "d1/quality-REGENT-013/meta.json",
@@ -5244,8 +5244,8 @@
     },
     {
       "path": "d1/quality-REGENT-014/golden.br",
-      "bytes": 31656,
-      "sha256": "c81d6c3fee91ad7a20bab9430035b056f65219283dd66729ee4c220ffc86570c"
+      "bytes": 31647,
+      "sha256": "b928e063320de8ea2901757fcf81344f64952eadeb9b8eb936303959451462e5"
     },
     {
       "path": "d1/quality-REGENT-014/meta.json",
@@ -5259,8 +5259,8 @@
     },
     {
       "path": "d1/quality-REGENT-015/golden.br",
-      "bytes": 30858,
-      "sha256": "f4b0958f2eaad024ad79dc55b7ca5f61494bdfe60ad4001682586bc9543e9255"
+      "bytes": 30832,
+      "sha256": "26801f8fa7e6fa5a54c9c9ddd537e26515ccec3753dbc7088698c06d5fa9b5c6"
     },
     {
       "path": "d1/quality-REGENT-015/meta.json",
@@ -5274,8 +5274,8 @@
     },
     {
       "path": "d1/quality-REGENT-016/golden.br",
-      "bytes": 27382,
-      "sha256": "e17ca1f519559cc01a8727c231b633d72377622a5dc8bb06fdf31e289410d800"
+      "bytes": 27368,
+      "sha256": "0aed186d9ed1fc4df5d2e0daf59371f14be8a292df223fc6149b6757024be682"
     },
     {
       "path": "d1/quality-REGENT-016/meta.json",
@@ -5289,8 +5289,8 @@
     },
     {
       "path": "d1/quality-REGENT-017/golden.br",
-      "bytes": 22769,
-      "sha256": "64a2811170bdc9cebe72afaa3b3ed5b05e0c700ad66d326a791ce4595ac4f770"
+      "bytes": 22782,
+      "sha256": "65a91e015d79019b26c145ed8ef32acaf77680f34da9c315a7850b0be982568c"
     },
     {
       "path": "d1/quality-REGENT-017/meta.json",
@@ -5304,8 +5304,8 @@
     },
     {
       "path": "d1/quality-REGENT-018/golden.br",
-      "bytes": 24971,
-      "sha256": "1b7a4a364b96656124c5959f86ea107778c47c4f73e81e66663a6c2769d2fa94"
+      "bytes": 24958,
+      "sha256": "d7699c0897b341ddeced0b64cbf9ac65b362bb73c15d8ad59d0976472bb2d3c0"
     },
     {
       "path": "d1/quality-REGENT-018/meta.json",
@@ -5319,8 +5319,8 @@
     },
     {
       "path": "d1/quality-REGENT-019/golden.br",
-      "bytes": 23272,
-      "sha256": "a6a05e548f22ef7f89a01e0f35db838e89acb7b9030284f2afe22cce4b69922a"
+      "bytes": 23270,
+      "sha256": "b62a9a05058d7d618f531b7aae3286eea2d163370c51f3d7a43e4afb12a369ad"
     },
     {
       "path": "d1/quality-REGENT-019/meta.json",
@@ -5334,8 +5334,8 @@
     },
     {
       "path": "d1/quality-REGENT-020/golden.br",
-      "bytes": 15610,
-      "sha256": "87a6e7daac28cb119eab89c8bcf7efa2f56de9758e83c6464fb3453d8395be81"
+      "bytes": 15590,
+      "sha256": "0d31983df340bf0777c52f314aa64ffa25d6d9deab7c02fce2e89b4c8fa4c06d"
     },
     {
       "path": "d1/quality-REGENT-020/meta.json",
@@ -5349,8 +5349,8 @@
     },
     {
       "path": "d1/quality-REGENT-021/golden.br",
-      "bytes": 26290,
-      "sha256": "b33cb2027fbf944088669ec07c7a01a404ceb17bb184682caaf8fde04d9d555a"
+      "bytes": 26292,
+      "sha256": "57520e2cb1e5a2fc9833108bb4b26eff5e8556f7a1d0cb939a5e034ef26b89c3"
     },
     {
       "path": "d1/quality-REGENT-021/meta.json",
@@ -5364,8 +5364,8 @@
     },
     {
       "path": "d1/quality-REGENT-022/golden.br",
-      "bytes": 12390,
-      "sha256": "7d56f884b213ff4b60e1f26392354145dedafa75cdb0bae801d7835ddf733af0"
+      "bytes": 12404,
+      "sha256": "b1ef35d63a45e5db0db71ce71cbb66a8281e7b56be649f898c32f56ef9d2f7ae"
     },
     {
       "path": "d1/quality-REGENT-022/meta.json",
@@ -5379,8 +5379,8 @@
     },
     {
       "path": "d1/quality-REGENT-023/golden.br",
-      "bytes": 22620,
-      "sha256": "7971b5b60cac9f34d77e477bc63ee173ba5b7e3a8eadef5134033834b2a46427"
+      "bytes": 22609,
+      "sha256": "b4e3c2bc8652d06b4bbe9f8ea5f0ebe10c53938d8149678e000a398cee4d5c42"
     },
     {
       "path": "d1/quality-REGENT-023/meta.json",
@@ -5394,8 +5394,8 @@
     },
     {
       "path": "d1/quality-SILENT-000/golden.br",
-      "bytes": 28805,
-      "sha256": "dd4c6ab0d07c46be9965fc7f90dbc7f18ca02b585f08f91c6fe4896b441eedec"
+      "bytes": 28841,
+      "sha256": "9c8f41fc82bab0d0d66675618876557a82b952e24495166d126496d59b0fe632"
     },
     {
       "path": "d1/quality-SILENT-000/meta.json",
@@ -5409,8 +5409,8 @@
     },
     {
       "path": "d1/quality-SILENT-001/golden.br",
-      "bytes": 30933,
-      "sha256": "3909e96d135f65d3528efc1163a5babc0237164352239d7d6277cde8085ee97f"
+      "bytes": 30921,
+      "sha256": "1a97e2658a995aaba04fb526a34335ba4ac999c9350ebe658ceb0158933bb406"
     },
     {
       "path": "d1/quality-SILENT-001/meta.json",
@@ -5424,8 +5424,8 @@
     },
     {
       "path": "d1/quality-SILENT-002/golden.br",
-      "bytes": 34739,
-      "sha256": "e13f08b8c9fce3770a962f71b35b7513d142aa36a445dc3a74f3a772a4d801c7"
+      "bytes": 34753,
+      "sha256": "e9e34e60b1a7ef07321a69c258939e9b8d70ac0b57e7dd43e91e4557e8600ca2"
     },
     {
       "path": "d1/quality-SILENT-002/meta.json",
@@ -5439,8 +5439,8 @@
     },
     {
       "path": "d1/quality-SILENT-003/golden.br",
-      "bytes": 19669,
-      "sha256": "38bd1245e0a90af15f3cc3b93571c798f5d212cc310f1fba47866c51cb3688fd"
+      "bytes": 19689,
+      "sha256": "79ddb3d50394bfacf031881f94db1957ef054a6dcd6e2a03d92670dbbf26f0b8"
     },
     {
       "path": "d1/quality-SILENT-003/meta.json",
@@ -5454,8 +5454,8 @@
     },
     {
       "path": "d1/quality-SILENT-004/golden.br",
-      "bytes": 58222,
-      "sha256": "779b6964b406c5225f4f832e54d55f5a78a1ee82cc0df8dce01df63cb8bb540f"
+      "bytes": 58249,
+      "sha256": "3e72a5b760a80dce72b7753bab0f91c3a2b0715e72e930d76cba3141a944d5a6"
     },
     {
       "path": "d1/quality-SILENT-004/meta.json",
@@ -5469,8 +5469,8 @@
     },
     {
       "path": "d1/quality-SILENT-005/golden.br",
-      "bytes": 63748,
-      "sha256": "2391a584cbf11c9940a0e1af3f7c4e15510e653f1b5538f925f37819616e3c16"
+      "bytes": 63757,
+      "sha256": "2824c7c3d4430ff73900599f4c0146db2241adb6a9a7a1bb5ac2c3f2c3cf3685"
     },
     {
       "path": "d1/quality-SILENT-005/meta.json",
@@ -5484,8 +5484,8 @@
     },
     {
       "path": "d1/quality-SILENT-006/golden.br",
-      "bytes": 36400,
-      "sha256": "269846dec9b4dd828a4756fe31a7b592102afe911774655bdb59e993ae1c8834"
+      "bytes": 36421,
+      "sha256": "98df4d89119005cc95d07de267cfb4281881c859f969a402538a7eaf27b7d491"
     },
     {
       "path": "d1/quality-SILENT-006/meta.json",
@@ -5499,8 +5499,8 @@
     },
     {
       "path": "d1/quality-SILENT-007/golden.br",
-      "bytes": 38881,
-      "sha256": "422cd260c7f9c66edd84eb3e268cd9990b300d950886a50de1ae15bfc0d6588f"
+      "bytes": 38956,
+      "sha256": "87b54334154f4651f17ecfcf45f86c5810393885029b27182c6d07e60c72f404"
     },
     {
       "path": "d1/quality-SILENT-007/meta.json",
@@ -5514,8 +5514,8 @@
     },
     {
       "path": "d1/quality-SILENT-008/golden.br",
-      "bytes": 30011,
-      "sha256": "8afc2eae34d0497c59f9d02d5b354d7b998a6ed0b54f4dd4e1284f3b4f39b3d2"
+      "bytes": 30015,
+      "sha256": "aced793505be722b6eb6fe27ee324f4788bda731fb71abe3a13bd703a4c8d849"
     },
     {
       "path": "d1/quality-SILENT-008/meta.json",
@@ -5529,8 +5529,8 @@
     },
     {
       "path": "d1/quality-SILENT-009/golden.br",
-      "bytes": 36387,
-      "sha256": "c34d122226da440274ecd6878986459d0d398653ec8b1fcef637b7378fd23adf"
+      "bytes": 36385,
+      "sha256": "8f79cad8f380e3edd68828e8c6048f2b7b239841bd2cac00ce951738c5b3b00d"
     },
     {
       "path": "d1/quality-SILENT-009/meta.json",
@@ -5544,8 +5544,8 @@
     },
     {
       "path": "d1/quality-SILENT-010/golden.br",
-      "bytes": 36361,
-      "sha256": "2abf28dde7469d4f28273c0f0c8f51d4bc1b2aab362a6aeb659fd3ea84153fc4"
+      "bytes": 36395,
+      "sha256": "0f06a63139d0389b6148cadeaf5a272fc48bce7779efa8b2dec00f2c438ef5d2"
     },
     {
       "path": "d1/quality-SILENT-010/meta.json",
@@ -5559,8 +5559,8 @@
     },
     {
       "path": "d1/quality-SILENT-011/golden.br",
-      "bytes": 32003,
-      "sha256": "f1a370555f786f95e8a7fd591a23a3dc99116841659b8801a2cb59ce8b5a2125"
+      "bytes": 31998,
+      "sha256": "2984c71a747595c6244b4cbec9e96c9de30f78c3d9d7058d41e24a66d00f2d30"
     },
     {
       "path": "d1/quality-SILENT-011/meta.json",
@@ -5574,8 +5574,8 @@
     },
     {
       "path": "d1/quality-SILENT-012/golden.br",
-      "bytes": 30112,
-      "sha256": "8f4a301caa72e5713230ce192d196ab70e08febe773be350ae05e2b889a13b80"
+      "bytes": 30061,
+      "sha256": "c68bbfaeae505026da7588bc775354a8f1a41b14cfd9ad57634e3d45f3f5e87d"
     },
     {
       "path": "d1/quality-SILENT-012/meta.json",
@@ -5589,8 +5589,8 @@
     },
     {
       "path": "d1/quality-SILENT-013/golden.br",
-      "bytes": 42219,
-      "sha256": "c3fb8cb0279274d296cd8b82c163b55b21c66e240180f8cc634ce4817103dfeb"
+      "bytes": 42213,
+      "sha256": "232f3a390f862553d3991605a38a9e4b5e16868025d278f91f7110d40a5f6bd4"
     },
     {
       "path": "d1/quality-SILENT-013/meta.json",
@@ -5604,8 +5604,8 @@
     },
     {
       "path": "d1/quality-SILENT-014/golden.br",
-      "bytes": 45917,
-      "sha256": "b6f46899dfc2b2c761e602325aa0b4c455617224338ac38334b3802ea697625b"
+      "bytes": 45887,
+      "sha256": "11acdd3b12b6caffcc34ff2ceaa7683439ad20ec6cfd43191f6b17e1c63cf122"
     },
     {
       "path": "d1/quality-SILENT-014/meta.json",
@@ -5619,8 +5619,8 @@
     },
     {
       "path": "d1/quality-SILENT-015/golden.br",
-      "bytes": 44250,
-      "sha256": "18455dab9f1dd6b99c8267bb896871d5183a8275c7c02e0bc42c26703a5450cc"
+      "bytes": 44264,
+      "sha256": "7bff6808d3f9c09265e685303c22e278bd8ed492705bd85bf5f024080448453b"
     },
     {
       "path": "d1/quality-SILENT-015/meta.json",
@@ -5634,8 +5634,8 @@
     },
     {
       "path": "d1/quality-SILENT-016/golden.br",
-      "bytes": 13857,
-      "sha256": "d13b354c56a1ad50972c86864bc7951bd0ddd1d2275eb0d372a866724e4fe047"
+      "bytes": 13848,
+      "sha256": "16559487b1595a5e2ac79e20a169661bfb83a34ea4e859382ec550ea2edf5486"
     },
     {
       "path": "d1/quality-SILENT-016/meta.json",
@@ -5649,8 +5649,8 @@
     },
     {
       "path": "d1/quality-SILENT-017/golden.br",
-      "bytes": 28709,
-      "sha256": "7f0c4f2e1f4f3b565506c8f43f5f8faf7d6781b4073d9e13e81ea4df72db6baf"
+      "bytes": 28690,
+      "sha256": "61039ee8201b573aac63c20428aecf824f676b0e6e6fdf6cdc607dc35e1a54f8"
     },
     {
       "path": "d1/quality-SILENT-017/meta.json",
@@ -5664,8 +5664,8 @@
     },
     {
       "path": "d1/quality-SILENT-018/golden.br",
-      "bytes": 23585,
-      "sha256": "5bef917f5818d0211ba576b3ac06af2a565d686915c09bdd3067988dc165dbfd"
+      "bytes": 23594,
+      "sha256": "edf8eae357a186f233c4c010a2ef87f99506c9e343c488b4fa925745a1eee9b4"
     },
     {
       "path": "d1/quality-SILENT-018/meta.json",
@@ -5679,8 +5679,8 @@
     },
     {
       "path": "d1/quality-SILENT-019/golden.br",
-      "bytes": 21803,
-      "sha256": "cf8c193292eac1996d88c47fbeb8ba12800e0d44456f647412bd063fd3eee35d"
+      "bytes": 21797,
+      "sha256": "95c306a6a7f069b073c7bff3d976dde0d7c30c4d124707f678a7e1a1c317b4e2"
     },
     {
       "path": "d1/quality-SILENT-019/meta.json",
@@ -5694,8 +5694,8 @@
     },
     {
       "path": "d1/quality-SILENT-020/golden.br",
-      "bytes": 13477,
-      "sha256": "020ad20459e6ecf7fda8f79e752c2ea0abe36fd4fd0d5294458840a947219357"
+      "bytes": 13490,
+      "sha256": "9b38d3bb52199f11c19acde8db9898589a02be6315631d9850c0dd671237d844"
     },
     {
       "path": "d1/quality-SILENT-020/meta.json",
@@ -5709,8 +5709,8 @@
     },
     {
       "path": "d1/quality-SILENT-021/golden.br",
-      "bytes": 33762,
-      "sha256": "d06bd39d1a32826c4a86f32a42312c222a4972ef3ced014079ceee8114e01816"
+      "bytes": 33791,
+      "sha256": "98997fa2b12d25c665e97b6847b9abbc3940fe00b6e043245e3e3509fcfed6ce"
     },
     {
       "path": "d1/quality-SILENT-021/meta.json",
@@ -5724,8 +5724,8 @@
     },
     {
       "path": "d1/quality-SILENT-022/golden.br",
-      "bytes": 19693,
-      "sha256": "44c208315ac8d493dea6228991e15c765e5f160e36e7ffafe25a5ed07b7a8e1b"
+      "bytes": 19698,
+      "sha256": "8a0fd07924ec5f1bd88e94eeddf24c0cfcebdf462b6efce75140a73ce4c7768f"
     },
     {
       "path": "d1/quality-SILENT-022/meta.json",
@@ -5739,8 +5739,8 @@
     },
     {
       "path": "d1/quality-SILENT-023/golden.br",
-      "bytes": 36001,
-      "sha256": "7234bffc0569f5b9027d4ec8fa45e8d4bcef4cfbdb01db9cb8d18e5c221ed46b"
+      "bytes": 36031,
+      "sha256": "ab2c0b5fbe76dfe0c9d8c7b247cdbff719d796ec90e0a93cfb4decf332704aef"
     },
     {
       "path": "d1/quality-SILENT-023/meta.json",
@@ -5754,8 +5754,8 @@
     },
     {
       "path": "d1/r2-a-relic-combat/golden.br",
-      "bytes": 11290,
-      "sha256": "a96606e1ff4bd02bc5e7a8702c96965448fe3dc87c448544b00862e2aabfd729"
+      "bytes": 11292,
+      "sha256": "5a69fdef7471c6bc3d2849174cdd81db3e42eee76978a40c3aca11c91d6b91d3"
     },
     {
       "path": "d1/r2-a-relic-combat/meta.json",
@@ -5769,8 +5769,8 @@
     },
     {
       "path": "d1/r2-b-relic-turns/golden.br",
-      "bytes": 15254,
-      "sha256": "9bcf33f60ff3156b1bef77c7d3662bf47e2d998034c0368e2060ce7617315ef9"
+      "bytes": 15267,
+      "sha256": "02f657f74ad884b251633c020e5749fe80e2018c7bafabea671fa1374acb34b0"
     },
     {
       "path": "d1/r2-b-relic-turns/meta.json",
@@ -5784,8 +5784,8 @@
     },
     {
       "path": "d1/r2-c-fiddle-draw/golden.br",
-      "bytes": 11252,
-      "sha256": "4a84c1917ed44450e8da34a3c7c531dc0a63fd838272cb03ad694b6dac0fdf01"
+      "bytes": 11259,
+      "sha256": "89c24df63e8141da94a6bc680413bc7c79e00c05506e8e114e724f783fd91e9d"
     },
     {
       "path": "d1/r2-c-fiddle-draw/meta.json",
@@ -5799,8 +5799,8 @@
     },
     {
       "path": "d1/r2-d-no-combat/golden.br",
-      "bytes": 29236,
-      "sha256": "2d66344e992e5016bba53f1aa92d3975b66572b778e38f965be24b0f9bc94487"
+      "bytes": 29201,
+      "sha256": "214ae3fc4551a11ad02f4532c34019bba2d474efe131a555af208b424b76b558"
     },
     {
       "path": "d1/r2-d-no-combat/meta.json",
@@ -5814,8 +5814,8 @@
     },
     {
       "path": "d1/r2-e-no-combat/golden.br",
-      "bytes": 28952,
-      "sha256": "63b435d7d35d3e999a1a31fcb4d0431ef1a483d19d6aa3c3f1c4063efae2b9a2"
+      "bytes": 29013,
+      "sha256": "aad388cb60b2351b1b51dfa761a0e7d6fd82d268614fc885ffee6eb98f1f7e44"
     },
     {
       "path": "d1/r2-e-no-combat/meta.json",
@@ -5829,8 +5829,8 @@
     },
     {
       "path": "d1/r2-f-no-combat/golden.br",
-      "bytes": 31863,
-      "sha256": "4574c2d5729b847ddaeaa69145097f8dfb37c28241f27647c9c98dbb33b91a42"
+      "bytes": 31867,
+      "sha256": "6688c75ce8850c42a5a2d8086b2331f8e560a3c3e568da0b15b12a06268fad43"
     },
     {
       "path": "d1/r2-f-no-combat/meta.json",
@@ -5844,8 +5844,8 @@
     },
     {
       "path": "d1/r2-g-no-combat/golden.br",
-      "bytes": 30558,
-      "sha256": "4d50da06c6685f848bd78b4a6b7908d455d29ac3076c4cfda64248e61b420fb3"
+      "bytes": 30598,
+      "sha256": "b43739da3e9c0e70a367134365bb1e43b109a2976014a01b4611d6eeb85de484"
     },
     {
       "path": "d1/r2-g-no-combat/meta.json",
@@ -5859,8 +5859,8 @@
     },
     {
       "path": "d1/r3-a-distilled-chaos/golden.br",
-      "bytes": 22233,
-      "sha256": "e58030bcca316f3bcc98b5f203959acf77f42699ec2475b8f4c33bead48716fb"
+      "bytes": 22225,
+      "sha256": "18d17e4d417da1deb9ca7c341d7e743dd6ff2f3ed54e257ca471cb1697751306"
     },
     {
       "path": "d1/r3-a-distilled-chaos/meta.json",
@@ -5874,8 +5874,8 @@
     },
     {
       "path": "d1/r3-b-distilled-chaos-shuffle/golden.br",
-      "bytes": 24957,
-      "sha256": "d3cde62f7f834f790f36d636af2aeb2a40249e05e8dff2fbc7aa5309ed68120f"
+      "bytes": 24967,
+      "sha256": "1831f75a7dd12078be6ab8aeeef03a0123325e9b4bfc053b1b6685468071e94a"
     },
     {
       "path": "d1/r3-b-distilled-chaos-shuffle/meta.json",
@@ -5889,8 +5889,8 @@
     },
     {
       "path": "d1/r3-c-distilled-chaos-short/golden.br",
-      "bytes": 21656,
-      "sha256": "dab786ac25826bb1f8fbd9c797dfccfd54e5853c100806ae6ab7b0b4fb83aac0"
+      "bytes": 21657,
+      "sha256": "520f4a4fcf2737fd260035b05e69606745dd9c94e010125afcd2987a4e4afbb5"
     },
     {
       "path": "d1/r3-c-distilled-chaos-short/meta.json",
@@ -5904,8 +5904,8 @@
     },
     {
       "path": "d1/rg-a-star/golden.br",
-      "bytes": 16063,
-      "sha256": "ea1700e7315cb982ca43f9e14e4c518e73be7144da7c93c1f63b538a0efc957b"
+      "bytes": 16037,
+      "sha256": "e4f7d8aaba3d85660d79a48502c0615cb6410dbad167bd0ad415ffbaef8ab545"
     },
     {
       "path": "d1/rg-a-star/meta.json",
@@ -5919,8 +5919,8 @@
     },
     {
       "path": "d1/rg-b-forge/golden.br",
-      "bytes": 7994,
-      "sha256": "147ccaffa5fb87726547433015e5ecaa0b0078cd2061293e0b81ae4707c42d4d"
+      "bytes": 7969,
+      "sha256": "14abeb5c62883fe085e6f033b621df559c2f30d439c72b5e1287a0a340010620"
     },
     {
       "path": "d1/rg-b-forge/meta.json",
@@ -5934,8 +5934,8 @@
     },
     {
       "path": "d1/rg-c-powers/golden.br",
-      "bytes": 16893,
-      "sha256": "37ead4c2eb0e69c370c39ef39aaa01ebb4a1badf87a025445e953152e94da193"
+      "bytes": 16877,
+      "sha256": "f3ad478806f83a34404c4ca1705ab4dd9afb8d7dfc026a7aad98cbfe6c178d7c"
     },
     {
       "path": "d1/rg-c-powers/meta.json",
@@ -5949,8 +5949,8 @@
     },
     {
       "path": "d1/rg-d-forge-create/golden.br",
-      "bytes": 15180,
-      "sha256": "e5a87c7c97039310291e1e35e3e2dab13c1e784a696c431b8209ed5123a2ce23"
+      "bytes": 15167,
+      "sha256": "b57ab6817c03e941592548f60ade4e026124c11c016a80f1da0eb41b9e55181e"
     },
     {
       "path": "d1/rg-d-forge-create/meta.json",
@@ -5964,8 +5964,8 @@
     },
     {
       "path": "d1/sk-a-discard-sly/golden.br",
-      "bytes": 59698,
-      "sha256": "d88891eae405275985355170b9e0640fea6c39e383f1aca40ae8dcfdb23ce267"
+      "bytes": 59737,
+      "sha256": "1190c7356c39206ce9fd24e7d23132d521c0def8598f70739a2f7c4c7a30903f"
     },
     {
       "path": "d1/sk-a-discard-sly/meta.json",
@@ -5979,8 +5979,8 @@
     },
     {
       "path": "d1/sk-b-shiv/golden.br",
-      "bytes": 47323,
-      "sha256": "8ea9c8d467758ee017e7ee97dc4131327575fa48a967494c47efadac053f18f4"
+      "bytes": 47335,
+      "sha256": "f94533261cfbbbbf4cdf5d103458e869fe542f8f9d126025f274c019c3d23c29"
     },
     {
       "path": "d1/sk-b-shiv/meta.json",
@@ -5994,8 +5994,8 @@
     },
     {
       "path": "d1/sk-c-poison/golden.br",
-      "bytes": 30766,
-      "sha256": "3f1228e15da0d02792051f831d32e2363d2afc1fc21d285e253746a175a48d8e"
+      "bytes": 30809,
+      "sha256": "2eb52884c8930e9c85acde77bcf05cdd8a6d2860818ef9781e1efd7f1f632e18"
     },
     {
       "path": "d1/sk-c-poison/meta.json",
@@ -6009,8 +6009,8 @@
     },
     {
       "path": "d1/sk-d-simple/golden.br",
-      "bytes": 48484,
-      "sha256": "9dd837f585134e2ac324a6acc2041e69a75f28774a3afbe550c28382b11a76d8"
+      "bytes": 48456,
+      "sha256": "dd9ae7ee7238c4b40fd755ad7ae3f05799bedc148edcc70831c103997b0e4b3c"
     },
     {
       "path": "d1/sk-d-simple/meta.json",
@@ -6024,8 +6024,8 @@
     },
     {
       "path": "d1/sk-e-powers/golden.br",
-      "bytes": 31144,
-      "sha256": "c5418395f8aede43c7005e1102167a8c60ec6a91d5f581160a95dc0e51e29228"
+      "bytes": 31124,
+      "sha256": "ebb45d4106e2167af50516d83ee0b3d9dcc840d5c553ece0d044a4fbe3b24805"
     },
     {
       "path": "d1/sk-e-powers/meta.json",
@@ -6039,8 +6039,8 @@
     },
     {
       "path": "d1/sk-f-xcalc/golden.br",
-      "bytes": 48265,
-      "sha256": "6b9a2f4d909a5206bb147b4465ac1198dacde5f6676f698e1bde14c809d8b1d3"
+      "bytes": 48234,
+      "sha256": "346d28542b5dcdca3f6db8de9e9f962e4008ecb2220b76b8c5738f055e1f03fd"
     },
     {
       "path": "d1/sk-f-xcalc/meta.json",
@@ -6054,8 +6054,8 @@
     },
     {
       "path": "d1/sk-g-starters-upgraded/golden.br",
-      "bytes": 43178,
-      "sha256": "f9e662b2951226b1b91a07bb091a6a70af29758e5c77436399eeb4372f77351e"
+      "bytes": 43199,
+      "sha256": "d1ac2964e2f63d87ecaceda56d80aab0845bd7f3bffb63dc44804ae909c210ae"
     },
     {
       "path": "d1/sk-g-starters-upgraded/meta.json",
@@ -6069,8 +6069,8 @@
     },
     {
       "path": "d1/sw2-entropy-transform/golden.br",
-      "bytes": 21156,
-      "sha256": "4f7c2e64aa6b3b07662183737b24517d323f37464f3b048df65b63dfac97ec3b"
+      "bytes": 21158,
+      "sha256": "623a2b97f92cb9c24e4dab7ff691347ea2ff9a191b846cfb30c45554329e06a4"
     },
     {
       "path": "d1/sw2-entropy-transform/meta.json",
@@ -6084,8 +6084,8 @@
     },
     {
       "path": "d1/sw2-smart-bound-relic/golden.br",
-      "bytes": 34404,
-      "sha256": "2e8c13513fb1771a61bef2f33a46e9a91cb2fdcaec2a996c2dfe5bd615bd05a0"
+      "bytes": 34432,
+      "sha256": "77348ec696a9c55c41a66dbab583ea175991f6d4e049edaf81b40244f5e3dbef"
     },
     {
       "path": "d1/sw2-smart-bound-relic/meta.json",
@@ -6099,8 +6099,8 @@
     },
     {
       "path": "d1/ts-a-toasty/golden.br",
-      "bytes": 46725,
-      "sha256": "b05e62bf45c719bec75c275dd01a6dba9c9787e7a618b01f2128b94aa72bf856"
+      "bytes": 46731,
+      "sha256": "547d8086efc2075606b3995fac2bec4f11f39847f19cfae5540f73ec5ab15a9e"
     },
     {
       "path": "d1/ts-a-toasty/meta.json",
@@ -6114,8 +6114,8 @@
     },
     {
       "path": "d1/ts-b-toolbox/golden.br",
-      "bytes": 50750,
-      "sha256": "ec504c23bf3e87ecf7d5548a433c34f7bc83c675cd6ee14f2aa70ab21a2fe610"
+      "bytes": 50735,
+      "sha256": "436966bd9609ce7a00b59b6b30939ba61ea8c43416a6fbb82b1903b8d752416d"
     },
     {
       "path": "d1/ts-b-toolbox/meta.json",
@@ -6129,8 +6129,8 @@
     },
     {
       "path": "d1/tw-gremlin-merc/golden.br",
-      "bytes": 17400,
-      "sha256": "e7024eefc30fa7f360a845392e9d49edd2b4c4a65a63766d45f1b202c836a26f"
+      "bytes": 17378,
+      "sha256": "3eeaec481cbe8e0696e02d6081abd074967d0efa32c1d3303b0a370c50b9167e"
     },
     {
       "path": "d1/tw-gremlin-merc/meta.json",
@@ -6144,8 +6144,8 @@
     },
     {
       "path": "d1/tw-thieving-hopper-recover/golden.br",
-      "bytes": 1885,
-      "sha256": "283b801e2f2f37da47b57c8d26f3abf6a2e7cc510526a55a86d7b9d962fdacef"
+      "bytes": 1892,
+      "sha256": "302e54b3aa64939ad10f90b03ff1e3e2e1d25e3f777d58c682b3e5a716936d6d"
     },
     {
       "path": "d1/tw-thieving-hopper-recover/meta.json",
@@ -6159,8 +6159,8 @@
     },
     {
       "path": "d1/tw-thieving-hopper/golden.br",
-      "bytes": 12642,
-      "sha256": "4e306699f493629b18356cdd4c43b1b4424404470c19e0e724f2342878e120df"
+      "bytes": 12648,
+      "sha256": "d50aa8092ed0d6095c522e49d0f12192eb19fd0cc785dd7131eb3274dcd6bafa"
     },
     {
       "path": "d1/tw-thieving-hopper/meta.json",
@@ -6174,8 +6174,8 @@
     },
     {
       "path": "d1/tw-waterfall-giant/golden.br",
-      "bytes": 11531,
-      "sha256": "9f7070a0d76dedeb3a4407d3fb801866506f0bf5d6c79fc0081a076633e8ef02"
+      "bytes": 11522,
+      "sha256": "3158f75298f9df5b80d6b805bbaccff4f2bcb772972996e9ad1f7d820e7b6f01"
     },
     {
       "path": "d1/tw-waterfall-giant/meta.json",

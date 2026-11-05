@@ -83,7 +83,7 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 - 动作编码：`Kind, HandIndex, Target, PotionSlot, ChoiceCount, ChoiceCount × u64 选择位集`（不写结构体填充）。
 - 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount(u16), MinCount, MaxCount, IndexSelection(bool), OptionCount × 选项(u16)`；生成卡选项再写 `OptionCount × Card` 的原始 92 字节。`OptionCount` 和选项位置/选项值都是 2 字节；`IndexSelection` 用于总牌数超过 255、单选选项超过 64 的请求。
 - `immediateStatus`：0 = 动作不需要选择；1 = 需要，并行的请求有效；2 = 内核边界（`UnsupportedException` 或 `CapacityException`）。
-- K4 哈希：`scoreHash` 是 `ScoreFeatures` 全部字段的确定性 SHA-256 截断；`boundHash` 是 `BoundValues`；`traitHash` 是 `SearchRouteTraits + pure + declined + pocketwatch threshold/played`。模拟回归只验证内核能复现的部分（K1、K2 和这些哈希）。
+- K4 哈希：`scoreHash` 是 `ScoreFeatures` 全部当前字段的确定性 SHA-256 截断；`boundHash` 是 `BoundValues`；`traitHash` 是 `SearchRouteTraits + pure + declined + pocketwatch threshold/played`。模拟回归只验证内核能复现的部分（K1、K2 和这些哈希）。
 - `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 5、`battleSize` 62,744；校验只接受这一组值。
 
 ## 6. `SREQ` / `SRES`：搜索回归的请求与结果
@@ -144,7 +144,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 | `battleSize` | 62,744，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：SREQ v7→v8 删除遗物计数规则、`InitialActionCount` 和三个初始药水计数；D1 的 13 个前缀根按 0 重录 score/bound 哈希；SRES 仍为 v6，D2 期望结果逐字节不变 |
+| `provenance.formatMigration` | 格式迁移说明：SREQ v7→v8 删除遗物计数规则、`InitialActionCount` 和三个初始药水计数；D1 的 13 个前缀根按 0 重录 score/bound 哈希；SRES 仍为 v6，D2 期望结果逐字节不变。D1 评分哈希改写到当前 `ScoreFeatures` 字段集合，删除遗物计数占位和重复策略占位，所有 D1 根的根/K1/游走状态 score 哈希重算，字段值、bound 哈希和结构不变 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |

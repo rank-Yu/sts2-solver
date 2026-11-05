@@ -16,7 +16,9 @@ internal static class ManifestProvenance
         + "BeamOptions.InitialActionCount 和 ScoreRules 的三个初始药水计数；"
         + "D1 config.br 与 D2 request.br 机械重编码，D1 的 13 个前缀根按计数为 0 重录 scoreHash，"
         + "其中 qf-misery-roster 的初始显式用药还影响其根/K1/K2 的 score 与 bound 哈希，"
-        + "结构数据与其它 12 个根只更新根 scoreHash。SRES 不编码这些字段，D2 期望结果逐字节不变。";
+        + "结构数据与其它 12 个根只更新根 scoreHash。SRES 不编码这些字段，D2 期望结果逐字节不变。"
+        + "D1 评分哈希同时改为只写当前 ScoreFeatures 字段，删除遗物计数占位槽和重复的策略占位；"
+        + "所有 D1 根的根/K1/游走状态 score 哈希按新字段集合重算，字段值、bound 哈希和结构不变。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

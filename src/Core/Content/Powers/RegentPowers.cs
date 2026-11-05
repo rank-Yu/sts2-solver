@@ -104,7 +104,7 @@ public sealed class ReflectPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 

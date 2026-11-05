@@ -22,7 +22,7 @@ public sealed class AmbergrisPower : PowerDef
         if (self.Owner != Limits.PlayerOwner)
             return;
         int amount = x.B.Powers[self.Index].Amount;
-        Kernel.SetPowerAmount(ref x.B, Limits.PlayerOwner, Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, Limits.PlayerOwner, Id, amount - 1);
     }
 }
 

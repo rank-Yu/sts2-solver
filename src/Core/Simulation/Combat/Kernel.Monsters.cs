@@ -376,8 +376,9 @@ public static partial class Kernel
             if (x.NeedsChoice)
                 return x.B.Player.IsDead;
         }
-        if (playerDied)
-            return true;
+        // The native move method continues after DamageCmd.Attack.Execute even when the attack kills
+        // the player: later effects of the same move still run (Fabricator's FABRICATING_STRIKE spawns
+        // its aggro bot after the lethal hit). RunEnemyTurn stops after this move returns playerDied.
         // MonsterMoveSemantics: a fully blocked attack stuns a monster with ImbalancedPower, using
         // HEADBUTT_MOVE as the synthetic follow-up for BowlbugRock and the default otherwise, then
         // skips its next move. This runs before ResolveReviveMove and ApplyMoveEffects.
@@ -420,7 +421,7 @@ public static partial class Kernel
             NormalizeAeonglassWithers(ref x);
         if (!x.NeedsChoice)
             NormalizeCardAfflictions(ref x);
-        return x.B.Player.IsDead;
+        return playerDied || x.B.Player.IsDead;
     }
 
     /// <summary>

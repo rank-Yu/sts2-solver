@@ -376,7 +376,7 @@ public sealed class VeilpiercerPower : PowerDef
         {
             return;
         }
-        Kernel.SetPowerAmount(ref x.B, self.Owner, power.Id, power.Amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, power.Id, power.Amount - 1);
     }
 }
 
@@ -395,7 +395,7 @@ public sealed class DebilitatePower : PowerDef
     public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id,
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id,
                 x.B.Powers[self.Index].Amount - 1);
     }
 }

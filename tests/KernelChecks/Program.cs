@@ -75,6 +75,7 @@ Rules rules = SliceRules();
 SearchChecks.Check();
 IncumbentAndLoopChecks.Check(rules);
 GoldHookChecks.Check();
+PowerEndingChecks.Check();
 CheckHookDeactivation(rules);
 bool lateRegistrationThrew = false;
 try
@@ -708,9 +709,11 @@ static void CheckTwKernel()
     // leaves the roster; FlutterPower keeps its observed pending row (PowerRemainsAfterOwnerLeavesRoster).
     Battle roster = TwBattle(rules);
     Exec rosterExec = new(ref roster, rules, default);
-    Kernel.ApplyPower(ref rosterExec, Kernel.EnemyOwner(0), Registry.PowerId<MinionPower>(), 1,
-        Kernel.EnemyOwner(0));
+    // Apply Flutter while the enemy is still primary: MinionPower turns the only enemy secondary,
+    // which would make IsEnding true and correctly stop the later Flutter application.
     Kernel.ApplyPower(ref rosterExec, Kernel.EnemyOwner(0), Registry.PowerId<FlutterPower>(), 1,
+        Kernel.EnemyOwner(0));
+    Kernel.ApplyPower(ref rosterExec, Kernel.EnemyOwner(0), Registry.PowerId<MinionPower>(), 1,
         Kernel.EnemyOwner(0));
     roster.Enemies[0].Creature.CurrentHp = 0;
     Kernel.RemoveFromRoster(ref roster, Kernel.EnemyOwner(0));

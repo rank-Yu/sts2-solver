@@ -23,7 +23,7 @@ public sealed class ClarityPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -120,7 +120,7 @@ public sealed class RadiancePower : PowerDef
             Kernel.GainEnergy(ref x, x.R.PowerVar(Id, 0));
         }
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -154,7 +154,7 @@ public sealed class RegenPower : PowerDef
         if (amount <= 0)
             return;
         Kernel.Heal(ref x, self.Owner, amount);
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 
     // CorePowerSupport.CompletePlayerEarlySideTurnEndEffects: the player's regen stack is removed after DoTurnEnd.
@@ -162,7 +162,7 @@ public sealed class RegenPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -267,7 +267,7 @@ public sealed class DuplicationPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -321,6 +321,6 @@ public sealed class GigantificationPower : PowerDef
             return;
         power.Aux0 = 0;
         if (power.Amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, power.Amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, power.Amount - 1);
     }
 }

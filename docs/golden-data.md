@@ -161,7 +161,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
-当前 D1 为 403 个根、4,893 个 K1、14,576 条游走、468,101 个游走状态、455,978 个转移；D2 为 2,021 个请求、2,021 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求，原有 1,982 个请求和期望结果逐字节不变。RL1 跟进 2 的 13 个旧前缀根重录（`dx4-dread-baseline`、`dx5-pen-nib-sly`、`dx6-dampen-echoing`、`hs-chains-turn-reset`、`hs3-stoke-identity`、`qf-fisticuffs-replay`、`qf-misery-roster`、`qf-negative-pulse-roster`、`qf-nightmare-detached`、`qf3-seeking-edge-order`、`qf5-anger-dampen-clone`、`qt2-art-of-war-endturn`、`qt2-kusarigama-endturn`）仍是当前 `provenance.d1Rerecord` 的来源记录。
+当前 D1 为 403 个根、4,893 个 K1、14,576 条游走、468,101 个游走状态、455,978 个转移；D2 为 2,021 个请求、2,021 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求时，原有 1,982 个请求逐字节不变。fs5b/fs5b2 按结束中不施加或修改 Power 的语义重冻了 D2；当前 `provenance.refreeze=fs5b2`（结果集 SHA-256 为 `539878014bb2ff9ecca3667e9607cd524a6b7ae310e5a0196f495c93dd859edd`），D2 的 2,021 个期望结果全部一致。当前 `provenance.d1Rerecord` 记录 fs5b2 重录的 48 个根，完整列表见 `manifest.json`；重录前后 K1、游走状态数与转移数不变。
 
 ## 9. 重录与重冻会改什么
 

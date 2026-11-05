@@ -719,7 +719,7 @@ public static partial class Kernel
             {
                 int amount = GetAmount(x.B, creature, id);
                 if (amount > 0)
-                    SetPowerAmount(ref x.B, creature, id, amount - 1);
+                    ModifyPowerAmount(ref x.B, creature, id, amount - 1);
             }
         }
     }

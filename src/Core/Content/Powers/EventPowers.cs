@@ -95,7 +95,7 @@ public sealed class ReboundPower : PowerDef
         if (self.Owner != Limits.PlayerOwner)
             return;
         ref Power power = ref x.B.Powers[self.Index];
-        Kernel.SetPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
+        Kernel.ModifyPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
     }
 }
 
@@ -127,7 +127,7 @@ public sealed class ToricToughnessPower : PowerDef
             if (x.NeedsChoice)
                 return;
         }
-        Kernel.SetPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
+        Kernel.ModifyPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
     }
 }
 
@@ -199,7 +199,7 @@ public sealed class BattlewornDummyTimeLimitPower : PowerDef
         ref Power power = ref x.B.Powers[self.Index];
         if (power.Amount > 1)
         {
-            Kernel.SetPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
+            Kernel.ModifyPowerAmountAt(ref x.B, self.Index, power.Amount - 1);
             return;
         }
         // EndTurnPowerSupport: the last tick leaves Amount at 1 and the engine's flag is read only

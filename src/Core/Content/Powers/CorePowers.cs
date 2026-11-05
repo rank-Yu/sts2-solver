@@ -285,5 +285,5 @@ public sealed class BufferPower : PowerDef
         => loss.Target == self.Owner ? 0m : amount;
 
     public override void AfterModifyingHpLostAfterOsty(ref Exec x, Listener self)
-        => Kernel.SetPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, x.B.Powers[self.Index].Amount - 1));
+        => Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, x.B.Powers[self.Index].Amount - 1));
 }

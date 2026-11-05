@@ -132,7 +132,7 @@ public sealed class DoubleDamagePower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 
@@ -160,7 +160,7 @@ public sealed class BlurPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 
@@ -528,7 +528,7 @@ public sealed class FreeSkillPower : PowerDef
             return;
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 

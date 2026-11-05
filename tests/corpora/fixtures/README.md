@@ -89,6 +89,7 @@ FS5 批次修好的对照 fixture：
 - `fs5-kusarigama-death-trigger`：Kusarigama 的第 3 次攻击伤害后立即结算敌人死亡效果，PossessStrength 的返还影响下一次重放伤害；
 - `fs5-happy-flower-terminal`：战斗在敌人回合结束时，下一次玩家侧回合开始的 HappyFlower 不推进计数；
 - `fs5-unset-move-summon`：敌人在 FABRICATE_MOVE 召唤的 bot 以 `MoveStateMachine` 当前首次行动导入 `UNSET_MOVE`，后续行动与原版一致。
+- `fs5-postlethal-monster-effect`：玩家 1 点生命、Fabricator 强制 `FABRICATING_STRIKE_MOVE`，校验致命攻击后同一行动仍执行后续召唤（aggro bot）；致命后按原版结束门控跳过的 Power 施加不计入终局，终局为 defeat、1 动作/1 回合。
 
 FS6 批次修好的对照 fixture（均为原 FS6 请求，只改 `scenarioId`）：
 

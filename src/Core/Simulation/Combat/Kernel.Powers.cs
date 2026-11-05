@@ -129,7 +129,10 @@ public static partial class Kernel
     private static int ApplyPowerInternal(ref Exec x, byte target, ushort powerId, int amount,
         byte applier, byte powerTarget)
     {
-        if (amount == 0 || !CanReceivePowers(x.B, target))
+        // PowerCmd.Apply refuses while CombatManager.IsEnding is true: CombatManager.IsCombatEnding
+        // covers both PendingLoss (the player died) and no living primary enemy with no
+        // ShouldStopCombatFromEnding listener. Kernel.IsEnding is the same predicate.
+        if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(powerId);
         // SimulatedCombatState.ModifyPowerAmountForRelics: ObserveUnsettlingLamp (the native
@@ -210,7 +213,7 @@ public static partial class Kernel
     public static int ApplyTemporaryStrength(ref Exec x, byte target, ushort temporaryId, int amount,
         byte applier, int sign, byte powerTarget = Limits.NoOwner)
     {
-        if (amount == 0 || !CanReceivePowers(x.B, target))
+        if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
         // ApplyWithBeforeApplied runs ModifyPowerAmountForRelics before the native BeforeApplied, so the
@@ -247,7 +250,7 @@ public static partial class Kernel
     public static int ApplyTemporaryFocus(ref Exec x, byte target, ushort temporaryId, int amount,
         byte applier, int sign)
     {
-        if (amount == 0 || !CanReceivePowers(x.B, target))
+        if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
         Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
@@ -301,7 +304,7 @@ public static partial class Kernel
     public static int ApplyTemporaryDexterity(ref Exec x, byte target, ushort temporaryId, int amount,
         byte applier, int sign = 1, byte powerTarget = Limits.NoOwner)
     {
-        if (amount == 0 || !CanReceivePowers(x.B, target))
+        if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
         Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
@@ -455,6 +458,32 @@ public static partial class Kernel
         }
     }
 
+    /// <summary>
+    /// <c>PowerCmd.ModifyAmount</c>'s ending guard around the existing direct setter. Native returns
+    /// before changing the amount while <c>CombatManager.IsEnding</c> is true; callers that mirror a
+    /// <c>PowerCmd.ModifyAmount</c>/<c>Decrement</c>/<c>TickDownDuration</c> use this instead of
+    /// <see cref="SetPowerAmount"/>. Remove-like direct sets keep using <see cref="SetPowerAmount"/>.
+    /// </summary>
+    public static bool ModifyPowerAmount(ref Battle battle, byte owner, ushort powerId, int amount)
+    {
+        if (IsEnding(battle))
+            return false;
+        SetPowerAmount(ref battle, owner, powerId, amount);
+        return true;
+    }
+
+    /// <summary>
+    /// Row-addressed form of <see cref="ModifyPowerAmount(ref Battle, byte, ushort, int)"/> for
+    /// instanced powers whose identity is the power-array row.
+    /// </summary>
+    public static bool ModifyPowerAmountAt(ref Battle battle, int index, int amount)
+    {
+        if (IsEnding(battle))
+            return false;
+        SetPowerAmountAt(ref battle, index, amount);
+        return true;
+    }
+
     /// <summary>Mirrors <c>SimulatedCombatState.SetAmount&lt;T&gt;</c>.</summary>
     public static void SetPowerAmount(ref Battle battle, byte owner, ushort powerId, int amount)
     {
@@ -503,7 +532,7 @@ public static partial class Kernel
         }
         int amount = index < 0 ? 0 : battle.Powers[index].Amount;
         if (amount > 0)
-            SetPowerAmount(ref battle, owner, powerId, amount - 1);
+            ModifyPowerAmount(ref battle, owner, powerId, amount - 1);
     }
 
     /// <summary>Mirrors <c>SimulatedCombatState.CanReceivePredictedPowers</c>.</summary>
@@ -537,7 +566,7 @@ public static partial class Kernel
         int amount = GetAmount(battle, target, artifact);
         if (amount <= 0)
             return false;
-        SetPowerAmount(ref battle, target, artifact, amount - 1);
+        ModifyPowerAmount(ref battle, target, artifact, amount - 1);
         return true;
     }
 
@@ -556,7 +585,7 @@ public static partial class Kernel
                 continue;
             if (!IsEnemyOwner(power.Owner) || !InRoster(x.B, power.Owner))
                 continue;
-            SetPowerAmountAt(ref x.B, index, power.Amount + 1);
+            ModifyPowerAmountAt(ref x.B, index, power.Amount + 1);
             return;
         }
     }

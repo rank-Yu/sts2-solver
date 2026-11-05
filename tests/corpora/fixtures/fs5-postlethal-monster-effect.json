@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FS5_POSTLETHAL_MONSTER_EFFECT",
+  "characterId": "IRONCLAD",
+  "encounterId": "FABRICATOR_NORMAL",
+  "seed": "FS5POSTLETHAL",
+  "ascension": 0,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerHp": 1,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [300],
+  "initialEnemyCurrentHps": [300],
+  "initialEnemyMoveIds": ["FABRICATING_STRIKE_MOVE"],
+  "clearRunDeck": true,
+  "cards": [],
+  "timeoutSeconds": 120
+}

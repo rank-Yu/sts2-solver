@@ -104,8 +104,8 @@ public sealed class SlumberPower : PowerDef
         if (result.Receiver != self.Owner || result.UnblockedDamage == 0)
             return;
         int remaining = x.B.Powers[self.Index].Amount - 1;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, remaining);
-        if (remaining <= 0)
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, remaining);
+        if (Kernel.GetAmount(x.B, self.Owner, Id) <= 0)
         {
             Kernel.ForceStunnedMove(ref x, self.Owner,
                 Kernel.MonsterRules(ref x, self.Owner).NodeIndex("ROLL_OUT_MOVE"));
@@ -117,8 +117,8 @@ public sealed class SlumberPower : PowerDef
         if (!participates)
             return;
         int remaining = x.B.Powers[self.Index].Amount - 1;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, remaining);
-        if (remaining <= 0)
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, remaining);
+        if (Kernel.GetAmount(x.B, self.Owner, Id) <= 0)
         {
             Kernel.SetPowerAmount(ref x.B, self.Owner, Registry.PowerId<PlatingPower>(), 0);
         }

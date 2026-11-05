@@ -64,7 +64,7 @@ public sealed class HatchPower : PowerDef
     {
         if (!participates)
             return;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, x.B.Powers[self.Index].Amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, x.B.Powers[self.Index].Amount - 1);
     }
 }
 
@@ -129,9 +129,18 @@ public sealed class SandpitPower : PowerDef
         if (power.Amount <= 0)
             return;
         byte target = power.Target;
+        int occurrence = 0;
+        for (int prior = 0; prior < self.Index; prior++)
+        {
+            ref readonly Power earlier = ref x.B.Powers[prior];
+            if (earlier.Owner == self.Owner && earlier.Id == Id)
+                occurrence++;
+        }
         int remaining = power.Amount - 1;
-        Kernel.SetPowerAmountAt(ref x.B, self.Index, remaining);
-        if (remaining > 0)
+        Kernel.ModifyPowerAmountAt(ref x.B, self.Index, remaining);
+        // PowerCmd.Decrement is a no-op while IsEnding; only the captured row reaching zero kills.
+        int row = Kernel.FindPowerOccurrence(x.B, self.Owner, Id, occurrence);
+        if (row >= 0 && x.B.Powers[row].Amount > 0)
             return;
         if (target == Limits.NoOwner)
             throw new UnsupportedException("流沙坑归零时没有目标。");

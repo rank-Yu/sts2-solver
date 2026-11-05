@@ -173,7 +173,7 @@ public sealed class LightningRodPower : PowerDef
         Kernel.ChannelOrb(ref x, Kernel.OrbId("LIGHTNING_ORB"));
         if (x.NeedsChoice)
             return;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 
@@ -199,7 +199,7 @@ public sealed class FreePowerPower : PowerDef
             return;
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 
@@ -382,7 +382,7 @@ public sealed class SignalBoostPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
     }
 }
 

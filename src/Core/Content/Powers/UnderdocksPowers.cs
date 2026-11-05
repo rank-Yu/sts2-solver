@@ -57,7 +57,7 @@ public sealed class PlatingPower : PowerDef
         int amount = x.B.Powers[self.Index].Amount;
         if (amount <= 0)
             return;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - (int)x.R.PowerVar(Id, 0));
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - (int)x.R.PowerVar(Id, 0));
     }
 
     public override void EnemySideTurnEnd(ref Exec x, Listener self)

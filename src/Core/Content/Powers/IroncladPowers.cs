@@ -777,7 +777,7 @@ public sealed class FreeAttackPower : PowerDef
         }
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -808,7 +808,7 @@ public sealed class OneTwoPunchPower : PowerDef
     {
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 

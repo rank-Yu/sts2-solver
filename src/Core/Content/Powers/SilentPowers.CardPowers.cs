@@ -25,7 +25,7 @@ public sealed class BurstPower : PowerDef
     public override void AfterModifyingCardPlayCount(ref Exec x, Listener self, in Card card)
     {
         if (x.B.Powers[self.Index].Amount > 0)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id,
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id,
                 x.B.Powers[self.Index].Amount - 1);
     }
 

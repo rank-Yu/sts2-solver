@@ -36,7 +36,7 @@ public sealed class ShrinkPower : PowerDef
         if (!participates)
             return;
         int amount = x.B.Powers[self.Index].Amount;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 
     // CorePowerSupport.ApplyEnemyDeathPowers: SetAmount to 0 when its applier died.
@@ -252,7 +252,7 @@ public sealed class SlipperyPower : PowerDef
     {
         if (result.Receiver != self.Owner || result.UnblockedDamage < 1)
             return;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, x.B.Powers[self.Index].Amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, x.B.Powers[self.Index].Amount - 1);
     }
 }
 
@@ -318,8 +318,10 @@ public sealed class AsleepPower : PowerDef
         if (!participates)
             return;
         int remaining = x.B.Powers[self.Index].Amount - 1;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, remaining);
-        if (remaining <= 0)
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, remaining);
+        // PowerCmd.Decrement is a no-op while IsEnding; read the live amount instead of the
+        // pre-modification remaining value so the Plating cleanup follows the native branch.
+        if (Kernel.GetAmount(x.B, self.Owner, Id) <= 0)
             Kernel.SetPowerAmount(ref x.B, self.Owner, Registry.PowerId<PlatingPower>(), 0);
     }
 }
@@ -424,6 +426,6 @@ public sealed class VigorPower : PowerDef
         if (captured == 0)
             return;
         power.Aux0 = 0;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, power.Amount - captured));
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, power.Amount - captured));
     }
 }

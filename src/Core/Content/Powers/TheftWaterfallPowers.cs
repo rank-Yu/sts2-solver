@@ -160,7 +160,7 @@ public sealed class EscapeArtistPower : PowerDef
             return;
         int amount = x.B.Powers[self.Index].Amount;
         if (amount > 1)
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+            Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 
@@ -203,12 +203,10 @@ public sealed class FlutterPower : PowerDef
         int amount = x.B.Powers[self.Index].Amount;
         if (amount <= 0)
             return;
-        if (amount > 1)
-        {
-            Kernel.SetPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
+        // PowerCmd.Decrement is a no-op while IsEnding; only the live amount reaching zero stuns.
+        if (Kernel.GetAmount(x.B, self.Owner, Id) > 0)
             return;
-        }
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, 0);
         Kernel.ForceStunnedAfterLastMove(ref x, self.Owner);
     }
 }

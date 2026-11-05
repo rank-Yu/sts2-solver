@@ -64,7 +64,7 @@ public static partial class Kernel
                 int remaining = GetAmount(x.B, creature, poison);
                 if (remaining <= 0)
                     break;
-                SetPowerAmount(ref x.B, creature, poison, remaining - 1);
+                ModifyPowerAmount(ref x.B, creature, poison, remaining - 1);
             }
         }
         return true;

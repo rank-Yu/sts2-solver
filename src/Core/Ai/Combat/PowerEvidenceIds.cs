@@ -21,6 +21,10 @@ internal static class PowerEvidenceIds
     internal static ushort Weak => WeakBinding.Required;
     private static readonly Binding PoisonBinding = Bind("POISON_POWER");
     internal static ushort Poison => PoisonBinding.Required;
+    private static readonly Binding AccelerantBinding = Bind("ACCELERANT_POWER");
+    internal static ushort Accelerant => AccelerantBinding.Required;
+    private static readonly Binding EnvenomBinding = Bind("ENVENOM_POWER");
+    internal static ushort Envenom => EnvenomBinding.Required;
     private static readonly Binding FocusBinding = Bind("FOCUS_POWER");
     internal static ushort Focus => FocusBinding.Required;
     private static readonly Binding FurnaceBinding = Bind("FURNACE_POWER");

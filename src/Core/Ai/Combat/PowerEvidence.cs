@@ -933,6 +933,9 @@ internal static class PowerEvidence
             "UNMOVABLE" => PerTurnBlock(Math.Max(1, view.MaxBlock()), 1, incoming),
             "VICIOUS" => PerTriggerResource(gain * Math.Max(1, view.EnergyUnit()),
                 view.CountVar("Vulnerable")),
+            "ACCELERANT" => AccelerantProjectionPotential(view, parent),
+            "ENVENOM" => EnvenomProjectionPotential(view, parent),
+            "NOXIOUS_FUMES" => NoxiousFumesProjectionPotential(view, parent),
             _ => SimpleProjection(view, parent, id, turns, incoming, enemies, gain),
         };
     }
@@ -954,6 +957,8 @@ internal static class PowerEvidence
             "STONE_ARMOR" => view.PowerAmountGain(parent, PowerEvidenceIds.Plating),
             "VICIOUS" => view.PowerAmountGain(parent, PowerEvidenceIds.Vicious),
             "NOXIOUS_FUMES" => view.PowerAmountGain(parent, PowerEvidenceIds.NoxiousFumes),
+            "ACCELERANT" => view.PowerAmountGain(parent, PowerEvidenceIds.Accelerant),
+            "ENVENOM" => view.PowerAmountGain(parent, PowerEvidenceIds.Envenom),
             "FURNACE" => view.PowerAmountGain(parent, PowerEvidenceIds.Furnace),
             "GENESIS" => view.PowerAmountGain(parent, PowerEvidenceIds.Genesis),
             "NEUTRON_AEGIS" => view.PowerAmountGain(parent, PowerEvidenceIds.Plating),
@@ -971,6 +976,79 @@ internal static class PowerEvidence
         };
     }
 
+    /// <summary>
+    /// <c>EnvenomProjectionPotential</c>: the marginal current-hand frontier when every unblocked
+    /// attack hit applies the Envenom amount as Poison. The old attack-count times enemy-count
+    /// estimate stays as a lower bound: when all current attacks are blocked the frontier alone is
+    /// observably lower and would drop a route the retained baseline already admitted.
+    /// </summary>
+    private static int EnvenomProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int poisonPerHit = view.PowerAmountGain(parent, PowerEvidenceIds.Envenom);
+        if (poisonPerHit == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        int incoming = view.IncomingDamage();
+        int frontier = MarginalFrontierValue(
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
+                damagePerUnblockedAttackHit: poisonPerHit));
+        int previous = SaturatingMul(
+            Math.Max(1, view.CountType(CardType.Attack)),
+            Math.Max(1, view.Features.AliveEnemyCount));
+        return Math.Max(frontier, previous);
+    }
+
+    /// <summary>
+    /// <c>AccelerantProjectionPotential</c>: every additional Accelerant trigger resolves the
+    /// enemy's current Poison once more, capped by that enemy's current HP.
+    /// </summary>
+    private static int AccelerantProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int extraTriggers = view.PowerAmountGain(parent, PowerEvidenceIds.Accelerant);
+        if (extraTriggers == 0)
+            return 0;
+        long damage = 0;
+        for (int position = 0; position < view.Battle.RosterCount; position++)
+        {
+            int index = view.Battle.Roster[position];
+            ref readonly Enemy enemy = ref view.Battle.Enemies[index];
+            if (!enemy.Creature.IsAlive || (enemy.Flags & EnemyFlags.InCombat) == 0)
+                continue;
+            damage += PoisonStackProjection.ExtraTriggerDamage(
+                view.EnemyPowerAmount(index, PowerEvidenceIds.Poison),
+                extraTriggers,
+                Math.Max(0, enemy.Creature.CurrentHp));
+        }
+        return (int)Math.Min(int.MaxValue, damage);
+    }
+
+    /// <summary>
+    /// <c>NoxiousFumesProjectionPotential</c>: the power first ticks after the current turn, then
+    /// each following turn adds its amount and resolves one less Poison. Every enemy is capped by
+    /// its current HP.
+    /// </summary>
+    private static int NoxiousFumesProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int poisonPerTurn = view.PowerAmountGain(parent, PowerEvidenceIds.NoxiousFumes);
+        if (poisonPerTurn == 0)
+            return 0;
+        int futureTurns = Math.Max(0, view.RemainingTurns() - 1);
+        long total = 0;
+        for (int position = 0; position < view.Battle.RosterCount; position++)
+        {
+            int index = view.Battle.Roster[position];
+            ref readonly Enemy enemy = ref view.Battle.Enemies[index];
+            if (!enemy.Creature.IsAlive || (enemy.Flags & EnemyFlags.InCombat) == 0)
+                continue;
+            total += PoisonStackProjection.RecurringApplicationDamage(
+                poisonPerTurn,
+                futureTurns,
+                Math.Max(0, enemy.Creature.CurrentHp));
+        }
+        return (int)Math.Min(int.MaxValue, total);
+    }
+
     private static int SimpleProjection(scoped in View view, in Battle parent,
         string id, int turns, int incoming, int enemies, int gain)
     {
@@ -979,9 +1057,7 @@ internal static class PowerEvidence
         {
             "AFTERIMAGE" or "ABRASIVE" => PerTriggerBlock(Math.Max(1, view.MaxBlock()), 1, incoming),
             "ACCURACY" => PerTurnDamage(Math.Max(1, view.CountShiv()), turns, 1),
-            "ENVENOM" => PerTriggerDamage(Math.Max(1, view.CountType(CardType.Attack)), enemies),
             "MASTER_PLANNER" => view.MasterPlannerPotential(parent),
-            "NOXIOUS_FUMES" => PerTurnDamage(gain, turns, enemies),
             "PHANTOM_BLADES" => PerTurnResource(Math.Max(1, view.CountShiv()), turns),
             "SERPENT_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
             "SPEEDSTER" => PerTriggerDamage(2, view.TotalDrawCount()),

@@ -11,6 +11,19 @@ public sealed class DisintegrationPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, int powerIndex,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        ref readonly Power power = ref battle.Powers[powerIndex];
+        if (power.Amount <= 0 || battle.Creature(power.Owner).IsDead)
+            return false;
+        damage = TurnEndSelfDamage.FromPower(TurnEndSelfDamageTiming.AfterSideTurnEndLate,
+            power.Amount, ValueProps.Unpowered, power.Owner);
+        return true;
+    }
+
+
     public override void AfterSideTurnEndLate(ref Exec x, Listener self, Side side, bool participates)
     {
         if (!participates || x.B.Powers[self.Index].Amount <= 0 || !x.B.Creature(self.Owner).IsAlive)

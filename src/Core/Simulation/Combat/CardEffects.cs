@@ -23,10 +23,20 @@ public static class CardEffects
     public static decimal Var(in Exec x, int index)
     {
         CardStats stats = x.Stats ?? throw new InvalidOperationException("当前没有正在打出的卡。");
+        return Var(in x.B, in x.Card, stats, index);
+    }
+
+    /// <summary>Current value of variable <paramref name="index"/> for a card outside a play.</summary>
+    public static decimal Var(in Battle battle, Rules rules, in Card card, int index)
+        => Var(in battle, in card, rules.Card(card.Id, card.Upgrade), index);
+
+    /// <summary>Current value of variable <paramref name="index"/> against an explicit rule row.</summary>
+    public static decimal Var(in Battle battle, in Card card, CardStats stats, int index)
+    {
         if ((uint)index >= (uint)stats.Vars.Length)
             throw new UnsupportedException(
-                $"卡牌 {Registry.Card(x.Card.Id).NativeId} 定义读取第 {index} 个动态变量，但规则表只有 {stats.Vars.Length} 个。");
-        return stats.Vars[index] + DecimalVars.Delta(in x.B, in x.Card, index);
+                $"卡牌 {Registry.Card(card.Id).NativeId} 定义读取第 {index} 个动态变量，但规则表只有 {stats.Vars.Length} 个。");
+        return stats.Vars[index] + DecimalVars.Delta(in battle, in card, index);
     }
 
     /// <summary>Mirrors <c>GeneralCardMirrors.GeneralAttackOnPlay</c> for a plain damage variable and one hit.</summary>

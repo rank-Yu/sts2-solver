@@ -20,6 +20,14 @@ public sealed class Beckon : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unblockable | ValueProps.Unpowered | ValueProps.Move);
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0),
+            unblockable: true);
+        return true;
+    }
 }
 
 /// <summary>
@@ -40,6 +48,14 @@ public sealed class Burn : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unpowered | ValueProps.Move);
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0),
+            unblockable: false);
+        return true;
+    }
 }
 
 /// <summary>Native <c>Debris</c>: cost 1, Exhaust; its OnPlay is an explicit no-op.</summary>
@@ -69,6 +85,14 @@ public sealed class Infection : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unpowered | ValueProps.Move);
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0),
+            unblockable: false);
+        return true;
+    }
 }
 
 /// <summary>Native <c>Soot</c>: cost -1, Unplayable; no combat hook is overridden.</summary>
@@ -98,6 +122,14 @@ public sealed class Toxic : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unpowered | ValueProps.Move);
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0),
+            unblockable: false);
+        return true;
+    }
 }
 
 /// <summary>
@@ -119,6 +151,14 @@ public sealed class Wither : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unpowered | ValueProps.Move);
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0),
+            unblockable: false);
+        return true;
+    }
 }
 
 /// <summary>Native <c>Wound</c>: cost -1, Unplayable; no combat hook is overridden.</summary>

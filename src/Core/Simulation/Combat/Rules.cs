@@ -321,6 +321,22 @@ public sealed class Rules
         sbyte penNibRelicIndex)
     {
         _cards = cards;
+        bool hasTurnEndInHandCards = false;
+        int cardLimit = Math.Min(cards.Length, Registry.CardCount);
+        for (int id = 0; id < cardLimit && !hasTurnEndInHandCards; id++)
+        {
+            if (cards[id].Length == 0 || !Registry.Card((ushort)id).HasTurnEndInHandEffect)
+                continue;
+            for (int upgrade = 0; upgrade < cards[id].Length; upgrade++)
+            {
+                if (cards[id][upgrade] is not null)
+                {
+                    hasTurnEndInHandCards = true;
+                    break;
+                }
+            }
+        }
+        HasTurnEndInHandCards = hasTurnEndInHandCards;
         _powerVars = powerVars;
         _potions = potions;
         _relicVars = relicVars;
@@ -399,6 +415,13 @@ public sealed class Rules
 
     /// <summary>The root's combat card values include an enchantment implementing <c>BeforeFlush</c> (SlumberingEssence).</summary>
     public bool HasBeforeFlushEnchantment { get; }
+
+    /// <summary>
+    /// Some card in this root's rule table has <see cref="CardDef.HasTurnEndInHandEffect"/>. The
+    /// threat projection scans the hand for declared turn-end self-damage only when this is true.
+    /// The flag is derived from the decoded rule table, so it stays outside the RULE schema.
+    /// </summary>
+    public bool HasTurnEndInHandCards { get; }
 
     /// <summary>
     /// The root is a theft encounter or holds a theft power/monster (the two thief encounters).

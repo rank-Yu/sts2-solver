@@ -183,7 +183,12 @@ Mod 和战斗差分宿主用的是同一个协调器（`CombatSearchCoordinator`
 
 **取回能力牌的直接连招。** 第三幕首领策略开启时，每个搜索回合都保留“把能力牌移入手牌”之后的普通分支；如果取回的能力当前就能打出，还会提前展开“打出这张能力”的合法动作，再按正常评分、去重和宽度筛选。这条额外分支不提前展开其它牌、药水或结束回合，不强制打出能力，也不递归展开取牌链；普通分支仍可以探索先喝药、回能等其它顺序。它不增加成员或宽度，仍受当前成员的时间、内存和目标停止条件约束。
 
-**手中凋萎的即时压力。** 非终局评分按手中凋萎当前的伤害（含实例增量）估算回合末负担：先减去普通攻击威胁投影用剩的格挡，再按生命权重扣分，同一份格挡不会抵扣两次。不修改真实的回合末结算，也不给抽牌堆或弃牌堆里的凋萎加惩罚。这是排序近似，没有完整重放回合末遗物、伤害减免与死亡保护的顺序。
+**回合末自伤（EH1 当前实现：完整版）。** 非终局评分把玩家回合末和敌方回合内的自伤并入威胁投影，不保留 Wither 专用的评分特例：WITHER 只是下面通用声明中的一个内容。
+
+- **声明入口。** 卡牌的 `CardDef.TryGetTurnEndSelfDamage(in Battle, Rules, in Card, out TurnEndSelfDamage)` 和能力的 `PowerDef.TryGetTurnEndSelfDamage(in Battle, Rules, int powerIndex, out TurnEndSelfDamage)` 声明 Amount、可格挡性、Power 阶段、dealer 和多段/递减信息。数值只读规则表和实例变量，实际结算仍走原来的 `OnTurnEndInHand` 和 Power 钩子。
+- **投影顺序。** 先按手牌顺序结算 `OnTurnEndInHand`；再依次结算 `PlayerSideTurnEnd`（`CONSTRICT_POWER`）、`EndTurnRegular`（`DEMISE_POWER`）、`AfterSideTurnEndLate`（`DISINTEGRATION_POWER`）；Sandpit 的强制击杀之后处理敌人攻击；最后结算敌方回合末的玩家毒。每一下都经过与敌人攻击相同的伤害和失血修正链（格挡、Buffer、钨棒这类每次减伤、濒死保命等）：可格挡伤害先消耗格挡，不可格挡伤害直接失血。
+- **`BlockableDamage` 的用途。** `Scorer.ThreatProjection.BlockableDamage` 返回整段投影中所有可格挡伤害的总和，不按当前格挡值截断；IP1 的回合内循环保护用它判断还剩多少可被格挡的威胁。它只用于评分/保护，不改变真实结算。
+- **合同。** KernelChecks 的 `TURN_END_SELF_DAMAGE_CONTRACTS` 遍历全部声明，逐项核对声明与实际单步结束回合（无格挡/有格挡）的掉血一致，并检查多段毒与 `BlockableDamage`。
 
 ## 7. 内存与容量
 

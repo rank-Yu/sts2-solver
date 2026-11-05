@@ -27,6 +27,73 @@ public static class ValuePropsExtensions
         => (props & ValueProps.Move) != 0 && (props & ValueProps.Unpowered) == 0;
 }
 
+/// <summary>
+/// Settlement position of a declared turn-end self-damage effect. Cards resolve in hand order at
+/// the player turn end; powers resolve in their kernel phase, and the player's poison ticks at the
+/// end of the enemy turn. Scoring uses the position to replay the native order.
+/// </summary>
+public enum TurnEndSelfDamageTiming : byte
+{
+    None = 0,
+    CardInHand = 1,
+    PlayerSideTurnEnd = 2,
+    EndTurnRegular = 3,
+    AfterSideTurnEndLate = 4,
+    EnemySideTurnEnd = 5,
+}
+
+/// <summary>
+/// One content-declared turn-end self-damage effect. The amount is read from the rule table and the
+/// live card or power state; settlement still runs the card's <c>OnTurnEndInHand</c> or the power's
+/// phase hook. <see cref="HitCount"/> with <see cref="DecrementPerHit"/> expresses repeating damage
+/// whose amount decreases each hit (the player's poison trigger).
+/// </summary>
+public readonly struct TurnEndSelfDamage
+{
+    public TurnEndSelfDamageTiming Timing { get; init; }
+
+    public decimal Amount { get; init; }
+
+    public ValueProps Props { get; init; }
+
+    public byte Dealer { get; init; }
+
+    public bool HasCardSource { get; init; }
+
+    /// <summary>Number of separate damage calls; at least one for a declared effect.</summary>
+    public int HitCount { get; init; }
+
+    /// <summary>Each later hit uses <c>Amount - hitIndex</c> (poison decrements between triggers).</summary>
+    public bool DecrementPerHit { get; init; }
+
+    /// <summary>A card's turn-end effect: unpowered, moved, with the player as dealer and the card as source.</summary>
+    public static TurnEndSelfDamage FromCard(decimal amount, bool unblockable)
+        => new()
+        {
+            Timing = TurnEndSelfDamageTiming.CardInHand,
+            Amount = amount,
+            Props = ValueProps.Unpowered | ValueProps.Move
+                | (unblockable ? ValueProps.Unblockable : ValueProps.None),
+            Dealer = Limits.PlayerOwner,
+            HasCardSource = true,
+            HitCount = 1,
+        };
+
+    /// <summary>A power's turn-end effect with the exact native damage dealer and value props.</summary>
+    public static TurnEndSelfDamage FromPower(TurnEndSelfDamageTiming timing, decimal amount,
+        ValueProps props, byte dealer, int hitCount = 1, bool decrementPerHit = false)
+        => new()
+        {
+            Timing = timing,
+            Amount = amount,
+            Props = props,
+            Dealer = dealer,
+            HasCardSource = false,
+            HitCount = hitCount,
+            DecrementPerHit = decrementPerHit,
+        };
+}
+
 public enum ListenerKind : byte
 {
     Power,
@@ -955,6 +1022,18 @@ public abstract class CardDef : ListenerDef
     public virtual bool HasTurnEndInHandEffect => false;
 
     /// <summary>
+    /// The damage <see cref="OnTurnEndInHand"/> will deal to the player when this card resolves from
+    /// the hand at the turn end, or false when it deals none. Pure query for scoring; settlement keeps
+    /// running <see cref="OnTurnEndInHand"/>.
+    /// </summary>
+    public virtual bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        return false;
+    }
+
+    /// <summary>
     /// This card uses <see cref="Card.Private"/> as the per-object identity ledger the existing
     /// engine keeps in a dictionary (<c>SwordSagePower</c>'s applied replay bonus; the same field's
     /// bit 0 is Fetch's "this exact card was played this turn" bit).
@@ -1254,6 +1333,18 @@ public abstract class PowerDef : ListenerDef
     /// <summary>Case in <c>CorePowerSupport.TriggerAfterBlockCleared</c>.</summary>
     public virtual void AfterBlockCleared(ref Exec x, Listener self)
     {
+    }
+
+    /// <summary>
+    /// The damage this power will deal to its owner in its side-turn-end phase, or false when it deals
+    /// none. Pure query for scoring; settlement keeps running <see cref="EndTurnRegular"/> and the
+    /// other power phase hooks. <paramref name="powerIndex"/> is the live row in <see cref="Battle.Powers"/>.
+    /// </summary>
+    public virtual bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, int powerIndex,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        return false;
     }
 
     /// <summary>Case in <c>EndTurnPowerSupport.TriggerRegular</c>.</summary>

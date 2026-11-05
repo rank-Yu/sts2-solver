@@ -215,6 +215,19 @@ public sealed class DemisePower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, int powerIndex,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        ref readonly Power power = ref battle.Powers[powerIndex];
+        if (power.Amount <= 0 || battle.Creature(power.Owner).IsDead)
+            return false;
+        damage = TurnEndSelfDamage.FromPower(TurnEndSelfDamageTiming.EndTurnRegular,
+            power.Amount, ValueProps.Unblockable | ValueProps.Unpowered, Limits.NoOwner);
+        return true;
+    }
+
+
     public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (!participates || x.B.Creature(self.Owner).IsDead)

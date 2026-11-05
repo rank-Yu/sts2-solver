@@ -118,6 +118,7 @@ CheckEcKernel(rules);
 CheckDx5Kernel(rules);
 CheckCardPoolContracts();
 CheckStatusCardContracts();
+TurnEndSelfDamageChecks.Check();
 CheckPrerootGeneratedCardContracts();
 var benchmark = Benchmark(rules);
 

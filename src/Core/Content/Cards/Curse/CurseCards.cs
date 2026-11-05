@@ -32,6 +32,13 @@ public sealed class BadLuck : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unblockable | ValueProps.Unpowered | ValueProps.Move);
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0), unblockable: true);
+        return true;
+    }
+
 }
 
 /// <summary>Native <c>Clumsy</c>: Unplayable, Ethereal; no combat hook is overridden.</summary>
@@ -70,6 +77,13 @@ public sealed class Decay : CardDef
     public override void OnTurnEndInHand(ref Exec x)
         => CardEffects.DamageOwnerFromCard(ref x, CardEffects.Var(x, 0),
             ValueProps.Unpowered | ValueProps.Move);
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(CardEffects.Var(in battle, rules, in card, 0), unblockable: false);
+        return true;
+    }
+
 }
 
 /// <summary>
@@ -251,6 +265,13 @@ public sealed class Regret : CardDef
         played.Private = 0;
         x.Card.Private = 0;
     }
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, in Card card,
+        out TurnEndSelfDamage damage)
+    {
+        damage = TurnEndSelfDamage.FromCard(card.Private > 0 ? card.Private : battle.HandCount, unblockable: true);
+        return true;
+    }
+
 }
 
 /// <summary>

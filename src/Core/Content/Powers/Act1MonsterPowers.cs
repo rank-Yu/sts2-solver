@@ -173,6 +173,18 @@ public sealed class ConstrictPower : PowerDef
         Kernel.Damage(ref x, targets, amount, ValueProps.Unpowered, self.Owner, hasCardSource: false, default);
     }
 
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, int powerIndex,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        ref readonly Power power = ref battle.Powers[powerIndex];
+        if (power.Amount <= 0 || battle.Creature(power.Owner).IsDead)
+            return false;
+        damage = TurnEndSelfDamage.FromPower(TurnEndSelfDamageTiming.PlayerSideTurnEnd,
+            power.Amount, ValueProps.Unpowered, power.Owner);
+        return true;
+    }
+
     // CorePowerSupport.ApplyEnemyDeathPowers: SetAmount to 0 when its applier died.
     public override void ApplierDied(ref Exec x, Listener self)
         => Kernel.SetPowerAmount(ref x.B, self.Owner, Id, 0);

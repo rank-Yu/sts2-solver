@@ -13,6 +13,33 @@ public sealed class PoisonPower : PowerDef
     public override PowerType Type => PowerType.Debuff;
 
     public override PowerStackType StackType => PowerStackType.Counter;
+
+    public override bool TryGetTurnEndSelfDamage(in Battle battle, Rules rules, int powerIndex,
+        out TurnEndSelfDamage damage)
+    {
+        damage = default;
+        ref readonly Power power = ref battle.Powers[powerIndex];
+        if (power.Owner != Limits.PlayerOwner || power.Amount <= 0
+            || battle.Creature(power.Owner).IsDead)
+        {
+            return false;
+        }
+        int accelerated = 1;
+        if (Registry.TryPower("ACCELERANT_POWER", out ushort accelerant))
+        {
+            for (int position = 0; position < battle.RosterCount; position++)
+            {
+                byte enemy = Kernel.EnemyOwner(battle.Roster[position]);
+                if (battle.Creature(enemy).IsAlive)
+                    accelerated += Kernel.GetAmount(battle, enemy, accelerant);
+            }
+        }
+        int hits = Math.Min(power.Amount, accelerated);
+        damage = TurnEndSelfDamage.FromPower(TurnEndSelfDamageTiming.EnemySideTurnEnd,
+            power.Amount, ValueProps.Unblockable | ValueProps.Unpowered, Limits.NoOwner,
+            hits, decrementPerHit: true);
+        return true;
+    }
 }
 
 /// <summary>

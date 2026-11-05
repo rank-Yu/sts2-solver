@@ -25,12 +25,10 @@ internal sealed class Scorer
 
     private readonly bool _baseOnly;
     private readonly bool _offensive;
-    private readonly ushort _witherCardId;
 
     public Scorer(ScoreRules score, bool baseOnly = false, bool offensive = false, QueenSearchPolicy? queen = null, SetupSearchPolicy? setup = null)
     {
         _score = score;
-        _witherCardId = Registry.TryCard("WITHER", out ushort wither) ? wither : ushort.MaxValue;
         _baseOnly = baseOnly;
         _offensive = offensive;
         QueenPolicy = queen;
@@ -87,10 +85,7 @@ internal sealed class Scorer
     {
         if (index < 0 || index >= stats.Vars.Length)
             return 0m;
-        decimal delta = card.Private > 0
-            ? DecimalVars.Delta(in battle, in card, index)
-            : index switch { 0 => card.Var0, 1 => card.Var1, _ => 0m };
-        return stats.Vars[index] + delta;
+        return CardEffects.Var(in battle, in card, stats, index);
     }
 
     /// <summary>
@@ -500,7 +495,6 @@ internal sealed class Scorer
         if (won)
             score += ScoreWeights.VictoryBonus;
         score += enemyHp * ScoreWeights.EnemyHp;
-        double handWitherDamage = 0;
         int liveDeckClutter = 0;
         int liveCardCount = battle.HandCount + battle.DrawCount + battle.DiscardCount;
         int retainedAttackValue = 0;
@@ -527,8 +521,6 @@ internal sealed class Scorer
                 ref readonly Card card = ref battle.Cards[start + offset];
                 CardStats stats = Rules.Card(card.Id, card.Upgrade);
                 CardScore cardScore = _score.Card(card.Id, card.Upgrade);
-                if (segment == Pile.Hand && card.Id == _witherCardId)
-                    handWitherDamage += Math.Max(0, (double)Var(battle, card, stats, 0));
                 CardType cardType = ResolveCardType(battle, card, stats);
                 if ((cardType is CardType.Status or CardType.Curse)
                     && !LeavesHandAtTurnEnd(battle, segment, card, cardScore))
@@ -562,12 +554,6 @@ internal sealed class Scorer
                 latentSetupTraits |= trait;
             }
         }
-        // Rank outstanding hand Wither damage without changing actual EndTurn resolution.
-        // This is a heuristic: intent projection has already consumed its share of block;
-        // end-turn relic triggers and damage-prevention ordering are not replayed here.
-        if (!won && !dead && !eventDefeat)
-            score -= Math.Max(0, handWitherDamage - Math.Max(0, battle.Player.Block - blockConsumed))
-                * hpWeight;
         score += liveDeckClutter * ScoreWeights.LiveDeckClutterPenalty;
 
         // SimulatedCombatState's outstanding-stolen-resource counters. Only theft roots carry them; the
@@ -1269,10 +1255,16 @@ internal sealed class Scorer
     // ---------------------------------------------------------------------------------------------
     // Projected threat.
 
-    private readonly record struct ThreatProjection(
-        int Hp, int DeathSaveHpRestored, int DeathSaveUseCount, int BlockConsumed = 0);
+    /// <summary>
+    /// Result of the threat projection: remaining HP, the one-shot death saves it would consume, the
+    /// block spent on incoming hits, and the total blockable damage in the projected sequence
+    /// (independent of how much block the state currently has).
+    /// </summary>
+    internal readonly record struct ThreatProjection(
+        int Hp, int DeathSaveHpRestored, int DeathSaveUseCount, int BlockConsumed = 0,
+        long BlockableDamage = 0);
 
-    private ThreatProjection ProjectHpAfterThreat(in Battle battle)
+    internal ThreatProjection ProjectHpAfterThreat(in Battle battle)
     {
         if (!VerifyThreatProjection)
             return ProjectHpAfterThreatBody(in battle);
@@ -1353,22 +1345,7 @@ internal sealed class Scorer
         int hp = probe.Player.CurrentHp;
         int block = probe.Player.Block;
         int originalBlock = block;
-        // the existing search's ProjectHpAfterThreat: a one-stack Sandpit targeting this player expires at
-        // the enemy side turn start and force-kills the player before the attack intent. Block and
-        // one-shot death saves cannot make standing pat survive that boundary.
-        if (_score.SandpitPowerId != ushort.MaxValue)
-        {
-            for (int index = 0; index < probe.PowerCount; index++)
-            {
-                ref readonly Power power = ref probe.Powers[index];
-                if (power.Id == _score.SandpitPowerId && power.Amount == 1
-                    && power.Target == Limits.PlayerOwner
-                    && probe.Creature(power.Owner).IsAlive)
-                {
-                    return new ThreatProjection(0, 0, 0);
-                }
-            }
-        }
+        long blockableDamage = 0;
         // the existing search's ProjectHpAfterThreat's ostyHp: the pet absorbs redirected powered attacks
         // until it dies; the remaining loss spills over to the player.
         int ostyHp = (probe.Flags & BattleFlags.OstyPresent) != 0 ? probe.Osty.CurrentHp : 0;
@@ -1377,6 +1354,71 @@ internal sealed class Scorer
         // powered attack kills the owner through TheGambitPower, then death prevention may revive it.
         bool gambitActive = _score.TheGambitPowerId != ushort.MaxValue
             && GetAmount(probe, _score.TheGambitPowerId, Limits.PlayerOwner) > 0;
+
+        // One pass over the power table serves the Sandpit boundary and collects every player-owned
+        // power that declares a turn-end self-damage. The table is the existing per-state scan the
+        // Sandpit check already performed.
+        Span<ushort> selfDamagePowers = stackalloc ushort[probe.PowerCount];
+        int selfDamagePowerCount = 0;
+        bool sandpitKills = false;
+        for (int index = 0; index < probe.PowerCount; index++)
+        {
+            ref readonly Power power = ref probe.Powers[index];
+            if (_score.SandpitPowerId != ushort.MaxValue
+                && power.Id == _score.SandpitPowerId
+                && power.Amount == 1
+                && power.Target == Limits.PlayerOwner
+                && probe.Creature(power.Owner).IsAlive)
+            {
+                sandpitKills = true;
+            }
+            if (power.Owner == Limits.PlayerOwner
+                && Registry.Power(power.Id).TryGetTurnEndSelfDamage(probe, Rules, index, out _))
+            {
+                selfDamagePowers[selfDamagePowerCount++] = (ushort)index;
+            }
+        }
+
+        // 1. Turn-end cards resolve from the hand in hand order. The root-level rule flag skips the
+        // hand scan when this root's rule table has no turn-end-in-hand card at all.
+        if (Rules.HasTurnEndInHandCards)
+        {
+            int handCount = probe.HandCount;
+            for (int position = 0; position < handCount; position++)
+            {
+                ref readonly Card card = ref probe.Cards[position];
+                CardDef def = Registry.Card(card.Id);
+                if (!def.HasTurnEndInHandEffect
+                    || !def.TryGetTurnEndSelfDamage(probe, Rules, card, out TurnEndSelfDamage damage))
+                {
+                    continue;
+                }
+                ProjectSelfDamage(ref x, in damage, in card, ref ostyHp, ref block, ref hp,
+                    ref blockableDamage, ref gambitActive, ref prevention);
+            }
+        }
+
+        // 2. Player-side-turn-end powers (Constrict), the TriggerRegular listener pass (Demise), then
+        // AfterSideTurnEndLate (Disintegration).
+        ProjectPowerSelfDamagePhase(ref x, selfDamagePowers[..selfDamagePowerCount],
+            TurnEndSelfDamageTiming.PlayerSideTurnEnd, ref ostyHp, ref block, ref hp,
+            ref blockableDamage, ref gambitActive, ref prevention);
+        ProjectPowerSelfDamagePhase(ref x, selfDamagePowers[..selfDamagePowerCount],
+            TurnEndSelfDamageTiming.EndTurnRegular, ref ostyHp, ref block, ref hp,
+            ref blockableDamage, ref gambitActive, ref prevention);
+        ProjectPowerSelfDamagePhase(ref x, selfDamagePowers[..selfDamagePowerCount],
+            TurnEndSelfDamageTiming.AfterSideTurnEndLate, ref ostyHp, ref block, ref hp,
+            ref blockableDamage, ref gambitActive, ref prevention);
+
+        // 3. The Sandpit countdown happens at the enemy side turn start, after the player turn end. Its
+        // force kill ignores block and one-shot death saves; the death saves consumed above stay on the
+        // projection.
+        if (sandpitKills)
+            return BuildThreatProjection(0, in prevention, originalBlock, block, blockableDamage);
+
+        // 4. Enemy attacks in native roster order. Like the previous projection, keep walking after
+        // the player reaches zero HP so the projected block accounting remains the old one; each hit
+        // still runs death prevention independently.
         for (int position = 0; position < probe.RosterCount; position++)
         {
             ref readonly Enemy enemy = ref probe.Enemies[probe.Roster[position]];
@@ -1392,7 +1434,7 @@ internal sealed class Scorer
             if (enemy.SteamPhase == SteamPhase.Explode)
             {
                 ProjectThreatHit(ref x, owner, enemy.Ai[Kernel.SteamEruptionDamageRegister],
-                    ref ostyHp, ref block, ref hp, ref gambitActive, ref prevention);
+                    ref ostyHp, ref block, ref hp, ref blockableDamage, ref gambitActive, ref prevention);
                 continue;
             }
             MonsterNode move = Rules.MonsterRule(enemy.Rules).Nodes[enemy.Move];
@@ -1405,33 +1447,113 @@ internal sealed class Scorer
                     def.ModifyAttackRepeats(probe, Rules, owner, enemy.Move, attackIndex, attack.Repeats), 1);
                 for (int hit = 0; hit < repeats; hit++)
                 {
-                    ProjectThreatHit(ref x, owner, baseDamage, ref ostyHp, ref block, ref hp, ref gambitActive, ref prevention);
+                    ProjectThreatHit(ref x, owner, baseDamage, ref ostyHp, ref block, ref hp,
+                        ref blockableDamage, ref gambitActive, ref prevention);
                 }
             }
         }
-        return new ThreatProjection(hp, prevention.DeathSaveHpRestored, prevention.UseCount,
-            Math.Max(0, originalBlock - block));
+
+        // 5. The player's poison ticks at the end of the enemy turn, before the next player turn starts.
+        if (hp > 0)
+        {
+            ProjectPowerSelfDamagePhase(ref x, selfDamagePowers[..selfDamagePowerCount],
+                TurnEndSelfDamageTiming.EnemySideTurnEnd, ref ostyHp, ref block, ref hp,
+                ref blockableDamage, ref gambitActive, ref prevention);
+        }
+        return BuildThreatProjection(hp, in prevention, originalBlock, block, blockableDamage);
     }
 
+    private static ThreatProjection BuildThreatProjection(int hp, in ProjectedDeathPrevention prevention,
+        int originalBlock, int block, long blockableDamage)
+        => new(hp, prevention.DeathSaveHpRestored, prevention.UseCount,
+            Math.Max(0, originalBlock - block), blockableDamage);
+
+    /// <summary>Applies every declared power effect in one native phase, in power-table order.</summary>
+    private void ProjectPowerSelfDamagePhase(ref Exec x, scoped ReadOnlySpan<ushort> powerIndices,
+        TurnEndSelfDamageTiming timing, ref int ostyHp, ref int block, ref int hp,
+        ref long blockableDamage, ref bool gambitActive, ref ProjectedDeathPrevention prevention)
+    {
+        Card noCard = default;
+        for (int entry = 0; entry < powerIndices.Length; entry++)
+        {
+            int index = powerIndices[entry];
+            if (hp <= 0 || (uint)index >= (uint)x.B.PowerCount)
+                continue;
+            ref readonly Power power = ref x.B.Powers[index];
+            if (power.Amount <= 0 || !x.B.Creature(power.Owner).IsAlive)
+                continue;
+            if (!Registry.Power(power.Id).TryGetTurnEndSelfDamage(x.B, Rules, index,
+                    out TurnEndSelfDamage damage)
+                || damage.Timing != timing)
+            {
+                continue;
+            }
+            ProjectSelfDamage(ref x, in damage, in noCard, ref ostyHp, ref block, ref hp,
+                ref blockableDamage, ref gambitActive, ref prevention);
+            if (hp <= 0)
+                return;
+        }
+    }
+
+    /// <summary>Applies one declared effect's hits through the same damage and HP-loss chain as attacks.</summary>
+    private void ProjectSelfDamage(ref Exec x, in TurnEndSelfDamage damage, in Card cardSource,
+        ref int ostyHp, ref int block, ref int hp, ref long blockableDamage, ref bool gambitActive,
+        ref ProjectedDeathPrevention prevention)
+    {
+        if (hp <= 0)
+            return;
+        for (int hit = 0; hit < damage.HitCount; hit++)
+        {
+            decimal amount = damage.DecrementPerHit ? damage.Amount - hit : damage.Amount;
+            if (amount <= 0m)
+                return;
+            ProjectDamageHit(ref x, damage.Props, damage.Dealer, amount, damage.HasCardSource,
+                in cardSource, ref ostyHp, ref block, ref hp, ref blockableDamage, ref gambitActive,
+                ref prevention);
+            if (hp <= 0)
+                return;
+        }
+    }
+
+    /// <summary>A monster attack hit: powered move damage with no card source.</summary>
     private void ProjectThreatHit(ref Exec x, byte attacker, int baseDamage,
-        ref int ostyHp, ref int block, ref int hp, ref bool gambitActive, ref ProjectedDeathPrevention prevention)
+        ref int ostyHp, ref int block, ref int hp, ref long blockableDamage, ref bool gambitActive,
+        ref ProjectedDeathPrevention prevention)
+    {
+        Card noCard = default;
+        ProjectDamageHit(ref x, ValueProps.Move, attacker, baseDamage, hasCardSource: false,
+            in noCard, ref ostyHp, ref block, ref hp, ref blockableDamage, ref gambitActive,
+            ref prevention);
+    }
+
+    /// <summary>
+    /// One incoming damage call through the native pipeline: ModifyDamage, block, the before/after-Osty
+    /// HP-loss modifiers, the unblocked-damage redirect, Buffer consumption, TheGambit and death saves.
+    /// </summary>
+    private void ProjectDamageHit(ref Exec x, ValueProps props, byte dealer, decimal baseDamage,
+        bool hasCardSource, in Card cardSource, ref int ostyHp, ref int block, ref int hp,
+        ref long blockableDamage, ref bool gambitActive, ref ProjectedDeathPrevention prevention)
     {
         decimal modified = HookDispatch.ModifyDamage(
-            ref x, Limits.PlayerOwner, attacker, baseDamage, ValueProps.Move, false, default);
+            ref x, Limits.PlayerOwner, dealer, baseDamage, props, hasCardSource, in cardSource);
         int adjustedHit = Math.Max(0, (int)Math.Floor(modified));
-        int blocked = Math.Min(block, adjustedHit);
+        bool blockable = (props & ValueProps.Unblockable) == 0;
+        if (blockable)
+            blockableDamage = checked(blockableDamage + adjustedHit);
+        int blocked = blockable ? Math.Min(block, adjustedHit) : 0;
         block -= blocked;
 
         HpLossContext loss = new(
-            Limits.PlayerOwner, ValueProps.Move, attacker, false, default);
+            Limits.PlayerOwner, props, dealer, hasCardSource, in cardSource);
         Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
         decimal hpLoss = ProjectedModifyHpLost(
             ref x, loss, adjustedHit - blocked, afterOsty: false, changed, out _);
         // the existing search's ProjectThreatHit: Hook.ModifyUnblockedDamageTarget, then the engine's explicit
         // DieForYou fallback and dead-Osty guard, then the after-Osty modifiers on the chosen receiver.
         byte target = HookDispatch.ModifyUnblockedDamageTarget(
-            ref x, Limits.PlayerOwner, hpLoss, ValueProps.Move, attacker);
+            ref x, Limits.PlayerOwner, hpLoss, props, dealer);
         if (target == Limits.PlayerOwner
+            && props.IsPoweredAttack()
             && (x.B.Flags & BattleFlags.OstyPresent) != 0
             && ostyHp > 0
             && GetAmount(x.B, _score.DieForYouPowerId, Limits.OstyOwner) > 0)
@@ -1441,7 +1563,7 @@ internal sealed class Scorer
         if (target == Limits.OstyOwner && ostyHp <= 0)
             target = Limits.PlayerOwner;
         HpLossContext redirected = new(
-            target, ValueProps.Move, attacker, false, default);
+            target, props, dealer, hasCardSource, in cardSource);
         hpLoss = ProjectedModifyHpLost(ref x, redirected, hpLoss, afterOsty: true, changed, out int changedCount);
         // The projected Buffer consumption is local to this forecast: notify the changed listeners so the
         // probe's Buffer amount drops, exactly as ProjectedHpLossModifiers.Consume does in the engine.
@@ -1455,13 +1577,13 @@ internal sealed class Scorer
             // overkill as a separate loss; the engine also filters Buffer there.
             Span<Listener> overflowChanges = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
             HpLossContext overflow = new(
-                Limits.PlayerOwner, ValueProps.Move, attacker, false, default);
+                Limits.PlayerOwner, props, dealer, hasCardSource, in cardSource);
             decimal overflowLoss = ProjectedModifyHpLost(
                 ref x, overflow, damage - absorbed, afterOsty: true, overflowChanges, out int overflowCount);
             HookDispatch.AfterModifyingHpLostAfterOsty(ref x, overflowChanges[..overflowCount]);
             int playerLoss = Math.Max(0, (int)Math.Floor(overflowLoss));
             hp -= playerLoss;
-            if (playerLoss > 0 && gambitActive)
+            if (playerLoss > 0 && gambitActive && props.IsPoweredAttack())
             {
                 gambitActive = false;
                 hp = 0;
@@ -1470,7 +1592,7 @@ internal sealed class Scorer
             return;
         }
         hp -= damage;
-        if (damage > 0 && gambitActive)
+        if (damage > 0 && gambitActive && props.IsPoweredAttack())
         {
             gambitActive = false;
             hp = 0;

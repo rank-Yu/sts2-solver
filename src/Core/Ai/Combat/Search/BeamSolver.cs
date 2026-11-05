@@ -1875,7 +1875,8 @@ internal sealed partial class BeamSolver
             investment = SaturatingCommitmentAdd(investment,
                 Math.Max(0, childFeatures.CumulativePlayerHpLost - parentFacts.CumulativePlayerHpLost));
             int setupGain = PowerCommitmentSetupGain(parentFacts, childFeatures);
-            int projectedPotential = PowerEvidence.ProjectionPotential(playedCardId, childView, parent);
+            int projectedPotential = PowerEvidence.ProjectionPotential(
+                playedCardId, childView, parent, parentFacts.ProjectedPlayerHp);
             int triggerFloor = PowerEvidence.TriggerProjectionFloor(playedCardId, childView);
             PowerRouteAdmissionResult admission = PowerRouteAdmission.Evaluate(new(
                 CardId: Registry.Card(playedCardId).NativeId,

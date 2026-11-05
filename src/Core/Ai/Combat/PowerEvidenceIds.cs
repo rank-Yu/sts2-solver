@@ -79,4 +79,16 @@ internal static class PowerEvidenceIds
     internal static ushort Subroutine => SubroutineBinding.Required;
     private static readonly Binding ToolsOfTheTradeBinding = Bind("TOOLS_OF_THE_TRADE_POWER");
     internal static ushort ToolsOfTheTrade => ToolsOfTheTradeBinding.Required;
+    private static readonly Binding AfterimageBinding = Bind("AFTERIMAGE_POWER");
+    internal static ushort Afterimage => AfterimageBinding.Required;
+    private static readonly Binding AccuracyBinding = Bind("ACCURACY_POWER");
+    internal static ushort Accuracy => AccuracyBinding.Required;
+    private static readonly Binding PhantomBladesBinding = Bind("PHANTOM_BLADES_POWER");
+    internal static ushort PhantomBlades => PhantomBladesBinding.Required;
+    private static readonly Binding SpeedsterBinding = Bind("SPEEDSTER_POWER");
+    internal static ushort Speedster => SpeedsterBinding.Required;
+    private static readonly Binding TrackingBinding = Bind("TRACKING_POWER");
+    internal static ushort Tracking => TrackingBinding.Required;
+    private static readonly Binding WellLaidPlansBinding = Bind("WELL_LAID_PLANS_POWER");
+    internal static ushort WellLaidPlans => WellLaidPlansBinding.Required;
 }

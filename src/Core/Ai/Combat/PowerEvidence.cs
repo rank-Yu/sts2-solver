@@ -373,6 +373,80 @@ internal static class PowerEvidence
             => Math.Max(0, _features.PlayerHp - _features.ProjectedPlayerHp);
 
         /// <summary>
+        /// Attack damage of the known deterministic move <paramref name="turnOffset"/> rounds ahead.
+        /// Current-turn damage comes from the scored projection; future rounds follow only a direct
+        /// <c>Move</c> successor chain and return zero when any step is stunned, reviving, random or
+        /// otherwise not predictable without simulating the enemy turn.
+        /// </summary>
+        public int ForecastIncomingDamage(int turnOffset)
+        {
+            if (turnOffset <= 0)
+                return IncomingDamage();
+            if (turnOffset > 2)
+                return 0;
+            long total = 0;
+            for (int position = 0; position < _battle.RosterCount; position++)
+            {
+                int index = _battle.Roster[position];
+                ref readonly Enemy enemy = ref _battle.Enemies[index];
+                if (!enemy.Creature.IsAlive
+                    || (enemy.Flags & EnemyFlags.SkipNextMove) != 0
+                    || enemy.SteamPhase != SteamPhase.None)
+                {
+                    continue;
+                }
+                MonsterRules rules = _rules.MonsterRule(enemy.Rules);
+                int move = enemy.Move;
+                bool known = true;
+                for (int step = 0; step < turnOffset; step++)
+                {
+                    if (step == 0
+                        && (move == rules.StunnedNode || move == rules.ReviveNode
+                            || (enemy.Flags & (EnemyFlags.NeedsInitialRoll
+                                | EnemyFlags.ForcedMustPerformAfterMove
+                                | EnemyFlags.PerformedMoveThisRound
+                                | EnemyFlags.ActingThisRound)) != 0))
+                    {
+                        known = false;
+                        break;
+                    }
+                    if ((uint)move >= (uint)rules.Nodes.Length)
+                    {
+                        known = false;
+                        break;
+                    }
+                    MonsterNode current = rules.Nodes[move];
+                    int next = current.FollowUp;
+                    if (current.Kind != MonsterNodeKind.Move
+                        || (uint)next >= (uint)rules.Nodes.Length
+                        || next == rules.StunnedNode || next == rules.ReviveNode
+                        || rules.Nodes[next].Kind != MonsterNodeKind.Move)
+                    {
+                        known = false;
+                        break;
+                    }
+                    move = next;
+                }
+                if (!known)
+                    continue;
+                MonsterNode target = rules.Nodes[move];
+                MonsterDef def = Registry.Monster(enemy.MonsterId);
+                for (int attack = 0; attack < target.Attacks.Length; attack++)
+                {
+                    MonsterAttack intent = target.Attacks[attack];
+                    int damage = def.ModifyAttackDamage(
+                        _battle, _rules, Kernel.EnemyOwner(index), move, attack, intent.BaseDamage);
+                    if (damage <= 0)
+                        continue;
+                    int repeats = def.ModifyAttackRepeats(
+                        _battle, _rules, Kernel.EnemyOwner(index), move, attack, intent.Repeats);
+                    total += (long)damage * Math.Max(1, repeats);
+                }
+            }
+            return (int)Math.Min(int.MaxValue, total);
+        }
+
+        /// <summary>
         /// Current attack intents or their known direct successor. The latter is a conservative,
         /// one-step approximation of the upstream forecast: no RNG, state mutation, random/conditional
         /// branch selection, forced move, revival or steam transition is predicted.
@@ -470,65 +544,6 @@ internal static class PowerEvidence
                 if (AffordableForSeed(index, card, seedTurn, futureEnergy)) count++;
             }
             return count;
-        }
-
-        /// <summary>
-        /// Conservative single-card lower estimate of the upstream multi-skill Master Planner DP.
-        /// It scans bounded battle piles without allocating or deriving capacity from energy; future
-        /// shuffle/retention is an estimate rather than an exact forecast.
-        /// </summary>
-        public int MasterPlannerPotential(in Battle parent)
-        {
-            if (PowerAmountGain(parent, PowerEvidenceIds.MasterPlanner) == 0) return 0;
-            int turns = RemainingTurns(), draw = _scorer.ModifiedHandDrawForEvidence(_battle);
-            if (turns <= 1 || draw <= 0 || LiveCount < 2) return 0;
-            int futureEnergy = Math.Max(0, ModifiedMaxEnergy());
-            int cycleTurns = Math.Max(1, (int)(((long)LiveCount + draw - 1) / draw));
-            int shuffleTurn = 1 + (int)(((long)_battle.DrawCount + draw - 1) / draw);
-            Span<int> windowCount = stackalloc int[ScoreWeights.SetupValueHorizonTurns + 1];
-            Span<int> onlySource = stackalloc int[ScoreWeights.SetupValueHorizonTurns + 1];
-            windowCount.Clear(); onlySource.Fill(-1);
-            for (int index = 0; index < LiveCount; index++)
-            {
-                Card card = LiveCard(index);
-                bool source = NativeId(card) switch
-                {
-                    "SURVIVOR" or "ACROBATICS" or "DAGGER_THROW" => true,
-                    "PREPARED" or "HIDDEN_DAGGERS" => Score(card).CardsVar >= 0
-                        && Var(card, Score(card).CardsVar) > 0,
-                    "STORM_OF_STEEL" or "SHADOW_STEP" or "CALCULATED_GAMBLE" => true,
-                    _ => false,
-                };
-                if (!source) continue;
-                int seedTurn = SeedTurn(index, draw);
-                if (seedTurn >= turns || seedTurn > 2 || !AffordableForSeed(index, card, seedTurn, futureEnergy)) continue;
-                int firstWindow = seedTurn == 0 ? shuffleTurn + index / draw : seedTurn;
-                for (int turn = firstWindow; turn < turns; turn += cycleTurns)
-                {
-                    windowCount[turn]++;
-                    onlySource[turn] = index;
-                }
-            }
-            bool automaticDiscard = PlayerPowerAmount(PowerEvidenceIds.ToolsOfTheTrade) > 0;
-            int best = 0;
-            for (int index = 0; index < LiveCount; index++)
-            {
-                Card card = LiveCard(index);
-                if (Type(card) != CardType.Skill || Kernel.IsSlyThisTurn(_battle, card)) continue;
-                int seedTurn = SeedTurn(index, draw);
-                int payoffTurn = seedTurn == 0 ? shuffleTurn + index / draw : seedTurn + cycleTurns;
-                if (seedTurn > 2 || payoffTurn >= turns || !AffordableForSeed(index, card, seedTurn, futureEnergy)) continue;
-                bool hasPayoff = false;
-                for (int turn = payoffTurn; turn < turns; turn += cycleTurns)
-                {
-                    if (automaticDiscard || windowCount[turn] > 1
-                        || windowCount[turn] == 1 && onlySource[turn] != index)
-                    { hasPayoff = true; break; }
-                }
-                if (hasPayoff)
-                    best = Math.Max(best, Math.Max(1, Math.Max(1, CardValue(card)) / Math.Max(1, payoffTurn)));
-            }
-            return best;
         }
 
         public int DistinctOrbTypes()
@@ -708,6 +723,17 @@ internal static class PowerEvidence
 
         public int ModifiedMaxEnergy() => _scorer.ModifiedMaxEnergyForEvidence(_battle);
         public int ModifiedHandDraw() => Math.Max(1, _scorer.ModifiedHandDrawForEvidence(_battle));
+        public int RawModifiedHandDraw() => Math.Max(0, _scorer.ModifiedHandDrawForEvidence(_battle));
+
+        public bool RetainsThisTurn(in Card card)
+            => RetainsThisTurn(_battle, card);
+
+        public bool RetainsThisTurn(in Battle battle, in Card card)
+            => Kernel.HasKeyword(battle, card, Keywords.Retain)
+                || (card.Flags & CardFlags.RetainThisTurn) != 0;
+
+        public int LocalEnergyCost(in Card card)
+            => Math.Max(0, Kernel.EnergyCostWithLocalModifiers(_battle, card));
 
         public bool WraithTiming(in Battle parent)
         {
@@ -901,7 +927,8 @@ internal static class PowerEvidence
 
     /// <summary><c>*PowerOpeningProjectionPotential</c>; the frontier-based terms use the bounded
     /// attack/block/turn estimate below.</summary>
-    public static int ProjectionPotential(ushort cardId, scoped in View view, in Battle parent)
+    public static int ProjectionPotential(ushort cardId, scoped in View view, in Battle parent,
+        int parentProjectedPlayerHp)
     {
         string id = Registry.Card(cardId).NativeId;
         int turns = Math.Max(0, view.RemainingTurns() - 1);
@@ -936,6 +963,21 @@ internal static class PowerEvidence
             "ACCELERANT" => AccelerantProjectionPotential(view, parent),
             "ENVENOM" => EnvenomProjectionPotential(view, parent),
             "NOXIOUS_FUMES" => NoxiousFumesProjectionPotential(view, parent),
+            "AFTERIMAGE" => AfterimageProjectionPotential(view, parent),
+            "ABRASIVE" => FootworkProjectionPotential(view, parent, requireLongFight: false),
+            "ACCURACY" => AccuracyProjectionPotential(view, parent),
+            "FAN_OF_KNIVES" => 0,
+            "FOOTWORK" => FootworkProjectionPotential(view, parent, requireLongFight: true),
+            "INFINITE_BLADES" => 0,
+            "MASTER_PLANNER" => MasterPlannerProjectionPotential(view, parent),
+            "PHANTOM_BLADES" => PhantomBladesProjectionPotential(view, parent),
+            "SERPENT_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
+            "SPEEDSTER" => SpeedsterProjectionPotential(view, parent),
+            "TOOLS_OF_THE_TRADE" => ToolsOfTheTradeProjectionPotential(view, parent),
+            "TRACKING" => TrackingProjectionPotential(view, parent),
+            "WELL_LAID_PLANS" => WellLaidPlansProjectionPotential(view, parent),
+            "WRAITH_FORM" => WraithFormProjectionPotential(
+                view, parent, parentProjectedPlayerHp),
             _ => SimpleProjection(view, parent, id, turns, incoming, enemies, gain),
         };
     }
@@ -1049,21 +1091,373 @@ internal static class PowerEvidence
         return (int)Math.Min(int.MaxValue, total);
     }
 
+    /// <summary>
+    /// <c>AfterimageProjectionPotential</c>: the current-hand frontier marginal when every played
+    /// card gains the Afterimage amount as block.
+    /// </summary>
+    private static int AfterimageProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int blockPerCard = view.PowerAmountGain(parent, PowerEvidenceIds.Afterimage);
+        if (blockPerCard == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        if (options.Length == 0)
+            return 0;
+        int incoming = view.IncomingDamage();
+        return MarginalFrontierValue(
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
+                blockPerCardBonus: blockPerCard));
+    }
+
+    /// <summary>
+    /// Below this effective enemy HP the remaining fight is short enough that Footwork's two future
+    /// draw windows are not credited; the trigger floor remains.
+    /// </summary>
+    private const int FootworkMinimumEnemyHp = 300;
+
+    /// <summary>
+    /// <c>FootworkProjectionPotential</c> (shared by Footwork and Abrasive's Dexterity half): the
+    /// current-hand frontier plus the next two draw windows, using the solved Dexterity increment.
+    /// </summary>
+    private static int FootworkProjectionPotential(
+        scoped in View view, in Battle parent, bool requireLongFight)
+    {
+        int dexterityGain = view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity);
+        if (dexterityGain == 0)
+            return 0;
+        // Two future draw windows only pay off when the fight is long enough to use the scaling;
+        // at lower effective enemy HP the trigger floor is the conservative estimate.
+        if (requireLongFight && view.Features.EnemyHp < FootworkMinimumEnemyHp)
+            return 0;
+        int potential = FootworkTurnPotential(
+            view.Battle.Energy, BuildHandOptions(view), view.IncomingDamage(), dexterityGain);
+        int drawPerTurn = view.ModifiedHandDraw();
+        int futureEnergy = view.ModifiedMaxEnergy();
+        for (int turnOffset = 1; turnOffset <= 2; turnOffset++)
+        {
+            PowerTurnCardOption[] options = BuildDrawOptions(
+                view, (turnOffset - 1) * drawPerTurn, drawPerTurn, drawPerTurn);
+            potential = SaturatingAdd(potential, FootworkTurnPotential(
+                futureEnergy, options, view.ForecastIncomingDamage(turnOffset), dexterityGain));
+        }
+        return potential;
+    }
+
+    private static int FootworkTurnPotential(
+        int energy,
+        PowerTurnCardOption[] options,
+        int incomingDamage,
+        int dexterityGain)
+    {
+        if (options.Length == 0)
+            return 0;
+        return MarginalFrontierValue(
+            PowerTurnFrontier.Build(energy, incomingDamage, options),
+            PowerTurnFrontier.Build(energy, incomingDamage, options,
+                blockPerSkillBonus: dexterityGain));
+    }
+
+    /// <summary>
+    /// <c>AccuracyProjectionPotential</c>: each played Shiv gains the Accuracy increment on every
+    /// target the current Fan of Knives state would hit.
+    /// </summary>
+    private static int AccuracyProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int amount = view.PowerAmountGain(parent, PowerEvidenceIds.Accuracy);
+        if (amount == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        if (options.Length == 0)
+            return 0;
+        int damagePerShiv = SaturatingMul(amount, CurrentShivTargets(view));
+        int incoming = view.IncomingDamage();
+        return MarginalFrontierValue(
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
+                damagePerShiv: damagePerShiv));
+    }
+
+    /// <summary>
+    /// <c>MasterPlannerProjectionPotential</c>: the multi-skill discard-window DP over the current
+    /// hand, draw pile and discard pile, with the Tools of the Trade extra windows.
+    /// </summary>
+    private static int MasterPlannerProjectionPotential(scoped in View view, in Battle parent)
+    {
+        if (view.PowerAmountGain(parent, PowerEvidenceIds.MasterPlanner) == 0)
+            return 0;
+        int drawPerTurn = view.RawModifiedHandDraw();
+        if (drawPerTurn == 0)
+            return 0;
+        int remainingTurns = view.RemainingTurns();
+        int discardWindows = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            CardScore score = view.Score(card);
+            int selectedCards = score.CardsVar >= 0 ? Math.Max(0, view.Var(card, score.CardsVar)) : 0;
+            discardWindows = SaturatingAdd(discardWindows, SilentDiscardWindowFacts.Capacity(
+                view.NativeId(card), selectedCards, view.HandCount));
+        }
+        discardWindows = SaturatingAdd(discardWindows, SaturatingMul(
+            view.PlayerPowerAmount(PowerEvidenceIds.ToolsOfTheTrade),
+            Math.Max(0, remainingTurns - 1)));
+        int futureEnergy = view.ModifiedMaxEnergy();
+        int cycleTurns = Math.Max(1, (view.LiveCount + drawPerTurn - 1) / drawPerTurn);
+        int turnsUntilShuffle = 1 + (view.Battle.DrawCount + drawPerTurn - 1) / drawPerTurn;
+        List<MasterPlannerSkillFact> skills = new(view.LiveCount);
+        for (int index = 0; index < view.HandCount; index++)
+        {
+            AddMasterPlannerSkill(skills, view, view.HandCard(index), 0,
+                turnsUntilShuffle, futureEnergy);
+        }
+        for (int index = 0; index < view.Battle.DrawCount; index++)
+        {
+            int seedTurn = 1 + index / drawPerTurn;
+            AddMasterPlannerSkill(skills, view, view.LiveCard(view.HandCount + index),
+                seedTurn, seedTurn + cycleTurns, futureEnergy);
+        }
+        for (int index = 0; index < view.Battle.DiscardCount; index++)
+        {
+            int seedTurn = turnsUntilShuffle + index / drawPerTurn;
+            AddMasterPlannerSkill(skills,
+                view, view.LiveCard(view.HandCount + view.Battle.DrawCount + index),
+                seedTurn, seedTurn + cycleTurns, futureEnergy);
+        }
+        return MasterPlannerProjection.Evaluate(
+            view.Battle.Energy, futureEnergy, remainingTurns, discardWindows, skills.ToArray());
+    }
+
+    private static void AddMasterPlannerSkill(List<MasterPlannerSkillFact> skills,
+        scoped in View view, in Card card, int seedTurn, int payoffTurn, int futureEnergy)
+    {
+        if (view.Type(card) != CardType.Skill
+            || Kernel.IsSlyThisTurn(view.Battle, card)
+            || view.HasKeyword(card, Keywords.Unplayable))
+        {
+            return;
+        }
+        int energyCost = seedTurn == 0
+            ? Math.Max(0, Kernel.EnergyCostWithModifiers(
+                view.Battle, view.Rules, card, Pile.Hand))
+            : (card.Flags & CardFlags.CostsX) != 0
+                ? futureEnergy
+                : view.LocalEnergyCost(card);
+        skills.Add(new MasterPlannerSkillFact(
+            Math.Max(1, view.CardValue(card)), energyCost, seedTurn, payoffTurn));
+    }
+
+    /// <summary>
+    /// <c>PhantomBladesProjectionPotential</c>: the first-Shiv damage uplift plus the value of the
+    /// newly retained Shivs in the next-turn hand transition.
+    /// </summary>
+    private static int PhantomBladesProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int amount = view.PowerAmountGain(parent, PowerEvidenceIds.PhantomBlades);
+        if (amount == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        int damageUplift = options.Length == 0 ? 0 : MarginalFrontierValue(
+            PowerTurnFrontier.Build(view.Battle.Energy, view.IncomingDamage(), options),
+            PowerTurnFrontier.Build(view.Battle.Energy, view.IncomingDamage(), options,
+                firstShivDamageBonus: SaturatingMul(amount, CurrentShivTargets(view))));
+        return SaturatingAdd(damageUplift, PhantomBladesRetentionPotential(view, parent));
+    }
+
+    private static int PhantomBladesRetentionPotential(scoped in View view, in Battle parent)
+    {
+        Dictionary<int, int> parentRetainedShivs = [];
+        for (int index = 0; index < parent.HandCount; index++)
+        {
+            Card card = parent.Cards[index];
+            if ((view.Stats(card).Tags & CardTag.Shiv) == 0
+                || !view.RetainsThisTurn(parent, card))
+            {
+                continue;
+            }
+            parentRetainedShivs[card.Upgrade] =
+                parentRetainedShivs.GetValueOrDefault(card.Upgrade) + 1;
+        }
+
+        List<RetainedHandCardFact> poweredRetained = new(view.HandCount);
+        List<RetainedHandCardFact> baselineRetained = new(view.HandCount);
+        for (int index = 0; index < view.HandCount; index++)
+        {
+            Card card = view.HandCard(index);
+            if (!view.RetainsThisTurn(card))
+                continue;
+            RetainedHandCardFact fact = new(
+                Math.Max(0, view.CardValue(card)), view.LocalEnergyCost(card));
+            poweredRetained.Add(fact);
+            if ((view.Stats(card).Tags & CardTag.Shiv) == 0)
+            {
+                baselineRetained.Add(fact);
+                continue;
+            }
+            if (parentRetainedShivs.TryGetValue(card.Upgrade, out int remaining) && remaining > 0)
+            {
+                parentRetainedShivs[card.Upgrade] = remaining - 1;
+                baselineRetained.Add(fact);
+            }
+        }
+        if (poweredRetained.Count == baselineRetained.Count)
+            return 0;
+
+        int drawPerTurn = view.ModifiedHandDraw();
+        int[] nextDrawValues = DrawPileValues(view, drawPerTurn);
+        int energy = view.ModifiedMaxEnergy();
+        int handLimit = view.Battle.MaxHandSize;
+        int baseline = RetainedHandTransition.Evaluate(
+            energy, handLimit, drawPerTurn, baselineRetained.ToArray(), nextDrawValues).NetValue;
+        int powered = RetainedHandTransition.Evaluate(
+            energy, handLimit, drawPerTurn, poweredRetained.ToArray(), nextDrawValues).NetValue;
+        return Math.Max(0, powered - baseline);
+    }
+
+    /// <summary>
+    /// <c>SpeedsterProjectionPotential</c>: every non-hand draw in the current hand's draw options
+    /// deals the solved Speedster amount to every living enemy.
+    /// </summary>
+    private static int SpeedsterProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int damagePerDraw = view.PowerAmountGain(parent, PowerEvidenceIds.Speedster);
+        if (damagePerDraw == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        if (options.Length == 0)
+            return 0;
+        int incoming = view.IncomingDamage();
+        return Math.Min(
+            view.Features.EnemyHp,
+            MarginalFrontierValue(
+                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
+                    damagePerDraw: damagePerDraw,
+                    damageTargets: Math.Max(1, view.Features.AliveEnemyCount))));
+    }
+
+    /// <summary>
+    /// <c>ToolsOfTheTradeProjectionPotential</c>: the next-turn draw/discard hand transition, with
+    /// Sly cards credited when discarded.
+    /// </summary>
+    private static int ToolsOfTheTradeProjectionPotential(scoped in View view, in Battle parent)
+    {
+        if (view.PowerAmountGain(parent, PowerEvidenceIds.ToolsOfTheTrade) == 0)
+            return 0;
+        int remainingTurns = view.RemainingTurns();
+        if (remainingTurns <= 1)
+            return 0;
+        int drawPerTurn = view.ModifiedHandDraw();
+        List<DrawDiscardCardFact> retainedCards = new(view.HandCount);
+        for (int index = 0; index < view.HandCount; index++)
+        {
+            Card card = view.HandCard(index);
+            if (!view.RetainsThisTurn(card))
+                continue;
+            int value = Math.Max(0, view.CardValue(card));
+            retainedCards.Add(new(value,
+                Kernel.IsSlyThisTurn(view.Battle, card) ? Math.Max(1, value) : 0));
+        }
+        int nextCount = Math.Min(drawPerTurn + 1, view.Battle.DrawCount);
+        List<DrawDiscardCardFact> nextDrawCards = new(nextCount);
+        for (int index = 0; index < nextCount; index++)
+        {
+            Card card = view.LiveCard(view.HandCount + index);
+            int value = Math.Max(0, view.CardValue(card));
+            nextDrawCards.Add(new(value,
+                Kernel.IsSlyThisTurn(view.Battle, card) ? Math.Max(1, value) : 0));
+        }
+        int transition = Math.Max(0, DrawDiscardTransition.Evaluate(
+            view.Battle.MaxHandSize, drawPerTurn,
+            retainedCards.ToArray(), nextDrawCards.ToArray()).NetValue);
+        // The transition prices only the next draw/discard exchange; the old resource estimate
+        // priced the whole remaining fight. Keep a conservative floor equal to that total spread
+        // over the maximum horizon so a blocked next-turn exchange does not erase the recurring
+        // draw engine value.
+        int horizon = Math.Max(1, ScoreWeights.SetupValueHorizonTurns);
+        int resourceFloor = SaturatingMul(
+            Math.Max(1, view.EnergyUnit()), Math.Max(0, remainingTurns - 1)) / horizon;
+        return Math.Max(transition, resourceFloor);
+    }
+
+    /// <summary>
+    /// <c>TrackingProjectionPotential</c>: the current-hand frontier marginal of the solved Tracking
+    /// percent on attacks that hit Weak enemies.
+    /// </summary>
+    private static int TrackingProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int damagePercent = view.PowerAmountGain(parent, PowerEvidenceIds.Tracking);
+        if (damagePercent == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        if (options.Length == 0)
+            return 0;
+        PowerTurnCardOption[] powered = BuildHandOptions(
+            view, weakAttackBonusPercent: damagePercent);
+        int incoming = view.IncomingDamage();
+        return Math.Min(
+            view.Features.EnemyHp,
+            MarginalFrontierValue(
+                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+                PowerTurnFrontier.Build(view.Battle.Energy, incoming, powered)));
+    }
+
+    /// <summary>
+    /// <c>WellLaidPlansProjectionPotential</c>: the next-turn hand transition when the whole current
+    /// hand may be retained.
+    /// </summary>
+    private static int WellLaidPlansProjectionPotential(scoped in View view, in Battle parent)
+    {
+        if (view.PowerAmountGain(parent, PowerEvidenceIds.WellLaidPlans) == 0)
+            return 0;
+        int drawPerTurn = view.ModifiedHandDraw();
+        List<RetainedHandCardFact> retainedCards = new(view.HandCount);
+        for (int index = 0; index < view.HandCount; index++)
+        {
+            Card card = view.HandCard(index);
+            retainedCards.Add(new(
+                Math.Max(0, view.CardValue(card)), view.LocalEnergyCost(card)));
+        }
+        int[] nextDrawValues = DrawPileValues(view, drawPerTurn);
+        return Math.Max(0, RetainedHandTransition.Evaluate(
+            view.ModifiedMaxEnergy(), view.Battle.MaxHandSize, drawPerTurn,
+            retainedCards.ToArray(), nextDrawValues).NetValue);
+    }
+
+    /// <summary>
+    /// <c>WraithFormProjectionPotential</c>: eight times the projected HP the child state saves
+    /// against the parent state. Intangible is already part of the scored threat projection.
+    /// </summary>
+    private static int WraithFormProjectionPotential(scoped in View view, in Battle parent,
+        int parentProjectedPlayerHp)
+    {
+        int intangible = view.PowerAmountGain(parent, PowerEvidenceIds.Intangible);
+        if (intangible == 0)
+            return 0;
+        long prevented = Math.Max(
+            0, (long)view.Features.ProjectedPlayerHp - parentProjectedPlayerHp);
+        return (int)Math.Min(int.MaxValue, prevented * 8);
+    }
+
+    private static int[] DrawPileValues(scoped in View view, int count)
+    {
+        int available = Math.Min(Math.Max(0, count), view.Battle.DrawCount);
+        int[] values = new int[available];
+        for (int index = 0; index < available; index++)
+            values[index] = Math.Max(0, view.CardValue(view.LiveCard(view.HandCount + index)));
+        return values;
+    }
+
+    private static int CurrentShivTargets(scoped in View view)
+        => view.PlayerPowerAmount(PowerEvidenceIds.FanOfKnives) > 0
+            ? Math.Max(1, view.Features.AliveEnemyCount)
+            : 1;
+
     private static int SimpleProjection(scoped in View view, in Battle parent,
         string id, int turns, int incoming, int enemies, int gain)
     {
-        int attacks = view.CountType(CardType.Attack);
         return id switch
         {
-            "AFTERIMAGE" or "ABRASIVE" => PerTriggerBlock(Math.Max(1, view.MaxBlock()), 1, incoming),
-            "ACCURACY" => PerTurnDamage(Math.Max(1, view.CountShiv()), turns, 1),
-            "MASTER_PLANNER" => view.MasterPlannerPotential(parent),
-            "PHANTOM_BLADES" => PerTurnResource(Math.Max(1, view.CountShiv()), turns),
-            "SERPENT_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "SPEEDSTER" => PerTriggerDamage(2, view.TotalDrawCount()),
-            "TOOLS_OF_THE_TRADE" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "WELL_LAID_PLANS" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
-            "TRACKING" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
             "BIASED_COGNITION" or "DEFRAGMENT" => PerTurnResource(
                 gain, Math.Max(1, (int)view.Battle.OrbCount)),
             "BUFFER" => BufferPotential(gain, incoming, view.IncomingAttackHits(nextTurn: true)),
@@ -1185,8 +1579,28 @@ internal static class PowerEvidence
 
     private static PowerTurnCardOption[] BuildHandOptions(scoped in View view,
         int weakAttackBonusPercent = 0)
+        => BuildOptions(view, 0, view.HandCount, view.HandCount, currentTurn: true,
+            weakAttackBonusPercent);
+
+    private static PowerTurnCardOption[] BuildDrawOptions(scoped in View view,
+        int drawOffset, int count, int projectedHandCount,
+        int weakAttackBonusPercent = 0)
     {
-        if (view.HandCount == 0)
+        int available = Math.Min(
+            Math.Max(0, count), Math.Max(0, view.Battle.DrawCount - drawOffset));
+        if (available == 0)
+            return [];
+        return BuildOptions(view, view.HandCount + drawOffset, available, projectedHandCount,
+            currentTurn: false, weakAttackBonusPercent);
+    }
+
+    private static PowerTurnCardOption[] BuildOptions(scoped in View view,
+        int start, int count, int projectedHandCount, bool currentTurn,
+        int weakAttackBonusPercent = 0)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(weakAttackBonusPercent);
+        ArgumentOutOfRangeException.ThrowIfNegative(projectedHandCount);
+        if (count == 0)
             return [];
         int weakTargets = 0;
         int minimumEnemyBlock = int.MaxValue;
@@ -1201,17 +1615,17 @@ internal static class PowerEvidence
         }
         if (minimumEnemyBlock == int.MaxValue)
             minimumEnemyBlock = 0;
-        int shivTargets = view.PlayerPowerAmount(PowerEvidenceIds.FanOfKnives) > 0
-            ? Math.Max(1, view.Features.AliveEnemyCount)
-            : 1;
-        List<PowerTurnCardOption> options = new(view.HandCount);
-        for (int index = 0; index < view.HandCount; index++)
+        int shivTargets = CurrentShivTargets(view);
+        List<PowerTurnCardOption> options = new(count);
+        for (int index = 0; index < count; index++)
         {
-            Card card = view.HandCard(index);
+            Card card = view.LiveCard(start + index);
             if (view.HasKeyword(card, Keywords.Unplayable))
                 continue;
-            int cost = Math.Max(0,
-                Kernel.EnergyCostWithModifiers(view.Battle, view.Rules, card, Pile.Hand));
+            int cost = currentTurn
+                ? Math.Max(0, Kernel.EnergyCostWithModifiers(
+                    view.Battle, view.Rules, card, Pile.Hand))
+                : view.LocalEnergyCost(card);
             bool isShiv = (view.Stats(card).Tags & CardTag.Shiv) != 0;
             int baseDamage = view.Type(card) == CardType.Attack ? view.Damage(card) : 0;
             int damage = isShiv ? SaturatingMul(baseDamage, shivTargets) : baseDamage;

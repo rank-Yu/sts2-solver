@@ -645,12 +645,13 @@ public static partial class Kernel
             return;
 
         // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish.
-        // EndTurn runs the same native rootSetup sequence as PreparePlayerPlayPhase, with the same
-        // pause callback: the first turn-start choice releases the setup task, the side start and
-        // orb turn-start pass run, and only then does the requesting listener resume.
+        // The ordinary EndTurn path runs the same native rootSetup sequence as PreparePlayerPlayPhase,
+        // but production deployment answers turn-start choices through CardSelectCmd.Selector: the
+        // native SetupPlayerTurn task does not pause, so AfterSideTurnStart runs after the hand draw.
+        // SetupPreamble stays false here; only a captured setup-page preamble (Selector == null)
+        // runs the side start at the choice pause.
         // [GAME CombatManager.cs:700-830, 880-925]
         SetupPauseState setup = new();
-        x.SetupPreamble = true;
         x.SetupPause = setup.OnPause;
         try
         {
@@ -890,7 +891,9 @@ public static partial class Kernel
     /// Energy reset, the relic/power <c>BeforeHandDraw</c> stage, the hand draw, the
     /// <c>AfterPlayerTurnStart</c> pass, the player side start, orbs and the auto-pre-play phase all
     /// match the native order; <paramref name="choices"/> is the prefix of selections for the
-    /// requests the preamble asks. Returns <see cref="StepResult.NeedsChoice"/> with the partial
+    /// requests the preamble asks. <paramref name="setupChoicePauses"/> selects the visible setup-page
+    /// semantics (the first PlayerTurnStart choice pauses the setup task) or the ordinary
+    /// selector-backed EndTurn semantics (no pause). Returns <see cref="StepResult.NeedsChoice"/> with the partial
     /// battle when another selection is needed; the caller must discard it and replay from the Start
     /// root with one more selection.
     /// <para>GAME CombatManager.cs:700-830 (StartTurn/SetupPlayerTurn), 862-869 (RunAutoPrePlayPhase).
@@ -905,7 +908,8 @@ public static partial class Kernel
     /// native <c>SetupPlayerTurn</c> entry. It is not stored in <see cref="Battle"/>.
     /// </param>
     public static StepResult PreparePlayerPlayPhase(ref Battle battle, Rules rules,
-        ReadOnlySpan<ulong> choices, out ChoiceRequest request, bool takingExtraTurn = false)
+        ReadOnlySpan<ulong> choices, out ChoiceRequest request, bool takingExtraTurn = false,
+        bool setupChoicePauses = true)
     {
         if (!IsInProgress(battle))
             throw new InvalidOperationException("战斗已经结束，不能再准备玩家出牌阶段。");
@@ -920,7 +924,10 @@ public static partial class Kernel
         Exec x = new(ref battle, rules, action);
         x.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
         x.TakingExtraTurn = takingExtraTurn;
-        x.SetupPreamble = true;
+        // A captured setup page has CardSelectCmd.Selector == null, so the first turn-start choice
+        // pauses the native SetupPlayerTurn task. The ordinary EndTurn path answers choices through
+        // the deployment selector and never pauses; callers comparing that path pass false.
+        x.SetupPreamble = setupChoicePauses;
         SetupPauseState setup = new();
         x.SetupPause = setup.OnPause;
         // GAME CombatManager.cs:906-908: the native turn-one draw order keys off the player's turn

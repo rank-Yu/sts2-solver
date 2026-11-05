@@ -6,9 +6,9 @@
   "rulesSha256": "1293e1cd8dd675e6ee5b8fd206bd8727b81c928bcb528cf2ec19857372ab6748",
   "counts": {
     "roots": 1,
-    "k1": 22,
+    "k1": 21,
     "walks": 32,
-    "walkStates": 613,
-    "transitions": 581
+    "walkStates": 623,
+    "transitions": 591
   }
 }

@@ -92,7 +92,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 - 金币：`ModifyGoldGained`、`AfterModifyingGoldGained`（只对截断金额变化的监听者）、`AfterGoldGained`，由 `Kernel.GainGold` 按 `PlayerCmd.GainGold` 的顺序派发。前两者先遍历跑局监听者（当前实现为遗物、药水），再遍历战斗监听者；`AfterGoldGained` 只遍历跑局监听者（牌组卡在导入时拒绝）。
 - Power：`TryModifyPowerAmountReceived` / `AfterModifyingPowerAmountReceived`（RuinedHelmet；UnsettlingLamp 按触发卡的出牌来源逐卡翻倍，触发卡与已翻倍的临时 Power 类型只存在 `Exec`，见 [状态布局](combat-state-layout.md#43-原引擎按对象记账的值)）、`AfterPowerAmountChanged`（Vicious、Shroud、SleightOfFlesh、PossessStrength、PossessSpeed；派发携带被修改 Power 的目标 owner，因为原版读取的是 `power.Owner`）。**实例型 Power**（`PowerInstanceType.Instanced`）每个原生实例占 Power 表一行，`(owner, id)` 相同的行按出现序区分；阶段遍历与 Hook 快照都保存 occurrence，`FindPowerOccurrence` 精确回指该行（Automation、Panache、RollingBoulder、TheBomb、Gigantification、Monologue、Orbit、Nightmare）。
 - 数值与遗物：`ModifyXValue`（ChemicalX，位置与 `CardModel.ResolveEnergyXValue` 一致）、`ShouldPlayerResetEnergy`（IceCream）、遗物 `AfterCardEnteredCombat`（GhostSeed）、`AfterCreatureAddedToCombat`（`Kernel.AddCreatedMonster` 在入场力量与首个行动准备之后、`MinionPower` 之前派发；PhilosophersStone 给新敌人施加力量。它的 `StrengthPower` 值不进入 `RelicVar` 表，导入时冻结在 `Relic.Aux`）。
-- 生成卡与额外结算时机：`AfterCardGeneratedForCombat` 在 `AddGeneratedCard` 插入牌堆并派发 `AfterCardEnteredCombat` 之后按监听顺序派发，参数是**卡牌数组的绝对下标**（牌堆内下标只用于 `AfterCardEnteredCombat`）与生成者 owner（玩家或 `NoOwner`，对应原引擎的 `Player? Creator`；怪物及其 Power 生成的牌为 `NoOwner`）；Aeonglass 用它把新生成的 Wither 直接提升到当前 `WitherUpgradeCount`。`Rampart` 只在玩家侧非额外回合的回合开始、`OwnerAfterSideTurnStart` 之后执行（`PersistentPowerSupport.TriggerRampart`）。`HasKeyword` 在稳定边界上查询本地关键字后，还会为持有 `HexPower` 的玩家的 Hexed 卡补上 Ethereal（原版 `TryModifyKeywordsInCombat` 是惰性查询，不写入卡牌状态）。
+- 生成卡与额外结算时机：`AfterCardGeneratedForCombat` 在 `AddGeneratedCard` 插入牌堆并派发 `AfterCardEnteredCombat` 之后按监听顺序派发，参数是生成卡当前的**卡牌数组绝对下标**与生成者 owner（玩家或 `NoOwner`，对应原引擎的 `Player? Creator`；怪物及其 Power 生成的牌为 `NoOwner`）。内核在进入与生成钩子期间给该卡值打一个瞬态身份字节；前一个监听器把它移进另一个牌堆（例如 Gremlin Horn 抽牌触发洗弃牌堆）后，后一个监听器仍得到同一张卡的新下标。Aeonglass 用它把新生成的 Wither 直接提升到当前 `WitherUpgradeCount`。`Rampart` 只在玩家侧非额外回合的回合开始、`OwnerAfterSideTurnStart` 之后执行（`PersistentPowerSupport.TriggerRampart`）。`HasKeyword` 在稳定边界上查询本地关键字后，还会为持有 `HexPower` 的玩家的 Hexed 卡补上 Ethereal（原版 `TryModifyKeywordsInCombat` 是惰性查询，不写入卡牌状态）。
 - 球：`AfterOrbChanneled`、`AfterOrbEvoked`、`ModifyOrbPassiveTriggerCounts`、`ModifyOrbValue`；被动与激发、回合末和回合开始的触发见 [内容专属机制](combat-content.md#2-故障机器人充能球)。
 
 ### 3.4 苦难与附魔
@@ -216,11 +216,11 @@ Power 施加（`Q/SimulatedCombatState.cs:648-711`）：战斗处于 `Kernel.IsE
 3. 能量：`ShouldPlayerResetEnergy`（IceCream 从第 2 回合起拒绝重置；否则清零）→ 加修正后的最大能量与 `ConsumeEnergyNextTurn`（`EnergyNextTurnPower` 的层数直接消费并清零）；`AfterEnergyReset`、遗物 `AfterEnergyReset`、`AfterEnergyResetLate`。
 4. `BeforeHandDraw`：Power → 遗物 → 返回手牌的卡。返回手牌阶段处理 `Card.ReturnToHandNextTurn`（Bolas/ThrummingHatchet），牌已在手牌时只清位。
 5. 抽牌数 = 5 + 下回合抽牌 + DrawCardsNextTurn → `ModifyHandDraw` → Late；抽牌。`ConsumeModifiedHandDraw` 的“尚未快照”项（`DrawCardsNextTurnPower` 的 `AmountOnTurnStart == 0`）在监听者之前直接加到基础抽牌数；已快照的层数由该 Power 的 `ModifyHandDraw` 加。`DrawCardsNextTurnPower` 在 `TriggerBaseSideTurnStart` 清零。
-6. `AfterPlayerTurnStart`（原版：先 Power，再遗物）。回合开始的选择（Tyranny、Toasty Mittens、Gambling Chip、工具箱、Foregone Conclusion 等）在这里提出。只要原生的 `CardSelectCmd.Selector == null`（包括只有一个候选或空手牌的隐式请求），`SetupPlayerTurn` 就在第一个选择处暂停；`StartTurn` 先跑侧回合开始（`AfterSideTurnStart`）与球 `AfterTurnStart`，之后才恢复 setup、读取候选并结算选择。
-7. 没有选择时，玩家己方回合开始效果（`TriggerSideTurnStart`：第 1 回合之后 Plating 递减，Rampart 只在非额外回合执行等）在 `AfterPlayerTurnStart` 之后执行；有选择时它已经在暂停处跑过，不再重复。
-8. 敌人死亡效果 → 苦难归一化 → 回合开始的附魔与球触发 → 自动预打出 → 胜负判定。有选择时球在暂停处已经触发，此步不再重复。
+6. `AfterPlayerTurnStart`（原版：先 Power，再遗物）。回合开始的选择（Tyranny、Toasty Mittens、Gambling Chip、工具箱、Foregone Conclusion 等）在这里提出。原生的 `CardSelectCmd.Selector == null` 时（包括只有一个候选或空手牌的隐式请求），`SetupPlayerTurn` 在第一个选择处暂停；`StartTurn` 先跑侧回合开始（`AfterSideTurnStart`）与球 `AfterTurnStart`，之后才恢复 setup、读取候选并结算选择。Selector 非空时选择被立即回答，setup task 不暂停，侧回合开始在抽牌与 `AfterPlayerTurnStart` 之后执行。
+7. 没有暂停时，玩家己方回合开始效果（`TriggerSideTurnStart`：第 1 回合之后 Plating 递减，Rampart 只在非额外回合执行等）在 `AfterPlayerTurnStart` 之后执行；发生准备暂停时它已经在暂停处跑过，不再重复。
+8. 敌人死亡效果 → 苦难归一化 → 回合开始的附魔与球触发 → 自动预打出 → 胜负判定。发生准备暂停时球在暂停处已经触发，此步不再重复。
 
-EndTurn 路径与 `PreparePlayerPlayPhase` 共用同一套 `Exec.SetupPause`/`RunSetupPause` 机制：正常结束回合进入下一回合时也按 `rootSetup` 语义执行装填，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。额外回合（PaelsEye、AmbergrisPower）使用同一套前奏和暂停语义：原生 `StartTurn` 在额外回合只把起始生物限定为 `PlayersTakingExtraTurn` 并跳过敌方 `PrepareForNextTurn`，`SetupPlayerTurn` 的抽牌、`AfterPlayerTurnStart` 选择、`AfterSideTurnStart` 和 `OrbQueue.AfterTurnStart` 顺序与普通回合相同 [GAME CombatManager.cs:701-706, 725-733, 777-830]。
+`PreparePlayerPlayPhase` 重放捕获的准备页时使用 `Exec.SetupPause`/`RunSetupPause`：`Selector == null`，在第一个 `PlayerTurnStart` 选择处暂停，侧回合开始和球只在暂停处跑一次。`CardSelectCmd.FromHand`/`FromCombatPile` 在读取牌堆前发暂停信号，所以 Toasty Mittens、Tyranny、Gambling Chip、Foregone Conclusion 等入口即使在暂停前手牌为空也先调用 `RunSetupPause`，侧回合开始生成的牌随后进入候选。普通 EndTurn 由部署的 `PlannedNativeSelector` 回答选择，不进入这条暂停路径：`Kernel.Step` 的 EndTurn 预测保持 `SetupPreamble=false`，`DrawCardsNextTurnPower` 等侧回合开始效果在抽牌后才清理，Toasty Mittens/Crossbow 也不会在普通结束回合提前改变候选。额外回合（PaelsEye、AmbergrisPower）按同一区分处理：原生 `StartTurn` 在额外回合只把起始生物限定为 `PlayersTakingExtraTurn` 并跳过敌方 `PrepareForNextTurn`，可见准备页与普通 EndTurn 的暂停差异都不变 [GAME CombatManager.cs:701-706, 725-733, 777-830]。
 
 ### 7.1 额外回合
 
@@ -232,13 +232,13 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 
 1. 先跑 `AfterRelicRoundPass`（原引擎 `RecordRelicRoundDamage` 的位置）：EmotionChip 在这里把“本回合失血”翻到“上一回合”。
 2. 再在固定的监听快照上跑 `AfterTakingExtraTurnPass`：Ambergris 自减一层，PaelsEye 置已用。
-3. **跳过整个敌方回合**和 `PrepareMonsterMovesForNextRound`，以 `AdvanceRoundPlayerStart(takingExtraTurn: true)` 进入玩家回合开始：轮次不加一，玩家回合数加一，`TriggerSideTurnStart` 的 Rampart 不执行。随后的 `StartTurn` 与普通回合走同一个 `SetupPlayerTurn`：额外回合只把起始生物限定为 `PlayersTakingExtraTurn`，并跳过敌方 `PrepareForNextTurn` [GAME CombatManager.cs:701-706, 725-733]；抽牌、`AfterPlayerTurnStart` 的选择、`AfterSideTurnStart` 和球 `AfterTurnStart` 都按同一顺序执行，第一次选择处同样暂停 [GAME CombatManager.cs:777-830]。
+3. **跳过整个敌方回合**和 `PrepareMonsterMovesForNextRound`，以 `AdvanceRoundPlayerStart(takingExtraTurn: true)` 进入玩家回合开始：轮次不加一，玩家回合数加一，`TriggerSideTurnStart` 的 Rampart 不执行。随后的 `StartTurn` 与普通回合走同一个 `SetupPlayerTurn`：额外回合只把起始生物限定为 `PlayersTakingExtraTurn`，并跳过敌方 `PrepareForNextTurn` [GAME CombatManager.cs:701-706, 725-733]；抽牌、`AfterPlayerTurnStart` 的选择、`AfterSideTurnStart` 和球 `AfterTurnStart` 都按同一顺序执行；`Selector == null` 的可见准备页在第一次选择处暂停，普通 EndTurn 的立即选择不暂停 [GAME CombatManager.cs:777-830]。
 4. 本回合失血标记：原引擎的 `AdvancePlayerTurn` 只清空 `_unblockedDamageThisTurn` 缓存，之后从不可变的根历史重算 `HasLostHpThisTurn`。Sts2Solver 在额外回合用 `Rules.RootLostHpMask`（根捕获时每个 owner 的答案）恢复这些标记；普通回合换轮时全部清零。根历史之外的预测期伤害不计入，与原引擎一致。
 
 ### 7.1.1 准备暂停处的侧回合开始与球
 
-准备暂停时，侧回合开始和球 `AfterTurnStart` 在恢复选择前执行。原版 v0.111.0 没有内容能在这两个位置请求新的玩家选择：`Hook.AfterSideTurnStart` 不接收 `PlayerChoiceContext`（[GAME AbstractModel.cs:1268、Hook.cs:1175]），51 个覆写里没有 `CardSelectCmd` 调用；InfusedCore 和 SymbioticVirus 用 `BlockingPlayerChoiceContext` 只是 `OrbCmd.Channel`。球只有 PlasmaOrb 覆写 `AfterTurnStartOrbTrigger`，它触发 passive 获得能量，不选牌。内核仍对这两个位置检查 `NeedsChoice`/`ChoicesTaken`，一旦出现无法表示的请求就显式抛 `UnsupportedException`；当前内容不会走到。
-准备暂停期间，原生 `CardSelectCmd.FromHand` 先暂停、再读取手牌候选；暂停中 `AfterSideTurnStart` 的 Crossbow 会把生成的攻击牌加入手牌，因此 ToolsOfTheTradePower 等基于手牌的回合开始选择必须先运行 `Exec.RunSetupPause`，再取手牌数量。`CardSelectCmd.FromHand` 即使手牌为空也会暂停。
+可见准备页暂停时，侧回合开始和球 `AfterTurnStart` 在恢复选择前执行。原版 v0.111.0 没有内容能在这两个位置请求新的玩家选择：`Hook.AfterSideTurnStart` 不接收 `PlayerChoiceContext`（[GAME AbstractModel.cs:1268、Hook.cs:1175]），51 个覆写里没有 `CardSelectCmd` 调用；InfusedCore 和 SymbioticVirus 用 `BlockingPlayerChoiceContext` 只是 `OrbCmd.Channel`。球只有 PlasmaOrb 覆写 `AfterTurnStartOrbTrigger`，它触发 passive 获得能量，不选牌。内核仍对这两个位置检查 `NeedsChoice`/`ChoicesTaken`，一旦出现无法表示的请求就显式抛 `UnsupportedException`；当前内容不会走到。
+准备暂停期间，原生 `CardSelectCmd.FromHand` 先暂停、再读取手牌候选；暂停中 `AfterSideTurnStart` 的 Crossbow 会把生成的攻击牌加入手牌，因此 ToolsOfTheTradePower 等基于手牌的回合开始选择必须先运行 `Exec.RunSetupPause`，再取手牌数量。`CardSelectCmd.FromHand` 即使手牌为空也会暂停。普通 EndTurn 的 `PlannedNativeSelector` 非空，不进入这段暂停，候选按侧回合开始前的手牌读取。
 
 ### 7.2 实现形状
 

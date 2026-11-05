@@ -348,11 +348,14 @@ public ref struct Exec
     internal SetupPauseHandler? SetupPause;
 
     /// <summary>
-    /// This action replays the native <c>SetupPlayerTurn</c> preamble. Unlike an ordinary action or
-    /// the EndTurn path, a pile-based choice must run <see cref="RunSetupPause"/> before it reads its
-    /// candidate list, because the native <c>CardSelectCmd</c> entry signals the pause first and
-    /// only then builds the candidates. <see cref="SetupPause"/> may already be null when a later
-    /// choice in the same preamble reads its candidates; this flag keeps the preamble semantics.
+    /// True while replaying a captured <c>SetupPlayerTurn</c> page, where native
+    /// <c>CardSelectCmd.Selector</c> is null and the first choice signals the setup pause. A
+    /// pile-based choice must run <see cref="RunSetupPause"/> before it reads its candidate list,
+    /// because the native entry signals the pause first and only then builds the candidates.
+    /// <see cref="SetupPause"/> may already be null when a later choice in the same preamble reads
+    /// its candidates; this flag keeps the preamble semantics. Ordinary EndTurn deployment answers
+    /// choices through the native selector (no pause), so it leaves this false and keeps the
+    /// side-turn-start pass after the hand draw.
     /// </summary>
     internal bool SetupPreamble;
 
@@ -841,13 +844,18 @@ public ref struct Exec
     /// </summary>
     internal bool RunSetupPause()
     {
+        // Only a captured setup page pauses in the native game. EndTurn deployment supplies a
+        // CardSelectCmd.Selector, so a carried turn-start choice is answered without signalling a
+        // pause; running the side start early would clear DrawCardsNextTurnPower before the draw.
+        if (!SetupPreamble)
+            return false;
         SetupPauseHandler? pause = SetupPause;
         if (pause != null)
         {
             SetupPause = null;
             pause(ref this);
         }
-        return SetupPreamble;
+        return true;
     }
 
     /// <summary>
@@ -874,10 +882,11 @@ public ref struct Exec
                 if ((selection & ~valid) != 0 || count < request.MinCount || count > request.MaxCount)
                     throw new InvalidOperationException($"选择 {selection:X} 不符合选项规格（{request.OptionCount} 项，{request.MinCount}-{request.MaxCount} 个；effect={request.Effect} timing={request.Timing} source={request.Source} choices={_choiceCount} taken={_choicesTaken}）。");
             }
-            // The first carried PlayerTurnStart selection answers the native setup pause: run the
-            // side start and the orb turn-start pass before the listener that asked resumes and
-            // applies it. An EndTurn action can carry turn-end/enemy-turn selections before the
-            // setup choices, so the pause point is the request timing, not the first carried choice.
+            // On a captured setup page the first carried PlayerTurnStart selection answers the
+            // native setup pause: run the side start and the orb turn-start pass before the listener
+            // that asked resumes and applies it. An EndTurn action can carry turn-end/enemy-turn
+            // selections before the setup choices, so the pause point is the request timing, not the
+            // first carried choice. RunSetupPause is a no-op when the action is not a setup page.
             if (request.Timing == ChoiceTiming.PlayerTurnStart)
                 RunSetupPause();
             return true;
@@ -885,9 +894,10 @@ public ref struct Exec
         selection = 0;
         NeedsChoice = true;
         Request = request;
-        // The request itself is the native pause point. Side start and orbs run now, while the
-        // choice is pending; the callback restores Request afterwards. A pile-based call site may
-        // already have run this before building its candidates.
+        // On a captured setup page the request itself is the native pause point. Side start and
+        // orbs run now, while the choice is pending; the callback restores Request afterwards. A
+        // pile-based call site may already have run this before building its candidates. EndTurn
+        // deployment has a native selector, so this is a no-op there.
         RunSetupPause();
         return false;
     }

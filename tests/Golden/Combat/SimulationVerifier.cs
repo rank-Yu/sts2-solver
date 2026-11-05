@@ -421,11 +421,13 @@ internal static class SimulationVerifier
 
 
     /// <summary>
-    /// Long-term contract for the shared end-turn/setup pause semantics: every EndTurn transition
-    /// whose next turn asks a PlayerTurnStart choice must produce exactly the Play root that
+    /// Long-term contract for the end-turn setup path: every EndTurn transition whose next turn asks
+    /// a PlayerTurnStart choice must produce exactly the Play root that
     /// <see cref="Kernel.PreparePlayerPlayPhase"/> produces from the same Start root and the same
-    /// setup selections. Extra turns use the same contract; the replay receives the bootstrapped
-    /// <c>ShouldTakeExtraTurn</c> fact from <see cref="Kernel.TryAdvanceToPlayerSetupStart"/>.
+    /// setup selections when the native selector answers the choice (no setup pause). Extra turns use
+    /// the same contract; the replay receives the bootstrapped <c>ShouldTakeExtraTurn</c> fact from
+    /// <see cref="Kernel.TryAdvanceToPlayerSetupStart"/>. The visible setup-page pause is a separate
+    /// path exercised by the turn-setup roots.
     /// </summary>
     private static void CheckEndTurnSetupPause(string rootName, string where, in Battle before,
         in PlayerAction action, int firstSetup, in Battle child, Rules rules, ref int checks)
@@ -443,7 +445,7 @@ internal static class SimulationVerifier
             setupChoices[index] = action.Choices[firstSetup + index];
         Battle prepared = start;
         StepResult result = Kernel.PreparePlayerPlayPhase(ref prepared, rules, setupChoices, out _,
-            takingExtraTurn);
+            takingExtraTurn, setupChoicePauses: false);
         checks++;
         if (result != StepResult.Completed)
             throw Mismatch(rootName, $"{where} setup-pause contract replay returned {result}");

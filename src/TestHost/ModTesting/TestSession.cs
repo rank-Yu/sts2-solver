@@ -160,6 +160,15 @@ internal static class TestSession
                 PlayerTurnSetupRuntime.TestEnabled =
                     request.TurnSetupTakeoverForTest && !turnSetupTurnTwo;
                 TurnSetupCardSelector? setupSelector = null;
+                // The build runs before any turn-setup transaction exists. Visible pre-play
+                // choices (Toolbox's first-turn colourless pick, ...) would otherwise open a
+                // modal and leave the native Start phase waiting for input. Full-combat builds
+                // answer them deterministically; the resulting card is part of the captured root.
+                FirstChoiceCardSelector? buildSelector =
+                    request.FullCombatForTest && !request.FlashTurnSetupRootForTest
+                        && !turnSetupTakeover
+                        ? new FirstChoiceCardSelector()
+                        : null;
                 if (turnSetupWait || scenarioName == "turn_setup_manual")
                 {
                     CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
@@ -234,7 +243,8 @@ internal static class TestSession
                     skipInitialInjection: request.FlashTurnSetupRootForTest
                         || (turnSetupTakeover && !turnSetupTurnTwo),
                     turnSetupSelector: setupSelector,
-                    waitForTurnSetupPage: turnSetupTakeover && !turnSetupTurnTwo);
+                    waitForTurnSetupPage: turnSetupTakeover && !turnSetupTurnTwo,
+                    buildSelector: buildSelector);
                 ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
                 stage = "settle";
                 await CombatFrameWaiter.SettleAsync(host);
@@ -639,7 +649,7 @@ internal static class TestSession
         }
         if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null
             && request.SettingsModeForTest is null && request.SettingsThreadsForTest is null
-            && !request.FullCombatForTest)
+            && request.SearchThreadsForTest is null && !request.FullCombatForTest)
         {
             return false;
         }
@@ -659,6 +669,14 @@ internal static class TestSession
             search = search with { Tier = tierValue };
         if (request.SettingsThreadsForTest is { } threads)
             search = search with { Threads = Math.Clamp(threads, 1, 8) };
+        else if (request.SearchThreadsForTest is { } searchThreads)
+        {
+            // Full-combat and controller scenarios read SearchThreadCount from settings; the
+            // single-shot capture path applies SearchThreadsForTest directly to its BeamOptions.
+            // Mirror the requested test thread count into settings so every search in the
+            // request, including controller member searches, obeys it.
+            search = search with { Threads = Math.Clamp(searchThreads, 1, 8) };
+        }
         SolverSettingsData next = current with
         {
             Search = search,

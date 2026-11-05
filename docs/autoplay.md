@@ -99,9 +99,9 @@
 
 ### 结束回合与下一回合的准备
 
-`ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会在等待下一回合边界之前释放 `PlannedNativeSelector`。之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。结束回合的内核预测也使用同一套暂停语义，准备阶段侧回合开始生成或改变候选时，EndTurn 动作携带的计划和原生页面从第一段起就一致；`ts-g-multi-choice` 的熔炉不再因为计划少一个候选而落入入口校验失败后的新搜索。
+`ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会在等待下一回合边界之前释放 `PlannedNativeSelector`。之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。结束回合的内核预测按 selector 立即回答选择的语义执行，不在普通 EndTurn 处暂停；可见准备页的暂停、侧回合开始和候选变化由 `PreparePlayerPlayPhase`/setup 事务单独重放。`ts-g-multi-choice` 的熔炉在可见准备页枚举时仍会把新候选纳入计划，因此沿用校验通过，不会落入入口校验失败后的新搜索。
 
-额外回合（PaelsEye、AmbergrisPower）的回合准备走同一条接管和沿用路径：额外回合事实来自原生 `CombatTurnState.PlayersTakingExtraTurn`，EndTurn 预测的 `PlayerTurnStart` 计划和额外回合的 `SetupPlayerTurn` 使用同一暂停顺序；准备根、候选枚举和沿用校验都带这个事实，不需要另建一套流程。
+额外回合（PaelsEye、AmbergrisPower）的回合准备走同一条接管和沿用路径：额外回合事实来自原生 `CombatTurnState.PlayersTakingExtraTurn`；普通 EndTurn 的立即选择预测与额外回合的可见准备页各自按 selector 是否为空走对应顺序，准备根、候选枚举和沿用校验都带这个事实，不需要另建一套流程。
 
 上一回合的部署被下一回合 setup 接管时标记 `SupersededByTurnSetup`：结束回合的实机边界不再和旧路线比较，不计偏差、不重搜，下一回合由 setup 的结果接手。下一回合优先沿用上一回合 EndTurn 动作里的 `PlayerTurnStart` 计划；没有可沿用的选择时才从 Start 根枚举并搜索。
 

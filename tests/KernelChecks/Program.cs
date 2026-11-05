@@ -4209,6 +4209,40 @@ static void CheckLrKernel(Rules rules)
         "LR 先见之明结算后应移除 Power");
     Check(foregoneReplay.HandCount == 7,
         $"LR 先见之明应先移入手牌再抽 5 张，实际手牌 {foregoneReplay.HandCount}");
+
+    // A DrawCardsNextTurn power applied during the current turn must survive the ForegoneConclusion
+    // BeforeHandDraw choice on an ordinary EndTurn: production answers that choice through
+    // CardSelectCmd.Selector, so the native SetupPlayerTurn task never pauses and AfterSideTurnStart
+    // (which removes DrawCardsNextTurnPower) runs after the draw.
+    Check(Registry.TryPower("DRAW_CARDS_NEXT_TURN_POWER", out ushort drawNextTurn),
+        "缺少 DRAW_CARDS_NEXT_TURN_POWER");
+    Battle foregoneDrawBattle = SliceBattle();
+    for (int index = 0; index < 10; index++)
+    {
+        Card extra = new()
+        {
+            Id = strike, BaseCost = 1, BaseStarCost = -1, Flags = CardFlags.DeckCard,
+        };
+        Piles.Append(ref foregoneDrawBattle, Pile.Draw, extra);
+    }
+    Exec foregoneDrawExec = new(ref foregoneDrawBattle, rules, default);
+    Kernel.ApplyPower(ref foregoneDrawExec, Limits.PlayerOwner, foregone, 2, Limits.PlayerOwner);
+    Kernel.ApplyPower(ref foregoneDrawExec, Limits.PlayerOwner, drawNextTurn, 2, Limits.PlayerOwner);
+    Kernel.ResolvePowerAmountChanges(ref foregoneDrawExec);
+    Battle foregoneDrawParent = foregoneDrawBattle;
+    PlayerAction foregoneDrawEnd = PlayerAction.EndTurn();
+    Check(Kernel.Step(ref foregoneDrawBattle, foregoneDrawEnd, rules, out ChoiceRequest foregoneDrawRequest)
+        == StepResult.NeedsChoice, "LR 先见之明+下回合抽牌应在摸牌前请求选牌");
+    Check(foregoneDrawRequest.Timing == ChoiceTiming.PlayerTurnStart
+        && foregoneDrawRequest.MinCount == 2 && foregoneDrawRequest.MaxCount == 2,
+        "LR 先见之明+下回合抽牌的选择规格错误");
+    Battle foregoneDrawReplay = foregoneDrawParent;
+    Check(Kernel.Step(ref foregoneDrawReplay, foregoneDrawEnd.WithChoice(0b11UL), rules, out _)
+        == StepResult.Completed, "LR 先见之明+下回合抽牌选择后回合应完成");
+    Check(foregoneDrawReplay.HandCount == 9,
+        $"LR 普通结束回合不应在摸牌前清掉下回合抽牌，实际手牌 {foregoneDrawReplay.HandCount}");
+    Check(foregoneDrawReplay.DrawCount == 6,
+        $"LR 先见之明+下回合抽牌后应剩 6 张抽牌堆，实际 {foregoneDrawReplay.DrawCount}");
 }
 
 /// <summary>

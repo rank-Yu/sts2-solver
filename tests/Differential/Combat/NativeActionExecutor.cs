@@ -51,15 +51,12 @@ internal sealed class NativeActionExecutor(
         PlannedChoice[] explicitChoices = [.. planned.Choices.Where(static choice => !choice.Implicit)];
         NativeChoiceSelector selector = new(explicitChoices, player,
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
-        // Production releases PlannedNativeSelector before the next turn's setup page, so the
-        // native SetupPlayerTurn task pauses at CardSelectCmd.Selector == null. An EndTurn action
-        // therefore answers through LocalSelector for its whole execution: end-of-turn choices and
-        // the next turn's setup choices take the native paused branch, while the same frozen plan
-        // still supplies every selection. Other actions keep the ordinary selector.
-        bool endTurn = planned.Action.Kind == PlayerActionKind.EndTurn;
-        using IDisposable selectorScope = endTurn
-            ? CardSelectCmd.PushSelector(selector, localOnly: true)
-            : NativeChoiceSelector.Activate(selector);
+        // Production full-auto deployment keeps PlannedNativeSelector active through EndTurn.
+        // CardSelectCmd therefore answers turn-start choices without signalling the native setup
+        // pause, and SetupPlayerTurn reaches AfterSideTurnStart only after the hand draw. The
+        // earlier LocalSelector branch modelled the visible setup page instead; that page is a
+        // separate turn-setup capture, not the ordinary combat-pilot route.
+        using IDisposable selectorScope = NativeChoiceSelector.Activate(selector);
         TerminalBattleCapture.Begin(() => TerminalBattleCapture.Import(
             CombatManager.Instance.DebugOnlyGetState(), tracker, rules, planned.After, player));
         try

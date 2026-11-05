@@ -133,14 +133,24 @@ public static partial class Kernel
         Card entered = replacement;
         entered.Keywords |= Keywords.CreatedAfterRoot;
         // A replacement is a new native card: Dampen's per-card original upgrade belongs to the object
-        // that was downgraded, not to a generated/transformed value.
+        // that was downgraded, not a generated/transformed value.
         entered.DampenOriginalUpgrade = 0;
-        Piles.At(ref x.B, pile, index) = entered;
-        int insert = index;
-        x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
-        EnteredCombat(ref x, replacement, pile, insert);
-        if (!x.NeedsChoice)
-            AfterGeneratedForCombat(ref x, target: pile, insert, Limits.PlayerOwner);
+        int markBase = ReserveTransientMarks(ref x, 1, out int markStart);
+        byte mark = checked((byte)markStart);
+        entered.TransientMark = mark;
+        try
+        {
+            Piles.At(ref x.B, pile, index) = entered;
+            int insert = index;
+            x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
+            EnteredCombat(ref x, replacement, pile, insert);
+            if (!x.NeedsChoice)
+                AfterGeneratedForCombat(ref x, mark, Limits.PlayerOwner);
+        }
+        finally
+        {
+            ReleaseTransientMarks(ref x, markBase, markStart, 1);
+        }
     }
 
     /// <summary>
@@ -220,14 +230,24 @@ public static partial class Kernel
             card.BaseCost = checked((sbyte)x.R.Card(card.Id, upgrade).EnergyCost);
             card.BaseStarCost = checked((sbyte)x.R.Card(card.Id, upgrade).StarCost);
             card.Keywords = x.R.Card(card.Id, upgrade).Keywords | Keywords.CreatedAfterRoot;
-            int insert = Math.Min(removal[item], Piles.Count(x.B, pile));
-            Piles.Insert(ref x.B, pile, insert, card);
-            x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
-            EnteredCombat(ref x, card, pile, insert);
-            if (x.NeedsChoice)
-                return;
-            if (!AfterGeneratedForCombat(ref x, pile, insert, Limits.PlayerOwner))
-                return;
+            int markBase = ReserveTransientMarks(ref x, 1, out int markStart);
+            byte mark = checked((byte)markStart);
+            card.TransientMark = mark;
+            try
+            {
+                int insert = Math.Min(removal[item], Piles.Count(x.B, pile));
+                Piles.Insert(ref x.B, pile, insert, card);
+                x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
+                EnteredCombat(ref x, card, pile, insert);
+                if (x.NeedsChoice)
+                    return;
+                if (!AfterGeneratedForCombat(ref x, mark, Limits.PlayerOwner))
+                    return;
+            }
+            finally
+            {
+                ReleaseTransientMarks(ref x, markBase, markStart, 1);
+            }
         }
     }
 
@@ -286,18 +306,34 @@ public static partial class Kernel
         };
         Card added = card;
         added.Keywords |= Keywords.CreatedAfterRoot;
-        Piles.Insert(ref x.B, target, index, added);
-        EnteredCombat(ref x, added, target, index);
-        if (x.NeedsChoice)
-            return false;
-        return AfterGeneratedForCombat(ref x, target, index, creator);
+        // Native passes the generated CardModel object to every AfterCardGeneratedForCombat
+        // listener. The value has no object identity in Sts2Solver, so stamp it with a transient
+        // identity byte for the duration of the entry and generation hooks. A listener can move it
+        // (Gremlin Horn's draw shuffles the discard pile, taking a just-generated Slimed along), and
+        // the following listeners still receive the card's new absolute position.
+        int markBase = ReserveTransientMarks(ref x, 1, out int markStart);
+        byte mark = checked((byte)markStart);
+        added.TransientMark = mark;
+        try
+        {
+            Piles.Insert(ref x.B, target, index, added);
+            EnteredCombat(ref x, added, target, index);
+            if (x.NeedsChoice)
+                return false;
+            return AfterGeneratedForCombat(ref x, mark, creator);
+        }
+        finally
+        {
+            ReleaseTransientMarks(ref x, markBase, markStart, 1);
+        }
     }
 
     /// <summary>
     /// <c>HookMirrors.AfterCardGeneratedForCombat</c> after a generated card entered combat. The hook
-    /// receives the card's absolute position; <paramref name="index"/> is pile-local.
+    /// receives the card's absolute position; <paramref name="mark"/> follows the value if an earlier
+    /// listener moved it to another pile.
     /// </summary>
-    private static bool AfterGeneratedForCombat(ref Exec x, Pile target, int index, byte creator)
+    private static bool AfterGeneratedForCombat(ref Exec x, byte mark, byte creator)
     {
         if ((Registry.AnyHooks & HookMask.AfterCardGeneratedForCombat) != 0)
         {
@@ -305,14 +341,26 @@ public static partial class Kernel
             int listenerCount = HookDispatch.CollectListeners(x.B, HookMask.AfterCardGeneratedForCombat, listeners);
             for (int listener = 0; listener < listenerCount; listener++)
             {
+                int position = GeneratedCardPosition(ref x, mark);
                 HookDispatch.Definition(x.B, listeners[listener])
-                    .AfterCardGeneratedForCombat(ref x, listeners[listener],
-                        Piles.Start(x.B, target) + index, creator);
+                    .AfterCardGeneratedForCombat(ref x, listeners[listener], position, creator);
                 if (x.NeedsChoice)
                     return false;
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// Current absolute position of a card carrying <paramref name="mark"/>. Native hands the same
+    /// CardModel to every listener even after an earlier listener moves it between combat piles; a
+    /// value that left every pile cannot be addressed by position and is an explicit boundary.
+    /// </summary>
+    private static int GeneratedCardPosition(ref Exec x, byte mark)
+    {
+        if (!TryFindUniqueTransientMark(x.B, mark, out Pile pile, out int index))
+            throw new UnsupportedException("生成牌触发时该牌已不在牌堆。");
+        return Piles.Start(x.B, pile) + index;
     }
 
     /// <summary>

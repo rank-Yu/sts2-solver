@@ -212,16 +212,19 @@ internal static class IroncladPowerOpeningContracts
             "CRUELTY" => CappedDamage(enemyHpCap, gain, view.TotalAttackDamage() / 100),
             "DARK_EMBRACE" => Mul(Mul(gain, Math.Max(1, view.CountType(CardType.Attack))),
                 view.CountExhaustSources()),
-            "DEMON_FORM" => CappedGrowth(enemyHpCap, gain),
+            "DEMON_FORM" => CappedGrowthTurns(
+                enemyHpCap, gain, TriangularTurns(view.RemainingTurns())),
             "FEEL_NO_PAIN" => BoundedPrevention(Mul(gain, view.CountExhaustSources()), incoming),
             "HELLRAISER" => CappedPerTurn(enemyHpCap, Math.Max(1, view.MaxDamage()), turns, 1),
             "INFERNO" => CappedPerTurn(enemyHpCap, gain, turns, enemies),
-            "INFLAME" => CappedGrowth(enemyHpCap, gain),
+            "INFLAME" => CappedGrowthTurns(
+                enemyHpCap, gain, view.RemainingTurns()),
             "JUGGERNAUT" => CappedDamage(enemyHpCap, gain, Math.Max(1, view.CountVar("Block"))),
             "JUGGLING" => PerTurnResource(Math.Max(1, view.MaxDamage()), turns),
             "PYRE" => PerTurnResource(gain, turns),
-            "RUPTURE" => CappedGrowth(enemyHpCap, Mul(gain, Math.Max(1,
-                view.CountVar("SelfDamage") + view.CountVar("HpLoss") + view.CountVar("LoseHp")))),
+            "RUPTURE" => CappedGrowthTurns(enemyHpCap, Mul(gain, Math.Max(1,
+                view.CountVar("SelfDamage") + view.CountVar("HpLoss") + view.CountVar("LoseHp"))),
+                view.RemainingTurns()),
             "STAMPEDE" => CappedPerTurn(enemyHpCap, Math.Max(1, view.MaxDamage()), turns, 1),
             "STONE_ARMOR" => BoundedPrevention(Mul(gain, turns), incoming),
             "UNMOVABLE" => BoundedPrevention(Math.Max(1, view.MaxBlock()), incoming),
@@ -231,9 +234,12 @@ internal static class IroncladPowerOpeningContracts
     }
 
     // The growth frontier with a single attack in hand and no draw/block bonuses is exactly the
-    // attack's incremental damage, bounded by living enemy HP.
-    private static int CappedGrowth(int enemyHpCap, int gain)
-        => Math.Min(enemyHpCap, gain);
+    // attack's incremental damage per turn, repeated for the turn multiplier and bounded by HP.
+    private static int CappedGrowthTurns(int enemyHpCap, int gainPerTurn, int turns)
+        => Math.Min(enemyHpCap, Mul(gainPerTurn, Math.Max(0, turns)));
+
+    private static int TriangularTurns(int turns)
+        => turns <= 0 ? 0 : (int)Math.Min(int.MaxValue, (long)turns * (turns + 1) / 2);
 
     private static int CappedPerTurn(int enemyHpCap, int perTurn, int turns, int targets)
         => Math.Min(enemyHpCap, Mul(Mul(perTurn, Math.Max(0, turns)), Math.Max(1, targets)));

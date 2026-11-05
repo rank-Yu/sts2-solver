@@ -25,7 +25,10 @@ try
             SearchProgressContracts.Run();
             SearchResumeContracts.Run();
             PowerEvidenceContracts.Run();
+            RegentPowerOpeningContracts.Run();
             RetrievalAndWitherContracts.Run();
+            RemainingTurnsContracts.Run();
+            PoisonDelayedDamageContracts.Run();
             string magics = FormatContract.Run();
             Console.WriteLine($"K0 Passed fields={Rules.SchemaFieldCount} "
                 + $"battleBytes={Unsafe.SizeOf<Battle>()} formatVersion={Codec.FormatVersion} "

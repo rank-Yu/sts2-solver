@@ -72,13 +72,16 @@ internal static class PowerEvidenceContracts
     {
         CheckActualGains();
         IroncladPowerOpeningContracts.Run();
+        ColorlessPowerOpeningContracts.Run();
         RemainingEnemyHpContracts.Run();
+        DefectPowerOpeningContracts.Run();
         CheckTwoStatAndWraith();
         CheckMasterPlanner();
         CheckSubroutine();
         CheckBuffer();
         CheckSetupRanking();
         SilentPowerProjectionContracts.Run();
+        NecrobinderPowerOpeningContracts.Run();
         Console.WriteLine("POWER_EVIDENCE actual transitions/identity/admission/threat=pass");
     }
 

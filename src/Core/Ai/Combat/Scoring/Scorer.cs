@@ -357,6 +357,19 @@ internal sealed class Scorer
         return 0;
     }
 
+    /// <summary>
+    /// Number of poison hits per trigger for an enemy target: one plus the player's and Osty's
+    /// Accelerant amounts, matching <c>Kernel.TriggerPoison</c>'s enemy-target acceleration.
+    /// </summary>
+    private static int PoisonTriggersPerTurn(in Battle battle)
+    {
+        long triggers = 1L
+            + GetAmount(battle, PowerEvidenceIds.Accelerant, Limits.PlayerOwner);
+        if ((battle.Flags & BattleFlags.OstyPresent) != 0 && battle.Osty.IsAlive)
+            triggers += GetAmount(battle, PowerEvidenceIds.Accelerant, Limits.OstyOwner);
+        return (int)Math.Clamp(triggers, 0L, int.MaxValue);
+    }
+
     private static bool HasPower(in Battle battle, ushort powerId, byte owner)
         => powerId != ushort.MaxValue && GetAmount(battle, powerId, owner) > 0;
 
@@ -756,6 +769,14 @@ internal sealed class Scorer
             + FreeCardOpportunityValue(battle, CardType.Power, _score.FreePowerPowerId)
             + VoidFormOpportunityValue(battle);
 
+        // A poison tick applies the current stacks and decrements once per hit. The player is
+        // projected to survive the turn in the common case, so the tick count is the shared
+        // remaining-turn estimate (at least two); a lethal turn resolves only the single tick
+        // before the player dies.
+        int poisonTurns = 0;
+        int poisonTriggers = 0;
+        bool poisonTriggersKnown = false;
+        bool poisonTurnsKnown = false;
         int delayedDamageValue = 0;
         for (int index = 0; index < battle.EnemyCount; index++)
         {
@@ -767,11 +788,44 @@ internal sealed class Scorer
             int demise = Math.Max(0, GetAmount(battle, _score.DemisePowerId, owner));
             int doom = Math.Max(0, GetAmount(battle, _score.DoomPowerId, owner));
             int currentHp = Math.Max(0, enemy.Creature.CurrentHp);
+            int poisonValue = 0;
+            if (poison > 0)
+            {
+                if (!poisonTriggersKnown)
+                {
+                    poisonTriggers = PoisonTriggersPerTurn(battle);
+                    poisonTriggersKnown = true;
+                }
+                if (!poisonTurnsKnown)
+                {
+                    if (projectedHp <= 0)
+                    {
+                        poisonTurns = 1;
+                    }
+                    else
+                    {
+                        ScoreFeatures turnFeatures = new()
+                        {
+                            RetainedAttackValue = retainedAttackValue,
+                            LiveDeckSize = liveCardCount,
+                            EnemyHp = enemyHp,
+                            AliveEnemyCount = aliveEnemyCount,
+                        };
+                        PowerEvidence.View turnView = new(
+                            battle, turnFeatures, Rules, this);
+                        poisonTurns = Math.Max(2, turnView.RemainingTurns());
+                    }
+                    poisonTurnsKnown = true;
+                }
+                poisonValue = PoisonStackProjection.DelayedStackDamage(
+                    poison, poisonTriggers, poisonTurns, currentHp);
+            }
             int cappedDoom = Math.Min(currentHp, doom);
             int doomProgress = currentHp <= 0
                 ? 0
                 : (int)Math.Min(currentHp, (long)cappedDoom * cappedDoom / currentHp);
-            delayedDamageValue = checked(delayedDamageValue + poison + demise + doomProgress);
+            delayedDamageValue = checked(
+                delayedDamageValue + poisonValue + demise + doomProgress);
         }
         persistentBuffValue += CountLiveSoulCards(battle);
         int reactiveDamageValue = Math.Max(0, GetAmount(battle, _score.SleightOfFleshPowerId, Limits.PlayerOwner));
@@ -2297,6 +2351,18 @@ internal sealed class Scorer
         CardScore score = _score.Cards[card.Id]?[card.Upgrade]
             ?? throw new InvalidOperationException($"评分表缺少卡牌 {card.Id}+{card.Upgrade}。");
         return CardValue(battle, card, stats, score);
+    }
+
+    /// <summary>
+    /// <see cref="BranchCardValue"/> for the commitment evidence port: attack values include the
+    /// registered calculated-damage formulas, same as the retained-attack aggregate.
+    /// </summary>
+    internal double BranchCardValueForEvidence(in Battle battle, in Card card)
+    {
+        CardStats stats = Rules.Card(card.Id, card.Upgrade);
+        CardScore score = _score.Cards[card.Id]?[card.Upgrade]
+            ?? throw new InvalidOperationException($"评分表缺少卡牌 {card.Id}+{card.Upgrade}。");
+        return BranchCardValue(battle, card, stats, score);
     }
 
     /// <summary>A named dynamic variable's current value for the commitment evidence port.</summary>

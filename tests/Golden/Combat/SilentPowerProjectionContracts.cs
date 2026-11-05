@@ -96,6 +96,59 @@ internal static class SilentPowerProjectionContracts
         battle.Enemies[1].Creature.CurrentHp = 100;
     }
 
+    /// <summary>
+    /// Damage projections use <see cref="PowerEvidence.View.RemainingEnemyHp"/>: the summed current
+    /// HP of living primary enemies. Exercise a small single enemy, two enemies, enemy block, and a
+    /// reviving enemy whose current HP is zero.
+    /// </summary>
+    private static void AssertDamageCap(SearchCase item, Scorer scorer, string card,
+        in Battle parent, in Battle child, in ScoreFeatures parentFeatures,
+        in ScoreFeatures childFeatures, int rawActual)
+    {
+        Battle capped = child;
+        capped.EnemyCount = 1;
+        capped.RosterCount = 1;
+        capped.Roster[0] = 0;
+        capped.Enemies[0].Flags = EnemyFlags.InCombat;
+        capped.Enemies[0].DeathPhase = DeathPhase.None;
+        capped.Enemies[0].SteamPhase = SteamPhase.None;
+        capped.Enemies[0].Creature.CurrentHp = 3;
+        capped.Enemies[0].Creature.MaxHp = Math.Max(capped.Enemies[0].Creature.MaxHp, 3);
+        capped.Enemies[0].Creature.Block = 0;
+        PowerEvidence.View cappedView = new(capped, childFeatures, item.Rules, scorer);
+        Assert(cappedView.RemainingEnemyHp() == 3, card + " single-enemy cap");
+        int cappedActual = Project(item, scorer, card, parent, capped,
+            parentFeatures, childFeatures);
+        Assert(cappedActual == Math.Min(3, rawActual),
+            card + " single-enemy capped projection");
+        if (rawActual > 3)
+            Assert(cappedActual < rawActual, card + " cap must reduce a positive damage projection");
+
+        capped.EnemyCount = 2;
+        capped.RosterCount = 2;
+        capped.Roster[1] = 1;
+        capped.Enemies[1] = capped.Enemies[0];
+        capped.Enemies[1].Creature.CurrentHp = 4;
+        capped.Enemies[1].Creature.MaxHp = 4;
+        capped.Enemies[1].Creature.Block = 0;
+        Assert(cappedView.RemainingEnemyHp() == 7, card + " summed-enemy cap");
+        Assert(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures)
+            == Math.Min(7, rawActual), card + " summed living cap");
+
+        capped.Enemies[0].Creature.Block = 50;
+        Assert(cappedView.RemainingEnemyHp() == 7, card + " cap ignores enemy block");
+
+        capped.Enemies[0].Creature.CurrentHp = 0;
+        capped.Enemies[0].DeathPhase = DeathPhase.Reviving;
+        // Tracking's Weak-target multiplier is per enemy power, not an Enemy struct field; keep a
+        // Weak source alive on the second enemy so the damage term itself is unchanged.
+        Kernel.SetPowerAmount(
+            ref capped, Kernel.EnemyOwner(1), PowerEvidenceIds.Weak, 1);
+        Assert(cappedView.RemainingEnemyHp() == 4, card + " cap ignores reviving current HP");
+        Assert(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures)
+            == Math.Min(4, rawActual), card + " reviving-enemy cap");
+    }
+
     internal static void Run()
     {
         SearchCase item = Read("SILENT-014");
@@ -109,8 +162,10 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.Afterimage, 1);
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
-            Assert(Project(item, scorer, "AFTERIMAGE", parent, child, pf, cf) == 8,
-                "Afterimage one block per played card");
+            PowerEvidence.View view = new(child, cf, item.Rules, scorer);
+            Assert(Project(item, scorer, "AFTERIMAGE", parent, child, pf, cf)
+                == view.RemainingTurns(),
+                "Afterimage repeats its current-hand block frontier");
         }
 
         // Footwork/Abrasive: Defend has 5 block with 10 incoming; one Dexterity turns it into 6,
@@ -121,13 +176,16 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.Dexterity, 1);
             ScoreFeatures pf = Features(scorer, parent, 10) with { EnemyHp = 600 };
             ScoreFeatures cf = Features(scorer, child, 10) with { EnemyHp = 600 };
-            Assert(Project(item, scorer, "FOOTWORK", parent, child, pf, cf) == 8,
-                "Footwork current-hand Dexterity frontier");
-            Assert(Project(item, scorer, "ABRASIVE", parent, child, pf, cf) == 8,
+            PowerEvidence.View view = new(child, cf, item.Rules, scorer);
+            int footworkExpected = Math.Min(
+                view.RemainingTurns(), Math.Max(10, view.RemainingTurns() / 2));
+            Assert(Project(item, scorer, "FOOTWORK", parent, child, pf, cf) == footworkExpected,
+                "Footwork repeats the current-hand Dexterity frontier");
+            Assert(Project(item, scorer, "ABRASIVE", parent, child, pf, cf) == footworkExpected,
                 "Abrasive shares the Dexterity frontier");
             ScoreFeatures shortFight = Features(scorer, parent, 10);
-            Assert(Project(item, scorer, "FOOTWORK", parent, child, shortFight, shortFight) == 0,
-                "Footwork keeps the trigger floor below the long-fight threshold");
+            Assert(Project(item, scorer, "FOOTWORK", parent, child, shortFight, shortFight)
+                == footworkExpected, "Footwork uses the same frontier on short fights");
         }
 
         // Accuracy: a 4-damage Shiv with one target gains 4 per play; one play is one extra hit.
@@ -137,12 +195,15 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.Accuracy, 4);
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
-            Assert(Project(item, scorer, "ACCURACY", parent, child, pf, cf) == 4,
-                "Accuracy adds the increment once per Shiv target");
+            int expected = Project(item, scorer, "ACCURACY", parent, child, pf, cf);
+            PowerEvidence.View accuracyView = new(child, cf, item.Rules, scorer);
+            Assert(expected == 4 * accuracyView.RemainingTurns(),
+                "Accuracy repeats the increment once per Shiv target");
+            AssertDamageCap(item, scorer, "ACCURACY", parent, child, pf, cf, expected);
         }
 
-        // Fan of Knives: the retained trigger floor only. The upstream AoE frontier would credit
-        // the one-target-to-two-target Shiv uplift, but D2 proved it pushes worse Silent routes.
+        // Fan of Knives: the AoE frontier credits the one-target-to-two-target Shiv uplift, plus
+        // any Shivs this copy generates (none here). The trigger floor remains two enemies.
         {
             Battle parent = State(item, "SHIV");
             Battle child = parent;
@@ -151,15 +212,20 @@ internal static class SilentPowerProjectionContracts
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
             PowerEvidence.View view = new(child, cf, item.Rules, scorer);
-            Assert(Project(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf) == 0
+            int expected = Project(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf);
+            Assert(expected == 4 * view.RemainingTurns()
                 && PowerEvidence.TriggerProjectionFloor(Card("FAN_OF_KNIVES"), view) == 2,
-                "Fan of Knives keeps the trigger floor only");
+                "Fan of Knives repeats the AoE frontier plus trigger floor");
+            AssertDamageCap(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf, expected);
         }
 
-        // Infinite Blades: the retained trigger floor only (no opening projection).
+        // Infinite Blades: one generated Shiv per future turn, base Shiv damage, current target
+        // count. EnemyHp 600 and retained attack value 100 give RemainingTurns = 2, so one future
+        // turn of a 4-damage Shiv.
         {
             Battle parent = State(item);
             Battle child = parent;
+            SetPower(ref child, PowerEvidenceIds.InfiniteBlades, 1);
             ScoreFeatures features = scorer.Features(child, 0) with
             {
                 ProjectedPlayerHp = child.Player.CurrentHp,
@@ -167,8 +233,11 @@ internal static class SilentPowerProjectionContracts
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
             };
-            Assert(Project(item, scorer, "INFINITE_BLADES", parent, child, features, features) == 0,
-                "Infinite Blades keeps the trigger floor only");
+            int expected = Project(item, scorer, "INFINITE_BLADES",
+                parent, child, features, features);
+            Assert(expected == 4, "Infinite Blades future-turn Shiv damage");
+            AssertDamageCap(item, scorer, "INFINITE_BLADES",
+                parent, child, features, features, expected);
         }
 
         // Master Planner: Survivor (value 6) is the highest-value current-hand skill and also the
@@ -183,24 +252,34 @@ internal static class SilentPowerProjectionContracts
                 "Master Planner one-seed discard-window DP");
         }
 
-        // Phantom Blades: one Shiv gains 1 first-Shiv damage (4 -> 5, +1) and becomes retained;
-        // with no other retained cards the next-turn transition pays 4, total 5.
+        // Phantom Blades: four added first-Shiv damage (4 -> 8) plus the retained-hand transition
+        // (4). The damage half is capped by remaining enemy HP; the retention half is resource.
         {
             Battle parent = State(item, "SHIV");
             Battle child = parent;
-            SetPower(ref child, PowerEvidenceIds.PhantomBlades, 1);
+            SetPower(ref child, PowerEvidenceIds.PhantomBlades, 4);
             child.Cards[0].Keywords |= Keywords.Retain;
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
-            Assert(Project(item, scorer, "PHANTOM_BLADES", parent, child, pf, cf) == 5,
-                "Phantom Blades first-Shiv damage plus retained-hand transition");
+            int expected = Project(item, scorer, "PHANTOM_BLADES", parent, child, pf, cf);
+            PowerEvidence.View phantomView = new(child, cf, item.Rules, scorer);
+            Assert(expected == 4 * phantomView.RemainingTurns() + 4,
+                "Phantom Blades repeats first-Shiv damage plus one retained-hand transition");
+            Battle capped = child;
+            capped.Enemies[0].Creature.CurrentHp = 3;
+            capped.Enemies[0].Creature.MaxHp = Math.Max(capped.Enemies[0].Creature.MaxHp, 3);
+            PowerEvidence.View cappedView = new(capped, cf, item.Rules, scorer);
+            Assert(cappedView.RemainingEnemyHp() == 3, "Phantom Blades damage cap");
+            Assert(Project(item, scorer, "PHANTOM_BLADES", parent, capped, pf, cf) == 7,
+                "Phantom Blades caps only the damage half (3 + retained 4)");
         }
 
-        // Serpent Form: the retained resource estimate. A 6-value hand over one remaining turn
-        // after the current one is 6 * 1 = 6.
+        // Serpent Form: each played card gains the increment as damage; one Strike with five
+        // stacks gains five damage on the current-hand frontier.
         {
             Battle parent = State(item, "STRIKE_SILENT");
             Battle child = parent;
+            SetPower(ref child, PowerEvidenceIds.SerpentForm, 5);
             ScoreFeatures features = scorer.Features(child, 0) with
             {
                 ProjectedPlayerHp = child.Player.CurrentHp,
@@ -208,8 +287,13 @@ internal static class SilentPowerProjectionContracts
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
             };
-            Assert(Project(item, scorer, "SERPENT_FORM", parent, child, features, features) == 6,
-                "Serpent Form retained resource estimate");
+            int expected = Project(item, scorer, "SERPENT_FORM",
+                parent, child, features, features);
+            PowerEvidence.View serpentView = new(child, features, item.Rules, scorer);
+            Assert(expected == 5 * serpentView.RemainingTurns(),
+                "Serpent Form repeats per-card damage frontier");
+            AssertDamageCap(item, scorer, "SERPENT_FORM",
+                parent, child, features, features, expected);
         }
 
         // Speedster: Acrobatics draws 3 outside the hand draw; 2 damage to each of two enemies is
@@ -221,8 +305,15 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.Speedster, 2);
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
-            Assert(Project(item, scorer, "SPEEDSTER", parent, child, pf, cf) == 12,
-                "Speedster damage per non-hand draw and target");
+            int expected = Project(item, scorer, "SPEEDSTER", parent, child, pf, cf);
+            PowerEvidence.View speedsterView = new(child, cf, item.Rules, scorer);
+            int burstDraws = speedsterView.DrawCount(speedsterView.HandCard(0));
+            int expectedSpeedster = Math.Min(speedsterView.RemainingEnemyHp(),
+                4 * (burstDraws + speedsterView.ModifiedHandDraw()
+                    * speedsterView.RemainingTurns()));
+            Assert(expected == expectedSpeedster,
+                "Speedster counts current-hand draws once and natural draws per turn");
+            AssertDamageCap(item, scorer, "SPEEDSTER", parent, child, pf, cf, expected);
         }
 
         // Tools of the Trade: the power adds one draw, so the baseline draws six and the tool draws
@@ -244,8 +335,8 @@ internal static class SilentPowerProjectionContracts
                 "Tools of the Trade draw/discard transition");
         }
 
-        // Tools of the Trade recurring floor: with no draw pile the next-turn transition is zero,
-        // but a 6-value hand over nine remaining turns still contributes 6 * 9 / 16 = 3.
+        // Tools of the Trade without a draw pile: the next-turn draw/discard transition is zero,
+        // and the old resource floor is intentionally gone.
         {
             Battle parent = State(item, "STRIKE_SILENT");
             Battle child = parent;
@@ -257,21 +348,24 @@ internal static class SilentPowerProjectionContracts
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
             };
-            Assert(Project(item, scorer, "TOOLS_OF_THE_TRADE", parent, child, features, features) == 3,
-                "Tools of the Trade recurring resource floor");
+            Assert(Project(item, scorer, "TOOLS_OF_THE_TRADE", parent, child, features, features) == 0,
+                "Tools of the Trade draw/discard transition without a draw pile");
         }
 
-        // Tracking: a 6-damage Strike against a Weak enemy gains 50% -> 3.
+        // Tracking: a 6-damage Strike against a Weak enemy gains 100% -> 6.
         {
             Battle parent = State(item, "STRIKE_SILENT");
             Battle child = parent;
-            SetPower(ref child, PowerEvidenceIds.Tracking, 50);
+            SetPower(ref child, PowerEvidenceIds.Tracking, 100);
             Kernel.SetPowerAmount(
                 ref child, Kernel.EnemyOwner(0), PowerEvidenceIds.Weak, 1);
             ScoreFeatures pf = Features(scorer, parent, 10);
             ScoreFeatures cf = Features(scorer, child, 10);
-            Assert(Project(item, scorer, "TRACKING", parent, child, pf, cf) == 3,
-                "Tracking Weak-target attack bonus");
+            int expected = Project(item, scorer, "TRACKING", parent, child, pf, cf);
+            PowerEvidence.View trackingView = new(child, cf, item.Rules, scorer);
+            Assert(expected == Math.Min(trackingView.RemainingEnemyHp(),
+                    6 * trackingView.RemainingTurns()), "Tracking repeats Weak-target attack bonus");
+            AssertDamageCap(item, scorer, "TRACKING", parent, child, pf, cf, expected);
         }
 
         // Well Laid Plans: retaining a 6-value Strike with one energy cost leaves 6 payable value
@@ -287,16 +381,18 @@ internal static class SilentPowerProjectionContracts
         }
 
         // Wraith Form: the constructed child projects 20 HP against a parent projection of 10, so
-        // the saved 10 HP is worth 8 each.
+        // the saved 10 HP is worth 8 each. One Defend in hand loses one block per Wraith Form
+        // Dexterity tick, i.e. 8 score units.
         {
-            Battle parent = State(item);
+            Battle parent = State(item, "DEFEND_SILENT");
             Battle child = parent;
             SetPower(ref child, PowerEvidenceIds.Intangible, 1);
+            SetPower(ref child, PowerEvidenceIds.WraithForm, 1);
             ScoreFeatures cf = scorer.Features(child, 0) with { ProjectedPlayerHp = 20 };
-            Assert(Project(item, scorer, "WRAITH_FORM", parent, child, cf, cf, 10) == 80,
-                "Wraith Form projected HP prevention");
+            Assert(Project(item, scorer, "WRAITH_FORM", parent, child, cf, cf, 10) == 72,
+                "Wraith Form projected HP prevention minus Dexterity cost");
         }
 
-        Console.WriteLine("SILENT_POWER_PROJECTION contracts=14");
+        Console.WriteLine("SILENT_POWER_PROJECTION contracts=14 cap=pass");
     }
 }

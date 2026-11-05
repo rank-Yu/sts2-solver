@@ -245,11 +245,99 @@ internal static class PowerEvidence
         public int RemainingTurns()
         {
             int drawPerTurn = Math.Max(1, _scorer.ModifiedHandDrawForEvidence(_battle));
-            int damagePerTurn = Math.Max(1,
-                _features.RetainedAttackValue * Math.Max(1, drawPerTurn)
-                / Math.Max(1, _features.LiveDeckSize));
-            return Math.Clamp(
-                (_features.EnemyHp + damagePerTurn - 1) / damagePerTurn,
+            int liveDeckSize = Math.Max(1, _features.LiveDeckSize);
+            int aliveEnemies = Math.Max(1, _features.AliveEnemyCount);
+
+            // Start from the same per-deck attack value the old estimate used. The extra terms
+            // below deliberately lower the answer: fights are allowed to end earlier than the
+            // attack-only average predicts.
+            long cycleDamage = Math.Max(0, _features.RetainedAttackValue);
+            long ongoingPerTurn = 0;
+            long oneTimeDamage = 0;
+
+            // Existing poison is valued at its next trigger (the larger end of its decay); using
+            // that as a per-turn lower bound can only make the remaining-turn estimate shorter.
+            long poisonTriggers = 1L
+                + Math.Max(0, Kernel.GetAmount(
+                    _battle, Limits.PlayerOwner, PowerEvidenceIds.Accelerant));
+            if ((_battle.Flags & BattleFlags.OstyPresent) != 0 && _battle.Osty.IsAlive)
+            {
+                poisonTriggers += Math.Max(0, Kernel.GetAmount(
+                    _battle, Limits.OstyOwner, PowerEvidenceIds.Accelerant));
+            }
+            poisonTriggers = Math.Clamp(poisonTriggers, 0L, int.MaxValue);
+            for (int index = 0; index < _battle.EnemyCount; index++)
+            {
+                ref readonly Enemy enemy = ref _battle.Enemies[index];
+                if ((enemy.Flags & EnemyFlags.InCombat) == 0 || !enemy.Creature.IsAlive)
+                    continue;
+                int currentHp = Math.Max(0, enemy.Creature.CurrentHp);
+                int poison = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Poison));
+                if (poison > 0)
+                {
+                    ongoingPerTurn += PoisonStackProjection.DelayedStackDamage(
+                        poison, (int)poisonTriggers, 1, currentHp);
+                }
+                int demise = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Demise));
+                int doom = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Doom));
+                int cappedDoom = Math.Min(currentHp, doom);
+                int doomProgress = currentHp <= 0
+                    ? 0
+                    : (int)Math.Min(currentHp, (long)cappedDoom * cappedDoom / currentHp);
+                oneTimeDamage += Math.Min(currentHp, (long)demise + doomProgress);
+            }
+
+            // Poison powers already in play. Noxious Fumes adds poison every turn; Corrosive Wave
+            // adds it per drawn card; Envenom adds it per attack hit. All are counted at their next
+            // trigger, i.e. as a lower bound on their future damage.
+            ongoingPerTurn += Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.NoxiousFumes)) * (long)aliveEnemies;
+            ongoingPerTurn += Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.CorrosiveWave))
+                * (long)drawPerTurn * aliveEnemies;
+            long envenom = Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.Envenom));
+
+            long attackHitsPerCycle = 0;
+            long envenomPerCycle = 0;
+            int liveCount = HandCount + _battle.DrawCount + _battle.DiscardCount;
+            for (int index = 0; index < liveCount; index++)
+            {
+                Card card = LiveCard(index);
+                CardStats stats = Stats(card);
+                ref readonly CardContentFacts facts = ref CardContentFacts.Get(card.Id);
+                int targets = CardContentFacts.IsAllEnemies(card.Id, stats) ? aliveEnemies : 1;
+                if (Type(card) == CardType.Attack)
+                {
+                    int value = Math.Max(1,
+                        (int)Math.Round(_scorer.BranchCardValueForEvidence(_battle, card)));
+                    if (targets > 1)
+                        cycleDamage += (long)value * (targets - 1);
+                    attackHitsPerCycle += (long)Math.Max(1, AttackHits(card)) * targets;
+                }
+                else if (facts.DamageVar >= 0)
+                {
+                    int damage = Math.Max(0, Var(card, facts.DamageVar));
+                    int repeat = facts.RepeatVar >= 0 ? Math.Max(1, Var(card, facts.RepeatVar)) : 1;
+                    cycleDamage += (long)damage * repeat;
+                }
+
+                for (int variable = 0; variable < facts.PoisonVars.Length; variable++)
+                    cycleDamage += Math.Max(0, Var(card, facts.PoisonVars[variable]));
+                for (int variable = 0; variable < facts.EnvenomVars.Length; variable++)
+                    envenomPerCycle += Math.Max(0, Var(card, facts.EnvenomVars[variable]));
+            }
+            cycleDamage += envenomPerCycle * attackHitsPerCycle;
+            long attackHitsPerTurn = (attackHitsPerCycle * drawPerTurn + liveDeckSize - 1)
+                / liveDeckSize;
+            ongoingPerTurn += envenom * attackHitsPerTurn;
+
+            long deckDamagePerTurn = (cycleDamage * drawPerTurn + liveDeckSize - 1)
+                / liveDeckSize;
+            long damagePerTurn = Math.Max(1, deckDamagePerTurn) + ongoingPerTurn;
+            long enemyHp = Math.Max(0, (long)_features.EnemyHp - oneTimeDamage);
+            return (int)Math.Clamp(
+                (enemyHp + damagePerTurn - 1) / damagePerTurn,
                 1,
                 ScoreWeights.SetupValueHorizonTurns);
         }
@@ -457,6 +545,48 @@ internal static class PowerEvidence
         }
 
         /// <summary>
+        /// Raw damage of the current enemy attack intents before player block and before the
+        /// DieForYou redirect. Used to estimate Osty HP loss for Necro Mastery.
+        /// </summary>
+        public int CurrentIncomingAttackDamage()
+        {
+            long total = 0;
+            for (int position = 0; position < _battle.RosterCount; position++)
+            {
+                int index = _battle.Roster[position];
+                ref readonly Enemy enemy = ref _battle.Enemies[index];
+                if (!enemy.Creature.IsAlive
+                    || (enemy.Flags & EnemyFlags.SkipNextMove) != 0
+                    || enemy.SteamPhase != SteamPhase.None)
+                {
+                    continue;
+                }
+                MonsterRules rules = _rules.MonsterRule(enemy.Rules);
+                int move = enemy.Move;
+                if (move == rules.StunnedNode || move == rules.ReviveNode
+                    || (uint)move >= (uint)rules.Nodes.Length)
+                {
+                    continue;
+                }
+                MonsterNode target = rules.Nodes[move];
+                MonsterDef def = Registry.Monster(enemy.MonsterId);
+                byte owner = Kernel.EnemyOwner(index);
+                for (int attack = 0; attack < target.Attacks.Length; attack++)
+                {
+                    MonsterAttack intent = target.Attacks[attack];
+                    int damage = def.ModifyAttackDamage(
+                        _battle, _rules, owner, move, attack, intent.BaseDamage);
+                    if (damage <= 0)
+                        continue;
+                    int repeats = Math.Max(1, def.ModifyAttackRepeats(
+                        _battle, _rules, owner, move, attack, intent.Repeats));
+                    total += (long)damage * repeats;
+                }
+            }
+            return (int)Math.Min(int.MaxValue, total);
+        }
+
+        /// <summary>
         /// Current attack intents or their known direct successor. The latter is a conservative,
         /// one-step approximation of the upstream forecast: no RNG, state mutation, random/conditional
         /// branch selection, forced move, revival or steam transition is predicted.
@@ -621,6 +751,20 @@ internal static class PowerEvidence
             return false;
         }
 
+        public int CountCardsCostAtLeast(int minimum)
+        {
+            int count = 0;
+            for (int index = 0; index < LiveCount; index++)
+            {
+                if (Kernel.EnergyCostWithModifiers(_battle, _rules, LiveCard(index), Pile.Hand)
+                    >= minimum)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         public int CountExhaustSources()
         {
             int count = 0;
@@ -714,6 +858,23 @@ internal static class PowerEvidence
         }
 
         public bool OstyPresent => _features.OstyHp > 0;
+
+        /// <summary>An actual Osty or a live card that can summon one.</summary>
+        public bool HasOstyOrSummonSource()
+        {
+            if (OstyPresent)
+                return true;
+            for (int index = 0; index < LiveCount; index++)
+            {
+                Card card = LiveCard(index);
+                if (NativeId(card).Contains("OSTY", StringComparison.OrdinalIgnoreCase)
+                    || HasVarFragment(card, "Summon"))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         public int StarSpendCapacity()
         {
@@ -809,29 +970,29 @@ internal static class PowerEvidence
             "WRAITH_FORM" => view.WraithTiming(parent),
 
             // Defect.
-            "BIASED_COGNITION" => view.Battle.OrbCount > 0 || view.CountVar("Orb") > 0,
+            "BIASED_COGNITION" => view.Battle.OrbCount > 0 || DefectHasOrbChannelSource(view),
             "BUFFER" => view.PowerAmountGain(parent, PowerEvidenceIds.Buffer) > 0
                 && (view.IncomingDamage() > 0 || view.IncomingAttackHits(nextTurn: false) > 0
                     || view.IncomingAttackHits(nextTurn: true) > 0),
             "BULK_UP" => hasAttack && hasBlockSkill,
-            "CAPACITOR" => view.Battle.OrbCount > 0 || view.CountVar("Orb") > 0,
+            "CAPACITOR" => view.Battle.OrbCount > 0 || DefectHasOrbChannelSource(view),
             "CONSUMING_SHADOW" => view.Battle.OrbCount > 0,
             "COOLANT" => view.DistinctOrbTypes() > 0,
             "CREATIVE_AI" => remainingTurns > 1,
-            "DEFRAGMENT" => view.Battle.OrbCount > 0 || view.CountVar("Orb") > 0,
+            "DEFRAGMENT" => view.Battle.OrbCount > 0 || DefectHasOrbChannelSource(view),
             "ECHO_FORM" => remainingTurns > 1 && (hasAttack || hasBlockSkill),
             "FERAL" => view.CountZeroCostAttack() > 0,
             "HAILSTORM" => view.CountOrb("FROST") > 0,
-            "ITERATION" => view.StatusOrCurseInHand() || view.CountVar("Status") > 0,
+            "ITERATION" => view.StatusOrCurseInHand() || DefectStatusSources(view) > 0,
             "LOOP" => view.Battle.OrbCount > 0,
             "MACHINE_LEARNING" => remainingTurns > 1,
-            "SMOKESTACK" => view.CountVar("Status") > 0,
+            "SMOKESTACK" => DefectStatusSources(view) > 0,
             "SPINNER" => remainingTurns > 1,
             "STORM" => view.CountType(CardType.Power) > 0,
             "SUBROUTINE" => view.PowerAmountGain(parent, PowerEvidenceIds.Subroutine) > 0
                 && view.PlayablePowerSources() > 0,
             "THUNDER" => view.CountOrb("LIGHTNING") > 0,
-            "TRASH_TO_TREASURE" => view.CountVar("Status") > 0,
+            "TRASH_TO_TREASURE" => DefectStatusSources(view) > 0,
 
             // Regent.
             "ARSENAL" => view.HasCardGeneration() && remainingTurns > 1,
@@ -858,7 +1019,7 @@ internal static class PowerEvidence
             "COUNTDOWN" => aliveEnemy && remainingTurns > 1,
             "DANSE_MACABRE" => remainingTurns > 1 && view.HasEnergyCostAtLeast(2),
             "DEMESNE" => remainingTurns > 1,
-            "DEVOUR_LIFE" => view.CountSouls() > 0 || view.OstyPresent,
+            "DEVOUR_LIFE" => view.CountSouls() > 0 || view.HasOstyOrSummonSource(),
             "FRIENDSHIP" => remainingTurns > 1 && hasAttack,
             "HAUNT" => view.CountSouls() > 0,
             "LETHALITY" => hasAttack,
@@ -955,39 +1116,95 @@ internal static class PowerEvidence
             "CRIMSON_MANTLE" => PerTurnBlock(gain, turns, incoming),
             "CRUELTY" => PerTriggerDamage(view, gain, view.TotalAttackDamage() / 100),
             "DARK_EMBRACE" => PerTriggerResource(gain * Math.Max(1, attacks), view.CountExhaustSources()),
-            "DEMON_FORM" => GrowthFrontier(view, damagePerAttack: gain),
+            "DEMON_FORM" => GrowthFrontier(view,
+                damagePerAttack: gain,
+                remainingTurns: TriangularTurns(view.RemainingTurns())),
             "FEEL_NO_PAIN" => PerTriggerBlock(gain, view.CountExhaustSources(), incoming),
             "HELLRAISER" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
             "INFERNO" => PerTurnDamage(view, gain, turns, enemies),
-            "INFLAME" => GrowthFrontier(view, damagePerAttack: gain),
+            "INFLAME" => GrowthFrontier(view, damagePerAttack: gain,
+                remainingTurns: view.RemainingTurns()),
             "JUGGERNAUT" => PerTriggerDamage(view, gain, Math.Max(1, view.CountVar("Block"))),
             "JUGGLING" => PerTurnResource(Math.Max(1, view.MaxDamage()), turns),
             "PYRE" => PerTurnResource(gain, turns),
             "RUPTURE" => GrowthFrontier(view, damagePerAttack: SaturatingMul(gain,
-                Math.Max(1, view.CountVar("SelfDamage") + view.CountVar("HpLoss") + view.CountVar("LoseHp")))),
+                Math.Max(1, view.CountVar("SelfDamage") + view.CountVar("HpLoss")
+                    + view.CountVar("LoseHp"))),
+                remainingTurns: view.RemainingTurns()),
             "STAMPEDE" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
             "STONE_ARMOR" => PerTurnBlock(gain, turns, incoming),
             "UNMOVABLE" => PerTurnBlock(Math.Max(1, view.MaxBlock()), 1, incoming),
             "VICIOUS" => PerTriggerResource(gain * Math.Max(1, view.EnergyUnit()),
                 view.CountVar("Vulnerable")),
+
+            // Colorless. AUTOMATION counts one payout per ten future draws; CALAMITY and PANACHE
+            // use their real trigger counts; FASTEN/PREP_TIME/PROWESS use the current-hand growth
+            // frontier; ROLLING_BOULDER is a per-turn damage source. All damage-valued results are
+            // bounded by the HP still required to end the combat.
+            "AUTOMATION" => AutomationProjectionPotential(view, parent, turns),
+            "CALAMITY" => CalamityProjectionPotential(view, parent),
+            "ENTROPY" => PerTurnResource(view.EnergyUnit(), turns),
+            "ETERNAL_ARMOR" => PerTurnBlock(gain, turns, incoming),
+            "FASTEN" => GrowthFrontier(view, blockPerSkillBonus: gain,
+                remainingTurns: view.RemainingTurns()),
+            "MAYHEM" => PerTurnResource(view.EnergyUnit(), turns),
+            "NOSTALGIA" => PerTurnResource(view.EnergyUnit(), turns),
+            "PANACHE" => PanacheProjectionPotential(view, parent),
+            "PREP_TIME" => GrowthFrontier(view, damagePerAttack: gain,
+                remainingTurns: view.RemainingTurns()),
+            "PROWESS" => GrowthFrontier(view,
+                blockPerSkillBonus: view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity),
+                damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength),
+                remainingTurns: view.RemainingTurns()),
+            "ROLLING_BOULDER" => RollingBoulderProjectionPotential(view, parent),
+            "STRATAGEM" => PerTurnResource(view.EnergyUnit(), turns),
             "ACCELERANT" => AccelerantProjectionPotential(view, parent),
             "ENVENOM" => EnvenomProjectionPotential(view, parent),
             "NOXIOUS_FUMES" => NoxiousFumesProjectionPotential(view, parent),
             "AFTERIMAGE" => AfterimageProjectionPotential(view, parent),
-            "ABRASIVE" => FootworkProjectionPotential(view, parent, requireLongFight: false),
+            "ABRASIVE" => FootworkProjectionPotential(view, parent),
             "ACCURACY" => AccuracyProjectionPotential(view, parent),
-            "FAN_OF_KNIVES" => 0,
-            "FOOTWORK" => FootworkProjectionPotential(view, parent, requireLongFight: true),
-            "INFINITE_BLADES" => 0,
+            "FAN_OF_KNIVES" => FanOfKnivesProjectionPotential(view, parent),
+            "FOOTWORK" => FootworkProjectionPotential(view, parent),
+            "INFINITE_BLADES" => InfiniteBladesProjectionPotential(view, parent),
             "MASTER_PLANNER" => MasterPlannerProjectionPotential(view, parent),
             "PHANTOM_BLADES" => PhantomBladesProjectionPotential(view, parent),
-            "SERPENT_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
+            "SERPENT_FORM" => SerpentFormProjectionPotential(view, parent),
             "SPEEDSTER" => SpeedsterProjectionPotential(view, parent),
             "TOOLS_OF_THE_TRADE" => ToolsOfTheTradeProjectionPotential(view, parent),
             "TRACKING" => TrackingProjectionPotential(view, parent),
             "WELL_LAID_PLANS" => WellLaidPlansProjectionPotential(view, parent),
             "WRAITH_FORM" => WraithFormProjectionPotential(
                 view, parent, parentProjectedPlayerHp),
+
+            // Necrobinder: the upstream opening projections with the remaining-to-kill HP cap on
+            // every damage term. The power amount is part of the trigger count for stack-scaling
+            // generators, and Lethality is applied on every remaining turn instead of once.
+            "CALCIFY" => PerTurnDamage(view, gain, turns, 1),
+            "CALL_OF_THE_VOID" => PerTurnResource(
+                SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), turns),
+            "COUNTDOWN" => PerTurnDamage(view, gain, turns, 1),
+            "DANSE_MACABRE" => PerTriggerBlock(gain,
+                view.CountCardsCostAtLeast(2), incoming),
+            "DEMESNE" => PerTurnResource(
+                SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), turns),
+            "DEVOUR_LIFE" => PerTriggerResource(gain, view.CountSouls()),
+            "FRIENDSHIP" => FriendshipProjectionPotential(view, parent, gain),
+            "HAUNT" => PerTriggerDamage(view, gain, view.CountSouls()),
+            "LETHALITY" => LethalityProjectionPotential(view, gain, turns),
+            "NECRO_MASTERY" => NecroMasteryProjectionPotential(view, parent),
+            "NEUROSURGE" => NeurosurgeProjectionPotential(view, gain),
+            "PAGESTORM" => PerTriggerResource(
+                SaturatingMul(gain, Math.Max(1, view.EnergyUnit())),
+                view.CountKeyword(Keywords.Ethereal)),
+            "REAPER_FORM" => PerTriggerDamage(view, 1, view.TotalAttackDamage()),
+            "SENTRY_MODE" => PerTurnResource(
+                SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), turns),
+            "SHROUD" => PerTriggerBlock(gain,
+                Math.Max(1, view.CountVar("Doom")), incoming),
+            "SLEIGHT_OF_FLESH" => SleightOfFleshProjectionPotential(view, gain),
+            "SPIRIT_OF_ASH" => PerTriggerBlock(gain,
+                view.CountKeyword(Keywords.Ethereal), incoming),
             _ => SimpleProjection(view, parent, id, turns, incoming, enemies, gain),
         };
     }
@@ -1014,10 +1231,28 @@ internal static class PowerEvidence
             "FURNACE" => view.PowerAmountGain(parent, PowerEvidenceIds.Furnace),
             "GENESIS" => view.PowerAmountGain(parent, PowerEvidenceIds.Genesis),
             "NEUTRON_AEGIS" => view.PowerAmountGain(parent, PowerEvidenceIds.Plating),
+            "CALCIFY" => view.PowerAmountGain(parent, PowerEvidenceIds.Calcify),
+            "CALL_OF_THE_VOID" => view.PowerAmountGain(parent, PowerEvidenceIds.CallOfTheVoid),
             "COUNTDOWN" => view.PowerAmountGain(parent, PowerEvidenceIds.Countdown),
+            "DANSE_MACABRE" => view.PowerAmountGain(parent, PowerEvidenceIds.DanseMacabre),
+            "DEMESNE" => view.PowerAmountGain(parent, PowerEvidenceIds.Demesne),
+            "DEVOUR_LIFE" => view.PowerAmountGain(parent, PowerEvidenceIds.DevourLife),
+            "FRIENDSHIP" => view.PowerAmountGain(parent, PowerEvidenceIds.Friendship),
+            "HAUNT" => view.PowerAmountGain(parent, PowerEvidenceIds.Haunt),
+            "NECRO_MASTERY" => view.PowerAmountGain(parent, PowerEvidenceIds.NecroMastery),
+            "LETHALITY" => view.PowerAmountGain(parent, PowerEvidenceIds.Lethality),
+            "NEUROSURGE" => view.PowerAmountGain(parent, PowerEvidenceIds.Neurosurge),
+            "PAGESTORM" => view.PowerAmountGain(parent, PowerEvidenceIds.Pagestorm),
+            "SENTRY_MODE" => view.PowerAmountGain(parent, PowerEvidenceIds.SentryMode),
             "SHROUD" => view.PowerAmountGain(parent, PowerEvidenceIds.Shroud),
+            "SLEIGHT_OF_FLESH" => view.PowerAmountGain(parent, PowerEvidenceIds.SleightOfFlesh),
+            "SPIRIT_OF_ASH" => view.PowerAmountGain(parent, PowerEvidenceIds.SpiritOfAsh),
             "ETERNAL_ARMOR" => view.PowerAmountGain(parent, PowerEvidenceIds.Plating),
             "ROLLING_BOULDER" => view.PowerAmountGain(parent, PowerEvidenceIds.RollingBoulder),
+            "AUTOMATION" => view.PowerAmountGain(parent, PowerEvidenceIds.Automation),
+            "FASTEN" => view.PowerAmountGain(parent, PowerEvidenceIds.Fasten),
+            "PANACHE" => view.PowerAmountGain(parent, PowerEvidenceIds.Panache),
+            "PREP_TIME" => view.PowerAmountGain(parent, PowerEvidenceIds.Vigor),
             "BIASED_COGNITION" => view.PowerAmountGain(parent, PowerEvidenceIds.Focus),
             "DEFRAGMENT" => view.PowerAmountGain(parent, PowerEvidenceIds.Focus),
             "CHILD_OF_THE_STARS" => view.PowerAmountGain(parent, PowerEvidenceIds.ChildOfTheStars),
@@ -1026,6 +1261,60 @@ internal static class PowerEvidence
             "SUBROUTINE" => view.PowerAmountGain(parent, PowerEvidenceIds.Subroutine),
             _ => 0,
         };
+    }
+
+    /// <summary>
+    /// Lethality's first attack each turn gains <c>gain</c> percent of its damage. The upstream
+    /// opening projection credited one such attack; the power is active every remaining turn, so the
+    /// same per-turn bonus is multiplied by the remaining-turn estimate and capped by enemy HP.
+    /// </summary>
+    private static int LethalityProjectionPotential(scoped in View view, int gain, int turns)
+    {
+        if (gain <= 0)
+            return 0;
+        int bonusPerTurn = (int)Math.Min(int.MaxValue,
+            Math.Max(1L, (long)Math.Max(1, view.MaxDamage()) * gain / 100));
+        return PerTriggerDamage(view, bonusPerTurn, Math.Max(1, turns));
+    }
+
+    /// <summary>
+    /// Sleight of Flesh deals its amount whenever a debuff is applied. The upstream projection
+    /// counted any number of live debuff sources as one; count each source card so multiple
+    /// Vulnerable/Weak/Doom/Poison sources are not collapsed to a single trigger.
+    /// </summary>
+    private static int SleightOfFleshProjectionPotential(scoped in View view, int gain)
+    {
+        int sources = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            if (view.Score(view.LiveCard(index)).HasDebuffDynamicVar)
+                sources++;
+        }
+        return PerTriggerDamage(view, gain, sources);
+    }
+
+    /// <summary>
+    /// <c>AutomationProjectionPotential</c>: every ten cards drawn return the newly gained energy,
+    /// so payouts are <c>drawPerTurn * turns / 10</c>, each worth one energy unit.
+    /// </summary>
+    private static int AutomationProjectionPotential(scoped in View view, in Battle parent,
+        int turns)
+    {
+        int amount = view.PowerAmountGain(parent, PowerEvidenceIds.Automation);
+        if (amount == 0)
+            return 0;
+        int payouts = AutomationPayouts(view.ModifiedHandDraw(), Math.Max(0, turns));
+        return payouts <= 0
+            ? 0
+            : PerTriggerResource(SaturatingMul(amount, view.EnergyUnit()), payouts);
+    }
+
+    /// <summary>Every ten cards drawn pay one trigger; leftover draws do not carry a payout.</summary>
+    private static int AutomationPayouts(int drawsPerTurn, int turns)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(drawsPerTurn);
+        ArgumentOutOfRangeException.ThrowIfNegative(turns);
+        return drawsPerTurn * turns / 10;
     }
 
     /// <summary>
@@ -1102,6 +1391,103 @@ internal static class PowerEvidence
     }
 
     /// <summary>
+    /// <c>FanOfKnivesProjectionPotential</c>: the frontier uplift when Shivs hit every living enemy,
+    /// plus the single-target damage of the Shivs this copy generates. Bounded by remaining enemy HP.
+    /// </summary>
+    private static int FanOfKnivesProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int targets = Math.Max(1, view.Features.AliveEnemyCount);
+        PowerTurnCardOption[] baselineOptions = BuildHandOptions(view, shivTargetsOverride: 1);
+        PowerTurnCardOption[] poweredOptions = BuildHandOptions(
+            view, shivTargetsOverride: targets);
+        int incoming = view.IncomingDamage();
+        int aoeUplift = ContinuousFrontierValue(
+            view,
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, baselineOptions),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, poweredOptions),
+            view.RemainingTurns());
+
+        int generatedShivs = Math.Max(0, CountHandShivs(view) - CountHandShivs(view, parent));
+        int generatedDamage = 0;
+        if (generatedShivs > 0)
+        {
+            List<int> damages = new(view.HandCount);
+            for (int index = 0; index < view.HandCount; index++)
+            {
+                Card card = view.HandCard(index);
+                if ((view.Stats(card).Tags & CardTag.Shiv) != 0)
+                    damages.Add(Math.Max(0, view.Damage(card)));
+            }
+            damages.Sort();
+            for (int index = 0; index < Math.Min(generatedShivs, damages.Count); index++)
+                generatedDamage = SaturatingAdd(generatedDamage, damages[index]);
+        }
+        return Math.Min(view.RemainingEnemyHp(),
+            SaturatingAdd(generatedDamage, aoeUplift));
+    }
+
+    private static int CountHandShivs(scoped in View view)
+    {
+        int count = 0;
+        for (int index = 0; index < view.HandCount; index++)
+        {
+            if ((view.Stats(view.HandCard(index)).Tags & CardTag.Shiv) != 0)
+                count++;
+        }
+        return count;
+    }
+
+    private static int CountHandShivs(scoped in View view, in Battle battle)
+    {
+        int count = 0;
+        for (int index = 0; index < battle.HandCount; index++)
+        {
+            if ((view.Stats(battle.Cards[index]).Tags & CardTag.Shiv) != 0)
+                count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// <c>InfiniteBladesProjectionPotential</c>: one generated Shiv per remaining turn, each copy
+    /// dealing the base Shiv damage to the current Shiv target count. Bounded by remaining enemy HP.
+    /// </summary>
+    private static int InfiniteBladesProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int amount = view.PowerAmountGain(parent, PowerEvidenceIds.InfiniteBlades);
+        if (amount == 0)
+            return 0;
+        if (!Registry.TryCard("SHIV", out ushort shivId))
+            throw new UnsupportedException("无限刀刃投影缺少 SHIV 的 Sts2Solver 定义。");
+        CardStats shivStats = view.Rules.Card(shivId, 0);
+        if (shivStats.Vars.Length == 0)
+            throw new UnsupportedException("无限刀刃投影缺少 SHIV 的 Damage 变量。");
+        int shivDamage = Math.Max(0, (int)shivStats.Vars[0]);
+        int futureTurns = Math.Max(0, view.RemainingTurns() - 1);
+        long raw = (long)futureTurns * amount * shivDamage * CurrentShivTargets(view);
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
+    }
+
+    /// <summary>
+    /// <c>SerpentFormProjectionPotential</c>: every played card gains the Serpent Form increment as
+    /// damage on the current-hand frontier. Bounded by remaining enemy HP.
+    /// </summary>
+    private static int SerpentFormProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int damagePerCard = view.PowerAmountGain(parent, PowerEvidenceIds.SerpentForm);
+        if (damagePerCard == 0)
+            return 0;
+        PowerTurnCardOption[] options = BuildHandOptions(view);
+        int incoming = view.IncomingDamage();
+        return ContinuousFrontierValue(
+            view,
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
+                damagePerCard: damagePerCard),
+            view.RemainingTurns());
+    }
+
+    /// <summary>
     /// <c>AfterimageProjectionPotential</c>: the current-hand frontier marginal when every played
     /// card gains the Afterimage amount as block.
     /// </summary>
@@ -1114,58 +1500,32 @@ internal static class PowerEvidence
         if (options.Length == 0)
             return 0;
         int incoming = view.IncomingDamage();
-        return MarginalFrontierValue(
+        return ContinuousFrontierValue(
+            view,
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
-                blockPerCardBonus: blockPerCard));
+                blockPerCardBonus: blockPerCard),
+            view.RemainingTurns());
     }
 
     /// <summary>
-    /// Below this effective enemy HP the remaining fight is short enough that Footwork's two future
-    /// draw windows are not credited; the trigger floor remains.
+    /// <c>FootworkProjectionPotential</c> (shared by Footwork and Abrasive's Dexterity half):
+    /// each Dexterity point adds one block to every block card actually played this turn. Use the
+    /// live deck's expected block-card plays per turn, not the current hand repeated R times; the
+    /// per-turn block is bounded by that turn's incoming damage.
     /// </summary>
-    private const int FootworkMinimumEnemyHp = 300;
-
-    /// <summary>
-    /// <c>FootworkProjectionPotential</c> (shared by Footwork and Abrasive's Dexterity half): the
-    /// current-hand frontier plus the next two draw windows, using the solved Dexterity increment.
-    /// </summary>
-    private static int FootworkProjectionPotential(
-        scoped in View view, in Battle parent, bool requireLongFight)
+    private static int FootworkProjectionPotential(scoped in View view, in Battle parent)
     {
         int dexterityGain = view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity);
         if (dexterityGain == 0)
             return 0;
-        // Two future draw windows only pay off when the fight is long enough to use the scaling;
-        // at lower effective enemy HP the trigger floor is the conservative estimate.
-        if (requireLongFight && view.Features.EnemyHp < FootworkMinimumEnemyHp)
+        int blockCardsPerTurn = BlockCardsPerTurn(view);
+        if (blockCardsPerTurn == 0)
             return 0;
-        int potential = FootworkTurnPotential(
-            view.Battle.Energy, BuildHandOptions(view), view.IncomingDamage(), dexterityGain);
-        int drawPerTurn = view.ModifiedHandDraw();
-        int futureEnergy = view.ModifiedMaxEnergy();
-        for (int turnOffset = 1; turnOffset <= 2; turnOffset++)
-        {
-            PowerTurnCardOption[] options = BuildDrawOptions(
-                view, (turnOffset - 1) * drawPerTurn, drawPerTurn, drawPerTurn);
-            potential = SaturatingAdd(potential, FootworkTurnPotential(
-                futureEnergy, options, view.ForecastIncomingDamage(turnOffset), dexterityGain));
-        }
-        return potential;
-    }
-
-    private static int FootworkTurnPotential(
-        int energy,
-        PowerTurnCardOption[] options,
-        int incomingDamage,
-        int dexterityGain)
-    {
-        if (options.Length == 0)
-            return 0;
-        return MarginalFrontierValue(
-            PowerTurnFrontier.Build(energy, incomingDamage, options),
-            PowerTurnFrontier.Build(energy, incomingDamage, options,
-                blockPerSkillBonus: dexterityGain));
+        return PerTurnBlock(
+            SaturatingMul(dexterityGain, blockCardsPerTurn),
+            view.RemainingTurns(),
+            view.IncomingDamage());
     }
 
     /// <summary>
@@ -1182,10 +1542,12 @@ internal static class PowerEvidence
             return 0;
         int damagePerShiv = SaturatingMul(amount, CurrentShivTargets(view));
         int incoming = view.IncomingDamage();
-        return MarginalFrontierValue(
+        return ContinuousFrontierValue(
+            view,
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
-                damagePerShiv: damagePerShiv));
+                damagePerShiv: damagePerShiv),
+            view.RemainingTurns());
     }
 
     /// <summary>
@@ -1267,10 +1629,12 @@ internal static class PowerEvidence
         if (amount == 0)
             return 0;
         PowerTurnCardOption[] options = BuildHandOptions(view);
-        int damageUplift = options.Length == 0 ? 0 : MarginalFrontierValue(
+        int damageUplift = options.Length == 0 ? 0 : ContinuousFrontierValue(
+            view,
             PowerTurnFrontier.Build(view.Battle.Energy, view.IncomingDamage(), options),
             PowerTurnFrontier.Build(view.Battle.Energy, view.IncomingDamage(), options,
-                firstShivDamageBonus: SaturatingMul(amount, CurrentShivTargets(view))));
+                firstShivDamageBonus: SaturatingMul(amount, CurrentShivTargets(view))),
+            view.RemainingTurns());
         return SaturatingAdd(damageUplift, PhantomBladesRetentionPotential(view, parent));
     }
 
@@ -1333,17 +1697,16 @@ internal static class PowerEvidence
         int damagePerDraw = view.PowerAmountGain(parent, PowerEvidenceIds.Speedster);
         if (damagePerDraw == 0)
             return 0;
-        PowerTurnCardOption[] options = BuildHandOptions(view);
-        if (options.Length == 0)
-            return 0;
-        int incoming = view.IncomingDamage();
-        return Math.Min(
-            view.Features.EnemyHp,
-            MarginalFrontierValue(
-                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
-                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options,
-                    damagePerDraw: damagePerDraw,
-                    damageTargets: Math.Max(1, view.Features.AliveEnemyCount))));
+        int enemies = Math.Max(1, view.Features.AliveEnemyCount);
+        // Card-effect draws in the current hand happen once this turn; the natural hand draw is
+        // the only draw source that repeats every remaining turn.
+        long burstDraws = 0;
+        for (int index = 0; index < view.HandCount; index++)
+            burstDraws += Math.Max(0, view.DrawCount(view.HandCard(index)));
+        long futureDraws = (long)view.ModifiedHandDraw() * view.RemainingTurns();
+        long triggers = Math.Min(int.MaxValue, burstDraws + futureDraws);
+        return PerTriggerDamage(view,
+            SaturatingMul(damagePerDraw, enemies), (int)triggers);
     }
 
     /// <summary>
@@ -1377,17 +1740,9 @@ internal static class PowerEvidence
             nextDrawCards.Add(new(value,
                 Kernel.IsSlyThisTurn(view.Battle, card) ? Math.Max(1, value) : 0));
         }
-        int transition = Math.Max(0, DrawDiscardTransition.Evaluate(
+        return Math.Max(0, DrawDiscardTransition.Evaluate(
             view.Battle.MaxHandSize, drawPerTurn,
             retainedCards.ToArray(), nextDrawCards.ToArray()).NetValue);
-        // The transition prices only the next draw/discard exchange; the old resource estimate
-        // priced the whole remaining fight. Keep a conservative floor equal to that total spread
-        // over the maximum horizon so a blocked next-turn exchange does not erase the recurring
-        // draw engine value.
-        int horizon = Math.Max(1, ScoreWeights.SetupValueHorizonTurns);
-        int resourceFloor = SaturatingMul(
-            Math.Max(1, view.EnergyUnit()), Math.Max(0, remainingTurns - 1)) / horizon;
-        return Math.Max(transition, resourceFloor);
     }
 
     /// <summary>
@@ -1405,11 +1760,11 @@ internal static class PowerEvidence
         PowerTurnCardOption[] powered = BuildHandOptions(
             view, weakAttackBonusPercent: damagePercent);
         int incoming = view.IncomingDamage();
-        return Math.Min(
-            view.Features.EnemyHp,
-            MarginalFrontierValue(
-                PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
-                PowerTurnFrontier.Build(view.Battle.Energy, incoming, powered)));
+        return ContinuousFrontierValue(
+            view,
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, options),
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, powered),
+            view.RemainingTurns());
     }
 
     /// <summary>
@@ -1446,7 +1801,14 @@ internal static class PowerEvidence
             return 0;
         long prevented = Math.Max(
             0, (long)view.Features.ProjectedPlayerHp - parentProjectedPlayerHp);
-        return (int)Math.Min(int.MaxValue, prevented * 8);
+        long value = prevented * 8;
+        // Wraith Form loses Dexterity every turn. Each lost point removes one block per block
+        // card played; value that lost prevention on the same 8-per-HP scale.
+        int dexterityLoss = view.PowerAmountGain(parent, PowerEvidenceIds.WraithForm);
+        int blockCardsPerTurn = BlockCardsPerTurn(view);
+        long costHp = (long)dexterityLoss * blockCardsPerTurn;
+        long cost = costHp * 8;
+        return (int)Math.Min(int.MaxValue, Math.Max(0, value - cost));
     }
 
     private static int[] DrawPileValues(scoped in View view, int count)
@@ -1463,82 +1825,641 @@ internal static class PowerEvidence
             ? Math.Max(1, view.Features.AliveEnemyCount)
             : 1;
 
+    /// Regent opening projections. These stay together in one character-owned block so the shared
+    /// primitive helpers above are not changed by character batches.
+    /// </summary>
+    private static int RegentArsenalProjection(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.Arsenal);
+        if (gain == 0)
+            return 0;
+        int generatedSources = Math.Max(1, view.CountCardGeneration());
+        return GrowthFrontier(view,
+            damagePerAttack: SaturatingMul(gain, generatedSources),
+            remainingTurns: view.RemainingTurns());
+    }
+
+    private static int RegentBlackHoleProjection(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.BlackHole);
+        if (gain == 0)
+            return 0;
+        int triggers = SaturatingAdd(
+            Math.Max(0, view.Battle.Stars), RegentStarCostCardCount(view));
+        return PerTriggerDamage(
+            view, gain, SaturatingMul(triggers, Math.Max(1, view.Features.AliveEnemyCount)));
+    }
+
+    private static int RegentStarCostCardCount(scoped in View view)
+    {
+        int count = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            Pile pile = Piles.PileOf(view.Battle, index, out _);
+            if ((card.Flags & CardFlags.StarCostsX) != 0
+                || Kernel.StarCostWithModifiers(view.Battle, view.Rules, card, pile) > 0)
+                count++;
+        }
+        return count;
+    }
+
+    private static int RegentMonarchsGazeProjection(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.MonarchsGaze);
+        if (gain == 0)
+            return 0;
+        int hits = view.IncomingAttackHits(nextTurn: false);
+        return hits == 0
+            ? 0
+            : PerTurnBlock(
+                SaturatingMul(gain, hits), view.RemainingTurns(), view.IncomingDamage());
+    }
+
+    private static int RegentOrbitProjection(scoped in View view, in Battle parent, int turns)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.Orbit);
+        if (gain == 0)
+            return 0;
+        int payouts = (int)Math.Min(int.MaxValue,
+            (long)view.ModifiedMaxEnergy() * Math.Max(0, turns) / 4);
+        return PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), payouts);
+    }
+
+    private static int RegentIncrementalEnergyUnitProjection(scoped in View view,
+        in Battle parent, ushort powerId, int turns)
+    {
+        int gain = view.PowerAmountGain(parent, powerId);
+        return gain == 0
+            ? 0
+            : PerTurnResource(SaturatingMul(gain, view.EnergyUnit()), turns);
+    }
+
+    private static int RegentParryProjection(scoped in View view, int turns, int incoming)
+        => PerTurnBlock(view.PlayerPowerAmount(PowerEvidenceIds.Parry), turns, incoming);
+
+    private static int RegentPillarProjection(scoped in View view, in Battle parent, int incoming)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.PillarOfCreation);
+        if (gain == 0)
+            return 0;
+        return PerTriggerBlock(gain, Math.Max(1, view.CountCardGeneration()), incoming);
+    }
+
+    private static int RegentSealedThroneProjection(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.TheSealedThrone);
+        return gain == 0
+            ? 0
+            : PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), view.LiveCount);
+    }
+
+    /// <summary>Expected attack-hit instances per turn, for Strength/Dexterity cost estimates.</summary>
+    private static int AttackHitsPerTurn(scoped in View view)
+    {
+        long hits = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            if (view.Type(card) == CardType.Attack)
+                hits += Math.Max(1, view.AttackHits(card));
+        }
+        if (hits == 0)
+            return 0;
+        int live = Math.Max(1, view.LiveCount);
+        int draws = Math.Min(Math.Max(1, view.ModifiedHandDraw()), live);
+        long drawnHits = hits * draws;
+        return (int)Math.Max(1, Math.Min(int.MaxValue,
+            (drawnHits + live - 1) / live));
+    }
+
+    /// <summary>
+    /// <c>Calamity</c>: each played Attack adds one random Attack card to hand. Value the added
+    /// cards at the live deck's average attack value and the expected attack plays per turn.
+    /// </summary>
+    /// <summary>
+    /// <c>Calamity</c>: each played Attack adds one random Attack card to hand. Value one generated
+    /// card at the live attack average. Do not multiply by attack plays or remaining turns: that
+    /// assumes the generated-card chain can be played every turn and makes the beam chase a growing
+    /// hand, which is the state explosion seen in the Regent D2 request.
+    /// </summary>
+    private static int CalamityProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.Calamity);
+        if (gain == 0)
+            return 0;
+        int attacks = view.CountType(CardType.Attack);
+        if (attacks == 0)
+            return 0;
+        long totalValue = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            if (view.Type(card) == CardType.Attack)
+                totalValue += Math.Max(0, view.CardValue(card));
+        }
+        long averageValue = Math.Max(1, totalValue / attacks);
+        long raw = gain * averageValue;
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
+    }
+
+    /// <summary>
+    /// <c>Panache</c>: every five cards played deals the power amount to all enemies. Use the
+    /// per-turn draw count as the number of playable cards; fewer than five draws never trigger.
+    /// </summary>
+    private static int PanacheProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.Panache);
+        if (gain == 0)
+            return 0;
+        int draws = view.RawModifiedHandDraw();
+        if (draws == 0)
+            return 0;
+        long totalCost = 0;
+        int playable = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            if (view.HasKeyword(card, Keywords.Unplayable))
+                continue;
+            Pile pile = Piles.PileOf(view.Battle, index, out _);
+            int cost = Math.Max(0, Kernel.EnergyCostWithModifiers(
+                view.Battle, view.Rules, card, pile));
+            totalCost += cost;
+            playable++;
+        }
+        if (playable == 0)
+            return 0;
+        double averageCost = (double)totalCost / playable;
+        int byEnergy = averageCost <= 0d
+            ? draws
+            : (int)Math.Min(int.MaxValue, Math.Floor(
+                view.ModifiedMaxEnergy() / averageCost));
+        int playsPerTurn = Math.Min(draws, byEnergy);
+        if (playsPerTurn < 5)
+            return 0;
+        int triggersPerTurn = playsPerTurn / 5;
+        int enemies = Math.Max(1, view.Features.AliveEnemyCount);
+        return PerTriggerDamage(view,
+            SaturatingMul(gain, enemies),
+            SaturatingMul(triggersPerTurn, view.RemainingTurns()));
+    }
+
+    /// <summary>
+    /// <c>Rolling Boulder</c>: each instance deals its current amount each turn, then grows by the
+    /// native canonical increment (5). Count the new instance's linear growth over R turns.
+    /// </summary>
+    private static int RollingBoulderProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.RollingBoulder);
+        if (gain == 0)
+            return 0;
+        int turns = view.RemainingTurns();
+        long growth = 5L * turns * (turns - 1) / 2;
+        long perEnemy = (long)gain * turns + growth;
+        long raw = perEnemy * Math.Max(1, view.Features.AliveEnemyCount);
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
+    }
+
+    /// <summary>Expected block-card plays per turn, for Dexterity-loss cost estimates.</summary>
+    private static int BlockCardsPerTurn(scoped in View view)
+    {
+        int blockCards = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            if (view.Type(card) == CardType.Skill && view.Block(card) > 0)
+                blockCards++;
+        }
+        if (blockCards == 0)
+            return 0;
+        int live = Math.Max(1, view.LiveCount);
+        int draws = Math.Min(Math.Max(1, view.ModifiedHandDraw()), live);
+        long drawn = (long)blockCards * draws;
+        return (int)Math.Max(1, Math.Min(int.MaxValue, (drawn + live - 1) / live));
+    }
+
+    /// <summary>
+    /// <c>NecroMastery</c>: Osty only loses HP when it redirects unblocked powered attack damage
+    /// (DieForYouPower). The per-turn loss is therefore the incoming unblocked damage, bounded by
+    /// Osty's current HP; each lost HP deals <c>gain</c> damage to every living enemy.
+    /// </summary>
+    private static int NecroMasteryProjectionPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.NecroMastery);
+        if (gain == 0)
+            return 0;
+        int ostyHp = Math.Max(0, view.Features.OstyHp);
+        int block = Math.Max(0, view.Features.PlayerBlock);
+        int incoming = Math.Max(
+            Math.Max(0, view.CurrentIncomingAttackDamage() - block),
+            Math.Max(0, view.IncomingDamage()));
+        if (ostyHp == 0 || incoming == 0)
+            return 0;
+        long totalOstyLoss = Math.Min((long)ostyHp,
+            (long)incoming * view.RemainingTurns());
+        long raw = totalOstyLoss * gain * Math.Max(1, view.Features.AliveEnemyCount);
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
+    }
+
+    /// <summary>
+    /// <c>Friendship</c>: each stack adds one maximum energy per turn, but the card also removes
+    /// Strength. Subtract the lost attack damage over the same remaining turns.
+    /// </summary>
+    private static int FriendshipProjectionPotential(
+        scoped in View view, in Battle parent, int gain)
+    {
+        int turns = view.RemainingTurns();
+        int benefit = PerTurnResource(
+            SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), turns);
+        int strengthBefore = Kernel.GetAmount(
+            parent, Limits.PlayerOwner, PowerEvidenceIds.Strength);
+        int strengthAfter = view.PlayerPowerAmount(PowerEvidenceIds.Strength);
+        int strengthLoss = Math.Max(0, strengthBefore - strengthAfter);
+        int hitsPerTurn = AttackHitsPerTurn(view);
+        int cost = SaturatingMul(strengthLoss, hitsPerTurn, turns);
+        return Math.Max(0, benefit - cost);
+    }
+
+    /// <summary>
+    /// <c>Neurosurge</c>: the immediate energy/draw value stays; each turn the power adds its
+    /// amount of Doom to the player, so subtract the accumulated Doom threat (capped by player HP).
+    /// </summary>
+    private static int NeurosurgeProjectionPotential(scoped in View view, int gain)
+    {
+        int benefit = PerTriggerResource(
+            SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), 1);
+        long doom = (long)gain * view.RemainingTurns();
+        int playerHp = Math.Max(0, view.Features.PlayerHp);
+        int cost = playerHp == 0
+            ? (int)Math.Min(int.MaxValue, doom)
+            : (int)Math.Min(playerHp, doom * doom / playerHp);
+        return Math.Max(0, benefit - cost);
+    }
+
     private static int SimpleProjection(scoped in View view, in Battle parent,
         string id, int turns, int incoming, int enemies, int gain)
     {
         return id switch
         {
-            "BIASED_COGNITION" or "DEFRAGMENT" => PerTurnResource(
-                gain, Math.Max(1, (int)view.Battle.OrbCount)),
+            "BIASED_COGNITION" => DefectBiasedCognitionDamagePotential(view, parent, gain),
+            "DEFRAGMENT" => DefectFocusDamagePotential(view, gain),
             "BUFFER" => BufferPotential(gain, incoming, view.IncomingAttackHits(nextTurn: true)),
             "BULK_UP" => GrowthFrontier(view,
                 blockPerSkillBonus: view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity),
-                damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength)),
-            "COOLANT" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "CREATIVE_AI" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "ECHO_FORM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "FERAL" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "HAILSTORM" => PerTurnDamageUncapped(Math.Max(1, view.CountOrb("FROST")), turns, enemies),
-            "ITERATION" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
-            "LOOP" => PerTurnDamageUncapped(Math.Max(1, (int)view.Battle.OrbCount), turns, 1),
-            "MACHINE_LEARNING" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "SMOKESTACK" => PerTurnDamageUncapped(Math.Max(1, view.CountVar("Status")), turns, enemies),
-            "SPINNER" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "STORM" => PerTurnDamageUncapped(Math.Max(1, view.EnergyUnit()), turns, enemies),
-            "SUBROUTINE" => PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), view.PlayablePowerSources()),
-            "THUNDER" => PerTurnDamageUncapped(Math.Max(1, view.CountOrb("LIGHTNING")), turns, enemies),
-            "TRASH_TO_TREASURE" => PerTurnResource(Math.Max(1, view.CountVar("Status")), turns),
-            "ARSENAL" => PerTurnResource(Math.Max(1, view.CountCardGeneration()), turns),
-            "BLACK_HOLE" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
+                damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength),
+                remainingTurns: view.RemainingTurns()),
+            "CAPACITOR" => DefectCapacitorPotential(view, parent, turns),
+            "CONSUMING_SHADOW" => DefectConsumingShadowPotential(view, parent),
+            "COOLANT" => DefectCoolantPotential(view, parent, turns, incoming),
+            "CREATIVE_AI" => DefectEnergyUnitPerTurnPotential(view, parent,
+                DefectPowerIds.CreativeAi, turns),
+            "ECHO_FORM" => DefectEchoFormPotential(view, parent, turns),
+            "FERAL" => DefectFeralPotential(view, parent),
+            "HAILSTORM" => DefectHailstormPotential(view, parent, turns, enemies),
+            "ITERATION" => DefectIterationPotential(view, parent),
+            "LOOP" => DefectLoopPotential(view, parent),
+            "MACHINE_LEARNING" => DefectEnergyUnitPerTurnPotential(view, parent,
+                DefectPowerIds.MachineLearning, turns),
+            "SMOKESTACK" => DefectSmokestackPotential(view, parent, enemies),
+            "SPINNER" => DefectSpinnerPotential(view, parent, turns),
+            "STORM" => DefectStormPotential(view, parent),
+            "SUBROUTINE" => DefectSubroutinePotential(view, parent),
+            "THUNDER" => DefectThunderPotential(view, parent),
+            "TRASH_TO_TREASURE" => DefectTrashToTreasurePotential(view, parent),
+            "ARSENAL" => RegentArsenalProjection(view, parent),
+            "BLACK_HOLE" => RegentBlackHoleProjection(view, parent),
             "CHILD_OF_THE_STARS" => PerTriggerBlock(
                 gain, view.StarSpendCapacity(), incoming),
             "FURNACE" => PerTurnResource(gain, turns),
             "GENESIS" => PerTurnResource(gain, turns),
-            "MONARCHS_GAZE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "MONARCHS_GAZE" => RegentMonarchsGazeProjection(view, parent),
             "NEUTRON_AEGIS" => PerTurnBlock(gain, turns, incoming),
-            "ORBIT" => PerTurnResource(Math.Max(1, view.ModifiedMaxEnergy()), turns),
-            "PALE_BLUE_DOT" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "PARRY" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "PILLAR_OF_CREATION" => PerTurnResource(Math.Max(1, view.CountCardGeneration()), turns),
+            "ORBIT" => RegentOrbitProjection(view, parent, turns),
+            "PALE_BLUE_DOT" => RegentIncrementalEnergyUnitProjection(
+                view, parent, PowerEvidenceIds.PaleBlueDot, turns),
+            "PARRY" => RegentParryProjection(view, turns, incoming),
+            "PILLAR_OF_CREATION" => RegentPillarProjection(view, parent, incoming),
             "SEEKING_EDGE" => PerTurnResource(view.EnergyUnit(), turns),
-            "SPECTRUM_SHIFT" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "SWORD_SAGE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "THE_SEALED_THRONE" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
-            "TYRANNY" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
-            "VOID_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "CALCIFY" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "CALL_OF_THE_VOID" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "COUNTDOWN" => PerTurnDamageUncapped(gain, turns, enemies),
-            "DANSE_MACABRE" => PerTurnDamageUncapped(Math.Max(1, view.ModifiedMaxEnergy()), turns, enemies),
-            "DEMESNE" => PerTurnResource(Math.Max(1, view.ModifiedMaxEnergy()), turns),
-            "DEVOUR_LIFE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "FRIENDSHIP" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "HAUNT" => PerTurnDamageUncapped(Math.Max(1, view.CountSouls()), turns, enemies),
-            "LETHALITY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "NECRO_MASTERY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "NEUROSURGE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "PAGESTORM" => PerTurnResource(Math.Max(1, view.CountKeyword(Keywords.Ethereal)), turns),
-            "REAPER_FORM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "SENTRY_MODE" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "SHROUD" => PerTurnDamageUncapped(gain, turns, enemies),
-            "SLEIGHT_OF_FLESH" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
-            "SPIRIT_OF_ASH" => PerTurnDamageUncapped(Math.Max(1, view.CountKeyword(Keywords.Ethereal)), turns, enemies),
-            "AUTOMATION" => PerTurnResource(Math.Max(1, view.ModifiedHandDraw()), turns),
-            "CALAMITY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "ENTROPY" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "ETERNAL_ARMOR" => PerTurnBlock(gain, turns, incoming),
-            "FASTEN" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "MAYHEM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "NOSTALGIA" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "PANACHE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "PREP_TIME" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "PROWESS" => GrowthFrontier(view,
-                blockPerSkillBonus: view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity),
-                damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength)),
-            "ROLLING_BOULDER" => PerTurnDamageUncapped(gain, turns, enemies),
-            "STRATAGEM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
+            "SPECTRUM_SHIFT" => RegentIncrementalEnergyUnitProjection(
+                view, parent, PowerEvidenceIds.SpectrumShift, turns),
+            "SWORD_SAGE" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
+            "THE_SEALED_THRONE" => RegentSealedThroneProjection(view, parent),
+            "TYRANNY" => RegentIncrementalEnergyUnitProjection(
+                view, parent, PowerEvidenceIds.Tyranny, turns),
+            "VOID_FORM" => RegentIncrementalEnergyUnitProjection(
+                view, parent, PowerEvidenceIds.VoidForm, turns),
             _ => 0,
         };
+    }
+
+    /// <summary>
+    /// <c>Defragment</c>: permanent Focus is worth one damage per current orb every remaining turn.
+    /// </summary>
+    private static int DefectFocusDamagePotential(scoped in View view, int gain)
+    {
+        int orbs = view.Battle.OrbCount;
+        if (gain == 0 || orbs == 0)
+            return 0;
+        return PerTurnDamage(
+            view, gain, SaturatingMul(orbs, view.RemainingTurns()), 1);
+    }
+
+    /// <summary>
+    /// <c>Biased Cognition</c>: the Focus gain decays by one at each turn start, so sum
+    /// <c>max(0, gain - i * decay)</c> over the remaining turns before applying the orb count.
+    /// </summary>
+    private static int DefectBiasedCognitionDamagePotential(
+        scoped in View view, in Battle parent, int gain)
+    {
+        int orbs = view.Battle.OrbCount;
+        if (gain == 0 || orbs == 0)
+            return 0;
+        int decay = Math.Max(1,
+            view.PowerAmountGain(parent, DefectPowerIds.BiasedCognition));
+        long focusTurns = 0;
+        for (int turn = 0; turn < view.RemainingTurns(); turn++)
+        {
+            int focus = Math.Max(0, gain - turn * decay);
+            focusTurns += focus;
+            if (focus == 0)
+                break;
+        }
+        long raw = focusTurns * orbs;
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
+    }
+
+    /// <summary>Capacitor's new orb slots are resource over the remaining turns.</summary>
+    private static int DefectCapacitorPotential(scoped in View view, in Battle parent, int turns)
+    {
+        int slots = Math.Max(0, view.Battle.OrbCapacity - parent.OrbCapacity);
+        return slots == 0 ? 0 : PerTurnResource(slots, turns);
+    }
+
+    /// <summary>
+    /// <c>Consuming Shadow</c>: at each turn end EvokeLast removes up to <c>gain</c> orbs. Dark
+    /// orbs also gain one passive tick before that turn's evocation. Only actual damage evocations
+    /// (Dark/Lightning/Glass) contribute; Frost/Plasma are left to their own categories.
+    /// </summary>
+    private static int DefectConsumingShadowPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.ConsumingShadow);
+        if (gain == 0)
+            return 0;
+        int orbCount = view.Battle.OrbCount;
+        if (orbCount == 0)
+            return 0;
+        int evokes = Math.Min(orbCount,
+            SaturatingMul(gain, view.RemainingTurns()));
+        long damage = 0;
+        for (int evoke = 0; evoke < evokes; evoke++)
+        {
+            int index = orbCount - 1 - evoke; // EvokeLast
+            string orbId = Registry.Orb(view.Battle.Orbs[index].Id).NativeId;
+            decimal value = Kernel.OrbEvokeValue(view.Battle, view.Rules, index);
+            switch (orbId)
+            {
+                case "DARK_ORB":
+                {
+                    int passiveTicks = evoke / gain + 1;
+                    decimal passive = Math.Max(0m,
+                        Kernel.OrbPassiveValue(view.Battle, view.Rules, index));
+                    value += passive * passiveTicks;
+                    damage += (long)Math.Ceiling(Math.Max(0m, value));
+                    break;
+                }
+                case "LIGHTNING_ORB":
+                    damage += (long)Math.Ceiling(Math.Max(0m, value));
+                    break;
+                case "GLASS_ORB":
+                    damage += (long)Math.Ceiling(Math.Max(0m, value * 2m))
+                        * Math.Max(1, view.Features.AliveEnemyCount);
+                    break;
+                // Frost and Plasma evocations have their own block/energy categories.
+            }
+        }
+        return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, damage));
+    }
+
+    /// <summary>Coolant grants block per distinct orb type each turn, bounded by incoming damage.</summary>
+    private static int DefectCoolantPotential(scoped in View view, in Battle parent,
+        int turns, int incoming)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Coolant);
+        if (gain == 0)
+            return 0;
+        return PerTurnBlock(SaturatingMul(gain, view.DistinctOrbTypes()), turns, incoming);
+    }
+
+    /// <summary>Card generation or extra card plays valued at the live deck's average card value.</summary>
+    private static int DefectEnergyUnitPerTurnPotential(scoped in View view, in Battle parent,
+        ushort gainPower, int turns)
+    {
+        int gain = view.PowerAmountGain(parent, gainPower);
+        return gain == 0
+            ? 0
+            : PerTurnResource(SaturatingMul(gain, view.EnergyUnit()), turns);
+    }
+
+    /// <summary>
+    /// <c>Feral</c>: each turn the first <c>X</c> zero-cost attacks return to hand. The new stack
+    /// only adds returns above what the parent power already covered.
+    /// </summary>
+    private static int DefectFeralPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Feral);
+        if (gain == 0)
+            return 0;
+        int zeroCostAttacks = view.CountZeroCostAttack();
+        if (zeroCostAttacks == 0)
+            return 0;
+        int before = Math.Min(Kernel.GetAmount(parent, Limits.PlayerOwner, DefectPowerIds.Feral),
+            zeroCostAttacks);
+        int after = Math.Min(view.PlayerPowerAmount(DefectPowerIds.Feral), zeroCostAttacks);
+        int addedReturns = Math.Max(0, after - before);
+        return addedReturns == 0
+            ? 0
+            : PerTurnResource(SaturatingMul(addedReturns, view.EnergyUnit()),
+                view.RemainingTurns());
+    }
+
+    /// <summary>
+    /// Echo Form repeats the first card played each turn. The incremental stack is one extra
+    /// repeat, estimated as the best current attack damage on a single target, as upstream does.
+    /// </summary>
+    private static int DefectEchoFormPotential(scoped in View view, in Battle parent, int turns)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.EchoForm);
+        if (gain == 0)
+            return 0;
+        return PerTurnDamage(
+            view, SaturatingMul(gain, Math.Max(1, view.MaxDamage())), turns, 1);
+    }
+
+    /// <summary>Hailstorm deals its incremental amount to every living enemy each turn.</summary>
+    private static int DefectHailstormPotential(scoped in View view, in Battle parent,
+        int turns, int enemies)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Hailstorm);
+        return gain == 0 ? 0 : PerTurnDamage(view, gain, turns, enemies);
+    }
+
+    /// <summary>Iteration draws its incremental amount when a generated Status is drawn.</summary>
+    private static int DefectIterationPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Iteration);
+        if (gain == 0)
+            return 0;
+        int sources = DefectStatusSources(view);
+        return sources == 0
+            ? 0
+            : PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), sources);
+    }
+
+    /// <summary>
+    /// <c>Loop</c>: at turn start trigger the rightmost orb's passive (queue index 0) once per
+    /// stack, every remaining turn. The category follows that orb type.
+    /// </summary>
+    private static int DefectLoopPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Loop);
+        if (gain == 0 || view.Battle.OrbCount == 0)
+            return 0;
+        string orbId = Registry.Orb(view.Battle.Orbs[0].Id).NativeId;
+        int passive = (int)Math.Ceiling(Math.Max(0m,
+            Kernel.OrbPassiveValue(view.Battle, view.Rules, 0)));
+        if (passive == 0)
+            return 0;
+        int turns = view.RemainingTurns();
+        return orbId switch
+        {
+            "FROST_ORB" => PerTurnBlock(
+                SaturatingMul(gain, passive), turns, view.IncomingDamage()),
+            "PLASMA_ORB" => PerTurnResource(SaturatingMul(gain, passive), turns),
+            "GLASS_ORB" => PerTurnDamage(view, gain, SaturatingMul(passive, turns),
+                Math.Max(1, view.Features.AliveEnemyCount)),
+            "LIGHTNING_ORB" or "DARK_ORB" =>
+                PerTurnDamage(view, gain, SaturatingMul(passive, turns), 1),
+            _ => throw new UnsupportedException($"Loop 投影不认识的球 {orbId}。"),
+        };
+    }
+
+    /// <summary>Smokestack deals its incremental amount to all enemies per generated Status.</summary>
+    private static int DefectSmokestackPotential(scoped in View view, in Battle parent, int enemies)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Smokestack);
+        if (gain == 0)
+            return 0;
+        int sources = DefectStatusSources(view);
+        return sources == 0
+            ? 0
+            : PerTriggerDamage(view, gain, SaturatingMul(sources, enemies));
+    }
+
+    /// <summary>Spinner channels one Glass orb per stack each turn; value it as one orb per turn.</summary>
+    private static int DefectSpinnerPotential(scoped in View view, in Battle parent, int turns)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Spinner);
+        return gain == 0 ? 0 : PerTurnResource(gain, turns);
+    }
+
+    /// <summary>Storm channels its incremental amount of Lightning per playable Power.</summary>
+    private static int DefectStormPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Storm);
+        if (gain == 0)
+            return 0;
+        int sources = view.PlayablePowerSources();
+        return sources == 0
+            ? 0
+            : PerTriggerDamage(view, SaturatingMul(gain, view.EnergyUnit()), sources);
+    }
+
+    /// <summary>Subroutine grants its incremental energy per playable Power.</summary>
+    private static int DefectSubroutinePotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, PowerEvidenceIds.Subroutine);
+        if (gain == 0)
+            return 0;
+        int sources = view.PlayablePowerSources();
+        return sources == 0
+            ? 0
+            : PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), sources);
+    }
+
+    /// <summary>Thunder deals its incremental amount for each current Lightning orb.</summary>
+    private static int DefectThunderPotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.Thunder);
+        if (gain == 0)
+            return 0;
+        int triggers = view.CountOrb("LIGHTNING");
+        return triggers == 0 ? 0 : PerTriggerDamage(view, gain, triggers);
+    }
+
+    /// <summary>Trash to Treasure channels its incremental amount of orbs per generated Status.</summary>
+    private static int DefectTrashToTreasurePotential(scoped in View view, in Battle parent)
+    {
+        int gain = view.PowerAmountGain(parent, DefectPowerIds.TrashToTreasure);
+        if (gain == 0)
+            return 0;
+        int sources = DefectStatusSources(view);
+        return sources == 0
+            ? 0
+            : PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), sources);
+    }
+
+    /// <summary>
+    /// Status-generation sources in the live piles. The upstream <c>PowerCountWithStatusVar</c>
+    /// reads a Status dynamic variable; in this content that variable does not exist, so the
+    /// equivalent fact is the card's own "Status" variable or a declared generated Status card.
+    /// </summary>
+    private static int DefectStatusSources(scoped in View view)
+    {
+        int count = 0;
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            Card card = view.LiveCard(index);
+            if (view.HasVarFragment(card, "Status") || DefectGeneratesStatus(view, card))
+                count++;
+        }
+        return count;
+    }
+
+    private static bool DefectGeneratesStatus(scoped in View view, in Card card)
+    {
+        IReadOnlyList<(string CardId, int Upgrade)> generated =
+            Registry.Card(card.Id).GeneratedCards;
+        for (int index = 0; index < generated.Count; index++)
+        {
+            (string cardId, int upgrade) = generated[index];
+            if (!Registry.TryCard(cardId, out ushort id))
+                throw new UnsupportedException($"能力投影的生成牌 {cardId} 没有 Sts2Solver 定义。");
+            if (view.Rules.Card(id, upgrade).Type == CardType.Status)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Live cards that can channel an orb. Used only by the Defect opening-trigger evidence so a
+    /// Focus/Capacitor route with an empty current orb queue still sees its channel sources.
+    /// </summary>
+    private static bool DefectHasOrbChannelSource(scoped in View view)
+    {
+        for (int index = 0; index < view.LiveCount; index++)
+        {
+            string id = view.NativeId(view.LiveCard(index));
+            if (id is "ICE_LANCE" or "METEOR_STRIKE" or "COLD_SNAP" or "BALL_LIGHTNING"
+                or "REFRACT" or "NULL" or "CONSUMING_SHADOW" or "SPINNER"
+                or "GLACIER" or "GLASSWORK" or "FUSION" or "CHILL" or "CHAOS"
+                or "DARKNESS" or "TEMPEST" or "SHADOW_SHIELD" or "ZAP" or "RAINBOW"
+                or "VOLTAIC" or "COOLHEADED" or "LIGHTNING_ROD" or "STORM")
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Port of the upstream BufferPrevention approximation: per-hit average, bounded by incoming HP loss.
@@ -1554,8 +2475,10 @@ internal static class PowerEvidence
         int blockPerCardBonus = 0, int damagePerDraw = 0, int damageTargets = 1,
         int damagePerShiv = 0, int firstShivDamageBonus = 0, int damagePerCard = 0,
         int damagePerUnblockedAttackHit = 0, int weakAttackBonusPercent = 0,
-        int damagePerAttack = 0)
+        int damagePerAttack = 0, int remainingTurns = 1)
     {
+        if (remainingTurns <= 0)
+            return 0;
         int incoming = view.IncomingDamage();
         PowerTurnCardOption[] baseline = BuildHandOptions(view);
         if (baseline.Length == 0)
@@ -1563,22 +2486,60 @@ internal static class PowerEvidence
         PowerTurnCardOption[] powered = weakAttackBonusPercent > 0
             ? BuildHandOptions(view, weakAttackBonusPercent)
             : baseline;
-        int value = MarginalFrontierValue(
-            PowerTurnFrontier.Build(view.Battle.Energy, incoming, baseline),
-            PowerTurnFrontier.Build(
-                view.Battle.Energy,
-                incoming,
-                powered,
-                blockPerSkillBonus,
-                blockPerCardBonus,
-                damagePerDraw,
-                Math.Max(1, damageTargets),
-                damagePerShiv,
-                firstShivDamageBonus,
-                damagePerCard,
-                damagePerUnblockedAttackHit,
-                damagePerAttack));
-        return Math.Min(view.RemainingEnemyHp(), value);
+        IReadOnlyList<PowerTurnFrontierState> baselineStates =
+            PowerTurnFrontier.Build(view.Battle.Energy, incoming, baseline);
+        IReadOnlyList<PowerTurnFrontierState> poweredStates = PowerTurnFrontier.Build(
+            view.Battle.Energy,
+            incoming,
+            powered,
+            blockPerSkillBonus,
+            blockPerCardBonus,
+            damagePerDraw,
+            Math.Max(1, damageTargets),
+            damagePerShiv,
+            firstShivDamageBonus,
+            damagePerCard,
+            damagePerUnblockedAttackHit,
+            damagePerAttack);
+        // A permanent stat change keeps paying every remaining turn. Damage is capped by the
+        // current remaining enemy HP. The frontier's HP uplift is already bounded by this turn's
+        // incoming damage; summing it over R is total prevented HP. Do not multiply the one-turn
+        // 8-per-HP frontier weight by R: that would count the same HP weight in every turn.
+        int damage = SaturatingMul(
+            PowerTurnFrontier.DefensiveDamageUplift(baselineStates, poweredStates),
+            remainingTurns);
+        int block = SaturatingMul(
+            PowerTurnFrontier.DefensiveHpUplift(baselineStates, poweredStates),
+            remainingTurns);
+        return SaturatingAdd(Math.Min(view.RemainingEnemyHp(), damage), block);
+    }
+
+    /// <summary>Triangular number of turns for a stat that grows by a fixed amount each turn.</summary>
+    private static int TriangularTurns(int turns)
+    {
+        if (turns <= 0)
+            return 0;
+        return (int)Math.Min(int.MaxValue, (long)turns * (turns + 1) / 2);
+    }
+
+    /// <summary>
+    /// Value of a current-hand frontier that repeats every remaining turn. Damage is capped by
+    /// remaining enemy HP; the defensive part keeps the frontier's per-turn bounded prevention.
+    /// </summary>
+    private static int ContinuousFrontierValue(scoped in View view,
+        IReadOnlyList<PowerTurnFrontierState> baseline,
+        IReadOnlyList<PowerTurnFrontierState> powered, int remainingTurns)
+    {
+        if (remainingTurns <= 0)
+            return 0;
+        int damage = SaturatingMul(
+            PowerTurnFrontier.DefensiveDamageUplift(baseline, powered), remainingTurns);
+        // Defensive HP uplift is already capped by the current incoming damage. Summing it over
+        // the horizon gives total prevented HP; the 8-per-HP one-turn frontier weight must not be
+        // repeated R times.
+        int block = SaturatingMul(
+            PowerTurnFrontier.DefensiveHpUplift(baseline, powered), remainingTurns);
+        return SaturatingAdd(Math.Min(view.RemainingEnemyHp(), damage), block);
     }
 
     private static int MarginalFrontierValue(IReadOnlyList<PowerTurnFrontierState> baseline,
@@ -1588,9 +2549,9 @@ internal static class PowerEvidence
             SaturatingMul(PowerTurnFrontier.DefensiveHpUplift(baseline, powered), 8));
 
     private static PowerTurnCardOption[] BuildHandOptions(scoped in View view,
-        int weakAttackBonusPercent = 0)
+        int weakAttackBonusPercent = 0, int shivTargetsOverride = 0)
         => BuildOptions(view, 0, view.HandCount, view.HandCount, currentTurn: true,
-            weakAttackBonusPercent);
+            weakAttackBonusPercent, shivTargetsOverride);
 
     private static PowerTurnCardOption[] BuildDrawOptions(scoped in View view,
         int drawOffset, int count, int projectedHandCount,
@@ -1606,9 +2567,10 @@ internal static class PowerEvidence
 
     private static PowerTurnCardOption[] BuildOptions(scoped in View view,
         int start, int count, int projectedHandCount, bool currentTurn,
-        int weakAttackBonusPercent = 0)
+        int weakAttackBonusPercent = 0, int shivTargetsOverride = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(weakAttackBonusPercent);
+        ArgumentOutOfRangeException.ThrowIfNegative(shivTargetsOverride);
         ArgumentOutOfRangeException.ThrowIfNegative(projectedHandCount);
         if (count == 0)
             return [];
@@ -1625,7 +2587,9 @@ internal static class PowerEvidence
         }
         if (minimumEnemyBlock == int.MaxValue)
             minimumEnemyBlock = 0;
-        int shivTargets = CurrentShivTargets(view);
+        int shivTargets = shivTargetsOverride > 0
+            ? shivTargetsOverride
+            : CurrentShivTargets(view);
         List<PowerTurnCardOption> options = new(count);
         for (int index = 0; index < count; index++)
         {
@@ -1666,16 +2630,6 @@ internal static class PowerEvidence
     private static int PerTurnDamage(scoped in View view, int damagePerTurn, int turns, int targets)
         => Math.Min(view.RemainingEnemyHp(),
             SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets)));
-
-    // Temporary migration path: only Ironclad's damage projections are reviewed against the
-    // enemy-HP cap so far. Other characters keep these uncapped forms until their own valuation
-    // batch corrects the formulas and switches to PerTurnDamage/PerTriggerDamage; a cap over a
-    // wrong formula changes routes for the wrong reason. Delete both once no caller remains.
-    private static int PerTurnDamageUncapped(int damagePerTurn, int turns, int targets)
-        => SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets));
-
-    private static int PerTriggerDamageUncapped(int perTrigger, int triggers)
-        => SaturatingMul(perTrigger, Math.Max(0, triggers));
 
     private static int PerTurnBlock(int blockPerTurn, int turns, int incoming)
         => BoundedPrevention(SaturatingMul(blockPerTurn, Math.Max(0, turns)), incoming);
@@ -1836,5 +2790,28 @@ internal static class PowerEvidence
         return cardId < 64
             ? (commitment.CardsLow & (1UL << cardId)) != 0
             : cardId < 128 && (commitment.CardsHigh & (1UL << (cardId - 64))) != 0;
+    }
+
+    private static class DefectPowerIds
+    {
+        private static ushort Required(string name)
+            => Registry.TryPower(name, out ushort id) ? id
+                : throw new UnsupportedException($"缺陷能力投影缺少状态 {name}。");
+
+        internal static readonly ushort ConsumingShadow = Required("CONSUMING_SHADOW_POWER");
+        internal static readonly ushort Coolant = Required("COOLANT_POWER");
+        internal static readonly ushort CreativeAi = Required("CREATIVE_AI_POWER");
+        internal static readonly ushort EchoForm = Required("ECHO_FORM_POWER");
+        internal static readonly ushort Feral = Required("FERAL_POWER");
+        internal static readonly ushort Hailstorm = Required("HAILSTORM_POWER");
+        internal static readonly ushort Iteration = Required("ITERATION_POWER");
+        internal static readonly ushort Loop = Required("LOOP_POWER");
+        internal static readonly ushort MachineLearning = Required("MACHINE_LEARNING_POWER");
+        internal static readonly ushort Smokestack = Required("SMOKESTACK_POWER");
+        internal static readonly ushort Spinner = Required("SPINNER_POWER");
+        internal static readonly ushort Storm = Required("STORM_POWER");
+        internal static readonly ushort Thunder = Required("THUNDER_POWER");
+        internal static readonly ushort TrashToTreasure = Required("TRASH_TO_TREASURE_POWER");
+        internal static readonly ushort BiasedCognition = Required("BIASED_COGNITION_POWER");
     }
 }

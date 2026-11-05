@@ -17,6 +17,14 @@ internal sealed record BeamOptions(
     /// <summary>Production searches share time and memory, without a node ceiling.</summary>
     public bool UnlimitedNodes { get; init; }
 
+    /// <summary>
+    /// Apply <see cref="MaxExpandedNodes"/> while keeping <see cref="UnlimitedNodes"/>' production
+    /// semantics (zero-damage stop gating, cancellation checkpoints and pool behavior). The offline
+    /// reproducible budget sets this to replace the member's wall-clock deadline with a fixed node
+    /// cap; production leaves it false and keeps the soft-time deadline as its only bound.
+    /// </summary>
+    public bool NodeBudgetActive { get; init; }
+
     /// <summary>Request deadline shared by every member; host-only, never encoded in SREQ.</summary>
     public Func<bool>? DeadlineExpired { get; init; }
 
@@ -1043,7 +1051,8 @@ internal sealed partial class BeamSolver
                 Consider(state, node, Key(state, features, actionCount), features);
             }
         }
-        if ((_memoryBudgetExceeded || _options.UnlimitedNodes && SoftTimeReached(watch))
+        if ((_memoryBudgetExceeded || _options.UnlimitedNodes && SoftTimeReached(watch)
+                || _options.NodeBudgetActive && !NodeBudgetAvailable)
             && Route(bestNode).Length == 0)
         {
             int fallback = BudgetFallbackNode(current, ended, turnFrontier);
@@ -1106,7 +1115,7 @@ internal sealed partial class BeamSolver
         if (zeroDamageVictory)
             return "zero-damage-victory";
         if (OutOfBudget(watch))
-            return _options.UnlimitedNodes
+            return _options.UnlimitedNodes && !_options.NodeBudgetActive
                 ? _memoryBudgetExceeded ? "memory" : "time" : "budget";
         if (turns >= _options.MaxTurns)
             return "max-turns";
@@ -1544,11 +1553,13 @@ internal sealed partial class BeamSolver
             progress, _nodes.ProgressEnemyHighsAt(progress.EnemyHighsId));
     }
 
-    private bool NodeBudgetAvailable => _options.UnlimitedNodes || _expanded < _options.MaxExpandedNodes;
+    private bool NodeBudgetAvailable
+        => _options.UnlimitedNodes && !_options.NodeBudgetActive
+            || _expanded < _options.MaxExpandedNodes;
 
     private bool OutOfBudget(Stopwatch watch)
         => _memoryBudgetExceeded || !NodeBudgetAvailable || DeadlineExpired()
-            || watch.Elapsed >= _options.SoftTimeBudget;
+            || !_options.NodeBudgetActive && watch.Elapsed >= _options.SoftTimeBudget;
 
     /// <summary>
     /// The loop ended on the soft-time limit rather than the node cap or an early stop. A search
@@ -1556,7 +1567,8 @@ internal sealed partial class BeamSolver
     /// flag is diagnostic and never enters the result codec.
     /// </summary>
     private bool SoftTimeReached(Stopwatch watch)
-        => !_memoryBudgetExceeded && NodeBudgetAvailable
+        => !_options.NodeBudgetActive
+            && !_memoryBudgetExceeded && NodeBudgetAvailable
             && (_deadlineReached || DeadlineExpired()
                 || _options.SoftTimeBudget != TimeSpan.MaxValue
                     && watch.Elapsed >= _options.SoftTimeBudget);

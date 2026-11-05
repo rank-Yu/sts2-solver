@@ -3,6 +3,7 @@
 // and kernel stepping instead of native deployment.
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
 using Sts2Solver.Autoplay;
@@ -37,9 +38,27 @@ internal sealed record OfflineCombatSettings(
     /// <summary>Production search setting applied to captured requests; null leaves it unlimited.</summary>
     internal int? BrightestFlameMaxHpLossLimit { get; init; }
 
+    /// <summary>
+    /// Run members on the production wall-clock deadline instead of the reproducible node budget.
+    /// Timing studies only: results can depend on machine load.
+    /// </summary>
+    internal bool WallClock { get; init; }
+
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
 }
+
+/// <summary>
+/// The member budget recorded in <c>summary.json</c> and every <c>full-combat.json</c>.
+/// Reproducible mode replaces the production soft-time deadline with a fixed per-width node cap and
+/// gives the coordinator a clock that never advances; wall-clock mode keeps the production timing.
+/// </summary>
+internal sealed record OfflineSearchBudget(
+    string Mode,
+    bool WallClock,
+    int SearchThreads,
+    int? MillisecondsPerWidth,
+    int? MaxExpandedNodesPerWidth);
 
 /// <summary>One exported request file and the output directory name used for its result.</summary>
 internal sealed record OfflineRequestEntry(string Root, string Path);
@@ -58,6 +77,14 @@ internal sealed record OfflineCombatRootResult(
 
 internal static class OfflineCombat
 {
+    /// <summary>
+    /// Reproducible member cap in expanded nodes per point of beam width. The wall-clock baseline's
+    /// weighted expansion rate was about 11.3 nodes/ms; 50 ms/width therefore corresponds to roughly
+    /// 565 nodes/width. 512 is the nearest power of two and stays above every member that completed
+    /// before its deadline in the Medium baseline, so only members that used to stop on time change.
+    /// </summary>
+    internal const int ReproducibleNodesPerWidth = 512;
+
     public static int Run(OfflineCombatSettings settings, string? root, string? rootsFile, int jobs)
     {
         Directory.CreateDirectory(settings.Output);
@@ -97,7 +124,8 @@ internal static class OfflineCombat
         Console.WriteLine(
             $"offline-combat roots={roots.Length} jobs={jobs} tier={settings.Tier} " +
             $"widths={settings.Profile.BaselineWidth}/{settings.Profile.NarrowWidth}/{settings.Profile.WideWidth}/{settings.Profile.OffensiveWidth} " +
-            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} out={settings.Output}");
+            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} " +
+            $"budget={BudgetDescription(settings).Mode} out={settings.Output}");
         Stopwatch wall = Stopwatch.StartNew();
         List<OfflineCombatRootResult> results = [];
         object gate = new();
@@ -164,7 +192,8 @@ internal static class OfflineCombat
         Console.WriteLine(
             $"offline-combat requests={entries.Length} jobs={jobs} tier={settings.Tier} " +
             $"widths={settings.Profile.BaselineWidth}/{settings.Profile.NarrowWidth}/{settings.Profile.WideWidth}/{settings.Profile.OffensiveWidth} " +
-            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} out={settings.Output}");
+            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} " +
+            $"budget={BudgetDescription(settings).Mode} out={settings.Output}");
         Stopwatch wall = Stopwatch.StartNew();
         List<OfflineCombatRootResult> results = [];
         object gate = new();
@@ -303,7 +332,7 @@ internal static class OfflineCombat
                 SearchPolicyCapture.Capture(combat, player), request, player);
             DifferentialCombat host = new(combat, player, rules, policy, settings.Profile,
                 settings.MemoryBudgetBytes, settings.WarmupNodes, settings.SearchThreads,
-                settings.WorkspaceBufferBytes, opening);
+                settings.WorkspaceBufferBytes, opening, settings.WallClock);
             WorkspaceStatsCollector? stats = settings.WorkspaceStats
                 ? new WorkspaceStatsCollector() : null;
             BeamSolver.ParentWorkspaceObserver = stats is null ? null : stats.Add;
@@ -320,7 +349,7 @@ internal static class OfflineCombat
             stats?.Print(root);
             long wallMs = stopwatch.ElapsedMilliseconds;
             CheckQualityExpectation(settings.Corpora, root, settings.Tier, result);
-            WriteResult(settings.Output, root, result);
+            WriteResult(settings.Output, root, result, BudgetDescription(settings));
             Console.WriteLine(
                 $"root={root} status={result.Status} outcome={result.Outcome} turns={result.Turns} " +
                 $"hp={result.PlayerHp}/{result.PlayerMaxHp} searches={result.Searches} " +
@@ -429,6 +458,8 @@ internal static class OfflineCombat
         start.ArgumentList.Add(settings.WorkspaceBufferBytes.ToString());
         if (settings.WorkspaceStats)
             start.ArgumentList.Add("--workspace-stats");
+        if (settings.WallClock)
+            start.ArgumentList.Add("--wall-clock");
         using Process process = Process.Start(start)
             ?? throw new InvalidOperationException("无法启动离线整场子进程。");
         Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
@@ -471,6 +502,7 @@ internal static class OfflineCombat
             wideWidth = settings.Profile.WideWidth,
             offensiveWidth = settings.Profile.OffensiveWidth,
             millisecondsPerWidth = settings.Profile.MillisecondsPerWidth,
+            searchBudget = BudgetDescription(settings),
             memoryBudgetBytes = settings.MemoryBudgetBytes,
             searchThreads = settings.SearchThreads,
             workspaceBufferBytes = settings.WorkspaceBufferBytes,
@@ -486,15 +518,35 @@ internal static class OfflineCombat
         File.Move(temporary, path, true);
     }
 
-    private static void WriteResult(string output, string root, CombatPilotResult result)
+    private static void WriteResult(string output, string root, CombatPilotResult result,
+        OfflineSearchBudget budget)
     {
         string directory = Path.Combine(output, root);
         Directory.CreateDirectory(directory);
+        // Keep the production result shape at the top level and add the offline budget as one
+        // extra property; readers that deserialize CombatPilotResult simply ignore it.
+        JsonObject json = JsonSerializer.SerializeToNode(result, OfflineJson.Options)!.AsObject();
+        json["searchBudget"] = JsonSerializer.SerializeToNode(budget, OfflineJson.Options);
         string path = Path.Combine(directory, "full-combat.json");
         string temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(result, OfflineJson.Options));
+        File.WriteAllText(temporary, json.ToJsonString(OfflineJson.Options));
         File.Move(temporary, path, true);
     }
+
+    private static OfflineSearchBudget BudgetDescription(OfflineCombatSettings settings)
+        => settings.WallClock
+            ? new OfflineSearchBudget(
+                Mode: "wall-clock",
+                WallClock: true,
+                SearchThreads: settings.SearchThreads,
+                MillisecondsPerWidth: settings.Profile.MillisecondsPerWidth,
+                MaxExpandedNodesPerWidth: null)
+            : new OfflineSearchBudget(
+                Mode: "reproducible",
+                WallClock: false,
+                SearchThreads: 1,
+                MillisecondsPerWidth: null,
+                MaxExpandedNodesPerWidth: ReproducibleNodesPerWidth);
 
     private static void WriteFailure(string output, string root, string error)
     {
@@ -567,7 +619,8 @@ internal static class OfflineCombat
         int WarmupNodes,
         int SearchThreads,
         int WorkspaceBufferBytes,
-        Battle opening) : ICombatPilotHost
+        Battle opening,
+        bool wallClock) : ICombatPilotHost
     {
         private readonly List<string> _potionsUsed = [];
         private bool _warmedUp;
@@ -680,11 +733,15 @@ internal static class OfflineCombat
             SearchPlan plan = profile.ToSearchPlan(MemoryBudgetBytes, combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Boss,
             combat.Encounter?.RoomType == MegaCrit.Sts2.Core.Rooms.RoomType.Elite, combat.RunState.CurrentActIndex);
             SearchStorage storage = new();
+            // A constant coordinator clock keeps member and validation deadlines from firing in
+            // reproducible mode. RunMember additionally removes the soft-time option and replaces
+            // it with the fixed per-width node cap.
+            Func<long>? coordinatorClock = wallClock ? null : static () => 0L;
             CombatSearchResult outcome;
             try
             {
-                outcome = CombatSearchCoordinator.RunAsync(new(searchCase, plan), storage, RunMember, token)
-                    .AsTask().GetAwaiter().GetResult();
+                outcome = CombatSearchCoordinator.RunAsync(new(searchCase, plan), storage, RunMember,
+                    token, coordinatorClock).AsTask().GetAwaiter().GetResult();
             }
             catch (OperationCanceledException)
             {
@@ -799,8 +856,26 @@ internal static class OfflineCombat
             BeamResult beam;
             try
             {
+                BeamOptions options = member.Options;
+                if (!wallClock)
+                {
+                    options = options with
+                    {
+                        MaxExpandedNodes = checked(options.BeamWidth * ReproducibleNodesPerWidth),
+                        // Keep production's zero-damage-stop and cancellation semantics; only the
+                        // budget source changes from the soft-time deadline to the node cap.
+                        UnlimitedNodes = true,
+                        NodeBudgetActive = true,
+                        SoftTimeBudget = TimeSpan.MaxValue,
+                        DeadlineExpired = null,
+                        SearchThreads = 1,
+                        Pacer = null,
+                        Trace = null,
+                        Progress = null,
+                    };
+                }
                 Task<BeamResult> solve = Task.Run(() =>
-                    new BeamSolver(member.Rules, member.Options)
+                    new BeamSolver(member.Rules, options)
                         .Solve(member.Battles, storage, token));
                 while (!solve.IsCompleted)
                 {

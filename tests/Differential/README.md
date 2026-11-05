@@ -84,9 +84,16 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --co
   --out .local/offline-combat/default
 dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --root quality-DEFECT-000 \
   --search-tier Medium --out .local/offline-combat/one
+# 计时研究：恢复生产墙钟截止（结果会随机器负载变化）
+dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --root quality-DEFECT-000 \
+  --wall-clock --out .local/offline-combat/one-wall
 ```
 
 不启动 Godot，用与 Mod 相同的 `CombatPilot` 在内核里打完一个根。每根写 `<out>/<root>/full-combat.json`，父进程写 `<out>/summary.json`。`--search-tier` 默认 `Medium`；`--memory-budget-mb` 或 `--memory-budget-bytes` 覆盖搜索内存预算（默认按 16 GiB 机器的 15% 计）。实验结果写进 `--out` 指定的本地目录，不提交。
+
+默认成员预算是可复现的固定节点上限：每个成员最多展开 `宽度 × 512` 个节点，协调器的成员截止和校验截止读一个不前进的时钟，因此搜索不看墙钟，两个并发进程在同一台满载机器上也得到相同的展开数和路线；成员内部固定单线程，`--search-threads` 只能为 1。`--wall-clock` 恢复生产计时（每宽度 50 ms 的软时间和墙钟截止），只用于计时研究，该模式可用 `--search-threads N`（默认 1）。`summary.json` 和每局 `full-combat.json` 的 `searchBudget` 记录本次预算：可复现模式为 `mode=reproducible`、`maxExpandedNodesPerWidth=512`、`searchThreads=1`，墙钟模式为 `mode=wall-clock`、`millisecondsPerWidth=50`。
+
+节点上限按 Medium 墙钟基线标定：整场加权展开速度约为 11.3 节点/ms，50 ms/宽度约合 565 节点/宽度；取 512 后，基线上所有在墙钟截止前自然结束的成员都低于该上限，因此只有原先按时间停下的成员会改在节点上限停下。固定上限是可跨机器比较的确定性近似，不声明与任意机器上的生产计时逐局相同。
 
 `--requests-file <file>` 直接运行 sts2-sim 导出的 `OfflineRequest` JSON，不走质量语料的目录/spec 查找。文件每行是 `<request.json>` 或 `<结果目录名>=<request.json>`；相对路径按列表文件所在目录解析。名称必须唯一、是合法目录名，默认取文件名（不含扩展名）。父进程为每个请求启动一个子进程，`--jobs` 控制并发；每行的名称就是 `<out>/<名称>/full-combat.json` 的目录名。单个请求也可以只给 `--root <名称>`，但必须同时给同一份列表。
 

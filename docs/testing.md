@@ -312,9 +312,13 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 
 ### 7.1 离线整场自动战斗
 
-离线工具从质量语料导入根，用与 Mod 相同的组合协调器和请求级时间、内存预算，在内核里执行搜索出的路线，用于质量评估。每根一个子进程，`--jobs` 控制并发，`--search-threads N` 控制每个成员内部的展开线程数（默认 1）；`--workspace-buffer-bytes N` 和 `--workspace-stats` 与 Golden 验证工具含义相同。
+离线工具从质量语料导入根，用与 Mod 相同的组合协调器、内存预算和成员预算，在内核里执行搜索出的路线，用于质量评估。每根一个子进程，`--jobs` 控制并发；成员预算默认是可复现的固定节点上限：每个成员最多展开 `宽度 × 512` 个节点，协调器的成员截止和路线校验截止都读取一个不前进的时钟，因此搜索不看墙钟，机器负载不影响展开数和选中的路线。此时成员内部固定单线程，`--search-threads` 只能为 1。
 
-每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值）；父进程的 `summary.json` 汇总档位、四种宽度、时间和内存预算。墙钟控制的成员在不同机器上可能截断在不同位置，不能当确定性的回归来比较。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
+`--wall-clock` 恢复生产计时（每宽度 50 ms 的软时间预算和墙钟截止），只用于计时研究；该模式下 `--search-threads N` 控制每个成员内部的展开线程数（默认 1），结果可能随机器负载改变。`--workspace-buffer-bytes N` 和 `--workspace-stats` 与 Golden 验证工具含义相同。
+
+每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值）；父进程的 `summary.json` 汇总档位、四种宽度、成员预算和内存预算。两个文件的 `searchBudget` 都记录本次使用的模式：可复现模式是 `mode=reproducible`、`maxExpandedNodesPerWidth=512`、`searchThreads=1`，墙钟模式是 `mode=wall-clock`、`millisecondsPerWidth=50`。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
+
+节点上限按 Medium 墙钟基线标定：整场的加权展开速度约为 11.3 节点/ms，50 ms/宽度约合 565 节点/宽度；取 512 后，基线上所有在墙钟截止前自然结束的成员都低于该上限，因此只有原先按时间停下的成员会改在节点上限停下。固定上限是跨机器可比较的确定性近似，不声明与任意机器上的生产计时逐局相同。
 
 `--requests-file <file>` 让同一个离线整场入口直接读 sts2-sim 导出的请求文件（`OfflineRequest` JSON，不经质量语料目录或 spec 查找）。列表每行是 `<request.json>` 或 `<结果目录名>=<request.json>`；名称必须唯一，默认取文件名，相对路径按列表文件目录解析。父进程为每行启动独立子进程，`--jobs` 控制并发，`--root <名称>` 可在同一列表里只选一行。列表格式和其余离线整场参数见 [差分宿主](../tests/Differential/README.md#离线整场自动战斗)。
 

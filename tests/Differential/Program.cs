@@ -83,6 +83,7 @@ internal static class Program
         string? setupEnumerateRoot = null;
         int setupTurn = 1;
         bool workspaceStats = false;
+        bool wallClock = false;
         string? captureD2 = null;
         int? brightestFlameMaxHpLossLimit = null;
         int jobs = 1;
@@ -170,6 +171,9 @@ internal static class Program
                 case "--workspace-stats":
                     workspaceStats = true;
                     break;
+                case "--wall-clock":
+                    wallClock = true;
+                    break;
                 case "--capture-d2" when index + 1 < args.Length:
                     captureD2 = args[++index];
                     break;
@@ -252,6 +256,11 @@ internal static class Program
                 Console.Error.WriteLine("--brightest-flame-max-hp-loss-limit 必须在 0..1000。");
                 return 2;
             }
+            if (wallClock && captureD2 != null)
+            {
+                Console.Error.WriteLine("--capture-d2 固定使用回归节点预算，不能与 --wall-clock 同时使用。");
+                return 2;
+            }
             if (brightestFlameMaxHpLossLimit != null && captureD2 == null)
             {
                 Console.Error.WriteLine("--brightest-flame-max-hp-loss-limit 只能与 --capture-d2 一起使用。");
@@ -260,7 +269,12 @@ internal static class Program
             return RunOfflineCombat(data, corpora, output, searchTier, memoryBudgetMb,
                 memoryBudgetBytes, searchThreads, workspaceBufferBytes, workspaceStats,
                 fullCombat, jobs, root, liveRootsFile, requestsFile, captureD2,
-                brightestFlameMaxHpLossLimit);
+                brightestFlameMaxHpLossLimit, wallClock);
+        }
+        if (wallClock)
+        {
+            Console.Error.WriteLine("--wall-clock 只能与 --offline-combat 一起使用。");
+            return 2;
         }
         if (captureD2 != null || brightestFlameMaxHpLossLimit != null)
         {
@@ -952,7 +966,7 @@ internal static class Program
         string? searchTier, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
         int searchThreads, int workspaceBufferBytes, bool workspaceStats, bool fullCombat,
         int jobs, string? root, string? rootsFile, string? requestsFile, string? captureD2,
-        int? brightestFlameMaxHpLossLimit)
+        int? brightestFlameMaxHpLossLimit, bool wallClock)
     {
         if (fullCombat)
         {
@@ -978,6 +992,11 @@ internal static class Program
         if (searchThreads is < 1 or > 8)
         {
             Console.Error.WriteLine("--search-threads 必须在 1 到 8 之间。");
+            return 2;
+        }
+        if (!wallClock && searchThreads != 1)
+        {
+            Console.Error.WriteLine("可复现预算要求 --search-threads 1；计时研究请加 --wall-clock。");
             return 2;
         }
         if (workspaceBufferBytes < 0)
@@ -1009,6 +1028,7 @@ internal static class Program
             RequestsFile = requestsFile,
             CaptureD2 = captureD2,
             BrightestFlameMaxHpLossLimit = brightestFlameMaxHpLossLimit,
+            WallClock = wallClock,
         };
         return OfflineCombat.Run(settings, root, rootsFile, jobs);
     }
@@ -1136,7 +1156,7 @@ internal static class Program
               dotnet Differential.dll --offline-combat [--root <name> | --roots-file <file> | --corpora <dir>]
                   [--requests-file <file>]
                   [--search-tier Low|Medium|High|ExtraHigh] [--search-threads 1..8]
-                  [--workspace-buffer-bytes N] [--workspace-stats]
+                  [--workspace-buffer-bytes N] [--workspace-stats] [--wall-clock]
                   [--jobs 1..8] [--out <dir>]
                   [--memory-budget-mb N]
               dotnet Differential.dll --offline-combat --capture-d2 <dir>

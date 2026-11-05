@@ -155,11 +155,14 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 普通的 `manifest` 命令保留已有的 `provenance.refreeze` 和 `provenance.d1Rerecord`，不会把它们丢掉。
 
+`provenance.d2` 保留最初 M0 捕获的提交；后续用 `Differential --capture-d2` 补录的成员请求及其生产根、设置记录在 [差分宿主](../tests/Differential/README.md#补录-d2-成员请求)，结果集由 `provenance.refreeze` 的 SHA-256 标识。
+
 两套语义来源要分清：数据的语义参照 CombatSolver `a62f1850`，但快照本身由 M0 宿主在 `752170…` 捕获，两者不是同一个提交。模拟回归的 `config.br` 与 `golden.br` 来自同一次确定性运行。
 
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
-当前 D1 为 418 个根、5,063 个 K1、15,296 条游走、482,603 个游走状态、469,760 个转移；D2 为 1,982 个请求、1,982 个期望结果。RL1 跟进 2 只重录了 13 个旧的固定前缀根（`dx4-dread-baseline`、`dx5-pen-nib-sly`、`dx6-dampen-echoing`、`hs-chains-turn-reset`、`hs3-stoke-identity`、`qf-fisticuffs-replay`、`qf-misery-roster`、`qf-negative-pulse-roster`、`qf-nightmare-detached`、`qf3-seeking-edge-order`、`qf5-anger-dampen-clone`、`qt2-art-of-war-endturn`、`qt2-kusarigama-endturn`）；其余 D1 内容不变，D2 的 1,982 个期望结果逐字节不变。
+当前 D1 为 403 个根、4,893 个 K1、14,576 条游走、468,101 个游走状态、455,978 个转移；D2 为 2,021 个请求、2,021 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求，原有 1,982 个请求和期望结果逐字节不变。RL1 跟进 2 的 13 个旧前缀根重录（`dx4-dread-baseline`、`dx5-pen-nib-sly`、`dx6-dampen-echoing`、`hs-chains-turn-reset`、`hs3-stoke-identity`、`qf-fisticuffs-replay`、`qf-misery-roster`、`qf-negative-pulse-roster`、`qf-nightmare-detached`、`qf3-seeking-edge-order`、`qf5-anger-dampen-clone`、`qt2-art-of-war-endturn`、`qt2-kusarigama-endturn`）仍是当前 `provenance.d1Rerecord` 的来源记录。
+
 ## 9. 重录与重冻会改什么
 
 两个工具都先复制整棵数据目录，在副本上修改；源目录只读，目标目录必须为空，两者不能互相包含。命令见 [测试与验证](testing.md#5-更新快照)。

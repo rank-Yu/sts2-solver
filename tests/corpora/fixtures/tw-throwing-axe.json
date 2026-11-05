@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FLASH-TW-THROWING-AXE",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "FLASHTWAXE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "relics": [
+    {
+      "relicId": "THROWING_AXE",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120
+}

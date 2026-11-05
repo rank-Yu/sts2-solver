@@ -7,13 +7,15 @@
 | `k0` | `Rules` 编码合同、格式版本、五个魔数与 `Battle` 尺寸 |
 | `verify <data>` | 先核对 manifest，再跑模拟回归和搜索回归；`--only simulation|search`、`--jobs N`、`--shard i/n` |
 | `compare <data>` | 只报告搜索结果的变好、变差，不判失败 |
-| `refreeze <src> <dst>` | 在副本上重算搜索回归的期望结果并重写 manifest |
+| `refreeze <src> <dst>` | 在副本上重算搜索回归的期望结果并重写 manifest；`--add-requests` 合并 `Differential --capture-d2` 的新请求 |
 | `rerecord <src> <dst>` | 在副本上重录指定的模拟回归根；`--roots`、`--reason` 必填，可加 `--recapture-root <dir>` |
 | `manifest <data>` | 确定性地重写 `manifest.json` |
 
 ```bash
 dotnet run --project tests/Golden -c Release -- k0
 dotnet run --project tests/Golden -c Release -- verify tests/Golden/data
+dotnet run --project tests/Golden -c Release --no-build -- refreeze tests/Golden/data .local/golden-refreeze \
+  --jobs 8 --add-requests .local/d2-capture --reason "补录原因"
 ```
 
 各子命令的用法、输出和适用条件见 [测试与验证](../../docs/testing.md#4-模拟回归与搜索回归)；数据格式、来源与更新规则见 [冻结快照](../../docs/golden-data.md)。

@@ -29,7 +29,7 @@
 | `import_capacity` / `import_failure` | `k3-basic-potions` | 清空跑局牌组后注入 641 张 `STRIKE_IRONCLAD`，超过 `Limits.Cards` |
 | `search_failures-t1` / `manual_switch_at_turn_start` / `auto_turn_start_once` | `k3-basic-potions` | 单搜索线程；前两者切到手动，后者验证同一回合不重复自动搜索 |
 
-整场组用五个角色的 `quality-<角色>-001`，面板压力组用 `quality-DEFECT-000` 和 `quality-CLONE-289-AXEBOTS`。整场请求都是中档、全自动、默认搜索线程；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
+整场组用五个角色的 `quality-<角色>-001`，面板压力组用 `quality-DEFECT-000` 和 `clone-289-axebots`。整场请求都是中档、全自动、默认搜索线程；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
 
 ## 运行
 

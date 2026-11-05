@@ -82,6 +82,8 @@ internal static class Program
         string? setupEnumerateRoot = null;
         int setupTurn = 1;
         bool workspaceStats = false;
+        string? captureD2 = null;
+        int? brightestFlameMaxHpLossLimit = null;
         int jobs = 1;
 
         for (int index = 0; index < args.Length; index++)
@@ -167,6 +169,12 @@ internal static class Program
                 case "--workspace-stats":
                     workspaceStats = true;
                     break;
+                case "--capture-d2" when index + 1 < args.Length:
+                    captureD2 = args[++index];
+                    break;
+                case "--brightest-flame-max-hp-loss-limit" when index + 1 < args.Length:
+                    brightestFlameMaxHpLossLimit = int.Parse(args[++index]);
+                    break;
                 case "--memory-budget-mb" when index + 1 < args.Length:
                     memoryBudgetMb = int.Parse(args[++index]);
                     break;
@@ -220,9 +228,29 @@ internal static class Program
                 Console.Error.WriteLine("--offline-combat 不能与其它对照/发射模式同时使用。");
                 return 2;
             }
+            if (captureD2 != null && root == null && liveRootsFile == null)
+            {
+                Console.Error.WriteLine("--capture-d2 需要 --root <name> 或 --roots-file <file>。");
+                return 2;
+            }
+            if (brightestFlameMaxHpLossLimit is < 0 or > 1000)
+            {
+                Console.Error.WriteLine("--brightest-flame-max-hp-loss-limit 必须在 0..1000。");
+                return 2;
+            }
+            if (brightestFlameMaxHpLossLimit != null && captureD2 == null)
+            {
+                Console.Error.WriteLine("--brightest-flame-max-hp-loss-limit 只能与 --capture-d2 一起使用。");
+                return 2;
+            }
             return RunOfflineCombat(data, corpora, output, searchTier, memoryBudgetMb,
                 memoryBudgetBytes, searchThreads, workspaceBufferBytes, workspaceStats,
-                fullCombat, jobs, root, liveRootsFile);
+                fullCombat, jobs, root, liveRootsFile, captureD2, brightestFlameMaxHpLossLimit);
+        }
+        if (captureD2 != null || brightestFlameMaxHpLossLimit != null)
+        {
+            Console.Error.WriteLine("--capture-d2/--brightest-flame-max-hp-loss-limit 只能与 --offline-combat 一起使用。");
+            return 2;
         }
         if (memoryBudgetMb != null || memoryBudgetBytes != null || searchThreads != 1)
         {
@@ -873,7 +901,8 @@ internal static class Program
     private static int RunOfflineCombat(string data, string corpora, string output,
         string? searchTier, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
         int searchThreads, int workspaceBufferBytes, bool workspaceStats, bool fullCombat,
-        int jobs, string? root, string? rootsFile)
+        int jobs, string? root, string? rootsFile, string? captureD2,
+        int? brightestFlameMaxHpLossLimit)
     {
         if (fullCombat)
         {
@@ -925,7 +954,11 @@ internal static class Program
             Environment.GetEnvironmentVariable("STS2_SOLVER_OFFLINE_WARMUP_NODES"), out int warmup)
             ? Math.Max(0, warmup) : 50_000;
         OfflineCombatSettings settings = new(data, corpora, output, tier, profile,
-            memoryBudgetBytes, warmupNodes, searchThreads, workspaceBufferBytes, workspaceStats);
+            memoryBudgetBytes, warmupNodes, searchThreads, workspaceBufferBytes, workspaceStats)
+        {
+            CaptureD2 = captureD2,
+            BrightestFlameMaxHpLossLimit = brightestFlameMaxHpLossLimit,
+        };
         return OfflineCombat.Run(settings, root, rootsFile, jobs);
     }
 
@@ -1054,6 +1087,9 @@ internal static class Program
                   [--workspace-buffer-bytes N] [--workspace-stats]
                   [--jobs 1..8] [--out <dir>]
                   [--memory-budget-mb N]
+              dotnet Differential.dll --offline-combat --capture-d2 <dir>
+                  (--root <name> | --roots-file <file>) [--brightest-flame-max-hp-loss-limit 0..1000]
+                  [--search-tier Low|Medium|High|ExtraHigh] [--jobs 1..8]
             """);
     }
 }

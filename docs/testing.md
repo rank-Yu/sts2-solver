@@ -201,6 +201,8 @@ dotnet run --project tests/Golden -c Release --no-build -- \
 
 `refreeze` 先拒绝源和目标互相包含或目标非空，再复制整棵数据目录，用当前代码重解全部搜索回归请求，最后重写 manifest。输出 `REFREEZE_OK`（源、目标、请求数和结果哈希）与 `MANIFEST_WRITTEN`。经用户同意后，再用副本替换仓库数据。
 
+补录新的生产成员请求时，先用 [差分宿主](../tests/Differential/README.md#补录-d2-成员请求) 的 `--capture-d2` 写出请求，再给 `refreeze` 加 `--add-requests <捕获目录>`。它按 `capture.json` 累计捕获调用数，按编码后的 SHA-256 去重新请求、补 `rules-index`，其余请求和期望结果不改写。
+
 EH1 当前采用**完整版**：`CardDef` / `PowerDef.TryGetTurnEndSelfDamage` 声明的所有回合末/敌方回合内自伤都进入束内评分，投影顺序见 [评分要点](combat-ai.md#6-评分要点) 的“回合末自伤”小节；`ThreatProjection.BlockableDamage` 供 IP1 回合内循环保护读取。搜索回归的 `TURN_END_SELF_DAMAGE_CONTRACTS` 同时核对声明与真实单步结束回合的掉血。D2 的 `refreeze` 使用同一套完整版评分，WITHER 不再有独立评分路径。
 
 ### 5.3 `rerecord`：重录模拟回归的根

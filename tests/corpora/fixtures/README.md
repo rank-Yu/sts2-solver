@@ -1,6 +1,12 @@
 # 冻结 fixture 输入
 
-本目录是 `tests/Golden/data/d1` 中 290 个根的建局输入，供差分宿主（`tests/Differential`）重建录制时的原生战斗。
+本目录是 `tests/Golden/data/d1` 冻结根以及长期差分、场景回归的建局输入，供差分宿主（`tests/Differential`）重建录制时的原生战斗。
+
+## 不属于 D1 冻结根的输入
+
+- `clone-289-axebots.json`：原质量语料里的大牌组回归输入，33 张原牌组加 256 张升级版 `NEUTRALIZE`（带 `CLONE` 附魔）的 289 张牌组，固定第三幕普通战斗 Axebots，用于 640 容量与 `IndexSelection` 的长期实机回归；不进入质量评测。
+- `tw-throwing-axe.json`：最小 Ironclad 开局，只注入未使用的 `THROWING_AXE`，用于覆盖生产请求的 `PreserveReplayAllocatorOpening`。
+- `tw-queen-setup-stages.json`：1 点生命的 Queen 开局并带一瓶药水；第一遍搜索以失败路线结束后，生产协调器会走到用药阶段，覆盖 `Setup`、`ContinuousSetup` 与 `QueenSearchPolicy` 成员。
 
 ## 来源
 

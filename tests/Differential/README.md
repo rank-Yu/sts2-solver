@@ -76,7 +76,7 @@ dotnet artifacts/bin/Differential/release/Differential.dll --search-compare .loc
 
 ## 离线整场自动战斗
 
-默认质量集合由 `tests/corpora/quality/default-roots.txt` 指定；`--list-quality-roots` 只列出名单，不启动战斗。
+质量目录本身就是集合：`--list-quality-roots` 枚举 `tests/corpora/quality/` 下带 `request.json` 的子目录，共 108 个，不启动战斗。`--offline-combat` 不写 `--root`/`--roots-file` 时使用同一组根；自定义 `--corpora` 目录同样按其中的 `request.json` 枚举。
 
 ```bash
 dotnet artifacts/bin/Differential/release/Differential.dll --list-quality-roots
@@ -87,6 +87,43 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --ro
 ```
 
 不启动 Godot，用与 Mod 相同的 `CombatPilot` 在内核里打完一个根。每根写 `<out>/<root>/full-combat.json`，父进程写 `<out>/summary.json`。`--search-tier` 默认 `Medium`；`--memory-budget-mb` 或 `--memory-budget-bytes` 覆盖搜索内存预算（默认按 16 GiB 机器的 15% 计）。实验结果写进 `--out` 指定的本地目录，不提交。
+
+## 补录 D2 成员请求
+
+`--capture-d2 <目录>` 在给定根上建出生产开局，只跑第 1 回合的一次生产搜索，把 `CombatSearchCoordinator` 实际发出的每个成员 `SearchCase` 按当前 `SREQ` 编码写成 `<目录>/<root>/requests/<sha256>.request.br`，同时写 `<目录>/<root>/capture.json` 和汇总 `<目录>/capture-summary.json`。成员搜索使用 D2 回归预算（去掉墙钟、固定节点/内存上限），所以同一输入重复录入得到同样的请求；协调器的组合、药水阶段、女王与准备补搜成员仍走生产计划。
+
+```bash
+# 单个根
+dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
+  --capture-d2 .local/d2-capture --root tw-thieving-hopper --search-tier Medium
+
+# 多个根；每个根一个子进程，输出目录可复用，capture-summary.json 汇总已有根
+dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
+  --capture-d2 .local/d2-capture --roots-file .local/d2-capture-roots.txt --jobs 1
+```
+
+不同根需要不同生产设置时分次运行，后一次不会删除前一次的根目录。入口只处理第 1 回合的普通 Play 根；开局就带回合准备选择的根会显式失败。当前补录使用的根和设置：
+
+| 分支 | 根 | 设置来源 |
+| --- | --- | --- |
+| `TheftPolicy.PreserveResources` | `tw-thieving-hopper`（`THIEVING_HOPPER_WEAK`） | 根上自动判定：`SearchPolicyCapture.ResolveTheftPolicy` 对 ThievingHopper / GremlinMerc 返回 `PreserveResources`；生产控制器 `CombatSessionController.BeginCombat` 对 `IsTheftApplicable` 的根也初始化为 `PreserveResources`。 |
+| `PreserveReplayAllocatorOpening` | `tw-throwing-axe` | 根上有未使用的 `THROWING_AXE`；`SearchRequestCompiler.HasUnusedCardReplayAllocator` 为真时写入。 |
+| `BrightestFlameMaxHpLossLimit` | `ec-c-ancient` | `--brightest-flame-max-hp-loss-limit 2` 映射生产设置 `SolverSettingsData.Search.BrightestFlameMaxHpLossLimit`（默认 `null`，范围 0..1000）。 |
+| `SearchEvaluation.Setup` | `a3-queen-boss`、`tw-queen-setup-stages` | 生产计划对首领/第三幕精英打开 `SetupStrategies`；两个根都是 Queen 首领开局。 |
+| `SearchEvaluation.ContinuousSetup` | `tw-queen-setup-stages` | 只在一个用药阶段加入；该根带一瓶药水，并用 1 点生命让第一遍搜索以失败路线结束后进入用药阶段。 |
+| `QueenSearchPolicy` | `a3-queen-boss`、`tw-queen-setup-stages` | `QueenSearchPolicy.Capture` 要求第 1 回合、`QUEEN` + `TORCH_HEAD_AMALGAM` 两个敌人；两个根都满足。 |
+
+`tw-throwing-axe` 和 `tw-queen-setup-stages` 是按现有 fixture 写法新增的最小开局；前者只注入未使用的投掷斧，后者只保留 1 点生命、一瓶 `FIRE_POTION` 与一张 `INFLAME`，让协调器完整走到三个用药阶段，搜索本身仍然很小。
+
+把捕获目录并入 D2 时，用 `Golden refreeze` 的 `--add-requests`：
+
+```bash
+dotnet run --project tests/Golden -c Release --no-build -- \
+  refreeze tests/Golden/data .local/golden-refreeze --jobs 8 \
+  --add-requests .local/d2-capture --reason "<补录原因>"
+```
+
+`--add-requests` 会按 `capture.json` 累计捕获调用数，把新请求按编码后的 SHA-256 去重写入 `d2/requests`，补上 `rules-index`，再重算全部期望结果并重写 manifest。已存在的请求和期望结果不改写；旧请求的期望结果逐字节不变。
 
 ## 原版逐动作与终局对照
 

@@ -1075,10 +1075,10 @@
       "separate": true
     },
     {
-      "id": "quality-CLONE-289-AXEBOTS",
+      "id": "clone-289-axebots",
       "scenario": null,
       "group": "panel-stress",
-      "fixture": "quality-CLONE-289-AXEBOTS",
+      "fixture": "clone-289-axebots",
       "request": {
         "controllerScenarioForTest": null,
         "fullCombatForTest": true,

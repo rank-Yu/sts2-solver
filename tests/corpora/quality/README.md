@@ -1,16 +1,15 @@
 # 质量语料
 
-本目录是整场搜索质量评测的输入，共 123 个：
+本目录是整场搜索质量评测的输入，共 108 个：
 
-- **120 个生成牌组**：五个角色各 24 个（`<角色>-000` … `<角色>-023`），每个子目录是一份 `spec.json` + `request.json`，`request.json` 的 `generatedScenarioPath` 指向本目录内的规格。
+- **105 个生成牌组**：五个角色各 21 个，每个子目录是一份 `spec.json` + `request.json`，`request.json` 的 `generatedScenarioPath` 指向本目录内的规格。
 - **3 个固定牌组**：两份女王（`SILENT-QUEEN-*`）和一份沙漏（`SILENT-AEONGLASS-CG7UX7V5XZS9`），每个子目录是 `request.json` + `expectations.json`。
-- **大牌组回归输入**：`CLONE-289-AXEBOTS` 是 33 张原牌组加 256 张升级版 `NEUTRALIZE`（带 `CLONE` 附魔）的 289 张牌组，固定第三幕普通战斗 Axebots，用于 640 容量与 `IndexSelection` 的长期实机回归；不进入默认 108 场名单。
 
-默认评测名单在 `default-roots.txt`，共 108 场：生成牌组去掉第三幕首领的 15 场（各角色的 017、020、023）后剩 105 场，再加 3 个固定牌组。去掉的 15 场仍保留输入，可以用 `--root` 单独跑，也供冻结快照的一致性检查使用。
+目录本身是评测名单：`--list-quality-roots` 和 `--offline-combat` 直接枚举本目录中带 `request.json` 的子目录，没有额外的默认名单文件。自定义语料目录同样按其中的 `request.json` 枚举。大牌组回归输入 `clone-289-axebots` 不在质量集内，放在 [`../fixtures/`](../fixtures/README.md)。
 
 ## 生成牌组
 
-- **编号规则**：序号 000–007 是第一幕，008–015 是第二幕，016–023 是第三幕；遭遇按序号 `i % 3` 依次取普通、精英、首领，所以每个角色普通、精英、首领各 8 场，合计各 40 场。
+- **编号规则**：序号 000–023 中只保留 000–016、018、019、021、022。删除的 017、020、023 原本是各角色的第三幕首领；每个角色现在是普通 8 场、精英 8 场、第三幕首领 5 场，合计 21 场。遭遇按序号 `i % 3` 依次取普通、精英、首领。
 - **生成口径**：生成器在 CombatSolver 仓库，固定提交的说明见 [FlashRegression README](https://github.com/Torch1230/CombatSolver/blob/a62f1850c8586e5951e222eecb0dd34231e76d8a/tools/search/FlashRegression/README.md#survey)。固定进阶 10，`includeStartingDeck`、`includeStartingRelics`、`includeAscendersBane` 为真；额外角色卡 `6 + i % 7` 张（升级 1 级），遗物 `2 + i % 4` 个，无色牌 `(i // 3 + 1) % 3` 张，药水 `(i // 3) % 3` 瓶（后两项不随遭遇种类同步变化）。生成多少收多少，不按 Sts2Solver 的准入规则筛选，没有重复规格。
 - **种子名不能改**：种子是 `FLASH-QUALITY-<角色>-<NNN>`。它是生成牌组的随机种子，换了名字就是另一批牌组。
 
@@ -30,6 +29,6 @@ dotnet artifacts/bin/Differential/release/Differential.dll --list-quality-roots
 dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --search-tier Medium --jobs 4 --out .local/quality
 ```
 
-默认读取 `default-roots.txt`，不要求新根先有冻结快照。也可以用 `--root quality-SILENT-QUEEN-CG7UX7V5XZS9` 或 `--roots-file` 显式指定集合，包括不在默认名单里的根。自定义语料目录没有名单时，按其中的 `request.json` 枚举。
+默认读取本目录，不要求新根先有冻结快照。也可以用 `--root quality-SILENT-QUEEN-CG7UX7V5XZS9` 或 `--roots-file` 显式指定集合。`--roots-file` 里的根名仍按 `quality-<目录名>` 解析。
 
 报告结果时，分别列出 105 个生成牌组和 3 个固定牌组，并注明总数 108。结果和实验记录保存在本地，不提交到本目录。

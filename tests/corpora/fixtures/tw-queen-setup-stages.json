@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "FLASH-TW-QUEEN-SETUP-STAGES",
+  "characterId": "IRONCLAD",
+  "encounterId": "QUEEN_BOSS",
+  "seed": "FLASHTWQD",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Boss",
+  "targetMapPointType": "Boss",
+  "initialPlayerMaxHp": 1,
+  "initialPlayerHp": 1,
+  "initialPlayerEnergy": 3,
+  "initialEnemyMaxHps": [
+    40,
+    150
+  ],
+  "initialEnemyCurrentHps": [
+    40,
+    150
+  ],
+  "timeoutSeconds": 120,
+  "potions": [
+    {
+      "potionId": "FIRE_POTION"
+    }
+  ],
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "INFLAME",
+      "pile": "Hand"
+    }
+  ]
+}

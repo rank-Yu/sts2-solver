@@ -28,6 +28,12 @@ internal sealed record OfflineCombatSettings(
     int WorkspaceBufferBytes,
     bool WorkspaceStats)
 {
+    /// <summary>Capture each first-turn production member request instead of running the combat.</summary>
+    internal string? CaptureD2 { get; init; }
+
+    /// <summary>Production search setting applied to captured requests; null leaves it unlimited.</summary>
+    internal int? BrightestFlameMaxHpLossLimit { get; init; }
+
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
 }
@@ -49,6 +55,8 @@ internal static class OfflineCombat
     public static int Run(OfflineCombatSettings settings, string? root, string? rootsFile, int jobs)
     {
         Directory.CreateDirectory(settings.Output);
+        if (settings.CaptureD2 != null)
+            return CaptureD2.Run(settings, root, rootsFile, jobs);
         if (root != null)
         {
             if (rootsFile != null)
@@ -140,19 +148,12 @@ internal static class OfflineCombat
         string quality = Path.Combine(corpora, "quality");
         if (!Directory.Exists(quality))
             return [];
-        string[] available = Directory.EnumerateDirectories(quality)
+        // The quality directory is the list: every child with a request is one root.
+        return Directory.EnumerateDirectories(quality)
             .Where(directory => File.Exists(Path.Combine(directory, "request.json")))
             .Select(directory => "quality-" + Path.GetFileName(directory))
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
-        string manifest = Path.Combine(quality, "default-roots.txt");
-        if (!File.Exists(manifest)) return available;
-        string[] selected = File.ReadAllLines(manifest).Select(line => line.Trim())
-            .Where(line => line.Length > 0 && !line.StartsWith('#')).ToArray();
-        if (selected.Distinct(StringComparer.Ordinal).Count() != selected.Length
-            || selected.Except(available, StringComparer.Ordinal).Any())
-            throw new InvalidDataException("默认质量评测名单包含重复或缺失的请求。");
-        return selected.OrderBy(name => name, StringComparer.Ordinal).ToArray();
     }
 
     private static int RunRoot(OfflineCombatSettings settings, string root)
@@ -249,7 +250,7 @@ internal static class OfflineCombat
         }
     }
 
-    private static (CombatState Combat, OfflineRequest Request) Build(
+    internal static (CombatState Combat, OfflineRequest Request) Build(
         OfflineCombatSettings settings, string root)
     {
         OfflineRequest request = Program.LoadRequest(settings.Data, settings.Corpora, root);

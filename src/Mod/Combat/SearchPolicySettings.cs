@@ -30,8 +30,6 @@ internal static class SolverSearchPolicy
     {
         PotionUseMode.Smart => SearchPotionMode.Smart,
         PotionUseMode.Disabled => SearchPotionMode.Disabled,
-        PotionUseMode.RequireAtLeastOne => throw new UnsupportedImportException(
-            ImportReason.UnsupportedPolicy, "药水全局策略 RequireAtLeastOne 尚未支持。"),
         _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
             $"未知药水默认策略：{mode}"),
     };

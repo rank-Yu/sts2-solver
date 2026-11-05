@@ -33,11 +33,17 @@ internal static class SearchCodec
     internal const uint ResultMagic = 0x53455253; // "SRES"
     internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
 
+    /// <summary>
+    /// The request layout version. It is independent of <see cref="Codec.FormatVersion"/>: removing
+    /// deleted option slots rewrites SREQ without changing BATL/RULE/GOLD/SRES.
+    /// </summary>
+    internal const ushort RequestFormatVersion = 6;
+
     internal static byte[] EncodeRequest(SearchCase search)
         => Codec.ToBytes(writer =>
         {
             writer.Write(RequestMagic);
-            writer.Write(Codec.FormatVersion);
+            writer.Write(RequestFormatVersion);
             byte[] rules = RulesCodec.Encode(search.Rules);
             writer.Write(rules.Length);
             writer.Write(rules);
@@ -57,7 +63,7 @@ internal static class SearchCodec
             if (reader.ReadUInt32() != RequestMagic)
                 throw new InvalidDataException("Sts2Solver 搜索请求魔数不符。");
             ushort version = reader.ReadUInt16();
-            if (version != Codec.FormatVersion)
+            if (version != RequestFormatVersion)
                 throw new InvalidDataException($"Sts2Solver 搜索请求版本 {version} 不受支持。");
             int rulesLength = Codec.ReadCount(reader, 1 << 28, "规则字节");
             byte[] rulesBytes = reader.ReadBytes(rulesLength);
@@ -86,7 +92,6 @@ internal static class SearchCodec
         writer.Write(options.MaxTurns);
         writer.Write(options.SoftTimeBudget.Ticks);
         writer.Write(options.InitialPlayerMaxHp);
-        writer.Write(0); // reserved: CandidateScanCount is removed; only zero is accepted.
         EncodePotionPolicy(writer, options.Potions);
         writer.Write(options.Scorer != null);
         if (options.Scorer != null)
@@ -94,38 +99,23 @@ internal static class SearchCodec
         writer.Write(options.Ordering != null);
         if (options.Ordering is { } ordering)
             EncodeOrdering(writer, ordering);
-        writer.Write(false); // reserved: HpTargetStop is removed; only null is accepted.
         writer.Write(options.Bound != null);
         if (options.Bound is { } bound)
             EncodeBoundConfig(writer, bound.ConfigForCodec);
-        writer.Write(false); // reserved: initial Incumbent is removed; only null is accepted.
         writer.Write((int)options.EffectivePotionPolicy);
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
             writer.Write((int)theft);
-        // reserved: ForcedPotionDirectives is removed; write three empty arrays and zero counters.
-        writer.Write(0);
-        writer.Write(0);
-        writer.Write(0);
-        writer.Write(0);
-        writer.Write(0);
-        writer.Write(false); // reserved: EnforceForcedPotionDirectives
-        writer.Write(0); // reserved: MinimumPotionUses is removed; only zero is accepted.
         writer.Write(options.InitialExplicitPotionUses);
         writer.Write(options.InitialAutomaticPotionUses);
         writer.Write(options.PotionFreeBaseline != null);
         if (options.PotionFreeBaseline is { } baseline)
             EncodePotionFreeBaseline(writer, baseline);
-        writer.Write(0); // reserved: PotionReplacementHpCredit is removed.
-        writer.Write(false); // reserved: SmartPotionEligibilityHpCeiling is removed.
-        writer.Write(0);
         writer.Write(options.AmbergrisPotionId);
         writer.Write(options.InitialAmbergrisUses);
         writer.Write(options.AuditPotionPolicy);
         writer.Write(options.InitialActionCount);
         writer.Write(options.Act3BossStrategy);
-        writer.Write(false); // reserved: PlanCommitment is removed; only null is accepted.
-        writer.Write(0); // reserved: InitialPlanPayoffCount is removed; only zero is accepted.
         writer.Write(0); // reserved: EarlyTurnScoutDepth is removed; only zero is accepted.
         writer.Write(false); // reserved: Novelty is removed; only null is accepted.
         writer.Write(options.InitialPlayerTurn);
@@ -174,9 +164,6 @@ internal static class SearchCodec
         int maxTurns = reader.ReadInt32();
         TimeSpan budget = TimeSpan.FromTicks(reader.ReadInt64());
         int initialHp = reader.ReadInt32();
-        int scan = reader.ReadInt32();
-        if (scan != 0)
-            throw new InvalidDataException("CandidateScanCount 已删除，只接受 0。");
         PotionPolicy potions = DecodePotionPolicy(reader);
         bool hasScorer = Codec.ReadBool(reader);
         Scorer? scorer = null;
@@ -184,53 +171,20 @@ internal static class SearchCodec
             scorer = new Scorer(DecodeScoreRules(reader, rules));
         bool hasOrdering = Codec.ReadBool(reader);
         RouteOrdering? ordering = hasOrdering ? DecodeOrdering(reader) : null;
-        bool hasStop = Codec.ReadBool(reader);
-        if (hasStop)
-            throw new InvalidDataException("HpTargetStop 已删除，只接受 null。");
         bool hasBound = Codec.ReadBool(reader);
         BoundFeatures? bound = hasBound ? new BoundFeatures(DecodeBoundConfig(reader)) : null;
-        if (Codec.ReadBool(reader))
-            throw new InvalidDataException("Incumbent 初始值已删除，只接受 null。");
         PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "有效药水政策");
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
-        int[] forcedSlots = Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水槽");
-        ushort[] forcedPotionIds = Codec.ReadUShortArray(reader, Limits.PotionSlots, "强制药水 id");
-        int[] forcedCosts = Codec.ReadIntArray(reader, Limits.PotionSlots, "强制药水代价");
-        int forcedUsedMask = reader.ReadInt32();
-        int forcedUsedCost = reader.ReadInt32();
-        bool enforceForced = Codec.ReadBool(reader);
-        if (forcedSlots.Length != 0 || forcedPotionIds.Length != 0 || forcedCosts.Length != 0
-            || forcedUsedMask != 0 || forcedUsedCost != 0)
-            throw new InvalidDataException("ForcedPotionDirectives 已删除，只接受空数组和 0。");
-        // Existing D2 requests may carry true with an empty directive list; it is behaviorally
-        // equivalent to false and is accepted, but it has no effect on the decoded request.
-        int minPotions = reader.ReadInt32();
-        if (minPotions != 0)
-            throw new InvalidDataException("MinimumPotionUses 已删除，只接受 0。");
         int initialExplicit = reader.ReadInt32();
         int initialAutomatic = reader.ReadInt32();
         bool hasBaseline = Codec.ReadBool(reader);
         PotionFreePolicyBaseline? baseline = hasBaseline ? DecodePotionFreeBaseline(reader) : null;
-        int replacementCredit = reader.ReadInt32();
-        if (replacementCredit != 0)
-            throw new InvalidDataException("PotionReplacementHpCredit 已删除，只接受 0。");
-        bool hasCeiling = Codec.ReadBool(reader);
-        if (hasCeiling)
-            throw new InvalidDataException("SmartPotionEligibilityHpCeiling 已删除，只接受 null。");
-        int ceilingValue = reader.ReadInt32();
-        if (ceilingValue != 0)
-            throw new InvalidDataException("SmartPotionEligibilityHpCeiling 已删除，只接受 0。");
         ushort ambergris = reader.ReadUInt16();
         int initialAmbergris = reader.ReadInt32();
         bool audit = Codec.ReadBool(reader);
         int initialAction = reader.ReadInt32();
         bool act3 = Codec.ReadBool(reader);
-        if (Codec.ReadBool(reader))
-            throw new InvalidDataException("PlanCommitment 已删除，只接受 null。");
-        int initialPayoff = reader.ReadInt32();
-        if (initialPayoff != 0)
-            throw new InvalidDataException("InitialPlanPayoffCount 已删除，只接受 0。");
         int scoutDepth = reader.ReadInt32();
         if (scoutDepth != 0)
             throw new InvalidDataException("EarlyTurnScoutDepth 已删除，只接受 0。");

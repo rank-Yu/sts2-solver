@@ -13,9 +13,6 @@ internal static class PotionUsePolicy
     public static int ExplicitUseCount(int potionCount, int automaticPotionCount)
         => potionCount - automaticPotionCount;
 
-    public static int AdditionalRequiredUseStrategicHpCost(int strategicHpCost)
-        => Math.Max(0, strategicHpCost - ScoreWeights.PotionMinimumHpSaved);
-
     /// <summary>
     /// The strategic cost a route's optional potion uses must justify once the expected post-combat reward is
     /// counted. See <see cref="PotionRewardOutlook"/>: the credit stands for the one reward a freed slot can
@@ -82,12 +79,6 @@ internal static class PotionUsePolicy
         => policy switch
         {
             PotionUseMode.Disabled => explicitPotionCount == 0,
-            PotionUseMode.RequireAtLeastOne => explicitPotionCount > 0
-                && (!anyRouteWon || potionRouteWon)
-                && (explicitPotionCount == 1
-                    || !potionFreeWon
-                    || HpSaved(potionFreeHpDeficit, potionRouteHpDeficit)
-                        >= AdditionalRequiredUseStrategicHpCost(strategicHpCost)),
             PotionUseMode.Smart => explicitPotionCount == 0
                 || potionRouteWon && !potionFreeWon
                 || HpSaved(potionFreeHpDeficit, potionRouteHpDeficit)

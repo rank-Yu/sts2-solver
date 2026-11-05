@@ -98,18 +98,12 @@ internal sealed partial class BeamSolver
             && features.PlayerHp >= _ordering.InitialPlayerHp
             && features.PlayerMaxHp >= _ordering.InitialPlayerMaxHp
             && key.OutstandingStolenResource == 0;
-        PotionUseMode mode = _effectivePotionPolicy switch
-        {
-            PotionUseMode.RequireAtLeastOne when forced.ForcedUseCount > 0 => PotionUseMode.Smart,
-            PotionUseMode.Disabled when optional > 0 => PotionUseMode.Smart,
-            _ => _effectivePotionPolicy,
-        };
+        PotionUseMode mode = _effectivePotionPolicy == PotionUseMode.Disabled && optional > 0
+            ? PotionUseMode.Smart
+            : _effectivePotionPolicy;
         key = key with
         {
             OptionalPotionCount = optional,
-            PolicyHpDeficit = mode == PotionUseMode.RequireAtLeastOne
-                ? key.StrategicHpDeficit + PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(optionalCost)
-                : key.StrategicHpDeficit,
         };
         return new Candidate(0, key, features.ExplicitPotionUseCount, features.PotionUseCount,
             features.ExplicitPotionStrategicCost, optionalCost, Math.Max(0, ambergris - forced.ForcedAmbergrisCount),

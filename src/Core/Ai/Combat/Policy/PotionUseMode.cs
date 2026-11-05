@@ -5,5 +5,4 @@ internal enum PotionUseMode
 {
     Disabled,
     Smart,
-    RequireAtLeastOne,
 }

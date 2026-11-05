@@ -12,9 +12,14 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "v4→v5：Battle 删除原引擎继承的 ShufflesCrossed 计数，头部 3,868→3,860 字节，"
-        + "显式填充 5→1 字节；D1 根状态按版本 4 投影删除该字段后重录，"
-        + "只改格式与状态身份，不读取该字段的评分、剪枝、合法动作或风险判断都不变。";
+        "请求 v5→v6：SREQ 删除 CandidateScanCount、HpTargetStop、initial Incumbent、"
+        + "ForcedPotionDirectives、EnforceForcedPotionDirectives、MinimumPotionUses、"
+        + "PotionReplacementHpCredit、SmartPotionEligibilityHpCeiling、PlanCommitment 和 "
+        + "InitialPlanPayoffCount 十个已删除字段的保留槽位；D1 config.br 与 D2 request.br "
+        + "重新编码，BATL/RULE/GOLD/SRES 与 D1 golden.br 不变。旧数据里的 285 个 "
+        + "RequireAtLeastOne 请求改为生产形态的 Smart 请求：策略、有效档和策略快照默认档"
+        + "改为 Smart，药水上限按生产成员改写（上限 1 且根前未用保留 1，其余改为不限），"
+        + "审计、免药基线和根前已用数不变。";
 
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly

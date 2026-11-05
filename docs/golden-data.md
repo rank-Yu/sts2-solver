@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- 当前所有编解码的格式版本都是 5（`Codec.FormatVersion`）。读取器只接受版本 5；版本 4 或其它版本按现有规则显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD`、`SRES` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用独立的请求版本 6（`SearchCodec.RequestFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -91,15 +91,15 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=5 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=6 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
-魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、目标停止、强制药水指令与用药计数、各类策略开关等。字段清单以代码为准。
+魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、固定前缀计数、各类策略开关等。字段清单以代码为准。
 
 - `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数规则、战后治疗、Boss 生命减免、`ContinuousThreatRanking`、`ContextualRanking`（只允许为 null）、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
 - 宿主回调 `Pacer`、`Trace` 只写存在位，解码后为 null，不影响路线选择。`ContextualRankingModel` 非 null 时，捕获显式抛 `NotSupportedException`，不会写出半份数据。
-- 回归请求不写墙钟截止；读取器把 `SoftTimeBudget` 改为 `TimeSpan.MaxValue`，用固定回归参数重解（见 6.3）。
+- 回归重解不采用请求里的墙钟截止和节点/内存预算；`SearchBudgetPolicy.ApplyRegression` 把它们覆盖成固定回归参数（见 6.3）。
 
 ### 6.2 `SRES`
 
@@ -120,21 +120,12 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ`/`SRES` 仍保留下列已删除功能的字节槽位，保证旧数据能读出并明确失败。编码写中性值；解码读到非中性值时抛 `InvalidDataException`。
+`SREQ`/`SRES` 仍保留下列已删除功能的字节槽位。编码写中性值；解码读到非中性值时抛 `InvalidDataException`。
 
 | 格式 | 字段 | 中性值 |
 | --- | --- | --- |
-| `SREQ` | `CandidateScanCount` | 0 |
-| `SREQ` | `HpTargetStop` | false（无负载） |
-| `SREQ` | `ForcedPotionDirectives` 三个数组、mask、used cost | 空数组、0、0 |
-| `SREQ` | `EnforceForcedPotionDirectives` | false；历史 `true + 空数组` 也接受，但不进入解码请求 |
-| `SREQ` | `PotionReplacementHpCredit` | 0 |
-| `SREQ` | `SmartPotionEligibilityHpCeiling` | false + 0 |
-| `SREQ` | `Novelty` | false（无负载） |
-| `SREQ` | `Incumbent` | null |
-| `SREQ` | `MinimumPotionUses` | 0 |
-| `SREQ` | `PlanCommitment` / `InitialPlanPayoffCount` | null / 0 |
 | `SREQ` | `EarlyTurnScoutDepth` | 0 |
+| `SREQ` | `Novelty` | false（无负载） |
 | `SREQ` | hooks 的 Progress/Poll 位 | 0；Pacer bit1、Trace bit8 保留 |
 | `SRES` | TopRoutes | 空列表 |
 | `SRES` | `SmartPotionPruned` | 0 |
@@ -234,4 +225,4 @@ refreeze = extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700
 
 ## 12. 旧版本
 
-读取器只接受版本 5。版本 4 的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`SRES`、`RULE` 为 5，`SREQ` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

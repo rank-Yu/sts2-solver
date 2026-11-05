@@ -72,7 +72,7 @@ internal sealed record BeamOptions(
     public int InitialAutomaticPotionUses { get; init; }
 
     /// <summary>
-    /// The audited potion-free baseline the existing final ordering compares an exact potion layer
+    /// The audited potion-free baseline the existing final ordering compares an audited potion route
     /// against; null means the evaluated candidates decide it. Only potion-audit requests set it.
     /// </summary>
     public PotionFreePolicyBaseline? PotionFreeBaseline { get; init; }
@@ -84,8 +84,8 @@ internal sealed record BeamOptions(
     public int InitialAmbergrisUses { get; init; }
 
     /// <summary>
-    /// Port the existing final ordering's potion policy filter and policy-deficit key. Set only for
-    /// the Smart potion audits; primary/refinement and clean continuations keep the prior route key.
+    /// Port the existing final ordering's potion policy filter. Set only for the potion audits;
+    /// primary/refinement and clean continuations keep the prior route key.
     /// </summary>
     public bool AuditPotionPolicy { get; init; }
 
@@ -976,7 +976,7 @@ internal sealed partial class BeamSolver
         if (_auditPotionPolicy)
         {
             // The existing final ordering evaluates every surviving boundary state next to the terminal
-            // routes; an exact layer must also see a potion-use frontier even when a (too-expensive)
+            // routes; an audited request must also see a potion-use frontier even when a (too-expensive)
             // victory already exists, so the boundary states are always collected here.
             for (int index = 0; index < turnFrontier.Count; index++)
             {
@@ -1142,20 +1142,13 @@ internal sealed partial class BeamSolver
         int optionalPotionStrategicCost = OptionalPotionStrategicCost(
             Math.Max(0, features.ExplicitPotionStrategicCost - forced.ForcedStrategicHpCost),
             optionalPotionCount);
-        PotionUseMode effectivePotionPolicy = _effectivePotionPolicy switch
-        {
-            PotionUseMode.RequireAtLeastOne when forced.ForcedUseCount > 0 => PotionUseMode.Smart,
-            PotionUseMode.Disabled when optionalPotionCount > 0 => PotionUseMode.Smart,
-            _ => _effectivePotionPolicy,
-        };
-        int policyHpDeficit = effectivePotionPolicy == PotionUseMode.RequireAtLeastOne
-            ? key.StrategicHpDeficit
-                + PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(optionalPotionStrategicCost)
-            : key.StrategicHpDeficit;
+        PotionUseMode effectivePotionPolicy = _effectivePotionPolicy == PotionUseMode.Disabled
+            && optionalPotionCount > 0
+                ? PotionUseMode.Smart
+                : _effectivePotionPolicy;
         RouteKey auditedKey = key with
         {
             OptionalPotionCount = optionalPotionCount,
-            PolicyHpDeficit = policyHpDeficit,
         };
         Candidate candidate = new(
             node,
@@ -1350,7 +1343,6 @@ internal sealed partial class BeamSolver
         int GrowthHpCredit,
         int GrowthRewardCount,
         int CombatEndedTurn,
-        int PolicyHpDeficit,
         int HealthResourceCost,
         int LongTermResourceValue,
         int AngerCopiesGenerated,
@@ -1387,16 +1379,6 @@ internal sealed partial class BeamSolver
             _ordering.BossHpRelief,
             features.DeathSaveHpRestored) - features.StrategicHpCredit;
         int optionalPotionCount = features.ExplicitPotionUseCount;
-        int optionalPotionStrategicCost = OptionalPotionStrategicCost(
-            features.ExplicitPotionStrategicCost, optionalPotionCount);
-        // The policy-deficit key is part of the audited final ordering only. Primary/refinement
-        // members keep their prior route key so the Sts2Solver adoption decisions they already passed do
-        // not move; the exact-layer requests port the key together with the potion filter.
-        int policyHpDeficit = _auditPotionPolicy
-            && _effectivePotionPolicy == PotionUseMode.RequireAtLeastOne
-                ? strategicHpDeficit
-                    + PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(optionalPotionStrategicCost)
-                : strategicHpDeficit;
         return new RouteKey(
             won,
             !features.PlayerDead && features.ProjectedPlayerHp > 0,
@@ -1406,7 +1388,6 @@ internal sealed partial class BeamSolver
             features.StrategyGoalHpCredit,
             features.StrategyGoalCount,
             won ? state.PlayerTurn : int.MaxValue,
-            policyHpDeficit,
             _ordering.InitialPlayerHp - features.PlayerHp + _ordering.InitialPlayerMaxHp - features.PlayerMaxHp,
             features.LongTermResourceValue,
             features.AngerCopiesGenerated,
@@ -1441,8 +1422,6 @@ internal sealed partial class BeamSolver
         comparison = right.GrowthRewardCount.CompareTo(left.GrowthRewardCount);
         if (comparison != 0) return comparison;
         comparison = left.CombatEndedTurn.CompareTo(right.CombatEndedTurn);
-        if (comparison != 0) return comparison;
-        comparison = left.PolicyHpDeficit.CompareTo(right.PolicyHpDeficit);
         if (comparison != 0) return comparison;
         comparison = left.HealthResourceCost.CompareTo(right.HealthResourceCost);
         if (comparison != 0) return comparison;
@@ -1792,9 +1771,10 @@ internal sealed partial class BeamSolver
         double pureRank = _scorer.BeamRankScore(battle, features, terminal, isEndTurn);
         // ExplicitPotionStrategicCost includes the fixed prefix and potions generated during the
         // search; the previous root-slot diff saw neither generated uses nor their identity costs.
-        // An audited exact layer must spend its potions, so the Sts2Solver-specific "spending is free"
-        // correction would rank the required line below states that have not spent them yet; the
-        // final ordering still charges the cost. Non-audit members keep the correction.
+        // An audited member is filtered and ranked by the final ordering's potion policy, so the
+        // Sts2Solver-specific "spending is free" correction would rank a potion route below states
+        // that have not spent the potion yet; the final ordering still charges the cost. Non-audit
+        // members keep the correction.
         double rank = pureRank - features.ExplicitPotionStrategicCost * ScoreWeights.Hp;
         return (features.Score, rank, pureRank, features.ExplicitPotionStrategicCost, features);
     }

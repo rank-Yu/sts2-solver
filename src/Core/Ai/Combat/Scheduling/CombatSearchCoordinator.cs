@@ -28,7 +28,6 @@ internal static class CombatSearchCoordinator
         SearchCase initial = request.Case;
         if (initial.Battles.Length == 0) throw new InvalidDataException("搜索根为空。");
         if (initial.Options.Scorer is not { } scorer) throw new InvalidDataException("缺少评分配置。");
-        bool requiredPlan = initial.Options.EffectivePotionPolicy == PotionUseMode.RequireAtLeastOne;
         // The existing search tries a forced-only baseline first when the Smart policy has forced
         // directives, then falls back to optional potions when that baseline has no usable route.
         bool forcedGradient = initial.Options.EffectivePotionPolicy == PotionUseMode.Smart
@@ -65,7 +64,7 @@ internal static class CombatSearchCoordinator
                     initial.Options.InitialExplicitPotionUses);
                 policy = policy with { Strategy = strategy };
                 policies[i] = policy;
-                bool potionPhase = !requiredPlan && item.Potions != SearchPotionLimit.None;
+                bool potionPhase = item.Potions != SearchPotionLimit.None;
                 if (potionPhase && !canUsePotions)
                     skips[i] = "no-allowed-potions";
                 else if (potionPhase && policy.MaximumUses is { } limit
@@ -146,9 +145,9 @@ internal static class CombatSearchCoordinator
             {
                 token.ThrowIfCancellationRequested();
                 SearchMember member = members[index];
-                bool potionPhase = !requiredPlan && member.Potions != SearchPotionLimit.None;
+                bool potionPhase = member.Potions != SearchPotionLimit.None;
                 bool stageStart = index == 0 || members[index - 1].Potions != member.Potions;
-                if (potionPhase && stageStart && !requiredPlan
+                if (potionPhase && stageStart
                     && PotionStageGate.CanSkip(initial.Battles, initial.Rules, passOptions, selected, free))
                 {
                     for (int j = index; j < members.Length && members[j].Potions == member.Potions; j++)
@@ -185,7 +184,7 @@ internal static class CombatSearchCoordinator
                     SecondRankBandWidth = member.Width,
                     AggressivePowerCommitment = member.Retention == SearchRetention.Power,
                     Potions = policies[index],
-                    AuditPotionPolicy = potionPhase || requiredPlan
+                    AuditPotionPolicy = potionPhase
                         || initial.Options.InitialExplicitPotionUses > 0,
                     PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
                     Progress = progress,

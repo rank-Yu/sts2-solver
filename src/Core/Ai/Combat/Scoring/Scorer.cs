@@ -1207,6 +1207,29 @@ internal sealed class Scorer
         return HasPower(battle, _score.IllusionPowerId, owner) ? enemy.Creature.MaxHp : 0;
     }
 
+    /// <summary>
+    /// HP that still has to be removed before the combat can end: every primary enemy's
+    /// <see cref="EffectiveEnemyHp"/>. Secondary enemies (MinionPower, including the reviving
+    /// EyeWithTeeth and Parafright) are excluded: the native <c>CombatManager.IsCombatEnding</c>
+    /// ends the combat when no primary enemy is alive, and <c>CreatureCmd.Kill</c> kills all
+    /// remaining all-secondary teammates when the last primary dies.
+    /// </summary>
+    internal int RemainingPrimaryEnemyHp(in Battle battle)
+    {
+        long total = 0;
+        for (int index = 0; index < battle.EnemyCount; index++)
+        {
+            ref readonly Enemy enemy = ref battle.Enemies[index];
+            if ((enemy.Flags & EnemyFlags.InCombat) == 0)
+                continue;
+            byte owner = Kernel.EnemyOwner((byte)index);
+            if (!Kernel.IsPrimaryEnemy(battle, owner))
+                continue;
+            total += Math.Max(0, EffectiveEnemyHp(battle, index));
+        }
+        return (int)Math.Min(int.MaxValue, total);
+    }
+
     private bool LeavesHandAtTurnEnd(in Battle battle, Pile pile, in Card card, CardScore score)
     {
         if (pile != Pile.Hand)

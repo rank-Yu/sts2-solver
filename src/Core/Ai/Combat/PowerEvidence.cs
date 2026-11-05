@@ -224,6 +224,16 @@ internal static class PowerEvidence
         public int PlayerPowerAmount(ushort powerId)
             => Math.Max(0, Kernel.GetAmount(_battle, Limits.PlayerOwner, powerId));
 
+        /// <summary>
+        /// HP that still has to be removed before the combat can end: current HP plus the HP of
+        /// Test Subject's later forms and Decimillipede's reattach heal, excluding secondary enemies
+        /// (MinionPower, including EyeWithTeeth and Parafright) because the last primary enemy's death
+        /// ends the combat and kills them. Enemy block and future summons are not included; healing
+        /// other than the Decimillipede reattach amount that a dead segment must be dealt again is
+        /// not projected.
+        /// </summary>
+        public int RemainingEnemyHp() => _scorer.RemainingPrimaryEnemyHp(_battle);
+
         /// <summary>Signed parent-to-child delta of the specific effect, not unrelated powers.</summary>
         public int PowerAmountGain(in Battle parent, ushort powerId)
         {
@@ -943,19 +953,19 @@ internal static class PowerEvidence
             "CORRUPTION" => PerTriggerResource(Math.Max(0, view.CountType(CardType.Skill)),
                 Math.Max(1, view.EnergyUnit())),
             "CRIMSON_MANTLE" => PerTurnBlock(gain, turns, incoming),
-            "CRUELTY" => PerTriggerDamage(gain, view.TotalAttackDamage() / 100),
+            "CRUELTY" => PerTriggerDamage(view, gain, view.TotalAttackDamage() / 100),
             "DARK_EMBRACE" => PerTriggerResource(gain * Math.Max(1, attacks), view.CountExhaustSources()),
             "DEMON_FORM" => GrowthFrontier(view, damagePerAttack: gain),
             "FEEL_NO_PAIN" => PerTriggerBlock(gain, view.CountExhaustSources(), incoming),
-            "HELLRAISER" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
-            "INFERNO" => PerTurnDamage(gain, turns, enemies),
+            "HELLRAISER" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
+            "INFERNO" => PerTurnDamage(view, gain, turns, enemies),
             "INFLAME" => GrowthFrontier(view, damagePerAttack: gain),
-            "JUGGERNAUT" => PerTriggerDamage(gain, Math.Max(1, view.CountVar("Block"))),
+            "JUGGERNAUT" => PerTriggerDamage(view, gain, Math.Max(1, view.CountVar("Block"))),
             "JUGGLING" => PerTurnResource(Math.Max(1, view.MaxDamage()), turns),
             "PYRE" => PerTurnResource(gain, turns),
             "RUPTURE" => GrowthFrontier(view, damagePerAttack: SaturatingMul(gain,
                 Math.Max(1, view.CountVar("SelfDamage") + view.CountVar("HpLoss") + view.CountVar("LoseHp")))),
-            "STAMPEDE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
+            "STAMPEDE" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
             "STONE_ARMOR" => PerTurnBlock(gain, turns, incoming),
             "UNMOVABLE" => PerTurnBlock(Math.Max(1, view.MaxBlock()), 1, incoming),
             "VICIOUS" => PerTriggerResource(gain * Math.Max(1, view.EnergyUnit()),
@@ -1466,17 +1476,17 @@ internal static class PowerEvidence
                 damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength)),
             "COOLANT" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
             "CREATIVE_AI" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "ECHO_FORM" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
-            "FERAL" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
-            "HAILSTORM" => PerTurnDamage(Math.Max(1, view.CountOrb("FROST")), turns, enemies),
+            "ECHO_FORM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "FERAL" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
+            "HAILSTORM" => PerTurnDamageUncapped(Math.Max(1, view.CountOrb("FROST")), turns, enemies),
             "ITERATION" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
-            "LOOP" => PerTurnDamage(Math.Max(1, (int)view.Battle.OrbCount), turns, 1),
+            "LOOP" => PerTurnDamageUncapped(Math.Max(1, (int)view.Battle.OrbCount), turns, 1),
             "MACHINE_LEARNING" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "SMOKESTACK" => PerTurnDamage(Math.Max(1, view.CountVar("Status")), turns, enemies),
+            "SMOKESTACK" => PerTurnDamageUncapped(Math.Max(1, view.CountVar("Status")), turns, enemies),
             "SPINNER" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "STORM" => PerTurnDamage(Math.Max(1, view.EnergyUnit()), turns, enemies),
+            "STORM" => PerTurnDamageUncapped(Math.Max(1, view.EnergyUnit()), turns, enemies),
             "SUBROUTINE" => PerTriggerResource(SaturatingMul(gain, view.EnergyUnit()), view.PlayablePowerSources()),
-            "THUNDER" => PerTurnDamage(Math.Max(1, view.CountOrb("LIGHTNING")), turns, enemies),
+            "THUNDER" => PerTurnDamageUncapped(Math.Max(1, view.CountOrb("LIGHTNING")), turns, enemies),
             "TRASH_TO_TREASURE" => PerTurnResource(Math.Max(1, view.CountVar("Status")), turns),
             "ARSENAL" => PerTurnResource(Math.Max(1, view.CountCardGeneration()), turns),
             "BLACK_HOLE" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
@@ -1484,7 +1494,7 @@ internal static class PowerEvidence
                 gain, view.StarSpendCapacity(), incoming),
             "FURNACE" => PerTurnResource(gain, turns),
             "GENESIS" => PerTurnResource(gain, turns),
-            "MONARCHS_GAZE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "MONARCHS_GAZE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "NEUTRON_AEGIS" => PerTurnBlock(gain, turns, incoming),
             "ORBIT" => PerTurnResource(Math.Max(1, view.ModifiedMaxEnergy()), turns),
             "PALE_BLUE_DOT" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
@@ -1492,40 +1502,40 @@ internal static class PowerEvidence
             "PILLAR_OF_CREATION" => PerTurnResource(Math.Max(1, view.CountCardGeneration()), turns),
             "SEEKING_EDGE" => PerTurnResource(view.EnergyUnit(), turns),
             "SPECTRUM_SHIFT" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "SWORD_SAGE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
+            "SWORD_SAGE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
             "THE_SEALED_THRONE" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
             "TYRANNY" => PerTurnResource(Math.Max(1, (int)view.HandCount), turns),
             "VOID_FORM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
             "CALCIFY" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
             "CALL_OF_THE_VOID" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "COUNTDOWN" => PerTurnDamage(gain, turns, enemies),
-            "DANSE_MACABRE" => PerTurnDamage(Math.Max(1, view.ModifiedMaxEnergy()), turns, enemies),
+            "COUNTDOWN" => PerTurnDamageUncapped(gain, turns, enemies),
+            "DANSE_MACABRE" => PerTurnDamageUncapped(Math.Max(1, view.ModifiedMaxEnergy()), turns, enemies),
             "DEMESNE" => PerTurnResource(Math.Max(1, view.ModifiedMaxEnergy()), turns),
-            "DEVOUR_LIFE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
+            "DEVOUR_LIFE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
             "FRIENDSHIP" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "HAUNT" => PerTurnDamage(Math.Max(1, view.CountSouls()), turns, enemies),
-            "LETHALITY" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
-            "NECRO_MASTERY" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
-            "NEUROSURGE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "HAUNT" => PerTurnDamageUncapped(Math.Max(1, view.CountSouls()), turns, enemies),
+            "LETHALITY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
+            "NECRO_MASTERY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
+            "NEUROSURGE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "PAGESTORM" => PerTurnResource(Math.Max(1, view.CountKeyword(Keywords.Ethereal)), turns),
-            "REAPER_FORM" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "REAPER_FORM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "SENTRY_MODE" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "SHROUD" => PerTurnDamage(gain, turns, enemies),
-            "SLEIGHT_OF_FLESH" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, 1),
-            "SPIRIT_OF_ASH" => PerTurnDamage(Math.Max(1, view.CountKeyword(Keywords.Ethereal)), turns, enemies),
+            "SHROUD" => PerTurnDamageUncapped(gain, turns, enemies),
+            "SLEIGHT_OF_FLESH" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, 1),
+            "SPIRIT_OF_ASH" => PerTurnDamageUncapped(Math.Max(1, view.CountKeyword(Keywords.Ethereal)), turns, enemies),
             "AUTOMATION" => PerTurnResource(Math.Max(1, view.ModifiedHandDraw()), turns),
-            "CALAMITY" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "CALAMITY" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "ENTROPY" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
             "ETERNAL_ARMOR" => PerTurnBlock(gain, turns, incoming),
             "FASTEN" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
-            "MAYHEM" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "MAYHEM" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "NOSTALGIA" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
-            "PANACHE" => PerTurnDamage(Math.Max(1, view.MaxDamage()), turns, enemies),
+            "PANACHE" => PerTurnDamageUncapped(Math.Max(1, view.MaxDamage()), turns, enemies),
             "PREP_TIME" => PerTurnBlock(Math.Max(1, view.MaxBlock()), turns, incoming),
             "PROWESS" => GrowthFrontier(view,
                 blockPerSkillBonus: view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity),
                 damagePerAttack: view.PowerAmountGain(parent, PowerEvidenceIds.Strength)),
-            "ROLLING_BOULDER" => PerTurnDamage(gain, turns, enemies),
+            "ROLLING_BOULDER" => PerTurnDamageUncapped(gain, turns, enemies),
             "STRATAGEM" => PerTurnResource(Math.Max(1, view.EnergyUnit()), turns),
             _ => 0,
         };
@@ -1568,7 +1578,7 @@ internal static class PowerEvidence
                 damagePerCard,
                 damagePerUnblockedAttackHit,
                 damagePerAttack));
-        return Math.Min(view.Features.EnemyHp, value);
+        return Math.Min(view.RemainingEnemyHp(), value);
     }
 
     private static int MarginalFrontierValue(IReadOnlyList<PowerTurnFrontierState> baseline,
@@ -1653,14 +1663,25 @@ internal static class PowerEvidence
         return options.ToArray();
     }
 
-    private static int PerTurnDamage(int damagePerTurn, int turns, int targets)
-        => Math.Min(int.MaxValue, SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets)));
+    private static int PerTurnDamage(scoped in View view, int damagePerTurn, int turns, int targets)
+        => Math.Min(view.RemainingEnemyHp(),
+            SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets)));
+
+    // Temporary migration path: only Ironclad's damage projections are reviewed against the
+    // enemy-HP cap so far. Other characters keep these uncapped forms until their own valuation
+    // batch corrects the formulas and switches to PerTurnDamage/PerTriggerDamage; a cap over a
+    // wrong formula changes routes for the wrong reason. Delete both once no caller remains.
+    private static int PerTurnDamageUncapped(int damagePerTurn, int turns, int targets)
+        => SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets));
+
+    private static int PerTriggerDamageUncapped(int perTrigger, int triggers)
+        => SaturatingMul(perTrigger, Math.Max(0, triggers));
 
     private static int PerTurnBlock(int blockPerTurn, int turns, int incoming)
         => BoundedPrevention(SaturatingMul(blockPerTurn, Math.Max(0, turns)), incoming);
 
-    private static int PerTriggerDamage(int perTrigger, int triggers)
-        => SaturatingMul(perTrigger, Math.Max(0, triggers));
+    private static int PerTriggerDamage(scoped in View view, int perTrigger, int triggers)
+        => Math.Min(view.RemainingEnemyHp(), SaturatingMul(perTrigger, Math.Max(0, triggers)));
 
     private static int PerTriggerBlock(int perTrigger, int triggers, int incoming)
         => BoundedPrevention(SaturatingMul(perTrigger, Math.Max(0, triggers)), incoming);

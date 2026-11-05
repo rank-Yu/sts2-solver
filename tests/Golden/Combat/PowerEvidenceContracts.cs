@@ -12,8 +12,11 @@ internal static class PowerEvidenceContracts
     { if (!condition) throw new InvalidDataException("power-evidence: " + message); }
 
     private static SearchCase Read(string root)
+        => ReadRoot("quality-" + root);
+
+    internal static SearchCase ReadRoot(string directory)
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/quality-{root}/config.br");
+        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{directory}/config.br");
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return SearchCodec.DecodeRequest(bytes.ToArray());
@@ -68,6 +71,8 @@ internal static class PowerEvidenceContracts
     internal static void Run()
     {
         CheckActualGains();
+        IroncladPowerOpeningContracts.Run();
+        RemainingEnemyHpContracts.Run();
         CheckTwoStatAndWraith();
         CheckMasterPlanner();
         CheckSubroutine();

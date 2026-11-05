@@ -222,7 +222,8 @@
 
 - **Fisticuffs**：镜像攻击后先结算敌人死亡，再按本次出牌全部命中的伤害合计获得格挡（`CorePowerSupport` 的 Fisticuffs 分支）。
 - **Omnislice**：第一击后结算死亡，再把最近一次伤害的“格挡 + 未格挡 + 溢出”以 `Unpowered | Move` 打给目标以外的所有可命中敌人（`CardOnPlaySupport.Batch042.ApplyOmnislice`）。原始命中与复制命中在同一个 `AttackContext` 里：`BeforeAttack` 一次、`AfterAttack` 在两者都结束后一次，`AddHit` 不增加出牌的攻击历史计数。它的死亡结算也只遍历当前名单，所以击杀后离场的 Infested 尸体不会在复制伤害前生成 Wriggler。
-- **HandOfGreed**：镜像攻击后检查本次出牌是否击杀了目标、且目标所有 Power 都允许致命（`ShouldOwnerDeathTriggerFatal`），成功则加金币和 `LongTermResourceValue`。BowlerHat、Ectoplasm、DragonFruit 这类金币修正遗物只影响战斗外的金币收入，已有空定义或能量定义，不改变战斗内结算。
+- **HandOfGreed**：镜像攻击后检查本次出牌是否击杀了目标、且目标所有 Power 都允许致命（`ShouldOwnerDeathTriggerFatal`），成功则走 `Kernel.GainGold`（原版 `PlayerCmd.GainGold`）并把实际到手的整数金币记入 `LongTermResourceValue`，随后照常记成长收益。
+- **战斗内金币。** `Kernel.GainGold` 是战斗内唯一的得金币入口：先按原版顺序跑 `ModifyGoldGained`（跑局监听者先于战斗监听者；BowlerHat 乘 `GoldIncrease`，Ectoplasm 归零），只对截断后金额发生变化的监听者派发 `AfterModifyingGoldGained`；修饰后金额为正时把截断值加到 `Battle.Gold`，再跑 `AfterGoldGained`（DragonFruit 按 `MaxHp` 变量调用 `GainMaxHp`，同时提高最大生命并回复同量，Melted 遗物不参与）。原生 `AfterGoldGained` 只遍历跑局监听者（牌组卡、遗物、药水、Modifier 等），战斗内的 Power、怪物、球和战斗牌副本不在此列；Sts2Solver 只表示遗物和药水，牌组卡若带这些 Hook 在导入时拒绝。LuckyFysh 在贼死亡归还被偷牌时会因牌进入牌组而在战斗内得到金币，内核没有镜像 `AfterCardChangedPiles` 的这条牌组写入，因此剪枝把它当作不能按 HandOfGreed 存活份数界定的来源。
 - **GoldAxe**：`FinishedCardPlays` 计数器导入根历史的 `GetFinishedPlaysBeforePrediction`，每次完成出牌加一，作为 `CalculatedVarSpecRegistry` 的乘数。
 
 **GalvanicPower 的反伤打出牌的人。** 原引擎 `AfterCardPlayedMirrors.HandleGalvanicPower` 的伤害目标是打出这张牌的人（`PreviewCard.Owner`），不是 Power 的持有者。Globe Head 身上挂着它，玩家每出一张牌，反伤都落在玩家身上。Sts2Solver 里所有牌都属于玩家，所以定义直接以 `Limits.PlayerOwner` 为目标。
@@ -304,6 +305,8 @@
 | `FUR_COAT` | 命中的地图坐标在战斗外就固定了，导入时冻结为 `Rules.FurCoatSpawnHpOne`；`Kernel.AddCreatedMonster` 在入场 Power 之后、`PreparePredictedMonster` 之前，把新敌人的当前生命设为 1（`MonsterSpawnSupport.ApplyCreatureAddedRelics`） |
 | `UNSETTLING_LAMP` | 按实例身份：`BeforePowerAmountChanged` 记录触发卡的来源序号和临时 Power 内部类型，`ModifyPowerAmountGivenMultiplicative` 对同一来源、同一种临时 Power 内部类型的首次减益翻倍，完成的锁存写入 `Counter`（见下） |
 | `VAMBRACE` | `AfterCardPlayed` 用“触发卡的作用域序号”匹配；`OwnChoice` 弃置 Sly 牌触发的嵌套自动打出会完成自己的作用域，并改写 `LastCardPowerSourceSerial`，所以 `PlayFromPlay` 在嵌套打出返回后恢复外层的序号 |
+| `BOWLER_HAT`、`ECTOPLASM` | `HookMaskExt.ModifyGoldGained`：BowlerHat 乘 `GoldIncrease`，Ectoplasm 归零；`AfterModifyingGoldGained` 只闪光，无状态。对 HandOfGreed 的战斗内金币同样生效 |
+| `DRAGON_FRUIT` | `HookMaskExt.AfterGoldGained`：按 `MaxHp` 变量调用 `Kernel.GainMaxHp`（最大生命和当前生命同量提高）；Melted 时不触发 |
 
 **UnsettlingLamp 与“没有卡牌来源”的施加。** 原引擎的 `ApplyPowerFromSource(..., cardSource: null)` 会把“当前卡牌来源”压成 null，这时灯的观察和翻倍都不生效。Sts2Solver 用 `ApplyPowerWithoutCardSource`、`ApplyTemporaryStrengthWithoutCardSource` 在施加期间关闭 `CardPowerSourceActive`：Envenom、Concoct 的毒，ReaperForm、Underworld 的 Doom，MonarchsGaze 的临时力量降层都走这两个入口。否则卡牌作用域里非卡牌来源的减益会被错误翻倍。
 

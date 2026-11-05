@@ -871,8 +871,13 @@ public static class BattleImporter
             if (!Registry.TryCard(card.Id.Entry, out ushort id))
                 continue;
             CardDef def = Registry.Card(id);
-            if ((def.Hooks & HookMask.RunListenerHooks) != 0 && !def.DeckCopyOutsideCombatIsInert)
-                throw new UnsupportedImportException(ImportReason.RunDeckHook, $"牌组卡 {card.Id.Entry} 带有局外监听 Hook");
+            if (((def.Hooks & HookMask.RunListenerHooks) != 0
+                    || (def.HooksExt & HookMaskExt.RunListenerHooks) != 0)
+                && !def.DeckCopyOutsideCombatIsInert)
+            {
+                throw new UnsupportedImportException(ImportReason.RunDeckHook,
+                    $"牌组卡 {card.Id.Entry} 带有局外监听 Hook");
+            }
         }
     }
 

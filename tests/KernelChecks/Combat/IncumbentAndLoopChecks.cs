@@ -36,12 +36,13 @@ internal static class IncumbentAndLoopChecks
         Assert(Registry.TryPotion("FRUIT_JUICE", out ushort fruit), "missing fruit juice");
         Assert(Registry.TryRelic("LIZARD_TAIL", out ushort lizard), "missing lizard tail");
         Assert(Registry.TryRelic("DRAGON_FRUIT", out ushort dragonFruit), "missing dragon fruit");
+        Assert(Registry.TryRelic("LUCKY_FYSH", out ushort luckyFysh), "missing lucky fysh");
         Assert(Registry.TryCard("HAND_OF_GREED", out ushort handOfGreed), "missing Hand of Greed");
         Assert(Registry.TryCard("BURST", out ushort burst), "missing BURST");
         Assert(Registry.TryRelic("BURNING_STICKS", out ushort burningSticks),
             "missing burning sticks");
 
-        Rules rules = BuildBoundRules(fixtureRules, notYet, feed, fruit);
+        Rules rules = BuildBoundRules(fixtureRules, notYet, feed, fruit, dragonFruit);
         BoundFeatures known = new(KnownNativeConfig(notYet, feed, lizard, dragonFruit, fairy, fruit));
         BoundFeatures component = new(ComponentConfig(notYet, feed, lizard, dragonFruit, fairy, fruit));
 
@@ -100,12 +101,25 @@ internal static class IncumbentAndLoopChecks
                 "Dragon Fruit without an in-combat gold source must not block");
             Battle goldBattle = PruningBattle(lizardRelic: dragonFruit,
                 cards: [(handOfGreed, 0, Pile.Hand)]);
-            Assert(bound.PruningStrategicHpLowerBound(in goldBattle, rules) == -20,
-                "Hand of Greed makes Dragon Fruit's missing hook unknown");
+            Assert(bound.PruningStrategicHpLowerBound(in goldBattle, rules) == 19,
+                "each live Hand of Greed pays one Dragon Fruit max-HP gain");
+            Battle goldExhausted = PruningBattle(lizardRelic: dragonFruit,
+                cards: [(handOfGreed, 0, Pile.Exhaust)]);
+            Assert(bound.PruningStrategicHpLowerBound(in goldExhausted, rules) == 20,
+                "an exhausted Hand of Greed pays no Dragon Fruit max-HP gain");
+            Battle twoGold = PruningBattle(lizardRelic: dragonFruit,
+                cards: [(handOfGreed, 0, Pile.Hand), (handOfGreed, 0, Pile.Discard)]);
+            Assert(bound.PruningStrategicHpLowerBound(in twoGold, rules) == 18,
+                "every live Hand of Greed copy pays once");
+            Battle luckyBattle = PruningBattle(relics: [dragonFruit, luckyFysh],
+                cards: [(handOfGreed, 0, Pile.Hand)]);
+            Assert(bound.PruningStrategicHpLowerBound(in luckyBattle, rules) == -20,
+                "LuckyFysh's in-combat gold gain cannot be bounded by Hand of Greed copies");
         }
     }
 
-    private static Rules BuildBoundRules(Rules fixtureRules, ushort notYet, ushort feed, ushort fruit)
+    private static Rules BuildBoundRules(Rules fixtureRules, ushort notYet, ushort feed, ushort fruit,
+        ushort dragonFruit)
     {
         _ = fixtureRules;
         RulesDraft builder = new() { BaseMaxEnergy = 3, RootEnemyCount = 1 };
@@ -120,6 +134,7 @@ internal static class IncumbentAndLoopChecks
             Vars = [5m],
             VarProps = [ValueProps.None],
         });
+        builder.SetRelicVars(dragonFruit, [1m]);
         return builder.Build();
     }
 
@@ -216,7 +231,8 @@ internal static class IncumbentAndLoopChecks
         IReadOnlyList<(ushort Id, int Upgrade, Pile Pile)>? cards = null,
         IReadOnlyList<ushort>? potions = null,
         ushort? fairyPotion = null,
-        ushort? lizardRelic = null)
+        ushort? lizardRelic = null,
+        IReadOnlyList<ushort>? relics = null)
     {
         Battle battle = NewBattle(50, 50, 100, energy: 3);
         battle.SetCounter(Counter.CumulativeHpLost, 20);
@@ -232,7 +248,13 @@ internal static class IncumbentAndLoopChecks
             battle.PotionSlotCount = 1;
             battle.Potions[0] = (ushort)(fairy + 1);
         }
-        if (lizardRelic is { } lizard)
+        if (relics is { Count: > 0 })
+        {
+            battle.RelicCount = checked((byte)relics.Count);
+            for (int index = 0; index < relics.Count; index++)
+                battle.Relics[index] = new Relic { Id = relics[index] };
+        }
+        else if (lizardRelic is { } lizard)
         {
             battle.RelicCount = 1;
             battle.Relics[0] = new Relic { Id = lizard };

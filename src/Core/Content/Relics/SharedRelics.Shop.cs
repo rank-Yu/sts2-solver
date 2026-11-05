@@ -250,9 +250,23 @@ public sealed class DingyRug : RelicDef;
 [ContentId("DOLLYS_MIRROR")]
 public sealed class DollysMirror : RelicDef;
 
-/// <summary><c>DragonFruit</c>: <c>AfterGoldGained</c> only; the existing engine mirrors it in <c>GoldGainedMirrors</c>, outside combat.</summary>
+/// <summary>
+/// <c>DragonFruit</c>: <c>AfterGoldGained</c> gains its <c>MaxHp</c> variable and heals the same
+/// amount (<c>CreatureCmd.GainMaxHp</c>). HandOfGreed's in-combat gain therefore raises the player's
+/// max HP during combat.
+/// </summary>
 [ContentId("DRAGON_FRUIT")]
-public sealed class DragonFruit : RelicDef;
+public sealed class DragonFruit : RelicDef
+{
+    public override IReadOnlyList<string> VarNames => ["MaxHp"];
+
+    public override void AfterGoldGained(ref Exec x, Listener self)
+    {
+        if (self.Owner != Limits.PlayerOwner)
+            return;
+        Kernel.GainMaxHp(ref x, Limits.PlayerOwner, x.R.RelicVar(Id, 0));
+    }
+}
 
 /// <summary><c>GnarledHammer</c>: <c>AfterObtained</c> card upgrades only.</summary>
 [ContentId("GNARLED_HAMMER")]

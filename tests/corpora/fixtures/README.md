@@ -39,6 +39,7 @@ sts2-sim 整局导出批次（FS1）的归类 fixture 同样是测试专用，�
 - `fs1-waterfall-steam-death`：Waterfall Giant 在蒸汽爆发状态下死亡时，原版与内核的 `SteamPhase` 不同；
 - `fs1-lagavulin-osty-plating`：Osty 攻击对 Lagavulin Matriarch 的伤害/格挡结算不同；
 - `fs1-import-unsupported-kaiser`：抽牌钩子移动过的牌无法按原位置弃置，导入明确拒绝；Scrape 按抽牌身份弃置后已转 same。
+- `df1-gold-hooks`：致命 HAND_OF_GREED 加 BOWLER_HAT 与 DRAGON_FRUIT，覆盖战斗内得金币的修正与 `AfterGoldGained`（金币 25、最大生命与当前生命各 +1）；修复前对拍在金币和生命上不一致。
 - `kc1-scrape-sly-autoplay`：Scrape 抽到 Strike（Hellraiser 在 `AfterCardDrawn` 自动打出）、Sly 的 Reflex（弃置后自动打出并再抽两张）和两张 Defend，覆盖抽牌钩子移走牌后的按身份弃置。
 
 FS1B 批次由 FS2B 修好的 Osty/Doom/Power 类 fixture：

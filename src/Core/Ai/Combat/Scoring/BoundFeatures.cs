@@ -318,10 +318,9 @@ internal sealed class BoundFeatures
             }
             if (relic.Id == DragonFruitRelicId)
             {
-                // Native HandOfGreed calls PlayerCmd.GainGold in combat, which runs
-                // AfterGoldGained; the kernel models its gold but not DragonFruit's hook.
-                if (HasCard(battle, HandOfGreedCardId))
+                if (!TryBoundDragonFruitGain(in battle, rules, relic.Id, out long fruitGain))
                     return new PruningHealing(int.MaxValue, 0);
+                maxHpGain = SaturatingAdd(maxHpGain, fruitGain);
                 continue;
             }
             if (relic.Id is var id
@@ -422,10 +421,9 @@ internal sealed class BoundFeatures
             }
             if (relic.Id == DragonFruitRelicId)
             {
-                // Native HandOfGreed calls PlayerCmd.GainGold in combat, which runs
-                // AfterGoldGained; the kernel models its gold but not DragonFruit's hook.
-                if (HasCard(battle, HandOfGreedCardId))
+                if (!TryBoundDragonFruitGain(in battle, rules, relic.Id, out long fruitGain))
                     return new PruningHealing(int.MaxValue, 0);
+                maxHpGain = SaturatingAdd(maxHpGain, fruitGain);
                 continue;
             }
             if (relic.Id is var id
@@ -478,6 +476,88 @@ internal sealed class BoundFeatures
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// DragonFruit's in-combat MaxHp gain, bounded by the approved Feed-style approximation: every
+    /// live HandOfGreed copy pays at most once. A different content definition that also gains gold
+    /// in combat, or a non-card source such as LuckyFysh returning a stolen card, cannot be bounded
+    /// this way and keeps the whole pruning bound unknown.
+    /// </summary>
+    private static bool TryBoundDragonFruitGain(in Battle battle, Rules rules, ushort relicId,
+        out long maxHpGain)
+    {
+        maxHpGain = 0;
+        // Non-card sources first: a held LuckyFysh can gain gold when SwipePower returns a stolen
+        // card, which is not expressible as one payout per live HandOfGreed copy.
+        for (int index = 0; index < battle.PowerCount; index++)
+        {
+            if (battle.Powers[index].Amount > 0
+                && Registry.Power(battle.Powers[index].Id).GainsGoldInCombat)
+            {
+                return false;
+            }
+        }
+        for (int index = 0; index < battle.RelicCount; index++)
+        {
+            ref readonly Relic relic = ref battle.Relics[index];
+            if ((relic.Flags & RelicFlags.Melted) == 0
+                && Registry.Relic(relic.Id).GainsGoldInCombat)
+            {
+                return false;
+            }
+        }
+        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
+        {
+            ushort potion = battle.Potions[slot];
+            if (potion != 0 && Registry.Potion((ushort)(potion - 1)).GainsGoldInCombat)
+                return false;
+        }
+        for (int index = 0; index < battle.EnemyCount; index++)
+        {
+            if (Registry.Monster(battle.Enemies[index].MonsterId).GainsGoldInCombat)
+                return false;
+        }
+        for (int index = 0; index < battle.OrbCount; index++)
+        {
+            if (Registry.Orb(battle.Orbs[index].Id).GainsGoldInCombat)
+                return false;
+        }
+        int cardCount = battle.CardCount;
+        long perCard = 0;
+        bool perCardLoaded = false;
+        for (int index = 0; index < cardCount; index++)
+        {
+            ref readonly Card card = ref battle.Cards[index];
+            if (!Registry.Card(card.Id).GainsGoldInCombat)
+                continue;
+            if (card.Id != HandOfGreedCardId)
+                return false;
+            if (Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
+            {
+                if (!perCardLoaded)
+                {
+                    perCard = RelicHealing(rules, relicId, 0);
+                    perCardLoaded = true;
+                }
+                maxHpGain = SaturatingAdd(maxHpGain, perCard);
+            }
+        }
+        for (int index = 0; index < cardCount; index++)
+        {
+            ref readonly Card card = ref battle.Cards[index];
+            if (card.EnchantmentId != 0
+                && Registry.Enchantment((ushort)(card.EnchantmentId - 1)).GainsGoldInCombat)
+            {
+                return false;
+            }
+            if (card.AfflictionId != 0
+                && Registry.Affliction((ushort)(card.AfflictionId - 1)).GainsGoldInCombat)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

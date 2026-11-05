@@ -74,6 +74,7 @@ CheckGrowthRewards();
 Rules rules = SliceRules();
 SearchChecks.Check();
 IncumbentAndLoopChecks.Check(rules);
+GoldHookChecks.Check();
 CheckHookDeactivation(rules);
 bool lateRegistrationThrew = false;
 try

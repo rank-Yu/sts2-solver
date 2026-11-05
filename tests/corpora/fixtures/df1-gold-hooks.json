@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "DF1-GOLD-HOOKS",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "DF1GOLD",
+  "ascension": 0,
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 50,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 10,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "relics": [
+    { "relicId": "BOWLER_HAT", "addWithoutObtainedEffects": true },
+    { "relicId": "DRAGON_FRUIT", "addWithoutObtainedEffects": true }
+  ],
+  "cards": [
+    { "cardId": "HAND_OF_GREED", "pile": "Hand" }
+  ],
+  "timeoutSeconds": 120
+}

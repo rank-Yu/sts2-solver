@@ -173,6 +173,8 @@ public sealed class HandOfGreed : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["Damage", "Gold"];
 
+    public override bool GainsGoldInCombat => true;
+
     // CorePowerSupport's HandOfGreed case: mirrored attack, enemy-death pass, then gold when this
     // card's hit killed the target and every target power allows a fatal kill.
     public override void OnPlay(ref Exec x)
@@ -189,15 +191,12 @@ public sealed class HandOfGreed : CardDef
             return;
         if (x.B.Creature(target).IsAlive || !fatal)
             return;
-        int gold = (int)CardEffects.Var(x, 1);
-        if (gold > 0)
-        {
-            // CombatPredictionSimulator.GainPlayerGold (the gold-modifier relics are not modeled; roots
-            // holding them are outside this content set's evidence).
-            x.B.Gold = (int)Math.Clamp((long)x.B.Gold + gold, 0, Limits.ValueClamp);
-            x.B.AddCounter(Counter.LongTermResourceValue, gold);
-        }
-        // CorePowerSupport records the growth reward after the gold gain regardless of its clamp.
+        // PlayerCmd.GainGold: the modifiers (BowlerHat, Ectoplasm) settle before the balance and
+        // DragonFruit's AfterGoldGained. CorePowerSupport records the growth reward after the gain
+        // and counts only the gold that was actually added toward long-term resource value.
+        int gained = Kernel.GainGold(ref x, (int)CardEffects.Var(x, 1));
+        if (gained > 0)
+            x.B.AddCounter(Counter.LongTermResourceValue, gained);
         GrowthRewards.Add(ref x.B, GrowthRewardSource.HandOfGreed);
     }
 }

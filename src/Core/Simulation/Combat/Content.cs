@@ -312,6 +312,26 @@ public enum HookMaskExt : ulong
     AfterSideTurnEndLate = 1UL << 32,
 
     /// <summary>
+    /// Native <c>AbstractModel.ModifyGoldGained</c> (<c>PlayerCmd.GainGold</c> before the amount is
+    /// added). BowlerHat and Ectoplasm multiply/zero the amount; the already-changed listeners are
+    /// then notified through <see cref="AfterModifyingGoldGained"/>.
+    /// </summary>
+    ModifyGoldGained = 1UL << 33,
+
+    /// <summary>
+    /// Native <c>AbstractModel.AfterModifyingGoldGained</c>, dispatched only to the listeners whose
+    /// truncated amount changed in <see cref="ModifyGoldGained"/>. Both supported listeners only
+    /// flash.
+    /// </summary>
+    AfterModifyingGoldGained = 1UL << 34,
+
+    /// <summary>
+    /// Native <c>AbstractModel.AfterGoldGained</c> (<c>PlayerCmd.GainGold</c> after the amount was
+    /// added). DragonFruit gains its MaxHp variable and heals the same amount.
+    /// </summary>
+    AfterGoldGained = 1UL << 35,
+
+    /// <summary>
     /// Native <c>Hook.ModifyPowerAmountGiven</c>: a pure query over the combat listeners before the
     /// received-side pass and the Artifact check (<c>PersistentRelicSupport.ModifyPowerAmountGiven</c>,
     /// SneckoSkull's Poison bonus). Uses the batch's assigned bits 16-31.
@@ -389,6 +409,13 @@ public enum HookMaskExt : ulong
     /// <c>Kernel.AddCreatedMonster</c> because it runs before the monster's first move.
     /// </summary>
     AfterCreatureAddedToCombat = 1UL << 7,
+
+    /// <summary>
+    /// Gold hooks the native <c>PlayerCmd.GainGold</c> dispatches over run listeners, which include
+    /// the deck copies of cards outside the combat piles. A root whose deck holds a card implementing
+    /// one of them is rejected because Sts2Solver keeps only the combat copies.
+    /// </summary>
+    RunListenerHooks = ModifyGoldGained | AfterModifyingGoldGained | AfterGoldGained,
 }
 
 /// <summary>
@@ -483,6 +510,14 @@ public abstract class ContentDef
     public virtual IReadOnlyList<string> SetupOnlyCardPools => [];
 
     public virtual bool SetupOnlyOutOfCombatPotionPool => false;
+
+    /// <summary>
+    /// Native content that calls <c>PlayerCmd.GainGold</c> while combat is in progress. HandOfGreed
+    /// is the only card that does; LuckyFysh is a relic listener that can gain gold when a thief
+    /// returns a stolen card to the deck during combat. The pruning bound counts HandOfGreed copies
+    /// once each and keeps the result unknown for every other in-combat source.
+    /// </summary>
+    public virtual bool GainsGoldInCombat => false;
 }
 
 /// <summary>
@@ -556,6 +591,22 @@ public abstract class ListenerDef : ContentDef
 
     /// <summary>Native <c>AfterCurrentHpChanged</c>: after damage, a kill or a heal (<paramref name="delta"/> is the requested change).</summary>
     public virtual void AfterCurrentHpChanged(ref Exec x, Listener self, byte creature, decimal delta)
+    {
+    }
+
+    /// <summary>
+    /// Native <c>ModifyGoldGained</c>: return the amount after this listener's modification. The
+    /// amount is a decimal until it is truncated for the gold balance. Pure query.
+    /// </summary>
+    public virtual decimal ModifyGoldGained(ref Exec x, Listener self, decimal amount) => amount;
+
+    /// <summary>Native <c>AfterModifyingGoldGained</c>, only for listeners that changed the truncated amount.</summary>
+    public virtual void AfterModifyingGoldGained(ref Exec x, Listener self, decimal amount)
+    {
+    }
+
+    /// <summary>Native <c>AfterGoldGained</c>: the positive amount was added to the player's gold.</summary>
+    public virtual void AfterGoldGained(ref Exec x, Listener self)
     {
     }
 
@@ -1124,9 +1175,10 @@ public abstract class CardDef : ListenerDef
     }
 
     /// <summary>
-    /// True when every <see cref="HookMask.RunListenerHooks"/> hook this definition implements is a
-    /// no-op for the copy that lives in the player's deck outside combat. The existing engine dispatches
-    /// those hooks over the run listeners, which include deck cards; Sts2Solver only has the combat copies.
+    /// True when every <see cref="HookMask.RunListenerHooks"/> or
+    /// <see cref="HookMaskExt.RunListenerHooks"/> hook this definition implements is a no-op for the
+    /// copy that lives in the player's deck outside combat. The existing engine dispatches those hooks
+    /// over the run listeners, which include deck cards; Sts2Solver only has the combat copies.
     /// Melancholy qualifies: its <c>AfterDeath</c> handler resolves the card through the combat state and
     /// returns without effect when the card is not in a combat pile. Admission still rejects every other
     /// deck card implementing a run-listener hook. See admission-and-verification.md.

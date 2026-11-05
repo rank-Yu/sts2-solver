@@ -279,9 +279,19 @@ public sealed partial class PetrifiedToad : RelicDef;
 [ContentId("STONE_CRACKER")]
 public sealed partial class StoneCracker : RelicDef;
 
-/// <summary><c>BowlerHat</c>: <c>ModifyGoldGained</c>/<c>AfterModifyingGoldGained</c> only; the existing engine registers it in <c>GoldGainedMirrors</c>, never as a combat hook.</summary>
+/// <summary>
+/// <c>BowlerHat</c>: <c>ModifyGoldGained</c> multiplies by its <c>GoldIncrease</c> variable; the
+/// native <c>AfterModifyingGoldGained</c> only flashes and has no state. Applies to HandOfGreed's
+/// in-combat gain as well (<c>GoldGainedMirrors</c>).
+/// </summary>
 [ContentId("BOWLER_HAT")]
-public sealed class BowlerHat : RelicDef;
+public sealed class BowlerHat : RelicDef
+{
+    public override IReadOnlyList<string> VarNames => ["GoldIncrease"];
+
+    public override decimal ModifyGoldGained(ref Exec x, Listener self, decimal amount)
+        => self.Owner == Limits.PlayerOwner ? amount * x.R.RelicVar(Id, 0) : amount;
+}
 
 /// <summary><c>EternalFeather</c>: <c>AfterRoomEntered</c> rest-site heal only.</summary>
 [ContentId("ETERNAL_FEATHER")]
@@ -291,9 +301,16 @@ public sealed class EternalFeather : RelicDef;
 [ContentId("LASTING_CANDY")]
 public sealed class LastingCandy : RelicDef;
 
-/// <summary><c>LuckyFysh</c>: <c>AfterCardChangedPiles</c> only for deck changes, plus <c>IsAllowed</c>.</summary>
+/// <summary>
+/// <c>LuckyFysh</c>: <c>AfterCardChangedPiles</c> gains 15 gold when a card enters the deck. The only
+/// in-combat deck addition is SwipePower returning a stolen card, which the kernel does not mirror
+/// (<c>GainsGoldInCombat</c> keeps DragonFruit's pruning gain unbounded whenever LuckyFysh is held).
+/// </summary>
 [ContentId("LUCKY_FYSH")]
-public sealed class LuckyFysh : RelicDef;
+public sealed class LuckyFysh : RelicDef
+{
+    public override bool GainsGoldInCombat => true;
+}
 
 /// <summary><c>Pear</c>: <c>AfterObtained</c> max-HP gain only.</summary>
 [ContentId("PEAR")]

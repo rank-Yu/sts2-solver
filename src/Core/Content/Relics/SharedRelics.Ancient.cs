@@ -176,7 +176,9 @@ public sealed class BloodSoakedRose : RelicDef
 }
 
 /// <summary>
-/// <c>Ectoplasm</c>: <c>ModifyMaxEnergy</c> adds Energy; the gold modifier only runs outside combat.
+/// <c>Ectoplasm</c>: <c>ModifyMaxEnergy</c> adds Energy, and <c>ModifyGoldGained</c> zeroes any
+/// positive gain, including HandOfGreed's in-combat gain. The native <c>AfterModifyingGoldGained</c>
+/// only flashes and has no state.
 /// </summary>
 [ContentId("ECTOPLASM")]
 public sealed class Ectoplasm : RelicDef
@@ -186,6 +188,9 @@ public sealed class Ectoplasm : RelicDef
 
     public override decimal ModifyMaxEnergy(ref Exec x, Listener self, decimal amount)
         => amount + x.R.RelicVar(Id, 0);
+
+    public override decimal ModifyGoldGained(ref Exec x, Listener self, decimal amount)
+        => self.Owner == Limits.PlayerOwner ? 0m : amount;
 }
 
 /// <summary>

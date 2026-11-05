@@ -138,7 +138,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 ```csharp
 SearchPolicy policy = SearchPolicyCapture.Capture(combatState, player);
-EvaluationRootFacts facts = EvaluationRootFacts.Default with { InitialActionCount = ... };
+EvaluationRootFacts facts = EvaluationRootFacts.Default with { TurnSetupRoot = ... };
 Scorer scorer = EvaluationConfigCompiler.CompileScorer(combatState, player, rules, battle, policy, facts);
 BoundFeatures bound = EvaluationConfigCompiler.CompileBound(combatState, player, battle, policy, facts);
 SearchCase request = EvaluationConfigCompiler.CompileRequest(
@@ -156,7 +156,6 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `GrowthBudgets` | 空 | 十项内置成长额度；`IgnoreLongTermRewards` 打开时有效额度归零。第三方额度不进入这里 | `ModRuntime.ApplyFixedBudgetSettings`、`SolverSettingsData` |
 | `RequiredGrowthRewards` | 从根推出 | 手牌和牌堆里的成长来源目标，不只看根快照 | `GrowthOpportunityPolicy.Capture` |
 | `HasUnboundedGrowthTargets` | 从根推出 | 有动态复制、重放来源时，目标无法证明 | 同上 |
-| `RelicTargets` | 遗物策略开启、规则为空 | 按拥有的遗物、范围和 id 排序过滤 | `SolverSettings.RelicStrategyEnabled` |
 | `Act3BossStrategy` | 从根推出 | 是否是第三幕 Boss（三个 encounter id） | `SearchPolicySnapshot.IsAct3BossEncounter` |
 | `ActTransitionBossHpStrategy` | `ProgressionFirst` | 是否保留幕间回血 `ActClearHeal` | `SolverSettingsData` |
 | `FinalBossHpStrategy` | `ProgressionFirst` | 是否保留 `RunEnding` | 同上 |
@@ -177,7 +176,6 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `Powers` | 每个注册 Power 的 `StrategicKind`、`StrategicRequirements`、`PersistentSetupTraits`、`ITemporaryPower`、原生类型与 Danse Macabre 能量阈值 |
 | `PotionStrategicCost` | 规范药水 + `PotionValuationRegistry` 的 Token/High/Elevated/Standard 政策；持有未熔化的 Petrified Toad 时 Potion Shaped Rock 为 0 |
 | `GrowthBudgets`、`RequiredGrowthRewards` | 取 `SearchPolicy.Effective*`；第三方额度以 `unsupported-policy` 拒绝 |
-| `RelicCounterRules` | 按政策目标的顺序映射规范遗物与 `MeatOnTheBone` 阈值 |
 | `PostCombatRelicHeal` | 原生 `BurningBlood`、`BlackBlood` 的 `Heal`，以及 `MeatOnTheBone` 的 `Heal`/`HpThreshold` |
 | `BossHpRelief` | 原生 `Encounter.RoomType`、当前幕、`SecondBossEncounter`，再按两个 Boss 策略裁决 |
 | `InitialPlayerMaxHp`、`IsActEndingBoss`、`InitialEnemyCount` | 导入后 `Battle` 的玩家最大生命、Boss 减免、敌人数 |
@@ -194,16 +192,16 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 根上的判定按 `FlashBoundBridge`：
 
-- 失效顺序：`growth_targets` → `relic_targets` → `theft_policy` → `growth_rewards` → `root_risk` → `pending_returning_cards` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
+- 失效顺序：`growth_targets` → `theft_policy` → `growth_rewards` → `root_risk` → `pending_returning_cards` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
 - `HasOnlyPostCombatHealing`：角色属于封闭集合、敌人都是原生的、没有药水、遗物只有 Burning Blood、Black Blood、Bound Phylactery、Ring of the Snake，玩家 Power 只有 Neurosurge、Doom，卡牌都在白名单里且没有附魔或苦难。
 - `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于 109 个 `ComponentInitialCard` 类型且附件安全、根监听者分类安全、上界可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
 - `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier 或第三方监听。
-- `FutureHealPotential`、`PostCombatHeal`、`RequireCertifiedHealingProof`、`PruneEqualHp` 按原导入层的根事实和 `policy.RelicTargets.Count` 设置。`ForceAllPotionsDisabled = false`、`MaximumPotionUses = null`：离线求解器没有用药政策覆盖或上限。
+- `FutureHealPotential`、`PostCombatHeal`、`RequireCertifiedHealingProof`、`PruneEqualHp` 按原导入层的根事实设置。`ForceAllPotionsDisabled = false`、`MaximumPotionUses = null`：离线求解器没有用药政策覆盖或上限。
 - 有组件证书的根上有 RegenPotion 时，以 `regen_potion_policy` 失效；根上有 SwipePower 时，以 `swipe_power` 失效。
 
 ## 6. 搜索请求编译
 
-`SearchRequestCompiler` 只读原生根、已编译的规则和 `SearchPolicy`，冻结 `SearchCase` 需要的评分、下界、根生命、逐瓶药水政策、失窃目标、遗物与成长目标以及回放状态。能力承诺目录根据根中已登记的能力牌和真实的 `RunState.TotalFloor` 编译；生成闭包里的已登记能力也有描述符。默认的药水模式是 Smart；默认策略和空指令直接走原请求对象，不改变 SREQ 字节。
+`SearchRequestCompiler` 只读原生根、已编译的规则和 `SearchPolicy`，冻结 `SearchCase` 需要的评分、下界、根生命、逐瓶药水政策、失窃目标、成长目标以及回放状态。能力承诺目录根据根中已登记的能力牌和真实的 `RunState.TotalFloor` 编译；生成闭包里的已登记能力也有描述符。默认的药水模式是 Smart；默认策略和空指令直接走原请求对象，不改变 SREQ 字节。
 
 至亮之焰上限来自 `SearchPolicy.BrightestFlameMaxHpLossLimit`。设了上限时，请求编译再从原生 `CombatManager.History.CardPlaysStarted` 读本场已经打出的至亮之焰，按每张牌的动态 `MaxHp` 求和，作为根上的已消耗量；`null` 时不读历史，请求也不写扩展。上限和根上已消耗量只在设了上限时写进 SREQ 末尾的可选扩展（`FLM1`），旧请求没有该扩展时照常解码。
 

@@ -54,7 +54,6 @@ internal sealed class SetupRootSet
                 SearchPolicyCapture.Capture(firstCombat, player), request, player);
             EvaluationRootFacts facts = EvaluationRootFacts.Default with
             {
-                InitialActionCount = 0,
                 TurnSetupRoot = true,
             };
             score = ScoreCompiler.Compile(firstCombat, player, rules, first, policy, facts);

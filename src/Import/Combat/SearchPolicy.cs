@@ -101,26 +101,6 @@ public readonly record struct SearchGrowthBudget(
         value.MadScience);
 }
 
-/// <summary>The relic counter goals (<c>RelicCounterId</c>), in the existing enum order.</summary>
-public enum SearchRelicCounter
-{
-    HappyFlower, FakeHappyFlower, Pendulum, PollinousCore, PenNib,
-    Nunchaku, TuningFork, JossPaper, IronClub, GalacticDust, MeatOnTheBone,
-}
-
-/// <summary>One frozen relic counter target (<c>RelicCounterTarget</c>).</summary>
-public readonly record struct SearchRelicCounterTarget(
-    SearchRelicCounter Id,
-    int Minimum,
-    int Maximum,
-    int HpAllowance,
-    int Period,
-    int Priority = 1)
-{
-    internal RelicCounterTarget ToCore() => new(
-        (RelicCounterId)Id, Minimum, Maximum, HpAllowance, Period, Priority);
-}
-
 /// <summary>
 /// Immutable policy values the score, bound and request compilation read. Root-derived fields
 /// (<see cref="Act3BossStrategy"/>, <see cref="TheftPolicy"/> and the growth targets) are captured
@@ -137,9 +117,6 @@ public sealed record SearchPolicy
 
     /// <summary><c>GrowthOpportunityTargets.UnboundedSources.Count != 0</c>.</summary>
     public bool HasUnboundedGrowthTargets { get; init; }
-
-    /// <summary>Configured relic counter goals, already filtered and id-sorted.</summary>
-    public IReadOnlyList<SearchRelicCounterTarget> RelicTargets { get; init; } = [];
 
     /// <summary><c>SearchPolicySnapshot.IsAct3BossEncounter</c>; gates three-act boss interactions.</summary>
     public bool Act3BossStrategy { get; init; }
@@ -244,7 +221,6 @@ public static class SearchPolicyCapture
             GrowthBudgets = settings.GrowthBudgets,
             RequiredGrowthRewards = SearchGrowthBudget.FromCore(targets.Required),
             HasUnboundedGrowthTargets = targets.Unbounded,
-            RelicTargets = [],
             Act3BossStrategy = IsAct3BossEncounter(state),
             ActTransitionBossHpStrategy = settings.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = settings.FinalBossHpStrategy,

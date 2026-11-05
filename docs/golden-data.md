@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 7（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 8（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -91,12 +91,12 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=7 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=8 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
-魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、固定前缀计数、各类策略开关等。字段清单以代码为准。
+魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、各类策略开关等。字段清单以代码为准。
 
-- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数规则、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
+- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `Scorer` 的 base/offensive 评估方式作为两个显式布尔写在 `ScoreRules` 前面；setup/queen 仍是追加扩展。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
 - 宿主回调 `Pacer`、`Trace` 不进入 SREQ。
@@ -120,7 +120,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ` v7 与 `SRES` v6 没有保留槽位。
+`SREQ` v8 与 `SRES` v6 没有保留槽位。
 
 搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
 `SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
@@ -130,7 +130,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ## 7. `d1/<root>/config.br`
 
-`GOLD` 只冻结了 `Rules`（`objects/rules` 的 SHA-256），没有冻结 `ScoreRules` 和 `BoundFeatures.Config`。所以每个模拟回归的根另存一个 `config.br`：一个 Brotli 压缩的 `SREQ` 请求，包含该根运行时完整的 `Rules`、`ScoreRules`、`BoundFeatures.Config`，以及复现前缀根 `scoreHash` 所需的 `InitialActionCount` 和 `ScoreRules` 初始药水计数。生产搜索没有固定前缀，这些计数都是 0。
+`GOLD` 只冻结了 `Rules`（`objects/rules` 的 SHA-256），没有冻结 `ScoreRules` 和 `BoundFeatures.Config`。所以每个模拟回归的根另存一个 `config.br`：一个 Brotli 压缩的 `SREQ` 请求，包含该根运行时完整的 `Rules`、`ScoreRules` 和 `BoundFeatures.Config`。请求不再有固定前缀计数；13 个旧前缀根按计数为 0 重录了对应的 score/bound 哈希。
 
 校验时只从 `config.br` 读 `Scorer` 和 `Bound`，其余完全由 `Battle` + Core 重算；配置缺失时显式失败，不静默跳过。`config.br` 计入 manifest 的完整性检查和计数。
 
@@ -144,7 +144,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 | `battleSize` | 62,744，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：SREQ v6→v7、SRES v5→v6，删除旧评估/固定前缀/hooks 字段和 SRES 保留槽；D1/D2 机械重编码，D2 的 887 个固定前缀或 Beam 扰动请求改为生产形态 |
+| `provenance.formatMigration` | 格式迁移说明：SREQ v7→v8 删除遗物计数规则、`InitialActionCount` 和三个初始药水计数；D1 的 13 个前缀根按 0 重录 score/bound 哈希；SRES 仍为 v6，D2 期望结果逐字节不变 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |
@@ -157,16 +157,9 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 两套语义来源要分清：数据的语义参照 CombatSolver `a62f1850`，但快照本身由 M0 宿主在 `752170…` 捕获，两者不是同一个提交。模拟回归的 `config.br` 与 `golden.br` 来自同一次确定性运行。
 
-当前冻结数据的来源记录保存在 manifest 中，两者都由对应工具写入，不手改：
+当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
-```text
-d1Rerecord = roots=pr-c-relics reason=extra-turn-setup
-  sha256=9a2a9a50d7135c454ad9825d9f6bf37850dce702df28b11d1548614d566bc5a4
-refreeze = extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700a19d8e092a16d7d8697
-```
-
-当前 D1 为 418 个根、5,063 个 K1、15,296 条游走、482,217 个游走状态、469,342 个转移；D2 为 1,982 个请求、1,982 个期望结果。`extra-turn-setup` 只重录了 `pr-c-relics`（额外回合的准备选择改在侧回合开始之后回答，K1 21→22、游走状态 617→613、转移 585→581）；D2 的 1,982 个结果逐字节不变，重冻只更新了结果集来源记录。
-
+当前 D1 为 418 个根、5,063 个 K1、15,296 条游走、482,603 个游走状态、469,760 个转移；D2 为 1,982 个请求、1,982 个期望结果。RL1 跟进 2 只重录了 13 个旧的固定前缀根（`dx4-dread-baseline`、`dx5-pen-nib-sly`、`dx6-dampen-echoing`、`hs-chains-turn-reset`、`hs3-stoke-identity`、`qf-fisticuffs-replay`、`qf-misery-roster`、`qf-negative-pulse-roster`、`qf-nightmare-detached`、`qf3-seeking-edge-order`、`qf5-anger-dampen-clone`、`qt2-art-of-war-endturn`、`qt2-kusarigama-endturn`）；其余 D1 内容不变，D2 的 1,982 个期望结果逐字节不变。
 ## 9. 重录与重冻会改什么
 
 两个工具都先复制整棵数据目录，在副本上修改；源目录只读，目标目录必须为空，两者不能互相包含。命令见 [测试与验证](testing.md#5-更新快照)。
@@ -216,4 +209,4 @@ refreeze = extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700
 
 ## 12. 旧版本
 
-读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 7，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 8，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

@@ -20,7 +20,6 @@ internal sealed record LiveStatus
     public string? Error { get; init; }
     public string[] SetupSelections { get; init; } = [];
     public bool TurnSetupRoot { get; init; }
-    public int InitialActionCount { get; init; }
 }
 
 internal static class LiveCompare
@@ -74,13 +73,6 @@ internal static class LiveCompare
             {
                 Console.Error.WriteLine(
                     $"root={name} status=reject reason=capture-failed detail={status.Error}");
-                rejected++;
-                continue;
-            }
-            if (status.InitialActionCount != 0)
-            {
-                Console.Error.WriteLine(
-                    $"root={name} status=reject reason=initial-action-count expected=0 actual={status.InitialActionCount}");
                 rejected++;
                 continue;
             }
@@ -307,16 +299,12 @@ internal static class LiveCompare
             if (actualCase.Options.Scorer == null || actualCase.Options.Bound == null
                 || expectedCase.Options.Scorer == null || expectedCase.Options.Bound == null)
                 return (false, "setup subparts missing scorer/bound");
-            byte[] actualScore = EncodeScoreProbe(actualCase.Rules,
-                actualCase.Options.InitialActionCount, actualCase.Options.Scorer);
-            byte[] expectedScore = EncodeScoreProbe(expectedCase.Rules,
-                expectedCase.Options.InitialActionCount, expectedCase.Options.Scorer);
+            byte[] actualScore = EncodeScoreProbe(actualCase.Rules, actualCase.Options.Scorer);
+            byte[] expectedScore = EncodeScoreProbe(expectedCase.Rules, expectedCase.Options.Scorer);
             if (!actualScore.AsSpan().SequenceEqual(expectedScore))
                 return (false, "setup score subpart differs");
-            byte[] actualBound = EncodeBoundProbe(actualCase.Rules,
-                actualCase.Options.InitialActionCount, actualCase.Options.Bound);
-            byte[] expectedBound = EncodeBoundProbe(expectedCase.Rules,
-                expectedCase.Options.InitialActionCount, expectedCase.Options.Bound);
+            byte[] actualBound = EncodeBoundProbe(actualCase.Rules, actualCase.Options.Bound);
+            byte[] expectedBound = EncodeBoundProbe(expectedCase.Rules, expectedCase.Options.Bound);
             if (!actualBound.AsSpan().SequenceEqual(expectedBound))
                 return (false, "setup bound subpart differs");
             return (true, "");
@@ -327,22 +315,20 @@ internal static class LiveCompare
         }
     }
 
-    private static byte[] EncodeScoreProbe(Rules rules, int actionCount, Scorer scorer)
+    private static byte[] EncodeScoreProbe(Rules rules, Scorer scorer)
     {
         BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
-            InitialActionCount = actionCount,
         };
         return SearchCodec.EncodeRequest(new SearchCase(rules, [], options));
     }
 
-    private static byte[] EncodeBoundProbe(Rules rules, int actionCount, BoundFeatures bound)
+    private static byte[] EncodeBoundProbe(Rules rules, BoundFeatures bound)
     {
         BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Bound = bound,
-            InitialActionCount = actionCount,
         };
         return SearchCodec.EncodeRequest(new SearchCase(rules, [], options));
     }
@@ -375,9 +361,6 @@ internal static class LiveCompare
             }
             BeamOptions expectedOptions = expected.Options;
             BeamOptions actualOptions = actual.Options;
-            if (expectedOptions.InitialActionCount != actualOptions.InitialActionCount)
-                return ("initialActionCount",
-                    $"{expectedOptions.InitialActionCount}->{actualOptions.InitialActionCount}");
             if (expectedOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp
                 != actualOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp)
                 return ("initialPlayerMaxHp",
@@ -385,20 +368,16 @@ internal static class LiveCompare
                     + $"->{actualOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp}");
             if (expectedOptions.Scorer != null && actualOptions.Scorer != null)
             {
-                byte[] expectedScore = EncodeScoreProbe(expected.Rules,
-                    expectedOptions.InitialActionCount, expectedOptions.Scorer);
-                byte[] actualScore = EncodeScoreProbe(actual.Rules,
-                    actualOptions.InitialActionCount, actualOptions.Scorer);
+                byte[] expectedScore = EncodeScoreProbe(expected.Rules, expectedOptions.Scorer);
+                byte[] actualScore = EncodeScoreProbe(actual.Rules, actualOptions.Scorer);
                 if (!expectedScore.AsSpan().SequenceEqual(actualScore))
                     return ("score", "score subpart differs: " + ConfigCompare.ScoreRulesDiff(
                         expectedOptions.Scorer.RulesForCodec, actualOptions.Scorer.RulesForCodec));
             }
             if (expectedOptions.Bound != null && actualOptions.Bound != null)
             {
-                byte[] expectedBound = EncodeBoundProbe(expected.Rules,
-                    expectedOptions.InitialActionCount, expectedOptions.Bound);
-                byte[] actualBound = EncodeBoundProbe(actual.Rules,
-                    actualOptions.InitialActionCount, actualOptions.Bound);
+                byte[] expectedBound = EncodeBoundProbe(expected.Rules, expectedOptions.Bound);
+                byte[] actualBound = EncodeBoundProbe(actual.Rules, actualOptions.Bound);
                 if (!expectedBound.AsSpan().SequenceEqual(actualBound))
                     return ("bound", "bound subpart differs");
             }

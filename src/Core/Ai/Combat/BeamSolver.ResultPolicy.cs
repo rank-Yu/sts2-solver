@@ -79,7 +79,7 @@ internal sealed partial class BeamSolver
             throw new InvalidDataException("路线结局与搜索结果不一致。");
         if (_options.Potions.MaximumUses is { } max && uses > max)
             throw new InvalidDataException("路线超过药水使用上限。");
-        int actionCount = _options.InitialActionCount + result.BestRoute.Length;
+        int actionCount = result.BestRoute.Length;
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;
         ForcedPotionUseEvaluation forced = _options.Potions.Strategy.EvaluateForcedUses(potionUses);
@@ -88,7 +88,7 @@ internal sealed partial class BeamSolver
             Math.Max(0, features.ExplicitPotionStrategicCost - forced.ForcedStrategicHpCost),
             optional);
         RouteKey key = Key(end, features, actionCount);
-        bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features) && _scorer.RelicTargetsSatisfied(features);
+        bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features);
         bool safeVictory = key.Won && features.ProjectedDeathSaveUseCount == 0 && goalsSatisfied;
         goalReached = safeVictory && !_options.HasUnboundedGrowthTargets
             && _scorer.RulesForCodec.GrowthBudgets.Total == 0

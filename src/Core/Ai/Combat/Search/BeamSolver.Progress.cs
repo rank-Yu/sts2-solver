@@ -117,7 +117,7 @@ internal sealed partial class BeamSolver
         {
             int node = retained.Node(slot);
             int depth = _nodes.View(node).Depth;
-            if (depth <= _options.InitialActionCount)
+            if (depth <= 0)
                 continue;
             ref readonly Battle state = ref retained.State(slot);
             ScoreFeatures features = ProgressFeatures(in state, depth);

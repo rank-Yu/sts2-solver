@@ -249,12 +249,6 @@ internal sealed class PowerScore
     public int DanseMacabreEnergyThreshold { get; init; }
 }
 
-/// <summary>One configured relic counter goal, with the Sts2Solver relic id that carries its counter.</summary>
-internal readonly record struct RelicCounterRule(
-    RelicCounterTarget Target,
-    ushort RelicId,
-    int MeatOnTheBoneThreshold);
-
 /// <summary>
 /// Everything <see cref="Scorer"/> reads besides the <see cref="Battle"/> and
 /// <see cref="Rules"/>: per-card and per-power evaluation values compiled from the existing
@@ -281,9 +275,6 @@ internal sealed class ScoreRules
     /// satisfy; empty when the root has no bounded growth target.
     /// </summary>
     public GrowthValues RequiredGrowthRewards { get; init; }
-
-    /// <summary>Configured relic counter goals in the policy order (the captured list is id-sorted).</summary>
-    public RelicCounterRule[] RelicCounterRules { get; init; } = [];
 
     /// <summary>The existing final ordering's post-combat relic heal profile.</summary>
     public PostCombatRelicHealProfile PostCombatRelicHeal { get; init; } = PostCombatRelicHealProfile.None;
@@ -317,16 +308,6 @@ internal sealed class ScoreRules
 
     /// <summary>Root potion ids by slot (0 = empty); used to derive the potion-use counters.</summary>
     public required ushort[] RootPotions { get; init; }
-
-    /// <summary>
-    /// Cumulative potion counters at the search root. Production has no fixed prefix and passes
-    /// zero; D1 configs keep the values that reproduce their recorded score hashes.
-    /// </summary>
-    public int InitialPotionUseCount { get; init; }
-
-    public int InitialPotionStrategicCost { get; init; }
-
-    public int InitialExplicitPotionStrategicCost { get; init; }
 
     /// <summary>Power / card ids the port names directly, or <see cref="ushort.MaxValue"/> when unregistered.</summary>
     public ushort StrengthPowerId { get; init; } = ushort.MaxValue;

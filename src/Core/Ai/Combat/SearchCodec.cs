@@ -37,7 +37,7 @@ internal static class SearchCodec
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
     /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 7;
+    internal const ushort RequestFormatVersion = 8;
     internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
@@ -114,7 +114,6 @@ internal static class SearchCodec
         if (options.PotionFreeBaseline is { } baseline)
             EncodePotionFreeBaseline(writer, baseline);
         writer.Write(options.AuditPotionPolicy);
-        writer.Write(options.InitialActionCount);
         writer.Write(options.Act3BossStrategy);
         writer.Write(options.InitialPlayerTurn);
         writer.Write(options.SecondRankBand);
@@ -177,7 +176,6 @@ internal static class SearchCodec
         bool hasBaseline = Codec.ReadBool(reader);
         PotionFreePolicyBaseline? baseline = hasBaseline ? DecodePotionFreeBaseline(reader) : null;
         bool audit = Codec.ReadBool(reader);
-        int initialAction = reader.ReadInt32();
         bool act3 = Codec.ReadBool(reader);
         int initialTurn = reader.ReadInt32();
         bool secondRank = Codec.ReadBool(reader);
@@ -240,7 +238,6 @@ internal static class SearchCodec
             TheftPolicy = theft,
             PotionFreeBaseline = baseline,
             AuditPotionPolicy = audit,
-            InitialActionCount = initialAction,
             Act3BossStrategy = act3,
             InitialPlayerTurn = initialTurn,
             SecondRankBand = secondRank,
@@ -409,13 +406,6 @@ internal static class SearchCodec
         Codec.WriteIntArray(writer, rules.PotionStrategicCost);
         EncodeGrowthValues(writer, rules.GrowthBudgets);
         EncodeGrowthValues(writer, rules.RequiredGrowthRewards);
-        writer.Write(rules.RelicCounterRules.Length);
-        foreach (RelicCounterRule rule in rules.RelicCounterRules)
-        {
-            EncodeRelicCounterTarget(writer, rule.Target);
-            writer.Write(rule.RelicId);
-            writer.Write(rule.MeatOnTheBoneThreshold);
-        }
         EncodePostCombatHeal(writer, rules.PostCombatRelicHeal);
         writer.Write((int)rules.BossHpRelief);
         writer.Write(rules.InitialPlayerMaxHp);
@@ -430,9 +420,6 @@ internal static class SearchCodec
         writer.Write(rules.InitialEnemyWeakTurns);
         writer.Write(rules.InitialRetainedAttackValue);
         Codec.WriteUShortArray(writer, rules.RootPotions);
-        writer.Write(rules.InitialPotionUseCount);
-        writer.Write(rules.InitialPotionStrategicCost);
-        writer.Write(rules.InitialExplicitPotionStrategicCost);
         WriteId(writer, rules.StrengthPowerId);
         WriteId(writer, rules.WeakPowerId);
         WriteId(writer, rules.VulnerablePowerId);
@@ -495,13 +482,6 @@ internal static class SearchCodec
         int[] potionCosts = Codec.ReadIntArray(reader, 1 << 16, "药水战略代价");
         GrowthValues growth = DecodeGrowthValues(reader);
         GrowthValues required = DecodeGrowthValues(reader);
-        int relicRuleCount = Codec.ReadCount(reader, 1 << 16, "遗物计数器规则");
-        RelicCounterRule[] relicRules = new RelicCounterRule[relicRuleCount];
-        for (int index = 0; index < relicRuleCount; index++)
-        {
-            RelicCounterTarget target = DecodeRelicCounterTarget(reader);
-            relicRules[index] = new RelicCounterRule(target, reader.ReadUInt16(), reader.ReadInt32());
-        }
         PostCombatRelicHealProfile heal = DecodePostCombatHeal(reader);
         BossHpRelief relief = ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免");
         int initialMaxHp = reader.ReadInt32();
@@ -518,9 +498,6 @@ internal static class SearchCodec
         int weak = reader.ReadInt32();
         int retained = reader.ReadInt32();
         ushort[] rootPotions = Codec.ReadUShortArray(reader, Limits.PotionSlots, "评分根药水");
-        int potionUses = reader.ReadInt32();
-        int potionCost = reader.ReadInt32();
-        int explicitCost = reader.ReadInt32();
         return new ScoreRules
         {
             Rules = rules,
@@ -529,7 +506,6 @@ internal static class SearchCodec
             PotionStrategicCost = potionCosts,
             GrowthBudgets = growth,
             RequiredGrowthRewards = required,
-            RelicCounterRules = relicRules,
             PostCombatRelicHeal = heal,
             BossHpRelief = relief,
             InitialPlayerMaxHp = initialMaxHp,
@@ -543,9 +519,6 @@ internal static class SearchCodec
             InitialEnemyWeakTurns = weak,
             InitialRetainedAttackValue = retained,
             RootPotions = rootPotions,
-            InitialPotionUseCount = potionUses,
-            InitialPotionStrategicCost = potionCost,
-            InitialExplicitPotionStrategicCost = explicitCost,
             StrengthPowerId = ReadId(reader),
             WeakPowerId = ReadId(reader),
             VulnerablePowerId = ReadId(reader),
@@ -777,21 +750,6 @@ internal static class SearchCodec
         => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
             reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
             reader.ReadInt32(), reader.ReadInt32());
-
-    private static void EncodeRelicCounterTarget(BinaryWriter writer, RelicCounterTarget target)
-    {
-        writer.Write((int)target.Id);
-        writer.Write(target.Minimum);
-        writer.Write(target.Maximum);
-        writer.Write(target.HpAllowance);
-        writer.Write(target.Period);
-        writer.Write(target.Priority);
-    }
-
-    private static RelicCounterTarget DecodeRelicCounterTarget(BinaryReader reader)
-        => new(ReadEnumInt<RelicCounterId>(reader, "遗物计数器"),
-            reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
-            reader.ReadInt32());
 
     private static void EncodePostCombatHeal(BinaryWriter writer, PostCombatRelicHealProfile heal)
     {

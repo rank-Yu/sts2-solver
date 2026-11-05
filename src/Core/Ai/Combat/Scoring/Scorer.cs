@@ -366,7 +366,7 @@ internal sealed class Scorer
         => powerId != ushort.MaxValue && GetAmount(battle, powerId, owner) > 0;
 
     // ---------------------------------------------------------------------------------------------
-    // Growth rewards and configured relic counters (the existing search's Snapshot).
+    // Growth rewards (the existing search's Snapshot).
 
     /// <summary>
     /// <c>SimulatedCombatState.GrowthRewards</c> from the packed counters. The kernel packs two
@@ -383,57 +383,6 @@ internal sealed class Scorer
         GrowthRewards.Get(battle, GrowthRewardSource.Goopy),
         GrowthRewards.Get(battle, GrowthRewardSource.ForbiddenGrimoire),
         GrowthRewards.Get(battle, GrowthRewardSource.MadScience));
-
-    /// <summary>
-    /// <c>SimulatedCombatState.EvaluateRelicCounters</c> over the frozen policy targets, including
-    /// the Meat on the Bone victory heal credit the existing snapshot adds in
-    /// <c>the existing search's Snapshot</c>.
-    /// </summary>
-    private RelicCounterEvaluation EvaluateRelicCounters(in Battle battle, bool won)
-    {
-        RelicCounterEvaluation result = default;
-        for (int index = 0; index < _score.RelicCounterRules.Length; index++)
-        {
-            RelicCounterRule rule = _score.RelicCounterRules[index];
-            int value = ReadRelicCounter(battle, rule);
-            result = RelicCounterPolicy.Add(result, rule.Target, value % rule.Target.Period);
-        }
-        if (won
-            && (result.SatisfiedMask & (1UL << (int)RelicCounterId.MeatOnTheBone)) != 0)
-        {
-            int thresholdHeal = _score.PostCombatRelicHeal.HealFor(
-                    battle.Player.CurrentHp, battle.Player.MaxHp)
-                - _score.PostCombatRelicHeal.MonotoneHealFor(
-                    battle.Player.CurrentHp, battle.Player.MaxHp);
-            result = result with
-            {
-                HealingHpCredit = ActEndingBossPolicy.PersistentValueOfRecoveredHp(
-                    thresholdHeal, _score.BossHpRelief),
-            };
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// <c>SimulatedCombatState.ReadRelicCounter</c> for the supported relics. Sts2Solver already carries
-    /// each counter that the native relic reads for gameplay; only the Meat on the Bone threshold
-    /// health comparison is recomputed from the battle.
-    /// </summary>
-    private static int ReadRelicCounter(in Battle battle, in RelicCounterRule rule)
-    {
-        if (rule.Target.Id == RelicCounterId.MeatOnTheBone)
-        {
-            return battle.Player.CurrentHp * 100 <= battle.Player.MaxHp * rule.MeatOnTheBoneThreshold
-                ? 1 : 0;
-        }
-        for (int index = 0; index < battle.RelicCount; index++)
-        {
-            if (battle.Relics[index].Id == rule.RelicId)
-                return battle.Relics[index].Counter;
-        }
-        throw new UnsupportedException(
-            $"遗物计数目标 {rule.Target.Id} 的遗物不在 Sts2Solver 状态中。");
-    }
 
     // ---------------------------------------------------------------------------------------------
     // Snapshot.
@@ -454,10 +403,6 @@ internal sealed class Scorer
     /// </summary>
     public bool GrowthTargetsSatisfied(in ScoreFeatures features)
         => features.GrowthRewards.Satisfies(_score.RequiredGrowthRewards);
-
-    /// <summary>Every relic-counter target has been satisfied.</summary>
-    public bool RelicTargetsSatisfied(in ScoreFeatures features)
-        => (features.RelicSatisfiedMask & features.RelicTargetMask) == features.RelicTargetMask;
 
     private ScoreFeatures Evaluate(in Battle battle, int actionCount, bool includeRetentionOnly)
     {
@@ -549,13 +494,6 @@ internal sealed class Scorer
             realizedLongTermResourceValue * ScoreWeights.LongTermResourceBeamValue,
             ScoreWeights.LongTermResourceBeamCap);
         score += (double)growthHpCredit * hpWeight;
-        RelicCounterEvaluation relicCounters = EvaluateRelicCounters(battle, won);
-        score += (double)(relicCounters.HpCredit + relicCounters.HealingHpCredit) * hpWeight;
-        score += relicCounters.SatisfiedPriority * 0.1 - relicCounters.Distance * 0.001;
-
-        int strategyGoalHpCredit = growthHpCredit + relicCounters.HpCredit;
-        int strategicHpCredit = strategyGoalHpCredit + relicCounters.HealingHpCredit;
-        int strategyGoalCount = growthRewards.Total + relicCounters.SatisfiedPriority;
 
         int angerCopiesGenerated = battle.Counter(Counter.AngerCopiesGenerated);
         score += angerCopiesGenerated * ScoreWeights.AngerCopyBeamPenalty;
@@ -947,10 +885,6 @@ internal sealed class Scorer
         int generatedAutomaticCost = (int)((uint)generatedCosts >> 16);
         potionStrategicCost = checked(potionStrategicCost + generatedExplicitCost + generatedAutomaticCost);
         explicitPotionStrategicCost = checked(explicitPotionStrategicCost + generatedExplicitCost);
-        potionUseCount = checked(potionUseCount + _score.InitialPotionUseCount);
-        potionStrategicCost = checked(potionStrategicCost + _score.InitialPotionStrategicCost);
-        explicitPotionStrategicCost = checked(
-            explicitPotionStrategicCost + _score.InitialExplicitPotionStrategicCost);
         int defensiveBlockValue = MeasureDefensiveBlockReserve(battle, blockConsumed);
 
         // Retention-only projections (the existing search's StateEvaluation): the projected shuffle
@@ -979,18 +913,7 @@ internal sealed class Scorer
             GrowthHpCredit = growthHpCredit,
             GrowthRewards = growthRewards,
             GrowthRewardCount = growthRewards.Total,
-            StrategyGoalHpCredit = strategyGoalHpCredit,
-            StrategicHpCredit = strategicHpCredit,
-            StrategyGoalCount = strategyGoalCount,
-            RelicSatisfiedMask = relicCounters.SatisfiedMask,
-            RelicTargetMask = relicCounters.TargetMask,
-            RelicCounterValues = relicCounters.CounterValues,
-            RelicTargetMinimums = relicCounters.TargetMinimums,
-            RelicTargetMaximums = relicCounters.TargetMaximums,
-            RelicHpCredit = relicCounters.HpCredit,
-            RelicDistance = relicCounters.Distance,
-            RelicSatisfiedPriority = relicCounters.SatisfiedPriority,
-            RelicHealingHpCredit = relicCounters.HealingHpCredit,
+            StrategicHpCredit = growthHpCredit,
             AngerCopiesGenerated = angerCopiesGenerated,
             EnemyHp = enemyHp,
             EnemyBlock = enemyBlock,

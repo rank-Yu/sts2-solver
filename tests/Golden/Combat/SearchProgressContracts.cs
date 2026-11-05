@@ -19,7 +19,7 @@ internal static class SearchProgressContracts
     {
         SearchCase original;
         using (FileStream input = File.OpenRead(
-            "tests/Golden/data/d2/requests/837a13316751422b9533614c35e14ea07e77fb367818725ab6fe9f5db3303d60.request.br"))
+            "tests/Golden/data/d2/requests/b95f43d6eaf4d7972daafab703b1c330d1e395ded66fec07a05ce6705ca4a085.request.br"))
         using (BrotliStream compressed = new(input, CompressionMode.Decompress))
         using (MemoryStream bytes = new())
         {

@@ -30,7 +30,6 @@ internal static class EvaluationConfigCompiler
         {
             Scorer = scorer,
             Bound = bound,
-            InitialActionCount = facts.InitialActionCount,
         };
         return new SearchCase(rules, [root], options);
     }

@@ -122,7 +122,6 @@ internal static class UiLogicChecks
             flameRejected = true;
         }
         Require(flameRejected, "brightest_flame_out_of_range");
-        Require(data.Search.RelicTargets.Length == 0, "relic_targets_default");
         Require(data.Search.ActTransitionBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "act_boss_default");
         Require(data.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
@@ -168,10 +167,6 @@ internal static class UiLogicChecks
                 },
                 IgnoreLongTermRewards = true,
                 BrightestFlameMaxHpLossLimit = 3,
-                RelicTargets =
-                [
-                    new SearchRelicCounterTarget(SearchRelicCounter.HappyFlower, 2, 4, 6, 3, 2),
-                ],
                 ActTransitionBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
                 FinalBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
             },
@@ -236,7 +231,7 @@ internal static class UiLogicChecks
     {
         string path = Path.Combine(directory, "current-third-party.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":5,\"search\":{\"growthBudgets\":{" +
+            "{\"schemaVersion\":6,\"search\":{\"growthBudgets\":{" +
             "\"handOfGreed\":4,\"example_mod:growth\":7}}}");
         List<string> logs = [];
         SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);

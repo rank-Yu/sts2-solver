@@ -38,23 +38,8 @@ internal readonly record struct ScoreFeatures
     /// <summary><c>Snapshot.GrowthRewards.Total</c>.</summary>
     public int GrowthRewardCount { get; init; }
 
-    /// <summary><c>Snapshot.StrategyGoalHpCredit</c> (growth + relic HP credit).</summary>
-    public int StrategyGoalHpCredit { get; init; }
-
-    /// <summary><c>Snapshot.StrategicHpCredit</c> (strategy HP credit + Meat on the Bone heal).</summary>
+    /// <summary><c>Snapshot.StrategicHpCredit</c>: the realized growth HP credit.</summary>
     public int StrategicHpCredit { get; init; }
-
-    /// <summary><c>Snapshot.StrategyGoalCount</c> (growth total + satisfied relic priority).</summary>
-    public int StrategyGoalCount { get; init; }
-    public ulong RelicSatisfiedMask { get; init; }
-    public ulong RelicTargetMask { get; init; }
-    public ulong RelicCounterValues { get; init; }
-    public ulong RelicTargetMinimums { get; init; }
-    public ulong RelicTargetMaximums { get; init; }
-    public int RelicHpCredit { get; init; }
-    public int RelicDistance { get; init; }
-    public int RelicSatisfiedPriority { get; init; }
-    public int RelicHealingHpCredit { get; init; }
     public int AngerCopiesGenerated { get; init; }
     public int EnemyHp { get; init; }
     public int EnemyBlock { get; init; }
@@ -235,18 +220,7 @@ internal readonly record struct ScoreFeatures
             Check($"{nameof(GrowthRewards)}.{source}",
                 expected.GrowthRewards.Get(source), actual.GrowthRewards.Get(source));
         }
-        Check(nameof(StrategyGoalHpCredit), expected.StrategyGoalHpCredit, actual.StrategyGoalHpCredit);
         Check(nameof(StrategicHpCredit), expected.StrategicHpCredit, actual.StrategicHpCredit);
-        Check(nameof(StrategyGoalCount), expected.StrategyGoalCount, actual.StrategyGoalCount);
-        Check(nameof(RelicSatisfiedMask), expected.RelicSatisfiedMask, actual.RelicSatisfiedMask);
-        Check(nameof(RelicTargetMask), expected.RelicTargetMask, actual.RelicTargetMask);
-        Check(nameof(RelicCounterValues), expected.RelicCounterValues, actual.RelicCounterValues);
-        Check(nameof(RelicTargetMinimums), expected.RelicTargetMinimums, actual.RelicTargetMinimums);
-        Check(nameof(RelicTargetMaximums), expected.RelicTargetMaximums, actual.RelicTargetMaximums);
-        Check(nameof(RelicHpCredit), expected.RelicHpCredit, actual.RelicHpCredit);
-        Check(nameof(RelicDistance), expected.RelicDistance, actual.RelicDistance);
-        Check(nameof(RelicSatisfiedPriority), expected.RelicSatisfiedPriority, actual.RelicSatisfiedPriority);
-        Check(nameof(RelicHealingHpCredit), expected.RelicHealingHpCredit, actual.RelicHealingHpCredit);
         Check(nameof(AngerCopiesGenerated), expected.AngerCopiesGenerated, actual.AngerCopiesGenerated);
         Check(nameof(EnemyHp), expected.EnemyHp, actual.EnemyHp);
         Check(nameof(EnemyBlock), expected.EnemyBlock, actual.EnemyBlock);

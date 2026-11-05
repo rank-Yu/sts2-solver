@@ -17,8 +17,8 @@ internal static class PotionStageContracts
         Assert(Registry.TryPotion("FRUIT_JUICE", out ushort fruit), "fruit juice");
         Assert(Registry.TryCard("FEED", out ushort feed), "Feed");
         ScoreRules scores = fixture.Options.Scorer!.RulesForCodec;
-        Assert(!scores.GrowthBudgets.IsEnabled && !scores.RequiredGrowthRewards.IsEnabled
-            && scores.RelicCounterRules.Length == 0, "neutral score fixture");
+        Assert(!scores.GrowthBudgets.IsEnabled && !scores.RequiredGrowthRewards.IsEnabled,
+            "neutral score fixture");
         int savedFire = scores.PotionStrategicCost[fire], savedCheap = scores.PotionStrategicCost[cheap];
         try
         {

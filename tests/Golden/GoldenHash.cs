@@ -36,18 +36,22 @@ internal static class GoldenHash
             writer.Write(value.GrowthHpCredit);
             WriteGrowth(writer, value.GrowthRewards);
             writer.Write(value.GrowthRewardCount);
-            writer.Write(value.StrategyGoalHpCredit);
-            writer.Write(value.StrategicHpCredit);
-            writer.Write(value.StrategyGoalCount);
-            writer.Write(value.RelicSatisfiedMask);
-            writer.Write(value.RelicTargetMask);
-            writer.Write(value.RelicCounterValues);
-            writer.Write(value.RelicTargetMinimums);
-            writer.Write(value.RelicTargetMaximums);
-            writer.Write(value.RelicHpCredit);
-            writer.Write(value.RelicDistance);
-            writer.Write(value.RelicSatisfiedPriority);
-            writer.Write(value.RelicHealingHpCredit);
+            // The M0 hash still has the retired relic-counter wire slots. Every frozen root has no
+            // relic-counter rules, so the old strategy values equal the growth values and every
+            // relic slot is neutral. Writing those values keeps every D1 score hash unchanged
+            // while the scoring code no longer carries the fields.
+            writer.Write(value.GrowthHpCredit);
+            writer.Write(value.GrowthHpCredit);
+            writer.Write(value.GrowthRewardCount);
+            writer.Write(0UL);
+            writer.Write(0UL);
+            writer.Write(0UL);
+            writer.Write(0UL);
+            writer.Write(0UL);
+            writer.Write(0);
+            writer.Write(0);
+            writer.Write(0);
+            writer.Write(0);
             writer.Write(value.AngerCopiesGenerated);
             writer.Write(value.EnemyHp);
             writer.Write(value.EnemyBlock);

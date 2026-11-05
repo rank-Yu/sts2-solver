@@ -772,7 +772,6 @@ internal static partial class CombatSessionController
         if (left.AuditPotionPolicy != right.AuditPotionPolicy) return "options.audit_pot";
         if (left.TheftPolicy != right.TheftPolicy) return "options.theft_policy";
         if (left.InitialPlayerTurn != right.InitialPlayerTurn) return "options.initial_turn";
-        if (left.InitialActionCount != right.InitialActionCount) return "options.initial_actions";
         if (left.Act3BossStrategy != right.Act3BossStrategy) return "options.act3_boss";
         if (left.BrightestFlameMaxHpLossLimit != right.BrightestFlameMaxHpLossLimit)
             return "options.brightest_flame_limit";

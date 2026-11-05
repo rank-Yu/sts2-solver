@@ -106,7 +106,7 @@ internal static class BoundCompiler
             PostCombatHeal = checked(postCombat.UnconditionalHeal + postCombat.WoundedHeal),
             BossHpRelief = ScoreCompiler.ResolveBossHpRelief(state, policy),
             RequireCertifiedHealingProof = component,
-            PruneEqualHp = policy.RelicTargets.Count == 0,
+            PruneEqualHp = true,
             ForceAllPotionsDisabled = false,
             MaximumPotionUses = null,
             ComponentUnsafeCard = UnsafeCards,
@@ -141,8 +141,6 @@ internal static class BoundCompiler
     {
         if (policy.EffectiveHasGrowthTargets)
             return "growth_targets";
-        if (policy.RelicTargets.Count != 0)
-            return "relic_targets";
         if (policy.TheftPolicy == SearchTheftPolicy.PreserveResources)
             return "theft_policy";
         if (GrowthRewardTotal(root) != 0)

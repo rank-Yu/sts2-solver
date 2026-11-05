@@ -97,7 +97,6 @@ internal static class SimulationVerifier
         Scorer scorer = config.Options.Scorer
             ?? throw new InvalidDataException($"根 {rootName} 的特征配置没有 Scorer。");
         BoundFeatures? bound = config.Options.Bound;
-        int rootActionCount = config.Options.InitialActionCount;
 
         if (record.Roots.Count == 0)
             throw new InvalidDataException($"根 {rootName} 没有 Sts2Solver 根。");
@@ -114,7 +113,7 @@ internal static class SimulationVerifier
         for (int index = 0; index < record.Roots.Count; index++)
         {
             GoldenBattleRoot root = record.Roots[index];
-            CheckFeatures(rootName, $"root[{index}]", root.Battle, rootActionCount,
+            CheckFeatures(rootName, $"root[{index}]", root.Battle, 0,
                 scorer, bound, root.ScoreHash, root.BoundStatus, root.BoundHash);
             featureStates++;
             CheckRootEndTurnSetupPause(rootName, $"root[{index}]", root.Battle, rules,
@@ -126,7 +125,7 @@ internal static class SimulationVerifier
             if ((uint)entry.RootIndex >= (uint)record.Roots.Count)
                 throw new InvalidDataException($"根 {rootName} 的 K1 根下标 {entry.RootIndex} 越界。");
             VerifyK1(rootName, record.Roots[entry.RootIndex].Battle, entry, rules,
-                scorer, bound, rootActionCount, ref featureStates, ref featureTraits,
+                scorer, bound, ref featureStates, ref featureTraits,
                 ref setupPauseChecks);
         }
 
@@ -135,7 +134,7 @@ internal static class SimulationVerifier
             if ((uint)walk.RootIndex >= (uint)record.Roots.Count)
                 throw new InvalidDataException($"根 {rootName} 的游走根下标 {walk.RootIndex} 越界。");
             VerifyWalk(rootName, walk, record.Roots[walk.RootIndex].Battle, rules,
-                scorer, bound, rootActionCount, ref featureStates,
+                scorer, bound, ref featureStates,
                 ref featureTraits, ref walkStates, ref transitions,
                 ref setupPauseChecks);
         }
@@ -149,7 +148,7 @@ internal static class SimulationVerifier
     }
 
     private static void VerifyK1(string rootName, in Battle root, GoldenK1Action entry,
-        Rules rules, Scorer scorer, BoundFeatures? bound, int rootActionCount,
+        Rules rules, Scorer scorer, BoundFeatures? bound,
         ref long featureStates, ref long featureTraits, ref int setupPauseChecks)
     {
         PlayerAction action = entry.BaseAction;
@@ -186,7 +185,7 @@ internal static class SimulationVerifier
         ScoreFeatures after = CheckFeatures(rootName, $"K1 root={entry.RootIndex}", child, 1,
             scorer, bound, entry.ScoreHash, entry.BoundStatus, entry.BoundHash);
         featureStates++;
-        ScoreFeatures before = scorer.Features(root, rootActionCount);
+        ScoreFeatures before = scorer.Features(root, 0);
         CheckTrait(rootName, $"K1 root={entry.RootIndex}", root, before, after, child, action,
             rules, historyRisk, entry.TraitPresent, entry.TraitHash);
         if (entry.TraitPresent)
@@ -194,7 +193,7 @@ internal static class SimulationVerifier
     }
 
     private static void VerifyWalk(string rootName, GoldenWalk walk, in Battle root,
-        Rules rules, Scorer scorer, BoundFeatures? bound, int rootActionCount,
+        Rules rules, Scorer scorer, BoundFeatures? bound,
         ref long featureStates, ref long featureTraits, ref int walkStates, ref int transitions,
         ref int setupPauseChecks)
     {

@@ -289,7 +289,7 @@ internal static class TestSession
                     WriteJson(Path.Combine(resultDirectory, "status.json"), new StatusEntry(
                         2, root, "ok", stage, stopwatch.ElapsedMilliseconds, failure,
                         [.. FirstChoiceCardSelector.LastSelections],
-                        request.FlashTurnSetupRootForTest, 0, "skipped", tier.ToString(), false,
+                        request.FlashTurnSetupRootForTest, "skipped", tier.ToString(), false,
                         0, 0, 0, 0, 0, 0, 0, false, 0, 0, true, null,
                         scenarioResult.Status, scenarioResult.Outcome, scenarioResult.Turns,
                         scenarioResult.PlayerHp, scenarioResult.PlayerMaxHp,
@@ -355,7 +355,7 @@ internal static class TestSession
                     stage = "status";
                     WriteJson(Path.Combine(resultDirectory, "status.json"), new StatusEntry(
                         2, root, "ok", stage, stopwatch.ElapsedMilliseconds, failure,
-                        [.. FirstChoiceCardSelector.LastSelections], request.FlashTurnSetupRootForTest, 0,
+                        [.. FirstChoiceCardSelector.LastSelections], request.FlashTurnSetupRootForTest,
                         auto.Status, tier.ToString(), false,
                         auto.ElapsedMs, 0, 0, 0, 0, 0, auto.Turns,
                         auto.Status == "victory", 0, 0, true, null,
@@ -404,7 +404,7 @@ internal static class TestSession
                     stage = captured == null ? "capture" : "status";
                     WriteJson(Path.Combine(resultDirectory, "status.json"), new StatusEntry(
                         2, root, "ok", stage, stopwatch.ElapsedMilliseconds, searchFailure,
-                        [.. FirstChoiceCardSelector.LastSelections], request.FlashTurnSetupRootForTest, 0,
+                        [.. FirstChoiceCardSelector.LastSelections], request.FlashTurnSetupRootForTest,
                         search?.Status ?? (captured == null ? "skipped" : "not_started"),
                         tier.ToString(), request.DeterministicSearchForTest,
                         search?.ElapsedMilliseconds ?? 0,
@@ -567,7 +567,6 @@ internal static class TestSession
             request, player);
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
-            InitialActionCount = 0,
             TurnSetupRoot = request.FlashTurnSetupRootForTest,
         };
         SearchCase captureCase = EvaluationConfigCompiler.CompileRequest(
@@ -916,7 +915,6 @@ internal static class TestSession
         string? Error,
         string[] SetupSelections,
         bool TurnSetupRoot,
-        int InitialActionCount,
         string SearchStatus,
         string SearchTier,
         bool DeterministicSearch,

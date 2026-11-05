@@ -82,7 +82,7 @@ dotnet run --project tests/Golden -c Release --no-build -- k0
 - `tests/KernelChecks` 输出 `"contracts": "Passed"`。它检查 `Battle`、`Card`、`Enemy`、`Power`、`Orb`、`RngState` 的字节尺寸与牌区偏移；随机数对照原版参考向量；洗牌排序；牌堆操作与容量失败；`CostState` 各位互不干扰；选择协议、注册表与编码合同；成长计数的打包；TheGambit 让玩家死亡后不再调用后续玩家监听、LizardTail 阻止死亡后监听照常执行；以及 `Exec` 字段覆盖合同（见 4.3）。
 - `UiLogicChecks` 在无头测试启动时运行，覆盖设置默认值/往返、当前 schema 与第三方成长额度的往返、药水逐瓶策略对账、面板文案和本地化目录。
 - `JitChecks` 在同一个启动检查里对 Mod/Core 程序集的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`（含 async 状态机的 `MoveNext`；泛型方法跳过），任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让 `ui-checks.json` 失败。规则见 [Battle 状态布局](combat-state-layout.md#大结构体与-jit-限制)。
-- `Golden k0` 输出形如 `K0 Passed fields=30 battleBytes=62744 formatVersion=5 requestVersion=7 resultVersion=6 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 30 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。
+- `Golden k0` 输出形如 `K0 Passed fields=30 battleBytes=62744 formatVersion=5 requestVersion=8 resultVersion=6 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 30 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。
 
 K0 证明内核的布局、编码与纯函数合同在只有 BCL 的环境下成立；不证明搜索语义、冻结输入的求值路径或实机状态。
 

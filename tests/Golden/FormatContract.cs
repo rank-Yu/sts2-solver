@@ -36,9 +36,9 @@ internal static class FormatContract
         }
         if (Codec.FormatVersion != 5)
             throw new InvalidOperationException($"数据格式版本应为 5，实际为 {Codec.FormatVersion}。");
-        if (SearchCodec.RequestFormatVersion != 7)
+        if (SearchCodec.RequestFormatVersion != 8)
             throw new InvalidOperationException(
-                $"搜索请求格式版本应为 7，实际为 {SearchCodec.RequestFormatVersion}。");
+                $"搜索请求格式版本应为 8，实际为 {SearchCodec.RequestFormatVersion}。");
         if (SearchCodec.ResultFormatVersion != 6)
             throw new InvalidOperationException(
                 $"搜索结果格式版本应为 6，实际为 {SearchCodec.ResultFormatVersion}。");

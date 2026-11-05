@@ -514,7 +514,7 @@ internal sealed partial class BeamSolver
             for (int index = 0; index < pool.Count; index++)
             {
                 int node = pool.Node(index);
-                int depth = _nodes.View(node).Depth - _options.InitialActionCount;
+                int depth = _nodes.View(node).Depth;
                 if (depth <= 0)
                     continue;
                 double score = pool.Score(index);

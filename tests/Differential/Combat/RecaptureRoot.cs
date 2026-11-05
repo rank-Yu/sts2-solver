@@ -49,7 +49,7 @@ internal static class RecaptureRoot
             CombatState state = Build(loop, request, root);
             (roots, configBytes) = hasPrefix
                 ? CapturePrefix(state, request)
-                : CaptureOrdinary(state, request, oldConfig);
+                : CaptureOrdinary(state, request);
         }
 
         string targetDirectory = Path.Combine(output, root);
@@ -94,7 +94,7 @@ internal static class RecaptureRoot
     }
 
     private static (List<GoldenBattleRoot> Roots, byte[] Config) CaptureOrdinary(
-        CombatState state, OfflineRequest request, byte[] oldConfig)
+        CombatState state, OfflineRequest request)
     {
         Player player = PlayerOf(state);
         if (state.RunState is not RunState runState)
@@ -103,16 +103,14 @@ internal static class RecaptureRoot
         Battle battle = BattleImporter.Import(state, player, rules, ImportOptions.Default);
         SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
             SearchPolicyCapture.Capture(state, player), request, player);
-        SearchCase expected = SearchCodec.DecodeRequest(oldConfig);
-        int actionCount = expected.Options.InitialActionCount;
-        EvaluationRootFacts facts = EvaluationRootFacts.Default with { InitialActionCount = actionCount };
+        EvaluationRootFacts facts = EvaluationRootFacts.Default;
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(
             state, player, rules, battle, policy, facts);
         BoundFeatures bound = EvaluationConfigCompiler.CompileBound(
             state, player, battle, policy, facts);
         SearchCase actual = EvaluationConfigCompiler.CompileRequest(
             state, player, rules, battle, policy, facts);
-        return ([MakeRoot(battle, "", scorer, bound, actionCount)], SearchCodec.EncodeRequest(actual));
+        return ([MakeRoot(battle, "", scorer, bound)], SearchCodec.EncodeRequest(actual));
     }
 
     private static (List<GoldenBattleRoot> Roots, byte[] Config) CapturePrefix(
@@ -128,10 +126,7 @@ internal static class RecaptureRoot
         Rules rules = RulesCompiler.CompileAfterPrefix(state, player, runState, replay.Battle);
         SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
             SearchPolicyCapture.Capture(state, player), request, player);
-        EvaluationRootFacts facts = EvaluationRootFacts.Default with
-        {
-            InitialActionCount = actions.Length,
-        };
+        EvaluationRootFacts facts = EvaluationRootFacts.Default;
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(state, player, rules,
             replay.Battle, policy, facts, rankBaselineRoot: pre, rankBaselineRules: preRules);
         BoundFeatures bound = EvaluationConfigCompiler.CompileBound(
@@ -140,10 +135,9 @@ internal static class RecaptureRoot
         {
             Scorer = scorer,
             Bound = bound,
-            InitialActionCount = actions.Length,
         };
         SearchCase actual = new(rules, [replay.Battle], options);
-        return ([MakeRoot(replay.Battle, "", scorer, bound, actions.Length)],
+        return ([MakeRoot(replay.Battle, "", scorer, bound)],
             SearchCodec.EncodeRequest(actual));
     }
 
@@ -187,23 +181,22 @@ internal static class RecaptureRoot
             }
             used[match] = true;
             roots.Add(MakeRoot(set.Roots[match], oldRecord.Roots[index].Choices,
-                scorer, boundConfig, 0));
+                scorer, boundConfig));
             battles.Add(set.Roots[match]);
         }
         BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = boundConfig,
-            InitialActionCount = 0,
         };
         SearchCase actual = new(set.Rules, [.. battles], options);
         return (roots, SearchCodec.EncodeRequest(actual));
     }
 
     private static GoldenBattleRoot MakeRoot(in Battle battle, string choices, Scorer scorer,
-        BoundFeatures bound, int actionCount)
+        BoundFeatures bound)
     {
-        ScoreFeatures features = scorer.Features(battle, actionCount);
+        ScoreFeatures features = scorer.Features(battle, 0);
         byte boundStatus;
         ulong boundHash = 0;
         if (!bound.Enabled)

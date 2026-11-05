@@ -199,7 +199,6 @@ internal static class SetupEnumerationCheck
         SearchPolicy policy = SearchPolicyCapture.Capture(state, player);
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
-            InitialActionCount = 0,
             TurnSetupRoot = true,
         };
         SearchCase setupCase = SearchRequestCompiler.CompileSetupRequest(
@@ -212,7 +211,6 @@ internal static class SetupEnumerationCheck
         Console.WriteLine(
             $"SETUP_REQUEST root={root} turn={turn} battles={setupCase.Battles.Length} "
             + $"plans={plans.Count} initialTurn={setupCase.Options.InitialPlayerTurn} "
-            + $"actionCount={setupCase.Options.InitialActionCount} "
             + $"bound={(setupCase.Options.Bound != null)} firstPlayEnergy={firstPlay.Energy}");
         return enumeration;
     }
@@ -357,7 +355,6 @@ internal static class SetupEnumerationCheck
         {
             Scorer = scorer,
             Bound = bound,
-            InitialActionCount = 0,
         };
         SearchCase capture = new(rules, ordered, options);
         byte[] actualBytes = SearchCodec.EncodeRequest(capture);
@@ -491,7 +488,6 @@ internal static class SetupEnumerationCheck
             Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Scorer = expected.Options.Scorer,
-                InitialActionCount = expected.Options.InitialActionCount,
             },
         };
         SearchCase actualScore = expectedScore with
@@ -506,7 +502,6 @@ internal static class SetupEnumerationCheck
             Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Bound = expected.Options.Bound,
-                InitialActionCount = expected.Options.InitialActionCount,
             },
         };
         SearchCase actualBound = expectedBound with

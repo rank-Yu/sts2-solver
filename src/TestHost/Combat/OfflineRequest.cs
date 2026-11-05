@@ -112,7 +112,6 @@ internal sealed record OfflineRequest
     // defaults and root-derived values; these are the request overrides the harness protocol
     // carried so a fixture can reproduce a different player setting.
     public OfflineGrowthBudgets? GrowthBudgets { get; init; }
-    public OfflineRelicCounterRule[] RelicCounterRules { get; init; } = [];
     public bool? IgnoreLongTermRewards { get; init; }
     public string? ActTransitionBossHpStrategy { get; init; }
     public string? FinalBossHpStrategy { get; init; }
@@ -217,17 +216,6 @@ internal sealed class OfflineGrowthBudgets
         return new(HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
             TheScythe, Goopy, ForbiddenGrimoire, MadScience);
     }
-}
-
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-internal sealed class OfflineRelicCounterRule
-{
-    public string Id { get; init; } = string.Empty;
-    public bool Enabled { get; init; } = true;
-    public int Minimum { get; init; }
-    public int Maximum { get; init; }
-    public int HpAllowance { get; init; }
-    public int Priority { get; init; } = 1;
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

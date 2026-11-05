@@ -26,17 +26,8 @@ namespace Sts2Solver.Import;
 /// <summary>Root-local facts the score/bound bridges froze besides the policy.</summary>
 public sealed record EvaluationRootFacts
 {
-    /// <summary>Actions already executed before this root (fixed prefix length).</summary>
-    public int InitialActionCount { get; init; }
-
     /// <summary>The root is a turn-setup root: the four rank baselines are forced to zero.</summary>
     public bool TurnSetupRoot { get; init; }
-
-    public int InitialPotionUseCount { get; init; }
-
-    public int InitialPotionStrategicCost { get; init; }
-
-    public int InitialExplicitPotionStrategicCost { get; init; }
 
     public static EvaluationRootFacts Default { get; } = new();
 }
@@ -80,7 +71,6 @@ internal static class ScoreCompiler
         CardScore?[][] cards = CompileCards(player);
         PowerScore[] powers = CompilePowers(policy.Act3BossStrategy);
         int[] potionCosts = CompilePotionCosts(player);
-        RelicCounterRule[] relicRules = CompileRelicCounterRules(policy);
         ValidateAdmittedCards(root, cards);
         PostCombatRelicHealProfile postCombatHeal = CompilePostCombatRelicHeal(player);
         BossHpRelief bossHpRelief = ResolveBossHpRelief(state, policy);
@@ -97,7 +87,6 @@ internal static class ScoreCompiler
             RequiredGrowthRewards = policy.EffectiveHasGrowthTargets
                 ? policy.RequiredGrowthRewards.ToCore()
                 : default,
-            RelicCounterRules = relicRules,
             PostCombatRelicHeal = postCombatHeal,
             BossHpRelief = bossHpRelief,
             // The reference bridge freezes the request root's native max HP / enemy count. A fixed
@@ -114,9 +103,6 @@ internal static class ScoreCompiler
             InitialEnemyWeakTurns = weak,
             InitialRetainedAttackValue = retained,
             RootPotions = rootPotions,
-            InitialPotionUseCount = facts.InitialPotionUseCount,
-            InitialPotionStrategicCost = facts.InitialPotionStrategicCost,
-            InitialExplicitPotionStrategicCost = facts.InitialExplicitPotionStrategicCost,
             RootPotionSlotCount = root.PotionSlotCount,
             StrengthPowerId = PowerId<StrengthPower>(),
             WeakPowerId = PowerId<WeakPower>(),
@@ -159,9 +145,8 @@ internal static class ScoreCompiler
         // before a fixed prefix), not on the replayed search root. That root can contain a card the
         // prefix removed, so the baseline scorer uses the request root's rule table too.
         Battle baseline = rankBaselineRoot ?? root;
-        int baselineActions = rankBaselineRoot is null ? facts.InitialActionCount : 0;
         ScoreRules provisional = Build(0, 0, 0, 0, rankBaselineRules ?? rules);
-        ScoreFeatures features = new Scorer(provisional).Features(baseline, baselineActions);
+        ScoreFeatures features = new Scorer(provisional).Features(baseline, 0);
         return Build(features.PersistentBuffValue, features.EnemyStrengthSuppression,
             features.EnemyWeakTurns, features.RetainedAttackValue);
     }
@@ -503,43 +488,6 @@ internal static class ScoreCompiler
                 or "LIQUID_MEMORIES" or "BOTTLED_POTENTIAL" or "TOUCH_OF_INSANITY" => 14,
             _ => 9,
         };
-    }
-
-    private static RelicCounterRule[] CompileRelicCounterRules(SearchPolicy policy)
-    {
-        if (policy.RelicTargets.Count == 0)
-            return [];
-        RelicCounterRule[] result = new RelicCounterRule[policy.RelicTargets.Count];
-        for (int index = 0; index < policy.RelicTargets.Count; index++)
-        {
-            SearchRelicCounterTarget target = policy.RelicTargets[index];
-            RelicModel relic = target.Id switch
-            {
-                SearchRelicCounter.HappyFlower => ModelDb.Relic<HappyFlower>(),
-                SearchRelicCounter.FakeHappyFlower => ModelDb.Relic<FakeHappyFlower>(),
-                SearchRelicCounter.Pendulum => ModelDb.Relic<Pendulum>(),
-                SearchRelicCounter.PollinousCore => ModelDb.Relic<PollinousCore>(),
-                SearchRelicCounter.PenNib => ModelDb.Relic<PenNib>(),
-                SearchRelicCounter.Nunchaku => ModelDb.Relic<Nunchaku>(),
-                SearchRelicCounter.TuningFork => ModelDb.Relic<TuningFork>(),
-                SearchRelicCounter.JossPaper => ModelDb.Relic<JossPaper>(),
-                SearchRelicCounter.IronClub => ModelDb.Relic<IronClub>(),
-                SearchRelicCounter.GalacticDust => ModelDb.Relic<GalacticDust>(),
-                SearchRelicCounter.MeatOnTheBone => ModelDb.Relic<MeatOnTheBone>(),
-                _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
-                    $"未知遗物计数目标 {target.Id}"),
-            };
-            if (!Registry.TryRelic(relic.Id.Entry, out ushort relicId))
-            {
-                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
-                    $"遗物 {relic.Id.Entry} 没有 Sts2Solver 定义");
-            }
-            int threshold = target.Id == SearchRelicCounter.MeatOnTheBone
-                ? ModelDb.Relic<MeatOnTheBone>().DynamicVars["HpThreshold"].IntValue
-                : 0;
-            result[index] = new RelicCounterRule(target.ToCore(), relicId, threshold);
-        }
-        return result;
     }
 
     private static void ValidateAdmittedCards(Battle root, CardScore?[][] cards)

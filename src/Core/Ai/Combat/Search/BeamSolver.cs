@@ -73,13 +73,6 @@ internal sealed record BeamOptions(
     public bool AuditPotionPolicy { get; init; }
 
     /// <summary>
-    /// Actions already executed before the search root (a fixed prefix). They are added to every
-    /// node's action count so <c>Score</c>, the route key and the complete-victory checks see the
-    /// same count as the existing solver, which starts counting at the request root.
-    /// </summary>
-    public int InitialActionCount { get; init; }
-
-    /// <summary>
     /// The request's Act3 boss strategy. Adds a direct play of a fetched, payable
     /// power before layer selection on every searched turn, retaining the ordinary fetched state.
     /// </summary>
@@ -716,28 +709,28 @@ internal sealed partial class BeamSolver
         bool checkPotionQuota = _effectivePotionPolicy != PotionUseMode.Disabled;
         Pool current = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota, _options.InitialActionCount,
+            _nodes, _routingSignatures, checkPotionQuota,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool next = new(initialChildren, poolLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota, _options.InitialActionCount,
+            _nodes, _routingSignatures, checkPotionQuota,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool ended = new(Math.Min(initialChildren, endedLimit), endedLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota, _options.InitialActionCount,
+            _nodes, _routingSignatures, checkPotionQuota,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool turnFrontier = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota, _options.InitialActionCount,
+            _nodes, _routingSignatures, checkPotionQuota,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
@@ -785,7 +778,6 @@ internal sealed partial class BeamSolver
                 && (!_options.UnlimitedNodes || !_options.HasUnboundedGrowthTargets
                     && _zeroGrowthBudget
                     && _scorer.GrowthTargetsSatisfied(features)
-                    && _scorer.RelicTargetsSatisfied(features)
                     && key.OutstandingStolenResource == 0))
             {
                 zeroDamageVictory = true;
@@ -800,8 +792,8 @@ internal sealed partial class BeamSolver
             Battle root = roots[rootIndex];
             (double rootScore, double rootRank, double rootPureRank, int rootPotionCost,
                 ScoreFeatures rootFeatures) =
-                Score(root, _options.InitialActionCount, terminal: false, isEndTurn: false);
-            _nodes.Add(new RouteNode(-1, Math.Max(0, _options.InitialActionCount), default, 0, 0,
+                Score(root, 0, terminal: false, isEndTurn: false);
+            _nodes.Add(new RouteNode(-1, Math.Max(0, 0), default, 0, 0,
                 ushort.MaxValue, ushort.MaxValue, int.MinValue, 0,
                 0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0), 0,
                 _options.InitialBrightestFlameMaxHpSpent);
@@ -809,7 +801,7 @@ internal sealed partial class BeamSolver
             PocketwatchState(root, out int rootPocketwatchThreshold, out int rootPocketwatchPlayed,
                 out int rootPocketwatchLastTurn);
             RetentionFacts rootFacts = RetentionFacts.From(
-                rootFeatures, _options.InitialActionCount, rootReachable, rootZeroCost,
+                rootFeatures, 0, rootReachable, rootZeroCost,
                 SearchRouteTraits.None, rootPocketwatchThreshold, rootPocketwatchPlayed,
                 rootPocketwatchLastTurn, _scorer.InitialRetainedAttackValue,
                 retention: _scorer.CaptureRetentionValues(root));
@@ -1287,8 +1279,8 @@ internal sealed partial class BeamSolver
 
     /// <summary>
     /// The keys of the existing final ordering (<c>FinalPlanOrdering.Select</c>) that the admitted requests
-    /// reach. Growth and relic-counter credits are zero because their settings are rejected at admission;
-    /// the sold-HP and boundary tie-breakers are not ported yet. The theft recovery key is carried only
+    /// reach. Growth credits are carried; the removed relic-counter credits no longer exist. The
+    /// sold-HP and boundary tie-breakers are not ported yet. The theft recovery key is carried only
     /// under <c>PreserveResources</c>, matching <c>TheftEncounterStrategy.CompareRecovery</c>.
     /// </summary>
     internal readonly record struct RouteKey(
@@ -1342,8 +1334,8 @@ internal sealed partial class BeamSolver
             features.ProjectedDeathSaveUseCount,
             _theftPolicy == TheftPolicy.PreserveResources ? features.OutstandingStolenResource : 0,
             strategicHpDeficit,
-            features.StrategyGoalHpCredit,
-            features.StrategyGoalCount,
+            features.GrowthHpCredit,
+            features.GrowthRewardCount,
             won ? state.PlayerTurn : int.MaxValue,
             _ordering.InitialPlayerHp - features.PlayerHp
                 + _scorer.RulesForCodec.InitialPlayerMaxHp - features.PlayerMaxHp,
@@ -1453,7 +1445,7 @@ internal sealed partial class BeamSolver
         Battle root = roots[result.BestRootIndex];
         Unsafe.SkipInit(out Battle state);
         Battle.CopyPacked(in root, ref state);
-        int actionCount = _options.InitialActionCount;
+        int actionCount = 0;
         throughTurn = state.PlayerTurn;
         foreach (PlayerAction action in result.BestRoute)
         {
@@ -2062,8 +2054,7 @@ internal sealed partial class BeamSolver
         int PocketwatchCardsPlayedLastTurn,
         SearchRouteTraits Traits,
         int StrategicHpCredit,
-        ulong RelicSatisfiedMask,
-        int StrategyGoalCount,
+        int GrowthRewardCount,
         int AngerCopiesGenerated,
         int RetainedAttackGrowth,
         int FutureSoldHp,
@@ -2158,8 +2149,7 @@ internal sealed partial class BeamSolver
             pocketwatchCardsPlayedLastTurn,
             traits,
             features.StrategicHpCredit,
-            features.RelicSatisfiedMask,
-            features.StrategyGoalCount,
+            features.GrowthRewardCount,
             features.AngerCopiesGenerated,
             Math.Min(ScoreWeights.RetainedAttackGrowthBeamCap,
                 Math.Max(0, features.RetainedAttackValue - initialRetainedAttackValue)),

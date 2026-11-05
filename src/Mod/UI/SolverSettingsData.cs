@@ -50,7 +50,7 @@ internal enum SolverDeploymentSpeed
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 5;
+    internal const int CurrentSchemaVersion = 6;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -108,8 +108,6 @@ internal sealed record SolverSearchSettings
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
     public int? BrightestFlameMaxHpLossLimit { get; init; }
 
-    public SearchRelicCounterTarget[] RelicTargets { get; init; } = [];
-
     public SearchBossHpStrategy ActTransitionBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
 
@@ -122,8 +120,6 @@ internal sealed record SolverSearchSettings
             throw new InvalidDataException($"未知搜索档位：{Tier}");
         if (Potions is null)
             throw new InvalidDataException("设置缺少 search.potions 分区。");
-        if (RelicTargets is null)
-            throw new InvalidDataException("设置缺少 search.relicTargets。");
         if (MemoryBudgetBytes is <= 0)
             throw new InvalidDataException($"搜索内存上限必须为正：{MemoryBudgetBytes}");
         if (Threads is < 1 or > 8)
@@ -139,24 +135,6 @@ internal sealed record SolverSearchSettings
             throw new InvalidDataException($"未知幕末 Boss 血量策略：{ActTransitionBossHpStrategy}");
         if (!Enum.IsDefined(FinalBossHpStrategy))
             throw new InvalidDataException($"未知最终 Boss 血量策略：{FinalBossHpStrategy}");
-        HashSet<SearchRelicCounter> ids = [];
-        foreach (SearchRelicCounterTarget target in RelicTargets)
-        {
-            if (!Enum.IsDefined(target.Id))
-                throw new InvalidDataException($"未知遗物计数目标：{target.Id}");
-            if (!ids.Add(target.Id))
-                throw new InvalidDataException($"重复的遗物计数目标：{target.Id}");
-            if (target.Minimum is < 0 or > 15 || target.Maximum is < 0 or > 15
-                || target.Minimum > target.Maximum)
-                throw new InvalidDataException(
-                    $"遗物计数目标 {target.Id} 的范围必须在 0..15 且最小值不大于最大值：{target.Minimum}..{target.Maximum}");
-            if (target.Period is < 1 or > 15)
-                throw new InvalidDataException($"遗物计数目标 {target.Id} 的周期必须在 1..15：{target.Period}");
-            if (target.HpAllowance < 0)
-                throw new InvalidDataException($"遗物计数目标 {target.Id} 的允许战损不能为负。");
-            if (target.Priority is < 1 or > 8)
-                throw new InvalidDataException($"遗物计数目标 {target.Id} 的优先级必须在 1..8：{target.Priority}");
-        }
     }
 }
 

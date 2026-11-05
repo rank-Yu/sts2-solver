@@ -12,15 +12,11 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "请求 v6→v7、结果 v5→v6：SREQ 删除 ContinuousThreatRanking、ContextualRanking、"
-        + "BaseScoreOnly、BeamWeightPerturbation、InitialSearchTurn、SecondRankBandWidth、"
-        + "InitialExplicitPotionUses、InitialAutomaticPotionUses、InitialAmbergrisUses 和 hooks 字节，"
-        + "Scorer 的 base/offensive 改为显式布尔字段；SRES 删除 TopRoutes、SmartPotionPruned、"
-        + "BestPayoffCount、ScoutLayers、NoveltySearchTelemetry、Takeover 六个保留槽。"
-        + "D1 config.br 与 D2 request.br 重新编码；D1 config.br 保留 InitialActionCount 和 "
-        + "ScoreRules 的三个初始药水计数以复现 13 个前缀根的 scoreHash，其它字段按新格式写出。"
-        + "D2 中 887 个带固定前缀或 BeamWeightPerturbation 的请求改为生产形态：InitialActionCount "
-        + "和三个初始药水计数清零，BeamWeightPerturbation 删除；按内容去重 0 条。";
+        "请求 v7→v8、结果仍为 v6：SREQ 删除 ScoreRules 的遗物计数规则、"
+        + "BeamOptions.InitialActionCount 和 ScoreRules 的三个初始药水计数；"
+        + "D1 config.br 与 D2 request.br 机械重编码，D1 的 13 个前缀根按计数为 0 重录 scoreHash，"
+        + "其中 qf-misery-roster 的初始显式用药还影响其根/K1/K2 的 score 与 bound 哈希，"
+        + "结构数据与其它 12 个根只更新根 scoreHash。SRES 不编码这些字段，D2 期望结果逐字节不变。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

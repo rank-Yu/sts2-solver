@@ -151,7 +151,6 @@ internal static class SearchRequestCompiler
         EvaluationRootFacts setupFacts = facts with
         {
             TurnSetupRoot = true,
-            InitialActionCount = 0,
         };
         return CompileCase(state, player, rules, startRoot, roots, plans, policy, setupFacts,
             profile, deterministic, searchMemoryBudgetBytes);
@@ -251,7 +250,6 @@ internal static class SearchRequestCompiler
             Potions = potions,
             EffectivePotionPolicy = ToUseMode(policy.PotionDefaultMode),
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
-            InitialActionCount = facts.InitialActionCount,
             Act3BossStrategy = policy.Act3BossStrategy,
             InitialPlayerTurn = battles[0].PlayerTurn,
             PreserveReplayAllocatorOpening = HasUnusedCardReplayAllocator(player),

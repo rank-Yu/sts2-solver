@@ -46,9 +46,9 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 设置文件
 
-设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `5`；写入先写 `.tmp` 再原子替换。
+设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `6`；写入先写 `.tmp` 再原子替换。
 
-设置文件只接受当前 `schemaVersion=5`；旧版本或未知字段按下面的通用损坏路径处理，不提供迁移。
+设置文件只接受当前 `schemaVersion=6`；旧版本或未知字段按下面的通用损坏路径处理，不提供迁移。
 
 文件在 Mod 初始化时读取，直接修改文件需要重启游戏；运行中通过面板的设置页或策略侧栏修改后，搜索设置在下一次搜索开始时生效。JSON 损坏或字段校验不通过时，文件会改名为同目录的 `settings.bad-<UTC 时间>.json`，记录 `SETTINGS_CORRUPT`，然后用默认值继续，不阻止游戏启动；其他读取失败记录 `SETTINGS_LOAD_FAILED`，同样用默认值继续。旧文件里的未知字段不会被静默忽略。
 
@@ -65,7 +65,6 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `search.growthBudgets` | 十个来源全为 `0` | 十个内置成长来源的额外战损预算。文件里的第三方来源条目原样保留，但不进入请求。 |
 | `search.ignoreLongTermRewards` | `false` | 不考虑局外收益。 |
 | `search.brightestFlameMaxHpLossLimit` | `null` | 至亮之焰整场累计最大生命消耗上限；`null` 不限，`0` 表示不再打出，范围 0–1000。 |
-| `search.relicTargets` | `[]` | 遗物计数目标；每项包含 `id`、`minimum`、`maximum`、`hpAllowance`、`period`、`priority`。 |
 | `search.actTransitionBossHpStrategy` | `ProgressionFirst` | 幕末 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
 | `search.finalBossHpStrategy` | `ProgressionFirst` | 最终 Boss 的血量策略，另一取值是 `MinimizeHpLoss`。 |
 | `automation.mode` | `AutoSearch` | 三档模式：`Manual`、`AutoSearch`、`FullAuto`。跨战斗、跨重启保留。 |
@@ -78,7 +77,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `ui.showBattleDamagePerformanceHint` | `true` | 是否显示“本场战斗出现大战损”提示；玩家点击提示后写为 `false`，之后不再显示。 |
 | `ui.theme` | `Dark` | 旧文件的兼容字段；面板固定深色，不提供浅色主题。 |
 
-接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区、`ui` 分区，以及药水逐瓶策略、成长额度/不考虑局外收益、至亮之焰上限和两项 Boss 血量策略。药水指令按 `(槽位, 药水 id)` 生效；进入战斗时对不上的旧项会从设置文件删除，新药默认智能。遗物计数目标仍然只保存，没有送入搜索请求。策略改动只影响下一次搜索，不会自动重搜。盗贼策略不写入设置文件，只在当前战斗的会话状态里存在。
+接入运行逻辑的是搜索档位、内存上限覆盖、搜索线程数、`automation` 分区、`ui` 分区，以及药水逐瓶策略、成长额度/不考虑局外收益、至亮之焰上限和两项 Boss 血量策略。药水指令按 `(槽位, 药水 id)` 生效；进入战斗时对不上的旧项会从设置文件删除，新药默认智能。策略改动只影响下一次搜索，不会自动重搜。盗贼策略不写入设置文件，只在当前战斗的会话状态里存在。
 
 搜索内存上限按以下优先级解析：
 
@@ -170,4 +169,4 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 尚未提供
 
-冻结路线、遗物策略界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。遗物按钮不显示，遗物计数目标只保存在设置文件里。
+冻结路线、遗物策略界面、问题报告、Steam Workshop 上传和第三方 Mod 兼容层都还没有。遗物按钮不显示。

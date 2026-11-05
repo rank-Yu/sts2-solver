@@ -163,13 +163,12 @@ internal static class RerecordCommand
         Scorer scorer = config.Options.Scorer
             ?? throw new InvalidDataException($"根 {rootName} 的特征配置没有 Scorer。");
         BoundFeatures? bound = config.Options.Bound;
-        int rootActionCount = config.Options.InitialActionCount;
 
         List<GoldenBattleRoot> roots = new(recordedRoots.Count);
         foreach (GoldenBattleRoot root in recordedRoots)
         {
             (_, ulong scoreHash, byte boundStatus, ulong boundHash) =
-                SimulationVerifier.ComputeFeatures(root.Battle, rootActionCount, scorer, bound);
+                SimulationVerifier.ComputeFeatures(root.Battle, 0, scorer, bound);
             roots.Add(new GoldenBattleRoot
             {
                 Battle = root.Battle,
@@ -185,7 +184,7 @@ internal static class RerecordCommand
         for (int rootIndex = 0; rootIndex < roots.Count; rootIndex++)
         {
             Battle root = roots[rootIndex].Battle;
-            ScoreFeatures rootFeatures = scorer.Features(root, rootActionCount);
+            ScoreFeatures rootFeatures = scorer.Features(root, 0);
             int count = Kernel.LegalActions(root, rules, actions);
             for (int actionIndex = 0; actionIndex < count; actionIndex++)
             {
@@ -244,7 +243,7 @@ internal static class RerecordCommand
                     $"根 {rootName} 的游走根下标 {oldWalk.RootIndex} 越界。");
             Battle root = roots[oldWalk.RootIndex].Battle;
             (ScoreFeatures rootFeatures, ulong rootScore, byte rootBoundStatus, ulong rootBound) =
-                SimulationVerifier.ComputeFeatures(root, rootActionCount, scorer, bound);
+                SimulationVerifier.ComputeFeatures(root, 0, scorer, bound);
             ScoreFeatures walkFeatures = rootFeatures;
             ulong walkScore = rootScore;
             byte walkBoundStatus = rootBoundStatus;

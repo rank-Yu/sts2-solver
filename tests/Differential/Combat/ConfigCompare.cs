@@ -94,7 +94,6 @@ internal static class ConfigCompare
         {
             Scorer = scorer,
             Bound = bound,
-            InitialActionCount = 0,
         };
         SearchCase actual = new(set.Rules, [.. ordered], options);
         byte[] actualBytes = SearchCodec.EncodeRequest(actual);
@@ -105,7 +104,7 @@ internal static class ConfigCompare
         }
         for (int index = 0; index < golden.Roots.Count; index++)
         {
-            ConfigResult hashes = CheckHashes(golden.Roots[index], ordered[index], scorer, bound, 0, false);
+            ConfigResult hashes = CheckHashes(golden.Roots[index], ordered[index], scorer, bound, false);
             if (hashes.Status != ConfigStatus.Same)
                 return hashes;
         }
@@ -170,10 +169,7 @@ internal static class ConfigCompare
         SearchPolicy policy;
         Scorer scorer;
         BoundFeatures bound;
-        EvaluationRootFacts facts = EvaluationRootFacts.Default with
-        {
-            InitialActionCount = actions.Length,
-        };
+        EvaluationRootFacts facts = EvaluationRootFacts.Default;
         try
         {
             policy = SearchPolicyOverrides.ApplyOverrides(SearchPolicyCapture.Capture(state, player), request, player);
@@ -198,7 +194,6 @@ internal static class ConfigCompare
         {
             Scorer = scorer,
             Bound = bound,
-            InitialActionCount = actions.Length,
         };
         SearchCase actual = new(rules, [replay.Battle], options);
         byte[] actualBytes = SearchCodec.EncodeRequest(actual);
@@ -207,7 +202,7 @@ internal static class ConfigCompare
             string? section = DescribeRequestDifference(expected, actual, out string detail);
             return new(ConfigStatus.Different, "", section ?? "<bytes>", detail, false);
         }
-        return CheckHashes(golden.Roots[0], replay.Battle, scorer, bound, actions.Length, false);
+        return CheckHashes(golden.Roots[0], replay.Battle, scorer, bound, false);
     }
 
     public static ConfigResult Run(string data, string root, CombatState state,
@@ -285,10 +280,8 @@ internal static class ConfigCompare
         {
             return new(ConfigStatus.Rejected, error.Reason, "", error.Detail, preInjectionSetupRoot);
         }
-        int actionCount = expected.Options.InitialActionCount;
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
-            InitialActionCount = actionCount,
             TurnSetupRoot = preInjectionSetupRoot,
         };
 
@@ -318,7 +311,7 @@ internal static class ConfigCompare
             if (section != null)
                 return new(ConfigStatus.Different, "", section, detail, true);
             (Battle _, int selectedIndex) = ImportCompare.SelectExpectedRoot(golden, setupSelections, true);
-            return CheckHashes(golden.Roots[selectedIndex], battle, scorer, bound, actionCount, true);
+            return CheckHashes(golden.Roots[selectedIndex], battle, scorer, bound, true);
         }
 
         SearchCase actual = EvaluationConfigCompiler.CompileRequest(
@@ -330,15 +323,15 @@ internal static class ConfigCompare
             return new(ConfigStatus.Different, "", section ?? "<bytes>", detail, false);
         }
 
-        return CheckHashes(golden.Roots[0], battle, scorer, bound, actionCount, false);
+        return CheckHashes(golden.Roots[0], battle, scorer, bound, false);
     }
 
 
 
     private static ConfigResult CheckHashes(GoldenBattleRoot golden,
-        Battle battle, Scorer scorer, BoundFeatures bound, int actionCount, bool subParts)
+        Battle battle, Scorer scorer, BoundFeatures bound, bool subParts)
     {
-        ScoreFeatures features = scorer.Features(battle, actionCount);
+        ScoreFeatures features = scorer.Features(battle, 0);
         ulong expectedScore = golden.ScoreHash;
         ulong actualScore = GoldenHash.Score(features);
         if (expectedScore != actualScore)
@@ -374,8 +367,7 @@ internal static class ConfigCompare
         BoundFeatures bound, out string detail)
     {
         byte[] expectedScore = EncodeScoreProbe(expected);
-        byte[] actualScore = EncodeScoreProbe(expected.Rules,
-            expected.Options.InitialActionCount, scorer);
+        byte[] actualScore = EncodeScoreProbe(expected.Rules, scorer);
         if (!expectedScore.AsSpan().SequenceEqual(actualScore))
         {
             detail = ScoreRulesDiff(expected.Options.Scorer!.RulesForCodec,
@@ -383,8 +375,7 @@ internal static class ConfigCompare
             return "score";
         }
         byte[] expectedBound = EncodeBoundProbe(expected);
-        byte[] actualBound = EncodeBoundProbe(expected.Rules,
-            expected.Options.InitialActionCount, bound);
+        byte[] actualBound = EncodeBoundProbe(expected.Rules, bound);
         if (!expectedBound.AsSpan().SequenceEqual(actualBound))
         {
             detail = BoundConfigDiff(expected.Options.Bound!.ConfigForCodec,
@@ -396,29 +387,25 @@ internal static class ConfigCompare
     }
 
     private static byte[] EncodeScoreProbe(SearchCase expected)
-        => EncodeScoreProbe(expected.Rules, expected.Options.InitialActionCount,
-            expected.Options.Scorer!);
+        => EncodeScoreProbe(expected.Rules, expected.Options.Scorer!);
 
-    private static byte[] EncodeScoreProbe(Rules rules, int actionCount, Scorer scorer)
+    private static byte[] EncodeScoreProbe(Rules rules, Scorer scorer)
     {
         BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
-            InitialActionCount = actionCount,
         };
         return SearchCodec.EncodeRequest(new SearchCase(rules, [], options));
     }
 
     private static byte[] EncodeBoundProbe(SearchCase expected)
-        => EncodeBoundProbe(expected.Rules, expected.Options.InitialActionCount,
-            expected.Options.Bound!);
+        => EncodeBoundProbe(expected.Rules, expected.Options.Bound!);
 
-    private static byte[] EncodeBoundProbe(Rules rules, int actionCount, BoundFeatures bound)
+    private static byte[] EncodeBoundProbe(Rules rules, BoundFeatures bound)
     {
         BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Bound = bound,
-            InitialActionCount = actionCount,
         };
         return SearchCodec.EncodeRequest(new SearchCase(rules, [], options));
     }
@@ -453,7 +440,6 @@ internal static class ConfigCompare
             Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Scorer = expected.Options.Scorer,
-                InitialActionCount = expected.Options.InitialActionCount,
             },
         };
         SearchCase actualScore = expectedScore with { Options = expectedScore.Options with { Scorer = actual.Options.Scorer } };
@@ -470,7 +456,6 @@ internal static class ConfigCompare
             Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Bound = expected.Options.Bound,
-                InitialActionCount = expected.Options.InitialActionCount,
             },
         };
         SearchCase actualBound = expectedBound with { Options = expectedBound.Options with { Bound = actual.Options.Bound } };
@@ -495,8 +480,6 @@ internal static class ConfigCompare
             return $"maxTurns {expected.MaxTurns}->{actual.MaxTurns}";
         if (expected.SoftTimeBudget != actual.SoftTimeBudget)
             return $"softTimeBudget {expected.SoftTimeBudget}->{actual.SoftTimeBudget}";
-        if (expected.InitialActionCount != actual.InitialActionCount)
-            return $"initialActionCount {expected.InitialActionCount}->{actual.InitialActionCount}";
         if (expected.Act3BossStrategy != actual.Act3BossStrategy)
             return $"act3BossStrategy {expected.Act3BossStrategy}->{actual.Act3BossStrategy}";
         if (expected.TheftPolicy != actual.TheftPolicy)
@@ -545,14 +528,6 @@ internal static class ConfigCompare
             return $"growthBudgets {Format(expected.GrowthBudgets)}->{Format(actual.GrowthBudgets)}";
         if (!expected.RequiredGrowthRewards.Equals(actual.RequiredGrowthRewards))
             return $"requiredGrowthRewards {Format(expected.RequiredGrowthRewards)}->{Format(actual.RequiredGrowthRewards)}";
-        if (expected.RelicCounterRules.Length != actual.RelicCounterRules.Length)
-            return $"relicCounterRules.length {expected.RelicCounterRules.Length}->{actual.RelicCounterRules.Length}";
-        for (int index = 0; index < expected.RelicCounterRules.Length; index++)
-        {
-            if (!expected.RelicCounterRules[index].Equals(actual.RelicCounterRules[index]))
-                return $"relicCounterRules[{index}] {Format(expected.RelicCounterRules[index])}->" +
-                    $"{Format(actual.RelicCounterRules[index])}";
-        }
         if (!expected.PostCombatRelicHeal.Equals(actual.PostCombatRelicHeal))
             return $"postCombatRelicHeal {Format(expected.PostCombatRelicHeal)}->" +
                 $"{Format(actual.PostCombatRelicHeal)}";
@@ -595,7 +570,7 @@ internal static class ConfigCompare
         {
             if (property.Name is nameof(ScoreRules.Rules) or nameof(ScoreRules.Cards)
                 or nameof(ScoreRules.Powers) or nameof(ScoreRules.PotionStrategicCost)
-                or nameof(ScoreRules.RelicCounterRules) or nameof(ScoreRules.RootPotions))
+                or nameof(ScoreRules.RootPotions))
             {
                 continue;
             }

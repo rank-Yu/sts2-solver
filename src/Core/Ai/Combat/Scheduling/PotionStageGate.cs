@@ -23,7 +23,6 @@ internal static class PotionStageGate
             || best.ExplicitPotionUseCount != 0 || best.ProjectedDeathSaveUseCount != 0
             || freeBaseline is not { } free || !free.Key.Won || !free.Key.Survives
             || free.ExplicitPotionUseCount != 0 || free.ProjectedDeathSaveUseCount != 0
-            || options.InitialExplicitPotionUses != 0 || options.InitialAutomaticPotionUses != 0
             || options.EffectivePotionPolicy != PotionUseMode.Smart
             || options.Potions.EffectivePolicy != PotionUseMode.Smart
             || options.HasUnboundedGrowthTargets
@@ -44,7 +43,7 @@ internal static class PotionStageGate
             return false;
 
         int minimum = int.MaxValue;
-        int missingHp = Math.Max(0, ordering.InitialPlayerMaxHp - ordering.InitialPlayerHp);
+        int missingHp = Math.Max(0, scores.InitialPlayerMaxHp - ordering.InitialPlayerHp);
         foreach (Battle root in roots)
         {
             // Mid-combat roots can already carry healing and damage ledgers whose lower bound is

@@ -62,10 +62,7 @@ internal static class UiLogicChecks
         Check("settings_defaults", Defaults);
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
-        Check("settings_v1_migration", () => MigrateV1(directory));
-        Check("settings_v2_migration", () => MigrateV2(directory));
-        Check("settings_v3_migration", () => MigrateV3(directory));
-        Check("settings_v4_migration", () => MigrateV4(directory));
+        Check("settings_third_party_current", () => ThirdPartyCurrentSchema(directory));
         Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
@@ -235,110 +232,23 @@ internal static class UiLogicChecks
             "invalid_log_missing");
     }
 
-    private static void MigrateV1(string directory)
+    private static void ThirdPartyCurrentSchema(string directory)
     {
-        string fullAuto = Path.Combine(directory, "v1-full-auto.json");
-        File.WriteAllText(fullAuto,
-            "{\"schemaVersion\":1,\"automation\":{\"autoEnableFullAuto\":true}," +
-            "\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
-            "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
-        List<string> logs = [];
-        SolverSettingsStore migrated = SolverSettingsStore.Load(fullAuto, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 5, "migration_schema");
-        Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "migration_full_auto");
-        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "migration_search");
-        Require(logs.Any(static line => line.Contains("SETTINGS_MIGRATED", StringComparison.Ordinal)),
-            "migration_log");
-        Require(!File.ReadAllText(fullAuto).Contains("theft", StringComparison.Ordinal),
-            "v1_migration_theft_removed");
-
-        string autoSearch = Path.Combine(directory, "v1-auto-search.json");
-        File.WriteAllText(autoSearch,
-            "{\"schemaVersion\":1,\"automation\":{\"autoEnableFullAuto\":false}," +
-            "\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
-        SolverSettingsStore migratedAuto = SolverSettingsStore.Load(autoSearch, logs.Add, logs.Add);
-        Require(migratedAuto.Current.Automation.Mode == SolverMode.AutoSearch,
-            "migration_auto_search");
-        SolverSettingsData defaults = new();
-        Require(defaults.Automation.Mode == SolverMode.AutoSearch, "migration_default");
-    }
-
-    private static void MigrateV2(string directory)
-    {
-        string path = Path.Combine(directory, "v2.json");
+        string path = Path.Combine(directory, "current-third-party.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":2,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
-            "\"automation\":{\"mode\":\"FullAuto\"}," +
-            "\"ui\":{\"opacity\":0.5,\"theme\":\"Light\"}}");
+            "{\"schemaVersion\":5,\"search\":{\"growthBudgets\":{" +
+            "\"handOfGreed\":4,\"example_mod:growth\":7}}}");
         List<string> logs = [];
-        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 5, "v2_migration_schema");
-        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v2_migration_search");
-        Require(migrated.Current.Automation.Mode == SolverMode.FullAuto, "v2_migration_mode");
-        Require(migrated.Current.Search.Threads is null, "v2_migration_threads");
-        Require(migrated.Current.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
-            "v2_migration_speed");
-        Require(migrated.Current.Ui.ShowBattleDamagePerformanceHint, "v2_migration_performance_hint");
-        Require(logs.Any(static line => line.Contains("from=2", StringComparison.Ordinal)),
-            "v2_migration_log");
-        Require(!File.ReadAllText(path).Contains("theft", StringComparison.Ordinal),
-            "v2_migration_theft_removed");
-    }
-
-    private static void MigrateV3(string directory)
-    {
-        string path = Path.Combine(directory, "v3-disabled.json");
-        File.WriteAllText(path,
-            "{\"schemaVersion\":3,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"}," +
-            "\"automation\":{\"mode\":\"AutoSearch\",\"solverDisabled\":true}," +
-            "\"ui\":{\"opacity\":0.5,\"theme\":\"Dark\"}}");
-        List<string> logs = [];
-        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 5, "v3_migration_schema");
-        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v3_migration_search");
-        Require(migrated.Current.Automation.Mode == SolverMode.Manual, "v3_migration_disabled");
-        string rewritten = File.ReadAllText(path);
-        Require(!rewritten.Contains("solverDisabled", StringComparison.Ordinal),
-            "v3_migration_field_removed");
-        Require(!rewritten.Contains("theft", StringComparison.Ordinal),
-            "v3_migration_theft_removed");
-        Require(logs.Any(static line => line.Contains("from=3", StringComparison.Ordinal)),
-            "v3_migration_log");
-
-        string enabledPath = Path.Combine(directory, "v3-enabled.json");
-        File.WriteAllText(enabledPath,
-            "{\"schemaVersion\":3,\"automation\":{\"mode\":\"FullAuto\"," +
-            "\"solverDisabled\":false},\"ui\":{\"opacity\":0.65,\"theme\":\"Dark\"}}");
-        SolverSettingsStore enabled = SolverSettingsStore.Load(enabledPath, logs.Add, logs.Add);
-        Require(enabled.Current.SchemaVersion == 5, "v3_enabled_schema");
-        Require(enabled.Current.Automation.Mode == SolverMode.FullAuto, "v3_enabled_mode");
-        Require(!File.ReadAllText(enabledPath).Contains("solverDisabled", StringComparison.Ordinal),
-            "v3_enabled_field_removed");
-    }
-
-    private static void MigrateV4(string directory)
-    {
-        string path = Path.Combine(directory, "v4.json");
-        File.WriteAllText(path,
-            "{\"schemaVersion\":4,\"search\":{\"tier\":\"High\",\"theft\":\"LetEscape\"," +
-            "\"growthBudgets\":{\"handOfGreed\":4,\"example_mod:growth\":7}}," +
-            "\"automation\":{\"mode\":\"AutoSearch\"}," +
-            "\"ui\":{\"opacity\":0.5,\"theme\":\"Dark\"}}");
-        List<string> logs = [];
-        SolverSettingsStore migrated = SolverSettingsStore.Load(path, logs.Add, logs.Add);
-        Require(migrated.Current.SchemaVersion == 5, "v4_migration_schema");
-        Require(migrated.Current.Search.Tier == SearchPerformanceTier.High, "v4_migration_search");
-        Require(migrated.Current.Search.GrowthBudgets.HandOfGreed == 4,
-            "v4_migration_growth");
-        Require(migrated.Current.Search.GrowthBudgets.ThirdParty.TryGetValue(
+        SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+        Require(loaded.Current.SchemaVersion == SolverSettingsData.CurrentSchemaVersion,
+            "third_party_schema");
+        Require(loaded.Current.Search.GrowthBudgets.HandOfGreed == 4,
+            "third_party_growth");
+        Require(loaded.Current.Search.GrowthBudgets.ThirdParty.TryGetValue(
             "example_mod:growth", out System.Text.Json.JsonElement thirdParty)
-            && thirdParty.GetInt32() == 7, "v4_migration_third_party");
-        string rewritten = File.ReadAllText(path);
-        Require(!rewritten.Contains("theft", StringComparison.Ordinal), "v4_migration_theft_removed");
-        Require(rewritten.Contains("example_mod:growth", StringComparison.Ordinal),
-            "v4_migration_third_party_preserved");
-        Require(logs.Any(static line => line.Contains("from=4", StringComparison.Ordinal)),
-            "v4_migration_log");
+            && thirdParty.GetInt32() == 7, "third_party_value");
+        Require(!Directory.GetFiles(directory, "current-third-party.bad-*.json").Any(),
+            "third_party_corrupt");
     }
 
     private static void PotionDirectiveReconcile()

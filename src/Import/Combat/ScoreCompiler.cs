@@ -38,10 +38,6 @@ public sealed record EvaluationRootFacts
 
     public int InitialExplicitPotionStrategicCost { get; init; }
 
-    public int InitialExplicitPotionUses { get; init; }
-
-    public int InitialAutomaticPotionUses { get; init; }
-
     public static EvaluationRootFacts Default { get; } = new();
 }
 
@@ -104,19 +100,12 @@ internal static class ScoreCompiler
             RelicCounterRules = relicRules,
             PostCombatRelicHeal = postCombatHeal,
             BossHpRelief = bossHpRelief,
-            ContinuousThreatRanking = policy.ContinuousThreatRanking,
-            ContextualRanking = null,
             // The reference bridge freezes the request root's native max HP / enemy count. A fixed
             // prefix can add enemies (Fabricator's bots), so these must come from the pre-prefix
             // native state rather than the replayed Battle.
             InitialPlayerMaxHp = player.Creature.MaxHp,
             IsActEndingBoss = bossHpRelief != BossHpRelief.None,
             Act3BossStrategy = policy.Act3BossStrategy,
-            BaseScoreOnly = policy.BaseScoreOnly,
-            BeamWeightPerturbation = policy.BeamWeightPerturbation is { } perturbation
-                ? new BeamWeightPerturbation(
-                    (BeamWeightTerm)(int)perturbation.Term, perturbation.Scale)
-                : null,
             IgnoreLongTermRewards = policy.IgnoreLongTermRewards,
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             InitialEnemyCount = state.Enemies.Count,

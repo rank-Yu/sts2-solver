@@ -165,9 +165,6 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
 | `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
 | `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；接受 `Smart`、`Disabled`、`Force`，`Smart` 不入表 | `CapturePotionStrategy` |
-| `BaseScoreOnly` | false | 请求可以覆盖 | M0 宿主 `ordering=baseline` |
-| `ContinuousThreatRanking` | false | 请求可以覆盖 | M0 宿主默认 |
-| `BeamWeightPerturbation` | 空 | 请求覆盖时项和 scale 必须同时给出 | M0 宿主默认 |
 | `HasDevelopmentStrategy`、镜像登记标志、第三方成长标志 | 全空 | 非空且生效时以 `unsupported-policy` 拒绝 | — |
 
 评分和下界编译不读逐瓶药水指令，但请求编译会读；`PotionDefaultMode` 和 `PotionDirectives` 因此留在 `SearchPolicy` 里，再由 `SearchRequestCompiler` 转成 `PotionPolicy`。`FixedBudget`、并行度、`IncludeTurnSetup` 这类搜索执行字段仍然不在 `SearchPolicy` 里。差分宿主的请求 DTO 可以覆盖会影响政策的字段（见 [Differential](../tests/Differential/README.md#输入)）；冻结 fixture 都没有覆盖，全部用默认值和根派生值。未知字段显式失败。
@@ -183,9 +180,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `RelicCounterRules` | 按政策目标的顺序映射规范遗物与 `MeatOnTheBone` 阈值 |
 | `PostCombatRelicHeal` | 原生 `BurningBlood`、`BlackBlood` 的 `Heal`，以及 `MeatOnTheBone` 的 `Heal`/`HpThreshold` |
 | `BossHpRelief` | 原生 `Encounter.RoomType`、当前幕、`SecondBossEncounter`，再按两个 Boss 策略裁决 |
-| `ContinuousThreatRanking`、`BaseScoreOnly`、`BeamWeightPerturbation` | 来自 `SearchPolicy` |
 | `InitialPlayerMaxHp`、`IsActEndingBoss`、`InitialEnemyCount` | 导入后 `Battle` 的玩家最大生命、Boss 减免、敌人数 |
-| 根药水与药水计数 | 导入后 `Battle` 的 `RootPotions`、`RootPotionSlotCount`；普通根的初始计数为 0 |
+| 根药水与药水计数 | 导入后 `Battle` 的 `RootPotions`、`RootPotionSlotCount`；生产普通根的初始计数为 0，D1 前缀根保留记录值 |
 | 33 个命名 id | `ModelDb.Power<T>()`、`Card<T>()`、`Relic<T>()`、`Potion<T>()` 的原生 id 经注册表解析；未注册为 `ushort.MaxValue` |
 
 **四个排名基线。** `InitialPersistentBuffValue`、`InitialEnemyStrengthSuppression`、`InitialEnemyWeakTurns`、`InitialRetainedAttackValue` 的求法：先用这四项为 0 的 `ScoreRules` 构造 Core 的 `Scorer`，在根上算 `ScoreFeatures`，再把四个特征值填回最终表。这样与原引擎 `CombatBeamSolver`、`SimulationSnapshot` 冻结的值逐字段一致，又不用复制原引擎的计算。回合准备根按 `FlashScoreBridge.cs:74-80` 把四项强制为 0；前缀根按同一原导入层的请求根语义，用前缀之前的 `Battle` 和规则表计算这四项，评分表本身仍取回放后的内容。

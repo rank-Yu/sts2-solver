@@ -34,10 +34,11 @@ internal static class SearchCodec
     internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
 
     /// <summary>
-    /// The request layout version. It is independent of <see cref="Codec.FormatVersion"/>: removing
-    /// deleted option slots rewrites SREQ without changing BATL/RULE/GOLD/SRES.
+    /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
+    /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 6;
+    internal const ushort RequestFormatVersion = 7;
+    internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
         => Codec.ToBytes(writer =>
@@ -91,11 +92,14 @@ internal static class SearchCodec
         writer.Write(options.MaxExpandedNodes);
         writer.Write(options.MaxTurns);
         writer.Write(options.SoftTimeBudget.Ticks);
-        writer.Write(options.InitialPlayerMaxHp);
         EncodePotionPolicy(writer, options.Potions);
         writer.Write(options.Scorer != null);
-        if (options.Scorer != null)
-            EncodeScoreRules(writer, options.Scorer.RulesForCodec);
+        if (options.Scorer is { } scorer)
+        {
+            writer.Write(scorer.BaseOnly);
+            writer.Write(scorer.Offensive);
+            EncodeScoreRules(writer, scorer.RulesForCodec);
+        }
         writer.Write(options.Ordering != null);
         if (options.Ordering is { } ordering)
             EncodeOrdering(writer, ordering);
@@ -106,31 +110,19 @@ internal static class SearchCodec
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
             writer.Write((int)theft);
-        writer.Write(options.InitialExplicitPotionUses);
-        writer.Write(options.InitialAutomaticPotionUses);
         writer.Write(options.PotionFreeBaseline != null);
         if (options.PotionFreeBaseline is { } baseline)
             EncodePotionFreeBaseline(writer, baseline);
-        writer.Write(options.AmbergrisPotionId);
-        writer.Write(options.InitialAmbergrisUses);
         writer.Write(options.AuditPotionPolicy);
         writer.Write(options.InitialActionCount);
         writer.Write(options.Act3BossStrategy);
-        writer.Write(0); // reserved: EarlyTurnScoutDepth is removed; only zero is accepted.
-        writer.Write(false); // reserved: Novelty is removed; only null is accepted.
         writer.Write(options.InitialPlayerTurn);
-        writer.Write(options.InitialSearchTurn);
         writer.Write(options.SecondRankBand);
-        writer.Write(options.SecondRankBandWidth);
         writer.Write(options.AggressivePowerCommitment);
         writer.Write(options.PreserveReplayAllocatorOpening);
         writer.Write(options.PowerCommitments != null);
         if (options.PowerCommitments is { } commitments)
             EncodePowerCommitments(writer, commitments);
-        byte hooks = 0;
-        if (options.Pacer != null) hooks |= 1;
-        if (options.Trace != null) hooks |= 8;
-        writer.Write(hooks);
         if (options.BrightestFlameMaxHpLossLimit is { } flameLimit)
         {
             if (flameLimit is < 0 or > 1000)
@@ -163,12 +155,18 @@ internal static class SearchCodec
         int maxExpanded = reader.ReadInt32();
         int maxTurns = reader.ReadInt32();
         TimeSpan budget = TimeSpan.FromTicks(reader.ReadInt64());
-        int initialHp = reader.ReadInt32();
         PotionPolicy potions = DecodePotionPolicy(reader);
         bool hasScorer = Codec.ReadBool(reader);
         Scorer? scorer = null;
+        bool baseOnly = false;
+        bool offensive = false;
         if (hasScorer)
-            scorer = new Scorer(DecodeScoreRules(reader, rules));
+        {
+            baseOnly = Codec.ReadBool(reader);
+            offensive = Codec.ReadBool(reader);
+            scorer = new Scorer(DecodeScoreRules(reader, rules),
+                baseOnly: baseOnly, offensive: offensive);
+        }
         bool hasOrdering = Codec.ReadBool(reader);
         RouteOrdering? ordering = hasOrdering ? DecodeOrdering(reader) : null;
         bool hasBound = Codec.ReadBool(reader);
@@ -176,32 +174,17 @@ internal static class SearchCodec
         PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "有效药水政策");
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
-        int initialExplicit = reader.ReadInt32();
-        int initialAutomatic = reader.ReadInt32();
         bool hasBaseline = Codec.ReadBool(reader);
         PotionFreePolicyBaseline? baseline = hasBaseline ? DecodePotionFreeBaseline(reader) : null;
-        ushort ambergris = reader.ReadUInt16();
-        int initialAmbergris = reader.ReadInt32();
         bool audit = Codec.ReadBool(reader);
         int initialAction = reader.ReadInt32();
         bool act3 = Codec.ReadBool(reader);
-        int scoutDepth = reader.ReadInt32();
-        if (scoutDepth != 0)
-            throw new InvalidDataException("EarlyTurnScoutDepth 已删除，只接受 0。");
-        bool hasNovelty = Codec.ReadBool(reader);
-        if (hasNovelty)
-            throw new InvalidDataException("Novelty 已删除，只接受 null。");
         int initialTurn = reader.ReadInt32();
-        int initialSearchTurn = reader.ReadInt32();
         bool secondRank = Codec.ReadBool(reader);
-        int secondRankWidth = reader.ReadInt32();
         bool aggressive = Codec.ReadBool(reader);
         bool preserveOpening = Codec.ReadBool(reader);
         bool hasCommitments = Codec.ReadBool(reader);
         PowerCommitmentCatalog? commitments = hasCommitments ? DecodePowerCommitments(reader) : null;
-        byte hooks = reader.ReadByte();
-        if ((hooks & ~0x0F) != 0)
-            throw new InvalidDataException($"Sts2Solver 搜索请求的宿主回调位 {hooks:X} 非法。");
         int? flameLimit = null;
         int flameSpent = 0;
         bool sawFlame = false;
@@ -232,7 +215,7 @@ internal static class SearchCodec
                     throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
                 SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader,
                     continuous: extension == 0x32505553u);
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, setup: setup);
+                scorer = new Scorer(scorer.RulesForCodec, baseOnly, offensive, setup: setup);
                 sawSetup = true;
             }
             else if (extension == 0x32505351u)
@@ -242,14 +225,12 @@ internal static class SearchCodec
                 if (sawSetup || sawQueen)
                     throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
                 QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader) with { PreserveKillTiming = true };
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly: false, queen: queen);
+                scorer = new Scorer(scorer.RulesForCodec, baseOnly, offensive, queen: queen);
                 sawQueen = true;
             }
-            else if (extension == 0x31505351u)
-                throw new InvalidDataException("QSP1 女王能力补搜已删除。");
             else throw new InvalidDataException("Unknown search request extension.");
         }
-        return new BeamOptions(beamWidth, maxExpanded, maxTurns, budget, initialHp)
+        return new BeamOptions(beamWidth, maxExpanded, maxTurns, budget)
         {
             Potions = potions,
             Scorer = scorer,
@@ -257,18 +238,12 @@ internal static class SearchCodec
             Bound = bound,
             EffectivePotionPolicy = effective,
             TheftPolicy = theft,
-            InitialExplicitPotionUses = initialExplicit,
-            InitialAutomaticPotionUses = initialAutomatic,
             PotionFreeBaseline = baseline,
-            AmbergrisPotionId = ambergris,
-            InitialAmbergrisUses = initialAmbergris,
             AuditPotionPolicy = audit,
             InitialActionCount = initialAction,
             Act3BossStrategy = act3,
             InitialPlayerTurn = initialTurn,
-            InitialSearchTurn = initialSearchTurn,
             SecondRankBand = secondRank,
-            SecondRankBandWidth = secondRankWidth,
             AggressivePowerCommitment = aggressive,
             PreserveReplayAllocatorOpening = preserveOpening,
             PowerCommitments = commitments,
@@ -330,13 +305,12 @@ internal static class SearchCodec
     private static void EncodeOrdering(BinaryWriter writer, RouteOrdering ordering)
     {
         writer.Write(ordering.InitialPlayerHp);
-        writer.Write(ordering.InitialPlayerMaxHp);
         writer.Write((int)ordering.BossHpRelief);
         EncodePostCombatHeal(writer, ordering.PostCombatRelicHeal);
     }
 
     private static RouteOrdering DecodeOrdering(BinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadInt32(),
+        => new(reader.ReadInt32(),
             ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免"),
             DecodePostCombatHeal(reader));
 
@@ -444,22 +418,9 @@ internal static class SearchCodec
         }
         EncodePostCombatHeal(writer, rules.PostCombatRelicHeal);
         writer.Write((int)rules.BossHpRelief);
-        writer.Write(rules.ContinuousThreatRanking);
-        if (rules.ContextualRanking != null)
-            throw new NotSupportedException(
-                "ContextualRankingModel 只有私有文档，无法在不修改 src/Search 的前提下导出；"
-                + "本批协调器请求均为 null。");
-        writer.Write(false);
         writer.Write(rules.InitialPlayerMaxHp);
         writer.Write(rules.IsActEndingBoss);
         writer.Write(rules.Act3BossStrategy);
-        writer.Write(rules.BaseScoreOnly);
-        writer.Write(rules.BeamWeightPerturbation != null);
-        if (rules.BeamWeightPerturbation is { } perturbation)
-        {
-            writer.Write((int)perturbation.Term);
-            writer.Write(BitConverter.DoubleToInt64Bits(perturbation.Scale));
-        }
         writer.Write(rules.IgnoreLongTermRewards);
         writer.Write(rules.TheftPolicy != null);
         writer.Write((int)(rules.TheftPolicy ?? TheftPolicy.LetEscape));
@@ -543,21 +504,9 @@ internal static class SearchCodec
         }
         PostCombatRelicHealProfile heal = DecodePostCombatHeal(reader);
         BossHpRelief relief = ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免");
-        bool continuous = Codec.ReadBool(reader);
-        if (Codec.ReadBool(reader))
-            throw new InvalidDataException("本格式不解码 ContextualRankingModel。");
         int initialMaxHp = reader.ReadInt32();
         bool actEnding = Codec.ReadBool(reader);
         bool act3 = Codec.ReadBool(reader);
-        bool baseOnly = Codec.ReadBool(reader);
-        BeamWeightPerturbation? perturbation = null;
-        bool hasBeam = Codec.ReadBool(reader);
-        if (hasBeam)
-        {
-            BeamWeightTerm term = ReadEnumInt<BeamWeightTerm>(reader, "Beam 权重项");
-            double scale = BitConverter.Int64BitsToDouble(reader.ReadInt64());
-            perturbation = new BeamWeightPerturbation(term, scale);
-        }
         bool ignoreLongTerm = Codec.ReadBool(reader);
         bool hasTheft = Codec.ReadBool(reader);
         int theftValue = reader.ReadInt32();
@@ -583,13 +532,9 @@ internal static class SearchCodec
             RelicCounterRules = relicRules,
             PostCombatRelicHeal = heal,
             BossHpRelief = relief,
-            ContinuousThreatRanking = continuous,
-            ContextualRanking = null,
             InitialPlayerMaxHp = initialMaxHp,
             IsActEndingBoss = actEnding,
             Act3BossStrategy = act3,
-            BaseScoreOnly = baseOnly,
-            BeamWeightPerturbation = perturbation,
             IgnoreLongTermRewards = ignoreLongTerm,
             TheftPolicy = theft,
             InitialEnemyCount = enemyCount,
@@ -731,8 +676,6 @@ internal static class SearchCodec
         writer.Write(config.ForceAllPotionsDisabled);
         writer.Write(config.MaximumPotionUses != null);
         writer.Write(config.MaximumPotionUses ?? 0);
-        writer.Write(config.InitialExplicitPotionUses);
-        writer.Write(config.InitialAutomaticPotionUses);
         WriteBools(writer, config.ComponentUnsafeCard);
         WriteBools(writer, config.ComponentUnsafePower);
         WriteBools(writer, config.ComponentUnsafeRelic);
@@ -775,8 +718,6 @@ internal static class SearchCodec
         bool hasMaximum = Codec.ReadBool(reader);
         int maximumValue = reader.ReadInt32();
         int? maximum = hasMaximum ? maximumValue : null;
-        int explicitUses = reader.ReadInt32();
-        int automaticUses = reader.ReadInt32();
         return new BoundFeatures.Config
         {
             Enabled = enabled,
@@ -789,8 +730,6 @@ internal static class SearchCodec
             PruneEqualHp = pruneEqual,
             ForceAllPotionsDisabled = forceDisabled,
             MaximumPotionUses = maximum,
-            InitialExplicitPotionUses = explicitUses,
-            InitialAutomaticPotionUses = automaticUses,
             ComponentUnsafeCard = ReadBools(reader, 1 << 16, "下界卡牌安全表"),
             ComponentUnsafePower = ReadBools(reader, 1 << 16, "下界 Power 安全表"),
             ComponentUnsafeRelic = ReadBools(reader, 1 << 16, "下界遗物安全表"),
@@ -932,9 +871,8 @@ internal static class SearchCodec
         => Codec.ToBytes(writer =>
         {
             writer.Write(ResultMagic);
-            writer.Write(Codec.FormatVersion);
+            writer.Write(ResultFormatVersion);
             WriteRoute(writer, result.BestRoute);
-            writer.Write(0); // reserved: TopRoutes is removed; only an empty list is accepted.
             writer.Write(result.BestIsVictory);
             writer.Write(BitConverter.DoubleToInt64Bits(result.BestScore));
             writer.Write(result.ExpandedNodes);
@@ -952,13 +890,8 @@ internal static class SearchCodec
             }
             writer.Write(result.EndedCompactions);
             writer.Write(result.EndedCompressedStates);
-            writer.Write(0); // reserved: SmartPotionPruned is removed; only zero is accepted.
-            writer.Write(0); // reserved: BestPayoffCount is removed.
-            writer.Write(0); // reserved: ScoutLayers is removed; only zero is accepted.
-            writer.Write(false); // reserved: NoveltySearchTelemetry is removed.
             writer.Write(result.BestRootIndex);
             writer.Write(result.PotionPolicySatisfied);
-            writer.Write((byte)0); // reserved: Takeover is removed; only None is accepted.
         });
 
     internal static BeamResult DecodeResult(byte[] bytes, int expectedBestRootIndex = -1)
@@ -967,12 +900,9 @@ internal static class SearchCodec
             if (reader.ReadUInt32() != ResultMagic)
                 throw new InvalidDataException("Sts2Solver 搜索结果魔数不符。");
             ushort version = reader.ReadUInt16();
-            if (version != Codec.FormatVersion)
+            if (version != ResultFormatVersion)
                 throw new InvalidDataException($"Sts2Solver 搜索结果版本 {version} 不受支持。");
             PlayerAction[] best = ReadRoute(reader);
-            int topCount = Codec.ReadCount(reader, 1 << 16, "最终候选路线");
-            if (topCount != 0)
-                throw new InvalidDataException("TopRoutes 已删除，只接受空列表。");
             bool victory = Codec.ReadBool(reader);
             double score = BitConverter.Int64BitsToDouble(reader.ReadInt64());
             int expanded = reader.ReadInt32();
@@ -992,26 +922,12 @@ internal static class SearchCodec
             }
             int endedCompactions = reader.ReadInt32();
             int endedCompressed = reader.ReadInt32();
-            int smartPruned = reader.ReadInt32();
-            if (smartPruned != 0)
-                throw new InvalidDataException("SmartPotionPruned 已删除，只接受 0。");
-            int payoff = reader.ReadInt32();
-            if (payoff != 0)
-                throw new InvalidDataException("BestPayoffCount 已删除，只接受 0。");
-            int layerCount = Codec.ReadCount(reader, 1 << 10, "侦察层");
-            if (layerCount != 0)
-                throw new InvalidDataException("ScoutLayers 已删除，只接受空列表。");
-            if (Codec.ReadBool(reader))
-                throw new InvalidDataException("NoveltySearchTelemetry 已删除，只接受 null。");
             int bestRoot = reader.ReadInt32();
             bool potionSatisfied = Codec.ReadBool(reader);
-            byte takeover = reader.ReadByte();
-            if (takeover != 0)
-                throw new InvalidDataException("Takeover 已删除，只接受 None。");
             if (expectedBestRootIndex >= 0 && bestRoot != expectedBestRootIndex)
                 throw new InvalidDataException(
                     $"Sts2Solver 搜索结果根下标 {bestRoot} 与请求的 {expectedBestRootIndex} 不同。");
-            return new BeamResult(best, [], victory, score, expanded, transitions,
+            return new BeamResult(best, victory, score, expanded, transitions,
                 duplicates, turns, pruned, TimeSpan.Zero)
             {
                 CapacityPruned = capacityPruned,

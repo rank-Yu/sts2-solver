@@ -13,7 +13,7 @@ internal static class SearchContracts
 
     internal static void Run()
     {
-        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/c82a467df43d219c458b676afbf4ba576ab6c44907b93924a4a1faf9925fd214.request.br");
+        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/837a13316751422b9533614c35e14ea07e77fb367818725ab6fe9f5db3303d60.request.br");
         using BrotliStream compressed = new(input, CompressionMode.Decompress);
         using MemoryStream bytes = new();
         compressed.CopyTo(bytes);
@@ -76,7 +76,6 @@ internal static class SearchContracts
         BeamOptions recoveryOptions = batched with
         {
             BeamWidth = 24,
-            SecondRankBandWidth = 0,
             MaxExpandedNodes = 1_500,
             SearchThreads = 4,
         };

@@ -7,8 +7,8 @@ namespace Sts2Solver.Golden;
 
 /// <summary>
 /// K0 contract for the on-disk format tags. Every codec magic must decode, in little-endian byte
-/// order, to exactly the ASCII label below. BATL, RULE, GOLD and SRES share Codec.FormatVersion;
-/// SREQ has its own RequestFormatVersion because deleted option slots do not change battle data.
+/// order, to exactly the ASCII label below. BATL, RULE and GOLD share Codec.FormatVersion; SREQ and
+/// SRES have independent versions because their option/result slots change without battle data.
 /// </summary>
 internal static class FormatContract
 {
@@ -36,9 +36,12 @@ internal static class FormatContract
         }
         if (Codec.FormatVersion != 5)
             throw new InvalidOperationException($"数据格式版本应为 5，实际为 {Codec.FormatVersion}。");
-        if (SearchCodec.RequestFormatVersion != 6)
+        if (SearchCodec.RequestFormatVersion != 7)
             throw new InvalidOperationException(
-                $"搜索请求格式版本应为 6，实际为 {SearchCodec.RequestFormatVersion}。");
+                $"搜索请求格式版本应为 7，实际为 {SearchCodec.RequestFormatVersion}。");
+        if (SearchCodec.ResultFormatVersion != 6)
+            throw new InvalidOperationException(
+                $"搜索结果格式版本应为 6，实际为 {SearchCodec.ResultFormatVersion}。");
         return string.Join(',', labels);
     }
 }

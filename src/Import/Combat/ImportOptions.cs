@@ -12,12 +12,6 @@ public sealed record ImportOptions
     /// <summary><c>SimulationSnapshot.HasRisk</c>; false unless the caller carries a recorded risk.</summary>
     public bool HasRisk { get; init; }
 
-    /// <summary>
-    /// Potion uses already spent by a fixed prefix (<c>OpeningProbe</c>). M2a roots have none; kept
-    /// so the generated-potion counters have the same meaning as the old bridge.
-    /// </summary>
-    public int SkippedPotionUses { get; init; }
-
     /// <summary>The root was captured at a search boundary where the battleworn dummy timed out.</summary>
     public bool EventDefeatBoundary { get; init; }
 

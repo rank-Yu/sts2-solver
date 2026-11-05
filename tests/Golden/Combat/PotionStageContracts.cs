@@ -35,9 +35,9 @@ internal static class PotionStageContracts
             root.PotionSlotCount = 1; root.Potions[0] = (ushort)(fire + 1);
             BeamOptions options = fixture.Options with
             {
-                InitialExplicitPotionUses = 0, HasUnboundedGrowthTargets = false,
+                HasUnboundedGrowthTargets = false,
                 TheftPolicy = null, EffectivePotionPolicy = PotionUseMode.Smart,
-                Ordering = new(75, 75, BossHpRelief.None, PostCombatRelicHealProfile.None),
+                Ordering = new(75, BossHpRelief.None, PostCombatRelicHealProfile.None),
                 Potions = new(int.MinValue, null, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
             };
             BeamSolver.Candidate selected = default(BeamSolver.Candidate) with
@@ -60,8 +60,6 @@ internal static class PotionStageContracts
             Assert(!Skip(history, rules, options, selected), "existing damage ledger keeps search open");
             history = root; history.SetCounter(Counter.DeathSaveUseCount, 1);
             Assert(!Skip(history, rules, options, selected), "existing death-save use keeps search open");
-            Assert(!Skip(root, rules, options with { InitialAutomaticPotionUses = 1 }, selected),
-                "fixed-prefix automatic potion keeps search open");
             Assert(!Skip(root, rules, options, selected with { ExplicitPotionUseCount = 1 }),
                 "after a one-potion victory search the unrestricted stage again");
             Assert(!Skip(root, rules, options, selected with { ProjectedDeathSaveUseCount = 1 }), "death save bypasses gate");
@@ -92,7 +90,7 @@ internal static class PotionStageContracts
                 Rarity = CardRarity.Rare, EnergyCost = 1, CostsX = false, StarCost = -1,
                 StarCostsX = false, Keywords = Keywords.None, MaxUpgradeLevel = 1, Vars = [] });
             Assert(!Skip(root, feedRules.Build(), options, selected), "possible max HP card bypasses gate");
-            Assert(Skip(root, rules, options with { Ordering = new(75, 75, BossHpRelief.ActClearHeal,
+            Assert(Skip(root, rules, options with { Ordering = new(75, BossHpRelief.ActClearHeal,
                 PostCombatRelicHealProfile.None) }, selected), "boss HP policy is applied");
         }
         finally

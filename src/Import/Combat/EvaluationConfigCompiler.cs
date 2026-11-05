@@ -26,7 +26,7 @@ internal static class EvaluationConfigCompiler
     {
         Scorer scorer = CompileScorer(state, player, rules, root, policy, facts);
         BoundFeatures bound = CompileBound(state, player, root, policy, facts);
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, root.Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = bound,

@@ -18,8 +18,8 @@ internal sealed partial class BeamSolver
         Battle root = roots[result.BestRootIndex];
         Unsafe.SkipInit(out Battle end);
         Battle.CopyPacked(in root, ref end);
-        int uses = _initialExplicitPotionUses;
-        int ambergris = _initialAmbergrisUses;
+        int uses = 0;
+        int ambergris = 0;
         int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
         List<PotionUse> potionUses = [];
         for (int i = 0; i < result.BestRoute.Length; i++)
@@ -96,7 +96,7 @@ internal sealed partial class BeamSolver
             && forced.AllForcedUsesSatisfied
             && features.CumulativePlayerHpLost == 0
             && features.PlayerHp >= _ordering.InitialPlayerHp
-            && features.PlayerMaxHp >= _ordering.InitialPlayerMaxHp
+            && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
             && key.OutstandingStolenResource == 0;
         PotionUseMode mode = _effectivePotionPolicy == PotionUseMode.Disabled && optional > 0
             ? PotionUseMode.Smart

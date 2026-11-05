@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD`、`SRES` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用独立的请求版本 6（`SearchCodec.RequestFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 7（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -91,25 +91,25 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=6 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=7 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
 魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、固定前缀计数、各类策略开关等。字段清单以代码为准。
 
-- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数规则、战后治疗、Boss 生命减免、`ContinuousThreatRanking`、`ContextualRanking`（只允许为 null）、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
+- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数规则、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
+- `Scorer` 的 base/offensive 评估方式作为两个显式布尔写在 `ScoreRules` 前面；setup/queen 仍是追加扩展。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
-- 宿主回调 `Pacer`、`Trace` 只写存在位，解码后为 null，不影响路线选择。`ContextualRankingModel` 非 null 时，捕获显式抛 `NotSupportedException`，不会写出半份数据。
+- 宿主回调 `Pacer`、`Trace` 不进入 SREQ。
 - 回归重解不采用请求里的墙钟截止和节点/内存预算；`SearchBudgetPolicy.ApplyRegression` 把它们覆盖成固定回归参数（见 6.3）。
 
 ### 6.2 `SRES`
 
 ```text
-u32 magic="SRES" | u16 version=5
-BestRoute | TopRoutes | BestIsVictory | BestScore(double bits)
+u32 magic="SRES" | u16 version=6
+BestRoute | BestIsVictory | BestScore(double bits)
 ExpandedNodes | Transitions | Duplicates | TurnsSearched | PrunedIncumbents
 CapacityPruned | CapacityDroppedChildren（按 key 排序） | EndedCompactions
-EndedCompressedStates | SmartPotionPruned | BestPayoffCount | ScoutLayers
-BestRootIndex | PotionPolicySatisfied | Takeover
+EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ```
 
@@ -120,16 +120,7 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ`/`SRES` 仍保留下列已删除功能的字节槽位。编码写中性值；解码读到非中性值时抛 `InvalidDataException`。
-
-| 格式 | 字段 | 中性值 |
-| --- | --- | --- |
-| `SREQ` | `EarlyTurnScoutDepth` | 0 |
-| `SREQ` | `Novelty` | false（无负载） |
-| `SREQ` | hooks 的 Progress/Poll 位 | 0；Pacer bit1、Trace bit8 保留 |
-| `SRES` | TopRoutes | 空列表 |
-| `SRES` | `SmartPotionPruned` | 0 |
-| `SRES` | `NoveltySearchTelemetry` / `BestPayoffCount` / `ScoutLayers` / `Takeover` | false / 0 / 空列表 / 0 |
+`SREQ` v7 与 `SRES` v6 没有保留槽位。
 
 搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
 `SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
@@ -139,7 +130,7 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 
 ## 7. `d1/<root>/config.br`
 
-`GOLD` 只冻结了 `Rules`（`objects/rules` 的 SHA-256），没有冻结 `ScoreRules` 和 `BoundFeatures.Config`。所以每个模拟回归的根另存一个 `config.br`：一个 Brotli 压缩的 `SREQ` 请求，包含该根运行时完整的 `Rules`、`ScoreRules`、`BoundFeatures.Config` 和固定前缀的 `InitialActionCount`。
+`GOLD` 只冻结了 `Rules`（`objects/rules` 的 SHA-256），没有冻结 `ScoreRules` 和 `BoundFeatures.Config`。所以每个模拟回归的根另存一个 `config.br`：一个 Brotli 压缩的 `SREQ` 请求，包含该根运行时完整的 `Rules`、`ScoreRules`、`BoundFeatures.Config`，以及复现前缀根 `scoreHash` 所需的 `InitialActionCount` 和 `ScoreRules` 初始药水计数。生产搜索没有固定前缀，这些计数都是 0。
 
 校验时只从 `config.br` 读 `Scorer` 和 `Bound`，其余完全由 `Battle` + Core 重算；配置缺失时显式失败，不静默跳过。`config.br` 计入 manifest 的完整性检查和计数。
 
@@ -153,7 +144,7 @@ BestRootIndex | PotionPolicySatisfied | Takeover
 | `battleSize` | 62,744，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：v4→v5 删除 `Battle.ShufflesCrossed`，头部 3,868→3,860 字节、显式填充 5→1 字节；D1 根状态按 v4 投影删除该字段后重录，只改格式与状态身份 |
+| `provenance.formatMigration` | 格式迁移说明：SREQ v6→v7、SRES v5→v6，删除旧评估/固定前缀/hooks 字段和 SRES 保留槽；D1/D2 机械重编码，D2 的 887 个固定前缀或 Beam 扰动请求改为生产形态 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |
@@ -225,4 +216,4 @@ refreeze = extra-turn-setup sha256=ecbf87c7f0bedd355d12667e2439ef92e5d54a43d5700
 
 ## 12. 旧版本
 
-读取器只接受当前版本：`BATL`、`GOLD`、`SRES`、`RULE` 为 5，`SREQ` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 7，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

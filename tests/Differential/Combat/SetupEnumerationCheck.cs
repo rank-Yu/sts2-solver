@@ -353,7 +353,7 @@ internal static class SetupEnumerationCheck
         EvaluationRootFacts facts = EvaluationRootFacts.Default with { TurnSetupRoot = true };
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(state, player, rules, start, policy, facts);
         BoundFeatures bound = EvaluationConfigCompiler.CompileBound(state, player, start, policy, facts);
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, firstPlay.Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = bound,
@@ -401,7 +401,6 @@ internal static class SetupEnumerationCheck
         BeamOptions options = searchCase.Options with
         {
             BeamWidth = 2,
-            SecondRankBandWidth = 2,
             MaxExpandedNodes = 4000,
             MaxTurns = 4,
             SoftTimeBudget = TimeSpan.MaxValue,
@@ -489,7 +488,7 @@ internal static class SetupEnumerationCheck
         SearchCase expectedScore = expected with
         {
             Battles = [],
-            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero, 1)
+            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Scorer = expected.Options.Scorer,
                 InitialActionCount = expected.Options.InitialActionCount,
@@ -504,7 +503,7 @@ internal static class SetupEnumerationCheck
         SearchCase expectedBound = expected with
         {
             Battles = [],
-            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero, 1)
+            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Bound = expected.Options.Bound,
                 InitialActionCount = expected.Options.InitialActionCount,
@@ -525,8 +524,10 @@ internal static class SetupEnumerationCheck
             optionDiffs.Add($"maxTurns {expected.Options.MaxTurns}->{production.Options.MaxTurns}");
         if (expected.Options.SoftTimeBudget != production.Options.SoftTimeBudget)
             optionDiffs.Add("softTimeBudget");
-        if (expected.Options.InitialPlayerMaxHp != production.Options.InitialPlayerMaxHp)
-            optionDiffs.Add($"initialMaxHp {expected.Options.InitialPlayerMaxHp}->{production.Options.InitialPlayerMaxHp}");
+        if (expected.Options.Scorer?.RulesForCodec.InitialPlayerMaxHp
+            != production.Options.Scorer?.RulesForCodec.InitialPlayerMaxHp)
+            optionDiffs.Add($"initialMaxHp {expected.Options.Scorer?.RulesForCodec.InitialPlayerMaxHp}"
+                + $"->{production.Options.Scorer?.RulesForCodec.InitialPlayerMaxHp}");
         if (expected.Options.InitialPlayerTurn != production.Options.InitialPlayerTurn)
             optionDiffs.Add($"initialPlayerTurn {expected.Options.InitialPlayerTurn}->{production.Options.InitialPlayerTurn}");
         if ((expected.Options.Ordering != null) != (production.Options.Ordering != null))

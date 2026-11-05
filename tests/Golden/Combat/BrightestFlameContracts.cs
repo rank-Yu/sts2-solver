@@ -114,7 +114,7 @@ internal static class BrightestFlameContracts
             SecondRankBand = false,
             Bound = null,
             Trace = trace,
-            Ordering = new RouteOrdering(3000, 3000, BossHpRelief.None,
+            Ordering = new RouteOrdering(3000, BossHpRelief.None,
                 PostCombatRelicHealProfile.None),
             BrightestFlameMaxHpLossLimit = limit,
             InitialBrightestFlameMaxHpSpent = rootSpent,

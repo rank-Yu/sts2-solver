@@ -225,14 +225,6 @@ internal static class SearchVerifier
         string? difference = Difference("BestRoute", expected.BestRoute, actual.BestRoute);
         if (difference != null)
             return difference;
-        if (expected.TopRoutes.Count != actual.TopRoutes.Count)
-            return $"TopRoutes count expected={expected.TopRoutes.Count} actual={actual.TopRoutes.Count}";
-        for (int index = 0; index < expected.TopRoutes.Count; index++)
-        {
-            difference = Difference($"TopRoutes[{index}]", expected.TopRoutes[index], actual.TopRoutes[index]);
-            if (difference != null)
-                return difference;
-        }
         if (expected.BestIsVictory != actual.BestIsVictory)
             return $"BestIsVictory expected={expected.BestIsVictory} actual={actual.BestIsVictory}";
         if (BitConverter.DoubleToInt64Bits(expected.BestScore) != BitConverter.DoubleToInt64Bits(actual.BestScore))

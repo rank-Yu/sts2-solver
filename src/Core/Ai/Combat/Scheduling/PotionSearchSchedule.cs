@@ -9,8 +9,7 @@ internal static class PotionSearchSchedule
     internal static bool HasAllowedUse(IReadOnlyList<Battle> roots, Rules rules, BeamOptions options)
     {
         PotionPolicy policy = options.Potions;
-        if (policy.ForceAllDisabled || policy.MaximumUses is { } maximum
-            && maximum <= options.InitialExplicitPotionUses)
+        if (policy.ForceAllDisabled)
             return false;
         foreach (Battle root in roots)
         {
@@ -28,9 +27,9 @@ internal static class PotionSearchSchedule
         return false;
     }
 
-    internal static PotionPolicy Limit(PotionPolicy original, SearchPotionLimit limit, int initialUses = 0) => limit switch
+    internal static PotionPolicy Limit(PotionPolicy original, SearchPotionLimit limit) => limit switch
     {
-        SearchPotionLimit.None => original with { ForceAllDisabled = true, MaximumUses = Math.Min(original.MaximumUses ?? initialUses, initialUses) },
+        SearchPotionLimit.None => original with { ForceAllDisabled = true, MaximumUses = 0 },
         SearchPotionLimit.One => original with { MaximumUses = Math.Min(original.MaximumUses ?? 1, 1) },
         SearchPotionLimit.Allowed => original,
         _ => throw new ArgumentOutOfRangeException(nameof(limit)),

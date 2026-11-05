@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Sts2Solver;
@@ -55,72 +54,10 @@ internal sealed class SolverSettingsStore
         try
         {
             string json = File.ReadAllText(path);
-            JsonObject root = JsonNode.Parse(json) as JsonObject
-                ?? throw new InvalidDataException("设置文件不是 JSON 对象。");
-            int schema = root["schemaVersion"] is JsonValue value
-                && value.TryGetValue(out int parsed) ? parsed : 0;
-            bool migrated = false;
-            int migratedFrom = schema;
-            SolverSettingsData data;
-            if (schema is >= 1 and < SolverSettingsData.CurrentSchemaVersion)
-            {
-                bool fullAuto = false;
-                bool wasDisabled = false;
-                if (schema == 1)
-                {
-                    fullAuto = root["automation"] is JsonObject automation
-                        && automation["autoEnableFullAuto"] is JsonValue autoValue
-                        && autoValue.TryGetValue(out bool enabled) && enabled;
-                    root.Remove("automation");
-                }
-                else if (schema == 3)
-                {
-                    wasDisabled = root["automation"] is JsonObject automation
-                        && automation["solverDisabled"] is JsonValue disabledValue
-                        && disabledValue.TryGetValue(out bool disabled) && disabled;
-                    if (root["automation"] is JsonObject migratedAutomation)
-                        migratedAutomation.Remove("solverDisabled");
-                }
-                // The thief mode was never sent to the request and is replaced by per-combat
-                // session state. Drop the old field for every pre-5 file, including the chain
-                // from 1/2/3, so an old file does not fail on the removed member.
-                if (root["search"] is JsonObject search)
-                    search.Remove("theft");
-                root["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
-                data = JsonSerializer.Deserialize<SolverSettingsData>(root.ToJsonString(), JsonOptions)
-                    ?? throw new InvalidDataException("设置文件为空。");
-                if (schema == 1)
-                {
-                    if (data.Automation is null)
-                        throw new InvalidDataException("设置缺少 automation 分区。");
-                    data = data with
-                    {
-                        Automation = data.Automation with
-                        {
-                            Mode = fullAuto ? SolverMode.FullAuto : SolverMode.AutoSearch,
-                        },
-                    };
-                }
-                else if (schema == 3 && wasDisabled)
-                {
-                    if (data.Automation is null)
-                        throw new InvalidDataException("设置缺少 automation 分区。");
-                    data = data with
-                    {
-                        Automation = data.Automation with { Mode = SolverMode.Manual },
-                    };
-                }
-                migrated = true;
-            }
-            else
-            {
-                data = JsonSerializer.Deserialize<SolverSettingsData>(json, JsonOptions)
-                    ?? throw new InvalidDataException("设置文件为空。");
-            }
+            SolverSettingsData data = JsonSerializer.Deserialize<SolverSettingsData>(json, JsonOptions)
+                ?? throw new InvalidDataException("设置文件为空。");
             data.Validate();
             info($"[Sts2Solver] SETTINGS_LOADED path={path} schema={data.SchemaVersion}");
-            if (migrated)
-                TryWriteMigrated(path, migratedFrom, data, info, error);
             return new SolverSettingsStore(path, data, info, error);
         }
         catch (FileNotFoundException)
@@ -198,29 +135,6 @@ internal sealed class SolverSettingsStore
             error = null;
             _info($"[Sts2Solver] SETTINGS_SAVED path={_path} schema={next.SchemaVersion}");
             return true;
-        }
-    }
-
-    private static void TryWriteMigrated(string path, int fromSchema, SolverSettingsData data,
-        Action<string> info, Action<string> error)
-    {
-        try
-        {
-            string temporary = path + ".tmp";
-            File.WriteAllText(temporary, JsonSerializer.Serialize(data, JsonOptions));
-            File.Move(temporary, path, overwrite: true);
-            info($"[Sts2Solver] SETTINGS_MIGRATED path={path} from={fromSchema} to={data.SchemaVersion} " +
-                $"mode={data.Automation.Mode}");
-        }
-        catch (IOException exception)
-        {
-            error($"[Sts2Solver] SETTINGS_MIGRATION_SAVE_FAILED reason=io path={path} " +
-                $"detail={exception.Message}");
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            error($"[Sts2Solver] SETTINGS_MIGRATION_SAVE_FAILED reason=access path={path} " +
-                $"detail={exception.Message}");
         }
     }
 

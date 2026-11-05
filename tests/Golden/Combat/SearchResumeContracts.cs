@@ -14,8 +14,8 @@ namespace Sts2Solver.Golden;
 internal static class SearchResumeContracts
 {
     private const string PlainRoot =
-        "c82a467df43d219c458b676afbf4ba576ab6c44907b93924a4a1faf9925fd214";
-    private const string PotionRoot = "3aa715b2403f";
+        "837a13316751422b9533614c35e14ea07e77fb367818725ab6fe9f5db3303d60";
+    private const string PotionRoot = "2202a2bba2c5";
 
     private static readonly SearchPlan Plan =
         new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };
@@ -332,7 +332,7 @@ internal static class SearchResumeContracts
 
     private static void CapacityDropsWithoutRouteFails(SearchCase original)
     {
-        BeamResult empty = new([], [], false, 0d, 0, 0, 0, 0, 0, TimeSpan.Zero)
+        BeamResult empty = new([], false, 0d, 0, 0, 0, 0, 0, TimeSpan.Zero)
         {
             StopReason = "frontier-empty",
             CapacityPruned = 1,
@@ -412,8 +412,6 @@ internal static class SearchResumeContracts
             SecondRankBand = false,
             Potions = potions,
             EffectivePotionPolicy = PotionUseMode.Smart,
-            InitialExplicitPotionUses = 0,
-            InitialAutomaticPotionUses = 0,
             PotionFreeBaseline = null,
             AuditPotionPolicy = true,
         };
@@ -565,7 +563,7 @@ internal static class SearchResumeContracts
         {
             return null;
         }
-        return new BeamResult(route, [], state.Outcome == Outcome.Victory, 0d, 0, 0, 0,
+        return new BeamResult(route, state.Outcome == Outcome.Victory, 0d, 0, 0, 0,
             route.Length, 0, TimeSpan.Zero)
         {
             BestRootIndex = 0,
@@ -642,7 +640,7 @@ internal static class SearchResumeContracts
                             step.Beam.BestIsVictory ? Outcome.Victory : Outcome.None),
                     }, "ok", null, 0);
                 case FakeKind.StopWithoutCandidate:
-                    return new(new BeamResult([], [], false, double.NegativeInfinity, 0, 0, 0, 0, 0,
+                    return new(new BeamResult([], false, double.NegativeInfinity, 0, 0, 0, 0, 0,
                         TimeSpan.Zero)
                     {
                         StopReason = "stopped",

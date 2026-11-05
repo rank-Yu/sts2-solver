@@ -90,7 +90,7 @@ internal static class ConfigCompare
 
         Scorer scorer = new(score);
         BoundFeatures bound = boundConfig;
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, ordered[0].Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = bound,
@@ -173,13 +173,6 @@ internal static class ConfigCompare
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
             InitialActionCount = actions.Length,
-            InitialPotionUseCount = replay.PotionUseCount,
-            InitialPotionStrategicCost = replay.PotionStrategicCost,
-            InitialExplicitPotionStrategicCost = replay.ExplicitPotionStrategicCost,
-            // M0's FlashDifferentialProbe constructs the bound with its default 0/0 initial potion
-            // use counts; the score table still carries the replayed cumulative counts above.
-            InitialExplicitPotionUses = 0,
-            InitialAutomaticPotionUses = 0,
         };
         try
         {
@@ -201,7 +194,7 @@ internal static class ConfigCompare
             return new(ConfigStatus.Rejected, ImportReason.Capacity, error.Region, error.Message, false);
         }
 
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, replay.Battle.Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = bound,
@@ -408,7 +401,7 @@ internal static class ConfigCompare
 
     private static byte[] EncodeScoreProbe(Rules rules, int actionCount, Scorer scorer)
     {
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, 1)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             InitialActionCount = actionCount,
@@ -422,7 +415,7 @@ internal static class ConfigCompare
 
     private static byte[] EncodeBoundProbe(Rules rules, int actionCount, BoundFeatures bound)
     {
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, 1)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Bound = bound,
             InitialActionCount = actionCount,
@@ -457,7 +450,7 @@ internal static class ConfigCompare
         SearchCase expectedScore = expected with
         {
             Battles = [],
-            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero, 1)
+            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Scorer = expected.Options.Scorer,
                 InitialActionCount = expected.Options.InitialActionCount,
@@ -474,7 +467,7 @@ internal static class ConfigCompare
         SearchCase expectedBound = expected with
         {
             Battles = [],
-            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero, 1)
+            Options = new BeamOptions(1, 1, 1, TimeSpan.Zero)
             {
                 Bound = expected.Options.Bound,
                 InitialActionCount = expected.Options.InitialActionCount,
@@ -502,15 +495,13 @@ internal static class ConfigCompare
             return $"maxTurns {expected.MaxTurns}->{actual.MaxTurns}";
         if (expected.SoftTimeBudget != actual.SoftTimeBudget)
             return $"softTimeBudget {expected.SoftTimeBudget}->{actual.SoftTimeBudget}";
-        if (expected.InitialPlayerMaxHp != actual.InitialPlayerMaxHp)
-            return $"initialPlayerMaxHp {expected.InitialPlayerMaxHp}->{actual.InitialPlayerMaxHp}";
         if (expected.InitialActionCount != actual.InitialActionCount)
             return $"initialActionCount {expected.InitialActionCount}->{actual.InitialActionCount}";
         if (expected.Act3BossStrategy != actual.Act3BossStrategy)
             return $"act3BossStrategy {expected.Act3BossStrategy}->{actual.Act3BossStrategy}";
         if (expected.TheftPolicy != actual.TheftPolicy)
             return $"theftPolicy {expected.TheftPolicy}->{actual.TheftPolicy}";
-        return $"options bytes differ (initialMaxHp={expected.InitialPlayerMaxHp})";
+        return "options bytes differ";
     }
 
     internal static string ScoreRulesDiff(ScoreRules expected, ScoreRules actual)
@@ -567,21 +558,12 @@ internal static class ConfigCompare
                 $"{Format(actual.PostCombatRelicHeal)}";
         if (expected.BossHpRelief != actual.BossHpRelief)
             return $"bossHpRelief {expected.BossHpRelief}->{actual.BossHpRelief}";
-        if (expected.ContinuousThreatRanking != actual.ContinuousThreatRanking)
-            return $"continuousThreatRanking {expected.ContinuousThreatRanking}->{actual.ContinuousThreatRanking}";
-        if ((expected.ContextualRanking != null) != (actual.ContextualRanking != null))
-            return $"contextualRanking {Presence(expected.ContextualRanking)}->{Presence(actual.ContextualRanking)}";
         if (expected.InitialPlayerMaxHp != actual.InitialPlayerMaxHp)
             return $"initialPlayerMaxHp {expected.InitialPlayerMaxHp}->{actual.InitialPlayerMaxHp}";
         if (expected.IsActEndingBoss != actual.IsActEndingBoss)
             return $"isActEndingBoss {expected.IsActEndingBoss}->{actual.IsActEndingBoss}";
         if (expected.Act3BossStrategy != actual.Act3BossStrategy)
             return $"act3BossStrategy {expected.Act3BossStrategy}->{actual.Act3BossStrategy}";
-        if (expected.BaseScoreOnly != actual.BaseScoreOnly)
-            return $"baseScoreOnly {expected.BaseScoreOnly}->{actual.BaseScoreOnly}";
-        if (!Equals(expected.BeamWeightPerturbation, actual.BeamWeightPerturbation))
-            return $"beamWeightPerturbation {Format(expected.BeamWeightPerturbation)}->" +
-                $"{Format(actual.BeamWeightPerturbation)}";
         if (expected.IgnoreLongTermRewards != actual.IgnoreLongTermRewards)
             return $"ignoreLongTermRewards {expected.IgnoreLongTermRewards}->{actual.IgnoreLongTermRewards}";
         if (expected.TheftPolicy != actual.TheftPolicy)
@@ -602,14 +584,6 @@ internal static class ConfigCompare
                 $"{Format(actual.InitialRetainedAttackValue)}";
         if (!expected.RootPotions.AsSpan().SequenceEqual(actual.RootPotions))
             return ArrayDiff("rootPotions", expected.RootPotions, actual.RootPotions);
-        if (expected.InitialPotionUseCount != actual.InitialPotionUseCount)
-            return $"initialPotionUseCount {expected.InitialPotionUseCount}->{actual.InitialPotionUseCount}";
-        if (expected.InitialPotionStrategicCost != actual.InitialPotionStrategicCost)
-            return $"initialPotionStrategicCost {expected.InitialPotionStrategicCost}->" +
-                $"{actual.InitialPotionStrategicCost}";
-        if (expected.InitialExplicitPotionStrategicCost != actual.InitialExplicitPotionStrategicCost)
-            return $"initialExplicitPotionStrategicCost {expected.InitialExplicitPotionStrategicCost}->" +
-                $"{actual.InitialExplicitPotionStrategicCost}";
         if (expected.RootPotionSlotCount != actual.RootPotionSlotCount)
             return $"rootPotionSlotCount {expected.RootPotionSlotCount}->{actual.RootPotionSlotCount}";
         return RemainingScoreRulesDiff(expected, actual);
@@ -621,8 +595,7 @@ internal static class ConfigCompare
         {
             if (property.Name is nameof(ScoreRules.Rules) or nameof(ScoreRules.Cards)
                 or nameof(ScoreRules.Powers) or nameof(ScoreRules.PotionStrategicCost)
-                or nameof(ScoreRules.RelicCounterRules) or nameof(ScoreRules.ContextualRanking)
-                or nameof(ScoreRules.RootPotions))
+                or nameof(ScoreRules.RelicCounterRules) or nameof(ScoreRules.RootPotions))
             {
                 continue;
             }
@@ -722,10 +695,6 @@ internal static class ConfigCompare
             return "forceAllPotionsDisabled";
         if (expected.MaximumPotionUses != actual.MaximumPotionUses)
             return "maximumPotionUses";
-        if (expected.InitialExplicitPotionUses != actual.InitialExplicitPotionUses)
-            return "initialExplicitPotionUses";
-        if (expected.InitialAutomaticPotionUses != actual.InitialAutomaticPotionUses)
-            return "initialAutomaticPotionUses";
         if (!expected.ComponentUnsafeCard.AsSpan().SequenceEqual(actual.ComponentUnsafeCard))
             return "componentUnsafeCard";
         if (!expected.ComponentUnsafePower.AsSpan().SequenceEqual(actual.ComponentUnsafePower))

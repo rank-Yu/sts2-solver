@@ -12,8 +12,7 @@ internal sealed record BeamOptions(
     int BeamWidth,
     int MaxExpandedNodes,
     int MaxTurns,
-    TimeSpan SoftTimeBudget,
-    int InitialPlayerMaxHp)
+    TimeSpan SoftTimeBudget)
 {
     /// <summary>Production searches share time and memory, without a node ceiling.</summary>
     public bool UnlimitedNodes { get; init; }
@@ -62,26 +61,10 @@ internal sealed record BeamOptions(
     public TheftPolicy? TheftPolicy { get; init; }
 
     /// <summary>
-    /// Explicit potion uses already spent by the fixed prefix (included in the request's cumulative
-    /// minimum). The root-potion diff only sees uses after the search root, so the max-use gate adds
-    /// this frozen count.
-    /// </summary>
-    public int InitialExplicitPotionUses { get; init; }
-
-    /// <summary>Automatic death-save potion uses already spent by the fixed prefix.</summary>
-    public int InitialAutomaticPotionUses { get; init; }
-
-    /// <summary>
     /// The audited potion-free baseline the existing final ordering compares an audited potion route
     /// against; null means the evaluated candidates decide it. Only potion-audit requests set it.
     /// </summary>
     public PotionFreePolicyBaseline? PotionFreeBaseline { get; init; }
-
-    /// <summary>Root ambergris potion id, or <see cref="ushort.MaxValue"/> when not registered.</summary>
-    public ushort AmbergrisPotionId { get; init; } = ushort.MaxValue;
-
-    /// <summary>Ambergris uses already spent by the fixed prefix.</summary>
-    public int InitialAmbergrisUses { get; init; }
 
     /// <summary>
     /// Port the existing final ordering's potion policy filter. Set only for the potion audits;
@@ -109,25 +92,11 @@ internal sealed record BeamOptions(
     public int InitialPlayerTurn { get; init; }
 
     /// <summary>
-    /// The first searched turn layer's combat turn, i.e. the search root after a fixed prefix. The
-    /// existing scout filters each completed layer by <c>_startTurnNumber + searchedTurnLayers</c> over
-    /// nodes that already include the prefix; with no prefix this equals <see cref="InitialPlayerTurn"/>.
-    /// </summary>
-    public int InitialSearchTurn { get; init; }
-
-    /// <summary>
     /// <c>the existing search's SecondRankBand</c>: the global prune's ordinary seats come from score
     /// ranks W+1..2W instead of the top W. Required representatives, power-commitment seats and plan
     /// seats are unchanged. Only the members that explicitly set the profile switch read it.
     /// </summary>
     public bool SecondRankBand { get; init; }
-
-    /// <summary>
-    /// The existing profile's band width (<c>effectiveLimit</c> in <c>RankBest</c>). Zero means the Sts2Solver
-    /// layer width. The request profile freezes the width so the W+1..2W band uses the same
-    /// width as the regular search.
-    /// </summary>
-    public int SecondRankBandWidth { get; init; }
 
     /// <summary>
     /// <c>the existing search's AggressivePowerCommitment</c>: raise the power-commitment seat quota to
@@ -218,7 +187,6 @@ internal sealed record PowerCommitmentCatalog(
 /// <summary>The root values <c>FinalPlanOrdering.Select</c> reads for the route keys Beam ports.</summary>
 internal sealed record RouteOrdering(
     int InitialPlayerHp,
-    int InitialPlayerMaxHp,
     BossHpRelief BossHpRelief,
     PostCombatRelicHealProfile PostCombatRelicHeal);
 
@@ -251,7 +219,6 @@ internal sealed record PotionPolicy(
 
 internal sealed record BeamResult(
     PlayerAction[] BestRoute,
-    IReadOnlyList<PlayerAction[]> TopRoutes,
     bool BestIsVictory,
     double BestScore,
     int ExpandedNodes,
@@ -526,11 +493,8 @@ internal sealed partial class BeamSolver
     private readonly PotionUseMode _effectivePotionPolicy;
     private readonly TheftPolicy? _theftPolicy;
     private readonly bool _auditPotionPolicy;
-    private readonly int _initialExplicitPotionUses;
-    private readonly int _initialAutomaticPotionUses;
     private readonly PotionFreePolicyBaseline? _potionFreeBaseline;
     private readonly ushort _ambergrisPotionId;
-    private readonly int _initialAmbergrisUses;
     private Dictionary<int, Candidate>? _auditBestByPotionCount;
     private Candidate? _bestPotionFree;
     private bool _anyAuditedVictory;
@@ -591,7 +555,6 @@ internal sealed partial class BeamSolver
     private CancellationToken _cancellationToken;
 
     private readonly int _initialPlayerTurn;
-    private readonly int _initialSearchTurn;
 
     private Stopwatch? _solveWatch;
 
@@ -624,14 +587,9 @@ internal sealed partial class BeamSolver
         _effectivePotionPolicy = options.EffectivePotionPolicy;
         _theftPolicy = options.TheftPolicy;
         _auditPotionPolicy = options.AuditPotionPolicy;
-        _initialExplicitPotionUses = options.InitialExplicitPotionUses;
-        _initialAutomaticPotionUses = options.InitialAutomaticPotionUses;
         _potionFreeBaseline = options.PotionFreeBaseline;
-        _ambergrisPotionId = options.AmbergrisPotionId;
-        _initialAmbergrisUses = options.InitialAmbergrisUses;
+        _ambergrisPotionId = _scorer.RulesForCodec.AmbergrisPotionId;
         _initialPlayerTurn = options.InitialPlayerTurn;
-        _initialSearchTurn = options.InitialSearchTurn > 0
-            ? options.InitialSearchTurn : options.InitialPlayerTurn;
         _powerCommitments = options.PowerCommitments is { Rules.Length: > 0 } catalog ? catalog : null;
         _aggressivePowerCommitment = options.AggressivePowerCommitment;
         _preserveReplayAllocatorOpening = options.PreserveReplayAllocatorOpening;
@@ -754,8 +712,7 @@ internal sealed partial class BeamSolver
         _endedCompressedStates = 0;
         _capacityDropped.Clear();
         bool preserveTheft = _theftPolicy == TheftPolicy.PreserveResources;
-        int bandWidth = _options.SecondRankBandWidth > 0
-            ? _options.SecondRankBandWidth : width;
+        int bandWidth = width;
         bool checkPotionQuota = _effectivePotionPolicy != PotionUseMode.Disabled;
         Pool current = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
@@ -823,7 +780,7 @@ internal sealed partial class BeamSolver
             if (explicitPotionUses == 0
                 && !_options.Potions.Strategy.HasForcedDirectives
                 && features.CumulativePlayerHpLost == 0
-                && features.PlayerMaxHp >= _options.InitialPlayerMaxHp
+                && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
                 && features.PlayerHp >= features.PlayerMaxHp
                 && (!_options.UnlimitedNodes || !_options.HasUnboundedGrowthTargets
                     && _zeroGrowthBudget
@@ -1000,7 +957,7 @@ internal sealed partial class BeamSolver
             _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
                 turns, _expanded);
             BeamResult audited = new(_auditPotionPolicy && best is null ? [] : Route(bestNode),
-                [], bestVictory, best?.Score ?? double.NegativeInfinity,
+                bestVictory, best?.Score ?? double.NegativeInfinity,
                 _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
             {
                 CapacityPruned = _capacityPruned,
@@ -1074,7 +1031,7 @@ internal sealed partial class BeamSolver
         }
         _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
             turns, _expanded);
-        BeamResult result = new(Route(bestNode), [], bestVictory,
+        BeamResult result = new(Route(bestNode), bestVictory,
             best?.Score ?? double.NegativeInfinity,
             _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
         {
@@ -1267,7 +1224,7 @@ internal sealed partial class BeamSolver
                 hasPotionFree,
                 candidate.AmbergrisUses,
                 candidate.OptionalPotionStrategicCost,
-                _ordering.InitialPlayerMaxHp,
+                _scorer.RulesForCodec.InitialPlayerMaxHp,
                 potionFreePlayerHp,
                 candidate.PlayerHp);
         return candidate.ForcedUsesSatisfied && passesSoftPolicy && passesAmbergris;
@@ -1374,7 +1331,7 @@ internal sealed partial class BeamSolver
             _ordering.PostCombatRelicHeal, won, features.PlayerHp, features.PlayerMaxHp);
         int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
             features.CumulativePlayerHpLost,
-            Math.Max(0, _ordering.InitialPlayerMaxHp - features.PlayerMaxHp),
+            Math.Max(0, _scorer.RulesForCodec.InitialPlayerMaxHp - features.PlayerMaxHp),
             features.RecoveredPlayerHp + relicHeal,
             _ordering.BossHpRelief,
             features.DeathSaveHpRestored) - features.StrategicHpCredit;
@@ -1388,7 +1345,8 @@ internal sealed partial class BeamSolver
             features.StrategyGoalHpCredit,
             features.StrategyGoalCount,
             won ? state.PlayerTurn : int.MaxValue,
-            _ordering.InitialPlayerHp - features.PlayerHp + _ordering.InitialPlayerMaxHp - features.PlayerMaxHp,
+            _ordering.InitialPlayerHp - features.PlayerHp
+                + _scorer.RulesForCodec.InitialPlayerMaxHp - features.PlayerMaxHp,
             features.LongTermResourceValue,
             features.AngerCopiesGenerated,
             optionalPotionCount,
@@ -1519,7 +1477,7 @@ internal sealed partial class BeamSolver
 
     private bool DeadlineExpired() => _options.DeadlineExpired?.Invoke() == true;
 
-    private static BeamResult DeadlineBeforeStart(SearchStorage storage) => new([], [], false,
+    private static BeamResult DeadlineBeforeStart(SearchStorage storage) => new([], false,
         double.NegativeInfinity, 0, 0, 0, 0, 0, TimeSpan.Zero)
     {
         SoftTimeBudgetReached = true, PotionPolicySatisfied = false, StopReason = "time",
@@ -1581,7 +1539,7 @@ internal sealed partial class BeamSolver
 
     private int ExplicitPotionUses(int node)
     {
-        int uses = _initialExplicitPotionUses;
+        int uses = 0;
         for (int cursor = node; _nodes.View(cursor).Parent >= 0;
              cursor = _nodes.View(cursor).Parent)
         {
@@ -1595,7 +1553,7 @@ internal sealed partial class BeamSolver
     {
         if (_ambergrisPotionId == ushort.MaxValue)
             return 0;
-        int uses = _initialAmbergrisUses;
+        int uses = 0;
         for (int cursor = node; _nodes.View(cursor).Parent >= 0;
              cursor = _nodes.View(cursor).Parent)
         {
@@ -1688,7 +1646,7 @@ internal sealed partial class BeamSolver
             return;
         int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
             features.CumulativePlayerHpLost,
-            Math.Max(0, _options.InitialPlayerMaxHp - features.PlayerMaxHp),
+            Math.Max(0, _scorer.RulesForCodec.InitialPlayerMaxHp - features.PlayerMaxHp),
             features.RecoveredPlayerHp + ActEndingBossPolicy.RankedPostCombatRelicHeal(
                 _ordering.PostCombatRelicHeal, true, features.PlayerHp, features.PlayerMaxHp),
             _bound.BossHpRelief,
@@ -1824,9 +1782,8 @@ internal sealed partial class BeamSolver
     /// </summary>
     private int ExplicitPotionUsesInState(in Battle battle)
     {
-        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount)
-            - _initialAutomaticPotionUses;
-        return _initialExplicitPotionUses + MissingRootPotions(battle)
+        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount);
+        return MissingRootPotions(battle)
             + battle.Counter(Counter.GeneratedPotionUseCount) - automaticAfterRoot;
     }
 

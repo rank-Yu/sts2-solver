@@ -53,8 +53,6 @@ internal sealed class BoundFeatures
         public required bool PruneEqualHp { get; init; }
         public required bool ForceAllPotionsDisabled { get; init; }
         public required int? MaximumPotionUses { get; init; }
-        public required int InitialExplicitPotionUses { get; init; }
-        public required int InitialAutomaticPotionUses { get; init; }
         public required bool[] ComponentUnsafeCard { get; init; }
         public required bool[] ComponentUnsafePower { get; init; }
         public required bool[] ComponentUnsafeRelic { get; init; }
@@ -280,9 +278,8 @@ internal sealed class BoundFeatures
             if (slot >= battle.PotionSlotCount || battle.Potions[slot] != rootPotion)
                 uses++;
         }
-        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount)
-            - _config.InitialAutomaticPotionUses;
-        return _config.InitialExplicitPotionUses + uses - automaticAfterRoot;
+        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount);
+        return uses - automaticAfterRoot;
     }
 
     /// <summary>K5: the members that differ, as <c>name expected=… actual=…</c>.</summary>

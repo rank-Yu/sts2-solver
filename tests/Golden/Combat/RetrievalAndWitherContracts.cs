@@ -100,7 +100,7 @@ internal static class RetrievalAndWitherContracts
                 BeamWidth = 64, MaxTurns = turns, MaxExpandedNodes = maxExpandedNodes, UnlimitedNodes = false,
                 SoftTimeBudget = TimeSpan.MaxValue, Act3BossStrategy = enabled, Trace = trace,
                 Bound = null,
-                Ordering = new(battle.Player.CurrentHp, battle.Player.MaxHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
+                Ordering = new(battle.Player.CurrentHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
                 Potions = new(int.MinValue, 1, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
             };
             _ = new BeamSolver(item.Rules, options).Solve([battle], CancellationToken.None);

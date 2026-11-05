@@ -588,8 +588,8 @@ internal static class TestSession
         BeamOptions options = request.DeterministicSearchForTest
             ? SearchBudgetPolicy.ApplyRegression(searchCase.Options)
             : SearchBudgetPolicy.Apply(searchCase.Options,
-                SearchBudgetPolicy.RegressionEndedKeepWidths,
-                SearchBudgetPolicy.RegressionEndedTriggerWidths, SearchMemoryBudget.Bytes);
+                SearchBudgetPolicy.EndedKeepWidths,
+                SearchBudgetPolicy.EndedTriggerWidths, SearchMemoryBudget.Bytes);
         if (request.SearchThreadsForTest is { } searchThreads)
             options = options with { SearchThreads = searchThreads };
         SearchCase runCase = searchCase with { Options = options };

@@ -33,29 +33,6 @@ internal static class SearchPolicyOverrides
         }
         if (request.Act3BossStrategyForTest is { } act3)
             policy = policy with { Act3BossStrategy = act3 };
-        if (request.BaseScoreOnlyForTest is { } baseOnly)
-            policy = policy with { BaseScoreOnly = baseOnly };
-        if (request.ContinuousThreatRankingForTest is { } continuous)
-            policy = policy with { ContinuousThreatRanking = continuous };
-        if (request.BeamWeightTermForTest is { Length: > 0 } term
-            || request.BeamWeightScaleForTest is { } scale)
-        {
-            if (request.BeamWeightTermForTest is not { Length: > 0 } termText
-                || request.BeamWeightScaleForTest is not { } scaleValue)
-            {
-                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
-                    "BeamWeightTermForTest 与 BeamWeightScaleForTest 必须同时给出");
-            }
-            if (!Enum.TryParse(termText, ignoreCase: true, out SearchBeamWeightTerm parsed))
-            {
-                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
-                    $"未知 BeamWeightTermForTest：{termText}");
-            }
-            policy = policy with
-            {
-                BeamWeightPerturbation = new SearchBeamWeightPerturbation(parsed, scaleValue),
-            };
-        }
         if (request.RelicCounterRules.Length != 0)
             policy = policy with { RelicTargets = ParseRelicTargets(request.RelicCounterRules, player) };
         return policy;

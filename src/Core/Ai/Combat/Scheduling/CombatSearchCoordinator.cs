@@ -21,8 +21,7 @@ internal static class CombatSearchCoordinator
         if (plan.BaselineWidth <= 0 || plan.NarrowWidth <= 0 || plan.WideWidth <= 0
             || plan.OffensiveWidth <= 0 || plan.MillisecondsPerWidth <= 0
             || plan.MemoryBytes <= 0
-            || plan.ContinuousSetupStrategies && !plan.SetupStrategies
-            || plan.EndedKeepWidths < 2 || plan.EndedTriggerWidths <= plan.EndedKeepWidths)
+            || plan.ContinuousSetupStrategies && !plan.SetupStrategies)
             throw new ArgumentOutOfRangeException(nameof(request), "搜索参数无效。");
         SearchClock budget = new(clock);
         SearchCase initial = request.Case;
@@ -60,16 +59,12 @@ internal static class CombatSearchCoordinator
             for (int i = 0; i < members.Length; i++)
             {
                 SearchMember item = members[i];
-                PotionPolicy policy = PotionSearchSchedule.Limit(initial.Options.Potions, item.Potions,
-                    initial.Options.InitialExplicitPotionUses);
+                PotionPolicy policy = PotionSearchSchedule.Limit(initial.Options.Potions, item.Potions);
                 policy = policy with { Strategy = strategy };
                 policies[i] = policy;
                 bool potionPhase = item.Potions != SearchPotionLimit.None;
                 if (potionPhase && !canUsePotions)
                     skips[i] = "no-allowed-potions";
-                else if (potionPhase && policy.MaximumUses is { } limit
-                    && limit <= initial.Options.InitialExplicitPotionUses)
-                    skips[i] = "limit-already-used";
                 else if (potionPhase && !seenMembers.Add(
                     (item.Width, item.Evaluation, item.Retention, policy.MaximumUses)))
                     skips[i] = "duplicate-limit";
@@ -86,18 +81,9 @@ internal static class CombatSearchCoordinator
         {
             throw new InvalidDataException("接续状态与当前搜索计划不一致。");
         }
-        long plannedMilliseconds;
-        if (resume == null)
-        {
-            plannedMilliseconds = plan.TotalBudgetMilliseconds ?? 0L;
-            if (plannedMilliseconds <= 0L)
-                plannedMilliseconds = RemainingPlannedMilliseconds(0, 0);
-        }
-        else
-        {
-            // A resumed request reports only the members that are still ahead of it.
-            plannedMilliseconds = RemainingPlannedMilliseconds(resume.Pass, resume.NextMemberIndex);
-        }
+        long plannedMilliseconds = resume == null
+            ? RemainingPlannedMilliseconds(0, 0)
+            : RemainingPlannedMilliseconds(resume.Pass, resume.NextMemberIndex);
         if (progress != null)
             progress.PlannedBudgetMilliseconds = plannedMilliseconds;
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
@@ -181,16 +167,14 @@ internal static class CombatSearchCoordinator
                         setup: member.Evaluation == SearchEvaluation.Setup ? setupPolicy
                             : member.Evaluation == SearchEvaluation.ContinuousSetup ? continuousSetup : null),
                     SecondRankBand = member.Retention == SearchRetention.SecondBand,
-                    SecondRankBandWidth = member.Width,
                     AggressivePowerCommitment = member.Retention == SearchRetention.Power,
                     Potions = policies[index],
-                    AuditPotionPolicy = potionPhase
-                        || initial.Options.InitialExplicitPotionUses > 0,
+                    AuditPotionPolicy = potionPhase,
                     PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
                     Progress = progress,
                 };
-                options = SearchBudgetPolicy.Apply(options, plan.EndedKeepWidths,
-                    plan.EndedTriggerWidths, plan.MemoryBytes);
+                options = SearchBudgetPolicy.Apply(options, SearchBudgetPolicy.EndedKeepWidths,
+                    SearchBudgetPolicy.EndedTriggerWidths, plan.MemoryBytes);
                 SearchMemberMeasurement measurement;
                 progress?.BeginMember(index, member, bestComplete);
                 try

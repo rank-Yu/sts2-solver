@@ -48,13 +48,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `5`；写入先写 `.tmp` 再原子替换。
 
-迁移规则：
-
-- `schemaVersion=1` 按旧字段 `automation.autoEnableFullAuto` 迁移：`true` 对应“全自动”，否则“自动搜索”。
-- `schemaVersion=2` 补上后来新增字段的默认值。
-- `schemaVersion=3` 去掉 `automation.solverDisabled`；该字段为 `true` 时迁移成 `mode=Manual`，否则保留原模式。
-- `schemaVersion=4` 去掉 `search.theft`；盗贼策略改为每场战斗的会话状态，不再持久保存。
-- 迁移后立即写回 schema 5。
+设置文件只接受当前 `schemaVersion=5`；旧版本或未知字段按下面的通用损坏路径处理，不提供迁移。
 
 文件在 Mod 初始化时读取，直接修改文件需要重启游戏；运行中通过面板的设置页或策略侧栏修改后，搜索设置在下一次搜索开始时生效。JSON 损坏或字段校验不通过时，文件会改名为同目录的 `settings.bad-<UTC 时间>.json`，记录 `SETTINGS_CORRUPT`，然后用默认值继续，不阻止游戏启动；其他读取失败记录 `SETTINGS_LOAD_FAILED`，同样用默认值继续。旧文件里的未知字段不会被静默忽略。
 

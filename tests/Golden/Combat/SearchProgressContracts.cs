@@ -19,7 +19,7 @@ internal static class SearchProgressContracts
     {
         SearchCase original;
         using (FileStream input = File.OpenRead(
-            "tests/Golden/data/d2/requests/c82a467df43d219c458b676afbf4ba576ab6c44907b93924a4a1faf9925fd214.request.br"))
+            "tests/Golden/data/d2/requests/837a13316751422b9533614c35e14ea07e77fb367818725ab6fe9f5db3303d60.request.br"))
         using (BrotliStream compressed = new(input, CompressionMode.Decompress))
         using (MemoryStream bytes = new())
         {
@@ -319,7 +319,7 @@ internal static class SearchProgressContracts
         {
             return null;
         }
-        return new BeamResult(route, [], state.Outcome == Outcome.Victory, 0d, 0, 0, 0,
+        return new BeamResult(route, state.Outcome == Outcome.Victory, 0d, 0, 0, 0,
             route.Length, 0, TimeSpan.Zero)
         {
             BestRootIndex = 0,

@@ -6,8 +6,8 @@ namespace Sts2Solver.Ai.Combat;
 /// </summary>
 internal static class SearchBudgetPolicy
 {
-    internal const int RegressionEndedKeepWidths = 8;
-    internal const int RegressionEndedTriggerWidths = 16;
+    internal const int EndedKeepWidths = 8;
+    internal const int EndedTriggerWidths = 16;
     internal const long RegressionMemoryBudgetBytes = 2_576_980_377;
 
     internal static BeamOptions Apply(BeamOptions options, int endedKeepWidths,
@@ -24,6 +24,5 @@ internal static class SearchBudgetPolicy
     }
 
     internal static BeamOptions ApplyRegression(BeamOptions options)
-        => Apply(options, RegressionEndedKeepWidths, RegressionEndedTriggerWidths,
-            RegressionMemoryBudgetBytes);
+        => Apply(options, EndedKeepWidths, EndedTriggerWidths, RegressionMemoryBudgetBytes);
 }

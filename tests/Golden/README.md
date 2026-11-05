@@ -20,4 +20,4 @@ dotnet run --project tests/Golden -c Release -- verify tests/Golden/data
 
 哈希函数按 M0 宿主的字段顺序显式移植（`GoldenHash.cs`），不依赖反射顺序。
 
-`--only` 还接受旧名字 `d1`、`d2`（分别等于 `simulation`、`search`）；是否保留，待代码清理决定。
+`--only` 只接受 `simulation` 和 `search`。

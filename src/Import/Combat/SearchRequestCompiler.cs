@@ -240,27 +240,20 @@ internal static class SearchRequestCompiler
             profile.BaselineWidth,
             profile.StartMaxExpandedNodes,
             SearchPerformanceProfile.MaxTurns,
-            softTime,
-            evaluationRoot.Player.MaxHp)
+            softTime)
         {
             Scorer = scorer,
             Bound = bound,
             Ordering = new RouteOrdering(
                 evaluationRoot.Player.CurrentHp,
-                evaluationRoot.Player.MaxHp,
                 score.BossHpRelief,
                 score.PostCombatRelicHeal),
             Potions = potions,
             EffectivePotionPolicy = ToUseMode(policy.PotionDefaultMode),
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             InitialActionCount = facts.InitialActionCount,
-            InitialExplicitPotionUses = facts.InitialExplicitPotionUses,
-            InitialAutomaticPotionUses = facts.InitialAutomaticPotionUses,
-            AmbergrisPotionId = score.AmbergrisPotionId,
             Act3BossStrategy = policy.Act3BossStrategy,
             InitialPlayerTurn = battles[0].PlayerTurn,
-            InitialSearchTurn = battles[0].PlayerTurn,
-            SecondRankBandWidth = profile.BaselineWidth,
             PreserveReplayAllocatorOpening = HasUnusedCardReplayAllocator(player),
             SearchMemoryBudgetBytes = searchMemoryBudgetBytes,
             PowerCommitments = PowerCatalogBuilder.Build(evaluationRoot, rules, scorer,

@@ -291,10 +291,6 @@ internal sealed class ScoreRules
     /// <summary>The existing final ordering's strategic boss HP relief.</summary>
     public BossHpRelief BossHpRelief { get; init; }
 
-    public bool ContinuousThreatRanking { get; init; }
-
-    public ContextualRankingModel? ContextualRanking { get; init; }
-
     public required int InitialPlayerMaxHp { get; init; }
 
     public required bool IsActEndingBoss { get; init; }
@@ -304,12 +300,6 @@ internal sealed class ScoreRules
     /// three-act boss interaction requirements/evaluation and the fetched-power commitment on every searched turn.
     /// </summary>
     public required bool Act3BossStrategy { get; init; }
-
-    /// <summary><c>Profile.BaseScoreOnly</c>: the intermediate rank is the base score alone.</summary>
-    public bool BaseScoreOnly { get; init; }
-
-    /// <summary><c>Profile.BeamWeightPerturbation</c>: scales one intermediate ranking term.</summary>
-    public BeamWeightPerturbation? BeamWeightPerturbation { get; init; }
 
     public required bool IgnoreLongTermRewards { get; init; }
 
@@ -329,9 +319,8 @@ internal sealed class ScoreRules
     public required ushort[] RootPotions { get; init; }
 
     /// <summary>
-    /// Cumulative potion counters at the Sts2Solver search root. A fixed prefix may already have spent
-    /// potions; the scorer adds these frozen totals to the root-potion diff so the derived
-    /// counters equal the existing snapshot's cumulative values.
+    /// Cumulative potion counters at the search root. Production has no fixed prefix and passes
+    /// zero; D1 configs keep the values that reproduce their recorded score hashes.
     /// </summary>
     public int InitialPotionUseCount { get; init; }
 

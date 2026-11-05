@@ -142,7 +142,7 @@ internal sealed partial class BeamSolver
         if (!Fingerprint.Equal(replay.FinalState, finalState))
             throw new InvalidDataException("推演候选从根回放后的状态与保留节点不一致。");
         int version = ++_progressCandidateVersion;
-        return new SearchRouteCandidate(version, _initialSearchTurn, replay.ThroughTurn, rootIndex,
+        return new SearchRouteCandidate(version, _initialPlayerTurn, replay.ThroughTurn, rootIndex,
             actions, finalState, replay.Turns, bestKey.Score, bestKey.Won, onlyDeathRoutes);
     }
 
@@ -230,7 +230,7 @@ internal sealed partial class BeamSolver
         SearchProgressTurn[] turns = new SearchProgressTurn[builders.Count];
         for (int index = 0; index < builders.Count; index++)
             turns[index] = builders[index].Build();
-        int throughTurn = turns.Length == 0 ? _initialSearchTurn : turns[^1].Turn;
+        int throughTurn = turns.Length == 0 ? _initialPlayerTurn : turns[^1].Turn;
         return new ProgressReplay(state, throughTurn, turns);
     }
 
@@ -364,9 +364,9 @@ internal sealed partial class BeamSolver
             throw new InvalidDataException(
                 $"采用候选版本 {candidate.CandidateVersion} 回放后的状态与候选快照不一致。");
         }
-        BeamResult result = new(candidate.Actions, [], candidate.Victory, candidate.Score,
+        BeamResult result = new(candidate.Actions, candidate.Victory, candidate.Score,
             _expanded, _transitions, _duplicates,
-            Math.Max(1, candidate.ThroughTurn - _initialSearchTurn + 1),
+            Math.Max(1, candidate.ThroughTurn - _initialPlayerTurn + 1),
             _pruned, _solveWatch?.Elapsed ?? TimeSpan.Zero)
         {
             StopReason = kind == SearchAdoptionKind.Stopped ? "stopped" : "adopted",
@@ -382,7 +382,7 @@ internal sealed partial class BeamSolver
     }
 
     private BeamResult StopWithoutCandidateResult()
-        => WithSolveDiagnostics(new BeamResult([], [], false, double.NegativeInfinity,
+        => WithSolveDiagnostics(new BeamResult([], false, double.NegativeInfinity,
             _expanded, _transitions, _duplicates, 0, _pruned,
             _solveWatch?.Elapsed ?? TimeSpan.Zero)
         {

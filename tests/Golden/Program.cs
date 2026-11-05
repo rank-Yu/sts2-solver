@@ -30,6 +30,7 @@ try
             Console.WriteLine($"K0 Passed fields={Rules.SchemaFieldCount} "
                 + $"battleBytes={Unsafe.SizeOf<Battle>()} formatVersion={Codec.FormatVersion} "
                 + $"requestVersion={SearchCodec.RequestFormatVersion} "
+                + $"resultVersion={SearchCodec.ResultFormatVersion} "
                 + $"magics={magics}");
             return 0;
         case "verify":

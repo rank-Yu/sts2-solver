@@ -42,6 +42,12 @@ internal sealed class Scorer
     internal SetupSearchPolicy? SetupPolicy { get; }
     internal bool SetupPreference => SetupPolicy is not null;
 
+    /// <summary>The base-score member ranks by the base score alone.</summary>
+    internal bool BaseOnly => _baseOnly;
+
+    /// <summary>The offensive member subtracts enemy HP from the intermediate rank.</summary>
+    internal bool Offensive => _offensive;
+
     /// <summary>
     /// Default-off test hook, set by <see cref="BeamSolver.Solve"/> from
     /// <see cref="SearchVerificationHooks.VerifySearchEquivalence"/>. Every projection then compares
@@ -941,8 +947,6 @@ internal sealed class Scorer
         int generatedAutomaticCost = (int)((uint)generatedCosts >> 16);
         potionStrategicCost = checked(potionStrategicCost + generatedExplicitCost + generatedAutomaticCost);
         explicitPotionStrategicCost = checked(explicitPotionStrategicCost + generatedExplicitCost);
-        // A fixed prefix may already have spent potions; the search root's frozen counters keep these
-        // cumulative values equal to the existing snapshot's instead of restarting at the prefix end.
         potionUseCount = checked(potionUseCount + _score.InitialPotionUseCount);
         potionStrategicCost = checked(potionStrategicCost + _score.InitialPotionStrategicCost);
         explicitPotionStrategicCost = checked(
@@ -2753,7 +2757,7 @@ internal sealed class Scorer
             return features.Score;
         // the existing search's BeamRankScore: the base-score member ranks by the base score alone (the
         // development strategy that could adjust it is rejected at admission).
-        if (_score.BaseScoreOnly || _baseOnly)
+        if (_baseOnly)
             return features.Score;
         int persistentBuffCap = _score.IsActEndingBoss
             ? ScoreWeights.PersistentBuffDeltaBeamCap
@@ -2768,23 +2772,7 @@ internal sealed class Scorer
         int weakExpectedHpSaved = _score.IsActEndingBoss
             ? ScoreWeights.BossEnemyWeakExpectedHpSaved
             : ScoreWeights.StandardEnemyWeakExpectedHpSaved;
-        double baseScore = features.Score;
-        if (_score.ContinuousThreatRanking && !terminal && isEndTurn
-            && !features.PlayerDead && features.ProjectedPlayerHp <= 0)
-        {
-            // the existing search's BeamRankScore: stand-pat projects ending now, but a living player can
-            // still block, draw or kill before that intent. Keep its HP deficit continuous only in
-            // intermediate ordering when a playable hand remains; final outcomes keep their policy.
-            int reachable = features.ReachableHandValue;
-            if (reachable == 0)
-                (reachable, _, _) = ReachableHandPotential(battle);
-            if (reachable > 0)
-            {
-                baseScore = features.Score - ScoreWeights.DeathPenalty
-                    + features.ProjectedPlayerHp * ScoreWeights.Hp;
-            }
-        }
-        double score = baseScore
+        double score = features.Score
             + Math.Min(ScoreWeights.CurrentEnergyBeamCap, features.Energy)
                 * ScoreWeights.CurrentEnergyBeamValue
             + Math.Min(
@@ -2815,68 +2803,10 @@ internal sealed class Scorer
                     Math.Max(0, features.EnemyWeakTurns - _score.InitialEnemyWeakTurns))
                 * weakExpectedHpSaved
                 * ScoreWeights.Hp;
-        // The existing ranking scales one term for non-terminal nodes only. Terminal children never
-        // enter a retention pool, but their rank is still computed before the terminal check.
-        if (!terminal && _score.BeamWeightPerturbation is { Scale: not 1d } perturbation)
-        {
-            double term = perturbation.Term switch
-            {
-                BeamWeightTerm.CurrentEnergy => Math.Min(ScoreWeights.CurrentEnergyBeamCap, features.Energy)
-                    * ScoreWeights.CurrentEnergyBeamValue,
-                BeamWeightTerm.PersistentBuffDelta => Math.Min(persistentBuffCap,
-                        Math.Max(0, features.PersistentBuffValue - _score.InitialPersistentBuffValue))
-                    * persistentBuffValue,
-                BeamWeightTerm.EnemyHp => features.EnemyHp * ScoreWeights.EnemyHp,
-                _ => throw new InvalidOperationException("Unknown Beam sensitivity term."),
-            };
-            score += (perturbation.Scale - 1d) * term;
-        }
         if (_offensive && !terminal)
             score -= features.EnemyHp * 5_000d;
-        score += ContextualAdjustment(battle, features, terminal);
         return score;
     }
-
-    /// <summary>
-    /// <c>ContextualRankingModel.Adjustment</c> for a Sts2Solver state. Terminal and non-surviving
-    /// contexts bypass the model; the four retention-only inputs are recomputed here because the
-    /// ordinary child score skips them, and the rest are the K4-checked features.
-    /// </summary>
-    private double ContextualAdjustment(in Battle battle, in ScoreFeatures features,
-        bool terminal)
-    {
-        if (_score.ContextualRanking is not { } model || terminal || features.ProjectedPlayerHp <= 0)
-            return 0;
-        (int reachableHandValue, int zeroCostPlayableCount, int playableAttackCount) =
-            ReachableHandPotential(battle);
-        ContextualRankingModel.Input input = new(
-            features.Turn,
-            false,
-            features.ProjectedPlayerHp,
-            features.Energy,
-            features.PlayerHp,
-            features.PlayerMaxHp,
-            features.EnemyHp,
-            features.HandCount,
-            zeroCostPlayableCount,
-            reachableHandValue,
-            features.PersistentBuffValue,
-            features.LatentSetupValue,
-            features.RetainedAttackValue,
-            features.ReplayPotentialValue,
-            features.FutureResourceValue,
-            features.DelayedDamageValue,
-            features.LiveDeckClutter,
-            features.LiveDeckSize,
-            features.EnemyStrengthSuppression,
-            features.EnemyWeakTurns,
-            features.EnemyVulnerableTurns);
-        return model.Adjustment(input);
-    }
-
-    internal double ContextualAdjustmentForTesting(in Battle battle,
-        in ScoreFeatures features, bool terminal)
-        => ContextualAdjustment(battle, features, terminal);
 
     private int RetainedAttackGrowth(in ScoreFeatures features)
         => Math.Min(

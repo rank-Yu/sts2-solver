@@ -120,10 +120,6 @@ internal sealed record OfflineRequest
     public string? PotionDefaultModeForTest { get; init; }
     public OfflinePotionDirective[] PotionDirectivesForTest { get; init; } = [];
     public bool? Act3BossStrategyForTest { get; init; }
-    public bool? BaseScoreOnlyForTest { get; init; }
-    public bool? ContinuousThreatRankingForTest { get; init; }
-    public string? BeamWeightTermForTest { get; init; }
-    public double? BeamWeightScaleForTest { get; init; }
     public string? HeadlessFastModeForTest { get; init; }
     public bool ExportBugReportAfterCombat { get; init; }
 }

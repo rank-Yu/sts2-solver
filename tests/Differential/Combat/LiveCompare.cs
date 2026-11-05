@@ -329,7 +329,7 @@ internal static class LiveCompare
 
     private static byte[] EncodeScoreProbe(Rules rules, int actionCount, Scorer scorer)
     {
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, 1)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             InitialActionCount = actionCount,
@@ -339,7 +339,7 @@ internal static class LiveCompare
 
     private static byte[] EncodeBoundProbe(Rules rules, int actionCount, BoundFeatures bound)
     {
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, 1)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Bound = bound,
             InitialActionCount = actionCount,
@@ -378,9 +378,11 @@ internal static class LiveCompare
             if (expectedOptions.InitialActionCount != actualOptions.InitialActionCount)
                 return ("initialActionCount",
                     $"{expectedOptions.InitialActionCount}->{actualOptions.InitialActionCount}");
-            if (expectedOptions.InitialPlayerMaxHp != actualOptions.InitialPlayerMaxHp)
+            if (expectedOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp
+                != actualOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp)
                 return ("initialPlayerMaxHp",
-                    $"{expectedOptions.InitialPlayerMaxHp}->{actualOptions.InitialPlayerMaxHp}");
+                    $"{expectedOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp}"
+                    + $"->{actualOptions.Scorer?.RulesForCodec.InitialPlayerMaxHp}");
             if (expectedOptions.Scorer != null && actualOptions.Scorer != null)
             {
                 byte[] expectedScore = EncodeScoreProbe(expected.Rules,

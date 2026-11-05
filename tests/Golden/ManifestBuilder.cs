@@ -12,15 +12,15 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "请求 v5→v6：SREQ 删除 CandidateScanCount、HpTargetStop、initial Incumbent、"
-        + "ForcedPotionDirectives、EnforceForcedPotionDirectives、MinimumPotionUses、"
-        + "PotionReplacementHpCredit、SmartPotionEligibilityHpCeiling、PlanCommitment 和 "
-        + "InitialPlanPayoffCount 十个已删除字段的保留槽位；D1 config.br 与 D2 request.br "
-        + "重新编码，BATL/RULE/GOLD/SRES 与 D1 golden.br 不变。旧数据里的 285 个 "
-        + "RequireAtLeastOne 请求改为生产形态的 Smart 请求：策略、有效档和策略快照默认档"
-        + "改为 Smart，药水上限按生产成员改写（上限 1 且根前未用保留 1，其余改为不限），"
-        + "审计、免药基线和根前已用数不变。";
-
+        "请求 v6→v7、结果 v5→v6：SREQ 删除 ContinuousThreatRanking、ContextualRanking、"
+        + "BaseScoreOnly、BeamWeightPerturbation、InitialSearchTurn、SecondRankBandWidth、"
+        + "InitialExplicitPotionUses、InitialAutomaticPotionUses、InitialAmbergrisUses 和 hooks 字节，"
+        + "Scorer 的 base/offensive 改为显式布尔字段；SRES 删除 TopRoutes、SmartPotionPruned、"
+        + "BestPayoffCount、ScoutLayers、NoveltySearchTelemetry、Takeover 六个保留槽。"
+        + "D1 config.br 与 D2 request.br 重新编码；D1 config.br 保留 InitialActionCount 和 "
+        + "ScoreRules 的三个初始药水计数以复现 13 个前缀根的 scoreHash，其它字段按新格式写出。"
+        + "D2 中 887 个带固定前缀或 BeamWeightPerturbation 的请求改为生产形态：InitialActionCount "
+        + "和三个初始药水计数清零，BeamWeightPerturbation 删除；按内容去重 0 条。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

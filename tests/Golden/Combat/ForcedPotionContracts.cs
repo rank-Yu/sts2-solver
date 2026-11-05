@@ -8,7 +8,7 @@ namespace Sts2Solver.Golden;
 /// <summary>The forced-use semantics ported from the existing search's potion strategy and final ordering.</summary>
 internal static class ForcedPotionContracts
 {
-    private const string PotionRoot = "3aa715b2403f";
+    private const string PotionRoot = "2202a2bba2c5";
 
     private static void Assert(bool value, string message)
     { if (!value) throw new InvalidDataException("forced-potion: " + message); }
@@ -131,8 +131,6 @@ internal static class ForcedPotionContracts
             SecondRankBand = false,
             Potions = potions,
             EffectivePotionPolicy = PotionUseMode.Smart,
-            InitialExplicitPotionUses = 0,
-            InitialAutomaticPotionUses = 0,
             PotionFreeBaseline = null,
             AuditPotionPolicy = true,
         };

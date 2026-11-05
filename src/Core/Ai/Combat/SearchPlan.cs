@@ -16,9 +16,6 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
     /// <summary>Time per beam slot; every member gets an independent deadline.</summary>
     public int MillisecondsPerWidth { get; init; }
 
-    /// <summary>Whole-request deadline when the host sets one; overrides the member sum in the UI budget.</summary>
-    public long? TotalBudgetMilliseconds { get; init; }
-
     /// <summary>Encounter-specific default portfolio.</summary>
     public bool QueenStrategies { get; init; }
 
@@ -30,9 +27,6 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
 
     internal static bool IsLongEncounter(bool isBoss, bool isElite, int actIndex)
         => isBoss || isElite && actIndex == 2;
-
-    public int EndedKeepWidths { get; init; } = 8;
-    public int EndedTriggerWidths { get; init; } = 16;
 }
 
 /// <summary>A frozen root and policy with the complete decision budget.</summary>

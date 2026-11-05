@@ -75,32 +75,6 @@ public sealed record SearchPolicyConfiguration
     public SearchTheftPolicy? TheftPolicy { get; init; }
 }
 
-/// <summary>One intermediate Beam ranking term (<c>BeamWeightTerm</c>).</summary>
-public enum SearchBeamWeightTerm
-{
-    CurrentEnergy,
-    PersistentBuffDelta,
-    EnemyHp,
-}
-
-/// <summary><c>BeamWeightPerturbation</c> without the engine's record identity.</summary>
-public sealed record SearchBeamWeightPerturbation
-{
-    public SearchBeamWeightPerturbation(SearchBeamWeightTerm term, double scale)
-    {
-        if (!Enum.IsDefined(term))
-            throw new ArgumentOutOfRangeException(nameof(term));
-        if (!double.IsFinite(scale) || scale < 0 || scale > 2)
-            throw new ArgumentOutOfRangeException(nameof(scale));
-        Term = term;
-        Scale = scale;
-    }
-
-    public SearchBeamWeightTerm Term { get; }
-
-    public double Scale { get; }
-}
-
 /// <summary>The ten built-in growth budgets, in <c>GrowthValues</c> order.</summary>
 public readonly record struct SearchGrowthBudget(
     int HandOfGreed = 0,
@@ -182,12 +156,6 @@ public sealed record SearchPolicy
     public int? BrightestFlameMaxHpLossLimit { get; init; }
 
     public SearchTheftPolicy? TheftPolicy { get; init; }
-
-    public bool BaseScoreOnly { get; init; }
-
-    public bool ContinuousThreatRanking { get; init; }
-
-    public SearchBeamWeightPerturbation? BeamWeightPerturbation { get; init; }
 
     /// <summary>The bridge rejects a non-null <c>DevelopmentStrategy</c>.</summary>
     public bool HasDevelopmentStrategy { get; init; }

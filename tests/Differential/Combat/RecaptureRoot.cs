@@ -131,17 +131,12 @@ internal static class RecaptureRoot
         EvaluationRootFacts facts = EvaluationRootFacts.Default with
         {
             InitialActionCount = actions.Length,
-            InitialPotionUseCount = replay.PotionUseCount,
-            InitialPotionStrategicCost = replay.PotionStrategicCost,
-            InitialExplicitPotionStrategicCost = replay.ExplicitPotionStrategicCost,
-            InitialExplicitPotionUses = 0,
-            InitialAutomaticPotionUses = 0,
         };
         Scorer scorer = EvaluationConfigCompiler.CompileScorer(state, player, rules,
             replay.Battle, policy, facts, rankBaselineRoot: pre, rankBaselineRules: preRules);
         BoundFeatures bound = EvaluationConfigCompiler.CompileBound(
             state, player, replay.Battle, policy, facts);
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, replay.Battle.Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = bound,
@@ -195,7 +190,7 @@ internal static class RecaptureRoot
                 scorer, boundConfig, 0));
             battles.Add(set.Roots[match]);
         }
-        BeamOptions options = new(1, 1, 1, TimeSpan.Zero, battles[0].Player.MaxHp)
+        BeamOptions options = new(1, 1, 1, TimeSpan.Zero)
         {
             Scorer = scorer,
             Bound = boundConfig,

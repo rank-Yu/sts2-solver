@@ -237,6 +237,21 @@ internal sealed record BeamResult(
     public int CapacityPruned { get; init; }
 
     /// <summary>
+    /// Card-play children refused by the per-turn consecutive-no-progress guard. Diagnostic only;
+    /// this boundary is not encoded in SRES.
+    /// </summary>
+    public int TurnLoopGuarded { get; init; }
+
+    /// <summary>High-water number of sparse poison/doom progress details in this solve.</summary>
+    public int RouteProgressDetailPeakCount { get; init; }
+
+    /// <summary>
+    /// Logical chunk bytes retained by the sparse poison/doom progress detail table at its peak.
+    /// Diagnostic only; it is not part of SRES.
+    /// </summary>
+    public long RouteProgressDetailStorageBytes { get; init; }
+
+    /// <summary>
     /// Dropped children per capacity region (e.g. <c>Cards</c>, <c>Powers</c>,
     /// <c>Action.Choices</c>). The state-level regions are child boundaries: one instance is
     /// dropped and the rest of the search continues. The pool region only appears for the
@@ -468,7 +483,8 @@ internal sealed partial class BeamSolver
         int RoutingParentEnergy,
         int ParentTurn,
         int RoutingMetaId,
-        int PotionLineageKeyId);
+        int PotionLineageKeyId,
+        TurnProgressState Progress);
 
     /// <summary>
     /// Route-node power-commitment metadata (1-based node field; 0 means no commitment). The existing
@@ -533,6 +549,7 @@ internal sealed partial class BeamSolver
     private int _workspacePrefixChoiceUnshared;
     private int _workspacePrefixExtraTurnUnshared;
     private int _workspacePrefixNotInProgress;
+    private int _workspaceTurnLoopGuarded;
     private SearchEquivalenceDiagnostics _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
 
     /// <summary>Offline route trace (null in production) and the pool phase it reports.</summary>
@@ -556,6 +573,9 @@ internal sealed partial class BeamSolver
 
     /// <summary>The physical transition count of the current solve (readable after a canceled solve).</summary>
     internal int TransitionCount => _transitions;
+
+    /// <summary>Packed size of one route's turn-progress metadata; asserted by KernelChecks.</summary>
+    internal static int TurnProgressStateSize => Unsafe.SizeOf<TurnProgressState>();
 
     public BeamSolver(Rules rules, BeamOptions options)
     {
@@ -655,6 +675,7 @@ internal sealed partial class BeamSolver
         _workspacePrefixChoiceUnshared = 0;
         _workspacePrefixExtraTurnUnshared = 0;
         _workspacePrefixNotInProgress = 0;
+        _workspaceTurnLoopGuarded = 0;
         _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
         _workspacePeakBytes = 0;
         _workspaceGrowablePeakBytes = 0;
@@ -793,9 +814,14 @@ internal sealed partial class BeamSolver
             (double rootScore, double rootRank, double rootPureRank, int rootPotionCost,
                 ScoreFeatures rootFeatures) =
                 Score(root, 0, terminal: false, isEndTurn: false);
+            TurnProgressState rootProgress = InitialTurnProgress(in root);
+            EnemyProgressHighs rootEnemyHighs = CaptureEnemyProgressHighs(in root);
+            int rootEnemyHighsId = EnemyProgressHighsEmpty(in rootEnemyHighs)
+                ? 0 : _nodes.AddProgressEnemyHighs(in rootEnemyHighs);
+            rootProgress = rootProgress with { EnemyHighsId = rootEnemyHighsId };
             _nodes.Add(new RouteNode(-1, Math.Max(0, 0), default, 0, 0,
                 ushort.MaxValue, ushort.MaxValue, int.MinValue, 0,
-                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0), 0,
+                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0, rootProgress), 0,
                 _options.InitialBrightestFlameMaxHpSpent);
             (int rootReachable, int rootZeroCost, _) = _scorer.ReachableHandPotential(root);
             PocketwatchState(root, out int rootPocketwatchThreshold, out int rootPocketwatchPlayed,
@@ -953,6 +979,9 @@ internal sealed partial class BeamSolver
                 _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
             {
                 CapacityPruned = _capacityPruned,
+                TurnLoopGuarded = TurnLoopGuardedTotal,
+                RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
+                RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
                 EndTurnPrefixShared = EndTurnPrefixSharedTotal,
                 EndTurnPrefixUnshared = EndTurnPrefixUnsharedTotal,
                 EndTurnPrefixVerified = EndTurnPrefixVerifiedTotal,
@@ -1028,6 +1057,9 @@ internal sealed partial class BeamSolver
             _expanded, _transitions, _duplicates, turns, _pruned, watch.Elapsed)
         {
             CapacityPruned = _capacityPruned,
+            TurnLoopGuarded = TurnLoopGuardedTotal,
+            RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
+            RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
             EndTurnPrefixShared = EndTurnPrefixSharedTotal,
             EndTurnPrefixUnshared = EndTurnPrefixUnsharedTotal,
             EndTurnPrefixVerified = EndTurnPrefixVerifiedTotal,
@@ -1505,9 +1537,11 @@ internal sealed partial class BeamSolver
         PowerCommitmentState commitment = commitmentIndex > 0
             ? _commitments[commitmentIndex - 1]
             : default;
+        TurnProgressState progress = _nodes.ProgressAt(node);
         return new ParentExpansionContext(node, _nodes.View(node).Depth, pool.Facts(index),
             pool.RankPosition(index), pool.Rank(index), commitmentIndex > 0, commitment,
-            _nodes.TracksBrightestFlameSpent ? _nodes.BrightestFlameSpentAt(node) : 0);
+            _nodes.TracksBrightestFlameSpent ? _nodes.BrightestFlameSpentAt(node) : 0,
+            progress, _nodes.ProgressEnemyHighsAt(progress.EnemyHighsId));
     }
 
     private bool NodeBudgetAvailable => _options.UnlimitedNodes || _expanded < _options.MaxExpandedNodes;
@@ -1671,10 +1705,10 @@ internal sealed partial class BeamSolver
         int write = 0;
         for (int read = 0; read < pool.Count; read++)
         {
-            BoundValues values = _bound.Evaluate(pool.State(read), pool.PotionCost(read),
-                includeSmartPotionLowerBound: false);
+            BoundFeatures.PruningBound values = _bound.EvaluatePruning(
+                pool.State(read), _scorer.RulesForCodec.Rules);
             bool certifiedUnknown = _bound.RequireCertifiedHealingProof && _pruneEqualHp
-                && values.RemainingHealingPotential == int.MaxValue;
+                && values.RemainingUnknown;
             bool incumbentPrune = false;
             if (!certifiedUnknown)
             {

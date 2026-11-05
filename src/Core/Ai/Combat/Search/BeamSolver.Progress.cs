@@ -394,6 +394,9 @@ internal sealed partial class BeamSolver
     private BeamResult WithSolveDiagnostics(BeamResult result) => result with
     {
         CapacityPruned = _capacityPruned,
+        TurnLoopGuarded = TurnLoopGuardedTotal,
+        RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
+        RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
         EndTurnPrefixShared = EndTurnPrefixSharedTotal,
         EndTurnPrefixUnshared = EndTurnPrefixUnsharedTotal,
         EndTurnPrefixVerified = EndTurnPrefixVerifiedTotal,

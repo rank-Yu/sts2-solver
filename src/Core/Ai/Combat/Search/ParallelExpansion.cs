@@ -634,6 +634,7 @@ internal sealed partial class BeamSolver
         _workspacePrefixChoiceUnshared += workspace.EndTurnPrefixChoiceUnshared;
         _workspacePrefixExtraTurnUnshared += workspace.EndTurnPrefixExtraTurnUnshared;
         _workspacePrefixNotInProgress += workspace.EndTurnPrefixNotInProgress;
+        _workspaceTurnLoopGuarded += workspace.TurnLoopGuarded;
         workspace.ResetDiagnostics();
     }
 
@@ -644,4 +645,5 @@ internal sealed partial class BeamSolver
     private int EndTurnPrefixChoiceUnsharedTotal => _workspacePrefixChoiceUnshared;
     private int EndTurnPrefixExtraTurnUnsharedTotal => _workspacePrefixExtraTurnUnshared;
     private int EndTurnPrefixNotInProgressTotal => _workspacePrefixNotInProgress;
+    private int TurnLoopGuardedTotal => _workspaceTurnLoopGuarded;
 }

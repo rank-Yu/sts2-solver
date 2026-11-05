@@ -40,6 +40,9 @@ internal static class CompareCommand
         long SearchMemoryUsed,
         long RouteNodeStorage,
         int RouteNodePeak,
+        int RouteProgressDetailPeakCount,
+        long RouteProgressDetailStorage,
+        int TurnLoopGuarded,
         SearchEquivalenceDiagnostics Equivalence,
         string QualityError);
 
@@ -193,7 +196,9 @@ internal static class CompareCommand
                 expected.BestScore, actual.BestScore, expected.BestIsVictory, actual.BestIsVictory,
                 solveWatch.Elapsed.TotalMilliseconds, managedPeak,
                 actual.SearchMemoryUsedBytes, actual.RouteNodeStorageBytes,
-                actual.RouteNodePeakCount, actual.Equivalence, qualityError));
+                actual.RouteNodePeakCount, actual.RouteProgressDetailPeakCount,
+                actual.RouteProgressDetailStorageBytes, actual.TurnLoopGuarded,
+                actual.Equivalence, qualityError));
         });
         watch.Stop();
         Row[] ordered = [.. rows.OrderBy(static row => row.Hash, StringComparer.Ordinal)];
@@ -202,7 +207,8 @@ internal static class CompareCommand
             using StreamWriter writer = new(output, false, new UTF8Encoding(false));
             writer.WriteLine("config,hash,quality,routeEqual,oldExpanded,newExpanded,oldTransitions,"
                 + "newTransitions,oldScore,newScore,oldVictory,newVictory,ms,managedHeapPeak,"
-                + "searchMemoryUsed,routeNodeStorage,routeNodePeak,playDeduped,"
+                + "searchMemoryUsed,routeNodeStorage,routeNodePeak,"
+                + "routeProgressDetailPeak,routeProgressDetailStorage,turnLoopGuarded,playDeduped,"
                 + "playVerifiedExact,playVerifiedApprox,playVerifiedApproxEqual,playVerifiedUnresolved,"
                 + "choiceByClassRequests,choiceVerifiedExact,choiceVerifiedApprox,"
                 + "choiceVerifiedApproxEqual,choiceVerifiedUnresolved,qualityError");
@@ -225,6 +231,9 @@ internal static class CompareCommand
                     row.SearchMemoryUsed.ToString(CultureInfo.InvariantCulture),
                     row.RouteNodeStorage.ToString(CultureInfo.InvariantCulture),
                     row.RouteNodePeak.ToString(CultureInfo.InvariantCulture),
+                    row.RouteProgressDetailPeakCount.ToString(CultureInfo.InvariantCulture),
+                    row.RouteProgressDetailStorage.ToString(CultureInfo.InvariantCulture),
+                    row.TurnLoopGuarded.ToString(CultureInfo.InvariantCulture),
                     e.PlayDeduped.ToString(CultureInfo.InvariantCulture),
                     e.PlayVerifiedExact.ToString(CultureInfo.InvariantCulture),
                     e.PlayVerifiedApprox.ToString(CultureInfo.InvariantCulture),

@@ -73,8 +73,11 @@ internal sealed partial class BeamSolver
         private readonly ChunkedList<int> _routingMetaId;
         private readonly ChunkedList<int> _parentTurn;
         private readonly ChunkedList<int> _potionLineageKeyId;
+        private readonly ChunkedList<TurnProgressState> _progress;
+        private readonly ChunkedList<EnemyProgressHighs> _progressEnemyHighs;
         private readonly ChunkedList<int>? _brightestFlameSpent;
         private readonly RoutingMetaStore _metas;
+        private readonly SearchStorage _storage;
 
         internal RouteNodeStore(SearchStorage storage, RoutingMetaStore metas,
             bool trackBrightestFlameSpent)
@@ -93,6 +96,10 @@ internal sealed partial class BeamSolver
             _routingMetaId = new ChunkedList<int>(storage);
             _parentTurn = new ChunkedList<int>(storage);
             _potionLineageKeyId = new ChunkedList<int>(storage);
+            _progress = new ChunkedList<TurnProgressState>(storage);
+            _progressEnemyHighs = new ChunkedList<EnemyProgressHighs>(storage);
+            PeakProgressEnemyHighsCount = 0;
+            _storage = storage;
             _brightestFlameSpent = trackBrightestFlameSpent
                 ? new ChunkedList<int>(storage) : null;
             _metas = metas;
@@ -107,6 +114,19 @@ internal sealed partial class BeamSolver
 
         internal int BrightestFlameSpentAt(int index) => _brightestFlameSpent![index];
 
+        /// <summary>High-water mark of sparse per-enemy progress details in this solve.</summary>
+        internal int PeakProgressEnemyHighsCount { get; private set; }
+
+        /// <summary>Logical chunk bytes retained by the sparse progress detail table at its peak.</summary>
+        internal long ProgressEnemyHighsStorageBytes
+        {
+            get
+            {
+                long chunks = ((long)PeakProgressEnemyHighsCount + ChunkSize - 1) >> ChunkShift;
+                return chunks * ChunkSize * Unsafe.SizeOf<EnemyProgressHighs>();
+            }
+        }
+
         /// <summary>Logical bytes of the node chunks at the high-water node count.</summary>
         internal long StorageBytes
         {
@@ -118,6 +138,7 @@ internal sealed partial class BeamSolver
                     + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>()
+                    + Unsafe.SizeOf<TurnProgressState>()
                     + (_brightestFlameSpent is null ? 0 : Unsafe.SizeOf<int>()));
                 long chunks = ((long)PeakCount + ChunkSize - 1) >> ChunkShift;
                 return chunks * chunkBytes;
@@ -140,6 +161,9 @@ internal sealed partial class BeamSolver
             _routingMetaId.Clear();
             _parentTurn.Clear();
             _potionLineageKeyId.Clear();
+            _progress.Clear();
+            _progressEnemyHighs.Clear();
+            PeakProgressEnemyHighsCount = 0;
             _brightestFlameSpent?.Clear();
             PeakCount = 0;
         }
@@ -160,6 +184,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Add(routingMetaId);
             _parentTurn.Add(node.ParentTurn);
             _potionLineageKeyId.Add(node.PotionLineageKeyId);
+            _progress.Add(node.Progress);
             _brightestFlameSpent?.Add(brightestFlameSpent);
             if (Count > PeakCount)
                 PeakCount = Count;
@@ -180,6 +205,70 @@ internal sealed partial class BeamSolver
         internal void SetRoutingMetaId(int index, int value) => _routingMetaId[index] = value;
 
         internal int PotionLineageKeyAt(int index) => _potionLineageKeyId[index];
+
+        internal TurnProgressState ProgressAt(int index) => _progress[index];
+
+        internal int AddProgressEnemyHighs(in EnemyProgressHighs highs)
+        {
+            _progressEnemyHighs.Add(highs);
+            int count = _progressEnemyHighs.Count;
+            if (count > PeakProgressEnemyHighsCount)
+                PeakProgressEnemyHighsCount = count;
+            return count;
+        }
+
+        internal EnemyProgressHighs ProgressEnemyHighsAt(int index)
+            => index == 0 ? default : _progressEnemyHighs[index - 1];
+
+        /// <summary>
+        /// Keeps only per-enemy details referenced by a live route node and rewrites their 1-based
+        /// ids after node compaction. Runs on the search thread after node remapping; the shared
+        /// integer scratch is free at this point.
+        /// </summary>
+        internal void CompactProgressEnemyHighs()
+        {
+            int count = _progressEnemyHighs.Count;
+            if (count == 0)
+                return;
+            int[] map = _storage.IntScratch(count + 1);
+            Array.Fill(map, -1);
+            map[0] = 0;
+            for (int index = 0; index < Count; index++)
+            {
+                int id = _progress[index].EnemyHighsId;
+                if ((uint)id > (uint)count)
+                    throw new InvalidOperationException(
+                        $"路线 progress 明细越界：{id}/{count}。");
+                if (id > 0)
+                    map[id] = -2;
+            }
+            int live = 1;
+            for (int id = 1; id <= count; id++)
+            {
+                if (map[id] == -2)
+                    map[id] = live++;
+            }
+            if (live == count + 1)
+                return;
+            for (int id = 1; id <= count; id++)
+            {
+                int target = map[id];
+                if (target > 0 && target != id)
+                    _progressEnemyHighs.Move(id - 1, target - 1);
+            }
+            _progressEnemyHighs.Truncate(live - 1);
+            for (int index = 0; index < Count; index++)
+            {
+                TurnProgressState progress = _progress[index];
+                if (progress.EnemyHighsId > 0)
+                {
+                    _progress[index] = progress with
+                    {
+                        EnemyHighsId = map[progress.EnemyHighsId],
+                    };
+                }
+            }
+        }
 
         /// <summary>
         /// Read-only field view of one route node. The store is structure-of-arrays, so this avoids
@@ -234,6 +323,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Move(from, to);
             _parentTurn.Move(from, to);
             _potionLineageKeyId.Move(from, to);
+            _progress.Move(from, to);
             _brightestFlameSpent?.Move(from, to);
         }
 
@@ -253,6 +343,7 @@ internal sealed partial class BeamSolver
             _routingMetaId.Truncate(count);
             _parentTurn.Truncate(count);
             _potionLineageKeyId.Truncate(count);
+            _progress.Truncate(count);
             _brightestFlameSpent?.Truncate(count);
         }
     }
@@ -372,6 +463,7 @@ internal sealed partial class BeamSolver
         }
         CompactCommitments(live);
         CompactRoutingMetadata();
+        _nodes.CompactProgressEnemyHighs();
         if (_options.UnlimitedNodes) SearchCheckpoint();
     }
 

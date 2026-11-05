@@ -281,4 +281,5 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 - 镜像覆盖率表和下界分类表是从 `a62f1850` 一次性导出的数据，不是运行时推断。
 - 下界的 environment 证书只移植了 `CanCertifyRemainingHealingEnvironment` 的 Regent、Silent 一般分支；Defect 与 Decimillipede 的特殊分支没有移植，这些根拿不到 environment 证书（证书为 false），下界更保守，但不会被拒绝。
 - `Component`、`KnownNative` 证书和 `HasOnlyPostCombatHealing` 按“没有第三方 run/combat 订阅者、BaseLib 卡牌修饰、AdaptedOnPlay”的固定口径处理；实机遇到这些内容时要另行拒绝或补证据。
+- `KnownNative` 的 K5 值仍把 Fairy in a Bottle、Lizard Tail、Dragon Fruit、Book of Five Rings、Darkstone Periapt、Chosen Cheese、Demon Tongue、Book Repair Knife、Fruit Juice、Not Yet 和 Feed 视为未知。搜索剪枝另走 `BoundFeatures.EvaluatePruning`：前两项的濒死回血按 0，Not Yet/Feed 根据当前存活拷贝给有限上界，其余按内容层现状给 0 或有限的每敌/每瓶近似；Dragon Fruit 在根里有 Hand of Greed 时保持未知，因为内核没有实现原版 `AfterGoldGained` 回调。只有证书覆盖的未知仍然让 Component 剪枝停下。请求里的下界配置和 K5 哈希不变。
 - `pending-choice` 与 `unsupported-healing-certificate` 两个原因码已经定义，目前没有代码抛出。

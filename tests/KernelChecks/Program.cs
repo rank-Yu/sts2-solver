@@ -73,6 +73,7 @@ CheckRng();
 CheckGrowthRewards();
 Rules rules = SliceRules();
 SearchChecks.Check();
+IncumbentAndLoopChecks.Check(rules);
 CheckHookDeactivation(rules);
 bool lateRegistrationThrew = false;
 try

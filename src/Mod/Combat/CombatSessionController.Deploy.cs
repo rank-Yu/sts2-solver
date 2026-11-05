@@ -200,6 +200,10 @@ internal static partial class CombatSessionController
         {
             ModLog.Info($"[Sts2Solver] CONTROLLER_DEPLOY_CANCELLED turn={turn}");
         }
+        catch (Exception error)
+        {
+            NativeCallbackGuard.Report("DeployTurn", error);
+        }
         finally
         {
             ReleaseDeployment(deployment);

@@ -154,6 +154,13 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compare \
   --pilot-dir .local/sts2-sim-export --pilot-jobs 4 --pilot-shard 0 2 \
   --pilot-results .local/sts2-sim-diff/results.tsv
+
+# 单请求默认使用请求里的 searchTier；根 fixture/pilot-dir 仍默认 Low。可用 --pilot-tier 覆盖
+dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compare \
+  --pilot-request .local/evidence/requests/FS1-REGENT-A10-D413F4C2-Act2-F049-Boss-QUEEN_BOSS-31.json
+dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compare \
+  --pilot-request .local/evidence/requests/FS1-REGENT-A10-D413F4C2-Act2-F049-Boss-QUEEN_BOSS-31.json \
+  --pilot-tier Medium
 ```
 
 用原版创建战斗，低档组合搜索后通过原版动作执行，核对每个稳定边界与终局合同。`--pilot-dir` 目录里的每个 `*.json` 是一份请求，仍然一请求一子进程；`--pilot-shard i n` 和 `--pilot-results` 与按根名运行时含义相同。子进程入口是 `--pilot-request <文件>`。它和 `--offline-combat` 的内核回放评测是两回事。

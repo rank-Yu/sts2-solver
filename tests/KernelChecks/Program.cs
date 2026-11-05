@@ -4026,7 +4026,10 @@ static void CheckLrKernel(Rules rules)
     Check(Registry.TryCard("RG_TEST_STAR_CARD", out ushort starCard), "缺少 RG_TEST_STAR_CARD");
     Check(Registry.TryCard("MINION_STRIKE", out ushort minionStrike), "缺少 MINION_STRIKE");
     Check(Registry.TryPower("VOID_FORM_POWER", out ushort voidForm), "缺少 VOID_FORM_POWER");
+    Check(Registry.TryCard("VOID_FORM", out ushort voidFormCard), "缺少 VOID_FORM");
     Check(Registry.TryPower("TYRANNY_POWER", out ushort tyranny), "缺少 TYRANNY_POWER");
+    Check(Registry.TryPower("MAYHEM_POWER", out ushort mayhem), "缺少 MAYHEM_POWER");
+    Check(Registry.TryPower("VOID_FORM_POWER", out ushort voidFormPower), "缺少 VOID_FORM_POWER");
     Check(Registry.TryPower("FOREGONE_CONCLUSION_POWER", out ushort foregone), "缺少 FOREGONE_CONCLUSION_POWER");
 
     // Generated cards: AddGeneratedCard records History.CardGenerated before insertion, so a card
@@ -4185,6 +4188,49 @@ static void CheckLrKernel(Rules rules)
     Check(Kernel.Step(ref tyrannyReplay, endTurn.WithChoice(1UL), rules, out _)
         == StepResult.Completed, "LR 暴政选择后回合应完成");
     Check(tyrannyReplay.ExhaustCount == 1, $"LR 暴政应消耗 1 张选中的手牌，实际 {tyrannyReplay.ExhaustCount}");
+
+    // Mayhem's AutoPrePlay can auto-play VoidForm during the next turn's setup. VoidForm's
+    // PlayerCmd.EndTurn arrives while the setup is still resolving; the native turn loop finishes
+    // the setup, then immediately runs turn end/enemy turn and asks the following turn's Tyranny
+    // choice. Both turn-start choices belong to the same EndTurn action.
+    Battle mayhemBattle = SliceBattle();
+    Exec mayhemExec = new(ref mayhemBattle, rules, default);
+    Kernel.ApplyPower(ref mayhemExec, Limits.PlayerOwner, tyranny, 1, Limits.PlayerOwner);
+    Kernel.ApplyPower(ref mayhemExec, Limits.PlayerOwner, mayhem, 1, Limits.PlayerOwner);
+    Kernel.ResolvePowerAmountChanges(ref mayhemExec);
+    Piles.Append(ref mayhemBattle, Pile.Draw, Kernel.CreateCard(rules, defend));
+    Piles.Append(ref mayhemBattle, Pile.Draw, Kernel.CreateCard(rules, voidFormCard));
+    Battle mayhemParent = mayhemBattle;
+    PlayerAction mayhemEnd = PlayerAction.EndTurn();
+    Check(Kernel.Step(ref mayhemBattle, mayhemEnd, rules, out ChoiceRequest mayhemFirst)
+        == StepResult.NeedsChoice,
+        "LR Mayhem 场景应先请求第 2 回合的暴政选择");
+    Check(mayhemFirst.Timing == ChoiceTiming.PlayerTurnStart
+        && mayhemFirst.Effect == ChoiceEffect.Exhaust
+        && mayhemBattle.PlayerTurn == 2,
+        $"LR Mayhem 首个暴政选择规格错误 turn={mayhemBattle.PlayerTurn} "
+        + $"timing={mayhemFirst.Timing} effect={mayhemFirst.Effect}");
+    Battle mayhemSecond = mayhemParent;
+    Check(Kernel.Step(ref mayhemSecond, mayhemEnd.WithChoice(1UL), rules,
+            out ChoiceRequest mayhemRequest)
+        == StepResult.NeedsChoice,
+        "LR Mayhem 自动打出 VoidForm 后应结束第 2 回合并请求第 3 回合的暴政选择");
+    Check(mayhemSecond.PlayerTurn == 3
+        && mayhemRequest.Timing == ChoiceTiming.PlayerTurnStart
+        && mayhemRequest.Effect == ChoiceEffect.Exhaust
+        && mayhemRequest.Source == Pile.Hand,
+        $"LR VoidForm 强制结束后的暴政选择规格错误 turn={mayhemSecond.PlayerTurn} "
+        + $"timing={mayhemRequest.Timing} effect={mayhemRequest.Effect} source={mayhemRequest.Source}");
+    Battle mayhemDone = mayhemParent;
+    Check(Kernel.Step(ref mayhemDone, mayhemEnd.WithChoice(1UL).WithChoice(1UL), rules, out _)
+        == StepResult.Completed,
+        "LR 两次暴政选择后 EndTurn 应完成");
+    Check(mayhemDone.PlayerTurn == 3
+        && (mayhemDone.Flags & BattleFlags.PlayerTurnEndRequested) == 0,
+        $"LR VoidForm 强制结束应清掉请求并停在第 3 回合 Play，实际 turn={mayhemDone.PlayerTurn} "
+        + $"flags={mayhemDone.Flags}");
+    Check(Kernel.FindPower(mayhemDone, Limits.PlayerOwner, voidFormPower) >= 0,
+        "LR Mayhem 自动打出的 VoidForm 应施加 VoidFormPower");
 
     // ForegoneConclusionPower: its BeforeHandDraw choice moves draw cards to hand and removes the
     // power; the empty-draw branch shuffles first and asks nothing.

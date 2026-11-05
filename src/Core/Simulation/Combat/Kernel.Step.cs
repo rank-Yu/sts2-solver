@@ -51,9 +51,7 @@ public static partial class Kernel
             case PlayerActionKind.EndTurn:
                 AdvanceRound(ref x);
                 if (!x.NeedsChoice)
-                {
-                    x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-                }
+                    AdvanceForcedTurnEnds(ref x);
                 break;
             case PlayerActionKind.UsePotion:
                 UsePotionAction(ref x, action);
@@ -174,13 +172,7 @@ public static partial class Kernel
         ApplyEnemyDeathPowers(ref x);
         // SettleReplayActionBoundary: no supported power reactions or normalizations.
         CheckWinCondition(ref x.B);
-        if ((x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0)
-        {
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-            if (IsInProgress(x.B))
-                AdvanceRound(ref x);
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-        }
+        AdvanceForcedTurnEnds(ref x);
     }
 
     /// <summary>

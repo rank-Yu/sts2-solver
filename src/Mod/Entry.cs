@@ -71,21 +71,12 @@ public static class ModEntry
         ModLog.Info($"[Sts2Solver] TEST_MODE test_mode_is_on={MegaCrit.Sts2.Core.TestSupport.TestMode.IsOn}");
 
         // 战斗结束或退出时取消后台搜索和自动执行。
-        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(static evt =>
-        {
-            SearchSession.OnCombatStarting();
-            CombatSessionController.BeginCombat(evt.CombatState as CombatState);
-        });
-        RitsuLibFramework.SubscribeLifecycle<CombatEndedEvent>(static _ =>
-        {
-            SearchSession.OnCombatEnded();
-            CombatSessionController.OnCombatEnded();
-#if STS2_SOLVER_TESTING
-            TestSession.OnCombatEnded();
-#endif
-        });
+        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(
+            static evt => NativeCallbackGuard.OnCombatStarting(evt.CombatState));
+        RitsuLibFramework.SubscribeLifecycle<CombatEndedEvent>(
+            static _ => NativeCallbackGuard.OnCombatEnded());
         if (CombatManager.Instance != null)
-            CombatManager.Instance.TurnStarted += CombatSessionController.OnTurnStarted;
+            CombatManager.Instance.TurnStarted += NativeCallbackGuard.OnTurnStarted;
         else
             ModLog.Error("[Sts2Solver] TURN_EVENT_UNAVAILABLE reason=CombatManager_missing");
 #if STS2_SOLVER_TESTING
@@ -103,11 +94,7 @@ public static class ModEntry
             host.AddChild(new CombatUiMemorySampler());
             host.AddChild(new CombatSessionNode());
             host.AddChild(new SolverOverlay());
-            host.TreeExiting += static () =>
-            {
-                CombatSessionController.Reset("tree_exiting");
-                SearchSession.Cancel("tree_exiting");
-            };
+            host.TreeExiting += NativeCallbackGuard.OnTreeExiting;
             ModLog.Info("[Sts2Solver] CONTROLLER_READY hotkey=none mode_switch=panel");
         }
     }

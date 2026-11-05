@@ -97,13 +97,7 @@ public static partial class Kernel
             return;
         // SettleReplayActionBoundary: no supported power reactions or normalizations.
         CheckWinCondition(ref x.B);
-        if ((x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0)
-        {
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-            if (IsInProgress(x.B))
-                AdvanceRound(ref x);
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
-        }
+        AdvanceForcedTurnEnds(ref x);
     }
 
     /// <summary>

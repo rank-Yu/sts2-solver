@@ -31,6 +31,7 @@ internal static class CombatPilotCompare
         int jobs = 8;
         int shard = 0;
         int shards = 1;
+        SearchPerformanceTier? tier = null;
         string? root = null;
         string? fixtureDirectory = null;
         string? requestPath = null;
@@ -64,6 +65,9 @@ internal static class CombatPilotCompare
                 case "--pilot-results" when index + 1 < args.Length:
                     resultsPath = args[++index];
                     break;
+                case "--pilot-tier" when index + 1 < args.Length:
+                    tier = SearchPerformanceProfile.ParseTier(args[++index]);
+                    break;
                 default:
                     Console.Error.WriteLine($"未知参数：{args[index]}");
                     return 2;
@@ -75,18 +79,20 @@ internal static class CombatPilotCompare
             return 2;
         }
         if (requestPath != null)
-            return RunChild(data, corpora, root, requestPath);
+            return RunChild(data, corpora, root, requestPath, tier);
         if (fixtureDirectory != null && root != null)
         {
             Console.Error.WriteLine("--pilot-dir 和 --pilot-root 不能同时使用。");
             return 2;
         }
         if (root != null)
-            return RunChild(data, corpora, root, null);
-        return RunParent(data, corpora, jobs, shard, shards, fixtureDirectory, resultsPath);
+            return RunChild(data, corpora, root, null, tier);
+        return RunParent(data, corpora, jobs, shard, shards, fixtureDirectory, resultsPath,
+            tier ?? SearchPerformanceTier.Low);
     }
 
-    private static int RunChild(string data, string corpora, string? root, string? requestPath)
+    private static int RunChild(string data, string corpora, string? root, string? requestPath,
+        SearchPerformanceTier? tier)
     {
         MainLoopContext loop = new();
         SynchronizationContext.SetSynchronizationContext(loop);
@@ -94,11 +100,11 @@ internal static class CombatPilotCompare
         GameBootstrap.SkipGodotNodeStaticConstructors();
         GameBootstrap.InitializeStaticState();
         TerminalBattleCapture.Install();
-        return ComparePilot(loop, data, corpora, root, requestPath);
+        return ComparePilot(loop, data, corpora, root, requestPath, tier);
     }
 
     private static int RunParent(string data, string corpora, int jobs, int shard, int shards,
-        string? fixtureDirectory, string? resultsPath)
+        string? fixtureDirectory, string? resultsPath, SearchPerformanceTier tier)
     {
         List<PilotCase> cases = EnumeratePilotCases(data, corpora, fixtureDirectory);
         if (shards > 1)
@@ -129,8 +135,8 @@ internal static class CombatPilotCompare
         Parallel.ForEach(cases, new ParallelOptions { MaxDegreeOfParallelism = jobs }, item =>
         {
             string[] childArgs = item.RequestPath != null
-                ? ["--pilot-request", item.RequestPath]
-                : ["--pilot-root", item.Root!];
+                ? ["--pilot-request", item.RequestPath, "--pilot-tier", tier.ToString()]
+                : ["--pilot-root", item.Root!, "--pilot-tier", tier.ToString()];
             (int code, string stdout, string stderr) =
                 RunChildProcess(data, corpora, childArgs);
             List<string> lines = stdout.Split('\n')
@@ -316,7 +322,7 @@ internal static class CombatPilotCompare
     }
 
     private static int ComparePilot(MainLoopContext loop, string data, string corpora,
-        string? root, string? requestPath)
+        string? root, string? requestPath, SearchPerformanceTier? tier)
     {
         string caseName = root ?? Path.GetFileNameWithoutExtension(requestPath!)
             ?? throw new InvalidDataException("pilot 用例没有名称。");
@@ -324,6 +330,12 @@ internal static class CombatPilotCompare
             ? LoadRequestFromPath(requestPath)
             : Program.LoadRequest(data, corpora,
                 root ?? throw new InvalidDataException("pilot 用例没有根名。"));
+        // A self-contained --pilot-request carries its own search tier; a root fixture keeps
+        // the historical Low pilot default. An explicit --pilot-tier overrides both.
+        SearchPerformanceTier effectiveTier = tier
+            ?? (requestPath != null
+                ? SearchPerformanceProfile.ParseTier(request.SearchTier)
+                : SearchPerformanceTier.Low);
         try
         {
             OfflineCombatWaiter waiter = new(loop);
@@ -348,7 +360,7 @@ internal static class CombatPilotCompare
             SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
                 SearchPolicyCapture.Capture(combat, combatPlayer), request, combatPlayer);
             NativePilotHost host = new(loop, combat, combatPlayer, nativeRules, tracker, opening,
-                policy, SearchPerformanceProfile.For(SearchPerformanceTier.Low), OfflineCombatSettings.DefaultMemoryBudgetBytes);
+                policy, SearchPerformanceProfile.For(effectiveTier), OfflineCombatSettings.DefaultMemoryBudgetBytes);
             CombatPilotResult result = CombatPilot.RunAsync(host, caseName, CancellationToken.None)
                 .GetAwaiter().GetResult();
             if (result.Deviations == 0 && result.FailureLog.Length != 0

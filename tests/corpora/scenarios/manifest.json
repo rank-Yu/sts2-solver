@@ -233,6 +233,16 @@
       "group": "controller"
     },
     {
+      "id": "deployment_choice_mismatch",
+      "scenario": "deployment_choice_mismatch",
+      "group": "controller",
+      "fixture": "ts-g-multi-choice",
+      "request": {
+        "controllerScenarioForTest": "deployment_choice_mismatch",
+        "timeoutSeconds": 900
+      }
+    },
+    {
       "id": "full_auto_arm_after_turn",
       "scenario": "full_auto_arm_after_turn",
       "group": "controller"

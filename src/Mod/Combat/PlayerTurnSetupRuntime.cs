@@ -303,7 +303,17 @@ internal static class PlayerTurnSetupRuntime
         TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
 #endif
         CombatSessionController.OnTurnSetupIntercepted(setupTurn);
-        Task operation = RunTurnSetupAsync(transaction);
+        Task operation;
+        try
+        {
+            operation = RunTurnSetupAsync(transaction);
+        }
+        catch (Exception error)
+        {
+            Reset("run_setup_start_failed");
+            NativeCallbackGuard.Report("RunTurnSetupStart", error);
+            return false;
+        }
         transaction.SetupTask = operation;
         task = operation;
         return true;
@@ -1034,6 +1044,10 @@ internal static class PlayerTurnSetupRuntime
         {
             CombatSessionController.FailTurnSetup(error.Message);
         }
+        catch (Exception error)
+        {
+            NativeCallbackGuard.Report("RunTurnSetup", error);
+        }
         finally
         {
             await originalSetup.ConfigureAwait(
@@ -1207,6 +1221,10 @@ internal static class PlayerTurnSetupRuntime
         catch (TimeoutException error)
         {
             CombatSessionController.FailTurnSetup(error.Message);
+        }
+        catch (Exception error)
+        {
+            NativeCallbackGuard.Report("RunAutoPrePlay", error);
         }
         finally
         {

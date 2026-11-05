@@ -112,6 +112,26 @@ public static partial class Kernel
         return true;
     }
 
+    /// <summary>
+    /// Consumes <c>PlayerCmd.EndTurn</c> requests raised while an action or the next turn's setup
+    /// is still resolving (<c>VoidForm.OnPlay</c>). Native only processes the ready-to-end-turn
+    /// signal after the current setup/auto-pre-play finishes, then runs the whole end-turn and
+    /// enemy-turn sequence; the kernel therefore has to advance another round from the completed
+    /// Play boundary and keep the next turn's start choices in the same action.
+    /// </summary>
+    internal static void AdvanceForcedTurnEnds(ref Exec x)
+    {
+        while ((x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0)
+        {
+            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
+            if (!IsInProgress(x.B))
+                return;
+            AdvanceRound(ref x);
+            if (x.NeedsChoice)
+                return;
+        }
+    }
+
     /// <summary>Mirrors the enemy-turn block of <c>CombatBeamSolver.AdvanceRound</c>.</summary>
     private static void RunEnemyTurn(ref Exec x)
     {

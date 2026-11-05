@@ -28,13 +28,20 @@ internal sealed class PlayerTurnSetupPatch : IPatchMethod
     public static bool Prefix(CombatManager __instance, CombatTurnState turnState, Player player,
         HookPlayerChoiceContext playerChoiceContext, ref Task __result)
     {
-        if (!PlayerTurnSetupRuntime.TryInterceptSetup(
-                __instance, turnState, player, playerChoiceContext, out Task? task))
+        Task? replacement = null;
+        bool intercepted = false;
+        bool ok = NativeCallbackGuard.Try("PlayerTurnSetupPatch", () =>
         {
-            return true;
-        }
-        __result = task!;
-        return false;
+            if (PlayerTurnSetupRuntime.TryInterceptSetup(
+                    __instance, turnState, player, playerChoiceContext, out Task? task))
+            {
+                replacement = task;
+                intercepted = true;
+            }
+        });
+        if (intercepted)
+            __result = replacement!;
+        return !ok || !intercepted;
     }
 }
 
@@ -56,14 +63,21 @@ internal sealed class PlayerTurnAutoPrePlayPatch : IPatchMethod
         HookPlayerChoiceContext playerChoiceContext, Task setupPlayerTurnTask, Player player,
         ref Task __result)
     {
-        if (!PlayerTurnSetupRuntime.TryInterceptAutoPrePlay(
-                __instance, turnState, playerChoiceContext, setupPlayerTurnTask, player,
-                out Task? task))
+        Task? replacement = null;
+        bool intercepted = false;
+        bool ok = NativeCallbackGuard.Try("PlayerTurnAutoPrePlayPatch", () =>
         {
-            return true;
-        }
-        __result = task!;
-        return false;
+            if (PlayerTurnSetupRuntime.TryInterceptAutoPrePlay(
+                    __instance, turnState, playerChoiceContext, setupPlayerTurnTask, player,
+                    out Task? task))
+            {
+                replacement = task;
+                intercepted = true;
+            }
+        });
+        if (intercepted)
+            __result = replacement!;
+        return !ok || !intercepted;
     }
 }
 
@@ -79,5 +93,7 @@ internal sealed class PlayerTurnSetupSceneExitPatch : IPatchMethod
     ];
 
     [HarmonyPriority(Priority.High)]
-    public static void Prefix() => PlayerTurnSetupRuntime.PrepareForSceneExit();
+    public static void Prefix()
+        => NativeCallbackGuard.Try("PlayerTurnSetupSceneExit",
+            PlayerTurnSetupRuntime.PrepareForSceneExit);
 }

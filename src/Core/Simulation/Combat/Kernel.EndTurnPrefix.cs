@@ -126,7 +126,7 @@ public static partial class Kernel
             prefix._status = EndTurnPrefixStatus.ChoiceBeforePlayerStart;
         }
         if (!x.NeedsChoice)
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
+            AdvanceForcedTurnEnds(ref x);
         StepResult result = FinishStep(ref x, action, out request, out historyRisk);
         brightestFlameMaxHpSpent = x.BrightestFlameMaxHpSpent;
         return result;
@@ -152,7 +152,7 @@ public static partial class Kernel
         if (prefix._playerStartPending)
             AdvanceRoundPlayerStart(ref x);
         if (!x.NeedsChoice)
-            x.B.Flags &= ~BattleFlags.PlayerTurnEndRequested;
+            AdvanceForcedTurnEnds(ref x);
         StepResult result = FinishStep(ref x, action, out request, out historyRisk);
         brightestFlameMaxHpSpent = x.BrightestFlameMaxHpSpent;
         return result;

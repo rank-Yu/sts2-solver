@@ -51,6 +51,14 @@ internal sealed class ActionDeployer(
     {
         Validate(planned);
         PlannedChoice[] explicitChoices = [.. planned.Choices.Where(static choice => !choice.Implicit)];
+#if STS2_SOLVER_TESTING
+        if (planned.Action.Kind == PlayerActionKind.EndTurn
+            && CombatControllerTestHooks.ForceChoicePlanUnderflowOnce)
+        {
+            CombatControllerTestHooks.ForceChoicePlanUnderflowOnce = false;
+            explicitChoices = [];
+        }
+#endif
         PlannedNativeSelector selector = new(explicitChoices, player,
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
         IDisposable? selectorScope = PlannedNativeSelector.Activate(selector);
@@ -86,7 +94,9 @@ internal sealed class ActionDeployer(
                     $"[Sts2Solver] DEPLOY_END_TURN_SELECTOR_RELEASED turn={planned.Before.PlayerTurn} " +
                     $"next={planned.Before.PlayerTurn + 1} pending_choices={selector.PendingCount}");
             }
-            await WaitForBoundaryAsync(planned.After, token);
+            await WaitForBoundaryAsync(planned.After, token, () => selector.FailureDetail);
+            if (selector.FailureDetail is { } mismatch)
+                throw new DeploymentFailureException("choice_mismatch", mismatch);
             // Native selectors return an empty selection without asking once the combat is over or
             // ending (CardSelectCmd.FromHand), so an attack that kills the last enemy can leave a
             // planned post-damage choice unrequested. The predicted action is terminal, its choice
@@ -101,7 +111,8 @@ internal sealed class ActionDeployer(
             }
             else if (planned.After.Outcome == Outcome.None || CombatManager.Instance.IsInProgress)
             {
-                selector.AssertConsumed();
+                if (selector.UnconsumedDetail() is { } unconsumed)
+                    throw new DeploymentFailureException("choice_mismatch", unconsumed);
             }
             else if (selector.PendingCount > 0)
             {
@@ -109,10 +120,6 @@ internal sealed class ActionDeployer(
                     $"[Sts2Solver] DEPLOY_CHOICE_SKIPPED_TERMINAL turn={planned.Before.PlayerTurn} " +
                     $"index={planned.Index} action={planned.Action} pending={selector.PendingCount}");
             }
-        }
-        catch (ChoicePlanMismatchException error)
-        {
-            throw new DeploymentFailureException("choice_mismatch", error.Message);
         }
         finally
         {
@@ -363,11 +370,21 @@ internal sealed class ActionDeployer(
     }
 
     /// <summary>Waits until the live combat reaches the predicted stable boundary.</summary>
-    private async Task WaitForBoundaryAsync(Battle expected, CancellationToken token)
+    private async Task WaitForBoundaryAsync(Battle expected, CancellationToken token,
+        Func<string?>? choiceFailure = null)
     {
         Stopwatch watch = Stopwatch.StartNew();
+        Stopwatch? mismatchWatch = null;
         while (true)
         {
+            if (choiceFailure?.Invoke() is { } mismatch)
+            {
+                mismatchWatch ??= Stopwatch.StartNew();
+                if (mismatchWatch.Elapsed > TimeSpan.FromSeconds(30))
+                {
+                    throw new DeploymentFailureException("choice_mismatch", mismatch);
+                }
+            }
             token.ThrowIfCancellationRequested();
             CombatState? live = CombatManager.Instance.DebugOnlyGetState();
             if (live == null || !CombatManager.Instance.IsInProgress)
@@ -393,6 +410,8 @@ internal sealed class ActionDeployer(
             }
             if (watch.Elapsed > BoundaryTimeout)
             {
+                if (choiceFailure?.Invoke() is { } failureDetail)
+                    throw new DeploymentFailureException("choice_mismatch", failureDetail);
                 throw new DeploymentFailureException("boundary_timeout",
                     $"等待预测边界 turn={expected.PlayerTurn} phase={expected.Phase} 超时。" +
                     $"live_side={live.CurrentSide} live_phase={current?.PlayerCombatState?.Phase} " +

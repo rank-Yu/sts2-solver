@@ -126,6 +126,30 @@ internal static class NativeChoiceRuntime
         string sourceId = "",
         Func<CardModel, bool>? filter = null)
     {
+        try
+        {
+            return ObserveCore(surface, player, options, minSelect, maxSelect, requiresSurface,
+                canSkip, requireManualConfirmation, sourceId, filter);
+        }
+        catch (Exception error)
+        {
+            NativeCallbackGuard.Report("NativeChoiceObserve", error);
+            return null;
+        }
+    }
+
+    private static NativeChoiceRequest? ObserveCore(
+        NativeChoiceSurfaceKind surface,
+        Player player,
+        IReadOnlyList<CardModel> options,
+        int minSelect,
+        int maxSelect,
+        bool requiresSurface,
+        bool canSkip,
+        bool requireManualConfirmation,
+        string sourceId,
+        Func<CardModel, bool>? filter)
+    {
         if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
             return null;
         NativeChoiceSession? session = _session;
@@ -1163,14 +1187,19 @@ internal sealed class ChooseCardObservationPatch : IPatchMethod
 
     public static void Prefix(IReadOnlyList<CardModel> cards, Player player, bool canSkip,
         out NativeChoiceRequest? __state)
-        => __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.ChooseCard,
-            player,
-            cards,
-            0,
-            1,
-            cards.Count > 0,
-            canSkip);
+    {
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("ChooseCardObservation", () =>
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.ChooseCard,
+                player,
+                cards,
+                0,
+                1,
+                cards.Count > 0,
+                canSkip));
+        __state = observed;
+    }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)
     {
@@ -1192,14 +1221,20 @@ internal sealed class SimpleGridObservationPatch : IPatchMethod
 
     public static void Prefix(IReadOnlyList<CardModel> cardsIn, Player player,
         CardSelectorPrefs prefs, out NativeChoiceRequest? __state)
-        => __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.SimpleGrid,
-            player,
-            cardsIn,
-            prefs.MinSelect,
-            prefs.MaxSelect,
-            cardsIn.Count > 0 && (prefs.RequireManualConfirmation || cardsIn.Count > prefs.MinSelect),
-            requireManualConfirmation: prefs.RequireManualConfirmation);
+    {
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("SimpleGridObservation", () =>
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.SimpleGrid,
+                player,
+                cardsIn,
+                prefs.MinSelect,
+                prefs.MaxSelect,
+                cardsIn.Count > 0
+                    && (prefs.RequireManualConfirmation || cardsIn.Count > prefs.MinSelect),
+                requireManualConfirmation: prefs.RequireManualConfirmation));
+        __state = observed;
+    }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)
     {
@@ -1222,15 +1257,22 @@ internal sealed class RewardGridObservationPatch : IPatchMethod
     public static void Prefix(List<CardCreationResult> cards, Player player,
         CardSelectorPrefs prefs, out NativeChoiceRequest? __state)
     {
-        IReadOnlyList<CardModel> options = cards.Select(static result => result.Card).ToArray();
-        __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.SimpleGrid,
-            player,
-            options,
-            prefs.MinSelect,
-            prefs.MaxSelect,
-            options.Count > 0 && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
-            requireManualConfirmation: prefs.RequireManualConfirmation);
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("RewardGridObservation", () =>
+        {
+            IReadOnlyList<CardModel> options =
+                cards.Select(static result => result.Card).ToArray();
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.SimpleGrid,
+                player,
+                options,
+                prefs.MinSelect,
+                prefs.MaxSelect,
+                options.Count > 0
+                    && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
+                requireManualConfirmation: prefs.RequireManualConfirmation);
+        });
+        __state = observed;
     }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)
@@ -1255,16 +1297,22 @@ internal sealed class CombatPileObservationPatch : IPatchMethod
     public static void Prefix(CardPile pile, Player player, CardSelectorPrefs prefs,
         Func<CardModel, bool>? filter, out NativeChoiceRequest? __state)
     {
-        IReadOnlyList<CardModel> options = (filter == null ? pile.Cards : pile.Cards.Where(filter))
-            .ToArray();
-        __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.CombatPile,
-            player,
-            options,
-            prefs.MinSelect,
-            prefs.MaxSelect,
-            options.Count > 0 && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
-            requireManualConfirmation: prefs.RequireManualConfirmation);
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("CombatPileObservation", () =>
+        {
+            IReadOnlyList<CardModel> options =
+                (filter == null ? pile.Cards : pile.Cards.Where(filter)).ToArray();
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.CombatPile,
+                player,
+                options,
+                prefs.MinSelect,
+                prefs.MaxSelect,
+                options.Count > 0
+                    && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
+                requireManualConfirmation: prefs.RequireManualConfirmation);
+        });
+        __state = observed;
     }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)
@@ -1289,19 +1337,25 @@ internal sealed class HandObservationPatch : IPatchMethod
     public static void Prefix(Player player, CardSelectorPrefs prefs,
         Func<CardModel, bool>? filter, AbstractModel source, out NativeChoiceRequest? __state)
     {
-        IReadOnlyList<CardModel> options = player.PlayerCombatState!.Hand.Cards
-            .Where(filter ?? (static _ => true))
-            .ToArray();
-        __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.Hand,
-            player,
-            options,
-            prefs.MinSelect,
-            prefs.MaxSelect,
-            options.Count > 0 && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
-            requireManualConfirmation: prefs.RequireManualConfirmation,
-            sourceId: source.Id.Entry,
-            filter: filter);
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("HandObservation", () =>
+        {
+            IReadOnlyList<CardModel> options = player.PlayerCombatState!.Hand.Cards
+                .Where(filter ?? (static _ => true))
+                .ToArray();
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.Hand,
+                player,
+                options,
+                prefs.MinSelect,
+                prefs.MaxSelect,
+                options.Count > 0
+                    && (prefs.RequireManualConfirmation || options.Count > prefs.MinSelect),
+                requireManualConfirmation: prefs.RequireManualConfirmation,
+                sourceId: source.Id.Entry,
+                filter: filter);
+        });
+        __state = observed;
     }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)
@@ -1325,18 +1379,23 @@ internal sealed class HandUpgradeObservationPatch : IPatchMethod
     public static void Prefix(Player player, AbstractModel source,
         out NativeChoiceRequest? __state)
     {
-        IReadOnlyList<CardModel> options = player.PlayerCombatState!.Hand.Cards
-            .Where(static card => card.IsUpgradable)
-            .ToArray();
-        __state = NativeChoiceRuntime.Observe(
-            NativeChoiceSurfaceKind.HandUpgrade,
-            player,
-            options,
-            1,
-            1,
-            options.Count > 1,
-            requireManualConfirmation: false,
-            sourceId: source.Id.Entry);
+        NativeChoiceRequest? observed = null;
+        NativeCallbackGuard.Try("HandUpgradeObservation", () =>
+        {
+            IReadOnlyList<CardModel> options = player.PlayerCombatState!.Hand.Cards
+                .Where(static card => card.IsUpgradable)
+                .ToArray();
+            observed = NativeChoiceRuntime.Observe(
+                NativeChoiceSurfaceKind.HandUpgrade,
+                player,
+                options,
+                1,
+                1,
+                options.Count > 1,
+                requireManualConfirmation: false,
+                sourceId: source.Id.Entry);
+        });
+        __state = observed;
     }
 
     public static void Postfix(Task __result, NativeChoiceRequest? __state)

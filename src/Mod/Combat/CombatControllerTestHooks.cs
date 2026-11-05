@@ -15,6 +15,9 @@ internal static class CombatControllerTestHooks
     /// <summary>Returns a deployment failure reason for the action, or null to execute it.</summary>
     internal static Func<ReplayedAction, int, string?>? ForceDeploymentFailure { get; set; }
 
+    /// <summary>Drops the next EndTurn action's planned choices, forcing a native unplanned selection.</summary>
+    internal static bool ForceChoicePlanUnderflowOnce { get; set; }
+
     /// <summary>Search count observed when the native turn-setup selector was asked to choose.</summary>
     internal static int TurnSetupSearchCountAtSelection { get; set; } = -1;
 

@@ -217,6 +217,9 @@ internal static class CombatControllerChecks
                 case "turn_setup_crossbow_many":
                     await TurnSetupCrossbowAsync(host, Check, Action, expectedOptions: 4);
                     break;
+                case "deployment_choice_mismatch":
+                    await DeploymentChoiceMismatchAsync(host, Check, Action);
+                    break;
                 case "deviation_action_full_auto":
                     await DeviationActionFullAutoAsync(host, Check, Action);
                     break;
@@ -2265,6 +2268,35 @@ internal static class CombatControllerChecks
             await CombatFrameWaiter.NextFrameAsync(host);
         }
         throw new TimeoutException($"等待原生 {side} 回合超时。");
+    }
+
+    /// <summary>
+    /// Drops the EndTurn plan's choices once. The native selection must fall back without faulting
+    /// the game's async setup task, the controller must stop with choice_mismatch, and the native
+    /// turn must still reach the next Play phase.
+    /// </summary>
+    private static async Task DeploymentChoiceMismatchAsync(NGame host, Check check, Action action)
+    {
+        CombatControllerTestHooks.ForceChoicePlanUnderflowOnce = true;
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("set_mode:full_auto");
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "choice_mismatch",
+            2400, "choice mismatch pause");
+        check("pause_code", paused.PauseCode == "choice_mismatch", paused.PauseCode);
+        check("deployment_failure", paused.DeploymentFailures >= 1,
+            paused.DeploymentFailures.ToString());
+        check("deviations_zero", paused.Deviations == 0, paused.Deviations.ToString());
+        check("full_auto_off", !paused.FullAutoEnabled, paused.FullAutoEnabled.ToString());
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        CombatState? live = CombatManager.Instance.DebugOnlyGetState();
+        check("native_in_progress", live != null && CombatManager.Instance.IsInProgress,
+            $"in_progress={CombatManager.Instance.IsInProgress}");
+        Player? player = live == null ? null : LocalContext.GetMe(live);
+        check("native_play", player?.PlayerCombatState is { Phase: PlayerTurnPhase.Play },
+            player?.PlayerCombatState?.Phase.ToString() ?? "-");
+        check("native_turn_advanced", (player?.PlayerCombatState?.TurnNumber ?? 0) >= 2,
+            (player?.PlayerCombatState?.TurnNumber ?? 0).ToString());
     }
 
     private static async Task DeviationActionFullAutoAsync(NGame host, Check check, Action action)

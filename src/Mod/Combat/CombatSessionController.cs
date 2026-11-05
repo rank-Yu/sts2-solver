@@ -547,6 +547,23 @@ internal static partial class CombatSessionController
         return true;
     }
 
+    /// <summary>
+    /// Stops automatic play when a solver callback or Harmony patch failed while the game was
+    /// executing it. The guard has already logged the original failure; this method only publishes
+    /// the pause and never lets a controller-side exception escape back to the native caller.
+    /// </summary>
+    internal static void OnNativeCallbackFailure(string callback, string detail)
+    {
+        if (!_combatActive)
+            return;
+        int turn = _state == null
+            ? 0
+            : LocalContext.GetMe(_state)?.PlayerCombatState?.TurnNumber ?? 0;
+        _deploymentFailures++;
+        PauseForTurnStop(turn, "deploy_failed",
+            $"native_callback_failed: {callback}: {detail}", countDeviation: false);
+    }
+
     internal static void OnCombatEnded()
     {
         int generation = _combatGeneration;
@@ -824,6 +841,10 @@ internal static partial class CombatSessionController
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception error)
+        {
+            NativeCallbackGuard.Report("RunTurnStarted", error);
         }
         finally
         {

@@ -88,6 +88,15 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat --ro
 
 不启动 Godot，用与 Mod 相同的 `CombatPilot` 在内核里打完一个根。每根写 `<out>/<root>/full-combat.json`，父进程写 `<out>/summary.json`。`--search-tier` 默认 `Medium`；`--memory-budget-mb` 或 `--memory-budget-bytes` 覆盖搜索内存预算（默认按 16 GiB 机器的 15% 计）。实验结果写进 `--out` 指定的本地目录，不提交。
 
+`--requests-file <file>` 直接运行 sts2-sim 导出的 `OfflineRequest` JSON，不走质量语料的目录/spec 查找。文件每行是 `<request.json>` 或 `<结果目录名>=<request.json>`；相对路径按列表文件所在目录解析。名称必须唯一、是合法目录名，默认取文件名（不含扩展名）。父进程为每个请求启动一个子进程，`--jobs` 控制并发；每行的名称就是 `<out>/<名称>/full-combat.json` 的目录名。单个请求也可以只给 `--root <名称>`，但必须同时给同一份列表。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
+  --requests-file .local/sts2-sim-sample.txt --jobs 8 --out .local/sts2-sim-eval
+```
+
+`tools/testing/sample-sts2-sim.py` 按牌组中的卡牌 id 从 sts2-sim 导出树抽样（默认每张最多 25 局、按 `scenarioId` 去重并尽量覆盖不同幕和遭遇），输出上述列表格式；`tools/testing/compare-offline-results.py` 比较两次离线整场结果目录的胜负和失血，并按角色/牌汇总。两个脚本的完整用法见 [测试与验证](../../docs/testing.md#71-离线整场自动战斗)。
+
 ## 补录 D2 成员请求
 
 `--capture-d2 <目录>` 在给定根上建出生产开局，只跑第 1 回合的一次生产搜索，把 `CombatSearchCoordinator` 实际发出的每个成员 `SearchCase` 按当前 `SREQ` 编码写成 `<目录>/<root>/requests/<sha256>.request.br`，同时写 `<目录>/<root>/capture.json` 和汇总 `<目录>/capture-summary.json`。成员搜索使用 D2 回归预算（去掉墙钟、固定节点/内存上限），所以同一输入重复录入得到同样的请求；协调器的组合、药水阶段、女王与准备补搜成员仍走生产计划。

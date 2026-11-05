@@ -70,6 +70,7 @@ internal static class Program
         string? searchCompareDir = null;
         string? emitLiveRequestsDir = null;
         string? liveRootsFile = null;
+        string? requestsFile = null;
         string? searchTier = null;
         int? searchCancelAfterMilliseconds = null;
         bool searchNormal = false;
@@ -190,6 +191,9 @@ internal static class Program
                 case "--roots-file" when index + 1 < args.Length:
                     liveRootsFile = args[++index];
                     break;
+                case "--requests-file" when index + 1 < args.Length:
+                    requestsFile = args[++index];
+                    break;
                 case "--help" or "-h":
                     PrintUsage();
                     return 0;
@@ -228,6 +232,16 @@ internal static class Program
                 Console.Error.WriteLine("--offline-combat 不能与其它对照/发射模式同时使用。");
                 return 2;
             }
+            if (requestsFile != null && liveRootsFile != null)
+            {
+                Console.Error.WriteLine("--requests-file 与 --roots-file 不能同时使用。");
+                return 2;
+            }
+            if (requestsFile != null && captureD2 != null)
+            {
+                Console.Error.WriteLine("--capture-d2 不能与 --requests-file 同时使用。");
+                return 2;
+            }
             if (captureD2 != null && root == null && liveRootsFile == null)
             {
                 Console.Error.WriteLine("--capture-d2 需要 --root <name> 或 --roots-file <file>。");
@@ -245,11 +259,17 @@ internal static class Program
             }
             return RunOfflineCombat(data, corpora, output, searchTier, memoryBudgetMb,
                 memoryBudgetBytes, searchThreads, workspaceBufferBytes, workspaceStats,
-                fullCombat, jobs, root, liveRootsFile, captureD2, brightestFlameMaxHpLossLimit);
+                fullCombat, jobs, root, liveRootsFile, requestsFile, captureD2,
+                brightestFlameMaxHpLossLimit);
         }
         if (captureD2 != null || brightestFlameMaxHpLossLimit != null)
         {
             Console.Error.WriteLine("--capture-d2/--brightest-flame-max-hp-loss-limit 只能与 --offline-combat 一起使用。");
+            return 2;
+        }
+        if (requestsFile != null)
+        {
+            Console.Error.WriteLine("--requests-file 只能与 --offline-combat 一起使用。");
             return 2;
         }
         if (memoryBudgetMb != null || memoryBudgetBytes != null || searchThreads != 1)
@@ -614,6 +634,36 @@ internal static class Program
         return ImportNegative.Run(data, root, build.GetAwaiter().GetResult());
     }
 
+    /// <summary>
+    /// Reads one exported TestHost request. Unlike quality roots there is no spec or fixture lookup;
+    /// a relative generated-scenario path is resolved against the request file.
+    /// </summary>
+    internal static OfflineRequest LoadRequestFile(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        OfflineRequest request;
+        try
+        {
+            request = JsonSerializer.Deserialize<OfflineRequest>(
+                File.ReadAllText(fullPath), OfflineJson.Options)
+                ?? throw new InvalidDataException($"请求文件为空：{fullPath}。");
+        }
+        catch (JsonException error)
+        {
+            throw new InvalidDataException($"请求文件无法解析：{fullPath}：{error.Message}", error);
+        }
+        if (request.GeneratedScenarioPath is not { Length: > 0 } generated)
+            return request;
+        string directory = Path.GetDirectoryName(fullPath)
+            ?? throw new InvalidDataException($"请求文件没有目录：{fullPath}。");
+        string scenario = Path.GetFullPath(
+            Path.IsPathRooted(generated) ? generated : Path.Combine(directory, generated));
+        if (!File.Exists(scenario))
+            throw new FileNotFoundException(
+                $"请求 {fullPath} 引用的生成场景不存在：{generated}", scenario);
+        return request with { GeneratedScenarioPath = scenario };
+    }
+
     private static ImportStatus LastImportResult { get; set; }
 
     private static RulesStatus LastRulesResult { get; set; }
@@ -901,7 +951,7 @@ internal static class Program
     private static int RunOfflineCombat(string data, string corpora, string output,
         string? searchTier, int? memoryBudgetMb, long? memoryBudgetBytesOverride,
         int searchThreads, int workspaceBufferBytes, bool workspaceStats, bool fullCombat,
-        int jobs, string? root, string? rootsFile, string? captureD2,
+        int jobs, string? root, string? rootsFile, string? requestsFile, string? captureD2,
         int? brightestFlameMaxHpLossLimit)
     {
         if (fullCombat)
@@ -956,6 +1006,7 @@ internal static class Program
         OfflineCombatSettings settings = new(data, corpora, output, tier, profile,
             memoryBudgetBytes, warmupNodes, searchThreads, workspaceBufferBytes, workspaceStats)
         {
+            RequestsFile = requestsFile,
             CaptureD2 = captureD2,
             BrightestFlameMaxHpLossLimit = brightestFlameMaxHpLossLimit,
         };
@@ -1083,6 +1134,7 @@ internal static class Program
                   [--search-cancel-after-ms N] [--full-combat]
               dotnet Differential.dll --list-quality-roots [--corpora <dir>]
               dotnet Differential.dll --offline-combat [--root <name> | --roots-file <file> | --corpora <dir>]
+                  [--requests-file <file>]
                   [--search-tier Low|Medium|High|ExtraHigh] [--search-threads 1..8]
                   [--workspace-buffer-bytes N] [--workspace-stats]
                   [--jobs 1..8] [--out <dir>]

@@ -316,6 +316,25 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 
 每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值）；父进程的 `summary.json` 汇总档位、四种宽度、时间和内存预算。墙钟控制的成员在不同机器上可能截断在不同位置，不能当确定性的回归来比较。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
 
+`--requests-file <file>` 让同一个离线整场入口直接读 sts2-sim 导出的请求文件（`OfflineRequest` JSON，不经质量语料目录或 spec 查找）。列表每行是 `<request.json>` 或 `<结果目录名>=<request.json>`；名称必须唯一，默认取文件名，相对路径按列表文件目录解析。父进程为每行启动独立子进程，`--jobs` 控制并发，`--root <名称>` 可在同一列表里只选一行。列表格式和其余离线整场参数见 [差分宿主](../tests/Differential/README.md#离线整场自动战斗)。
+
+配套的可复用脚本在 `tools/testing/`：
+
+```bash
+# 按牌组卡牌从 sts2-sim 导出树抽样；每张最多 --per-card 局，按场景 id 去重，
+# 优先覆盖不同 act 和 encounter，输出 --requests-file 列表。
+python3 tools/testing/sample-sts2-sim.py --cards CRUELTY DEMON_FORM INFERNO \
+  --per-card 8 --max-total 150 --out .local/sts2-sim-sample.txt
+
+# 比较两次离线整场结果目录：胜负变化与失血（胜利=maxHp-playerHp，非胜利按全失），
+# 按角色和（有请求列表时的）牌组卡牌汇总；--out 写逐局 CSV。
+python3 tools/testing/compare-offline-results.py \
+  .local/sts2-sim-eval-after .local/sts2-sim-eval-before \
+  --requests-file .local/sts2-sim-sample.txt --out .local/sts2-sim-compare.csv
+```
+
+`sample-sts2-sim.py` 默认扫描 `~/ss/solver/.local/sts2-sim-corpus`，可用 `--corpus` 指定导出树；只把 `runCards` 与标记 `treatAsDeckCard` 的注入算作牌组内容。`compare-offline-results.py` 对质量根从 `spec.json` 读角色，对请求列表从 `OfflineRequest` 读角色和牌组。
+
 ### 7.2 原版逐动作与终局对照
 
 `--combat-pilot-compare` 检查内核预测和原版实际执行是否一致：

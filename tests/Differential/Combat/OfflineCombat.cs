@@ -28,6 +28,9 @@ internal sealed record OfflineCombatSettings(
     int WorkspaceBufferBytes,
     bool WorkspaceStats)
 {
+    /// <summary>List of exported request files to run instead of quality roots; null for quality mode.</summary>
+    internal string? RequestsFile { get; init; }
+
     /// <summary>Capture each first-turn production member request instead of running the combat.</summary>
     internal string? CaptureD2 { get; init; }
 
@@ -37,6 +40,9 @@ internal sealed record OfflineCombatSettings(
     /// <summary>0.15 x 16 GiB, the fixed machine size the offline comparison assumes.</summary>
     internal static long DefaultMemoryBudgetBytes => (16L << 30) / 100 * 15 + (16L << 30) % 100 * 15 / 100;
 }
+
+/// <summary>One exported request file and the output directory name used for its result.</summary>
+internal sealed record OfflineRequestEntry(string Root, string Path);
 
 internal sealed record OfflineCombatRootResult(
     string Root,
@@ -57,6 +63,8 @@ internal static class OfflineCombat
         Directory.CreateDirectory(settings.Output);
         if (settings.CaptureD2 != null)
             return CaptureD2.Run(settings, root, rootsFile, jobs);
+        if (settings.RequestsFile != null)
+            return RunRequestFiles(settings, root, jobs);
         if (root != null)
         {
             if (rootsFile != null)
@@ -99,7 +107,7 @@ internal static class OfflineCombat
             new ParallelOptions { MaxDegreeOfParallelism = jobs },
             name =>
             {
-                (int code, string stdout, string stderr) = RunChild(settings, name);
+                (int code, string stdout, string stderr) = RunChild(settings, name, null);
                 OfflineCombatRootResult? entry = ReadSummary(settings.Output, name);
                 entry = entry is null
                     ? FailedRoot(name, code, stderr)
@@ -129,6 +137,119 @@ internal static class OfflineCombat
         return failed == 0 ? 0 : 1;
     }
 
+    /// <summary>
+    /// Runs exported TestHost request files. A single <paramref name="root"/> selects one entry from
+    /// the list (used by the child process); null runs every entry in parallel.
+    /// </summary>
+    private static int RunRequestFiles(OfflineCombatSettings settings, string? root, int jobs)
+    {
+        OfflineRequestEntry[] entries = ReadRequestEntries(
+            settings.RequestsFile ?? throw new InvalidOperationException("缺少 --requests-file。"));
+        if (root != null)
+        {
+            OfflineRequestEntry? selected = entries.FirstOrDefault(
+                entry => string.Equals(entry.Root, root, StringComparison.Ordinal));
+            if (selected is null)
+            {
+                Console.Error.WriteLine($"--requests-file 中没有名为 {root} 的请求。");
+                return 2;
+            }
+            return RunRoot(settings, selected.Root, selected.Path);
+        }
+        if (entries.Length == 0)
+        {
+            Console.Error.WriteLine("--requests-file 没有找到任何请求。");
+            return 2;
+        }
+        Console.WriteLine(
+            $"offline-combat requests={entries.Length} jobs={jobs} tier={settings.Tier} " +
+            $"widths={settings.Profile.BaselineWidth}/{settings.Profile.NarrowWidth}/{settings.Profile.WideWidth}/{settings.Profile.OffensiveWidth} " +
+            $"time_ms_per_width={settings.Profile.MillisecondsPerWidth} out={settings.Output}");
+        Stopwatch wall = Stopwatch.StartNew();
+        List<OfflineCombatRootResult> results = [];
+        object gate = new();
+        int failed = 0;
+        Parallel.ForEach(
+            entries,
+            new ParallelOptions { MaxDegreeOfParallelism = jobs },
+            entry =>
+            {
+                (int code, string stdout, string stderr) = RunChild(settings, entry.Root, entry.Path);
+                OfflineCombatRootResult? summary = ReadSummary(settings.Output, entry.Root);
+                summary = summary is null
+                    ? FailedRoot(entry.Root, code, stderr)
+                    : summary with { ExitCode = code };
+                lock (gate)
+                {
+                    results.Add(summary);
+                    if (code != 0 || summary.Status is "failed" or "error" or "crashed")
+                        failed++;
+                }
+                Console.WriteLine(
+                    $"root={entry.Root} exit={code} status={summary.Status} outcome={summary.Outcome} " +
+                    $"turns={summary.Turns} hp={summary.PlayerHp} searches={summary.Searches} " +
+                    $"ms={summary.ElapsedMs}" +
+                    (summary.Error is { Length: > 0 } error ? $" error={error}" : ""));
+                if (stdout.Length > 0)
+                    Console.Write(stdout);
+                if (code != 0 && stderr.Length > 0)
+                    Console.Error.Write(stderr);
+            });
+        wall.Stop();
+        results.Sort(static (left, right) => string.CompareOrdinal(left.Root, right.Root));
+        WriteSummary(settings, entries.Length, failed, wall.ElapsedMilliseconds, results);
+        Console.WriteLine(
+            $"offline-combat done roots={entries.Length} failed={failed} " +
+            $"wall_ms={wall.ElapsedMilliseconds}");
+        return failed == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Reads <c>--requests-file</c> lines. Each line is <c>path</c> or <c>name=path</c>; relative
+    /// paths are resolved against the list file. Names become result directory names, so they must
+    /// be unique and valid single path components.
+    /// </summary>
+    internal static OfflineRequestEntry[] ReadRequestEntries(string listPath)
+    {
+        string fullList = Path.GetFullPath(listPath);
+        if (!File.Exists(fullList))
+            throw new InvalidDataException($"--requests-file 不存在：{fullList}");
+        string baseDirectory = Path.GetDirectoryName(fullList)
+            ?? throw new InvalidDataException($"--requests-file 没有目录：{fullList}");
+        List<OfflineRequestEntry> entries = [];
+        HashSet<string> names = new(StringComparer.Ordinal);
+        int lineNumber = 0;
+        foreach (string raw in File.ReadAllLines(fullList))
+        {
+            lineNumber++;
+            string line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#'))
+                continue;
+            int separator = line.IndexOf('=');
+            string name = separator < 0
+                ? Path.GetFileNameWithoutExtension(line)
+                : line[..separator].Trim();
+            string path = separator < 0 ? line : line[(separator + 1)..].Trim();
+            if (name.Length == 0 || name is "." or ".."
+                || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+                || Path.GetFileName(name) != name)
+                throw new InvalidDataException(
+                    $"--requests-file 第 {lineNumber} 行的名称不是合法目录名：{name}");
+            if (path.Length == 0)
+                throw new InvalidDataException($"--requests-file 第 {lineNumber} 行缺少路径。");
+            string fullPath = Path.GetFullPath(
+                Path.IsPathRooted(path) ? path : Path.Combine(baseDirectory, path));
+            if (!File.Exists(fullPath))
+                throw new InvalidDataException(
+                    $"--requests-file 第 {lineNumber} 行的请求不存在：{fullPath}");
+            if (!names.Add(name))
+                throw new InvalidDataException(
+                    $"--requests-file 第 {lineNumber} 行的名称重复：{name}");
+            entries.Add(new OfflineRequestEntry(name, fullPath));
+        }
+        return entries.OrderBy(static entry => entry.Root, StringComparer.Ordinal).ToArray();
+    }
+
     private static void CheckQualityExpectation(string corpora, string root, SearchPerformanceTier tier, CombatPilotResult result)
     {
         if (!root.StartsWith("quality-", StringComparison.Ordinal)) return;
@@ -156,7 +277,8 @@ internal static class OfflineCombat
             .ToArray();
     }
 
-    private static int RunRoot(OfflineCombatSettings settings, string root)
+    private static int RunRoot(OfflineCombatSettings settings, string root,
+        string? requestPath = null)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string directory = Path.Combine(settings.Output, root);
@@ -168,7 +290,7 @@ internal static class OfflineCombat
             File.Delete(staleFailure);
         try
         {
-            (CombatState combat, OfflineRequest request) = Build(settings, root);
+            (CombatState combat, OfflineRequest request) = Build(settings, root, requestPath);
             Player player = LocalContext.GetMe(combat)
                 ?? throw new InvalidOperationException("找不到本地玩家。");
             if (combat.RunState is not RunState runState)
@@ -251,9 +373,11 @@ internal static class OfflineCombat
     }
 
     internal static (CombatState Combat, OfflineRequest Request) Build(
-        OfflineCombatSettings settings, string root)
+        OfflineCombatSettings settings, string root, string? requestPath = null)
     {
-        OfflineRequest request = Program.LoadRequest(settings.Data, settings.Corpora, root);
+        OfflineRequest request = requestPath is null
+            ? Program.LoadRequest(settings.Data, settings.Corpora, root)
+            : Program.LoadRequestFile(requestPath);
         if (request.FlashPrefixActions.Length != 0 || request.FlashPrefixPlan.Length != 0)
             throw new NotSupportedException("离线整场不支持前缀根。");
         if (request.FlashTurnSetupRootForTest)
@@ -269,7 +393,7 @@ internal static class OfflineCombat
     }
 
     private static (int Code, string Stdout, string Stderr) RunChild(
-        OfflineCombatSettings settings, string root)
+        OfflineCombatSettings settings, string root, string? requestPath)
     {
         ProcessStartInfo start = new("dotnet")
         {
@@ -281,6 +405,12 @@ internal static class OfflineCombat
         start.ArgumentList.Add("--offline-combat");
         start.ArgumentList.Add("--root");
         start.ArgumentList.Add(root);
+        if (requestPath != null)
+        {
+            start.ArgumentList.Add("--requests-file");
+            start.ArgumentList.Add(settings.RequestsFile
+                ?? throw new InvalidOperationException("缺少 --requests-file。"));
+        }
         start.ArgumentList.Add("--data");
         start.ArgumentList.Add(settings.Data);
         start.ArgumentList.Add("--corpora");

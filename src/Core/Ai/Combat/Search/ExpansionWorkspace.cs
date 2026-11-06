@@ -875,6 +875,16 @@ internal sealed partial class BeamSolver
             {
                 count = ChoiceEnumerator.Enumerate(in request, selections);
             }
+            else if (RemovalChoicePriority.Applies(in request)
+                && ChoiceEnumerator.Count(in request, RemovalChoicePriority.Branches + 1)
+                    > RemovalChoicePriority.Branches)
+            {
+                Span<int> priority = stackalloc int[request.OptionCount];
+                for (int option = 0; option < request.OptionCount; option++)
+                    priority[option] = RemovalChoicePriority.Of(in optionCards[option], _solver._rules);
+                count = ChoiceEnumerator.EnumerateRemoval(in request, optionCards, priority,
+                    selections[..RemovalChoicePriority.Branches]);
+            }
             else if (_solver._choiceFillVariants)
             {
                 bool truncated = ChoiceEnumerator.Count(in request, MaxChoiceBranches + 1)

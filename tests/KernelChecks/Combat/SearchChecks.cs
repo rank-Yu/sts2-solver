@@ -37,5 +37,42 @@ internal static class SearchChecks
             && powered[9].Width == plan.BaselineWidth && powered[10].Width == plan.WideWidth,
             "compact portfolio stages and widths");
         Console.WriteLine("SEARCH presets/portfolios=pass");
+        RemovalOrder();
+    }
+
+    /// <summary>
+    /// Purity-style removal (exhaust 0..3 of 6 hand cards, two copies of the cheapest): the cheapest
+    /// prefix of every size first, then the remaining class vectors from the cheapest class, capped.
+    /// </summary>
+    private static void RemovalOrder()
+    {
+        // Options 0..5: ids 7,3,3,9,5,8; priorities make id 3 cheapest, then 5, 7, 8, 9.
+        Sts2Solver.Simulation.Combat.Card[] cards =
+        [
+            new() { Id = 7 }, new() { Id = 3 }, new() { Id = 3 }, new() { Id = 9 }, new() { Id = 5 },
+            new() { Id = 8 },
+        ];
+        int[] priority = [30, 10, 10, 50, 20, 40];
+        Sts2Solver.Simulation.Combat.ChoiceRequest request = new()
+        {
+            Kind = Sts2Solver.Simulation.Combat.ChoiceKind.SelectCards,
+            Effect = Sts2Solver.Simulation.Combat.ChoiceEffect.Exhaust,
+            Source = Sts2Solver.Simulation.Combat.Pile.Hand,
+            OptionCount = 6,
+            MinCount = 0,
+            MaxCount = 3,
+        };
+        Assert(RemovalChoicePriority.Applies(in request), "removal applies to a free-count hand exhaust");
+        Span<ulong> output = stackalloc ulong[RemovalChoicePriority.Branches];
+        int count = ChoiceEnumerator.EnumerateRemoval(in request, cards, priority, output);
+        static ulong Bits(params int[] options) => options.Aggregate(0UL, (bits, o) => bits | 1UL << o);
+        Assert(count == RemovalChoicePriority.Branches, $"removal count {count}");
+        Assert(output[0] == 0 && output[1] == Bits(1) && output[2] == Bits(1, 2)
+            && output[3] == Bits(1, 2, 4), "removal prefixes of every size");
+        Assert(output[4] == Bits(4) && output[5] == Bits(0) && output[6] == Bits(5) && output[7] == Bits(3),
+            "removal singles from the cheapest class");
+        Assert(output[8] == Bits(1, 4), "removal pairs follow the singles");
+        Assert(output[..count].ToArray().Distinct().Count() == count, "removal selections distinct");
+        Console.WriteLine("SEARCH removal-order=pass");
     }
 }

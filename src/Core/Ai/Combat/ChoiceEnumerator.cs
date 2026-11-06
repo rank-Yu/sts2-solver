@@ -142,6 +142,87 @@ internal static class ChoiceEnumerator
         return written;
     }
 
+    /// <summary>
+    /// Removal order for <see cref="RemovalChoicePriority"/>: content classes sorted by ascending
+    /// <paramref name="priority"/> (ties keep the first option index), then the cheapest prefix of
+    /// every size from MinCount to MaxCount, then the remaining class vectors in
+    /// <see cref="EnumerateByClass"/> order over the sorted classes. No physical position variants.
+    /// </summary>
+    public static int EnumerateRemoval(in ChoiceRequest request, scoped ReadOnlySpan<Card> cards,
+        scoped ReadOnlySpan<int> priority, Span<ulong> output)
+    {
+        if (request.UsesIndexSelection)
+            return Enumerate(in request, output);
+        int options = request.OptionCount;
+        if (cards.Length < options || priority.Length < options)
+            throw new ArgumentException("选项卡牌数或优先级数少于选择请求的选项数。", nameof(cards));
+        int minTake = Math.Min((int)request.MinCount, options);
+        int maxTake = Math.Min((int)request.MaxCount, options);
+        if (output.IsEmpty || options == 0 || minTake > maxTake)
+            return EnumerateByClass(in request, cards, output);
+
+        Span<int> classOf = stackalloc int[Limits.MaxChoiceOptions];
+        Span<int> rankInClass = stackalloc int[Limits.MaxChoiceOptions];
+        Span<int> classSize = stackalloc int[Limits.MaxChoiceOptions];
+        Span<int> classFirst = stackalloc int[Limits.MaxChoiceOptions];
+        int classCount = BuildClasses(cards[..options], classOf, rankInClass, classSize, classFirst);
+        // Stable insertion sort of the classes by the priority of their first option.
+        Span<int> order = stackalloc int[classCount];
+        for (int cls = 0; cls < classCount; cls++)
+        {
+            int at = cls;
+            while (at > 0 && priority[classFirst[order[at - 1]]] > priority[classFirst[cls]])
+            {
+                order[at] = order[at - 1];
+                at--;
+            }
+            order[at] = cls;
+        }
+        Span<int> sortedOf = stackalloc int[classCount];
+        Span<int> sortedSize = stackalloc int[classCount];
+        for (int position = 0; position < classCount; position++)
+        {
+            sortedOf[order[position]] = position;
+            sortedSize[position] = classSize[order[position]];
+        }
+        for (int option = 0; option < options; option++)
+            classOf[option] = sortedOf[classOf[option]];
+
+        int written = 0;
+        for (int size = minTake; size <= maxTake && written < output.Length; size++)
+        {
+            ulong prefix = 0;
+            int left = size;
+            for (int position = 0; position < classCount && left > 0; position++)
+            {
+                int take = Math.Min(sortedSize[position], left);
+                for (int option = 0; option < options; option++)
+                {
+                    if (classOf[option] == position && rankInClass[option] < take)
+                        prefix |= 1UL << option;
+                }
+                left -= take;
+            }
+            output[written++] = prefix;
+        }
+        int prefixes = written;
+        Span<ulong> rest = stackalloc ulong[output.Length + prefixes];
+        Span<int> counts = stackalloc int[Limits.MaxChoiceOptions];
+        counts.Clear();
+        int generated = 0;
+        for (int size = minTake; size <= maxTake && generated < rest.Length; size++)
+        {
+            EnumerateCounts(0, size, sortedSize, counts, classOf, rankInClass, options, rest,
+                ref generated);
+        }
+        for (int index = 0; index < generated && written < output.Length; index++)
+        {
+            if (!Contains(output[..prefixes], rest[index]))
+                output[written++] = rest[index];
+        }
+        return written;
+    }
+
     private static bool Contains(scoped ReadOnlySpan<ulong> selections, ulong mask)
     {
         for (int index = 0; index < selections.Length; index++)

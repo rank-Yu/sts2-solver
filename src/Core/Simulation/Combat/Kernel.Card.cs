@@ -441,6 +441,16 @@ public static partial class Kernel
             // records the finished play before AfterCardPlayed, so effects triggered there (Calamity
             // generating a card, Stomp.AfterEnteredCombat counting attacks) must see this play.
             RecordCardPlayFinished(ref x, stats, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card));
+            // CardPlayFinishedEntry.WasEthereal is `card.Keywords.Contains(Ethereal)`, taken when the
+            // entry is created, before AfterCardPlayed. Keywords runs Hook.ModifyKeywords: a Hexed card
+            // counts as Ethereal while HexPower is up, so the battle-aware helper (local keyword plus
+            // Hexed+HexPower) is the source. Reading it after AfterCardPlayed misses a play whose
+            // listeners kill the Hex applier (Storm channels Lightning, the evoke kills Spectral Knight).
+            if ((uint)playPosition < (uint)x.B.PlayCount
+                && HasKeyword(x.B, Piles.At(ref x.B, Pile.Play, playPosition), Keywords.Ethereal))
+            {
+                x.B.AddCounter(Counter.EtherealPlays, 1);
+            }
             x.LastPlayIdentity = x.PlayIdentity;
             AfterCardPlayedHook after = new() { Play = play };
             HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
@@ -475,14 +485,6 @@ public static partial class Kernel
                 && Registry.Card(card.Id).TracksFetchPlay)
             {
                 Piles.At(ref x.B, Pile.Play, playPosition).Private |= FetchPlayedBit;
-            }
-            // CardPlayFinishedEntry.WasEthereal is `card.HasKeyword(State, Ethereal)`, which runs
-            // Hook.ModifyKeywords: a Hexed card counts as Ethereal while HexPower is up, so the
-            // battle-aware helper (local keyword plus Hexed+HexPower) is the source.
-            if ((uint)playPosition < (uint)x.B.PlayCount
-                && HasKeyword(x.B, Piles.At(ref x.B, Pile.Play, playPosition), Keywords.Ethereal))
-            {
-                x.B.AddCounter(Counter.EtherealPlays, 1);
             }
             // The tail fails when the owner died during the completion effects.
             if (x.B.Player.IsDead)

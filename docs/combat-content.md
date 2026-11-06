@@ -189,7 +189,7 @@
 - 原版 `DoomPower.DoomKill` 逐个 `CreatureCmd.Kill`（每次击杀立即完成 `AfterDeath` 和 Power 移除），全部击杀后才派发 `AfterDiedToDoom`。Sts2Solver 与原引擎都在每次 `Kill` 后结算这一批的敌人死亡效果，最后按 `ShouldOwnerDeathTriggerFatal` 统计每个玩家的致命击杀数（排除玩家本身），再按已定义的 `BookRepairKnife` 治疗；没有定义时导入阶段拒绝该根。
 - `DoomAppliedThisTurn` 记录玩家本回合是否施加过正层 Doom（DeathsDoor），玩家回合开始清零。已经死亡的生物不接收 Power：有 Osty 时 `DieForYouPower.ShouldAllowHitting` 对任何死亡生物返回 false，即使死亡清理还没跑完也一样。
 
-**其它计数。** `EtherealPlays` 是整场计数：导入根历史后，每次打出完成时，按这张牌本地的虚无关键字加一（BansheesCry、PullFromBelow）。
+**其它计数。** `EtherealPlays` 是整场计数（BansheesCry、PullFromBelow）：导入根历史后，每次打出完成、记录“打出结束”时（原生 `CardPlayFinishedEntry.WasEthereal`，在 AfterCardPlayed 之前），按这张牌此刻是否虚无加一：本地虚无关键字，或带 Hexed 且玩家有 HexPower。必须在 AfterCardPlayed 之前判断：例如风暴在打出能力牌后生成闪电球，满槽激发打死施加诅咒的幽灵骑士，诅咒随即移除，之后再读就会漏算（FS8 骑士精英对拍）。
 
 **Melancholy。** `AfterDeath` 用 `State.FindCard(card)` 找到战斗副本，对每个战斗副本按 `Energy` 变量追加本场 −费用；牌组里的局外副本找不到战斗副本时不产生效果。Sts2Solver 只导入战斗副本，所以这类牌组副本按惰性放过（`DeckCopyOutsideCombatIsInert`）。
 

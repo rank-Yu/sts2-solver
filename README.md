@@ -73,6 +73,6 @@
 
 ## 来源与许可
 
-本 Mod 是独立项目，不是 CombatSolver 的官方版本，与 Mega Crit 也没有关系。搜索策略和局面估分来自 CombatSolver 作者和社区的积累，在此致谢。
+本 Mod 是独立项目，不是 CombatSolver 的官方版本。搜索策略和局面估分来自 CombatSolver 作者和社区的积累，在此致谢。
 
 本 Mod 以 [MIT 许可证](LICENSE) 发布。部分代码移植自 [CombatSolver](https://github.com/Torch1230/CombatSolver)（Copyright (c) 2026 Torch1230 and contributors）。

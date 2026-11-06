@@ -74,6 +74,6 @@ Report problems on [GitHub Issues](https://github.com/rank-Yu/sts2-solver/issues
 
 ## Credits and license
 
-This Mod is an independent project, not an official version of CombatSolver, and is not affiliated with Mega Crit. Its search strategy and position scoring come from the work of CombatSolver's author and community; many thanks to them.
+This Mod is an independent project, not an official version of CombatSolver. Its search strategy and position scoring come from the work of CombatSolver's author and community; many thanks to them.
 
 Released under the [MIT License](LICENSE). Parts of the code are ported from [CombatSolver](https://github.com/Torch1230/CombatSolver) (Copyright (c) 2026 Torch1230 and contributors).

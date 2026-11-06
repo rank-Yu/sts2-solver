@@ -281,16 +281,19 @@ internal sealed partial class SolverOverlay
         _presentation = SolverOverlayPresentation.Ready;
         _waitingForNextTurnPlan = false;
         _lastResultCandidate = result.CandidateVersion;
-        string status = result.ProjectedBattleHpLossIncrease > 0
-            ? SolverText.Get("重算后战损上升")
-            : result.WasReused ? SolverText.Get("方案已复用") : SolverText.Get("方案就绪");
-        SolverOverlayTone tone = result.ProjectedBattleHpLossIncrease > 0
+        bool noSurvival = result.DeathTurn is not null;
+        string status = noSurvival ? SolverText.Get("未找到生还路线")
+            : result.ProjectedBattleHpLossIncrease > 0
+                ? SolverText.Get("重算后战损上升")
+                : result.WasReused ? SolverText.Get("方案已复用") : SolverText.Get("方案就绪");
+        SolverOverlayTone tone = noSurvival || result.ProjectedBattleHpLossIncrease > 0
             ? SolverOverlayTone.Danger
             : result.WasReused ? SolverOverlayTone.Success : SolverOverlayTone.Accent;
         SetStatus(status, ToneColor(tone));
         SetRouteHeading(SolverText.Get("推荐路线"));
-        string summary = FormatResultSummary(overlay.Turns.Count,
-            result.CombatEndedTurn == result.StartTurn);
+        string summary = result.DeathTurn is { } deathTurn
+            ? FormatDeathSummary(deathTurn, result.StartTurn)
+            : FormatResultSummary(overlay.Turns.Count, result.CombatEndedTurn == result.StartTurn);
         if (overlay.Turns.Count > 16)
             summary += "\n" + SolverText.Format($"另有 {overlay.Turns.Count - 16} 回合未展开显示");
         if (_summaryText != null)
@@ -470,6 +473,17 @@ internal sealed partial class SolverOverlay
             SetSummary(SolverText.Format(
                 $"[color={SolverUiTokens.Palette.DangerHex}]当前方案预计本回合死亡，操作权已交还。[/color]"));
         }
+        else if (code == "no_survival")
+        {
+            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
+                SolverText.Format($"第 {snapshot.Turn} 回合    未找到生还路线"));
+            string death = snapshot.Result?.DeathTurn is { } deathTurn
+                ? SolverText.Format($"当前方案预计第 {deathTurn} 回合死亡，操作权已交还。")
+                : SolverText.Get("未找到生还路线，操作权已交还。");
+            SetSummary($"[color={SolverUiTokens.Palette.DangerHex}]{death}\n"
+                + SolverText.Get("可在 设置 中提高搜索档位后重新搜索，或点“全自动”继续执行（本场不再因此暂停）。")
+                + "[/color]");
+        }
         else if (CombatSessionController.IsTurnStopPause(code))
         {
             SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger);
@@ -634,6 +648,19 @@ internal sealed partial class SolverOverlay
         if (_routeHeadingLabel != null)
             _routeHeadingLabel.Text = heading;
     }
+
+    /// <summary>
+    /// The summary of a route that ends in death: no surviving route was found. The best route is
+    /// still shown and can still be executed; the hint points at a stronger search.
+    /// </summary>
+    internal static string FormatDeathSummary(int deathTurn, int startTurn)
+        => (deathTurn == startTurn
+                ? SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]未找到生还路线：预计本回合死亡[/color]")
+                : SolverText.Format(
+                    $"[color={SolverUiTokens.Palette.DangerHex}]未找到生还路线：预计第 {deathTurn} 回合死亡[/color]"))
+            + "\n"
+            + SolverText.Format(
+                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]可在 设置 中提高搜索档位后重新搜索。[/color]");
 
     internal static string FormatResultSummary(int turnCount, bool endsThisTurn)
         => endsThisTurn

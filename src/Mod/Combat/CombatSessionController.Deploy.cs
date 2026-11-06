@@ -19,16 +19,20 @@ internal static partial class CombatSessionController
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.ForceProjectedDeathTurn)
             outcome = outcome with { DeathTurn = result.StartTurn };
+        else if (CombatControllerTestHooks.ForceProjectedLaterDeathTurn)
+            outcome = outcome with { DeathTurn = result.StartTurn + 2 };
 #endif
-        CombatPauseCode? pause =
-            CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome);
+        CombatPauseCode? pause = CombatFullAutoPausePolicy.BeforeDeployment(
+            result.StartTurn, outcome, noSurvivalPause: NoSurvivalPauseAvailable);
         if (pause is { } code)
         {
+            if (code == CombatPauseCode.NoSurvival)
+                _noSurvivalPauseUsed = true;
             DisableFullAuto();
             _fullAutoPausedThisCombat = true;
             _continuationSource = null;
             _pauseCode = CombatFullAutoPausePolicy.Code(code);
-            _pauseReason = code == CombatPauseCode.DeathTurn
+            _pauseReason = code is CombatPauseCode.DeathTurn or CombatPauseCode.NoSurvival
                 ? $"death_turn={outcome.DeathTurn}"
                 : code.ToString();
             _phase = CombatUiPhase.Paused;

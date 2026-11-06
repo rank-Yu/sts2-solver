@@ -321,6 +321,7 @@ internal static class SolverPanelText
                 : SolverText.Get("连续多次搜索失败"),
             CombatReasonKind.DeathTurn => SolverText.Get("路线预计本回合会死亡"),
             CombatReasonKind.LiveEndTurnRisk => SolverText.Get("结束回合前的实机复核发现死亡或更大战损"),
+            CombatReasonKind.NoSurvival => SolverText.Get("未找到生还路线，路线预计会死亡"),
             _ => SolverText.Get("详细原因已写入日志"),
         };
     }
@@ -429,6 +430,7 @@ internal static class SolverPanelText
                 "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停全自动"),
                 "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停全自动"),
                 "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停全自动"),
+                "no_survival" => SolverText.Get("未找到生还路线，已暂停全自动"),
                 "stopped" => SolverText.Get("搜索已停止"),
                 null => SolverText.Get("全自动已暂停"),
                 _ => SolverText.Format($"全自动已暂停：{code}"),

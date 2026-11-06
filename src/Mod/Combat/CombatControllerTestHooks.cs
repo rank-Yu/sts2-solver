@@ -60,6 +60,15 @@ internal static class CombatControllerTestHooks
     /// <summary>Makes the normal search outcome look like a projected death on its start turn.</summary>
     internal static bool ForceProjectedDeathTurn { get; set; }
 
+    /// <summary>Makes the normal search outcome look like a projected death two turns after its start.</summary>
+    internal static bool ForceProjectedLaterDeathTurn { get; set; }
+
+    /// <summary>
+    /// Opens the once-per-combat no-survival pause in test mode. Headless fixtures run full auto
+    /// through routes that end in death, so only the scenarios that cover this pause open it.
+    /// </summary>
+    internal static bool EnableNoSurvivalPause { get; set; }
+
     /// <summary>Makes a turn-setup plan look like a projected death on its start turn.</summary>
     internal static bool ForceProjectedDeathTurnSetup { get; set; }
 

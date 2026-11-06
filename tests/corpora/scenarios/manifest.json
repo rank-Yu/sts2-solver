@@ -283,6 +283,11 @@
       "group": "controller"
     },
     {
+      "id": "pause_no_survival_deployment",
+      "scenario": "pause_no_survival_deployment",
+      "group": "controller"
+    },
+    {
       "id": "combat_end",
       "scenario": "combat_end",
       "group": "controller"

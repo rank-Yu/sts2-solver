@@ -328,13 +328,24 @@ internal static class UiLogicChecks
     {
         CombatRouteOutcome death = new(3, null, 20, 0, false, false,
             new Dictionary<int, int> { [3] = 5 });
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death)
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, noSurvivalPause: true)
             == CombatPauseCode.DeathTurn, "death_pause");
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(2, death) == null, "death_other_turn");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, death, noSurvivalPause: false)
+            == CombatPauseCode.DeathTurn, "death_pause_after_resume");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(2, death, noSurvivalPause: true)
+            == CombatPauseCode.NoSurvival, "no_survival_pause");
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(2, death, noSurvivalPause: false) == null,
+            "no_survival_once_per_combat");
+        Require(CombatFullAutoPausePolicy.Code(CombatPauseCode.NoSurvival) == "no_survival",
+            "no_survival_code");
         CombatRouteOutcome end = new(null, 3, 20, 0, true, false,
             new Dictionary<int, int> { [3] = 5 });
-        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end) == null,
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, end, noSurvivalPause: true) == null,
             "combat_end_never_pauses");
+        CombatRouteOutcome open = new(null, null, 20, 0, false, false,
+            new Dictionary<int, int> { [3] = 5 });
+        Require(CombatFullAutoPausePolicy.BeforeDeployment(3, open, noSurvivalPause: true) == null,
+            "open_route_never_pauses");
         Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, false) == null, "live_equal");
         Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 6, false)
             == CombatPauseCode.LiveEndTurnRisk, "live_worse");
@@ -428,6 +439,10 @@ internal static class UiLogicChecks
         Require(!review.Contains("1,000 条/s", StringComparison.Ordinal), review);
         Require(SolverOverlay.FormatResultSummary(2, endsThisTurn: true)
             .Contains("本回合结束战斗", StringComparison.Ordinal), "combat_end_summary");
+        Require(SolverOverlay.FormatDeathSummary(5, 3)
+            .Contains("预计第 5 回合死亡", StringComparison.Ordinal), "death_summary_later");
+        Require(SolverOverlay.FormatDeathSummary(3, 3)
+            .Contains("预计本回合死亡", StringComparison.Ordinal), "death_summary_this_turn");
     }
 
     private static void LocaleCatalog()
@@ -512,6 +527,10 @@ internal static class UiLogicChecks
         {
             Kind = CombatReasonKind.LiveEndTurnRisk,
         }).Contains("实机复核", StringComparison.Ordinal), "live_end_turn_risk");
+        Require(SolverPanelText.ErrorReason(new CombatFailureReason
+        {
+            Kind = CombatReasonKind.NoSurvival,
+        }).Contains("生还", StringComparison.Ordinal), "no_survival");
         Require(SolverPanelText.ErrorReason(new CombatFailureReason
         {
             Kind = CombatReasonKind.Unknown,

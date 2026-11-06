@@ -42,6 +42,28 @@ internal static partial class CombatSessionController
     private static SolverMode _mode = SolverMode.AutoSearch;
     private static bool _fullAutoEnabled;
     private static bool _fullAutoPausedThisCombat;
+
+    /// <summary>
+    /// This combat already paused full auto because no surviving route was found. Resuming keeps it
+    /// set, so later far-death routes run; only a death on the turn about to run pauses again.
+    /// </summary>
+    private static bool _noSurvivalPauseUsed;
+
+    /// <summary>Whether the next deployment may still pause for a route that dies on a later turn.</summary>
+    private static bool NoSurvivalPauseAvailable
+    {
+        get
+        {
+            if (_noSurvivalPauseUsed)
+                return false;
+#if STS2_SOLVER_TESTING
+            // A test build started without the test directory behaves like the production build.
+            return !ModEntry.TestMode || CombatControllerTestHooks.EnableNoSurvivalPause;
+#else
+            return true;
+#endif
+        }
+    }
     private static bool _automaticSearchPaused;
     private static int? _automaticSearchPausedTurn;
     private static int? _lastSolverDeployedTurn;
@@ -418,6 +440,7 @@ internal static partial class CombatSessionController
         _latestStamp = null;
         _pendingCompleteBaseline = null;
         _fullAutoPausedThisCombat = false;
+        _noSurvivalPauseUsed = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
         _theftPolicy = state != null && SearchPolicyCapture.IsTheftApplicable(state)
@@ -598,6 +621,7 @@ internal static partial class CombatSessionController
         _combatActive = false;
         _fullAutoEnabled = false;
         _fullAutoPausedThisCombat = false;
+        _noSurvivalPauseUsed = false;
         _pendingTurnStartedState = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
@@ -645,6 +669,7 @@ internal static partial class CombatSessionController
         _pendingCompleteBaseline = null;
         _turnSetupResult = null;
         _fullAutoPausedThisCombat = false;
+        _noSurvivalPauseUsed = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
         _theftPolicy = null;

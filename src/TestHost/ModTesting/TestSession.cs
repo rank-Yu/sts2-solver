@@ -484,6 +484,8 @@ internal static class TestSession
                 CombatControllerTestHooks.ForceDeploymentFailure = null;
                 CombatControllerTestHooks.TurnSetupSearchCountAtSelection = -1;
                 CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+                CombatControllerTestHooks.ForceProjectedLaterDeathTurn = false;
+                CombatControllerTestHooks.EnableNoSurvivalPause = false;
                 CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
                 CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
                 CombatControllerTestHooks.ForceCapacityDropForTest = null;

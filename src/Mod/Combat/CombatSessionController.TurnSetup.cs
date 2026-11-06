@@ -583,9 +583,12 @@ internal static partial class CombatSessionController
 #endif
         CombatPauseCode? pause = outcome.OnlyDeathRoutes
             ? CombatPauseCode.DeathTurn
-            : CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome);
+            : CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome,
+                noSurvivalPause: NoSurvivalPauseAvailable);
         if (pause is null)
             return false;
+        if (pause.Value == CombatPauseCode.NoSurvival)
+            _noSurvivalPauseUsed = true;
         code = CombatFullAutoPausePolicy.Code(pause.Value);
         reason = pause.Value == CombatPauseCode.DeathTurn && outcome.OnlyDeathRoutes
             ? "only_death_routes=true"

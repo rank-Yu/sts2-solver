@@ -29,6 +29,7 @@ internal static class CombatReasonKind
     internal const string RepeatedFailure = "repeated_failure";
     internal const string DeathTurn = "death_turn";
     internal const string LiveEndTurnRisk = "live_end_turn_risk";
+    internal const string NoSurvival = "no_survival";
     internal const string Unknown = "unknown";
 }
 
@@ -103,6 +104,7 @@ internal static class CombatFailureReasonClassifier
             },
             "death_turn" => new() { Kind = CombatReasonKind.DeathTurn },
             "live_end_turn_risk" => new() { Kind = CombatReasonKind.LiveEndTurnRisk },
+            "no_survival" => new() { Kind = CombatReasonKind.NoSurvival },
             _ => new() { Kind = CombatReasonKind.Unknown, Code = code, Detail = detail },
         };
     }

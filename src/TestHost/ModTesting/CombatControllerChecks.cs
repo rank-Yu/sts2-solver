@@ -242,6 +242,9 @@ internal static class CombatControllerChecks
                 case "pause_death_turn_deployment":
                     await PauseDeathTurnDeploymentAsync(host, Check, Action);
                     break;
+                case "pause_no_survival_deployment":
+                    await PauseNoSurvivalDeploymentAsync(host, Check, Action);
+                    break;
                 case "combat_end":
                     await CombatEndAsync(host, Check, Action);
                     break;
@@ -361,6 +364,8 @@ internal static class CombatControllerChecks
             CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest = false;
             CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
             CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+            CombatControllerTestHooks.ForceProjectedLaterDeathTurn = false;
+            CombatControllerTestHooks.EnableNoSurvivalPause = false;
             CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest = false;
             CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
             CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
@@ -2541,6 +2546,38 @@ internal static class CombatControllerChecks
         SolverOverlay? panel = SolverOverlay.Instance;
         check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
         CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+    }
+
+    /// <summary>
+    /// A route that dies two turns later pauses full auto once (<c>no_survival</c>) with the route
+    /// kept; resuming deploys it and the same far-death outcome does not pause again this combat.
+    /// </summary>
+    private static async Task PauseNoSurvivalDeploymentAsync(NGame host, Check check, Action action)
+    {
+        CombatControllerTestHooks.ForceProjectedLaterDeathTurn = true;
+        CombatControllerTestHooks.EnableNoSurvivalPause = true;
+        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        action("set_mode:full_auto");
+        CombatUiSnapshot paused = await WaitAsync(host,
+            static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "no_survival",
+            2400, "no survival pause");
+        check("pause_code", paused.PauseCode == "no_survival", paused.PauseCode);
+        check("full_auto_off", !paused.FullAutoEnabled);
+        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("result_retained", paused.Result != null);
+        check("route_ready", paused.CurrentTurnRouteReady);
+        check("not_deploying", !paused.IsDeploying);
+        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
+        action("press_resume_full_auto");
+        CombatUiSnapshot resumed = await WaitAsync(host,
+            static s => s.IsDeploying || (s.Phase == CombatUiPhase.Paused && s.PauseCode == "no_survival"),
+            600, "resumed deployment");
+        check("resumed_deploying", resumed.IsDeploying, resumed.Phase.ToString());
+        check("no_second_pause", resumed.PauseCode != "no_survival", resumed.PauseCode ?? "-");
+        await WaitIdleAsync(host, "resumed deployment done");
+        check("not_paused_again", Snapshot().PauseCode != "no_survival", Snapshot().PauseCode ?? "-");
+        CombatControllerTestHooks.ForceProjectedLaterDeathTurn = false;
+        CombatControllerTestHooks.EnableNoSurvivalPause = false;
     }
 
     private static async Task CombatEndAsync(NGame host, Check check, Action action)

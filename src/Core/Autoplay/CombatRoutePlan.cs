@@ -254,17 +254,29 @@ internal enum CombatPauseCode
 {
     DeathTurn,
     LiveEndTurnRisk,
+    NoSurvival,
 }
 
 /// <summary>
-/// The full-auto pause conditions. Only a projected death on the turn that is about to run stops
-/// the solver; the live end-turn recheck always pauses when the live simulation dies or loses more
-/// HP than the route predicted.
+/// The full-auto pause conditions. Before a turn runs, a projected death on that turn always stops
+/// the solver; a route that ends in death on a later turn (no surviving route found) stops it once
+/// per combat, so the player can raise the search tier or take over before irreversible actions,
+/// and resuming continues without that pause. A route that ends without an outcome (search horizon
+/// or budget) never pauses. The live end-turn recheck always pauses when the live simulation dies
+/// or loses more HP than the route predicted.
 /// </summary>
 internal static class CombatFullAutoPausePolicy
 {
-    internal static CombatPauseCode? BeforeDeployment(int startTurn, in CombatRouteOutcome outcome)
-        => outcome.DeathTurn == startTurn ? CombatPauseCode.DeathTurn : null;
+    /// <param name="startTurn">The turn about to be deployed.</param>
+    /// <param name="outcome">The replayed route's outcome.</param>
+    /// <param name="noSurvivalPause">
+    /// False once this combat already paused for <see cref="CombatPauseCode.NoSurvival"/>.
+    /// </param>
+    internal static CombatPauseCode? BeforeDeployment(int startTurn, in CombatRouteOutcome outcome,
+        bool noSurvivalPause)
+        => outcome.DeathTurn == startTurn ? CombatPauseCode.DeathTurn
+            : outcome.DeathTurn is not null && noSurvivalPause ? CombatPauseCode.NoSurvival
+            : null;
 
     internal static CombatPauseCode? LiveEndTurn(int plannedHpLost, int liveHpLost, bool playerDead)
         => playerDead || liveHpLost > plannedHpLost ? CombatPauseCode.LiveEndTurnRisk : null;
@@ -273,6 +285,7 @@ internal static class CombatFullAutoPausePolicy
     {
         CombatPauseCode.DeathTurn => "death_turn",
         CombatPauseCode.LiveEndTurnRisk => "live_end_turn_risk",
+        CombatPauseCode.NoSurvival => "no_survival",
         _ => throw new ArgumentOutOfRangeException(nameof(code)),
     };
 }

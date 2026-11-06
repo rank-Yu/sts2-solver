@@ -62,6 +62,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private bool _rebuildQueued;
     private string? _builtLanguage;
     private int _buildCount;
+    private bool _initialized;
+    private bool _deferLogged;
 
     internal static SolverOverlay? Instance
         => _instance != null && IsInstanceValid(_instance) ? _instance : null;
@@ -71,6 +73,32 @@ internal sealed partial class SolverOverlay : CanvasLayer
         Name = NodeName;
         Layer = 120;
         Visible = false;
+        TryInitialize();
+    }
+
+    /// <summary>
+    /// Builds the panel once the game's localization exists. A Steam launch runs mod initializers
+    /// inside <c>OneTimeInitialization.ExecuteVeryEarly</c> after the Steam branch check, when
+    /// <c>NGame</c> is already ready (so this node's <c>_Ready</c> runs at once) but
+    /// <c>ExecuteEssential</c> has not created <see cref="LocManager"/> or loaded the essential
+    /// assets yet; the build then waits for <see cref="_Process"/>. ExecuteEssential runs
+    /// synchronously, so the first frame that sees <see cref="LocManager.Instance"/> also sees the
+    /// rest of the essential initialization.
+    /// </summary>
+    private void TryInitialize()
+    {
+        if (_initialized)
+            return;
+        if (LocManager.Instance == null)
+        {
+            if (!_deferLogged)
+            {
+                _deferLogged = true;
+                ModLog.Info("[Sts2Solver] UI_PANEL_DEFERRED reason=localization_not_ready");
+            }
+            return;
+        }
+        _initialized = true;
         _instance = this;
         _inputBridge.Panel = this;
         AddChild(_inputBridge);
@@ -93,6 +121,12 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (!_initialized)
+        {
+            TryInitialize();
+            if (!_initialized)
+                return;
+        }
         bool show = InSinglePlayerCombat();
         if (Visible != show)
         {

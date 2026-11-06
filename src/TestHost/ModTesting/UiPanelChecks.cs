@@ -1144,7 +1144,10 @@ internal sealed partial class UiPanelObserver : Node
             return;
         RouteUiSnapshot? route = snapshot.Route;
         RowChecks++;
-        if (route == null && snapshot.Search?.RoutePreview is { Turns.Length: > 0 } preview)
+        // A finished search keeps its last preview in the snapshot; the panel shows that preview only
+        // while searching (after an execution it keeps the executed route instead).
+        if (route == null && snapshot.Phase == CombatUiPhase.Searching
+            && snapshot.Search?.RoutePreview is { Turns.Length: > 0 } preview)
         {
             CheckPreviewRows(snapshot, preview, probe);
             return;
@@ -1218,7 +1221,9 @@ internal sealed partial class UiPanelObserver : Node
         {
             RowMismatches++;
             Record($"preview rows seq={snapshot.Sequence} panel={probe.Rows.Length} " +
-                $"snapshot={count}/{length}");
+                $"snapshot={count}/{length} presentation={probe.Presentation} " +
+                $"overlay={_panel?.LastOverlayTurnCountForTest} phase={snapshot.Phase} " +
+                $"route={snapshot.Route?.Turns.Length.ToString() ?? "-"} applied={probe.AppliedSequence}");
             return;
         }
         for (int index = 0; index < count; index++)

@@ -710,6 +710,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _presentation.ToString(),
         ProbeRowsForTest());
 
+    internal int LastOverlayTurnCountForTest => _lastOverlay?.Turns.Count ?? -1;
+
     internal Button? ManualModeButtonForTest => _manualModeButton;
 
     internal Button? AutoSearchModeButtonForTest => _autoSearchModeButton;

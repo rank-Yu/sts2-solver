@@ -665,7 +665,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _summaryContextLabel = null;
         _progressText = null;
         _reviewText = null;
-        _searchProgressBar = null;
         _detailsButton = null;
         _routeScroll = null;
         _routeOutcomePanel = null;

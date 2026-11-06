@@ -96,7 +96,6 @@ internal static class SolverUiTokens
         public static Color Potion => Color.FromHtml("55b9a5ff");
         public static Color Choice => Color.FromHtml("ff8533ff");
         public static Color ProgressBackground => Background;
-        public static Color ProgressFill => Accent.Darkened(0.12f);
         public static Color CompletedActionModulate => new(0.54f, 0.58f, 0.66f, 0.52f);
         public static Color ActiveActionModulate => new(1f, 0.88f, 0.48f, 1f);
         public static Color CompletedRowModulate => new(1f, 1f, 1f, 0.55f);

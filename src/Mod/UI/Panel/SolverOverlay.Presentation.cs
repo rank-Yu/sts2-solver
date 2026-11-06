@@ -20,7 +20,6 @@ internal enum SolverOverlayPresentation
 
 internal sealed partial class SolverOverlay
 {
-    private const double ActiveSearchProgressMaximum = 0.95d;
     private const double MaxElapsedClockLeadSeconds = 1d;
 
     private SolverOverlayPresentation _presentation = SolverOverlayPresentation.Searching;
@@ -40,11 +39,8 @@ internal sealed partial class SolverOverlay
     private double _shownReviewedWorldlines;
     private double _targetWorldlinesPerSecond;
     private double _shownWorldlinesPerSecond;
-    private double _shownSearchProgressRatio;
-    private double _lastSearchProgressRatio;
     private double _reportedSearchElapsedSeconds;
     private double _shownSearchElapsedSeconds;
-    private double _searchRequestBudgetSeconds;
 
     private void Present(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot, long now)
     {
@@ -150,7 +146,6 @@ internal sealed partial class SolverOverlay
         _searchBestSnapshot = null;
         _lastSearchingTurn = search.Turn;
         _lastSearchStartedAt = (int)search.StartedAtMilliseconds;
-        _lastSearchProgressRatio = 0d;
         _reviewedWorldlinesBeforeSearch = search.ReviewedWorldlinesBeforeSearch;
         _reviewedWorldlinesTarget = _reviewedWorldlinesBeforeSearch;
         _shownReviewedWorldlines = _reviewedWorldlinesBeforeSearch;
@@ -160,8 +155,6 @@ internal sealed partial class SolverOverlay
         _lastProgressElapsedMilliseconds = 0L;
         _reportedSearchElapsedSeconds = 0d;
         _shownSearchElapsedSeconds = 0d;
-        _searchRequestBudgetSeconds = search.BudgetMilliseconds / 1000d;
-        _shownSearchProgressRatio = 0d;
         SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
             SolverText.Format($"第 {search.Turn} 回合"));
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
@@ -173,12 +166,6 @@ internal sealed partial class SolverOverlay
         }
         if (_progressText != null)
             _progressText.Visible = true;
-        if (_searchProgressBar != null)
-        {
-            _searchProgressBar.Visible = true;
-            _searchProgressBar.MaxValue = 1d;
-            _searchProgressBar.Value = 0d;
-        }
         SetReviewText(null);
         if (overlay.Turns.Count > 0)
         {
@@ -233,11 +220,6 @@ internal sealed partial class SolverOverlay
         }
         _reportedSearchElapsedSeconds = search.ElapsedMilliseconds / 1000d;
         _shownSearchElapsedSeconds = Math.Max(_shownSearchElapsedSeconds, _reportedSearchElapsedSeconds);
-        _searchRequestBudgetSeconds = search.BudgetMilliseconds / 1000d;
-        _lastSearchProgressRatio = search.BudgetMilliseconds > 0
-            ? Math.Clamp(_shownSearchElapsedSeconds / _searchRequestBudgetSeconds, 0d,
-                ActiveSearchProgressMaximum)
-            : 0d;
         if (_progressText != null)
         {
             _progressText.Visible = true;
@@ -245,12 +227,6 @@ internal sealed partial class SolverOverlay
         }
         if (_searchBestSnapshot != null)
             RenderReviewedWorldlinesSummary();
-        if (_searchProgressBar != null)
-        {
-            _searchProgressBar.Visible = true;
-            _searchProgressBar.MaxValue = 1d;
-            _searchProgressBar.Value = _shownSearchProgressRatio;
-        }
         SetReviewText(null);
         RefreshControls(snapshot);
     }
@@ -285,16 +261,6 @@ internal sealed partial class SolverOverlay
                     _shownSearchElapsedSeconds + Math.Max(0d, delta),
                     _reportedSearchElapsedSeconds + MaxElapsedClockLeadSeconds));
             _progressText.Text = SolverText.Format($"已用 {_shownSearchElapsedSeconds:F1} s");
-        }
-        if (_searchProgressBar is { Visible: true } && _searchRequestBudgetSeconds > 0d)
-        {
-            double target = Math.Max(_lastSearchProgressRatio,
-                Math.Clamp(_shownSearchElapsedSeconds / _searchRequestBudgetSeconds, 0d,
-                    ActiveSearchProgressMaximum));
-            _shownSearchProgressRatio = SolverUiMotion.Approach(
-                _shownSearchProgressRatio, target,
-                SolverUiMotion.Blend(delta, SolverUiMotion.ReadoutTimeConstantSeconds), 0.0005d);
-            _searchProgressBar.Value = _shownSearchProgressRatio;
         }
         if (_searchBestSnapshot != null
             && (_shownReviewedWorldlines != _reviewedWorldlinesTarget
@@ -661,8 +627,6 @@ internal sealed partial class SolverOverlay
         _summaryText.Text = text;
         if (_progressText != null)
             _progressText.Visible = false;
-        if (_searchProgressBar != null)
-            _searchProgressBar.Visible = false;
     }
 
     private void SetRouteHeading(string heading)

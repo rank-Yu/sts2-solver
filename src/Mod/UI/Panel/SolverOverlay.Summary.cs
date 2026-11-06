@@ -14,7 +14,6 @@ internal sealed partial class SolverOverlay
     private RichTextLabel? _summaryText;
     private Label? _progressText;
     private Label? _reviewText;
-    private ProgressBar? _searchProgressBar;
     private PanelContainer? _searchLimitHint;
     private Label? _searchLimitHintLabel;
     private SolverDetailsButton? _detailsButton;
@@ -97,33 +96,6 @@ internal sealed partial class SolverOverlay
         layout.AddChild(statusRow);
         statisticsRow.AddChild(_reviewText);
         layout.AddChild(statisticsRow);
-        _searchProgressBar = new ProgressBar
-        {
-            Name = "SearchProgress",
-            MinValue = 0,
-            MaxValue = 1,
-            Step = 0,
-            Value = 0,
-            ShowPercentage = false,
-            CustomMinimumSize = new Vector2(0, 4),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        _searchProgressBar.AddThemeStyleboxOverride("background", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.ProgressBackground,
-            SolverUiTokens.Palette.BorderSubtle,
-            SolverUiTokens.Radius.Small,
-            0,
-            0,
-            borderWidth: 1));
-        _searchProgressBar.AddThemeStyleboxOverride("fill", SolverUiTokens.CreateBox(
-            SolverUiTokens.Palette.Accent,
-            Colors.Transparent,
-            SolverUiTokens.Radius.Small,
-            0,
-            0,
-            borderWidth: 0));
-        layout.AddChild(_searchProgressBar);
-
         _summaryPanel.AddChild(layout);
         return _summaryPanel;
     }
@@ -163,11 +135,8 @@ internal sealed partial class SolverOverlay
             _detailsButton.SetExpanded(_detailsVisible);
         }
         SetSearchLimitHint(LimitWarning(snapshot.Search));
-        _searchProgressBar!.Visible = false;
-        if (_progressText != null)
-            _progressText.Visible = false;
-        if (snapshot.Phase == CombatUiPhase.Searching && snapshot.Search is { })
-            TickSummary(now);
+        // Show or hide the elapsed-time readout for the new snapshot at once, not at the next tick.
+        TickSummary(now);
     }
 
     private static string? LimitWarning(SearchUiSnapshot? search) => search?.BoundaryCode switch
@@ -181,9 +150,7 @@ internal sealed partial class SolverOverlay
 
     private void TickSummary(long now)
     {
-        if (_lastSnapshot is not { } snapshot)
-            return;
-        if (snapshot.Phase == CombatUiPhase.Searching && snapshot.Search is { } search)
+        if (_lastSnapshot is { Phase: CombatUiPhase.Searching, Search: { } search })
         {
             double elapsed = Math.Max(0, now - search.StartedAtMilliseconds) / 1000d;
             if (_progressText != null)
@@ -191,39 +158,10 @@ internal sealed partial class SolverOverlay
                 _progressText.Visible = true;
                 _progressText.Text = SolverText.Format($"已用 {elapsed:F1} s");
             }
-            if (_searchProgressBar != null)
-            {
-                _searchProgressBar.Visible = true;
-                _searchProgressBar.MaxValue = 1d;
-                _searchProgressBar.Value = search.BudgetMilliseconds > 0
-                    ? Math.Clamp(elapsed / (search.BudgetMilliseconds / 1000d), 0d, 0.95d)
-                    : 0d;
-                SetProgressFill(SolverUiTokens.Palette.ProgressFill);
-            }
-            return;
-        }
-        if (snapshot.Phase == CombatUiPhase.Deploying && snapshot.Route is { ActionCount: > 0 } route)
-        {
-            if (_searchProgressBar != null)
-            {
-                _searchProgressBar.Visible = true;
-                _searchProgressBar.MaxValue = 1d;
-                _searchProgressBar.Value = Math.Clamp(
-                    route.CompletedActions / (double)route.ActionCount, 0d, 1d);
-                SetProgressFill(SolverUiTokens.Palette.Accent);
-            }
             return;
         }
         if (_progressText != null)
             _progressText.Visible = false;
-        if (_searchProgressBar != null)
-            _searchProgressBar.Visible = false;
-    }
-
-    private void SetProgressFill(Color color)
-    {
-        if (_searchProgressBar?.GetThemeStylebox("fill") is StyleBoxFlat fill && fill.BgColor != color)
-            fill.BgColor = color;
     }
 
     private void SetStatus(string text, Color color, string context = "")

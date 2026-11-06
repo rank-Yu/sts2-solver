@@ -26,32 +26,32 @@ Combat results:
 |---|---:|---:|---:|
 | Ironclad | 21 | 20 / 20 | 19.6 / 22.9 |
 | Silent | 21 | 14 / 14 | 7.3 / 7.9 |
-| Defect | 21 | 20 / 18 | 22.7 / 25.1 |
+| Defect | 21 | 20 / 18 | 22.3 / 25.1 |
 | Necrobinder | 21 | 18 / 18 | 19.9 / 22.4 |
-| Regent | 21 | 20 / 17 | 20.6 / 22.1 |
+| Regent | 21 | 20 / 17 | 20.8 / 22.1 |
 | **Total** | **105** | **92 / 87** | **18.5 / 20.7** |
 
 | Encounter | Combats | Wins (STS2 Solver / CombatSolver) | Avg HP lost, combats both won |
 |---|---:|---:|---:|
-| Normal | 40 | 40 / 40 | 11.1 / 12.2 |
+| Normal | 40 | 40 / 40 | 11.0 / 12.2 |
 | Elite | 40 | 34 / 31 | 23.9 / 24.8 |
 | Boss | 25 | 18 / 16 | 26.8 / 33.9 |
 
-STS2 Solver wins every combat CombatSolver wins, plus 5 more. Of the 87 combats both win, STS2 Solver loses less HP in 27, CombatSolver in 9, and 51 are equal.
+STS2 Solver wins every combat CombatSolver wins, plus 5 more. Of the 87 combats both win, STS2 Solver loses less HP in 28, CombatSolver in 8, and 51 are equal.
 
 Search performance:
 
 | | Median time | Mean time | Max time | Nodes expanded per second |
 |---|---:|---:|---:|---:|
-| STS2 Solver | 2.2 s | 3.6 s | 44.7 s | 40,996 |
+| STS2 Solver | 2.2 s | 3.4 s | 44.6 s | 39,206 |
 | CombatSolver | 8.5 s | 13.4 s | 120.4 s | 2,956 |
 
-In the same time STS2 Solver expands 13.9× as many nodes as CombatSolver; compared combat by combat, the median is 13.2×. It searches faster in 93 of the 105 combats, 377 s versus 1404 s in total, about a quarter of the time, and still expands more nodes per combat (median 3.8× as many): it covers a larger search space, which makes better routes easier to find.
+In the same time STS2 Solver expands 13.3× as many nodes as CombatSolver; compared combat by combat, the median is 13.3×. It searches faster in 94 of the 105 combats, 359 s versus 1404 s in total, about a quarter of the time, and still expands more nodes per combat (median 3.8× as many): it covers a larger search space, which makes better routes easier to find.
 
 Test conditions:
 
 - Combats: 21 randomly generated decks per character (Ascension 10; 8 normal, 8 elite, 5 boss fights), 105 combats in total.
-- Play: both solvers on the Medium budget, full auto to the end of the fight. CombatSolver is main after 0.50.1 (`5c773caa`), playing in the real game running headless with Smart potions; STS2 Solver is main (`59f3ad3c`), playing in its offline kernel.
+- Play: both solvers on the Medium budget, full auto to the end of the fight. CombatSolver is main after 0.50.1 (`5c773caa`), playing in the real game running headless with Smart potions; STS2 Solver is main (`27189e44`), playing in its offline kernel.
 - Time and nodes: the search at the start of each combat. Both solvers almost always search only once, then follow that route. Both ran on the same machine.
 - Search parallelism: 4 for both.
 

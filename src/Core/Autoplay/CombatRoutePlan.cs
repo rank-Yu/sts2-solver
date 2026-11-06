@@ -4,6 +4,7 @@
 // src/Runtime/SolverController.cs and src/Search/CombatPlan.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors), rewritten over Sts2Solver's
 // ReplayedRoute.
+using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Autoplay;
@@ -44,10 +45,11 @@ internal sealed class CombatRoutePlan
     internal int StartTurn => Actions.Length == 0 ? 0 : Actions[0].Before.PlayerTurn;
 
     internal static CombatRoutePlan FromReplay(ReplayedRoute route, bool onlyDeathRoutes = false,
-        PlannedChoice[]? rootSetupChoices = null)
+        PlannedChoice[]? rootSetupChoices = null,
+        PostCombatRelicHealProfile postCombatRelicHeal = default)
     {
         CombatRouteOutcome outcome = CombatRouteOutcome.From(route.Actions, route.Root, route.Victory,
-            onlyDeathRoutes);
+            onlyDeathRoutes, postCombatRelicHeal);
         return new CombatRoutePlan(route.Root, route.Actions, route.Rules, route.Victory, false,
             outcome, rootSetupChoices ?? []);
     }
@@ -125,8 +127,15 @@ internal sealed record CombatRouteOutcome(
     bool OnlyDeathRoutes,
     IReadOnlyDictionary<int, int> HpLostByTurn)
 {
+    /// <summary>
+    /// HP the post-combat relics restore after this route's victory (<see
+    /// cref="PostCombatRelicHealProfile.HealFor"/>, including Meat on the Bone's threshold heal that
+    /// route ranking leaves out). Zero for a route that does not win.
+    /// </summary>
+    internal int PostCombatRelicHeal { get; init; }
+
     internal static CombatRouteOutcome From(IReadOnlyList<ReplayedAction> actions, in Battle root,
-        bool victory, bool onlyDeathRoutes)
+        bool victory, bool onlyDeathRoutes, PostCombatRelicHealProfile postCombatRelicHeal = default)
     {
         Dictionary<int, int> hpLostByTurn = [];
         int lastTurn = root.PlayerTurn;
@@ -160,8 +169,15 @@ internal sealed record CombatRouteOutcome(
             combatEndedTurn = TerminalTurn(actions[^1]);
         if (terminal == Outcome.Defeat && actions.Count > 0)
             deathTurn = lastTurn;
+        Creature finalPlayer = actions.Count > 0 ? actions[^1].After.Player : root.Player;
+        int relicHeal = victory && terminal == Outcome.Victory && finalPlayer.CurrentHp > 0
+            ? postCombatRelicHeal.HealFor(finalPlayer.CurrentHp, finalPlayer.MaxHp)
+            : 0;
         return new CombatRouteOutcome(deathTurn, combatEndedTurn, projectedHpLost, potionUses,
-            victory, onlyDeathRoutes, hpLostByTurn);
+            victory, onlyDeathRoutes, hpLostByTurn)
+        {
+            PostCombatRelicHeal = relicHeal,
+        };
     }
 
     /// <summary>

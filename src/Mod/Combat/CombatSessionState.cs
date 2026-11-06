@@ -57,15 +57,15 @@ internal sealed class CombatSearchSession
     /// <summary>Set when the user stopped a search whose rendered candidate must be preserved.</summary>
     internal bool StopRequested { get; set; }
 
-    /// <summary>Set when the user asked to apply the current turn while the search was running.</summary>
-    internal bool ApplyCurrentTurn { get; set; }
-
     /// <summary>Candidate version last rendered by the main thread; stop adopts this exact version.</summary>
     internal int RenderedCandidateVersion { get; set; }
 
     internal int CandidateVersion { get; set; }
 
     internal long ReviewedWorldlinesBeforeSearch { get; set; }
+
+    /// <summary>Battle HP already lost at the search root (the panel's "lost so far" while searching).</summary>
+    internal int BattleHpLostBeforeSearch { get; set; }
 
     /// <summary>This session searches the Play roots enumerated from the setup Start root.</summary>
     internal bool IsTurnSetup { get; init; }

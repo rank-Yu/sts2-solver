@@ -462,9 +462,13 @@ internal static class UiPanelChecks
                 $"mismatches={observer.HighlightMismatches}");
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
+            // A combat that pauses before its first deployment (e.g. the opening search predicts
+            // death this turn) never shows the deploy state, so it has no deploy frames to check.
             session.Check("button_rules_frames",
-                observer.SearchFrames > 0 && observer.DeployFrames > 0 && observer.IdleFrames > 0,
-                $"search={observer.SearchFrames} deploy={observer.DeployFrames} idle={observer.IdleFrames}");
+                observer.SearchFrames > 0 && observer.IdleFrames > 0
+                    && (observer.DeployFrames > 0 || observer.PausedBeforeDeploy),
+                $"search={observer.SearchFrames} deploy={observer.DeployFrames} idle={observer.IdleFrames} " +
+                $"paused_before_deploy={observer.PausedBeforeDeploy}");
             session.Check("button_rules_match", observer.ButtonMismatches == 0,
                 $"mismatches={observer.ButtonMismatches}");
         }
@@ -973,6 +977,9 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int IdleFrames { get; private set; }
 
+    /// <summary>The controller paused before any deploy frame was observed.</summary>
+    internal bool PausedBeforeDeploy { get; private set; }
+
     internal int ButtonMismatches { get; private set; }
 
     internal List<string> Mismatches { get; } = [];
@@ -1014,7 +1021,11 @@ internal sealed partial class UiPanelObserver : Node
         else if (snapshot.IsDeploying)
             DeployFrames++;
         else
+        {
             IdleFrames++;
+            if (DeployFrames == 0 && snapshot.Phase == CombatUiPhase.Paused)
+                PausedBeforeDeploy = true;
+        }
         CheckButtons(snapshot);
         CheckRows(snapshot, probe);
     }
@@ -1026,11 +1037,7 @@ internal sealed partial class UiPanelObserver : Node
         bool deploying = snapshot.IsDeploying;
         bool stoppingSearch = snapshot.Search?.Phase == SearchUiPhase.Stopping;
         bool queuedExecution = searching && snapshot.DeployWhenReady;
-        bool candidateExecute = searching && !queuedExecution && !stoppingSearch
-            && snapshot.Search?.StopCandidateAvailable == true
-            && snapshot.Search?.CurrentTurnPreview != null
-            && !snapshot.SearchCandidateAllDeath;
-        bool executeVisible = deploying || queuedExecution || candidateExecute
+        bool executeVisible = deploying || queuedExecution
             || !searching && snapshot.CurrentTurnRouteReady;
         string expectedSearchText = searching ? SolverText.Get("停止搜索")
             : snapshot.CanContinueSearch ? SolverText.Get("继续搜索")
@@ -1042,9 +1049,10 @@ internal sealed partial class UiPanelObserver : Node
         string? expectedSearchTooltip = !searching && expectedSearchDisabled
             ? BlockText(snapshot.SearchBlockReason)
             : searching && stoppingSearch ? SolverText.Get("正在停止搜索…") : null;
+        bool continues = SolverOverlay.ExecuteContinues(snapshot);
         string expectedExecuteText = deploying || queuedExecution
             ? SolverText.Get("停止执行")
-            : SolverText.Get("执行本回合");
+            : SolverText.Get(continues && snapshot.CurrentTurnRouteReady ? "开始执行" : "执行本回合");
         bool expectedExecuteDisabled = deploying
             ? snapshot.IsStoppingDeployment
             : queuedExecution && stoppingSearch;
@@ -1055,11 +1063,13 @@ internal sealed partial class UiPanelObserver : Node
             : queuedExecution
                 ? SolverText.Get("停止这次搜索；本回合不再自动执行。")
                 : searching
-                    ? SolverText.Get("停止搜索，按当前最佳候选执行本回合。")
+                    ? null
                     : snapshot.CurrentTurnRouteReady
-                        ? snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
-                            ? SolverText.Get("玩家确认后强制执行这条路线。")
-                            : SolverText.Get("执行当前回合的动作。")
+                        ? continues
+                            ? SolverText.Get("按推荐路线开始执行，之后每回合由全自动接着搜索和执行。")
+                            : snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
+                                ? SolverText.Get("玩家确认后强制执行这条路线。")
+                                : SolverText.Get("执行当前回合的动作。")
                         : null;
         bool ok = true;
         string? detail = null;
@@ -1110,7 +1120,7 @@ internal sealed partial class UiPanelObserver : Node
             panel.FullAutoModeButtonForTest?.Text == SolverText.Get("全自动"));
         string expectedTooltip = snapshot.FullAutoPausedThisCombat
             ? SolverText.Get("本场全自动已暂停，点击恢复")
-            : SolverText.Get("手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+            : SolverText.Get("手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行，已有路线时选它会立即开始执行。");
         expect("full_auto_tooltip",
             panel.FullAutoModeButtonForTest?.TooltipText == expectedTooltip);
     }
@@ -1150,6 +1160,13 @@ internal sealed partial class UiPanelObserver : Node
             }
             if (snapshot.Phase == CombatUiPhase.Searching && probe.Rows.Length <= 1)
                 return;
+            // After an execution the panel keeps the executed route until the next turn's result
+            // arrives (a forced end turn such as Void Form leaves a visible gap before the reuse).
+            if (snapshot.Phase == CombatUiPhase.WaitingTurn
+                && probe.Presentation == nameof(SolverOverlayPresentation.ExecutedHistory))
+            {
+                return;
+            }
             if (probe.Rows.Length != 0
                 && snapshot.Phase is not (CombatUiPhase.Idle or CombatUiPhase.Completed))
             {

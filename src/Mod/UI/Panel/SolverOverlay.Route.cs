@@ -113,8 +113,9 @@ internal sealed partial class SolverOverlay
         }
         if (_hpRecoveredOutcomeLabel != null)
         {
-            _hpRecoveredOutcomeLabel.Visible = overlay.RouteHpRecovered > 0;
-            _hpRecoveredOutcomeLabel.Text = SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP");
+            _hpRecoveredOutcomeLabel.Visible = overlay.RouteHpRecovered > 0
+                || overlay.RoutePostCombatRelicHeal > 0;
+            _hpRecoveredOutcomeLabel.Text = RecoveredOutcomeText(overlay);
         }
 
         int length = overlay.Turns.Count;
@@ -196,6 +197,20 @@ internal sealed partial class SolverOverlay
             _lastRouteCount = count;
         }
     }
+
+    /// <summary>
+    /// CombatSolver SolverOverlay.ApplyOutcomeLabels: post-combat relic healing is reported next to
+    /// route healing rather than folded into it, because it lands after the last action.
+    /// </summary>
+    private static string RecoveredOutcomeText(SolverOverlaySnapshot overlay)
+        => (overlay.RouteHpRecovered, overlay.RoutePostCombatRelicHeal) switch
+        {
+            ( > 0, > 0) => SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP")
+                + SolverText.Format($"　战后遗物  {overlay.RoutePostCombatRelicHeal} HP"),
+            ( > 0, _) => SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP"),
+            (_, > 0) => SolverText.Format($"战后遗物回血  {overlay.RoutePostCombatRelicHeal} HP"),
+            _ => string.Empty,
+        };
 
     private void SetRouteVisibility(bool visible)
     {

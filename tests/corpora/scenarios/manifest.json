@@ -213,8 +213,8 @@
       "group": "controller"
     },
     {
-      "id": "execute_while_searching",
-      "scenario": "execute_while_searching",
+      "id": "execute_after_stop",
+      "scenario": "execute_after_stop",
       "group": "controller"
     },
     {

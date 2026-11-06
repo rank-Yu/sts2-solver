@@ -67,6 +67,7 @@ internal static partial class CombatSessionController
             : continuationSearch ? _latestResult : null;
         CombatControllerResult? shown = _search == null || continuationSearch
             ? _latestResult : null;
+        CombatResultUiSnapshot? shownUi = shown == null ? null : ResultUi(shown);
         CombatFailureReason? errorReason =
             CombatFailureReasonClassifier.Error(_errorCode, _errorDetail, _finishedSearch);
         CombatFailureReason? pauseDetailReason =
@@ -101,7 +102,9 @@ internal static partial class CombatSessionController
             ContinuationAvailable = continuationAvailable,
             SearchCandidateAllDeath = _lastProgress?.Route?.OnlyDeathRoutes ?? false,
             LastSolverDeployedTurn = _lastSolverDeployedTurn,
-            Result = shown == null ? null : ResultUi(shown),
+            Result = shownUi,
+            RouteResult = routeSource == null ? null
+                : ReferenceEquals(routeSource, shown) ? shownUi : ResultUi(routeSource),
             Turn = turn,
             PlayerHp = hp,
             PlayerMaxHp = maxHp,
@@ -122,8 +125,9 @@ internal static partial class CombatSessionController
             ReusedTurns = _reusedTurns,
             Deviations = _deviations,
             DeploymentFailures = _deploymentFailures,
-            ReviewedWorldlines = SearchLog.Sum(static entry => entry.ExpandedNodes)
-                + (_search != null ? _lastProgress?.ExpandedNodes ?? 0 : 0),
+            ReviewedWorldlines = ReviewedWorldlinesSoFar()
+                + (_search != null ? _lastProgress?.RequestExpandedNodes ?? 0 : 0),
+            LastSearchMemoryPeakBytes = _lastSearchMemoryPeakBytes,
         };
         CombatUiStore.Publish(next);
     }
@@ -199,6 +203,7 @@ internal static partial class CombatSessionController
         SearchExpandedNodes = result.SearchExpandedNodes,
         SearchElapsedMilliseconds = result.SearchElapsedMilliseconds,
         ProjectedBattlePotionCount = result.Outcome.ProjectedBattlePotionCount,
+        PostCombatRelicHeal = result.Outcome.PostCombatRelicHeal,
         PreviousProjectedBattleHpLost = result.PreviousProjectedBattleHpLost,
         ProjectedBattleHpLossIncrease = result.ProjectedBattleHpLossIncrease,
         WasReused = result.WasReused,
@@ -229,7 +234,6 @@ internal static partial class CombatSessionController
             return _finishedSearch;
         SearchProgressSnapshot? progress = _lastProgress;
         SearchUiPhase phase = _search.StopRequested ? SearchUiPhase.Stopping
-            : _search.ApplyCurrentTurn ? SearchUiPhase.Adopting
             : SearchUiPhase.Running;
         return new SearchUiSnapshot
         {
@@ -249,15 +253,18 @@ internal static partial class CombatSessionController
                 : checked((long)_searchProfile.BaselineWidth * _searchProfile.MillisecondsPerWidth),
             ElapsedMilliseconds = progress?.ElapsedMilliseconds
                 ?? Math.Max(0, Environment.TickCount64 - _searchStartedAt),
-            ExpandedNodes = progress?.ExpandedNodes ?? 0,
+            ExpandedNodes = progress?.RequestExpandedNodes ?? 0,
+            SearchMemoryUsedBytes = progress?.SearchMemoryUsedBytes ?? 0,
+            SearchMemoryPeakBytes = progress?.SearchMemoryPeakBytes ?? 0,
+            BattleHpLostBeforeSearch = _search.BattleHpLostBeforeSearch,
             Transitions = _memberRuns.Sum(static run => (long)run.Transitions),
             CandidateVersion = progress?.CandidateVersion ?? 0,
             RenderedCandidateVersion = _search.RenderedCandidateVersion,
             StopCandidateAvailable = _search.RenderedCandidateVersion > 0,
-            RoutePreview = progress?.Route == null ? null : RoutePreview(progress.Route),
-            CurrentTurnPreview = progress?.CurrentTurn == null
+            RoutePreview = _displayRoute == null ? null : RoutePreview(_displayRoute),
+            CurrentTurnPreview = _displayCurrentTurn == null
                 ? null
-                : CurrentTurnPreview(progress.CurrentTurn),
+                : CurrentTurnPreview(_displayCurrentTurn),
             Status = "running",
             MemberRuns = _memberRuns,
         };

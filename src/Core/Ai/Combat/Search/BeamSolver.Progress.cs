@@ -71,6 +71,9 @@ internal sealed partial class BeamSolver
             built?.CandidateVersion ?? _progressCandidateVersion)
         {
             PlannedBudgetMilliseconds = channel.PlannedBudgetMilliseconds,
+            RequestExpandedNodes = channel.CompletedExpandedNodes + _expandedTotal,
+            SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
+            SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
         });
     }
 

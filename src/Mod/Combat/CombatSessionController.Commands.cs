@@ -160,7 +160,6 @@ internal static partial class CombatSessionController
         _pauseReason = "stopped_by_user";
         _phase = CombatUiPhase.Searching;
         search.StopRequested = true;
-        search.ApplyCurrentTurn = false;
         search.DeployWhenReady = false;
         if (!SearchSession.RequestStop())
         {
@@ -217,40 +216,10 @@ internal static partial class CombatSessionController
                 $"[Sts2Solver] CONTROLLER_EXECUTE_TURN_SETUP turn={CurrentTurn()}");
             return true;
         }
-        if (_search is { } search)
-        {
-            if (search.StopRequested || search.ApplyCurrentTurn
-                || search.RenderedCandidateVersion <= 0
-                || _lastProgress?.CurrentTurn == null
-                || _lastProgress.Route?.OnlyDeathRoutes == true)
-            {
-                return false;
-            }
-            _automaticSearchPaused = true;
-            _automaticSearchPausedTurn = CurrentTurn();
-            search.ApplyCurrentTurn = true;
-            search.StopRequested = true;
-            search.DeployWhenReady = true;
-            _pauseCode = "stopped";
-            _pauseReason = "execute_current_turn";
-            _phase = CombatUiPhase.Searching;
-            if (!SearchSession.RequestStop())
-            {
-                search.ApplyCurrentTurn = false;
-                search.StopRequested = false;
-                search.DeployWhenReady = false;
-                _automaticSearchPaused = false;
-                _automaticSearchPausedTurn = null;
-                _pauseCode = null;
-                _pauseReason = null;
-                return false;
-            }
-            PublishSnapshot();
-            ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_EXECUTE_CURRENT_TURN turn={search.StartTurn} " +
-                $"candidate={search.RenderedCandidateVersion}");
-            return true;
-        }
+        // A running search offers no execute: the player stops it first (the stop keeps the best
+        // route) and then executes that route.
+        if (_search != null)
+            return false;
         if (_turnSetupResult != null)
         {
             if (TryActivateTurnSetup(CurrentTurn()))

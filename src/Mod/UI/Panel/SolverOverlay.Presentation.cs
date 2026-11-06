@@ -20,8 +20,6 @@ internal enum SolverOverlayPresentation
 
 internal sealed partial class SolverOverlay
 {
-    private const double MaxElapsedClockLeadSeconds = 1d;
-
     private SolverOverlayPresentation _presentation = SolverOverlayPresentation.Searching;
     private bool _waitingForNextTurnPlan;
     private SolverOverlaySnapshot? _searchBestSnapshot;
@@ -33,14 +31,12 @@ internal sealed partial class SolverOverlay
     private SolverOverlaySnapshot? _deploymentOverlay;
     private int _lastResultCandidate = -1;
     private long _lastProgressReviewedWorldlines;
-    private long _lastProgressElapsedMilliseconds;
+    private long _lastProgressSampledAt;
     private long _reviewedWorldlinesBeforeSearch;
     private long _reviewedWorldlinesTarget;
     private double _shownReviewedWorldlines;
     private double _targetWorldlinesPerSecond;
     private double _shownWorldlinesPerSecond;
-    private double _reportedSearchElapsedSeconds;
-    private double _shownSearchElapsedSeconds;
 
     private void Present(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot, long now)
     {
@@ -152,9 +148,7 @@ internal sealed partial class SolverOverlay
         _targetWorldlinesPerSecond = 0d;
         _shownWorldlinesPerSecond = 0d;
         _lastProgressReviewedWorldlines = 0L;
-        _lastProgressElapsedMilliseconds = 0L;
-        _reportedSearchElapsedSeconds = 0d;
-        _shownSearchElapsedSeconds = 0d;
+        _lastProgressSampledAt = 0L;
         SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
             SolverText.Format($"第 {search.Turn} 回合"));
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
@@ -167,6 +161,7 @@ internal sealed partial class SolverOverlay
         if (_progressText != null)
             _progressText.Visible = true;
         SetReviewText(null);
+        RenderReviewedWorldlinesSummary();
         if (overlay.Turns.Count > 0)
         {
             PopulateRoute(overlay, snapshot);
@@ -201,32 +196,29 @@ internal sealed partial class SolverOverlay
             : SolverText.Get("等待候选路线");
         SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent, routeContext);
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
+        // ExpandedNodes counts the whole request (finished members plus the running one), so the
+        // total only grows; the rate is measured on the main thread's clock between samples, since
+        // the snapshot's elapsed time restarts with every member.
         long reviewedNow = search.ReviewedWorldlinesBeforeSearch + search.ExpandedNodes;
-        _reviewedWorldlinesTarget = reviewedNow;
-        long deltaWorldlines = search.ExpandedNodes - _lastProgressReviewedWorldlines;
-        long deltaMs = search.ElapsedMilliseconds - _lastProgressElapsedMilliseconds;
-        if (_lastProgressElapsedMilliseconds == 0L || deltaMs >= 100)
+        _reviewedWorldlinesTarget = Math.Max(_reviewedWorldlinesTarget, reviewedNow);
+        long sampledAt = Environment.TickCount64;
+        if (_lastProgressSampledAt == 0L)
         {
-            double instantSpeed = _lastProgressElapsedMilliseconds == 0L
-                ? (search.ElapsedMilliseconds > 0
-                    ? Math.Max(0d, search.ExpandedNodes / (search.ElapsedMilliseconds / 1000d))
-                    : 0d)
-                : Math.Max(0d, (double)deltaWorldlines / (Math.Max(50L, deltaMs) / 1000d));
-            _targetWorldlinesPerSecond = _lastProgressElapsedMilliseconds > 0L
-                ? Math.Max(0d, 0.35d * instantSpeed + 0.65d * _targetWorldlinesPerSecond)
+            _lastProgressSampledAt = sampledAt;
+            _lastProgressReviewedWorldlines = search.ExpandedNodes;
+        }
+        else if (sampledAt - _lastProgressSampledAt >= 250
+            && search.ExpandedNodes >= _lastProgressReviewedWorldlines)
+        {
+            double instantSpeed = (search.ExpandedNodes - _lastProgressReviewedWorldlines)
+                / ((sampledAt - _lastProgressSampledAt) / 1000d);
+            _targetWorldlinesPerSecond = _targetWorldlinesPerSecond > 0d
+                ? 0.35d * instantSpeed + 0.65d * _targetWorldlinesPerSecond
                 : instantSpeed;
             _lastProgressReviewedWorldlines = search.ExpandedNodes;
-            _lastProgressElapsedMilliseconds = search.ElapsedMilliseconds;
+            _lastProgressSampledAt = sampledAt;
         }
-        _reportedSearchElapsedSeconds = search.ElapsedMilliseconds / 1000d;
-        _shownSearchElapsedSeconds = Math.Max(_shownSearchElapsedSeconds, _reportedSearchElapsedSeconds);
-        if (_progressText != null)
-        {
-            _progressText.Visible = true;
-            _progressText.Text = SolverText.Format($"已用 {_shownSearchElapsedSeconds:F1} s");
-        }
-        if (_searchBestSnapshot != null)
-            RenderReviewedWorldlinesSummary();
+        RenderReviewedWorldlinesSummary();
         SetReviewText(null);
         RefreshControls(snapshot);
     }
@@ -244,7 +236,8 @@ internal sealed partial class SolverOverlay
         string prefix = _searchBestSnapshot is { Turns.Count: > 0 } best
             ? FormatResultSummary(best.Turns.Count,
                 best.Turns[^1].CombatEnded && best.Turns[^1].Turn == best.Turns[0].Turn)
-            : string.Empty;
+            : SolverText.Format(
+                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在搜索当前回合，等待可存活候选…[/color]");
         _summaryText.Text = prefix.Length > 0 ? prefix + "  │  " + reviewed : reviewed;
     }
 
@@ -253,18 +246,8 @@ internal sealed partial class SolverOverlay
         if (_presentation != SolverOverlayPresentation.Searching
             || _layerVisible == false)
             return;
-        if (_progressText is { Visible: true })
-        {
-            _shownSearchElapsedSeconds = Math.Max(
-                _shownSearchElapsedSeconds,
-                Math.Min(
-                    _shownSearchElapsedSeconds + Math.Max(0d, delta),
-                    _reportedSearchElapsedSeconds + MaxElapsedClockLeadSeconds));
-            _progressText.Text = SolverText.Format($"已用 {_shownSearchElapsedSeconds:F1} s");
-        }
-        if (_searchBestSnapshot != null
-            && (_shownReviewedWorldlines != _reviewedWorldlinesTarget
-                || _shownWorldlinesPerSecond != _targetWorldlinesPerSecond))
+        if (_shownReviewedWorldlines != _reviewedWorldlinesTarget
+            || _shownWorldlinesPerSecond != _targetWorldlinesPerSecond)
         {
             double blend = SolverUiMotion.Blend(delta, SolverUiMotion.ReadoutTimeConstantSeconds);
             _shownReviewedWorldlines = SolverUiMotion.Approach(
@@ -339,8 +322,9 @@ internal sealed partial class SolverOverlay
         }
         if (_hpRecoveredOutcomeLabel != null)
         {
-            _hpRecoveredOutcomeLabel.Visible = overlay.RouteHpRecovered > 0;
-            _hpRecoveredOutcomeLabel.Text = SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP");
+            _hpRecoveredOutcomeLabel.Visible = overlay.RouteHpRecovered > 0
+                || overlay.RoutePostCombatRelicHeal > 0;
+            _hpRecoveredOutcomeLabel.Text = RecoveredOutcomeText(overlay);
         }
         if (_deathOutcomeLabel != null)
             _deathOutcomeLabel.Visible = overlay.OnlyDeathRoutesFound;

@@ -81,8 +81,11 @@ internal static partial class CombatSessionController
             SetupCase = setupCase,
             SetupStartRoot = startRoot,
         };
-        session.ReviewedWorldlinesBeforeSearch = SearchLog.Sum(static entry => entry.ExpandedNodes);
+        session.ReviewedWorldlinesBeforeSearch = ReviewedWorldlinesSoFar();
+        session.BattleHpLostBeforeSearch = startRoot.Counter(Counter.CumulativeHpLost);
         _search = session;
+        _displayRoute = null;
+        _displayCurrentTurn = null;
         _turnSetupResult = null;
         _latestResult = null;
         _latestStamp = null;
@@ -159,6 +162,7 @@ internal static partial class CombatSessionController
             if (!ReferenceEquals(_search, session))
                 return;
             _search = null;
+            CountCancelledSearch();
             _finishedSearch = BuildFinishedSearch(session, null, "cancelled", "cancelled");
             _errorCode = null;
             _errorDetail = null;
@@ -317,6 +321,7 @@ internal static partial class CombatSessionController
         if (_search is not { IsTurnSetup: true } search)
             return;
         _search = null;
+        CountCancelledSearch();
         if (!search.Cancellation.IsCancellationRequested)
             search.Cancellation.Cancel();
         _finishedSearch = BuildFinishedSearch(search, null, "cancelled", "cancelled");

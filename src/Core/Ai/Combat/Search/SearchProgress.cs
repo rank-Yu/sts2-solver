@@ -131,6 +131,18 @@ internal sealed record SearchProgressSnapshot(
 {
     /// <summary>The coordinator's planned duration for the whole request; zero before it is known.</summary>
     internal long PlannedBudgetMilliseconds { get; init; }
+
+    /// <summary>
+    /// Nodes this request expanded so far: the finished members plus the running one.
+    /// <see cref="ExpandedNodes"/> is the running member's own count and restarts with every member.
+    /// </summary>
+    internal long RequestExpandedNodes { get; init; }
+
+    /// <summary>Search-ledger bytes in use when the snapshot was published.</summary>
+    internal long SearchMemoryUsedBytes { get; init; }
+
+    /// <summary>The running member's search-ledger peak when the snapshot was published.</summary>
+    internal long SearchMemoryPeakBytes { get; init; }
 }
 
 /// <summary>A retained candidate with the final state captured at publication time.</summary>
@@ -171,6 +183,7 @@ internal sealed class SearchProgressChannel
     private SearchInterimResult? _bestComplete;
     private SearchProgressSnapshot? _latest;
     private long _plannedBudgetMilliseconds;
+    private long _completedExpandedNodes;
 
     internal SearchProgressChannel(int throttleMilliseconds, int retainedCandidates = DefaultRetainedCandidates)
     {
@@ -199,6 +212,15 @@ internal sealed class SearchProgressChannel
     internal int MemberIndex => _memberIndex;
     internal SearchMember Member => _member;
     internal SearchInterimResult? BestComplete => _bestComplete;
+
+    /// <summary>Nodes expanded by the request's finished members; added by the coordinator.</summary>
+    internal long CompletedExpandedNodes => Volatile.Read(ref _completedExpandedNodes);
+
+    internal void AddCompletedExpandedNodes(long nodes)
+    {
+        if (nodes > 0)
+            Interlocked.Add(ref _completedExpandedNodes, nodes);
+    }
 
     /// <summary>Set by the coordinator before any member runs; read by the publishing thread.</summary>
     internal long PlannedBudgetMilliseconds

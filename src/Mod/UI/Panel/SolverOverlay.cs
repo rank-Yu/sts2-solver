@@ -375,7 +375,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
             _ => throw new ArgumentOutOfRangeException(nameof(mode)),
         };
         button.TooltipText = SolverText.Get(
-            "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+            "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行，已有路线时选它会立即开始执行。");
         button.Pressed += () => OnModeSelected(mode);
         return button;
     }
@@ -707,6 +707,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _detailsVisible && !_collapsed,
         _builtLanguage ?? "",
         _buildCount,
+        _presentation.ToString(),
         ProbeRowsForTest());
 
     internal Button? ManualModeButtonForTest => _manualModeButton;
@@ -782,5 +783,6 @@ internal sealed record SolverOverlayProbe(
     bool DetailsVisible,
     string Language,
     int BuildCount,
+    string Presentation,
     SolverRowProbe[] Rows);
 #endif

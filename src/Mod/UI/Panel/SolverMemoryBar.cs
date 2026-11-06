@@ -1,8 +1,9 @@
 // Ported from CombatSolver src/UI/SolverMemoryUsageBar.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors). The NoGC/Server GC states and the
 // cleanup pulse are not ported; the label, bar and eased motion remain. The whole bar is the
-// search memory budget and the filled part is the search ledger peak; the game process working set
-// is shown as text only, never as a limit.
+// search memory budget; the filled part is the search ledger in use while a search runs and the
+// latest search peak of this combat between searches. The game process working set is shown as
+// text only, never as a limit.
 using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
@@ -68,22 +69,27 @@ internal sealed partial class SolverMemoryBar : PanelContainer
         content.AddChild(_progress);
     }
 
-    public void Apply(MemoryUiSnapshot memory, SearchUiSnapshot? search)
+    public void Apply(MemoryUiSnapshot memory, SearchUiSnapshot? search, long lastSearchPeakBytes)
     {
         long process = Math.Max(0, memory.WorkingSetBytes);
         long budget = Math.Max(1, memory.BudgetBytes);
-        long peak = Math.Max(0, search?.SearchMemoryPeakBytes ?? 0);
-        _targetSearchRatio = Math.Clamp(peak / (double)budget, 0d, 1d);
+        bool running = search is { Status: "running" };
+        long used = running ? Math.Max(0, search!.SearchMemoryUsedBytes) : 0;
+        long peak = running ? 0 : Math.Max(0, lastSearchPeakBytes);
+        _targetSearchRatio = Math.Clamp((running ? used : peak) / (double)budget, 0d, 1d);
         _searchSegment.Color = search is { MemoryBudgetExceeded: true }
             ? SolverUiTokens.Palette.Danger
             : SolverUiTokens.Palette.Accent;
-        _label.Text = peak > 0
+        _label.Text = running
             ? SolverText.Format(
-                $"搜索内存 峰值 {Gigabytes(peak)} / 上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB")
-            : SolverText.Format(
-                $"搜索内存上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB");
+                $"搜索内存 已用 {Gigabytes(used)} / 上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB")
+            : peak > 0
+                ? SolverText.Format(
+                    $"搜索内存 峰值 {Gigabytes(peak)} / 上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB")
+                : SolverText.Format(
+                    $"搜索内存上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB");
         TooltipText = SolverText.Get("求解器内存与性能监视") + "\n"
-            + SolverText.Get("- 整条表示搜索内存上限，彩色为本次搜索的内存峰值；超过上限时搜索会提前停下。") + "\n"
+            + SolverText.Get("- 整条表示搜索内存上限；彩色在搜索中是当前用量，搜索结束后是本场最近一次搜索的峰值。超过上限时搜索会提前停下。") + "\n"
             + SolverText.Get("- 游戏占用是游戏进程实际占用的内存，包含求解器和其他 Mod，只作参考。") + "\n"
             + SolverText.Format($"搜索内存上限：{Gigabytes(memory.BudgetBytes)} GB（{SolverPanelText.MemorySource(memory.BudgetSource)}），可在 设置 > 性能 中修改。");
         if (!_hasShown)

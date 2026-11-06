@@ -63,6 +63,7 @@ internal sealed record SolverOverlaySnapshot(
     long ReviewedWorldlines,
     string HpOutcomeText,
     int RouteHpRecovered,
+    int RoutePostCombatRelicHeal,
     bool OnlyDeathRoutesFound,
     IReadOnlyList<SolverOverlayTurnSnapshot> Turns)
 {
@@ -80,24 +81,34 @@ internal sealed record SolverOverlaySnapshot(
                         ? [FromPreviewTurn(current, names)]
                         : []
                 : [];
-        int projectedLost = snapshot.Result?.ProjectedBattleHpLost
+        // While a route is executed the controller has no current result; the outcome comes from
+        // the result the shown route belongs to.
+        CombatResultUiSnapshot? result = snapshot.Result ?? snapshot.RouteResult;
+        // A preview's turns count from the search root; the battle total adds what was lost before.
+        int lostBefore = result?.BattleHpLostSoFar ?? search?.BattleHpLostBeforeSearch ?? 0;
+        int projectedLost = result?.ProjectedBattleHpLost
             ?? (search?.RoutePreview is { } speculative
-                ? speculative.Turns.Sum(static turn => turn.HpLost)
+                ? lostBefore + speculative.Turns.Sum(static turn => turn.HpLost)
                 : 0);
-        bool projectedKnown = snapshot.Result?.CombatEndedTurn != null
+        bool projectedKnown = result?.CombatEndedTurn != null
             || search?.RoutePreview is { } previewKnown && previewKnown.Victory
             || snapshot.Route is { Victory: true };
         int recovered = turns.Sum(static turn => turn.HpRecovered);
-        int potions = snapshot.Result?.ProjectedBattlePotionCount
+        int potions = result?.ProjectedBattlePotionCount
             ?? search?.RoutePreview?.ProjectedBattlePotionCount
             ?? 0;
-        bool onlyDeath = snapshot.Result?.OnlyDeathRoutes ?? search?.RoutePreview?.OnlyDeathRoutes ?? false;
+        // "Only death routes" is a verdict on the finished search. While searching, a member's early
+        // candidates are often all deaths even after an earlier member found a survivable route.
+        bool onlyDeath = result?.OnlyDeathRoutes
+            ?? (snapshot.Phase == CombatUiPhase.Searching
+                ? false
+                : search?.RoutePreview?.OnlyDeathRoutes ?? false);
 
         string hpOutcome = !projectedKnown
             ? SolverText.Get("预计战损 未知")
-            : projectedLost > 0 || snapshot.Result?.BattleHpLostSoFar > 0
+            : projectedLost > 0 || lostBefore > 0
                 ? SolverText.Format(
-                    $"本局扣血  已 {snapshot.Result?.BattleHpLostSoFar ?? 0}    预计 {projectedLost} HP")
+                    $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP")
                 : SolverText.Get("本局扣血  0 HP");
         return new SolverOverlaySnapshot(
             potions,
@@ -106,6 +117,7 @@ internal sealed record SolverOverlaySnapshot(
             snapshot.ReviewedWorldlines,
             hpOutcome,
             recovered,
+            result?.PostCombatRelicHeal ?? 0,
             onlyDeath,
             turns);
     }

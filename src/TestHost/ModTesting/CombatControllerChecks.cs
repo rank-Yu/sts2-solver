@@ -103,8 +103,8 @@ internal static class CombatControllerChecks
                 case "execute_has_result":
                     await ExecuteHasResultAsync(host, Check, Action);
                     break;
-                case "execute_while_searching":
-                    await ExecuteWhileSearchingAsync(host, Check, Action);
+                case "execute_after_stop":
+                    await ExecuteAfterStopAsync(host, Check, Action);
                     break;
                 case "execute_without_result":
                     await ExecuteWithoutResultAsync(host, Check, Action);
@@ -987,17 +987,27 @@ internal static class CombatControllerChecks
         await WaitAsync(host, static s => s.IsDeploying, 120, "deploying");
         CombatUiSnapshot deploying = Snapshot();
         check("result_cleared", deploying.Result == null, "result cleared on deployment");
+        check("route_result_kept", deploying.RouteResult is { } kept
+            && kept.ProjectedBattleHpLost == ready.Result!.ProjectedBattleHpLost
+            && kept.CombatEndedTurn == ready.Result.CombatEndedTurn,
+            $"lost={deploying.RouteResult?.ProjectedBattleHpLost} ended={deploying.RouteResult?.CombatEndedTurn}");
+        CombatDisplayNames names = CombatDisplayNames.Capture(CombatManager.Instance.DebugOnlyGetState()
+            ?? throw new InvalidOperationException("no combat state while deploying"));
+        string readyOutcome = SolverOverlaySnapshot.Build(ready, names).HpOutcomeText;
+        string deployingOutcome = SolverOverlaySnapshot.Build(deploying, names).HpOutcomeText;
+        check("panel_outcome_kept", deployingOutcome == readyOutcome,
+            $"ready={readyOutcome} deploying={deployingOutcome}");
         await WaitIdleAsync(host, "deployment done");
         check("last_deployed", Snapshot().LastSolverDeployedTurn is not null);
     }
 
-    private static async Task ExecuteWhileSearchingAsync(NGame host, Check check, Action action)
+    private static async Task ExecuteAfterStopAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
         check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
         action("set_mode:manual");
-        bool applied = false;
-        for (int attempt = 0; attempt < 3 && !applied; attempt++)
+        bool stoppedWithRoute = false;
+        for (int attempt = 0; attempt < 3 && !stoppedWithRoute; attempt++)
         {
             await StartManualSearchAsync(host, action, waitCandidate: false);
             if (!await WaitOptionalAsync(host,
@@ -1005,21 +1015,32 @@ internal static class CombatControllerChecks
                         && s.Search?.CurrentTurnPreview != null
                         && !s.SearchCandidateAllDeath, 600))
             {
-                await WaitIdleAsync(host, "search finished before execute");
+                await WaitIdleAsync(host, "search finished before stop");
                 continue;
             }
-            CombatUiSnapshot preview = Snapshot();
-            check("preview", preview.Search?.CurrentTurnPreview != null);
-            await PressPanelButtonAsync(host, PanelButton.Execute, "execute_while_searching");
-            applied = await WaitOptionalAsync(host, static s => s.IsDeploying, 240);
-            if (!applied)
-                await WaitIdleAsync(host, "search finished before execute");
+            await Frames(host, 5);
+            if (!Snapshot().IsSearching)
+            {
+                await WaitIdleAsync(host, "search finished before stop");
+                continue;
+            }
+            Button? execute = SolverOverlay.Instance?.ExecuteButtonForTest;
+            check("execute_hidden_while_searching", execute != null && !execute.Visible,
+                $"visible={execute?.Visible}");
+            check("execute_rejected_while_searching", !CombatUiCommands.Instance.ExecuteCurrentTurn(),
+                "a running search offers no execute");
+            await PressPanelButtonAsync(host, PanelButton.Search, "stop_search");
+            action("press_stop_search");
+            CombatUiSnapshot stopped = await WaitAsync(host, static s => !s.IsSearching, 300,
+                "search stopped");
+            stoppedWithRoute = stopped.CurrentTurnRouteReady;
         }
-        check("applied", applied, "execute current turn accepted while searching");
-        action("press_execute_while_searching");
+        check("route_retained", stoppedWithRoute, "the stop keeps the best route");
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_stop");
+        action("press_execute_after_stop");
+        check("applied", await WaitOptionalAsync(host, static s => s.IsDeploying, 240),
+            "execute after the stop deploys the kept route");
         await WaitIdleAsync(host, "execute deployment done");
-        check("stopped_this_turn", Snapshot().AutomaticSearchPaused
-            || !Snapshot().IsSearching);
     }
 
     private static async Task ExecuteWithoutResultAsync(NGame host, Check check, Action action)
@@ -2543,6 +2564,7 @@ internal static class CombatControllerChecks
         check("paused_this_combat", paused.FullAutoPausedThisCombat);
         check("result_retained", paused.Result != null);
         check("route_ready", paused.CurrentTurnRouteReady);
+        await WaitPanelAppliedAsync(host);
         SolverOverlay? panel = SolverOverlay.Instance;
         check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
         CombatControllerTestHooks.ForceProjectedDeathTurn = false;
@@ -2621,6 +2643,19 @@ internal static class CombatControllerChecks
             await CombatFrameWaiter.NextFrameAsync(host);
         }
     }
+    /// <summary>Waits until the panel has applied the current snapshot (it renders one frame later).</summary>
+    private static async Task WaitPanelAppliedAsync(NGame host)
+    {
+        for (int frame = 0; frame < 60; frame++)
+        {
+            SolverOverlay? panel = SolverOverlay.Instance;
+            if (panel != null && panel.ProbeForTest().AppliedSequence == CombatUiStore.Snapshot.Sequence)
+                return;
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
+        throw new TimeoutException("panel did not apply the current snapshot");
+    }
+
     private static string Context() => SolverOverlay.Instance?.ContextTextForTest ?? "";
     private static string Summary() => SolverOverlay.Instance?.SummaryTextForTest ?? "";
     private static string Heading() => SolverOverlay.Instance?.RouteHeadingForTest ?? "";

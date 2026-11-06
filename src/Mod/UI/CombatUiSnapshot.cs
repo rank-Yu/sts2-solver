@@ -23,7 +23,6 @@ internal enum SearchUiPhase
     Idle,
     Running,
     Stopping,
-    Adopting,
     Completed,
     Cancelled,
     Failed,
@@ -116,6 +115,13 @@ internal sealed record CombatUiSnapshot
 
     public CombatResultUiSnapshot? Result { get; init; }
 
+    /// <summary>
+    /// The result whose plan <see cref="Route"/> shows: <see cref="Result"/> when there is one,
+    /// otherwise the result being (or last) executed, which deployment takes out of
+    /// <see cref="Result"/>. The panel reads the projected outcome from it.
+    /// </summary>
+    public CombatResultUiSnapshot? RouteResult { get; init; }
+
     public int Turn { get; init; }
 
     public int PlayerHp { get; init; }
@@ -178,6 +184,9 @@ internal sealed record CombatUiSnapshot
 
     /// <summary>Worldlines reviewed by completed searches in this combat.</summary>
     public long ReviewedWorldlines { get; init; }
+
+    /// <summary>The latest search-ledger peak this combat; the memory bar shows it between searches.</summary>
+    public long LastSearchMemoryPeakBytes { get; init; }
 }
 
 /// <summary>Resolved search settings the settings page shows next to the persisted values.</summary>
@@ -264,6 +273,9 @@ internal sealed record CombatResultUiSnapshot
     public long SearchElapsedMilliseconds { get; init; }
 
     public int ProjectedBattlePotionCount { get; init; }
+
+    /// <summary>HP the post-combat relics restore after the route's victory.</summary>
+    public int PostCombatRelicHeal { get; init; }
 
     public int PreviousProjectedBattleHpLost { get; init; }
 
@@ -353,6 +365,9 @@ internal sealed record SearchUiSnapshot
     public string? BoundaryCode { get; init; }
 
     public long ReviewedWorldlinesBeforeSearch { get; init; }
+
+    /// <summary>Battle HP already lost at the search root.</summary>
+    public int BattleHpLostBeforeSearch { get; init; }
 
     public string? ErrorCode { get; init; }
 

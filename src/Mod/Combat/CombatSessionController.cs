@@ -114,6 +114,20 @@ internal static partial class CombatSessionController
     private static SearchMemberRunUi[] _memberRuns = [];
     private static SearchUiSnapshot? _finishedSearch;
     private static SearchProgressSnapshot? _lastProgress;
+
+    /// <summary>
+    /// The route preview the panel shows while searching. CombatSolver's coordinator rule: once a
+    /// winning preview is shown, a later member's preview replaces it only when it also wins and is
+    /// not worse; before that the panel follows the running member.
+    /// </summary>
+    private static SearchRoutePreview? _displayRoute;
+    private static SearchCurrentTurnPreview? _displayCurrentTurn;
+
+    /// <summary>Nodes expanded by cancelled searches this combat; they are not in <see cref="SearchLog"/>.</summary>
+    private static long _cancelledWorldlines;
+
+    /// <summary>The latest search-ledger peak this combat, kept between searches for the memory bar.</summary>
+    private static long _lastSearchMemoryPeakBytes;
     private static int _lastCandidateVersion;
     private static int _activeMemberRun = -1;
     private static int _activeMemberWidth;
@@ -487,6 +501,8 @@ internal static partial class CombatSessionController
         _consecutiveFailures = 0;
         _consecutiveFailureTurn = null;
         _memberRuns = [];
+        _cancelledWorldlines = 0;
+        _lastSearchMemoryPeakBytes = 0;
         SearchLog.Clear();
         DeviationLog.Clear();
         FailureLog.Clear();
@@ -903,6 +919,33 @@ internal static partial class CombatSessionController
         PumpIdle();
     }
 
+    /// <summary>See <see cref="_displayRoute"/>.</summary>
+    private static bool DisplayAccepts(SearchRoutePreview candidate)
+    {
+        if (_displayRoute is not { } shown || !shown.Victory)
+            return true;
+        if (!candidate.Victory)
+            return false;
+        int lost = PreviewHpLost(candidate);
+        int shownLost = PreviewHpLost(shown);
+        return lost < shownLost
+            || lost == shownLost && PreviewPotions(candidate) <= PreviewPotions(shown);
+    }
+
+    private static int PreviewHpLost(SearchRoutePreview preview)
+        => preview.Turns.Sum(static turn => turn.HpLost - turn.HpRecovered);
+
+    private static int PreviewPotions(SearchRoutePreview preview)
+        => preview.Actions.Count(static action => action.Kind == PlayerActionKind.UsePotion);
+
+    /// <summary>Worldlines reviewed this combat before the next search starts.</summary>
+    private static long ReviewedWorldlinesSoFar()
+        => SearchLog.Sum(static entry => entry.ExpandedNodes) + _cancelledWorldlines;
+
+    /// <summary>Counts a cancelled search's work; finished searches are counted by their log entry.</summary>
+    private static void CountCancelledSearch()
+        => _cancelledWorldlines += _lastProgress?.RequestExpandedNodes ?? 0;
+
     private static void PumpSearch(CombatSearchSession search)
     {
 #if STS2_SOLVER_TESTING
@@ -920,6 +963,13 @@ internal static partial class CombatSessionController
         _lastProgress = progress;
         if (progress.Route != null && progress.CandidateVersion > search.RenderedCandidateVersion)
             search.RenderedCandidateVersion = progress.CandidateVersion;
+        if (changed && progress.Route is { } route && DisplayAccepts(route))
+        {
+            _displayRoute = route;
+            _displayCurrentTurn = progress.CurrentTurn;
+        }
+        if (progress.SearchMemoryPeakBytes > _lastSearchMemoryPeakBytes)
+            _lastSearchMemoryPeakBytes = progress.SearchMemoryPeakBytes;
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.AutoStopOnCandidate
             && search.RenderedCandidateVersion > 0 && !search.StopRequested)

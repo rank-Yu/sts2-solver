@@ -195,6 +195,7 @@ internal static class CombatSearchCoordinator
                 else if (beam == null && measurement.Status is not ("ok" or "none" or "memory"))
                     error = measurement.Error ?? measurement.Status;
                 expanded += beam?.ExpandedNodesTotal ?? 0;
+                progress?.AddCompletedExpandedNodes(beam?.ExpandedNodesTotal ?? 0);
                 if (beam is { StopWithoutCandidate: true })
                 {
                     logs.Add(new SearchMemberResult(member, true, null,

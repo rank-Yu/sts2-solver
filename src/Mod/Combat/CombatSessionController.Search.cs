@@ -92,8 +92,11 @@ internal static partial class CombatSessionController
             Resume = resume,
             ResumePlan = resumePlan,
         };
-        session.ReviewedWorldlinesBeforeSearch = SearchLog.Sum(static entry => entry.ExpandedNodes);
+        session.ReviewedWorldlinesBeforeSearch = ReviewedWorldlinesSoFar();
+        session.BattleHpLostBeforeSearch = root.Counter(Counter.CumulativeHpLost);
         _search = session;
+        _displayRoute = null;
+        _displayCurrentTurn = null;
         if (!continuation)
         {
             _latestResult = null;
@@ -257,6 +260,7 @@ internal static partial class CombatSessionController
             if (!ReferenceEquals(_search, session))
                 return;
             _search = null;
+            CountCancelledSearch();
             InvalidateSearchContinuation("search_cancelled");
             _finishedSearch = BuildFinishedSearch(session, null, "cancelled", "cancelled");
             _errorCode = "cancelled";
@@ -566,7 +570,7 @@ internal static partial class CombatSessionController
             _searchContinuation = BuildSearchContinuation(session, run, result);
             _finishedSearch = BuildFinishedSearch(session, run, "stopped", null);
             _pauseCode = "stopped";
-            _pauseReason = session.ApplyCurrentTurn ? "execute_current_turn" : "stopped_by_user";
+            _pauseReason = "stopped_by_user";
             _automaticSearchPaused = true;
             _automaticSearchPausedTurn = session.StartTurn;
             _phase = CombatUiPhase.WaitingTurn;
@@ -575,16 +579,7 @@ internal static partial class CombatSessionController
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_STOPPED_RESULT turn={result.StartTurn} " +
                 $"candidate={result.CandidateVersion} actions={result.Plan.Actions.Length} " +
-                $"apply={session.ApplyCurrentTurn} " +
                 $"resume={(run.Outcome.Resume != null ? "yes" : "no")}");
-            if (session.ApplyCurrentTurn)
-            {
-                _automaticSearchPaused = false;
-                _automaticSearchPausedTurn = null;
-                _pauseCode = null;
-                _pauseReason = null;
-                StartDeployment(result);
-            }
             return;
         }
 

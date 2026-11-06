@@ -164,11 +164,13 @@ internal static class CombatSearchRunner
         }
         tracker.Observe(searchRoot);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route,
-            finalProgress?.Route?.OnlyDeathRoutes ?? false);
+            finalProgress?.Route?.OnlyDeathRoutes ?? false,
+            postCombatRelicHeal: searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={reason} ms={outcome.ElapsedMs} " +
             $"expanded={outcome.TotalExpandedNodes} route={beam.BestRoute.Length} " +
             $"victory={beam.BestIsVictory} score={beam.BestScore} members={outcome.Members.Length} " +
+            $"relic_heal={planResult.Outcome.PostCombatRelicHeal} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
             $"planned_ms={outcome.PlannedBudgetMilliseconds} completion={outcome.Completion}");
@@ -335,7 +337,8 @@ internal static class CombatSearchRunner
         }
         tracker.Observe(in searchCase.Battles[beam.BestRootIndex]);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route,
-            finalProgress?.Route?.OnlyDeathRoutes ?? false, choices);
+            finalProgress?.Route?.OnlyDeathRoutes ?? false, choices,
+            searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
         CombatStateStamp playStamp = CombatStateStamp.Capture(in searchCase.Battles[beam.BestRootIndex]);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={CombatSearchReason.TurnSetup} " +

@@ -149,20 +149,23 @@ internal sealed partial class SolverOverlay
         }
         else if (searching)
         {
-            showExecute = !searchingStopping
-                && snapshot.Search?.StopCandidateAvailable == true
-                && snapshot.Search?.CurrentTurnPreview != null
-                && !snapshot.SearchCandidateAllDeath;
+            // No execute key during a search: the candidate changes with every member, so a key
+            // tied to it flickers. Stopping keeps the best route, which then shows the key.
+            showExecute = false;
             executeText = SolverText.Get("执行本回合");
-            executeTooltip = SolverText.Get("停止搜索，按当前最佳候选执行本回合。");
         }
         else if (routeReady)
         {
             showExecute = true;
-            executeText = SolverText.Get("执行本回合");
-            executeTooltip = snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
-                ? SolverText.Get("玩家确认后强制执行这条路线。")
-                : SolverText.Get("执行当前回合的动作。");
+            // Armed full auto keeps playing after this turn, so the key starts it; otherwise it
+            // plays this turn only and the next turn waits for the player again.
+            bool continues = ExecuteContinues(snapshot);
+            executeText = SolverText.Get(continues ? "开始执行" : "执行本回合");
+            executeTooltip = continues
+                ? SolverText.Get("按推荐路线开始执行，之后每回合由全自动接着搜索和执行。")
+                : snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
+                    ? SolverText.Get("玩家确认后强制执行这条路线。")
+                    : SolverText.Get("执行当前回合的动作。");
         }
         else
         {
@@ -172,8 +175,13 @@ internal sealed partial class SolverOverlay
         SetButton(_executeButton, executeText, executeStyle, executeDisabled, executeTooltip,
             ref _renderedExecuteText, ref _renderedExecuteStyle, ref _renderedExecuteTooltip);
         _actionBar.Refresh(new SolverActionBarState(_collapsed, showExecute));
-        _memoryBar?.Apply(snapshot.Memory, snapshot.Search);
+        _memoryBar?.Apply(snapshot.Memory, snapshot.Search, snapshot.LastSearchMemoryPeakBytes);
     }
+
+    /// <summary>The execute key starts armed, unpaused full auto rather than playing one turn.</summary>
+    internal static bool ExecuteContinues(CombatUiSnapshot snapshot)
+        => snapshot.Mode == SolverMode.FullAuto && snapshot.FullAutoEnabled
+            && !snapshot.FullAutoPausedThisCombat;
 
     private void RefreshModeButtons(CombatUiSnapshot snapshot)
     {
@@ -191,7 +199,7 @@ internal sealed partial class SolverOverlay
         ApplyModeButton(_fullAutoModeButton, SolverMode.FullAuto, snapshot);
         _fullAutoModeButton.TooltipText = SolverText.Get(snapshot.FullAutoPausedThisCombat
             ? "本场全自动已暂停，点击恢复"
-            : "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行。");
+            : "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行，已有路线时选它会立即开始执行。");
     }
 
     private static void ApplyModeButton(Button button, SolverMode mode, CombatUiSnapshot snapshot)

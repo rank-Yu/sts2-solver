@@ -5,7 +5,7 @@
 **中文** | [English](README.en.md)
 
 [![STS2 v0.111.0](https://img.shields.io/badge/%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC-STS2%20v0.111.0-8B0000)](#)
-[![RitsuLib 0.6.0+](https://img.shields.io/badge/%E5%89%8D%E7%BD%AE-RitsuLib%200.6.0%2B-6A5ACD)](#)
+[![RitsuLib 0.6.0+](https://img.shields.io/badge/RitsuLib-0.6.0%2B-6A5ACD)](#)
 [![License: MIT](https://img.shields.io/github/license/rank-Yu/sts2-solver?color=green)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/rank-Yu/sts2-solver?style=flat&logo=github)](https://github.com/rank-Yu/sts2-solver/stargazers)
 

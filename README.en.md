@@ -5,7 +5,7 @@
 [中文](README.md) | **English**
 
 [![STS2 v0.111.0](https://img.shields.io/badge/game-STS2%20v0.111.0-8B0000)](#)
-[![RitsuLib 0.6.0+](https://img.shields.io/badge/requires-RitsuLib%200.6.0%2B-6A5ACD)](#)
+[![RitsuLib 0.6.0+](https://img.shields.io/badge/RitsuLib-0.6.0%2B-6A5ACD)](#)
 [![License: MIT](https://img.shields.io/github/license/rank-Yu/sts2-solver?color=green)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/rank-Yu/sts2-solver?style=flat&logo=github)](https://github.com/rank-Yu/sts2-solver/stargazers)
 

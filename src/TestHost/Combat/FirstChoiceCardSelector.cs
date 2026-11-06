@@ -16,10 +16,13 @@ internal sealed class FirstChoiceCardSelector : ICardSelector
     public Task<IEnumerable<CardModel>> GetSelectedCards(
         IEnumerable<CardModel> options, int minSelect, int maxSelect)
     {
+        // The first option, or the first minSelect options when the page needs more than one
+        // (a "choose 2" start-of-combat page).
         List<CardModel> remaining = options.ToList();
-        List<CardModel> selected = remaining.Count > 0 ? [remaining[0]] : [];
-        if (selected.Count > 0)
-            LastSelections.Add(selected[0].Id.Entry);
+        int take = Math.Min(Math.Min(remaining.Count, maxSelect), Math.Max(1, minSelect));
+        List<CardModel> selected = remaining.Take(Math.Max(0, take)).ToList();
+        foreach (CardModel card in selected)
+            LastSelections.Add(card.Id.Entry);
         if (selected.Count < minSelect || selected.Count > maxSelect)
             throw new InvalidOperationException(
                 $"原生测试选择 {selected.Count} 张牌，但界面要求 {minSelect}..{maxSelect} 张。");

@@ -65,7 +65,7 @@ Test conditions:
 - If a result differs from the prediction or an action cannot be performed, execution stops at once; press **Search again** to continue. When Full auto pauses this way, click **Full auto** in the title bar to resume.
 - Unsupported content (for example cards added by other Mods) is rejected instead of being played blindly.
 - It can be installed together with CombatSolver, but let only one of them execute each turn, or they get in each other's way.
-- **Settings** holds play speed, search tier, search parallelism and more; **Potions** sets how each potion is used, and **Growth** sets how much extra HP the solver may spend for each long-term gain outside the fight (for example Feed raising max HP, or Genetic Algorithm permanently raising its own Block).
+- **Settings** holds play speed, search tier, search parallelism and more; **Potions** sets how each potion is used, and **Growth** sets how much extra HP the solver may spend for each long-term gain outside the fight (for example Feed or Genetic Algorithm).
 - The panel follows the game language: Chinese for Simplified or Traditional Chinese, English otherwise.
 
 ## Feedback

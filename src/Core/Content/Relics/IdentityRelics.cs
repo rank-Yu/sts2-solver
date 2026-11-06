@@ -23,10 +23,19 @@ public sealed partial class Vambrace : RelicDef
         {
             return 1m;
         }
-        if (x.VambraceTriggerActive && x.VambraceTriggerSerial != x.CardPowerSourceSerial)
+        if (x.VambraceTriggerActive && x.VambraceTriggerSerial != SourceSerial(x))
             return 1m;
         return 2m;
     }
+
+    /// <summary>
+    /// The card scope a block belongs to. Native Vambrace keys on the source card itself
+    /// (TriggeringCard = cardSource); the kernel approximates it by the card power-source scope. An
+    /// enchantment's block (Adroit) resolves after the card's own scope completed, so outside an
+    /// open scope the block belongs to the play that just completed it.
+    /// </summary>
+    private static int SourceSerial(in Exec x)
+        => x.CardPowerSourceActive ? x.CardPowerSourceSerial : x.LastCardPowerSourceSerial;
 
     public override void AfterModifyingBlockAmount(ref Exec x, Listener self, decimal modified,
         in BlockContext block)
@@ -35,7 +44,7 @@ public sealed partial class Vambrace : RelicDef
             return;
         x.VambraceTriggerActive = true;
         x.VambraceTriggerPosition = x.PlayPosition;
-        x.VambraceTriggerSerial = x.CardPowerSourceSerial;
+        x.VambraceTriggerSerial = SourceSerial(x);
     }
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)

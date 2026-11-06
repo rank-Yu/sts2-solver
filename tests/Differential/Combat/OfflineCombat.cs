@@ -540,7 +540,9 @@ internal static class OfflineCombat
                 WallClock: true,
                 SearchThreads: settings.SearchThreads,
                 MillisecondsPerWidth: settings.Profile.MillisecondsPerWidth,
-                MaxExpandedNodesPerWidth: null)
+                MaxExpandedNodesPerWidth: settings.Profile.NodesPerWidth > 0
+                    ? settings.Profile.NodesPerWidth
+                    : null)
             : new OfflineSearchBudget(
                 Mode: "reproducible",
                 WallClock: false,

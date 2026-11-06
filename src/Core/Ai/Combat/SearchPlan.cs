@@ -16,6 +16,13 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
     /// <summary>Time per beam slot; every member gets an independent deadline.</summary>
     public int MillisecondsPerWidth { get; init; }
 
+    /// <summary>
+    /// Expanded-node ceiling per beam slot (0 = none). Members stop at width times this many
+    /// expanded nodes or at their time deadline, whichever comes first: the ceiling bounds searches
+    /// that do not converge on fast machines; the deadline stays the bound on slow ones.
+    /// </summary>
+    public int NodesPerWidth { get; init; }
+
     /// <summary>Encounter-specific default portfolio.</summary>
     public bool QueenStrategies { get; init; }
 

@@ -12,11 +12,18 @@ public sealed class Supermassive : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (x.B.Counter(Counter.CardsGeneratedThisCombat));
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
-        int generated = x.B.Counter(Counter.CardsGeneratedThisCombat);
-        decimal damage = CardEffects.Var(x, 0)
-            + CardEffects.Var(x, 1) * generated;
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
         CardEffects.Attack(ref x, damage);
     }
 }

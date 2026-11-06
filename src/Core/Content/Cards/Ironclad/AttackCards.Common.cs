@@ -11,7 +11,7 @@ public sealed class BodySlam : CardDef
         => CardEffects.Attack(ref x,
             CardEffects.Var(x, 0) + CardEffects.Var(x, 1) * x.B.Player.Block);
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         damage = SelfVar(x, self, 0) + SelfVar(x, self, 1) * x.B.Player.Block;
         return true;
@@ -49,7 +49,7 @@ public sealed class PerfectedStrike : CardDef
         => CardEffects.Attack(ref x,
             CardEffects.Var(x, 0) + CardEffects.Var(x, 1) * CardEffects.CountCardsWithTag(x, CardTag.Strike));
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         damage = BodySlam.SelfVar(x, self, 0)
             + BodySlam.SelfVar(x, self, 1) * CardEffects.CountCardsWithTag(x, CardTag.Strike);

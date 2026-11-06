@@ -188,7 +188,7 @@ public sealed class ExpectAFight : CardDef
         Kernel.GainBlock(ref x, Limits.PlayerOwner, block, ValueProps.Move, fromCard: true);
     }
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         int strength = Kernel.GetAmount(x.B, Limits.PlayerOwner, Registry.PowerId<Powers.StrengthPower>());
         damage = BodySlam.SelfVar(x, self, 0)

@@ -93,18 +93,33 @@ public sealed class CrescentSpear : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (StarCards(in x.B, x.R));
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
+        CardEffects.Attack(ref x, damage);
+    }
+
+    /// <summary>Every combat card with a star cost (<c>CanonicalStarCost >= 0 || HasStarCostX</c>).</summary>
+    private static int StarCards(in Battle battle, Rules rules)
+    {
         int starCards = 0;
-        for (int position = 0; position < x.B.CardCount; position++)
+        for (int position = 0; position < battle.CardCount; position++)
         {
-            ref readonly Card candidate = ref x.B.Cards[position];
-            CardStats stats = x.R.Card(candidate.Id, candidate.Upgrade);
+            ref readonly Card candidate = ref battle.Cards[position];
+            CardStats stats = rules.Card(candidate.Id, candidate.Upgrade);
             if (stats.StarCost >= 0 || stats.StarCostsX)
                 starCards++;
         }
-        decimal damage = CardEffects.Var(x, 0) + CardEffects.Var(x, 1) * starCards;
-        CardEffects.Attack(ref x, damage);
+        return starCards;
     }
 }
 

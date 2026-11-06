@@ -41,7 +41,7 @@ public sealed class MindBlast : CardDef
         CardEffects.Attack(ref x, damage);
     }
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         CardStats stats = x.R.Card(self.Id, self.Upgrade);
         damage = stats.Vars[0] + self.Var0 + (stats.Vars[1] + self.Var1) * x.B.DrawCount;
@@ -56,7 +56,7 @@ public sealed class Rend : CardDef
     // debuff count (CalculatedVarSpecRegistry.TryMultiplier, Rend case).
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         CardStats stats = x.R.Card(self.Id, self.Upgrade);
         damage = stats.Vars[0] + self.Var0
@@ -159,7 +159,7 @@ public sealed class GoldAxe : CardDef
         CardEffects.Attack(ref x, damage);
     }
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         CardStats stats = x.R.Card(self.Id, self.Upgrade);
         damage = stats.Vars[0] + self.Var0

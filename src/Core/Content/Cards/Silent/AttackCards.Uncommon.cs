@@ -54,7 +54,7 @@ public sealed class MementoMori : CardDef
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
     // CalculatedVarSpecRegistry.MementoMori: CalculationBase + ExtraDamage * cards discarded this turn.
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target,
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
         out decimal damage)
     {
         CardStats stats = x.R.Card(self.Id, self.Upgrade);
@@ -69,7 +69,7 @@ public sealed class MementoMori : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        if (!TryGetCalculatedDamage(ref x, x.Card, x.Target, out decimal damage))
+        if (!TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage))
             throw new UnsupportedException("MEMENTO_MORI 没有可读取的 CalculatedDamage。");
         CardEffects.Attack(ref x, damage);
     }
@@ -82,9 +82,18 @@ public sealed class PreciseCut : CardDef
 
     // CalculatedVarSpecRegistry.PreciseCut: the played card is in the play pile, so the multiplier is
     // -hand count.
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (-(x.B.HandCount - (selfInHand ? 1 : 0)));
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
-        decimal damage = CardEffects.Var(x, 0) - CardEffects.Var(x, 1) * x.B.HandCount;
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
         CardEffects.Attack(ref x, damage);
     }
 }

@@ -65,7 +65,7 @@ public sealed class Bully : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         int vulnerable = target == Limits.NoOwner
             ? 0
@@ -106,7 +106,7 @@ public sealed class AshenStrike : CardDef
         => CardEffects.Attack(ref x,
             CardEffects.Var(x, 0) + CardEffects.Var(x, 1) * x.B.ExhaustCount);
 
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         damage = BodySlam.SelfVar(x, self, 0) + BodySlam.SelfVar(x, self, 1) * x.B.ExhaustCount;
         return true;

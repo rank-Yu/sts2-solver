@@ -12,12 +12,21 @@ public sealed class TimesUp : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (target == Limits.NoOwner ? 0 : Kernel.GetAmount(x.B, target, Registry.PowerId<Powers.DoomPower>()));
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
         if (x.Target == Limits.NoOwner)
             return;
-        int doom = Kernel.GetAmount(x.B, x.Target, Registry.PowerId<Powers.DoomPower>());
-        CardEffects.Attack(ref x, NecrobinderContent.Calculated(ref x, 0, 1, doom));
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
+        CardEffects.Attack(ref x, damage);
     }
 }
 
@@ -30,10 +39,19 @@ public sealed class SoulStorm : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (CountExhaustSouls(x.B, x.R));
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
-        int souls = CountExhaustSouls(x.B, x.R);
-        CardEffects.Attack(ref x, NecrobinderContent.Calculated(ref x, 0, 1, souls));
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
+        CardEffects.Attack(ref x, damage);
     }
 
     private static int CountExhaustSouls(in Battle battle, Rules rules)
@@ -64,7 +82,7 @@ public sealed class Squeeze : CardDef
     /// Native <c>CalculatedDamageVar</c> for Thrash reading this card's damage: CalculationBase +
     /// ExtraDamage × the number of other Osty-attack cards in every combat pile.
     /// </summary>
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target,
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
         out decimal damage)
     {
         int others = NecrobinderContent.CountOstyAttackCards(x.B, x.R) - 1;

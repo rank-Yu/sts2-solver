@@ -11,11 +11,20 @@ public sealed class Protector : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["CalculationBase", "ExtraDamage"];
 
+    // CalculatedDamageVar.Calculate: CalculationBase + ExtraDamage * the multiplier below; Thrash reads
+    // it with a null target. OnPlay uses the same formula.
+    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand,
+        out decimal damage)
+    {
+        damage = CardEffects.Var(in x.B, x.R, in self, 0) + CardEffects.Var(in x.B, x.R, in self, 1) * (NecrobinderContent.HasOsty(x.B) ? x.B.Osty.MaxHp : 0);
+        return true;
+    }
+
     public override void OnPlay(ref Exec x)
     {
         if (!NecrobinderContent.HasOsty(x.B))
             return;
-        decimal damage = NecrobinderContent.Calculated(ref x, 0, 1, x.B.Osty.MaxHp);
+        TryGetCalculatedDamage(ref x, x.Card, x.Target, selfInHand: false, out decimal damage);
         NecrobinderContent.OstyAttack(ref x, damage);
     }
 }

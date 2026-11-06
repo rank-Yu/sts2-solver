@@ -1166,9 +1166,11 @@ public abstract class CardDef : ListenerDef
     /// <summary>
     /// A card's native <c>CalculatedDamage</c> formula for another effect that reads this card's damage
     /// (Thrash). Returns false for cards without a calculated damage variable; the caller then reads
-    /// the named <c>Damage</c>/<c>OstyDamage</c> variable. <paramref name="self"/> is this card's value.
+    /// the named <c>Damage</c>/<c>OstyDamage</c> variable. <paramref name="self"/> is this card's value;
+    /// <paramref name="selfInHand"/> says whether it sits in the hand (Thrash's pick) rather than in
+    /// the play pile (its own play), which matters for multipliers that count the hand.
     /// </summary>
-    public virtual bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, out decimal damage)
+    public virtual bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
     {
         damage = 0m;
         return false;

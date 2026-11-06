@@ -21,7 +21,7 @@ It currently supports game v0.111.0 and needs RitsuLib 0.6.0 or later, installed
 
 ## Performance
 
-Compared with CombatSolver on the same 105 combats in November 2026; test conditions are at the end of this section.
+Compared with CombatSolver on the same 105 combats.
 
 Combat results:
 

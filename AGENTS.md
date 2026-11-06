@@ -63,7 +63,7 @@
 - 参照其他项目翻译编写的代码（例如对照上游的结算顺序或部署流程），同样在文件头或文档里注明对照来源。
 - 状态定义和方法体按本仓库的 `Battle` 布局重写，不从上游引擎复制。
 - 只移植 Sts2Solver 实际读取的成员，语义与注释原样保留。要改语义时另起提交，并按第 3 节处理。
-- README 的“来源与许可”一节保留上游项目的版权声明，不要删。
+- README（中文 `README.md` 与英文 `README.en.md`）的“来源与许可”一节保留上游项目的版权声明，不要删。
 - `LICENSE` 与 `README.md` 随每个二进制发布包一起提供（README 里有上游的版权声明）。
 
 ## 5. 验证
@@ -99,6 +99,6 @@ dotnet run --project tests/Golden -c Release --no-build -- verify tests/Golden/d
 
 文档：
 
-- 文档用中文，每份文档只有一个职责。`docs/README.md` 是索引；新增、改名或删除文档时同步更新它，并用 `python3 tools/docs/check-links.py` 检查所有相对链接和锚点。
+- 文档用中文，每份文档只有一个职责；根目录的 `README.en.md` 是 `README.md` 的英文版，两份同步修改。`docs/README.md` 是索引；新增、改名或删除文档时同步更新它，并用 `python3 tools/docs/check-links.py` 检查所有相对链接和锚点。
 - `docs/` 只保存架构、接口、使用说明、设计参考与测试方法。实验记录、跑分表、验证流水、任务规格和批次报告放在本地 `.local/`，不提交到仓库。进度与运行流水也不写进本文件。
 - 文档写现状，不写演变过程；不用里程碑或批次代号（如 M2c、R2a-5）代替说明。

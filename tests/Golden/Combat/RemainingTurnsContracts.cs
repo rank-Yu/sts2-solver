@@ -6,9 +6,11 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Golden;
 
 /// <summary>
-/// Minimal contract for the shared remaining-turn estimate. The three lower-bound additions are
-/// checked separately: an all-enemy attack must not double the turn count for twice the enemy HP,
-/// existing enemy poison must shorten the estimate, and a poison skill must count its poison.
+/// Minimal contract for the shared remaining-turn estimate. The lower-bound additions are checked
+/// separately: an all-enemy attack must not double the turn count for twice the enemy HP, existing
+/// enemy poison must shorten the estimate, a poison skill must count its poison, accumulating
+/// poison and Demon Form grow the per-turn damage, Corrosive Wave lasts one turn, and existing Doom
+/// lowers the kill line.
 /// </summary>
 internal static class RemainingTurnsContracts
 {
@@ -89,10 +91,41 @@ internal static class RemainingTurnsContracts
         Assert(Turns(item, scorer, poisoned) == 10,
             "10 existing poison counts as 10 damage per turn: 100 HP -> 10 turns");
 
+        // The one-card deck draws Deadly Poison five times a turn: 25 poison next turn, and the
+        // stacks keep triggering, so turn k deals 25 + 24(k-1) (one stack decays per trigger):
+        // 25, 74, 147 -> 3 turns (4 without growth).
         Battle poisonSkill = State(item, "DEADLY_POISON");
-        Assert(Turns(item, scorer, poisonSkill) == 4,
-            "5 poison from Deadly Poison is counted in the per-cycle damage: 100 HP -> 4 turns");
+        Assert(Turns(item, scorer, poisonSkill) == 3,
+            "Deadly Poison's stacks accumulate: 25 + 24(k-1) per turn, 100 HP -> 3 turns");
 
-        Console.WriteLine("REMAINING_TURNS aoe=5 poison=10 poisonSkill=4");
+        // Noxious Fumes 3 with an empty deck: 1 + 3 next turn, growing by 3 - 1 decay per turn:
+        // 4, 6, 8, ... reaches 100 after 9 turns (the game deals 3, 5, 7, ... and needs 10).
+        Battle fumes = State(item);
+        Kernel.SetPowerAmount(ref fumes, Limits.PlayerOwner, PowerEvidenceIds.NoxiousFumes, 3);
+        int fumesTurns = Turns(item, scorer, fumes);
+        Assert(fumesTurns == 9, "Noxious Fumes poison accumulates: 100 HP -> 9 turns, got " + fumesTurns);
+
+        // Corrosive Wave removes itself at the end of the player's turn; it adds no later damage.
+        Battle wave = State(item);
+        Kernel.SetPowerAmount(ref wave, Limits.PlayerOwner, PowerEvidenceIds.CorrosiveWave, 3);
+        Assert(Turns(item, scorer, wave) == 16, "Corrosive Wave does not repeat on later turns");
+
+        // Demon Form adds Strength to every later attack hit.
+        int strikeTurns = Turns(item, scorer, State(item, "STRIKE_SILENT"));
+        Battle demon = State(item, "STRIKE_SILENT");
+        Kernel.SetPowerAmount(ref demon, Limits.PlayerOwner, PowerEvidenceIds.DemonForm, 2);
+        int demonTurns = Turns(item, scorer, demon);
+        Assert(demonTurns < strikeTurns, "Demon Form growth shortens the fight");
+
+        // Existing Doom lowers the kill line by its full amount: the enemy dies at its turn end
+        // when its HP is at most its Doom. Dagger Spray deals 20 a turn: 60 HP left -> 3 turns.
+        Battle doomed = State(item, "DAGGER_SPRAY");
+        Kernel.SetPowerAmount(ref doomed, Limits.FirstEnemyOwner, PowerEvidenceIds.Doom, 40);
+        int doomTurns = Turns(item, scorer, doomed);
+        Assert(doomTurns == 3, "40 Doom on 100 HP leaves 60 to deal: 3 turns, got " + doomTurns);
+
+        Console.WriteLine("REMAINING_TURNS aoe=5 poison=10 poisonSkill=3 fumes=" + fumesTurns
+            + " corrosiveWave=16 strike=" + strikeTurns + " demonForm=" + demonTurns
+            + " doom=" + doomTurns);
     }
 }

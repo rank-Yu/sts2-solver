@@ -769,14 +769,16 @@ internal sealed class Scorer
             + FreeCardOpportunityValue(battle, CardType.Power, _score.FreePowerPowerId)
             + VoidFormOpportunityValue(battle);
 
-        // A poison tick applies the current stacks and decrements once per hit. The player is
-        // projected to survive the turn in the common case, so the tick count is the shared
-        // remaining-turn estimate (at least two); a lethal turn resolves only the single tick
-        // before the player dies.
-        int poisonTurns = 0;
+        // A poison tick applies the current stacks and decrements once per hit. A lethal turn
+        // resolves only the single tick before the player dies. Otherwise an enemy's poison ticks
+        // while that enemy lives: enemies are assumed to die in ascending effective-HP order under
+        // the shared damage model (next turn's damage plus linear growth), so enemy e lives the
+        // turns needed to deal the HP of the enemies killed before it plus its own, at most the
+        // shared remaining-turn estimate R (the last enemy) and counted as at least two ticks.
         int poisonTriggers = 0;
-        bool poisonTriggersKnown = false;
-        bool poisonTurnsKnown = false;
+        bool poisonPrepared = false;
+        bool poisonLethal = false;
+        Span<int> enemyLife = stackalloc int[battle.EnemyCount];
         int delayedDamageValue = 0;
         for (int index = 0; index < battle.EnemyCount; index++)
         {
@@ -791,18 +793,11 @@ internal sealed class Scorer
             int poisonValue = 0;
             if (poison > 0)
             {
-                if (!poisonTriggersKnown)
+                if (!poisonPrepared)
                 {
                     poisonTriggers = PoisonTriggersPerTurn(battle);
-                    poisonTriggersKnown = true;
-                }
-                if (!poisonTurnsKnown)
-                {
-                    if (projectedHp <= 0)
-                    {
-                        poisonTurns = 1;
-                    }
-                    else
+                    poisonLethal = projectedHp <= 0;
+                    if (!poisonLethal)
                     {
                         ScoreFeatures turnFeatures = new()
                         {
@@ -813,10 +808,13 @@ internal sealed class Scorer
                         };
                         PowerEvidence.View turnView = new(
                             battle, turnFeatures, Rules, this);
-                        poisonTurns = Math.Max(2, turnView.RemainingTurns());
+                        turnView.FillEnemyLifeTurns(enemyLife);
                     }
-                    poisonTurnsKnown = true;
+                    poisonPrepared = true;
                 }
+                int poisonTurns = poisonLethal
+                    ? 1
+                    : Math.Max(2, enemyLife[index]);
                 poisonValue = PoisonStackProjection.DelayedStackDamage(
                     poison, poisonTriggers, poisonTurns, currentHp);
             }
@@ -1217,6 +1215,45 @@ internal sealed class Scorer
         unordered.Add(second);
     }
 
+    private static readonly ushort StockPowerId =
+        Registry.TryPower("STOCK_POWER", out ushort stock) ? stock : ushort.MaxValue;
+    private static readonly ushort AxebotMonsterId =
+        Registry.TryMonster("AXEBOT", out ushort axebot) ? axebot : ushort.MaxValue;
+
+    /// <summary>
+    /// HP of an Axebot's pending replacements (native <c>StockPower.AfterDeath</c>): each one spawns
+    /// in the same slot with one less stock, at the compiled replacement rule's HP range shifted by
+    /// RespawnMaxHpBonus for every further missing stock (the range shift the kernel's Axebot
+    /// AfterDeath applies). The combat cannot end before they are dealt with too. The range maximum
+    /// is used: the replacement's HP is rolled only at spawn, and a lower estimate would make killing
+    /// an Axebot raise the remaining HP whenever the roll lands above it, teaching the search to
+    /// leave it alive.
+    /// </summary>
+    private int StockReplacementHp(in Battle battle, int index)
+    {
+        if (AxebotMonsterId == ushort.MaxValue || battle.Enemies[index].MonsterId != AxebotMonsterId)
+            return 0;
+        int stock = Math.Max(0, GetAmount(battle, StockPowerId, Kernel.EnemyOwner((byte)index)));
+        if (stock == 0)
+            return 0;
+        int rulesId = Rules.SpawnRulesId(AxebotMonsterId);
+        int maximum = Rules.MonsterRule(checked((byte)rulesId)).InitialHpMax;
+        int total = 0;
+        for (int replacement = 1; replacement <= stock; replacement++)
+        {
+            int newStock = stock - replacement;
+            total = checked(total + Math.Max(1, maximum + (1 - newStock) * AxebotRespawnHpBonus));
+        }
+        return total;
+    }
+
+    /// <summary>Native Axebot <c>RespawnMaxHpBonus</c> per respawn.</summary>
+    private const int AxebotRespawnHpBonus = 10;
+
+    /// <summary><see cref="EffectiveEnemyHp"/> for the remaining-turn kill order.</summary>
+    internal int EffectiveEnemyHpForEvidence(in Battle battle, int index)
+        => EffectiveEnemyHp(battle, index);
+
     private int EffectiveEnemyHp(in Battle battle, int index)
     {
         ref readonly Enemy enemy = ref battle.Enemies[index];
@@ -1239,7 +1276,7 @@ internal sealed class Scorer
             return remaining;
         }
         if (enemy.Creature.CurrentHp > 0)
-            return enemy.Creature.CurrentHp;
+            return checked(enemy.Creature.CurrentHp + StockReplacementHp(battle, index));
         if (enemy.DeathPhase != DeathPhase.Reviving)
             return 0;
         byte owner = Kernel.EnemyOwner((byte)index);
@@ -1263,7 +1300,8 @@ internal sealed class Scorer
 
     /// <summary>
     /// HP that still has to be removed before the combat can end: every primary enemy's
-    /// <see cref="EffectiveEnemyHp"/>. Secondary enemies (MinionPower, including the reviving
+    /// <see cref="EffectiveEnemyHp"/> (including Test Subject's later forms, Decimillipede's
+    /// reattach heal and an Axebot's stocked replacements). Secondary enemies (MinionPower, including the reviving
     /// EyeWithTeeth and Parafright) are excluded: the native <c>CombatManager.IsCombatEnding</c>
     /// ends the combat when no primary enemy is alive, and <c>CreatureCmd.Kill</c> kills all
     /// remaining all-secondary teammates when the last primary dies.

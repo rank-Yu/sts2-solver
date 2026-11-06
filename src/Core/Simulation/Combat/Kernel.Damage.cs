@@ -690,8 +690,8 @@ public static partial class Kernel
         if (result.Props.IsPoweredAttack() && dealer == Limits.PlayerOwner && IsEnemyOwner(receiver))
         {
             ref Enemy enemy = ref battle.Enemies[receiver - Limits.FirstEnemyOwner];
-            if (enemy.PoweredAttackHitsThisTurn == byte.MaxValue)
-                throw new UnsupportedException("单个敌人的本回合强化攻击命中数超过 255，Sts2Solver 无法表示。");
+            if (enemy.PoweredAttackHitsThisTurn == ushort.MaxValue)
+                throw new UnsupportedException("单个敌人的本回合强化攻击命中数超过 65535，Sts2Solver 无法表示。");
             enemy.PoweredAttackHitsThisTurn++;
         }
         if (result.UnblockedDamage <= 0)

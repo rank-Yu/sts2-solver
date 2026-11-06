@@ -154,7 +154,7 @@ public static class BattleDump
             Add(records, prefix + ".ForcedMove", enemy.ForcedMove, offset + FieldOffset<Enemy>(nameof(Enemy.ForcedMove)));
             Add(records, prefix + ".Rules", enemy.Rules, offset + FieldOffset<Enemy>(nameof(Enemy.Rules)));
             Add(records, prefix + ".PoweredAttackHitsThisTurn", enemy.PoweredAttackHitsThisTurn,
-                offset + FieldOffset<Enemy>(nameof(Enemy.PoweredAttackHitsThisTurn)));
+                offset + FieldOffset<Enemy>(nameof(Enemy.PoweredAttackHitsLow)));
             Add(records, prefix + ".EverUsedMoves", enemy.EverUsedMoves,
                 offset + FieldOffset<Enemy>(nameof(Enemy.EverUsedMoves)));
             Add(records, prefix + ".SteamPhase", enemy.SteamPhase, offset + FieldOffset<Enemy>(nameof(Enemy.SteamPhase)));

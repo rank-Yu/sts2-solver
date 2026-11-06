@@ -50,22 +50,24 @@ internal static class RegentPowerOpeningContracts
     private static void AddCard(SearchCase item, ref Battle battle, Pile pile, string nativeId)
         => Piles.Append(ref battle, pile, Kernel.CreateCard(item.Rules, CardId(nativeId)));
 
-    private static ScoreFeatures Features(SearchCase item, int incoming)
+    // The remaining-turn estimate reads the fixture's live cards (a few Strikes deal about 6 a
+    // turn), so 30 enemy HP gives the multi-turn horizon these formula checks need.
+    private static ScoreFeatures Features(SearchCase item, int incoming, int enemyHp = 30)
         => item.Options.Scorer!.Features(item.Battles[0], 0) with
         {
             PlayerHp = 100,
             ProjectedPlayerHp = 100 - incoming,
-            EnemyHp = 5,
+            EnemyHp = enemyHp,
             AliveEnemyCount = 1,
             RetainedAttackValue = 1,
             LiveDeckSize = 5,
         };
 
     private static int Projection(SearchCase item, string nativeId, in Battle parent,
-        in Battle child, int incoming = Incoming)
+        in Battle child, int incoming = Incoming, int enemyHp = 30)
     {
         Scorer scorer = item.Options.Scorer!;
-        ScoreFeatures features = Features(item, incoming);
+        ScoreFeatures features = Features(item, incoming, enemyHp);
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
         return PowerEvidence.ProjectionPotential(CardId(nativeId), view, parent,
             features.ProjectedPlayerHp);
@@ -231,7 +233,7 @@ internal static class RegentPowerOpeningContracts
         ScoreFeatures features = Features(item, Incoming);
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
         int hits = view.IncomingAttackHits(nextTurn: false);
-        int expected = Bounded(2 * hits * view.RemainingTurns(), Incoming);
+        int expected = Bounded(2 * hits, Incoming) * view.RemainingTurns();
         int actual = Projection(item, "MONARCHS_GAZE", parent, child);
         Assert(actual == expected,
             $"Monarchs Gaze bounded prevention expected {expected} actual {actual}");
@@ -250,7 +252,7 @@ internal static class RegentPowerOpeningContracts
         PowerEvidence.View view = new(child, Features(item, Incoming), item.Rules,
             item.Options.Scorer!);
         int turns = Math.Max(0, view.RemainingTurns() - 1);
-        int expected = Bounded(8 * turns, Incoming);
+        int expected = Bounded(8, Incoming) * turns;
         int actual = Projection(item, "NEUTRON_AEGIS", parent, child);
         Assert(actual == expected, $"Neutron Aegis block expected {expected} actual {actual}");
     }
@@ -263,12 +265,13 @@ internal static class RegentPowerOpeningContracts
         Battle child = parent;
         Kernel.SetPowerAmount(ref child, Limits.PlayerOwner, PowerEvidenceIds.Orbit, 1);
         Scorer scorer = item.Options.Scorer!;
-        ScoreFeatures features = Features(item, Incoming);
+        // The hand Strike deals 6 a turn in the remaining-turn estimate: 25 enemy HP -> R = 5.
+        ScoreFeatures features = Features(item, Incoming, enemyHp: 25);
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
         int turns = Math.Max(0, view.RemainingTurns() - 1);
         int payouts = view.ModifiedMaxEnergy() * turns / 4;
         int expected = view.EnergyUnit() * payouts;
-        int actual = Projection(item, "ORBIT", parent, child);
+        int actual = Projection(item, "ORBIT", parent, child, enemyHp: 25);
         Assert(payouts == 3 && actual == expected,
             $"Orbit energy payouts expected {expected} actual {actual}");
     }
@@ -296,7 +299,7 @@ internal static class RegentPowerOpeningContracts
         PowerEvidence.View view = new(child, Features(item, Incoming), item.Rules,
             item.Options.Scorer!);
         int turns = Math.Max(0, view.RemainingTurns() - 1);
-        int expected = Bounded(5 * turns, Incoming);
+        int expected = Bounded(5, Incoming) * turns;
         int actual = Projection(item, "PARRY", parent, child);
         Assert(actual == expected, $"Parry current stack block expected {expected} actual {actual}");
         Assert(Projection(item, "PARRY", parent, child, incoming: 100) == 5 * turns,

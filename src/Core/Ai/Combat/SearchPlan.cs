@@ -16,6 +16,14 @@ internal sealed record SearchPlan(int BaselineWidth, int NarrowWidth, int WideWi
     /// <summary>Time per beam slot; every member gets an independent deadline.</summary>
     public int MillisecondsPerWidth { get; init; }
 
+    /// <summary>
+    /// Expanded-node ceiling per beam slot (0 = none). Members stop at width times this many
+    /// expanded nodes or at their time deadline, whichever comes first: the node ceiling makes the
+    /// in-game budget the one the offline reproducible evaluation measures (512 per width) and
+    /// bounds pathological positions on fast machines; the deadline stays the bound on slow ones.
+    /// </summary>
+    public int NodesPerWidth { get; init; }
+
     /// <summary>Encounter-specific default portfolio.</summary>
     public bool QueenStrategies { get; init; }
 
@@ -77,6 +85,13 @@ internal sealed record SearchMemberResult(SearchMember Member, bool Ran, string?
     public int WorkspaceOverflowParents { get; init; }
     public long SearchWorkspacePeakBytes { get; init; }
     public long SearchWorkspaceGrowablePeakBytes { get; init; }
+
+    /// <summary>
+    /// Card plays this member's search cut with the turn-loop guard (consecutive plays without
+    /// turn progress). Zero in normal searches; a large count means the search spent its budget
+    /// on loop-like lines within a turn.
+    /// </summary>
+    public int TurnLoopGuarded { get; init; }
 }
 
 internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult? Beam,

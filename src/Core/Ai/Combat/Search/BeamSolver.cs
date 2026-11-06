@@ -19,9 +19,9 @@ internal sealed record BeamOptions(
 
     /// <summary>
     /// Apply <see cref="MaxExpandedNodes"/> while keeping <see cref="UnlimitedNodes"/>' production
-    /// semantics (zero-damage stop gating, cancellation checkpoints and pool behavior). The offline
-    /// reproducible budget sets this to replace the member's wall-clock deadline with a fixed node
-    /// cap; production leaves it false and keeps the soft-time deadline as its only bound.
+    /// semantics (zero-damage stop gating, cancellation checkpoints and pool behavior). Production
+    /// sets it with <see cref="SearchPlan.NodesPerWidth"/> and keeps the soft-time deadline as the
+    /// other bound; the offline reproducible budget sets it and drops the deadline.
     /// </summary>
     public bool NodeBudgetActive { get; init; }
 

@@ -4091,7 +4091,12 @@ static void CheckLrKernel(Rules rules)
         ValueProps.Move | ValueProps.Unpowered, Limits.PlayerOwner, false, default);
     Check(Kernel.PoweredAttackHitsByPlayer(hits, target[0]) == 2,
         "LR 非强化伤害不应计数");
+    // The game counts hits in an int; 255 is not a limit (a guarded damage loop can exceed it).
     hits.Enemies[0].PoweredAttackHitsThisTurn = byte.MaxValue;
+    Kernel.Damage(ref hit, target, 1m, ValueProps.Move, Limits.PlayerOwner, false, default);
+    Check(Kernel.PoweredAttackHitsByPlayer(hits, target[0]) == 256,
+        "LR 强化攻击命中数超过 255 应继续计数");
+    hits.Enemies[0].PoweredAttackHitsThisTurn = ushort.MaxValue;
     bool overflowed = false;
     try
     {

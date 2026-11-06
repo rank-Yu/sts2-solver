@@ -56,7 +56,7 @@
 | 5 | `OstyEverPresent` | 原生 `Player.Osty` 已非空（根捕获或搜索中首次召唤后）；只会从 0 变 1 |
 | 6 | `HistoryCourseCardPresent` | `HistoryCourseCard` 里有有效卡值 |
 
-`HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`：根导入时读取，预测中遇到未补偿风险时置位，并保持到战斗结束。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择不在补偿目录里，内核在提出该选择前置位；充能球生成达到 1000 次上限时也置位并停止该次生成。
+`HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`：根导入时读取，预测中遇到未补偿风险时置位，并保持到战斗结束。置位后现任解界限把未来回血当作无限，不再剪枝。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择原引擎不补偿，但本内核逐一枚举了这个选择，没有预测不确定性，所以也不置位（只保留路线历史标记）；充能球生成达到 1000 次上限时置位并停止该次生成。
 
 **结局 `Outcome`。** 除胜负外，枚举值 3 是 `EventDefeat`：战损假人限时 Power 走完时的结局，结算见 [内容专属机制](combat-content.md#6-事件内容)。
 
@@ -78,7 +78,7 @@
 | `ForcedMove` | 合成 `STUNNED` 或 `REVIVE_MOVE` 节点的动态后继（原版 `MoveState.FollowUpStateId`）；当前节点不是这两个时恒为 255 |
 | `EverUsedMoves`、`RecentMoves`、`LoggedMoves` | 行动日志：曾经用过的节点位集，加最近 8 条；原版的重复规则只读这两部分。冷却或连续次数超出 8 条的状态机在运行时抛 `UnsupportedException` |
 | `Ai` | 4 个私有 AI 寄存器，编号由各怪物定义的 `AiRegisterNames` 决定 |
-| `PoweredAttackHitsThisTurn` | 本回合玩家对它的强化攻击命中数（BeatIntoShape 的锻造乘数），玩家回合开始清零，超过 255 显式拒绝 |
+| `PoweredAttackHitsThisTurn` | 本回合玩家对它的强化攻击命中数（BeatIntoShape 的锻造乘数），玩家回合开始清零。16 位：低字节是原字段，高字节用原来的填充字节（旧数据里为 0），超过 65535 显式拒绝；循环保护允许伤害循环打到敌人死，255 次不够 |
 | `SteamPhase` | 瀑布巨兽的蒸汽爆发阶段（0 无、1 即将爆发、2 爆发）；其它怪物恒为 0 |
 | `Flags` | 见下 |
 

@@ -22,11 +22,17 @@ public enum SearchPerformanceTier
     ExtraHigh,
 }
 
-/// <summary>Frozen widths and time per beam slot for independent search members.</summary>
+/// <summary>
+/// Frozen widths, time per beam slot and expanded-node ceiling per beam slot for independent
+/// search members.
+/// </summary>
 public readonly record struct SearchPerformanceProfile(
     int BaselineWidth, int NarrowWidth, int WideWidth, int OffensiveWidth,
     int MillisecondsPerWidth)
 {
+    /// <summary>Expanded-node ceiling per beam slot (<see cref="SearchPlan.NodesPerWidth"/>).</summary>
+    public int NodesPerWidth { get; init; }
+
     /// <summary>Deterministic capture keeps the regression's fixed turn boundary; production overrides it.</summary>
     public const int MaxTurns = 64;
     private const int CaptureNodeLimit = 512_000;
@@ -44,7 +50,10 @@ public readonly record struct SearchPerformanceProfile(
         };
         SearchPlan preset = SearchPresets.For(coreTier, 0);
         return new(preset.BaselineWidth, preset.NarrowWidth, preset.WideWidth,
-            preset.OffensiveWidth, preset.MillisecondsPerWidth);
+            preset.OffensiveWidth, preset.MillisecondsPerWidth)
+        {
+            NodesPerWidth = preset.NodesPerWidth,
+        };
     }
 
     internal SearchPlan ToSearchPlan(long memoryBytes, bool isBoss, bool isElite, int actIndex)
@@ -52,7 +61,7 @@ public readonly record struct SearchPerformanceProfile(
         bool longEncounter = SearchPlan.IsLongEncounter(isBoss, isElite, actIndex);
         return new SearchPlan(BaselineWidth, NarrowWidth, WideWidth, OffensiveWidth, memoryBytes)
             { QueenStrategies = true, SetupStrategies = longEncounter, ContinuousSetupStrategies = longEncounter,
-                MillisecondsPerWidth = MillisecondsPerWidth };
+                MillisecondsPerWidth = MillisecondsPerWidth, NodesPerWidth = NodesPerWidth };
     }
 
     public static SearchPerformanceTier ParseTier(string text)

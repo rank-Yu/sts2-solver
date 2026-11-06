@@ -314,9 +314,9 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 
 离线工具从质量语料导入根，用与 Mod 相同的组合协调器、内存预算和成员预算，在内核里执行搜索出的路线，用于质量评估。每根一个子进程，`--jobs` 控制并发；成员预算默认是可复现的固定节点上限：每个成员最多展开 `宽度 × 512` 个节点，协调器的成员截止和路线校验截止都读取一个不前进的时钟，因此搜索不看墙钟，机器负载不影响展开数和选中的路线。此时成员内部固定单线程，`--search-threads` 只能为 1。
 
-`--wall-clock` 恢复生产计时（每宽度 50 ms 的软时间预算和墙钟截止），只用于计时研究；该模式下 `--search-threads N` 控制每个成员内部的展开线程数（默认 1），结果可能随机器负载改变。`--workspace-buffer-bytes N` 和 `--workspace-stats` 与 Golden 验证工具含义相同。
+`--wall-clock` 改用墙钟（每宽度 50 ms 的软时间预算和墙钟截止，不设节点上限），只用于计时研究；生产成员同时有 `宽度 × 512` 的节点上限和墙钟截止。该模式下 `--search-threads N` 控制每个成员内部的展开线程数（默认 1），结果可能随机器负载改变。`--workspace-buffer-bytes N` 和 `--workspace-stats` 与 Golden 验证工具含义相同。
 
-每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值）；父进程的 `summary.json` 汇总档位、四种宽度、成员预算和内存预算。两个文件的 `searchBudget` 都记录本次使用的模式：可复现模式是 `mode=reproducible`、`maxExpandedNodesPerWidth=512`、`searchThreads=1`，墙钟模式是 `mode=wall-clock`、`millisecondsPerWidth=50`。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
+每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值、回合循环保护截断的出牌数 `turnLoopGuarded`）；父进程的 `summary.json` 汇总档位、四种宽度、成员预算和内存预算。两个文件的 `searchBudget` 都记录本次使用的模式：可复现模式是 `mode=reproducible`、`maxExpandedNodesPerWidth=512`、`searchThreads=1`，墙钟模式是 `mode=wall-clock`、`millisecondsPerWidth=50`。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
 
 节点上限按 Medium 墙钟基线标定：整场的加权展开速度约为 11.3 节点/ms，50 ms/宽度约合 565 节点/宽度；取 512 后，基线上所有在墙钟截止前自然结束的成员都低于该上限，因此只有原先按时间停下的成员会改在节点上限停下。固定上限是跨机器可比较的确定性近似，不声明与任意机器上的生产计时逐局相同。
 

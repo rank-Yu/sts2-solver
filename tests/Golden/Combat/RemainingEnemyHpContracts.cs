@@ -38,7 +38,41 @@ internal static class RemainingEnemyHpContracts
         CheckDecimillipedeReattach();
         CheckMinions();
         CheckRevivingIllusionMinion();
-        Console.WriteLine("REMAINING_ENEMY_HP forms/reattach/minions=pass");
+        CheckAxebotStock();
+        Console.WriteLine("REMAINING_ENEMY_HP forms/reattach/minions/stock=pass");
+    }
+
+    /// <summary>
+    /// Axebot StockPower: each pending replacement adds the replacement rule's maximum HP plus 10 per
+    /// further missing stock (native RespawnMaxHpBonus), so Stock 2 adds max + (max + 10).
+    /// </summary>
+    private static void CheckAxebotStock()
+    {
+        (SearchCase item, Battle battle, Scorer scorer) = Load("a3-axebots-normal");
+        if (!Registry.TryPower("STOCK_POWER", out ushort stock)
+            || !Registry.TryMonster("AXEBOT", out ushort axebot))
+        {
+            throw new InvalidDataException("remaining-enemy-hp: missing STOCK_POWER or AXEBOT");
+        }
+        int maximum = item.Rules.MonsterRule(checked((byte)item.Rules.SpawnRulesId(axebot))).InitialHpMax;
+        int expected = 0;
+        int stocked = 0;
+        for (int index = 0; index < battle.EnemyCount; index++)
+        {
+            ref readonly Enemy enemy = ref battle.Enemies[index];
+            if (!enemy.Creature.IsAlive || (enemy.Flags & EnemyFlags.InCombat) == 0)
+                continue;
+            expected += enemy.Creature.CurrentHp;
+            if (enemy.MonsterId != axebot)
+                continue;
+            int amount = Kernel.GetAmount(battle, Kernel.EnemyOwner((byte)index), stock);
+            for (int replacement = 1; replacement <= amount; replacement++)
+                expected += maximum + (1 - (amount - replacement)) * 10;
+            stocked += amount;
+        }
+        Assert(stocked > 0, "Axebot root carries StockPower");
+        Assert(Remaining(battle, item.Rules, scorer) == expected,
+            $"stocked replacements count toward remaining HP: expected {expected}");
     }
 
     private static void CheckTestSubjectForms()

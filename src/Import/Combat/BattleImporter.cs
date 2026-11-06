@@ -428,7 +428,7 @@ public static class BattleImporter
             if (poweredHits > byte.MaxValue)
                 throw new UnsupportedImportException(ImportReason.Unrepresentable,
                     $"{monster.Id.Entry} 的本回合强化攻击命中数 {poweredHits} 超过 255");
-            enemy.PoweredAttackHitsThisTurn = checked((byte)poweredHits);
+            enemy.PoweredAttackHitsThisTurn = checked((ushort)poweredHits);
             projections.ProjectMonster(creature, Registry.Monster(monsterId), ref enemy);
         }
         int rosterCount = 0;

@@ -441,13 +441,8 @@ public struct Enemy
     /// <summary>Index into <see cref="Rules"/>'s monster table (<c>Rules.MonsterRule</c>).</summary>
     public byte Rules;
 
-    /// <summary>
-    /// Powered attack hits dealt to this enemy by the player this turn
-    /// (<c>SimulatedCombatState.GetPoweredAttackHitsThisTurn(player, enemy)</c>): BeatIntoShape's
-    /// calculated-forge multiplier. Imported for the root turn and reset for every enemy in
-    /// <c>BeginSideTurn(player)</c>; a hit that does not fit the byte is an explicit boundary.
-    /// </summary>
-    public byte PoweredAttackHitsThisTurn;
+    /// <summary>Low byte of <see cref="PoweredAttackHitsThisTurn"/>.</summary>
+    internal byte PoweredAttackHitsLow;
 
     /// <summary>
     /// Waterfall Giant's forced Steam Eruption phase (<c>SimulatedCombatState._steamEruptionPhases</c>).
@@ -455,7 +450,30 @@ public struct Enemy
     /// </summary>
     public SteamPhase SteamPhase;
 
-    private byte _padding1;
+    /// <summary>
+    /// High byte of <see cref="PoweredAttackHitsThisTurn"/>, stored in the former padding byte
+    /// (zero in data written before the counter was widened, so those values decode unchanged).
+    /// </summary>
+    internal byte PoweredAttackHitsHigh;
+
+    /// <summary>
+    /// Powered attack hits dealt to this enemy by the player this turn
+    /// (<c>SimulatedCombatState.GetPoweredAttackHitsThisTurn(player, enemy)</c>): BeatIntoShape's
+    /// calculated-forge multiplier. Imported for the root turn and reset for every enemy in
+    /// <c>BeginSideTurn(player)</c>. The game's counter is an int; a damage loop the turn-loop
+    /// guard lets run until the enemy dies can exceed 255 hits, so it is kept in 16 bits across
+    /// the two bytes above, and a hit beyond 65535 is an explicit boundary.
+    /// </summary>
+    public int PoweredAttackHitsThisTurn
+    {
+        readonly get => PoweredAttackHitsLow | (PoweredAttackHitsHigh << 8);
+        set
+        {
+            ushort hits = checked((ushort)value);
+            PoweredAttackHitsLow = (byte)hits;
+            PoweredAttackHitsHigh = (byte)(hits >> 8);
+        }
+    }
 
     /// <summary>Bit i set when move node i has ever been logged (native "use only once" rule).</summary>
     public ulong EverUsedMoves;

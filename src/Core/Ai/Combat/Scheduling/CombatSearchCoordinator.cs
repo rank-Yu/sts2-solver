@@ -157,6 +157,10 @@ internal static class CombatSearchCoordinator
                     BeamWidth = member.Width,
                     MaxTurns = int.MaxValue,
                     UnlimitedNodes = true,
+                    MaxExpandedNodes = plan.NodesPerWidth > 0
+                        ? checked(member.Width * plan.NodesPerWidth)
+                        : initial.Options.MaxExpandedNodes,
+                    NodeBudgetActive = plan.NodesPerWidth > 0,
                     SearchThreads = initial.Options.SearchThreads,
                     DeadlineExpired = DeadlineExpired,
                     SoftTimeBudget = TimeSpan.FromMilliseconds(searchMs),
@@ -195,7 +199,10 @@ internal static class CombatSearchCoordinator
                 {
                     logs.Add(new SearchMemberResult(member, true, null,
                         Math.Max(0, budget.Now - memberStarted), beam.ExpandedNodesTotal, "stopped",
-                        false, null, null, false, 0, 0));
+                        false, null, null, false, 0, 0)
+                    {
+                        TurnLoopGuarded = beam.TurnLoopGuarded,
+                    });
                     // The stopped member published no candidate of its own. Keep the route this
                     // request already owns instead of cancelling the whole decision.
                     if (resume?.StoppedResult is { } earlier)
@@ -297,6 +304,7 @@ internal static class CombatSearchCoordinator
                         WorkspaceOverflowParents = chosen.WorkspaceOverflowParents,
                         SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
                         SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
+                        TurnLoopGuarded = beam.TurnLoopGuarded,
                     });
                     if (adoption.Kind == SearchAdoptionKind.Stopped)
                         return StopResult(chosen, chosenFromEarlierPass ? -1 : chosenIndex,
@@ -388,6 +396,7 @@ internal static class CombatSearchCoordinator
                     WorkspaceOverflowParents = beam?.WorkspaceOverflowParents ?? 0,
                     SearchWorkspacePeakBytes = beam?.SearchWorkspacePeakBytes ?? 0,
                     SearchWorkspaceGrowablePeakBytes = beam?.SearchWorkspaceGrowablePeakBytes ?? 0,
+                    TurnLoopGuarded = beam?.TurnLoopGuarded ?? 0,
                 });
                 if (error != null || cancelled || stop == "memory" || goalReached) break;
             }

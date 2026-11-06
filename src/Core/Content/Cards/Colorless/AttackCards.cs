@@ -294,9 +294,11 @@ public sealed class SeekerStrike : CardDef
         }
         if (optionCount == 0)
             return;
-        // CardChoiceSupport.BuildSeekerSpec records RecordRisk(UnresolvedPlayerChoice); the risk is
-        // not in the compensated catalog, so the snapshot flips HasRisk and Sts2Solver must follow.
-        x.B.Flags |= BattleFlags.HasRisk;
+        // CombatSolver's CardChoiceSupport.BuildSeekerSpec recorded RecordRisk(UnresolvedPlayerChoice)
+        // because its simulator could not resolve this choice, and the risk then disabled the
+        // incumbent bound for the rest of the combat. This kernel enumerates the choice exactly
+        // (ChooseCardsInRange below), so it is no prediction uncertainty: BattleFlags.HasRisk stays
+        // for truncated predictions only. The routing history marker is kept.
         x.HistoryRisk = true;
         Span<int> selected = stackalloc int[1];
         if (!Kernel.ChooseCardsInRange(ref x, ChoiceEffect.MoveToHand, Pile.Draw,

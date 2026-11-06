@@ -286,7 +286,7 @@ internal static class ColorlessPowerOpeningContracts
             "CALAMITY" => CalamityExpected(view, card.Gain),
             "ENTROPY" => Mul(view.EnergyUnit(), turns),
             // Plating stacks each turn; prevention is bounded by the current incoming damage.
-            "ETERNAL_ARMOR" => BoundedPrevention(Mul(card.Gain, turns), incoming),
+            "ETERNAL_ARMOR" => Mul(BoundedPrevention(card.Gain, incoming), turns),
             // Permanent block bonus repeats every remaining turn.
             "FASTEN" => PowerEvidence.GrowthFrontier(view,
                 blockPerSkillBonus: card.Gain,

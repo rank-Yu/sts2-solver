@@ -99,12 +99,22 @@ internal static class SilentPowerProjectionContracts
     /// <summary>
     /// Damage projections use <see cref="PowerEvidence.View.RemainingEnemyHp"/>: the summed current
     /// HP of living primary enemies. Exercise a small single enemy, two enemies, enemy block, and a
-    /// reviving enemy whose current HP is zero.
+    /// reviving enemy whose current HP is zero. All-enemy uplifts that last only while the extra
+    /// targets live (<paramref name="killOrderLife"/>) shrink with those enemies' HP, so on the
+    /// multi-enemy fixtures they must stay positive and never exceed the cap.
     /// </summary>
     private static void AssertDamageCap(SearchCase item, Scorer scorer, string card,
         in Battle parent, in Battle child, in ScoreFeatures parentFeatures,
-        in ScoreFeatures childFeatures, int rawActual)
+        in ScoreFeatures childFeatures, int rawActual, bool killOrderLife = false)
     {
+        void AssertCapped(int actual, int cap, string message)
+        {
+            bool ok = killOrderLife
+                ? actual > 0 && actual <= Math.Min(cap, rawActual)
+                : actual == Math.Min(cap, rawActual);
+            Assert(ok, card + " " + message);
+        }
+
         Battle capped = child;
         capped.EnemyCount = 1;
         capped.RosterCount = 1;
@@ -132,8 +142,8 @@ internal static class SilentPowerProjectionContracts
         capped.Enemies[1].Creature.MaxHp = 4;
         capped.Enemies[1].Creature.Block = 0;
         Assert(cappedView.RemainingEnemyHp() == 7, card + " summed-enemy cap");
-        Assert(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures)
-            == Math.Min(7, rawActual), card + " summed living cap");
+        AssertCapped(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures),
+            7, "summed living cap");
 
         capped.Enemies[0].Creature.Block = 50;
         Assert(cappedView.RemainingEnemyHp() == 7, card + " cap ignores enemy block");
@@ -145,8 +155,8 @@ internal static class SilentPowerProjectionContracts
         Kernel.SetPowerAmount(
             ref capped, Kernel.EnemyOwner(1), PowerEvidenceIds.Weak, 1);
         Assert(cappedView.RemainingEnemyHp() == 4, card + " cap ignores reviving current HP");
-        Assert(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures)
-            == Math.Min(4, rawActual), card + " reviving-enemy cap");
+        AssertCapped(Project(item, scorer, card, parent, capped, parentFeatures, childFeatures),
+            4, "reviving-enemy cap");
     }
 
     internal static void Run()
@@ -177,8 +187,8 @@ internal static class SilentPowerProjectionContracts
             ScoreFeatures pf = Features(scorer, parent, 10) with { EnemyHp = 600 };
             ScoreFeatures cf = Features(scorer, child, 10) with { EnemyHp = 600 };
             PowerEvidence.View view = new(child, cf, item.Rules, scorer);
-            int footworkExpected = Math.Min(
-                view.RemainingTurns(), Math.Max(10, view.RemainingTurns() / 2));
+            // One block a turn against 10 incoming is fully credited every turn (per-turn bound).
+            int footworkExpected = view.RemainingTurns();
             Assert(Project(item, scorer, "FOOTWORK", parent, child, pf, cf) == footworkExpected,
                 "Footwork repeats the current-hand Dexterity frontier");
             Assert(Project(item, scorer, "ABRASIVE", parent, child, pf, cf) == footworkExpected,
@@ -203,7 +213,9 @@ internal static class SilentPowerProjectionContracts
         }
 
         // Fan of Knives: the AoE frontier credits the one-target-to-two-target Shiv uplift, plus
-        // any Shivs this copy generates (none here). The trigger floor remains two enemies.
+        // any Shivs this copy generates (none here). The uplift lasts while the extra target lives:
+        // the enemy-turns beyond the last enemys R, i.e. the first-killed enemys kill-order life,
+        // which is shorter than R. The trigger floor remains two enemies.
         {
             Battle parent = State(item, "SHIV");
             Battle child = parent;
@@ -213,15 +225,19 @@ internal static class SilentPowerProjectionContracts
             ScoreFeatures cf = Features(scorer, child, 10);
             PowerEvidence.View view = new(child, cf, item.Rules, scorer);
             int expected = Project(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf);
-            Assert(expected == 4 * view.RemainingTurns()
+            int extraTargetTurns = view.EnemyTurns(0) - view.RemainingTurns();
+            Assert(extraTargetTurns > 0 && extraTargetTurns < view.RemainingTurns(),
+                "the first-killed enemy lives fewer turns than the whole fight");
+            Assert(expected == 4 * extraTargetTurns
                 && PowerEvidence.TriggerProjectionFloor(Card("FAN_OF_KNIVES"), view) == 2,
-                "Fan of Knives repeats the AoE frontier plus trigger floor");
-            AssertDamageCap(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf, expected);
+                "Fan of Knives repeats the AoE frontier while the extra target lives, plus trigger floor");
+            AssertDamageCap(item, scorer, "FAN_OF_KNIVES", parent, child, pf, cf, expected,
+                killOrderLife: true);
         }
 
         // Infinite Blades: one generated Shiv per future turn, base Shiv damage, current target
-        // count. EnemyHp 600 and retained attack value 100 give RemainingTurns = 2, so one future
-        // turn of a 4-damage Shiv.
+        // count. With no live cards the remaining-turn estimate deals its minimum 1 damage a turn,
+        // so EnemyHp 2 gives RemainingTurns = 2: one future turn of a 4-damage Shiv.
         {
             Battle parent = State(item);
             Battle child = parent;
@@ -229,8 +245,7 @@ internal static class SilentPowerProjectionContracts
             ScoreFeatures features = scorer.Features(child, 0) with
             {
                 ProjectedPlayerHp = child.Player.CurrentHp,
-                EnemyHp = 600,
-                RetainedAttackValue = 100,
+                EnemyHp = 2,
                 LiveDeckSize = 1,
             };
             int expected = Project(item, scorer, "INFINITE_BLADES",

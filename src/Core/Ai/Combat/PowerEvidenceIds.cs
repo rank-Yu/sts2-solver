@@ -39,6 +39,8 @@ internal static class PowerEvidenceIds
     internal static ushort Genesis => GenesisBinding.Required;
     private static readonly Binding PlatingBinding = Bind("PLATING_POWER");
     internal static ushort Plating => PlatingBinding.Required;
+    private static readonly Binding ReaperFormBinding = Bind("REAPER_FORM_POWER");
+    internal static ushort ReaperForm => ReaperFormBinding.Required;
     private static readonly Binding CountdownBinding = Bind("COUNTDOWN_POWER");
     internal static ushort Countdown => CountdownBinding.Required;
     private static readonly Binding CalcifyBinding = Bind("CALCIFY_POWER");

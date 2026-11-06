@@ -205,10 +205,10 @@ internal static class IroncladPowerOpeningContracts
         return card.Id switch
         {
             "AGGRESSION" => PerTurnResource(Math.Max(1, view.MaxDamage()), turns),
-            "BARRICADE" => BoundedPrevention(Mul(Math.Max(1, view.MaxBlock()), turns), incoming),
+            "BARRICADE" => Mul(BoundedPrevention(Math.Max(1, view.MaxBlock()), incoming), turns),
             "CORRUPTION" => Mul(Math.Max(0, view.CountType(CardType.Skill)),
                 Math.Max(1, view.EnergyUnit())),
-            "CRIMSON_MANTLE" => BoundedPrevention(Mul(gain, turns), incoming),
+            "CRIMSON_MANTLE" => Mul(BoundedPrevention(gain, incoming), turns),
             "CRUELTY" => CappedDamage(enemyHpCap, gain, view.TotalAttackDamage() / 100),
             "DARK_EMBRACE" => Mul(Mul(gain, Math.Max(1, view.CountType(CardType.Attack))),
                 view.CountExhaustSources()),
@@ -226,7 +226,7 @@ internal static class IroncladPowerOpeningContracts
                 view.CountVar("SelfDamage") + view.CountVar("HpLoss") + view.CountVar("LoseHp"))),
                 view.RemainingTurns()),
             "STAMPEDE" => CappedPerTurn(enemyHpCap, Math.Max(1, view.MaxDamage()), turns, 1),
-            "STONE_ARMOR" => BoundedPrevention(Mul(gain, turns), incoming),
+            "STONE_ARMOR" => Mul(BoundedPrevention(gain, incoming), turns),
             "UNMOVABLE" => BoundedPrevention(Math.Max(1, view.MaxBlock()), incoming),
             "VICIOUS" => Mul(Mul(gain, Math.Max(1, view.EnergyUnit())), view.CountVar("Vulnerable")),
             _ => throw new InvalidDataException("ironclad-power-opening: no formula for " + card.Id),

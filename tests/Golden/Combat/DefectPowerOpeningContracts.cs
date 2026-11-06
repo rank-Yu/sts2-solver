@@ -335,8 +335,8 @@ internal static class DefectPowerOpeningContracts
                 Math.Max(0, setup.Child.OrbCapacity - setup.Parent.OrbCapacity), turns),
             "CONSUMING_SHADOW" => DarkEvokeExpected(
                 view, gain, orbs, view.RemainingTurns(), enemies),
-            "COOLANT" => BoundedPrevention(
-                Mul(Mul(gain, view.DistinctOrbTypes()), turns), incoming),
+            "COOLANT" => Mul(BoundedPrevention(
+                Mul(gain, view.ReachableOrbTypes()), incoming), turns),
             "CREATIVE_AI" or "MACHINE_LEARNING" =>
                 Mul(Mul(gain, view.EnergyUnit()), turns),
             "FERAL" => FeralExpected(view, setup.Parent, gain),
@@ -410,8 +410,8 @@ internal static class DefectPowerOpeningContracts
             Kernel.OrbPassiveValue(view.Battle, view.Rules, 0)));
         return orbId switch
         {
-            "FROST_ORB" => BoundedPrevention(Mul(gain, Mul(passive, turns)),
-                view.IncomingDamage()),
+            "FROST_ORB" => Mul(BoundedPrevention(Mul(gain, passive),
+                view.IncomingDamage()), turns),
             "PLASMA_ORB" => Mul(gain, Mul(passive, turns)),
             "GLASS_ORB" => Math.Min(view.RemainingEnemyHp(),
                 Mul(Mul(gain, passive), Mul(turns, enemies))),

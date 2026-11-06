@@ -242,16 +242,25 @@ internal static class PowerEvidence
             return (int)Math.Clamp((long)after - before, 0, int.MaxValue);
         }
 
-        public int RemainingTurns()
+        public int RemainingTurns() => RemainingTurns(out _, out _);
+
+        /// <summary>
+        /// Remaining-turn estimate plus its damage model: the next turn's damage and its linear
+        /// growth per later turn. Per-enemy estimates (the poison kill order in <c>Scorer</c>) reuse
+        /// both through <see cref="TurnsToDeal"/>, so every caller shares one model.
+        /// </summary>
+        public int RemainingTurns(out long damagePerTurn, out long damageGrowth)
         {
             int drawPerTurn = Math.Max(1, _scorer.ModifiedHandDrawForEvidence(_battle));
             int liveDeckSize = Math.Max(1, _features.LiveDeckSize);
             int aliveEnemies = Math.Max(1, _features.AliveEnemyCount);
 
-            // Start from the same per-deck attack value the old estimate used. The extra terms
-            // below deliberately lower the answer: fights are allowed to end earlier than the
-            // attack-only average predicts.
-            long cycleDamage = Math.Max(0, _features.RetainedAttackValue);
+            // Damage per deck cycle from the live cards' actual attack damage (per-hit damage plus
+            // current Strength, times hits and targets), not the card-value heuristic, plus the
+            // other damage sources below. Energy is not limited: the estimate errs short.
+            long strength = Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.Strength));
+            long attackCycleDamage = 0;
             long ongoingPerTurn = 0;
             long oneTimeDamage = 0;
 
@@ -266,6 +275,7 @@ internal static class PowerEvidence
                     _battle, Limits.OstyOwner, PowerEvidenceIds.Accelerant));
             }
             poisonTriggers = Math.Clamp(poisonTriggers, 0L, int.MaxValue);
+            int poisonedEnemies = 0;
             for (int index = 0; index < _battle.EnemyCount; index++)
             {
                 ref readonly Enemy enemy = ref _battle.Enemies[index];
@@ -275,29 +285,53 @@ internal static class PowerEvidence
                 int poison = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Poison));
                 if (poison > 0)
                 {
+                    poisonedEnemies++;
                     ongoingPerTurn += PoisonStackProjection.DelayedStackDamage(
                         poison, (int)poisonTriggers, 1, currentHp);
                 }
-                int demise = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Demise));
-                int doom = Math.Max(0, EnemyPowerAmount(index, PowerEvidenceIds.Doom));
-                int cappedDoom = Math.Min(currentHp, doom);
-                int doomProgress = currentHp <= 0
-                    ? 0
-                    : (int)Math.Min(currentHp, (long)cappedDoom * cappedDoom / currentHp);
-                oneTimeDamage += Math.Min(currentHp, (long)demise + doomProgress);
+                oneTimeDamage += OneTimeDamage(_battle, index, currentHp);
             }
 
-            // Poison powers already in play. Noxious Fumes adds poison every turn; Corrosive Wave
-            // adds it per drawn card; Envenom adds it per attack hit. All are counted at their next
-            // trigger, i.e. as a lower bound on their future damage.
+            // Poison and Doom powers already in play. Noxious Fumes adds poison to every enemy at
+            // each player turn start; Envenom adds it per attack hit; Countdown adds Doom to a random
+            // enemy at each player turn start. Corrosive Wave removes itself at the end of the
+            // player's turn (CorrosiveWavePower.AfterSideTurnEnd), so it adds nothing to later turns.
+            long noxious = Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.NoxiousFumes));
+            ongoingPerTurn += noxious * aliveEnemies;
             ongoingPerTurn += Math.Max(0, Kernel.GetAmount(
-                _battle, Limits.PlayerOwner, PowerEvidenceIds.NoxiousFumes)) * (long)aliveEnemies;
-            ongoingPerTurn += Math.Max(0, Kernel.GetAmount(
-                _battle, Limits.PlayerOwner, PowerEvidenceIds.CorrosiveWave))
-                * (long)drawPerTurn * aliveEnemies;
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.Countdown));
+            // Channeled orbs: Lightning hits one enemy and Glass every enemy each turn; Dark's
+            // passive adds the same amount to its eventual evoke.
+            for (int index = 0; index < _battle.OrbCount; index++)
+            {
+                string orbId = Registry.Orb(_battle.Orbs[index].Id).NativeId;
+                if (orbId is not ("LIGHTNING_ORB" or "DARK_ORB" or "GLASS_ORB"))
+                    continue;
+                long passive = (long)Math.Max(0m, Math.Ceiling(
+                    Kernel.OrbPassiveValue(_battle, _rules, index)));
+                ongoingPerTurn += orbId == "GLASS_ORB" ? passive * aliveEnemies : passive;
+            }
             long envenom = Math.Max(0, Kernel.GetAmount(
                 _battle, Limits.PlayerOwner, PowerEvidenceIds.Envenom));
+            // Reaper Form applies Doom equal to the unblocked attack damage times its amount.
+            long reaper = Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.ReaperForm));
 
+            long otherCycleDamage = 0;
+            // A channeled damaging orb is worth about its evoke plus one passive (Focus applies to
+            // both); Glass hits every enemy.
+            long focus = Math.Max(0, Kernel.GetAmount(
+                _battle, Limits.PlayerOwner, PowerEvidenceIds.Focus));
+            long lightningChannelValue = 8 + 3 + 2 * focus;
+            long darkChannelValue = 6 + 6 + 2 * focus;
+            long glassChannelValue = 8L * aliveEnemies;
+            long vulnerablePerCycle = 0;
+            long strengthPowerPerCycle = 0;
+            long extraDrawPerCycle = 0;
+            long poisonPerCycle = 0;
+            long doomPerCycle = 0;
+            bool allEnemyPoison = noxious > 0;
             long attackHitsPerCycle = 0;
             long envenomPerCycle = 0;
             int liveCount = HandCount + _battle.DrawCount + _battle.DiscardCount;
@@ -307,39 +341,206 @@ internal static class PowerEvidence
                 CardStats stats = Stats(card);
                 ref readonly CardContentFacts facts = ref CardContentFacts.Get(card.Id);
                 int targets = CardContentFacts.IsAllEnemies(card.Id, stats) ? aliveEnemies : 1;
-                if (Type(card) == CardType.Attack)
+                CardScore score = Score(card);
+                CardType type = Type(card);
+                if (type == CardType.Attack)
                 {
-                    int value = Math.Max(1,
-                        (int)Math.Round(_scorer.BranchCardValueForEvidence(_battle, card)));
-                    if (targets > 1)
-                        cycleDamage += (long)value * (targets - 1);
-                    attackHitsPerCycle += (long)Math.Max(1, AttackHits(card)) * targets;
+                    int perHit = score.Calculated != CalculatedKind.None
+                        ? Math.Max(0, (int)Math.Round(_scorer.BranchCardValueForEvidence(_battle, card)))
+                        : Damage(card);
+                    int hits = Math.Max(1, AttackHits(card));
+                    if (perHit > 0)
+                        attackCycleDamage += (perHit + strength) * hits * targets;
+                    attackHitsPerCycle += (long)hits * targets;
                 }
                 else if (facts.DamageVar >= 0)
                 {
                     int damage = Math.Max(0, Var(card, facts.DamageVar));
                     int repeat = facts.RepeatVar >= 0 ? Math.Max(1, Var(card, facts.RepeatVar)) : 1;
-                    cycleDamage += (long)damage * repeat;
+                    otherCycleDamage += (long)damage * repeat;
                 }
 
                 for (int variable = 0; variable < facts.PoisonVars.Length; variable++)
-                    cycleDamage += Math.Max(0, Var(card, facts.PoisonVars[variable]));
+                {
+                    poisonPerCycle += (long)Math.Max(0, Var(card, facts.PoisonVars[variable])) * targets;
+                    allEnemyPoison |= targets > 1;
+                }
+                for (int variable = 0; variable < facts.DoomVars.Length; variable++)
+                    doomPerCycle += (long)Math.Max(0, Var(card, facts.DoomVars[variable])) * targets;
+                if (stats.Target is TargetType.AnyEnemy or TargetType.AllEnemies or TargetType.RandomEnemy)
+                {
+                    for (int variable = 0; variable < facts.VulnerableVars.Length; variable++)
+                        vulnerablePerCycle += Math.Max(0, Var(card, facts.VulnerableVars[variable]));
+                }
+                if (type == CardType.Power)
+                {
+                    for (int variable = 0; variable < facts.StrengthPowerVars.Length; variable++)
+                        strengthPowerPerCycle += Math.Max(0, Var(card, facts.StrengthPowerVars[variable]));
+                }
+                if (score.CardsVar >= 0)
+                    extraDrawPerCycle += Math.Max(0, Var(card, score.CardsVar));
+                for (int variable = 0; variable < facts.OstyDamageVars.Length; variable++)
+                    otherCycleDamage += Math.Max(0, Var(card, facts.OstyDamageVars[variable]));
+                otherCycleDamage += facts.LightningChannels * lightningChannelValue
+                    + facts.DarkChannels * darkChannelValue
+                    + facts.GlassChannels * glassChannelValue;
                 for (int variable = 0; variable < facts.EnvenomVars.Length; variable++)
                     envenomPerCycle += Math.Max(0, Var(card, facts.EnvenomVars[variable]));
             }
-            cycleDamage += envenomPerCycle * attackHitsPerCycle;
-            long attackHitsPerTurn = (attackHitsPerCycle * drawPerTurn + liveDeckSize - 1)
-                / liveDeckSize;
+            // Cards seen per turn: the hand draw plus what the drawn draw cards add (one level).
+            // Energy is not limited: measured against the quality fights' actual lengths this keeps
+            // the estimate short more often than an energy cap (which also drops energy gain,
+            // 0-cost and generated cards the estimate does not model).
+            int cardsPerTurn = (int)Math.Clamp(
+                drawPerTurn + PerTurn(extraDrawPerCycle, drawPerTurn, liveDeckSize),
+                drawPerTurn, Math.Max(drawPerTurn, liveDeckSize));
+            // Vulnerable (+50% attack damage) for the share of turns the deck keeps it applied.
+            long vulnerableTurnsPerTurn = PerTurn(vulnerablePerCycle, cardsPerTurn, liveDeckSize);
+            long vulnerablePercent = 100 + 50 * Math.Min(1L, vulnerableTurnsPerTurn);
+            attackCycleDamage = attackCycleDamage * vulnerablePercent / 100;
+            long cardPoisonPerCycle = poisonPerCycle + envenomPerCycle * attackHitsPerCycle;
+            long cycleDamage = attackCycleDamage * (1 + reaper) + otherCycleDamage
+                + cardPoisonPerCycle + doomPerCycle;
+            drawPerTurn = cardsPerTurn;
+            long attackHitsPerTurn = PerTurn(attackHitsPerCycle, drawPerTurn, liveDeckSize);
             ongoingPerTurn += envenom * attackHitsPerTurn;
 
-            long deckDamagePerTurn = (cycleDamage * drawPerTurn + liveDeckSize - 1)
-                / liveDeckSize;
-            long damagePerTurn = Math.Max(1, deckDamagePerTurn) + ongoingPerTurn;
+            long deckDamagePerTurn = PerTurn(cycleDamage, drawPerTurn, liveDeckSize);
+            damagePerTurn = Math.Max(1, deckDamagePerTurn) + ongoingPerTurn;
+
+            // Linear growth. Poison stacks applied each turn keep triggering on later turns while
+            // every poisoned enemy loses one stack per trigger, so the per-turn poison damage rises
+            // by (applied - decay) * triggers. Doom does not grow: it never triggers again, each
+            // turn's new Doom lowers the kill line once, like direct damage. Demon Form's Strength
+            // raises every later attack hit (and Reaper Form's Doom from it).
+            long poisonAppliedPerTurn = PerTurn(cardPoisonPerCycle, drawPerTurn, liveDeckSize)
+                + noxious * aliveEnemies + envenom * attackHitsPerTurn;
+            long decayingEnemies = allEnemyPoison ? aliveEnemies : Math.Max(1, poisonedEnemies);
+            long poisonGrowth = poisonAppliedPerTurn <= 0
+                ? 0
+                : Math.Max(0, poisonAppliedPerTurn - decayingEnemies * poisonTriggers) * poisonTriggers;
+            // Strength per turn: Demon Form in play, plus power cards (Inflame and the like) played
+            // as they are drawn.
+            long strengthPerTurn = Math.Max(0, Kernel.GetAmount(
+                    _battle, Limits.PlayerOwner, PowerEvidenceIds.DemonForm))
+                + PerTurn(strengthPowerPerCycle, drawPerTurn, liveDeckSize);
+            damageGrowth = poisonGrowth + strengthPerTurn * attackHitsPerTurn * (1 + reaper);
+
             long enemyHp = Math.Max(0, (long)_features.EnemyHp - oneTimeDamage);
-            return (int)Math.Clamp(
-                (enemyHp + damagePerTurn - 1) / damagePerTurn,
-                1,
+            return TurnsToDeal(enemyHp, damagePerTurn, damageGrowth,
                 ScoreWeights.SetupValueHorizonTurns);
+        }
+
+        /// <summary>
+        /// Turns each enemy lives under the shared damage model (<see cref="RemainingTurns(out long, out long)"/>)
+        /// when enemies die in ascending effective-HP order, ties by slot: the turns needed to deal
+        /// the HP of the enemies killed before it plus its own (effective HP minus Demise and Doom),
+        /// at most R, so the last enemy lives R turns and a single enemy is unchanged. A living
+        /// enemy without effective HP keeps R; enemies outside the combat or dead without a pending
+        /// revive get 0. <paramref name="life"/> is indexed by enemy slot and fully written.
+        /// Returns R.
+        /// </summary>
+        public int FillEnemyLifeTurns(Span<int> life)
+        {
+            int remaining = RemainingTurns(out long perTurn, out long growth);
+            int count = Math.Min(life.Length, (int)_battle.EnemyCount);
+            life.Clear();
+            Span<int> hp = stackalloc int[count];
+            for (int index = 0; index < count; index++)
+            {
+                ref readonly Enemy enemy = ref _battle.Enemies[index];
+                int effective = (enemy.Flags & EnemyFlags.InCombat) == 0
+                    ? 0
+                    : _scorer.EffectiveEnemyHpForEvidence(_battle, index);
+                if (effective <= 0)
+                {
+                    hp[index] = -1;
+                    life[index] = (enemy.Flags & EnemyFlags.InCombat) != 0 && enemy.Creature.IsAlive
+                        ? remaining
+                        : 0;
+                    continue;
+                }
+                if (enemy.Creature.IsAlive)
+                    effective -= OneTimeDamage(_battle, index, Math.Max(0, enemy.Creature.CurrentHp));
+                hp[index] = Math.Max(0, effective);
+            }
+            // The last enemy in the kill order lives exactly R turns (the whole-fight estimate), so
+            // a single enemy is unchanged.
+            int last = -1;
+            for (int index = 0; index < count; index++)
+            {
+                if (hp[index] >= 0 && (last < 0 || hp[index] >= hp[last]))
+                    last = index;
+            }
+            for (int index = 0; index < count; index++)
+            {
+                int own = hp[index];
+                if (own < 0)
+                    continue;
+                if (index == last)
+                {
+                    life[index] = remaining;
+                    continue;
+                }
+                long cumulative = 0;
+                for (int other = 0; other < count; other++)
+                {
+                    int value = hp[other];
+                    if (value >= 0 && (value < own || (value == own && other <= index)))
+                        cumulative += value;
+                }
+                life[index] = TurnsToDeal(cumulative, perTurn, growth, remaining);
+            }
+            return remaining;
+        }
+
+        /// <summary>
+        /// Enemy-turns left: the sum over enemies of their kill-order life minus
+        /// <paramref name="offset"/> turns (1 excludes the current turn). Recurring all-enemy
+        /// effects reach each enemy only while it lives, so they scale with this sum instead of
+        /// living enemies times R; a single enemy gives R - offset.
+        /// </summary>
+        public int EnemyTurns(int offset)
+        {
+            Span<int> life = stackalloc int[_battle.EnemyCount];
+            FillEnemyLifeTurns(life);
+            long total = 0;
+            for (int index = 0; index < life.Length; index++)
+                total += Math.Max(0, life[index] - offset);
+            return (int)Math.Min(int.MaxValue, total);
+        }
+
+        private static long PerTurn(long perCycle, int drawPerTurn, int liveDeckSize)
+            => (perCycle * drawPerTurn + liveDeckSize - 1) / liveDeckSize;
+
+        /// <summary>
+        /// One-time damage an enemy is already committed to: Demise, and Doom up to its current HP
+        /// (the enemy dies when its HP is at most its Doom at its turn end, DoomPower.BeforeSideTurnEnd).
+        /// </summary>
+        public static int OneTimeDamage(in Battle battle, int index, int currentHp)
+        {
+            byte owner = Kernel.EnemyOwner((byte)index);
+            int demise = Math.Max(0, Kernel.GetAmount(battle, owner, PowerEvidenceIds.Demise));
+            int doom = Math.Max(0, Kernel.GetAmount(battle, owner, PowerEvidenceIds.Doom));
+            return (int)Math.Min(Math.Max(0, currentHp), (long)demise + doom);
+        }
+
+        /// <summary>
+        /// Fewest turns, at least one and at most <paramref name="maxTurns"/>, whose cumulative
+        /// damage reaches <paramref name="hp"/> when turn k deals
+        /// <paramref name="firstTurn"/> + <paramref name="growth"/> * (k - 1).
+        /// </summary>
+        public static int TurnsToDeal(long hp, long firstTurn, long growth, int maxTurns)
+        {
+            long perTurn = Math.Max(1, firstTurn);
+            long dealt = 0;
+            for (int turn = 1; turn < maxTurns; turn++)
+            {
+                dealt += perTurn + Math.Max(0, growth) * (turn - 1);
+                if (dealt >= hp)
+                    return turn;
+            }
+            return Math.Max(1, maxTurns);
         }
 
         public int EnergyUnit()
@@ -686,6 +887,37 @@ internal static class PowerEvidence
             return count;
         }
 
+        /// <summary>
+        /// Distinct orb types the player will hold: the current orbs' types plus the types the live
+        /// cards channel (Chaos's random orb counts as one more type), at most the orb slots.
+        /// </summary>
+        public int ReachableOrbTypes()
+        {
+            int mask = 0;
+            int otherTypes = 0;
+            ulong otherMask = 0;
+            for (int index = 0; index < _battle.OrbCount; index++)
+            {
+                int bit = CardContentFacts.OrbTypeBit(Registry.Orb(_battle.Orbs[index].Id).NativeId);
+                if (bit != 0)
+                {
+                    mask |= bit;
+                }
+                else if (_battle.Orbs[index].Id < 64 && (otherMask & (1UL << _battle.Orbs[index].Id)) == 0)
+                {
+                    otherMask |= 1UL << _battle.Orbs[index].Id;
+                    otherTypes++;
+                }
+            }
+            for (int index = 0; index < LiveCount; index++)
+                mask |= CardContentFacts.Get(LiveCard(index).Id).ChanneledOrbTypes;
+            int types = System.Numerics.BitOperations.PopCount((uint)(mask & CardContentFacts.KnownOrbTypes))
+                + otherTypes;
+            if ((mask & CardContentFacts.RandomOrbType) != 0 && types < CardContentFacts.KnownOrbTypeCount)
+                types++;
+            return Math.Min(types, (int)_battle.OrbCapacity);
+        }
+
         public int DistinctOrbTypes()
         {
             ulong mask = 0;
@@ -977,7 +1209,7 @@ internal static class PowerEvidence
             "BULK_UP" => hasAttack && hasBlockSkill,
             "CAPACITOR" => view.Battle.OrbCount > 0 || DefectHasOrbChannelSource(view),
             "CONSUMING_SHADOW" => view.Battle.OrbCount > 0,
-            "COOLANT" => view.DistinctOrbTypes() > 0,
+            "COOLANT" => view.ReachableOrbTypes() > 0,
             "CREATIVE_AI" => remainingTurns > 1,
             "DEFRAGMENT" => view.Battle.OrbCount > 0 || DefectHasOrbChannelSource(view),
             "ECHO_FORM" => remainingTurns > 1 && (hasAttack || hasBlockSkill),
@@ -1121,7 +1353,7 @@ internal static class PowerEvidence
                 remainingTurns: TriangularTurns(view.RemainingTurns())),
             "FEEL_NO_PAIN" => PerTriggerBlock(gain, view.CountExhaustSources(), incoming),
             "HELLRAISER" => PerTurnDamage(view, Math.Max(1, view.MaxDamage()), turns, 1),
-            "INFERNO" => PerTurnDamage(view, gain, turns, enemies),
+            "INFERNO" => PerTurnDamage(view, gain, view.EnemyTurns(1), 1),
             "INFLAME" => GrowthFrontier(view, damagePerAttack: gain,
                 remainingTurns: view.RemainingTurns()),
             "JUGGERNAUT" => PerTriggerDamage(view, gain, Math.Max(1, view.CountVar("Block"))),
@@ -1374,7 +1606,9 @@ internal static class PowerEvidence
         int poisonPerTurn = view.PowerAmountGain(parent, PowerEvidenceIds.NoxiousFumes);
         if (poisonPerTurn == 0)
             return 0;
-        int futureTurns = Math.Max(0, view.RemainingTurns() - 1);
+        // Each enemy receives the recurring poison only while it lives (kill-order life).
+        Span<int> life = stackalloc int[view.Battle.EnemyCount];
+        view.FillEnemyLifeTurns(life);
         long total = 0;
         for (int position = 0; position < view.Battle.RosterCount; position++)
         {
@@ -1384,7 +1618,7 @@ internal static class PowerEvidence
                 continue;
             total += PoisonStackProjection.RecurringApplicationDamage(
                 poisonPerTurn,
-                futureTurns,
+                Math.Max(0, life[index] - 1),
                 Math.Max(0, enemy.Creature.CurrentHp));
         }
         return (int)Math.Min(int.MaxValue, total);
@@ -1405,7 +1639,7 @@ internal static class PowerEvidence
             view,
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, baselineOptions),
             PowerTurnFrontier.Build(view.Battle.Energy, incoming, poweredOptions),
-            view.RemainingTurns());
+            ExtraTargetTurns(view, targets));
 
         int generatedShivs = Math.Max(0, CountHandShivs(view) - CountHandShivs(view, parent));
         int generatedDamage = 0;
@@ -1703,10 +1937,11 @@ internal static class PowerEvidence
         long burstDraws = 0;
         for (int index = 0; index < view.HandCount; index++)
             burstDraws += Math.Max(0, view.DrawCount(view.HandCard(index)));
-        long futureDraws = (long)view.ModifiedHandDraw() * view.RemainingTurns();
-        long triggers = Math.Min(int.MaxValue, burstDraws + futureDraws);
-        return PerTriggerDamage(view,
-            SaturatingMul(damagePerDraw, enemies), (int)triggers);
+        // This turn's draws hit every living enemy; each later hand draw hits the enemies still
+        // alive, i.e. one trigger per enemy-turn.
+        long futureEnemyDraws = (long)view.ModifiedHandDraw() * view.EnemyTurns(0);
+        long triggers = Math.Min(int.MaxValue, burstDraws * enemies + futureEnemyDraws);
+        return PerTriggerDamage(view, damagePerDraw, (int)triggers);
     }
 
     /// <summary>
@@ -1999,10 +2234,9 @@ internal static class PowerEvidence
         if (playsPerTurn < 5)
             return 0;
         int triggersPerTurn = playsPerTurn / 5;
-        int enemies = Math.Max(1, view.Features.AliveEnemyCount);
-        return PerTriggerDamage(view,
-            SaturatingMul(gain, enemies),
-            SaturatingMul(triggersPerTurn, view.RemainingTurns()));
+        // Each trigger hits the enemies alive at the time: triggers per turn times enemy-turns.
+        return PerTriggerDamage(view, gain,
+            SaturatingMul(triggersPerTurn, view.EnemyTurns(0)));
     }
 
     /// <summary>
@@ -2014,10 +2248,16 @@ internal static class PowerEvidence
         int gain = view.PowerAmountGain(parent, PowerEvidenceIds.RollingBoulder);
         if (gain == 0)
             return 0;
-        int turns = view.RemainingTurns();
-        long growth = 5L * turns * (turns - 1) / 2;
-        long perEnemy = (long)gain * turns + growth;
-        long raw = perEnemy * Math.Max(1, view.Features.AliveEnemyCount);
+        // Turn k deals gain + 5(k-1) to every living enemy; each enemy takes it for its own life.
+        Span<int> life = stackalloc int[view.Battle.EnemyCount];
+        view.FillEnemyLifeTurns(life);
+        long raw = 0;
+        for (int index = 0; index < life.Length; index++)
+        {
+            long turns = life[index];
+            if (turns > 0)
+                raw += (long)gain * turns + 5L * turns * (turns - 1) / 2;
+        }
         return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
     }
 
@@ -2056,9 +2296,24 @@ internal static class PowerEvidence
             Math.Max(0, view.IncomingDamage()));
         if (ostyHp == 0 || incoming == 0)
             return 0;
-        long totalOstyLoss = Math.Min((long)ostyHp,
-            (long)incoming * view.RemainingTurns());
-        long raw = totalOstyLoss * gain * Math.Max(1, view.Features.AliveEnemyCount);
+        // Osty loses the incoming damage each turn until its HP runs out; each lost HP hits the
+        // enemies alive that turn (kill-order life).
+        Span<int> life = stackalloc int[view.Battle.EnemyCount];
+        int remaining = view.FillEnemyLifeTurns(life);
+        long ostyLeft = ostyHp;
+        long raw = 0;
+        for (int turn = 1; turn <= remaining && ostyLeft > 0; turn++)
+        {
+            long loss = Math.Min(ostyLeft, (long)incoming);
+            ostyLeft -= loss;
+            int alive = 0;
+            for (int index = 0; index < life.Length; index++)
+            {
+                if (life[index] >= turn)
+                    alive++;
+            }
+            raw += loss * gain * alive;
+        }
         return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, raw));
     }
 
@@ -2241,14 +2496,18 @@ internal static class PowerEvidence
         return Math.Min(view.RemainingEnemyHp(), (int)Math.Min(int.MaxValue, damage));
     }
 
-    /// <summary>Coolant grants block per distinct orb type each turn, bounded by incoming damage.</summary>
+    /// <summary>
+    /// Coolant grants block per distinct orb type each turn, bounded by incoming damage. The types
+    /// are the ones the player will hold (current plus channeled by the live cards, at most the orb
+    /// slots), not only the opening slots.
+    /// </summary>
     private static int DefectCoolantPotential(scoped in View view, in Battle parent,
         int turns, int incoming)
     {
         int gain = view.PowerAmountGain(parent, DefectPowerIds.Coolant);
         if (gain == 0)
             return 0;
-        return PerTurnBlock(SaturatingMul(gain, view.DistinctOrbTypes()), turns, incoming);
+        return PerTurnBlock(SaturatingMul(gain, view.ReachableOrbTypes()), turns, incoming);
     }
 
     /// <summary>Card generation or extra card plays valued at the live deck's average card value.</summary>
@@ -2336,8 +2595,8 @@ internal static class PowerEvidence
             "FROST_ORB" => PerTurnBlock(
                 SaturatingMul(gain, passive), turns, view.IncomingDamage()),
             "PLASMA_ORB" => PerTurnResource(SaturatingMul(gain, passive), turns),
-            "GLASS_ORB" => PerTurnDamage(view, gain, SaturatingMul(passive, turns),
-                Math.Max(1, view.Features.AliveEnemyCount)),
+            "GLASS_ORB" => PerTurnDamage(view, gain,
+                SaturatingMul(passive, view.EnemyTurns(0)), 1),
             "LIGHTNING_ORB" or "DARK_ORB" =>
                 PerTurnDamage(view, gain, SaturatingMul(passive, turns), 1),
             _ => throw new UnsupportedException($"Loop 投影不认识的球 {orbId}。"),
@@ -2627,12 +2886,41 @@ internal static class PowerEvidence
         return options.ToArray();
     }
 
+    /// <summary>
+    /// Turns an all-enemy uplift over a single target lasts, per extra target: the enemy-turns
+    /// beyond the one target that is always alive, divided by the extra targets now. Equals R when
+    /// every enemy lives the whole fight.
+    /// </summary>
+    private static int ExtraTargetTurns(scoped in View view, int targets)
+    {
+        Span<int> life = stackalloc int[view.Battle.EnemyCount];
+        int remaining = view.FillEnemyLifeTurns(life);
+        int living = 0;
+        long enemyTurns = 0;
+        for (int index = 0; index < life.Length; index++)
+        {
+            if (life[index] <= 0)
+                continue;
+            living++;
+            enemyTurns += life[index];
+        }
+        int extraTargets = Math.Min(targets, living) - 1;
+        if (extraTargets <= 0)
+            return remaining;
+        return (int)Math.Max(0, (enemyTurns - remaining) / extraTargets);
+    }
+
     private static int PerTurnDamage(scoped in View view, int damagePerTurn, int turns, int targets)
         => Math.Min(view.RemainingEnemyHp(),
             SaturatingMul(damagePerTurn, Math.Max(0, turns), Math.Max(1, targets)));
 
+    /// <summary>
+    /// Block gained every turn, bounded per turn: each turn's block counts up to that turn's incoming
+    /// damage (at least half the block), then the turns are summed. Bounding the summed block once
+    /// would credit only half of a long horizon.
+    /// </summary>
     private static int PerTurnBlock(int blockPerTurn, int turns, int incoming)
-        => BoundedPrevention(SaturatingMul(blockPerTurn, Math.Max(0, turns)), incoming);
+        => SaturatingMul(BoundedPrevention(blockPerTurn, incoming), Math.Max(0, turns));
 
     private static int PerTriggerDamage(scoped in View view, int perTrigger, int triggers)
         => Math.Min(view.RemainingEnemyHp(), SaturatingMul(perTrigger, Math.Max(0, triggers)));

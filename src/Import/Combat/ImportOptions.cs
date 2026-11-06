@@ -12,6 +12,13 @@ public sealed record ImportOptions
     /// <summary><c>SimulationSnapshot.HasRisk</c>; false unless the caller carries a recorded risk.</summary>
     public bool HasRisk { get; init; }
 
+    /// <summary>
+    /// Sets <c>BattleFlags.TurnStartChoicePauses</c>: the host answers the next turns' turn-start
+    /// choices on the visible setup page (selector released, native setup pauses). False for hosts
+    /// that answer them through the deployment selector.
+    /// </summary>
+    public bool TurnStartChoicePauses { get; init; }
+
     /// <summary>The root was captured at a search boundary where the battleworn dummy timed out.</summary>
     public bool EventDefeatBoundary { get; init; }
 

@@ -55,6 +55,7 @@
 | 4 | `HasRisk` | 根快照带有原引擎未补偿的风险（见下） |
 | 5 | `OstyEverPresent` | 原生 `Player.Osty` 已非空（根捕获或搜索中首次召唤后）；只会从 0 变 1 |
 | 6 | `HistoryCourseCardPresent` | `HistoryCourseCard` 里有有效卡值 |
+| 7 | `TurnStartChoicePauses` | 宿主在可见准备页上回答之后回合的回合开始选择（已释放 selector，原生 setup 在第一个选择处暂停）；只有普通 EndTurn 读它。搜索根按宿主当前的接管模式设置，比对导入沿用预测里的值，一次搜索内不变 |
 
 `HasRisk` 对应原引擎快照的 `SimulationSnapshot.HasRisk`：根导入时读取，预测中遇到未补偿风险时置位，并保持到战斗结束。置位后现任解界限把未来回血当作无限，不再剪枝。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但补偿目录把它们标成已补偿，内核不为它们置位；SeekerStrike 的选择原引擎不补偿，但本内核逐一枚举了这个选择，没有预测不确定性，所以也不置位（只保留路线历史标记）；充能球生成达到 1000 次上限时置位并停止该次生成。
 

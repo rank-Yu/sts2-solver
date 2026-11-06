@@ -137,6 +137,8 @@ public static class BattleImporter
             battle.Flags |= BattleFlags.PlayerHooksActive;
         if (options.HasRisk)
             battle.Flags |= BattleFlags.HasRisk;
+        if (options.TurnStartChoicePauses)
+            battle.Flags |= BattleFlags.TurnStartChoicePauses;
         battle.MaxHandSize = checked((byte)CardPile.MaxCardsInHand);
 
         battle.Player = Vitals(player.Creature, history.HasLostHpThisTurn(player.Creature));

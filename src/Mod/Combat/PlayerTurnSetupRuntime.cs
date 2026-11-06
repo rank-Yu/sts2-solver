@@ -1458,6 +1458,18 @@ internal static class PlayerTurnSetupRuntime
     }
 
     /// <summary>
+    /// The host fact behind <see cref="BattleFlags.TurnStartChoicePauses"/>: in the current mode an
+    /// EndTurn deployment releases its selector before the next turn's setup
+    /// (<see cref="MayNeedNextTurnSetup"/>), so a turn-start choice pauses on the visible setup page.
+    /// The content heuristic is left out: without setup content no turn-start choice is asked and
+    /// both semantics agree.
+    /// </summary>
+    internal static bool NextTurnChoicesPause
+        => ModEntry.Enabled
+            && TakeoverEnabled
+            && CombatSessionController.NextTurnSetupTakeoverAllowed;
+
+    /// <summary>
     /// Fast gate for releasing the EndTurn <see cref="PlannedNativeSelector"/> before the next turn
     /// boundary. It mirrors the setup interception gate (same automatic modes, same content
     /// heuristic for the next turn number) so a combat without setup content keeps the selector

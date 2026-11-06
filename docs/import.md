@@ -26,6 +26,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | `options` 字段 | 谁设置 | 用途 |
 | --- | --- | --- |
 | `HasRisk` | 根捕获 | 原引擎快照里的根事实 |
+| `TurnStartChoicePauses` | `LiveCombatTracker`（Mod 的接管模式） | 置 `BattleFlags.TurnStartChoicePauses`：之后回合的回合开始选择在可见准备页上暂停；比对导入取预测里的值 |
 | 事件失败边界 | 根捕获 | `EventDefeat` 根 |
 | `TurnSetupRoot`、`RootCards` | 离线宿主 | 回合准备根，以及 Start 时刻的卡牌对象集合 |
 | `KnownEnemies`、`AllowDeadEnemies`、`RootEnemyCount` | `LiveCombatTracker` | 实时导入时固定敌人行的顺序，保留死亡墓碑 |

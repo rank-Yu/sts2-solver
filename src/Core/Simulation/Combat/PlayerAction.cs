@@ -353,9 +353,10 @@ public ref struct Exec
     /// pile-based choice must run <see cref="RunSetupPause"/> before it reads its candidate list,
     /// because the native entry signals the pause first and only then builds the candidates.
     /// <see cref="SetupPause"/> may already be null when a later choice in the same preamble reads
-    /// its candidates; this flag keeps the preamble semantics. Ordinary EndTurn deployment answers
-    /// choices through the native selector (no pause), so it leaves this false and keeps the
-    /// side-turn-start pass after the hand draw.
+    /// its candidates; this flag keeps the preamble semantics. The ordinary EndTurn path sets it from
+    /// <see cref="BattleFlags.TurnStartChoicePauses"/>: a host that answers turn-start choices through
+    /// the native selector (no pause) leaves it false and keeps the side-turn-start pass after the
+    /// hand draw.
     /// </summary>
     internal bool SetupPreamble;
 
@@ -844,9 +845,9 @@ public ref struct Exec
     /// </summary>
     internal bool RunSetupPause()
     {
-        // Only a captured setup page pauses in the native game. EndTurn deployment supplies a
-        // CardSelectCmd.Selector, so a carried turn-start choice is answered without signalling a
-        // pause; running the side start early would clear DrawCardsNextTurnPower before the draw.
+        // Only a setup page (Selector == null) pauses in the native game. An EndTurn deployed with a
+        // CardSelectCmd.Selector answers a carried turn-start choice without signalling a pause;
+        // running the side start early would clear DrawCardsNextTurnPower before the draw.
         if (!SetupPreamble)
             return false;
         SetupPauseHandler? pause = SetupPause;

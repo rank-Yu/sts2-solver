@@ -665,12 +665,15 @@ public static partial class Kernel
             return;
 
         // ContinuePlayerStart. The TurnExecutionContinuation stages from BeforeHand to Finish.
-        // The ordinary EndTurn path runs the same native rootSetup sequence as PreparePlayerPlayPhase,
-        // but production deployment answers turn-start choices through CardSelectCmd.Selector: the
-        // native SetupPlayerTurn task does not pause, so AfterSideTurnStart runs after the hand draw.
-        // SetupPreamble stays false here; only a captured setup-page preamble (Selector == null)
-        // runs the side start at the choice pause.
+        // The ordinary EndTurn path runs the same native rootSetup sequence as PreparePlayerPlayPhase.
+        // Whether a turn-start choice pauses the native SetupPlayerTurn task depends on the host:
+        // when it takes the next turn over on the visible setup page it releases
+        // CardSelectCmd.Selector, the first choice pauses, and the side start and orb turn-start
+        // pass run at that pause (the same semantics as PreparePlayerPlayPhase); otherwise the
+        // deployment selector answers the choice without a pause and AfterSideTurnStart runs after
+        // the hand draw. BattleFlags.TurnStartChoicePauses carries the host's choice.
         // [GAME CombatManager.cs:700-830, 880-925]
+        x.SetupPreamble = (x.B.Flags & BattleFlags.TurnStartChoicePauses) != 0;
         SetupPauseState setup = new();
         x.SetupPause = setup.OnPause;
         try

@@ -318,7 +318,7 @@ internal static partial class CombatSessionController
         }
         _tracker?.Detach(_state);
         _rules = RulesCompiler.Compile(_state, _player, runState);
-        _tracker = new LiveCombatTracker(_state);
+        _tracker = new LiveCombatTracker(_state, static () => PlayerTurnSetupRuntime.NextTurnChoicesPause);
 #if STS2_SOLVER_TESTING
         ClearUnrecoveredFailureForTest();
 #endif
@@ -486,7 +486,7 @@ internal static partial class CombatSessionController
             try
             {
                 _rules = RulesCompiler.Compile(state, _player, runState);
-                _tracker = new LiveCombatTracker(state);
+                _tracker = new LiveCombatTracker(state, static () => PlayerTurnSetupRuntime.NextTurnChoicesPause);
             }
             catch (UnsupportedImportException error)
             {

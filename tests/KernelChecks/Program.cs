@@ -4294,6 +4294,20 @@ static void CheckLrKernel(Rules rules)
         $"LR 普通结束回合不应在摸牌前清掉下回合抽牌，实际手牌 {foregoneDrawReplay.HandCount}");
     Check(foregoneDrawReplay.DrawCount == 6,
         $"LR 先见之明+下回合抽牌后应剩 6 张抽牌堆，实际 {foregoneDrawReplay.DrawCount}");
+
+    // A host that takes the next turn over on the visible setup page releases the selector: the
+    // same choice pauses the native setup task, and the side start at that pause removes
+    // DrawCardsNextTurnPower before the draw, as PreparePlayerPlayPhase does on a captured page.
+    Battle foregonePauseReplay = foregoneDrawParent;
+    foregonePauseReplay.Flags |= BattleFlags.TurnStartChoicePauses;
+    Check(Kernel.Step(ref foregonePauseReplay, foregoneDrawEnd.WithChoice(0b11UL), rules, out _)
+        == StepResult.Completed, "LR 准备页暂停时先见之明+下回合抽牌选择后回合应完成");
+    Check(foregonePauseReplay.HandCount == 7,
+        $"LR 准备页暂停时侧回合开始应在摸牌前清掉下回合抽牌，实际手牌 {foregonePauseReplay.HandCount}");
+    Check(foregonePauseReplay.DrawCount == 8,
+        $"LR 准备页暂停时应剩 8 张抽牌堆，实际 {foregonePauseReplay.DrawCount}");
+    Check((foregonePauseReplay.Flags & BattleFlags.TurnStartChoicePauses) != 0,
+        "LR 结束回合后应保留准备页暂停标志");
 }
 
 /// <summary>

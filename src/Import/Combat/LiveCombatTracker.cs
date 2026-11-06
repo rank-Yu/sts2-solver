@@ -55,9 +55,16 @@ internal sealed class LiveCombatTracker
     private bool _hasRisk;
     private bool _hasPredicted;
     private Battle _predicted;
+    private readonly Func<bool>? _turnStartChoicePauses;
 
-    internal LiveCombatTracker(CombatState state)
+    /// <param name="state">The live combat whose enemies and cards root the known orders.</param>
+    /// <param name="turnStartChoicePauses">
+    /// The host's current turn-setup takeover fact for <see cref="BattleFlags.TurnStartChoicePauses"/>,
+    /// read at every root import; null means the host answers turn-start choices through its selector.
+    /// </param>
+    internal LiveCombatTracker(CombatState state, Func<bool>? turnStartChoicePauses = null)
     {
+        _turnStartChoicePauses = turnStartChoicePauses;
         _known = [.. state.Enemies];
         _rootEnemies = [.. state.Enemies];
         state.CreaturesChanged += OnCreaturesChanged;
@@ -198,6 +205,7 @@ internal sealed class LiveCombatTracker
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
             HasRisk = _hasRisk,
+            TurnStartChoicePauses = _turnStartChoicePauses?.Invoke() == true,
             RootCards = _rootCards,
             Reconciliation = true,
         };
@@ -234,6 +242,7 @@ internal sealed class LiveCombatTracker
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
             HasRisk = _hasRisk,
+            TurnStartChoicePauses = _turnStartChoicePauses?.Invoke() == true,
             RootCards = _rootCards,
             Reconciliation = true,
         };
@@ -269,6 +278,8 @@ internal sealed class LiveCombatTracker
             AllowEscapedEnemies = true,
             RootEnemyCount = _rootEnemyCount,
             HasRisk = (expected.Flags & BattleFlags.HasRisk) != 0,
+            // A search-environment fact, not native state: the boundary takes the prediction's value.
+            TurnStartChoicePauses = (expected.Flags & BattleFlags.TurnStartChoicePauses) != 0,
             RootCards = _rootCards,
             RevivingEnemies = MergeReviving(RevivingEnemies(in expected),
                 RootRevivingEnemies(state)),

@@ -71,6 +71,16 @@ public enum BattleFlags : byte
     /// </summary>
     HistoryCourseCardPresent = 1 << 6,
 
+    /// <summary>
+    /// The host answers the next player turns' turn-start choices on the visible setup page: it
+    /// releases <c>CardSelectCmd.Selector</c> before the native <c>SetupPlayerTurn</c>, so the first
+    /// <see cref="ChoiceTiming.PlayerTurnStart"/> choice pauses the setup task and the side start and
+    /// orb turn-start pass run at that pause. Clear means the host answers those choices through the
+    /// selector (no pause; the side start runs after the hand draw). Only the ordinary EndTurn path
+    /// reads it. The root import sets it from the host's current turn-setup takeover mode; a
+    /// comparison import copies it from the prediction. It is constant for a search.
+    /// </summary>
+    TurnStartChoicePauses = 1 << 7,
 }
 
 /// <summary>Combat pile segments, in their storage order inside <see cref="Battle.Cards"/>.</summary>

@@ -13,7 +13,7 @@
 1. 单独安装 RitsuLib。
 2. 把发布包里的 `Sts2Solver/` 目录放进游戏的 `mods/` 目录。
 
-不要和 CombatSolver 同时安装：检测到 CombatSolver 时，本 Mod 不启用，以免两个求解器同时控制战斗。
+可以和 CombatSolver 同时安装，两个都能搜索，但每回合只让一个执行：两个同时自动出牌或替你选牌会互相干扰。和 CombatSolver 同时安装时，本 Mod 只在全自动档接管回合开始的选牌页面，其它档位把这个页面留给 CombatSolver 或玩家。
 
 ## 使用
 

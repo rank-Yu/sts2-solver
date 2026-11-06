@@ -18,14 +18,21 @@ public static class ModEntry
 
     public static bool TestMode { get; private set; }
 
+    /// <summary>
+    /// CombatSolver is loaded (or waiting to load) in the same game. Both solvers stay enabled: the
+    /// player may search with both but should let only one execute. The only flow this Mod would
+    /// otherwise hold for its own plan outside full-auto, the turn-setup page takeover, is limited
+    /// to full-auto (<see cref="CombatSessionController.TurnSetupInterceptionAllowed"/>).
+    /// </summary>
+    public static bool CombatSolverLoaded { get; private set; }
+
     public static void Initialize()
     {
-        // 与 CombatSolver 共存时完全不启用：不注册补丁、不订阅事件，只保留这一行日志。
-        if (CombatSolverPresent())
+        CombatSolverLoaded = CombatSolverPresent();
+        if (CombatSolverLoaded)
         {
             MegaCrit.Sts2.Core.Logging.Log.Info(
-                "[Sts2Solver] DISABLED reason=CombatSolver present (coexistence policy: no patches, no events)");
-            return;
+                "[Sts2Solver] COEXIST CombatSolver present: both enabled; turn-setup takeover only in full-auto; let only one solver execute");
         }
 
         Enabled = true;

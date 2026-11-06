@@ -195,7 +195,7 @@ internal static partial class CombatSessionController
             && _rules != null
             && _tracker != null
             && !IsMultiplayerSession
-            && _mode is SolverMode.AutoSearch or SolverMode.FullAuto
+            && TurnSetupTakeoverMode
             && !(_automaticSearchPaused && _automaticSearchPausedTurn == CurrentTurn())
             && CombatManager.Instance.IsInProgress
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
@@ -211,9 +211,19 @@ internal static partial class CombatSessionController
             && _rules != null
             && _tracker != null
             && !IsMultiplayerSession
-            && _mode is SolverMode.AutoSearch or SolverMode.FullAuto
+            && TurnSetupTakeoverMode
             && CombatManager.Instance.IsInProgress
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
+
+    /// <summary>
+    /// Modes in which the turn-setup page is taken over: auto-search and full-auto. With CombatSolver
+    /// also loaded only full-auto takes it over, so a CombatSolver (or the player) executing the turn
+    /// is never held on the setup page by this Mod's plan; the play-phase search still runs.
+    /// </summary>
+    private static bool TurnSetupTakeoverMode
+        => ModEntry.CombatSolverLoaded
+            ? _mode == SolverMode.FullAuto
+            : _mode is SolverMode.AutoSearch or SolverMode.FullAuto;
 
     /// <summary>A deployment is blocking only while it still owns the play phase.</summary>
     private static bool HasBlockingDeployment

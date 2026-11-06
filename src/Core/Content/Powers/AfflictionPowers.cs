@@ -123,8 +123,7 @@ public sealed class SmoggyPower : PowerDef
         if (play.Position < 0 || play.Position >= x.B.CardCount)
             return;
         ref readonly Card played = ref x.B.Cards[play.Position];
-        CardStats stats = x.R.Card(played.Id, played.Upgrade);
-        if (stats.Type != CardType.Skill)
+        if (Kernel.ResolveCardType(x.B, x.R, played) != CardType.Skill)
             return;
         ushort smog = Registry.AfflictionId<SmogAffliction>();
         for (int position = 0; position < x.B.CardCount; position++)

@@ -19,8 +19,8 @@ public sealed class BeatDown : CardDef
         for (int index = 0; index < pileCount; index++)
         {
             Card card = x.B.Cards[x.B.HandCount + x.B.DrawCount + index];
-            CardStats stats = x.R.Card(card.Id, card.Upgrade);
-            if (stats.Type == CardType.Attack && !card.HasKeyword(Keywords.Unplayable))
+            if (Kernel.ResolveCardType(x.B, x.R, card) == CardType.Attack
+                && !card.HasKeyword(Keywords.Unplayable))
             {
                 candidates[candidateCount] = card;
                 origins[candidateCount] = index;

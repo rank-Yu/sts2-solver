@@ -23,8 +23,8 @@ public sealed class DecisionsDecisions : CardDef
         for (int index = 0; index < x.B.HandCount; index++)
         {
             ref readonly Card card = ref x.B.Cards[index];
-            CardStats stats = x.R.Card(card.Id, card.Upgrade);
-            if (stats.Type == CardType.Skill && !Kernel.HasKeyword(x.B, card, Keywords.Unplayable))
+            if (Kernel.ResolveCardType(x.B, x.R, card) == CardType.Skill
+                && !Kernel.HasKeyword(x.B, card, Keywords.Unplayable))
                 options[count++] = index;
         }
         if (count == 0)

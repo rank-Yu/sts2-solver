@@ -338,13 +338,15 @@ public sealed class HiddenGem : CardDef
         for (int index = 0; index < x.B.DrawCount; index++)
         {
             Card card = Piles.At(ref x.B, Pile.Draw, index);
-            CardStats stats = x.R.Card(card.Id, card.Upgrade);
+            // CardModel.Type is dynamic (Mad Science takes its Tinker Time type), so the filter reads
+            // the resolved type, not the frozen canonical one.
+            CardType type = Kernel.ResolveCardType(x.B, x.R, card);
             if (card.HasKeyword(Keywords.Unplayable)
-                || stats.Type is CardType.Curse or CardType.Quest
+                || type is CardType.Curse or CardType.Quest
                 || Kernel.EnchantedReplayCount(card) >= 1)
                 continue;
             eligible[eligibleCount++] = index;
-            if (stats.Type is CardType.Attack or CardType.Skill or CardType.Power)
+            if (type is CardType.Attack or CardType.Skill or CardType.Power)
                 preferred[preferredCount++] = index;
         }
         ReadOnlySpan<int> pool = preferredCount > 0 ? preferred[..preferredCount] : eligible[..eligibleCount];

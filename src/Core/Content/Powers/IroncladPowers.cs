@@ -624,8 +624,8 @@ public sealed class StampedePower : PowerDef
             for (int hand = 0; hand < x.B.HandCount; hand++)
             {
                 Card card = x.B.Cards[hand];
-                CardStats stats = x.R.Card(card.Id, card.Upgrade);
-                if (stats.Type != CardType.Attack || card.HasKeyword(Keywords.Unplayable))
+                if (Kernel.ResolveCardType(x.B, x.R, card) != CardType.Attack
+                    || card.HasKeyword(Keywords.Unplayable))
                     continue;
                 count++;
             }
@@ -635,8 +635,8 @@ public sealed class StampedePower : PowerDef
             for (int hand = 0; hand < x.B.HandCount; hand++)
             {
                 Card card = x.B.Cards[hand];
-                CardStats stats = x.R.Card(card.Id, card.Upgrade);
-                if (stats.Type != CardType.Attack || card.HasKeyword(Keywords.Unplayable))
+                if (Kernel.ResolveCardType(x.B, x.R, card) != CardType.Attack
+                    || card.HasKeyword(Keywords.Unplayable))
                     continue;
                 if (selected-- == 0)
                 {
@@ -672,8 +672,7 @@ public sealed class CalamityPower : PowerDef
     {
         if (self.Owner != Limits.PlayerOwner)
             return;
-        CardStats stats = x.R.Card(play.Card.Id, play.Card.Upgrade);
-        if (stats.Type != CardType.Attack)
+        if (Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
         // Native keys the pending amount by the played CardModel, so a nested auto-play gets its own
         // entry and the outer Attack still fires afterwards. The play-index stack has the same

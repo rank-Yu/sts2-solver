@@ -342,7 +342,12 @@ internal static class CombatSearchCoordinator
                     foreach ((string region, int count) in beam.CapacityDroppedChildren)
                         capacityDrops[region] = capacityDrops.GetValueOrDefault(region) + count;
                 }
-                if (beam != null && beam.PotionPolicySatisfied)
+                // A member without any route (no candidate at its deadline: score -inf, empty
+                // BestRoute) has no result. Assessing the empty route would replay to the root, read as
+                // "alive, undecided", and outrank a member whose route only ends in death; the
+                // controller would then deploy an empty plan and search the same root again forever
+                // (FS8 Necrobinder Queen root: member 4 found a turn-9 death route, member 0 nothing).
+                if (beam != null && beam.PotionPolicySatisfied && beam.BestRoute.Length > 0)
                 {
                     try
                     {

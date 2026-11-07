@@ -37,7 +37,34 @@ internal static class SearchResumeContracts
         RequestedAdoptionHasNoResume(plain);
         CapacityDropsWithRouteReturnsBest(plain);
         CapacityDropsWithoutRouteFails(plain);
-        Console.WriteLine("SEARCH_RESUME stop/middle/last/two-pass/carried/without-candidate/capacity-drops=pass");
+        EmptyRouteMemberIsNoResult(plain);
+        Console.WriteLine("SEARCH_RESUME stop/middle/last/two-pass/carried/without-candidate/capacity-drops/empty-route=pass");
+    }
+
+    /// <summary>
+    /// A member that ends without any candidate returns an empty route with the default
+    /// PotionPolicySatisfied; the coordinator must not assess it. Replaying an empty route reads as
+    /// "alive, undecided" and used to outrank a later member whose route only ended in death, so the
+    /// controller deployed an empty plan and searched again forever (FS8 Necrobinder Queen root).
+    /// </summary>
+    private static void EmptyRouteMemberIsNoResult(SearchCase original)
+    {
+        BeamResult real = FirstRoute(original);
+        Assert(real.BestRoute.Length > 0, "empty-route: the real route has actions");
+        BeamResult empty = new([], false, double.NegativeInfinity, 0, 0, 0, 0, 0, TimeSpan.Zero);
+        Script script = new() { Default = BeamStep(empty) };
+        script.Set((0, 1), BeamStep(real));
+        SearchProgressChannel channel = new(0);
+        FakeRunner runner = new(channel, Plan, script);
+        CombatSearchResult result = Run(original, runner, channel);
+        Assert(result.SelectedMember == 1 && result.Beam is not null
+            && Equal(result.Beam.BestRoute, real.BestRoute),
+            $"empty-route: the only member with a route is selected (selected={result.SelectedMember})");
+
+        Script none = new() { Default = BeamStep(empty) };
+        SearchProgressChannel noneChannel = new(0);
+        CombatSearchResult nothing = Run(original, new FakeRunner(noneChannel, Plan, none), noneChannel);
+        Assert(nothing.Beam is null, "empty-route: no member with a route returns no beam");
     }
 
     private static void ResumeKeepsStoppedResult(SearchCase original)
@@ -480,9 +507,8 @@ internal static class SearchResumeContracts
     private static (BeamResult Better, BeamResult Worse) FindTwoRoutes(SearchCase original,
         BeamSolver quality)
     {
+        // The coordinator treats an empty route as "no result", so both candidates are real routes.
         List<BeamResult> routes = [];
-        if (TryRoute(original, []) is { } empty)
-            routes.Add(empty);
         if (TryRoute(original, [PlayerAction.EndTurn()]) is { } endTurn)
             routes.Add(endTurn);
         PlayerAction[] legal = new PlayerAction[Kernel.MaxLegalActions];

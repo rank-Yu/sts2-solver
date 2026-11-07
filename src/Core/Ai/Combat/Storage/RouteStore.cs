@@ -586,8 +586,9 @@ internal sealed partial class BeamSolver
     }
 
     /// <summary>
-    /// On a memory-budget stop with no routable candidate yet, returns the best partially expanded
-    /// state so the caller still gets a route for the current turn instead of an empty route.
+    /// On a budget stop (memory, deadline, soft time or node ceiling) with no routable candidate yet,
+    /// returns the best partially expanded state so the caller still gets a route for the current
+    /// turn instead of an empty route.
     /// </summary>
     private int BudgetFallbackNode(Pool? current, Pool? ended, Pool? turnFrontier)
     {

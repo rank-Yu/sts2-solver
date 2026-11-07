@@ -1051,7 +1051,12 @@ internal sealed partial class BeamSolver
                 Consider(state, node, Key(state, features, actionCount), features);
             }
         }
-        if ((_memoryBudgetExceeded || _options.UnlimitedNodes && SoftTimeReached(watch)
+        // A hard-deadline stop also needs the fallback: the frontier pass above breaks on the
+        // expired deadline before it considers any state, so without it a member that reached its
+        // deadline returns an empty route although its frontier holds hundreds of states (FS8
+        // Necrobinder Queen root: 19 of 20 members came back empty).
+        if ((_memoryBudgetExceeded || _deadlineReached
+                || _options.UnlimitedNodes && SoftTimeReached(watch)
                 || _options.NodeBudgetActive && !NodeBudgetAvailable)
             && Route(bestNode).Length == 0)
         {

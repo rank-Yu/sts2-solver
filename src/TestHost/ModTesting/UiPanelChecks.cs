@@ -460,6 +460,8 @@ internal static class UiPanelChecks
                 observer.HighlightChecks > 0 && observer.HighlightMismatches == 0,
                 $"checks={observer.HighlightChecks} active={observer.ActiveHighlights} " +
                 $"mismatches={observer.HighlightMismatches}");
+            session.Check("route_motion_stable_during_deploy", observer.MotionMismatches == 0,
+                $"checks={observer.MotionChecks} mismatches={observer.MotionMismatches}");
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
             // A combat that pauses before its first deployment (e.g. the opening search predicts
@@ -971,6 +973,13 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int HighlightMismatches { get; private set; }
 
+    internal int MotionChecks { get; private set; }
+
+    internal int MotionMismatches { get; private set; }
+
+    private int _motionTurn = -1;
+    private (int Restarts, int Rebuilds)[] _motionBaseline = [];
+
     internal int SearchFrames { get; private set; }
 
     internal int DeployFrames { get; private set; }
@@ -1028,6 +1037,38 @@ internal sealed partial class UiPanelObserver : Node
         }
         CheckButtons(snapshot);
         CheckRows(snapshot, probe);
+        CheckDeploymentMotion(snapshot, probe);
+    }
+
+    /// <summary>
+    /// Within one deployment turn the panel refreshes on every snapshot. A refresh must neither snap
+    /// surviving pills back to white (the completed pills flash and the active pill replays its
+    /// activation flash) nor recreate them; both counters may only move when the turn changes.
+    /// </summary>
+    private void CheckDeploymentMotion(CombatUiSnapshot snapshot, SolverOverlayProbe probe)
+    {
+        if (snapshot.Phase != CombatUiPhase.Deploying
+            || probe.Presentation != nameof(SolverOverlayPresentation.Deploying))
+        {
+            _motionTurn = -1;
+            return;
+        }
+        (int Restarts, int Rebuilds)[] counts =
+            [.. probe.Rows.Select(static row => (row.MotionRestarts, row.Rebuilds))];
+        if (_motionTurn != snapshot.Turn || counts.Length != _motionBaseline.Length)
+        {
+            _motionTurn = snapshot.Turn;
+            _motionBaseline = counts;
+            return;
+        }
+        MotionChecks++;
+        if (counts.SequenceEqual(_motionBaseline))
+            return;
+        MotionMismatches++;
+        Record($"motion seq={snapshot.Sequence} turn={snapshot.Turn} before=" +
+            string.Join(",", _motionBaseline.Select(static c => $"{c.Restarts}/{c.Rebuilds}")) +
+            " after=" + string.Join(",", counts.Select(static c => $"{c.Restarts}/{c.Rebuilds}")));
+        _motionBaseline = counts;
     }
 
     private void CheckButtons(CombatUiSnapshot snapshot)

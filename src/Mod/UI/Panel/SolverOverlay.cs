@@ -143,6 +143,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
                 CancelPointerGesture();
                 _detailsVisible = false;
                 _presentation = SolverOverlayPresentation.Ready;
+                _routeMotionKey = null;
                 _waitingForNextTurnPlan = false;
                 _deploymentOverlay = null;
                 _lastResultCandidate = -1;

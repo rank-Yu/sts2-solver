@@ -15,7 +15,8 @@ namespace Sts2Solver;
 
 /// <summary>
 /// Main-thread display-name capture. Card/potion/relic names are cached per language; live enemies
-/// are frozen by <c>CombatId</c> at capture time so route snapshots never read a live model later.
+/// are frozen by <c>CombatId</c> for the whole combat (the first capture that sees an enemy names it)
+/// so route snapshots never read a live model later and names never shift after a death.
 /// Predicted summons that are absent from the live roster fall back to the monster table and a
 /// stable ordinal within the same monster type.
 /// </summary>
@@ -28,6 +29,10 @@ internal sealed class CombatDisplayNames
     private static Dictionary<string, string> _relicNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _powerNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _monsterNames = new(StringComparer.Ordinal);
+    private static WeakReference<CombatState>? _rosterCombat;
+    private static string? _rosterLanguage;
+    private static Dictionary<uint, string> _rosterNames = [];
+    private static Dictionary<string, int> _rosterOrdinals = new(StringComparer.Ordinal);
 
     private readonly Dictionary<uint, string> _creatures;
     private readonly string _playerName;
@@ -55,29 +60,41 @@ internal sealed class CombatDisplayNames
         EnsureCache();
         Player player = LocalContext.GetMe(state)
             ?? throw new InvalidOperationException("找不到本地玩家。");
-        Dictionary<uint, string> creatures = [];
-        Dictionary<string, int> totals = new(StringComparer.Ordinal);
-        foreach (Creature creature in state.Enemies)
+        // The panel captures names on every snapshot. Recomputing the duplicate-name ordinals from the
+        // live roster renumbered the survivors after a death ("#3" became "#2"), which changed the
+        // target text of every later pill and rebuilt the route rows mid-deployment. A name, once
+        // given in this combat, is kept (dead enemies included, for the executed rows); enemies that
+        // appear later continue the ordinals of their monster name.
+        CombatState? named = null;
+        _rosterCombat?.TryGetTarget(out named);
+        if (!ReferenceEquals(named, state)
+            || !string.Equals(_rosterLanguage, _cacheLanguage, StringComparison.Ordinal))
         {
-            string baseName = BaseMonsterName(creature);
-            totals[baseName] = totals.GetValueOrDefault(baseName) + 1;
+            _rosterCombat = new WeakReference<CombatState>(state);
+            _rosterLanguage = _cacheLanguage;
+            _rosterNames = [];
+            _rosterOrdinals = new(StringComparer.Ordinal);
         }
-        Dictionary<string, int> ordinals = new(StringComparer.Ordinal);
+        Dictionary<string, int> fresh = new(StringComparer.Ordinal);
         foreach (Creature creature in state.Enemies)
         {
-            if (creature.CombatId is not uint combatId)
+            if (creature.CombatId is uint combatId && !_rosterNames.ContainsKey(combatId))
+            {
+                string baseName = BaseMonsterName(creature);
+                fresh[baseName] = fresh.GetValueOrDefault(baseName) + 1;
+            }
+        }
+        foreach (Creature creature in state.Enemies)
+        {
+            if (creature.CombatId is not uint combatId || _rosterNames.ContainsKey(combatId))
                 continue;
             string baseName = BaseMonsterName(creature);
-            int total = totals[baseName];
-            string name = baseName;
-            if (total > 1)
-            {
-                int ordinal = ordinals.GetValueOrDefault(baseName) + 1;
-                ordinals[baseName] = ordinal;
-                name = $"{baseName} #{ordinal}";
-            }
-            creatures[combatId] = name;
+            int used = _rosterOrdinals.GetValueOrDefault(baseName);
+            string name = used == 0 && fresh[baseName] == 1 ? baseName : $"{baseName} #{used + 1}";
+            _rosterOrdinals[baseName] = used + 1;
+            _rosterNames[combatId] = name;
         }
+        Dictionary<uint, string> creatures = new(_rosterNames);
         string playerName = player.Character?.Title.GetFormattedText() ?? "玩家";
         string ostyName = player.Osty?.Name ?? "Osty";
         return new CombatDisplayNames(creatures, playerName, ostyName);

@@ -18,6 +18,7 @@ internal sealed partial class SolverOverlay
     private Label? _hpOutcomeLabel;
     private Label? _hpRecoveredOutcomeLabel;
     private int _lastRouteCount = -1;
+    private (SolverOverlayPresentation Presentation, int DeploymentTurn)? _routeMotionKey;
 
     private void BuildRouteSection()
     {
@@ -118,6 +119,12 @@ internal sealed partial class SolverOverlay
             _hpRecoveredOutcomeLabel.Text = RecoveredOutcomeText(overlay);
         }
 
+        // Pill colors restart only when the presentation changes (a new deployment turn, the result,
+        // the executed history); a refresh inside one presentation keeps the running fades.
+        (SolverOverlayPresentation, int) motionKey = (_presentation,
+            _presentation == SolverOverlayPresentation.Deploying ? _lastDeploymentTurn : 0);
+        bool restartMotion = _routeMotionKey != motionKey;
+        _routeMotionKey = motionKey;
         int length = overlay.Turns.Count;
         int count = Math.Min(length, TurnRows);
         for (int index = 0; index < TurnRows; index++)
@@ -127,7 +134,7 @@ internal sealed partial class SolverOverlay
                 continue;
             SolverOverlayTurnSnapshot turn = overlay.Turns[index];
             SolverRouteRow row = RouteRows[index];
-            row.Populate(turn);
+            row.Populate(turn, restartMotion);
             int netHpChange = turn.HpRecovered - turn.HpLoss;
             string outcome = turn.CombatEnded
                 ? SolverText.Get("战斗结束")

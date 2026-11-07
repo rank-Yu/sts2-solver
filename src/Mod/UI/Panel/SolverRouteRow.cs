@@ -138,13 +138,28 @@ internal sealed partial class SolverRouteRow : PanelContainer
         return label;
     }
 
-    public void Populate(SolverOverlayTurnSnapshot turn)
+    /// <summary>
+    /// Fills the row for <paramref name="turn"/>. CombatSolver populates once per presentation, so its
+    /// Populate always snaps surviving pills back to white. The overlay repopulates on every snapshot,
+    /// so only a new presentation passes <paramref name="restartMotion"/>: restarting on each refresh
+    /// would turn every completed pill white and replay the active pill's flash during deployment.
+    /// </summary>
+    public void Populate(SolverOverlayTurnSnapshot turn, bool restartMotion)
     {
         if (HasSameActions(turn))
         {
-            ResetDeploymentMotion();
+            if (restartMotion)
+            {
+                ResetDeploymentMotion();
+#if STS2_SOLVER_TESTING
+                _motionRestartsForTest++;
+#endif
+            }
             return;
         }
+#if STS2_SOLVER_TESTING
+        _rebuildsForTest++;
+#endif
         ClearActions();
         TurnLabel.Text = SolverText.Format($"第 {turn.Turn} 回合");
         foreach (string choice in turn.TurnStartChoices)
@@ -505,6 +520,9 @@ internal sealed partial class SolverRouteRow : PanelContainer
     }
 
 #if STS2_SOLVER_TESTING
+    private int _motionRestartsForTest;
+    private int _rebuildsForTest;
+
     internal SolverRowProbe ProbeForTest()
     {
         List<SolverPillProbe> pills = [.. _deploymentActions.Select(entry =>
@@ -513,7 +531,8 @@ internal sealed partial class SolverRouteRow : PanelContainer
         if (_endTurnAction != null)
             pills.Add(new SolverPillProbe("end_turn", -1, 1, 1, 0,
                 _endTurnState.ToString().ToLowerInvariant()));
-        return new SolverRowProbe(Turn, StartActionIndex, _deploymentActionCount,
+        return new SolverRowProbe(_motionRestartsForTest, _rebuildsForTest, Turn, StartActionIndex,
+            _deploymentActionCount,
             _endTurnIndex >= 0 ? StartActionIndex + _endTurnIndex : -1,
             _endTurnAction != null, [.. pills]);
     }
@@ -543,6 +562,11 @@ internal sealed partial class SolverRouteRow : PanelContainer
 #if STS2_SOLVER_TESTING
 internal sealed record SolverPillProbe(string Kind, int RunStart, int Period, int Repetitions, int Offset, string State);
 
-internal sealed record SolverRowProbe(int Turn, int StartActionIndex, int DisplayedCount, int EndTurnIndex,
+/// <summary>
+/// <paramref name="MotionRestarts"/> counts Populate calls that snapped surviving pills back to white;
+/// <paramref name="Rebuilds"/> counts Populate calls that recreated the pills. Both only grow.
+/// </summary>
+internal sealed record SolverRowProbe(int MotionRestarts, int Rebuilds, int Turn, int StartActionIndex,
+    int DisplayedCount, int EndTurnIndex,
     bool EndTurnShown, SolverPillProbe[] Pills);
 #endif

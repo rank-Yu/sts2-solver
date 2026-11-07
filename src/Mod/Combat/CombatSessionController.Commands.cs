@@ -1,4 +1,4 @@
-// Command surface of the controller: mode, search, stop, execute and strategy changes. All commands
+// Command surface of the controller: auto-search switch, search, stop, execute and strategy changes. All commands
 // run on the game main thread and return false when the button would be disabled.
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Policy;
@@ -13,140 +13,98 @@ namespace Sts2Solver;
 
 internal static partial class CombatSessionController
 {
-    internal static bool SetMode(SolverMode mode, bool persist = true)
+    /// <summary>
+    /// The auto-search switch (persisted). It only decides whether a player turn searches by itself
+    /// when it starts; it never starts or stops an execution and never replaces a route. Turning it
+    /// on in a turn that has not searched yet starts that turn's search; turning it off leaves a
+    /// running search alone (the player stops it with 停止搜索).
+    /// </summary>
+    internal static bool SetAutoSearch(bool enabled, bool persist = true)
     {
         RequireMainThread();
-        if (!Enum.IsDefined(mode))
-            return false;
-        if (mode == SolverMode.FullAuto && IsMultiplayerSession)
-            return false;
-        if (persist && SolverSettings.Current.Automation.Mode != mode
+        bool previous = _autoSearch;
+        // Set first: the settings store calls back into OnSettingsChanged, which must see the new
+        // value and only publish instead of switching a second time.
+        _autoSearch = enabled;
+        if (persist && SolverSettings.Current.Automation.AutoSearch != enabled
             && !SolverSettings.Update(current => current with
             {
-                Automation = current.Automation with { Mode = mode },
+                Automation = current.Automation with { AutoSearch = enabled },
             }))
         {
+            _autoSearch = previous;
             return false;
         }
-        bool changed = _mode != mode;
-        _mode = mode;
-        ClearFailureState();
-        if (mode != SolverMode.FullAuto && changed && PlayerTurnSetupRuntime.IsDriving)
-            PlayerTurnSetupRuntime.StopDriving();
-        if (mode != SolverMode.FullAuto)
+        if (previous != enabled)
         {
-            if (_fullAutoEnabled)
-                ModLog.Info($"[Sts2Solver] CONTROLLER_FULL_AUTO_OFF source=mode mode={mode}");
-            _fullAutoEnabled = false;
-            if (_fullAutoPausedThisCombat)
-            {
-                _fullAutoPausedThisCombat = false;
-                _pauseCode = null;
-                _pauseReason = null;
-            }
-            if (mode == SolverMode.Manual)
-                CancelTurnSchedule();
-            if (_search == null && !HasBlockingDeployment && _pauseCode == null)
-                _phase = CombatUiPhase.WaitingTurn;
-            PublishSnapshot();
-            if (mode == SolverMode.AutoSearch && changed
-                && _search == null && !HasBlockingDeployment
-                && !_automaticSearchPaused)
-            {
-                TrySearchOnModeSwitch(CombatSearchReason.AutoTurnStart);
-            }
-            return true;
-        }
-
-        bool resumePaused = _fullAutoPausedThisCombat;
-        _fullAutoPausedThisCombat = false;
-        _pauseCode = null;
-        _pauseReason = null;
-        _rejectCode = null;
-        if (resumePaused)
-        {
-            _automaticSearchPaused = false;
-            _automaticSearchPausedTurn = null;
-        }
-        _fullAutoEnabled = CanArmFullAuto();
-        if (!_fullAutoEnabled)
-        {
-            ModLog.Info("[Sts2Solver] CONTROLLER_FULL_AUTO_NOT_ARMED reason=combat_not_eligible");
-            _phase = CombatUiPhase.WaitingTurn;
-            PublishSnapshot();
-            return true;
-        }
-        if (PlayerTurnSetupRuntime.HasActivePage)
-        {
-            if (!_automaticSearchPaused)
-                PlayerTurnSetupRuntime.OnFullAutoResumed(skipPause: resumePaused);
-            PublishSnapshot();
-            return true;
-        }
-        if (_turnSetupResult != null)
-        {
-            if (TryActivateTurnSetup(CurrentTurn()))
-            {
-                PublishSnapshot();
-                return true;
-            }
-            // The pending TurnStarted / normal search owns the turn; do not start deployment from
-            // an unvalidated setup result.
-            PublishSnapshot();
-            return true;
-        }
-        if (_search != null || HasBlockingDeployment)
-        {
-            PublishSnapshot();
-            return true;
-        }
-        if (!_automaticSearchPaused
-            && _latestResult is { } result && ResultStampMatches(result))
-        {
-            StartFullAutoDeployment(result);
-        }
-        else if (!_automaticSearchPaused)
-        {
-            TrySearchOnModeSwitch(CombatSearchReason.FullAuto);
-        }
-        if (_search == null && !HasBlockingDeployment && _phase != CombatUiPhase.Searching
-            && _phase != CombatUiPhase.Deploying && _pauseCode == null)
-        {
-            _phase = CombatUiPhase.WaitingTurn;
+            ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH_SWITCH enabled={enabled} turn={CurrentTurn()}");
+            if (enabled)
+                TrySearchOnAutoSearchSwitch();
         }
         PublishSnapshot();
         return true;
     }
 
-    internal static bool StartOrRecalculateSearch()
+    /// <summary>
+    /// 开始搜索 / 重新搜索: a fresh search of the current turn. A stopped search's continuation is
+    /// discarded. On an open turn-setup page it recalculates the page plan.
+    /// </summary>
+    internal static bool StartSearch()
     {
         RequireMainThread();
-        if (IsMultiplayerSession || _search is { IsTurnSetup: true } || HasBlockingDeployment
-            || SearchSession.IsRunning)
+        if (!CanIssueSearch())
             return false;
         if (PlayerTurnSetupRuntime.HasActivePage)
             return PlayerTurnSetupRuntime.TryRecalculate();
         if (_turnSetupResult != null)
             DiscardTurnSetupPlan("manual_search");
-        if (_search != null)
+        if (_search != null || !CanSolveForCommand())
             return false;
-        if (!CanSolve(out string rejection))
-        {
-            _rejectCode = rejection;
-            PublishSnapshot();
-            ModLog.Info($"[Sts2Solver] CONTROLLER_SEARCH_REJECT reason={rejection}");
-            return false;
-        }
-        SearchResumeState? resume = null;
-        SearchPlan? resumePlan = null;
-        if (_searchContinuation is { } continuation
-            && TryContinueSearch(continuation, out SearchResumeState state, out SearchPlan plan))
-        {
-            resume = state;
-            resumePlan = plan;
-        }
-        RequestSearch(CombatSearchReason.Manual, deployWhenReady: false, resume, resumePlan);
+        InvalidateSearchContinuation("restart");
+        RequestSearch(CombatSearchReason.Manual, deployWhenReady: false);
         return true;
+    }
+
+    /// <summary>
+    /// 继续搜索: resumes a stopped search from its next member when the recompiled request is
+    /// byte-identical to the stop; a different request searches from scratch. Without a stopped
+    /// search there is nothing to continue and the press is refused (the panel greys the key out).
+    /// </summary>
+    internal static bool ContinueSearch()
+    {
+        RequireMainThread();
+        if (!CanIssueSearch() || PlayerTurnSetupRuntime.HasActivePage || _search != null
+            || !CanSolveForCommand())
+        {
+            return false;
+        }
+        if (_searchContinuation is not { } continuation)
+        {
+            ModLog.Info("[Sts2Solver] CONTROLLER_CONTINUE_REJECT reason=no_continuation");
+            return false;
+        }
+        // The key is offered when the state stamp and the settings match the stop; the exact
+        // request comparison happens here. A difference falls back to a fresh search (logged by
+        // TryContinueSearch) rather than ignoring the press.
+        if (TryContinueSearch(continuation, out SearchResumeState state, out SearchPlan plan))
+            RequestSearch(CombatSearchReason.Manual, deployWhenReady: false, state, plan);
+        else
+            RequestSearch(CombatSearchReason.Manual, deployWhenReady: false);
+        return true;
+    }
+
+    private static bool CanIssueSearch()
+        => !IsMultiplayerSession && !_runCombat && _search is not { IsTurnSetup: true }
+            && !HasBlockingDeployment && !SearchSession.IsRunning;
+
+    private static bool CanSolveForCommand()
+    {
+        if (CanSolve(out string rejection))
+            return true;
+        _rejectCode = rejection;
+        PublishSnapshot();
+        ModLog.Info($"[Sts2Solver] CONTROLLER_SEARCH_REJECT reason={rejection}");
+        return false;
     }
 
     internal static bool StopSearch()
@@ -173,70 +131,94 @@ internal static partial class CombatSessionController
         return true;
     }
 
-    internal static bool StopDeployment()
+    /// <summary>
+    /// 停止执行: ends 执行本场战斗, soft-stops the running turn (the current action settles), stops a
+    /// setup-page drive and stops a search that belongs to the execution (the run's next-turn search
+    /// or a replan that would deploy when ready). Afterwards the player is back in control.
+    /// </summary>
+    internal static bool StopExecution()
     {
         RequireMainThread();
         if (IsMultiplayerSession)
             return false;
+        bool stopped = false;
+        if (_runCombat)
+        {
+            StopRun("player");
+            stopped = true;
+        }
         if (PlayerTurnSetupRuntime.StopDriving())
         {
-            PublishSnapshot();
             ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_TURN_SETUP_DRIVE turn={CurrentTurn()}");
-            return true;
+            stopped = true;
         }
-        if (_deployment is not { } deployment || deployment.StopRequested)
-            return false;
-        deployment.StopRequested = true;
-        _automaticSearchPaused = true;
-        _automaticSearchPausedTurn = CurrentTurn();
-        _pauseCode = "stopped";
-        _pauseReason = "stopped_by_user";
-        PublishSnapshot();
-        ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_DEPLOYMENT turn={deployment.Turn}");
-        return true;
+        else if (_deployment is { StopRequested: false } deployment)
+        {
+            deployment.StopRequested = true;
+            _automaticSearchPaused = true;
+            _automaticSearchPausedTurn = CurrentTurn();
+            _pauseCode = "stopped";
+            _pauseReason = "stopped_by_user";
+            ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_DEPLOYMENT turn={deployment.Turn}");
+            stopped = true;
+        }
+        if (_search is { StopRequested: false } search && (stopped || search.DeployWhenReady))
+            return StopSearch() || stopped;
+        if (stopped)
+            PublishSnapshot();
+        return stopped;
     }
 
-    internal static bool ExecuteCurrentTurn()
+    /// <summary>执行本回合: executes the current turn's route only; the next turn waits for the player.</summary>
+    internal static bool ExecuteCurrentTurn() => Execute(runCombat: false);
+
+    /// <summary>
+    /// 执行本场战斗: executes the current turn's route and keeps searching (or reusing) and executing
+    /// every following turn until the combat ends, a pause stops it or the player stops it.
+    /// </summary>
+    internal static bool ExecuteCombat() => Execute(runCombat: true);
+
+    private static bool Execute(bool runCombat)
     {
         RequireMainThread();
-        if (IsMultiplayerSession || HasBlockingDeployment)
+        if (IsMultiplayerSession || HasBlockingDeployment || _runCombat)
             return false;
-        if (PlayerTurnSetupRuntime.HasActivePage)
+        if (runCombat && !CanRunCombat())
         {
-            if (_search != null)
-                return false;
-            if (!PlayerTurnSetupRuntime.TryStartDriving(deployAfterSetup: true))
-                return false;
-            ResumeFullAutoForExecute();
-            _automaticSearchPaused = false;
-            _automaticSearchPausedTurn = null;
-            _pauseCode = null;
-            _pauseReason = null;
-            PublishSnapshot();
-            ModLog.Info(
-                $"[Sts2Solver] CONTROLLER_EXECUTE_TURN_SETUP turn={CurrentTurn()}");
-            return true;
+            ModLog.Info("[Sts2Solver] CONTROLLER_EXECUTE_REJECT reason=combat_not_eligible");
+            return false;
         }
         // A running search offers no execute: the player stops it first (the stop keeps the best
         // route) and then executes that route.
         if (_search != null)
             return false;
+        if (PlayerTurnSetupRuntime.HasActivePage)
+        {
+            if (!PlayerTurnSetupRuntime.TryStartDriving(deployAfterSetup: true))
+                return false;
+            BeginExecution(runCombat);
+            PublishSnapshot();
+            ModLog.Info(
+                $"[Sts2Solver] CONTROLLER_EXECUTE_TURN_SETUP turn={CurrentTurn()} run={runCombat}");
+            return true;
+        }
         if (_turnSetupResult != null)
         {
             if (!TryActivateTurnSetup(CurrentTurn()))
                 return false;
-            // Activation clears the pause on success and sets a new one when the live state moved.
-            if (_mode == SolverMode.FullAuto && _pauseCode == null && !HasBlockingDeployment
+            // Activation clears the pause on success and sets a new one when the live state moved;
+            // an activation that already deploys (the page asked for it) needs nothing more.
+            if (_pauseCode == null && !HasBlockingDeployment
                 && _latestResult is { } activated && ResultStampMatches(activated))
             {
-                ResumeFullAutoForExecute();
+                BeginExecution(runCombat);
                 StartDeployment(activated);
             }
             return true;
         }
         if (_latestResult is { } result && ResultStampMatches(result))
         {
-            ResumeFullAutoForExecute();
+            BeginExecution(runCombat);
             StartDeployment(result);
             return true;
         }
@@ -250,32 +232,112 @@ internal static partial class CombatSessionController
     }
 
     /// <summary>
-    /// In full-auto mode the execute key always starts full auto; there is no play-this-turn-only
-    /// key there (user decision 2026-11-07). A pause of this combat (projected death, deviation,
-    /// failure) or a stop by the player is lifted and full auto is armed again. After a pause the
-    /// press confirms the current turn: it deploys without the before-deployment and live end-turn
-    /// pause checks (<see cref="_playerConfirmedTurn"/>); later turns are checked as usual.
+    /// The press is the player's decision for this turn: a pause (projected death, deviation,
+    /// failure) or a stop is lifted. 执行本回合 leaves the run off, so the turn deploys without the
+    /// run's pause checks. 执行本场战斗 starts the run; after one of the run's own pauses the press
+    /// confirms this turn, which skips the before-deployment and live end-turn checks
+    /// (<see cref="_playerConfirmedTurn"/>); later turns are checked as usual.
     /// </summary>
-    private static void ResumeFullAutoForExecute()
+    private static void BeginExecution(bool runCombat)
     {
-        if (_mode != SolverMode.FullAuto)
-            return;
-        bool wasPaused = _fullAutoPausedThisCombat;
+        bool wasPaused = _runPaused;
         string? pause = _pauseCode;
-        _fullAutoPausedThisCombat = false;
+        _runPaused = false;
         _pauseCode = null;
         _pauseReason = null;
         _rejectCode = null;
         _automaticSearchPaused = false;
         _automaticSearchPausedTurn = null;
-        if (wasPaused)
-            _playerConfirmedTurn = CurrentTurn();
-        bool wasEnabled = _fullAutoEnabled;
-        _fullAutoEnabled = CanArmFullAuto();
+        if (runCombat)
+        {
+            if (wasPaused)
+                _playerConfirmedTurn = CurrentTurn();
+            _runCombat = true;
+        }
         ModLog.Info(
-            $"[Sts2Solver] CONTROLLER_FULL_AUTO_EXECUTE armed={_fullAutoEnabled} was_enabled={wasEnabled} " +
-            $"was_paused={wasPaused} pause={pause ?? "-"} confirmed_turn={_playerConfirmedTurn?.ToString() ?? "-"}");
+            $"[Sts2Solver] CONTROLLER_EXECUTE turn={CurrentTurn()} run={runCombat} " +
+            $"was_paused={wasPaused} pause={pause ?? "-"} " +
+            $"confirmed_turn={_playerConfirmedTurn?.ToString() ?? "-"}");
     }
+
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// Test seam: arms 执行本场战斗 the way a run that is already going reaches the current turn, so
+    /// the run's own paths (reuse or search, then the pause checks before deploying, the setup-page
+    /// drive) are exercised without a player press. A pause of the run is lifted as a press would.
+    /// The player-facing entry is <see cref="ExecuteCombat"/>.
+    /// </summary>
+    internal static bool ArmRunForTest()
+    {
+        RequireMainThread();
+        if (IsMultiplayerSession || !CanRunCombat())
+            return false;
+        bool resumePaused = _runPaused;
+        _runPaused = false;
+        _pauseCode = null;
+        _pauseReason = null;
+        _rejectCode = null;
+        if (resumePaused)
+        {
+            _automaticSearchPaused = false;
+            _automaticSearchPausedTurn = null;
+        }
+        _runCombat = true;
+        ModLog.Info($"[Sts2Solver] CONTROLLER_RUN_ARMED_FOR_TEST turn={CurrentTurn()} resumed={resumePaused}");
+        if (PlayerTurnSetupRuntime.HasActivePage)
+        {
+            if (!_automaticSearchPaused)
+                PlayerTurnSetupRuntime.OnRunArmedForTest(skipPause: resumePaused);
+            PublishSnapshot();
+            return true;
+        }
+        if (_turnSetupResult != null)
+        {
+            TryActivateTurnSetup(CurrentTurn());
+            PublishSnapshot();
+            return true;
+        }
+        if (_search != null || HasBlockingDeployment)
+        {
+            PublishSnapshot();
+            return true;
+        }
+        if (!_automaticSearchPaused && _latestResult is { } result && ResultStampMatches(result))
+            StartFullAutoDeployment(result);
+        else if (!_automaticSearchPaused && !PlayerTurnSetupRuntime.HasActivePage && CanSolve(out _))
+            RequestSearch(CombatSearchReason.AutoSearchSwitch, deployWhenReady: false);
+        if (_search == null && !HasBlockingDeployment && _phase != CombatUiPhase.Searching
+            && _phase != CombatUiPhase.Deploying && _pauseCode == null)
+        {
+            _phase = CombatUiPhase.WaitingTurn;
+        }
+        PublishSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Test seam: ends the run the way leaving the old full-auto mode did (a setup-page drive stops,
+    /// a pause of the run is cleared; a running deployment is not stopped), then sets the switch.
+    /// </summary>
+    internal static bool LeaveRunForTest(bool autoSearch)
+    {
+        RequireMainThread();
+        if (_runCombat && PlayerTurnSetupRuntime.IsDriving)
+            PlayerTurnSetupRuntime.StopDriving();
+        StopRun("test");
+        if (_runPaused)
+        {
+            _runPaused = false;
+            _pauseCode = null;
+            _pauseReason = null;
+        }
+        if (!autoSearch)
+            CancelTurnSchedule();
+        if (_search == null && !HasBlockingDeployment && _pauseCode == null)
+            _phase = CombatUiPhase.WaitingTurn;
+        return SetAutoSearch(autoSearch);
+    }
+#endif
 
     internal static bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode)
     {
@@ -511,15 +573,22 @@ internal static partial class CombatSessionController
         ModLog.Info($"[Sts2Solver] CONTROLLER_STRATEGY_CHANGED {detail}");
     }
 
-    /// <summary>Starts the mode-switch search without replacing a route that is still current.</summary>
-    private static void TrySearchOnModeSwitch(CombatSearchReason reason)
+    /// <summary>
+    /// Turning auto search on starts the turn's search only when this turn has not searched or
+    /// reused a route yet, nothing runs and the turn can be solved. A current route is never replaced.
+    /// </summary>
+    private static void TrySearchOnAutoSearchSwitch()
     {
-        if (PlayerTurnSetupRuntime.HasActivePage)
+        if (!_combatActive || _runCombat || _search != null || HasBlockingDeployment
+            || PlayerTurnSetupRuntime.HasActivePage || _automaticSearchPaused
+            || _searchedTurn == CurrentTurn())
+        {
             return;
+        }
         if (_latestResult is { } result && ResultStampMatches(result))
             return;
         if (!CanSolve(out _))
             return;
-        RequestSearch(reason, deployWhenReady: false);
+        RequestSearch(CombatSearchReason.AutoSearchSwitch, deployWhenReady: false);
     }
 }

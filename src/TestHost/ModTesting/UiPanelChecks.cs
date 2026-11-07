@@ -66,31 +66,26 @@ internal static class UiPanelChecks
         session.Check("collapse_persists",
             collapsed.Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
         session.Check("collapsed_header_visible", collapsed.Visible, Describe(panel));
-        bool modeButtonsClickable =
-            await VisibleAndClickable(host, panel.ManualModeButtonForTest)
-            && await VisibleAndClickable(host, panel.AutoSearchModeButtonForTest)
-            && await VisibleAndClickable(host, panel.FullAutoModeButtonForTest);
-        session.Check("collapsed_mode_buttons_clickable", modeButtonsClickable, Describe(panel));
+        bool switchClickable = await VisibleAndClickable(host, panel.AutoSearchSwitchForTest);
+        session.Check("collapsed_auto_search_switch_clickable", switchClickable, Describe(panel));
         await Press(host, panel.CollapseButtonForTest);
         session.Check("expand_persists",
             !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
 
-        SolverMode originalMode = SolverSettings.Current.Automation.Mode;
-        await Press(host, panel.ManualModeButtonForTest);
-        await WaitModeAsync(host, SolverMode.Manual, 30);
-        session.Check("mode_manual_selected",
-            SolverSettings.Current.Automation.Mode == SolverMode.Manual, Describe(panel));
-        await Press(host, panel.AutoSearchModeButtonForTest);
-        await WaitModeAsync(host, SolverMode.AutoSearch, 30);
-        session.Check("mode_auto_search_selected",
-            SolverSettings.Current.Automation.Mode == SolverMode.AutoSearch, Describe(panel));
-        await Press(host, panel.FullAutoModeButtonForTest);
-        await WaitModeAsync(host, SolverMode.FullAuto, 30);
-        session.Check("mode_full_auto_selected",
-            SolverSettings.Current.Automation.Mode == SolverMode.FullAuto, Describe(panel));
-        if (SolverSettings.Current.Automation.Mode != originalMode)
-            CombatUiCommands.Instance.SetMode(originalMode);
-        await WaitModeAsync(host, originalMode, 60);
+        bool originalAutoSearch = SolverSettings.Current.Automation.AutoSearch;
+        await Toggle(host, panel.AutoSearchSwitchForTest, false);
+        await WaitAutoSearchAsync(host, false, 30);
+        session.Check("auto_search_off_saved",
+            !SolverSettings.Current.Automation.AutoSearch && !CombatUiStore.Snapshot.AutoSearchEnabled,
+            Describe(panel));
+        await Toggle(host, panel.AutoSearchSwitchForTest, true);
+        await WaitAutoSearchAsync(host, true, 30);
+        session.Check("auto_search_on_saved",
+            SolverSettings.Current.Automation.AutoSearch && CombatUiStore.Snapshot.AutoSearchEnabled,
+            Describe(panel));
+        if (SolverSettings.Current.Automation.AutoSearch != originalAutoSearch)
+            CombatUiCommands.Instance.SetAutoSearch(originalAutoSearch);
+        await WaitAutoSearchAsync(host, originalAutoSearch, 60);
 
         bool detailsOpened = false;
         for (int attempt = 0; attempt < 3 && !detailsOpened; attempt++)
@@ -768,7 +763,7 @@ internal static class UiPanelChecks
         if (page == null)
             return (false, "page missing");
         SolverSettingsData before = SolverSettings.Current;
-        SolverMode mode = before.Automation.Mode;
+        bool autoSearch = before.Automation.AutoSearch;
         SolverSettings.Update(current => current with
         {
             Automation = current.Automation with
@@ -782,7 +777,7 @@ internal static class UiPanelChecks
         await Press(host, page.ResetButtonForTest);
         SolverSettingsData after = SolverSettings.Current;
         SolverSettingsData defaults = new();
-        bool ok = after.Automation.Mode == mode
+        bool ok = after.Automation.AutoSearch == autoSearch
             && after.Search.ActTransitionBossHpStrategy == SearchBossHpStrategy.ProgressionFirst
             && after.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst
             && after.Automation.DeploymentSpeed == defaults.Automation.DeploymentSpeed
@@ -793,7 +788,7 @@ internal static class UiPanelChecks
             && Math.Abs(after.Ui.Opacity - defaults.Ui.Opacity) < 0.0001f
             && after.Ui.ShowBattleDamagePerformanceHint
             && after.Ui.PanelX is null && after.Ui.PanelWidth is null;
-        string detail = $"mode={after.Automation.Mode}/{mode} speed={after.Automation.DeploymentSpeed} " +
+        string detail = $"auto_search={after.Automation.AutoSearch}/{autoSearch} speed={after.Automation.DeploymentSpeed} " +
             $"boss={after.Search.ActTransitionBossHpStrategy}/{after.Search.FinalBossHpStrategy} " +
             $"delay={after.Automation.InterActionDelaySeconds} tier={after.Search.Tier} " +
             $"threads={after.Search.Threads?.ToString(CultureInfo.InvariantCulture) ?? "null"} " +
@@ -861,10 +856,18 @@ internal static class UiPanelChecks
         });
     }
 
-    private static async Task WaitModeAsync(NGame host, SolverMode mode, int frames)
+    private static async Task WaitAutoSearchAsync(NGame host, bool enabled, int frames)
     {
-        await WaitAsync(host, _ => SolverSettings.Current.Automation.Mode == mode, frames,
-            "mode restored");
+        await WaitAsync(host, _ => SolverSettings.Current.Automation.AutoSearch == enabled, frames,
+            "auto search switch");
+    }
+
+    private static async Task Toggle(NGame host, CheckButton? toggle, bool pressed)
+    {
+        if (toggle == null)
+            throw new InvalidDataException("panel_switch_missing");
+        toggle.ButtonPressed = pressed;
+        await Frames(host, 3);
     }
 
     private static async Task<bool> WaitAsync(NGame host, Func<bool> condition, int frames)
@@ -1071,43 +1074,27 @@ internal sealed partial class UiPanelObserver : Node
         _motionBaseline = counts;
     }
 
+    /// <summary>
+    /// The footer follows the turn's search stage and the execution, never the search result:
+    /// executing shows only 停止执行 and greys the search keys; a plain search shows 停止搜索 and no
+    /// execute key; otherwise 开始搜索 before the turn's first search, 继续搜索 + 重新搜索 after it, and
+    /// both execute keys in place (greyed without a current-turn route).
+    /// </summary>
     private void CheckButtons(CombatUiSnapshot snapshot)
     {
         SolverOverlay panel = _panel!;
-        bool searching = snapshot.IsSearching;
-        bool deploying = snapshot.IsDeploying;
+        bool executing = snapshot.IsDeploying || snapshot.TurnSetupDriving || snapshot.CombatRunActive
+            || snapshot.IsSearching && snapshot.DeployWhenReady;
+        bool plainSearch = snapshot.IsSearching && !executing;
+        bool notStarted = snapshot.SearchStage == TurnSearchStage.NotStarted;
         bool stoppingSearch = snapshot.Search?.Phase == SearchUiPhase.Stopping;
-        bool queuedExecution = searching && snapshot.DeployWhenReady;
-        bool executeVisible = deploying || queuedExecution
-            || !searching && snapshot.CurrentTurnRouteReady;
-        string expectedSearchText = searching ? SolverText.Get("停止搜索")
-            : snapshot.CanContinueSearch ? SolverText.Get("继续搜索")
-            : snapshot.ContinuationAvailable || deploying || snapshot.CurrentTurnRouteReady
-                || snapshot.Phase == CombatUiPhase.Failed
-                ? SolverText.Get("重新搜索")
-                : SolverText.Get("开始搜索");
-        bool expectedSearchDisabled = searching ? stoppingSearch : !snapshot.CanStartSearch;
-        string? expectedSearchTooltip = !searching && expectedSearchDisabled
-            ? BlockText(snapshot.SearchBlockReason)
-            : searching && stoppingSearch ? SolverText.Get("正在停止搜索…") : null;
-        bool continues = SolverOverlay.ExecuteContinues(snapshot);
-        string expectedExecuteText = deploying || queuedExecution
-            ? SolverText.Get("停止执行")
-            : SolverText.Get(continues && snapshot.CurrentTurnRouteReady ? "开始执行" : "执行本回合");
-        bool expectedExecuteDisabled = deploying
-            ? snapshot.IsStoppingDeployment
-            : queuedExecution && stoppingSearch;
-        string? expectedExecuteTooltip = deploying
-            ? snapshot.IsStoppingDeployment
-                ? SolverText.Get("当前动作完成后停止。")
-                : SolverText.Get("停止执行当前回合；已发出的动作会结算完。")
-            : queuedExecution
-                ? SolverText.Get("停止这次搜索；本回合不再自动执行。")
-                : searching
-                    ? null
-                    : snapshot.CurrentTurnRouteReady
-                        ? SolverOverlay.ExecuteTooltip(snapshot, continues)
-                        : null;
+        string leftText = plainSearch ? SolverText.Get("停止搜索")
+            : notStarted ? SolverText.Get("开始搜索")
+            : SolverText.Get("继续搜索");
+        bool leftDisabled = executing
+            || (plainSearch ? stoppingSearch : notStarted ? !snapshot.CanStartSearch : !snapshot.CanContinueSearch);
+        bool restartVisible = !plainSearch && !notStarted;
+        bool executeVisible = !executing && !snapshot.IsSearching;
         bool ok = true;
         string? detail = null;
         void Expect(string name, bool condition)
@@ -1118,48 +1105,52 @@ internal sealed partial class UiPanelObserver : Node
             detail ??= name;
         }
         Expect("search_visible", panel.SearchButtonForTest?.Visible == true);
-        Expect("search_text", panel.SearchButtonForTest?.Text == expectedSearchText);
-        Expect("search_disabled", panel.SearchButtonForTest?.Disabled == expectedSearchDisabled);
-        Expect("search_tooltip", panel.SearchButtonForTest?.TooltipText
-            == (expectedSearchTooltip ?? ""));
-        Expect("execute_visible", panel.ExecuteButtonForTest?.Visible == executeVisible);
+        Expect("search_text", panel.SearchButtonForTest?.Text == leftText);
+        Expect("search_disabled", panel.SearchButtonForTest?.Disabled == leftDisabled);
+        if (!executing && !plainSearch && leftDisabled && !snapshot.CanStartSearch)
+        {
+            Expect("search_tooltip", panel.SearchButtonForTest?.TooltipText
+                == BlockText(snapshot.SearchBlockReason));
+        }
+        Expect("restart_visible", panel.RestartSearchButtonForTest?.Visible == restartVisible);
+        if (restartVisible)
+        {
+            Expect("restart_disabled",
+                panel.RestartSearchButtonForTest?.Disabled == (executing || !snapshot.CanStartSearch));
+        }
+        Expect("execute_turn_visible", panel.ExecuteTurnButtonForTest?.Visible == executeVisible);
+        Expect("execute_combat_visible", panel.ExecuteCombatButtonForTest?.Visible == executeVisible);
         if (executeVisible)
         {
-            Expect("execute_text", panel.ExecuteButtonForTest?.Text == expectedExecuteText);
-            Expect("execute_disabled", panel.ExecuteButtonForTest?.Disabled == expectedExecuteDisabled);
-            Expect("execute_tooltip", panel.ExecuteButtonForTest?.TooltipText
-                == (expectedExecuteTooltip ?? ""));
+            Expect("execute_turn_disabled",
+                panel.ExecuteTurnButtonForTest?.Disabled == !snapshot.CurrentTurnRouteReady);
+            Expect("execute_combat_disabled",
+                panel.ExecuteCombatButtonForTest?.Disabled == !snapshot.CurrentTurnRouteReady);
+            Expect("execute_turn_text", panel.ExecuteTurnButtonForTest?.Text == SolverText.Get("执行本回合"));
+            Expect("execute_combat_text",
+                panel.ExecuteCombatButtonForTest?.Text == SolverText.Get("执行本场战斗"));
         }
+        Expect("stop_visible", panel.StopExecutionButtonForTest?.Visible == executing);
+        if (executing)
+        {
+            Expect("stop_text", panel.StopExecutionButtonForTest?.Text == SolverText.Get("停止执行"));
+            Expect("stop_disabled",
+                panel.StopExecutionButtonForTest?.Disabled == snapshot.IsStoppingDeployment);
+        }
+        Expect("auto_search_switch",
+            panel.AutoSearchSwitchForTest?.ButtonPressed == snapshot.AutoSearchEnabled
+            && panel.AutoSearchSwitchForTest.Visible);
         Expect("memory_collapsed",
             panel.MemoryRowVisibleForTest != panel.ProbeForTest().Collapsed);
-        CheckModeButtons(snapshot, Expect);
         if (!ok)
         {
             ButtonMismatches++;
             Record($"buttons seq={snapshot.Sequence} phase={snapshot.Phase} detail={detail} " +
-                $"searching={searching} deploying={deploying} queue={queuedExecution} " +
-                $"canStart={snapshot.CanStartSearch} routeReady={snapshot.CurrentTurnRouteReady} " +
+                $"stage={snapshot.SearchStage} searching={snapshot.IsSearching} executing={executing} " +
+                $"run={snapshot.CombatRunActive} canStart={snapshot.CanStartSearch} " +
+                $"canContinue={snapshot.CanContinueSearch} routeReady={snapshot.CurrentTurnRouteReady} " +
                 $"block={snapshot.SearchBlockReason ?? "-"}");
         }
-    }
-
-    private void CheckModeButtons(CombatUiSnapshot snapshot, Action<string, bool> expect)
-    {
-        SolverOverlay panel = _panel!;
-        expect("manual_visible", panel.ManualModeButtonForTest?.Visible == true);
-        expect("auto_search_visible", panel.AutoSearchModeButtonForTest?.Visible == true);
-        expect("full_auto_visible", panel.FullAutoModeButtonForTest?.Visible == true);
-        expect("manual_text",
-            panel.ManualModeButtonForTest?.Text == SolverText.Get("手动"));
-        expect("auto_search_text",
-            panel.AutoSearchModeButtonForTest?.Text == SolverText.Get("自动搜索"));
-        expect("full_auto_text",
-            panel.FullAutoModeButtonForTest?.Text == SolverText.Get("全自动"));
-        string expectedTooltip = snapshot.FullAutoPausedThisCombat
-            ? SolverText.Get("本场全自动已暂停，点击恢复")
-            : SolverText.Get("手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行，已有路线时选它会立即开始执行。");
-        expect("full_auto_tooltip",
-            panel.FullAutoModeButtonForTest?.TooltipText == expectedTooltip);
     }
 
     private static string BlockText(string? code) => code switch

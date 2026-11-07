@@ -274,7 +274,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 ## 9. 已知限制
 
 - 冻结 `config.br` 的根顺序仍按 `golden.br` 的选择记录对齐；`--setup-enumerate` 已独立逐计划验证枚举，不再依赖 M0 选择记录来选取根。实机测试模式只捕获第一个准备选项，完整枚举只在差分宿主里验证。
-- 回合准备的多段选择、侧回合开始/球在暂停处的顺序已在离线差分里验证。生产 Mod 的 `SetupPlayerTurn` 接管使用 `ImportSetupRoot` 和 `CompileSetupRequest`，只对自动搜索/全自动档、门禁通过且有可见页面的准备执行；纯隐式选择不启动准备搜索。`--setup-enumerate` 仍只覆盖离线枚举，不证明可见页面驱动。
+- 回合准备的多段选择、侧回合开始/球在暂停处的顺序已在离线差分里验证。生产 Mod 的 `SetupPlayerTurn` 接管使用 `ImportSetupRoot` 和 `CompileSetupRequest`，只在自动搜索开着或本场执行中、门禁通过且有可见页面的准备执行；纯隐式选择不启动准备搜索。`--setup-enumerate` 仍只覆盖离线枚举，不证明可见页面驱动。
 - 准备暂停时侧回合开始或球的触发自己请求选择，当前显式不支持。原版 v0.111.0 没有这样的内容：`AfterSideTurnStart` 不接收选择上下文且 51 个覆写中没有 `CardSelectCmd`，球只有 PlasmaOrb 覆写回合开始触发且只获得能量。
 - `BeforeHandDraw`/`AfterPlayerTurnStart` 的遗物监听器在 rootSetup 下使用入口快照（按 id/occurrence）并在调用前复查仍存在；这和原生 `IterateHookListeners` 的“入口快照 + Contains 过滤”一致。同 id 遗物在暂停期间被移除/新增的极端情形没有独立 fixture。
 - 手牌上限读游戏的 `CardPile.MaxCardsInHand`（当前为 10）。RitsuLib 等 Mod 另行修改手牌上限的方式不在支持范围内。

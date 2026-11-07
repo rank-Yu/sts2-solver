@@ -629,7 +629,7 @@ internal static class PlayerTurnSetupRuntime
 
     /// <summary>
     /// Uses the previous turn's EndTurn plan on the first visible page instead of searching.
-    /// Auto search only publishes the route; full auto passes the same pre-drive pause policy as a
+    /// Outside a run the plan is only published; a 执行本场战斗 run passes the same pre-drive pause policy as a
     /// searched setup result before it drives.
     /// </summary>
     private static void PrepareContinuationPlan(TurnSetupTransaction t, string phase)
@@ -650,7 +650,7 @@ internal static class PlayerTurnSetupRuntime
             $"[Sts2Solver] TURN_SETUP_PLAN_READY turn={t.Turn} " +
             $"source=continuation choices={result.SetupChoices.Length} search=false " +
             $"phase={phase} visible=true driving=false");
-        if (CombatSessionController.FullAutoEnabled
+        if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {
             if (CombatSessionController.TryPauseTurnSetupFullAuto(result, out string pauseCode,
@@ -722,7 +722,7 @@ internal static class PlayerTurnSetupRuntime
         }
         if (t.Driving)
             return;
-        if (CombatSessionController.FullAutoEnabled
+        if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {
             if (CombatSessionController.TryPauseTurnSetupFullAuto(result, out string pauseCode,
@@ -784,7 +784,13 @@ internal static class PlayerTurnSetupRuntime
         CombatSessionController.OnTurnSetupPlayerAdvanced(t.Turn);
     }
 
-    internal static void OnFullAutoResumed(bool skipPause = false)
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// <see cref="CombatSessionController.ArmRunForTest"/> on an open page with a ready plan: the run's
+    /// own pre-drive pause decision, then the drive (deploying after the page), as a run reaching
+    /// this page does.
+    /// </summary>
+    internal static void OnRunArmedForTest(bool skipPause)
     {
         if (_active is not { PageOpen: true, PlanReady: true, Driving: false, Stopped: false,
                 Result: not null } t)
@@ -803,6 +809,7 @@ internal static class PlayerTurnSetupRuntime
         }
         TryStartDriving(deployAfterSetup: true);
     }
+#endif
 
     internal static bool LastTurnSetupDroveSelection(int turn)
         => _lastTurn == turn && _lastDroveSelection;

@@ -7,7 +7,7 @@
     "threads": 2,
     "timeoutSeconds": 900,
     "request": {
-      "settingsModeForTest": "Manual",
+      "settingsAutoSearchForTest": false,
       "controllerScenarioForTest": null,
       "fullCombatForTest": false
     }
@@ -19,7 +19,7 @@
       "group": "controller",
       "fixture": "p16-potions-character",
       "request": {
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "controllerScenarioForTest": "search_character_pool",
         "fullCombatForTest": false
       },
@@ -31,7 +31,7 @@
       "group": "controller",
       "fixture": "hl1f2-chompers-colorless-potion",
       "request": {
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "controllerScenarioForTest": "search_colorless_pool",
         "fullCombatForTest": false
       },
@@ -43,7 +43,7 @@
       "group": "controller",
       "fixture": "hl1f2-scrolls-blessed-antler-dazed",
       "request": {
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "controllerScenarioForTest": "search_dazed_root",
         "fullCombatForTest": false
       },
@@ -55,7 +55,7 @@
       "group": "controller",
       "fixture": "hl2-blessed-antler-preroot",
       "request": {
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "controllerScenarioForTest": "search_dazed_root",
         "fullCombatForTest": false
       },
@@ -333,6 +333,11 @@
       "group": "controller"
     },
     {
+      "id": "panel_run_flow",
+      "scenario": "panel_run_flow",
+      "group": "controller"
+    },
+    {
       "id": "mode_switch_mid_turn",
       "scenario": "mode_switch_mid_turn",
       "group": "controller"
@@ -378,7 +383,7 @@
       "group": "controller",
       "threads": 1,
       "request": {
-        "settingsModeForTest": "AutoSearch"
+        "settingsAutoSearchForTest": true
       }
     },
     {
@@ -386,7 +391,7 @@
       "scenario": "auto_turn_start_once",
       "group": "controller",
       "request": {
-        "settingsModeForTest": "AutoSearch"
+        "settingsAutoSearchForTest": true
       },
       "threads": 1
     },
@@ -412,7 +417,9 @@
           }
         ],
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900
       }
     },
@@ -422,7 +429,7 @@
       "group": "controller",
       "threads": 1,
       "request": {
-        "settingsModeForTest": "AutoSearch"
+        "settingsAutoSearchForTest": true
       }
     },
     {
@@ -431,7 +438,7 @@
       "group": "controller",
       "threads": "auto",
       "request": {
-        "settingsModeForTest": "AutoSearch"
+        "settingsAutoSearchForTest": true
       }
     },
     {
@@ -498,7 +505,7 @@
       "group": "controller",
       "fixture": "tw-gremlin-merc",
       "request": {
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "enemyCurrentHp": 200
       }
     },
@@ -522,7 +529,9 @@
         "initialPlayerMaxHp": 500,
         "enemyCurrentHp": 500,
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900
       }
     },
@@ -536,7 +545,9 @@
         "initialPlayerMaxHp": 500,
         "enemyCurrentHp": 500,
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900
       }
     },
@@ -547,7 +558,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": false,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -559,7 +570,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -571,7 +582,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -583,7 +594,9 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -595,7 +608,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -607,7 +620,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -619,7 +632,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -631,7 +644,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -643,7 +656,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -655,7 +668,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -667,7 +680,7 @@
       "fixture": "ts-j-toasty-one-card",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -679,7 +692,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -691,7 +704,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -705,7 +720,9 @@
       "fixture": "ts-ex-extra-turn",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -719,7 +736,7 @@
       "fixture": "ts-ex-extra-turn",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -733,7 +750,9 @@
       "fixture": "ts-d-autopreplay-choice",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -747,7 +766,9 @@
       "fixture": "ts-i-plasma-pause",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -761,7 +782,7 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "Manual",
+        "settingsAutoSearchForTest": false,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -775,7 +796,7 @@
       "fixture": "ts-k-two-relic-choices",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -787,7 +808,7 @@
       "fixture": "ts-j-crossbow-one-card",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -799,7 +820,7 @@
       "fixture": "ts-j-crossbow-many",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
       }
@@ -811,7 +832,7 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -825,7 +846,7 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -839,7 +860,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -853,7 +876,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -867,7 +892,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -881,7 +908,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -895,7 +924,9 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -909,7 +940,9 @@
       "fixture": "ts-g-multi-choice",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "FullAuto",
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -923,7 +956,7 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900
       },
       "scenarioId": "FLASH-TS-A-TOASTY"
@@ -935,7 +968,7 @@
       "fixture": "ts-a-toasty",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900
       },
       "scenarioId": "FLASH-TS-A-TOASTY",
@@ -948,7 +981,7 @@
       "fixture": "ts-b-toolbox",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900
       },
       "scenarioId": "FLASH-TS-B-TOOLBOX"
@@ -960,7 +993,7 @@
       "fixture": "ts-g-multi-choice",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -975,7 +1008,7 @@
       "fixture": "ts-g-multi-choice",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,
@@ -991,7 +1024,7 @@
       "fixture": "ts-d-autopreplay-choice",
       "request": {
         "turnSetupTakeoverForTest": true,
-        "settingsModeForTest": "AutoSearch",
+        "settingsAutoSearchForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
         "initialPlayerMaxHp": 500,

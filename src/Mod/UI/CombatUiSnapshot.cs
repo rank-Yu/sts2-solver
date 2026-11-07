@@ -29,6 +29,14 @@ internal enum SearchUiPhase
 }
 
 /// <summary>Immutable main-thread projection of the current combat session. No live game object or search node is retained.</summary>
+/// <summary>The current turn's search stage shown by the footer (<see cref="CombatUiSnapshot.SearchStage"/>).</summary>
+internal enum TurnSearchStage
+{
+    NotStarted,
+    Running,
+    Ended,
+}
+
 internal sealed record CombatUiSnapshot
 {
     internal const int CurrentSchemaVersion = 3;
@@ -42,14 +50,26 @@ internal sealed record CombatUiSnapshot
 
     public string Root { get; init; } = "";
 
-    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+    /// <summary>The auto-search switch (persisted setting).</summary>
+    public bool AutoSearchEnabled { get; init; } = true;
 
-    public bool FullAutoEnabled { get; init; }
+    /// <summary>执行本场战斗 is running in this combat.</summary>
+    public bool CombatRunActive { get; init; }
 
-    /// <summary>Full auto was paused by a pause condition for the rest of this combat.</summary>
-    public bool FullAutoPausedThisCombat { get; init; }
+    /// <summary>
+    /// The run stopped itself with a pause (projected death, deviation, failure); the next
+    /// 执行本场战斗 press confirms the current turn.
+    /// </summary>
+    public bool CombatRunPaused { get; init; }
 
+    /// <summary>Auto search or 执行本场战斗 searches the coming turns by itself.</summary>
     public bool AutomaticCalculationEnabled { get; init; }
+
+    /// <summary>
+    /// How far the current turn's search has gone: not started, running, or stopped/finished (a
+    /// reused or activated route counts as finished). The footer keys follow this, not the result.
+    /// </summary>
+    public TurnSearchStage SearchStage { get; init; }
 
     public bool AutomaticSearchPaused { get; init; }
 

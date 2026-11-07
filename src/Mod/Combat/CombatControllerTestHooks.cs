@@ -64,10 +64,16 @@ internal static class CombatControllerTestHooks
     internal static bool ForceProjectedLaterDeathTurn { get; set; }
 
     /// <summary>
-    /// Opens the once-per-combat no-survival pause in test mode. Headless fixtures run full auto
+    /// Opens the once-per-combat no-survival pause in test mode. Headless fixtures run whole combats
     /// through routes that end in death, so only the scenarios that cover this pause open it.
     /// </summary>
     internal static bool EnableNoSurvivalPause { get; set; }
+
+    /// <summary>
+    /// The request runs 执行本场战斗 from its first turn (full combats and run scenarios): BeginCombat
+    /// arms the run, so the first turn's setup page during the build is already the run's page.
+    /// </summary>
+    internal static bool RunCombatFromStartForTest { get; set; }
 
     /// <summary>Makes a turn-setup plan look like a projected death on its start turn.</summary>
     internal static bool ForceProjectedDeathTurnSetup { get; set; }

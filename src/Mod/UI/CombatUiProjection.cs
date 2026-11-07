@@ -15,9 +15,8 @@ internal static class CombatUiProjection
         => new()
         {
             Phase = CombatUiPhase.Idle,
-            Mode = SolverSettings.Current.Automation.Mode,
-            AutomaticCalculationEnabled = SolverSettings.Current.Automation.Mode
-                is SolverMode.AutoSearch or SolverMode.FullAuto,
+            AutoSearchEnabled = SolverSettings.Current.Automation.AutoSearch,
+            AutomaticCalculationEnabled = SolverSettings.Current.Automation.AutoSearch,
             Memory = Memory(budget),
             Settings = Settings(budget),
         };

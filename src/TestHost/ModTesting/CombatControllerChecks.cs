@@ -287,6 +287,9 @@ internal static class CombatControllerChecks
                 case "manual_reuses_route":
                     await ManualReusesRouteAsync(host, Check, Action);
                     break;
+                case "panel_run_flow":
+                    await PanelRunFlowAsync(host, Check, Action);
+                    break;
                 case "mode_switch_mid_turn":
                     await ModeSwitchMidTurnAsync(host, Check, Action);
                     break;
@@ -396,11 +399,11 @@ internal static class CombatControllerChecks
 
     private static async Task ManualStartStopAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "set manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "set manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         CombatUiSnapshot idle = Snapshot();
-        check("manual_auto_search_off", !idle.AutomaticCalculationEnabled && !idle.FullAutoEnabled);
+        check("manual_auto_search_off", !idle.AutomaticCalculationEnabled && !idle.CombatRunActive);
         check("can_start", idle.CanStartSearch, "can start");
         await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         check("start", true, "manual search via panel button");
@@ -408,7 +411,7 @@ internal static class CombatControllerChecks
         CombatUiSnapshot searching = await WaitAsync(host,
             static s => s.IsSearching, 240, "manual search started");
         check("search_reason", searching.Search?.Reason == "manual", searching.Search?.Reason);
-        check("search_mode", searching.Mode == SolverMode.Manual, searching.Mode.ToString());
+        check("search_mode", (!searching.AutoSearchEnabled && !searching.CombatRunActive), ModeText(searching));
         await WaitAsync(host, static s => s.IsSearching, 120, "manual search started");
         await PressPanelButtonAsync(host, PanelButton.Search, "stop_search");
         check("stop", true, "stop search via panel button");
@@ -416,13 +419,13 @@ internal static class CombatControllerChecks
         CombatUiSnapshot stopped = await WaitAsync(host, static s => !s.IsSearching, 240,
             "search stopped");
         check("paused", stopped.AutomaticSearchPaused, "automatic paused");
-        check("full_auto_off", !stopped.FullAutoEnabled, "full auto off");
+        check("full_auto_off", !stopped.CombatRunActive, "full auto off");
         check("pause_code", stopped.PauseCode == "stopped", stopped.PauseCode);
     }
 
     private static async Task AutoSearchTurnAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitIdleAsync(host, "auto search idle");
         int before = Snapshot().Searches;
@@ -432,7 +435,7 @@ internal static class CombatControllerChecks
             s => s.IsSearching && s.Search?.Reason == "auto_turn_start", 600,
             "auto search next turn");
         check("searches_increased", next.Searches > before, $"{before}->{next.Searches}");
-        check("full_auto_off", !next.FullAutoEnabled);
+        check("full_auto_off", !next.CombatRunActive);
         await WaitIdleAsync(host, "auto search done");
         bool deployed = CombatUiStore.History.Any(static s => s.IsDeploying);
         check("no_deploy", !deployed, "auto search never deploys");
@@ -440,7 +443,7 @@ internal static class CombatControllerChecks
 
     private static async Task ManualNoAutoSearchAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int before = Snapshot().Searches;
@@ -462,16 +465,16 @@ internal static class CombatControllerChecks
     {
         CombatSessionController.ResumeAutoSearchForTest();
         action("resume_turn_start");
-        check("mode_before", Snapshot().Mode == SolverMode.AutoSearch,
-            Snapshot().Mode.ToString());
+        check("mode_before", (Snapshot().AutoSearchEnabled && !Snapshot().CombatRunActive),
+            ModeText(Snapshot()));
         int before = Snapshot().Searches;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await Frames(host, 180);
         CombatUiSnapshot after = Snapshot();
         check("no_auto_search", after.Searches == before, $"{before}->{after.Searches}");
         check("not_searching", !after.IsSearching, after.Phase.ToString());
-        check("mode_manual", after.Mode == SolverMode.Manual, after.Mode.ToString());
+        check("mode_manual", (!after.AutoSearchEnabled && !after.CombatRunActive), ModeText(after));
         check("auto_search_off", !after.AutomaticCalculationEnabled, "automatic search enabled");
     }
 
@@ -504,7 +507,7 @@ internal static class CombatControllerChecks
 
     private static async Task AutoSearchFullAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot start = await WaitAsync(host,
             static s => s.Search is { Phase: SearchUiPhase.Completed } && !s.IsSearching,
@@ -528,7 +531,7 @@ internal static class CombatControllerChecks
 
     private static async Task ManualFullAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int searches = Snapshot().Searches;
@@ -546,7 +549,7 @@ internal static class CombatControllerChecks
 
     private static async Task StopThenNextTurnAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await StartManualSearchAsync(host, action, waitCandidate: false);
         check("stop", CombatUiCommands.Instance.StopSearch(), "stop");
@@ -567,8 +570,8 @@ internal static class CombatControllerChecks
     private static async Task StopSearchKeepRouteAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
-        action("set_mode:full_auto");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
+        action("set_mode:auto_search");
         CombatControllerTestHooks.AutoStopOnCandidate = true;
         try
         {
@@ -585,8 +588,9 @@ internal static class CombatControllerChecks
             static s => s.AutomaticSearchPaused && !s.IsSearching, 300, "search stopped");
         check("stopped_this_turn", stopped.AutomationStoppedThisTurn);
         check("route_retained", stopped.Result != null && stopped.CurrentTurnRouteReady);
-        check("mode_unchanged", stopped.Mode == SolverMode.FullAuto, stopped.Mode.ToString());
-        check("full_auto_not_paused", !stopped.FullAutoPausedThisCombat);
+        check("mode_unchanged", stopped.AutoSearchEnabled && !stopped.CombatRunActive, ModeText(stopped));
+        check("run_not_paused", !stopped.CombatRunPaused);
+        check("stage_ended", stopped.SearchStage == TurnSearchStage.Ended, stopped.SearchStage.ToString());
         check("not_deploying", !stopped.IsDeploying);
         int searches = stopped.Searches;
         await ForceEndTurnAsync(host);
@@ -599,7 +603,7 @@ internal static class CombatControllerChecks
 
     private static async Task StopThenRecalcAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await StartManualSearchAsync(host, action, waitCandidate: true);
         await PressPanelButtonAsync(host, PanelButton.Search, "stop_search");
@@ -666,7 +670,7 @@ internal static class CombatControllerChecks
 
     private static async Task ContinueSearchMiddleAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         using SettingsOverride singleThread = new(SolverSettings.Current with
         {
@@ -735,7 +739,7 @@ internal static class CombatControllerChecks
     private static async Task ContinueSearchSettingsChangedAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before settings change");
         check("can_continue", stopped.CanContinueSearch, "continue available before the change");
@@ -780,7 +784,7 @@ internal static class CombatControllerChecks
 
     private static async Task ContinueSearchStateChangedAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before state change");
         check("can_continue", stopped.CanContinueSearch, "continue available before the change");
@@ -807,7 +811,7 @@ internal static class CombatControllerChecks
 
     private static async Task ContinueSearchLastMemberAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = FastMillisecondsPerWidth;
         await PressPanelButtonAsync(host, PanelButton.Search, "learn_member_count");
@@ -835,7 +839,7 @@ internal static class CombatControllerChecks
 
     private static async Task ContinueSearchTwiceAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         CombatControllerTestHooks.SearchMillisecondsPerWidthForTest = FastMillisecondsPerWidth;
         CombatUiSnapshot first = await StopAtMemberAsync(host, action, 1, "first stop");
@@ -896,7 +900,7 @@ internal static class CombatControllerChecks
     private static async Task ContinueSearchRequestMismatchAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         CombatUiSnapshot stopped = await StopAtMemberAsync(host, action, 1, "stop before tamper");
         check("can_continue", stopped.CanContinueSearch, "continue available before the tamper");
@@ -950,7 +954,15 @@ internal static class CombatControllerChecks
     private static async Task<string> SearchButtonTextAsync(NGame host)
     {
         await Frames(host, 2);
-        return SolverOverlay.Instance?.SearchButtonForTest?.Text ?? "";
+        // The old single key read 重新搜索 whenever continuing was impossible; the new footer shows a
+        // greyed 继续搜索 next to 重新搜索 then.
+        SolverOverlay? panel = SolverOverlay.Instance;
+        if (panel?.SearchButtonForTest is { Disabled: true } left
+            && left.Text == SolverText.Get("继续搜索") && Usable(panel.RestartSearchButtonForTest))
+        {
+            return SolverText.Get("重新搜索");
+        }
+        return panel?.SearchButtonForTest?.Text ?? "";
     }
 
     private static bool RouteEquals(PlayerAction[] left, PlayerAction[] right)
@@ -974,7 +986,7 @@ internal static class CombatControllerChecks
 
     private static async Task ExecuteHasResultAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null, 900, "latest result");
         await WaitIdleAsync(host, "idle with result");
@@ -1004,7 +1016,7 @@ internal static class CombatControllerChecks
     private static async Task ExecuteAfterStopAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         bool stoppedWithRoute = false;
         for (int attempt = 0; attempt < 3 && !stoppedWithRoute; attempt++)
@@ -1024,7 +1036,7 @@ internal static class CombatControllerChecks
                 await WaitIdleAsync(host, "search finished before stop");
                 continue;
             }
-            Button? execute = SolverOverlay.Instance?.ExecuteButtonForTest;
+            Button? execute = SolverOverlay.Instance?.ExecuteTurnButtonForTest;
             check("execute_hidden_while_searching", execute != null && !execute.Visible,
                 $"visible={execute?.Visible}");
             check("execute_rejected_while_searching", !CombatUiCommands.Instance.ExecuteCurrentTurn(),
@@ -1045,7 +1057,7 @@ internal static class CombatControllerChecks
 
     private static async Task ExecuteWithoutResultAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         CombatUiSnapshot idle = Snapshot();
@@ -1063,14 +1075,14 @@ internal static class CombatControllerChecks
 
     private static async Task ModeSwitchAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await StartManualSearchAsync(host, action, waitCandidate: false);
         int generation = Snapshot().Searches;
-        check("to_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("to_full_auto", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         check("still_searching", Snapshot().IsSearching, "search not interrupted");
-        check("to_auto_search", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("to_auto_search", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         check("still_searching_2", Snapshot().IsSearching, "search not interrupted");
         await WaitIdleAsync(host, "mode switch search done");
@@ -1081,10 +1093,10 @@ internal static class CombatControllerChecks
 
     private static async Task FullAutoStartAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot armed = Snapshot();
-        check("full_auto_armed", armed.FullAutoEnabled, "full auto armed");
+        check("full_auto_armed", armed.CombatRunActive, "full auto armed");
         await WaitAsync(host, static s => s.IsSearching || s.IsDeploying, 600,
             "full auto search");
         await WaitAsync(host, static s => s.IsDeploying, 900, "full auto deployment");
@@ -1095,7 +1107,7 @@ internal static class CombatControllerChecks
 
     private static async Task FullAutoArmAfterTurnAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitIdleAsync(host, "auto search idle");
         CombatSessionController.HoldAutoSearchForTest = true;
@@ -1107,7 +1119,7 @@ internal static class CombatControllerChecks
             if (switched)
                 return;
             switched = true;
-            if (!CombatUiCommands.Instance.SetMode(SolverMode.FullAuto))
+            if (!CombatSessionController.ArmRunForTest())
                 return;
             wasPlayable = CombatUiStore.Snapshot.CanStartSearch;
         }
@@ -1124,7 +1136,7 @@ internal static class CombatControllerChecks
         check("switched_during_enemy_turn", switched, "mode switched before enemy turn");
         check("armed_not_playable", !wasPlayable, "full auto armed outside play phase");
         CombatUiSnapshot armed = Snapshot();
-        check("armed", armed.FullAutoEnabled, "full auto armed while not playable");
+        check("armed", armed.CombatRunActive, "full auto armed while not playable");
         CombatSessionController.HoldAutoSearchForTest = false;
         CombatSessionController.ResumeAutoSearchForTest();
         action("resume_auto_search");
@@ -1142,7 +1154,7 @@ internal static class CombatControllerChecks
         // failure limit; production only allows one automatic turn-start search per turn.
         CombatControllerTestHooks.AllowRepeatedAutoTurnStartForTest = true;
         CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot failed = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Failed, 1800, "first search failure");
@@ -1172,14 +1184,14 @@ internal static class CombatControllerChecks
         check("searches", paused.Searches >= 3, paused.Searches.ToString());
         check("no_deployment_failures", paused.DeploymentFailures == 0,
             paused.DeploymentFailures.ToString());
-        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
+        check("mode_full_auto", (paused.CombatRunActive || paused.CombatRunPaused), ModeText(paused));
         int searches = paused.Searches;
         await Frames(host, 180);
         CombatUiSnapshot after = Snapshot();
         check("no_fourth_search", after.Searches == searches, $"{searches}->{after.Searches}");
-        check("mode_unchanged", after.Mode == paused.Mode, after.Mode.ToString());
-        check("paused_this_combat", after.FullAutoPausedThisCombat);
-        check("not_armed", !after.FullAutoEnabled);
+        check("mode_unchanged", after.AutoSearchEnabled == paused.AutoSearchEnabled, ModeText(after));
+        check("paused_this_combat", after.CombatRunPaused);
+        check("not_armed", !after.CombatRunActive);
         CombatControllerTestHooks.ForceSearchFailure = null;
     }
 
@@ -1234,7 +1246,7 @@ internal static class CombatControllerChecks
     /// <summary>Auto search reuses turn two's plan from the solver's EndTurn instead of searching.</summary>
     private static async Task TurnSetupContinuationAutoAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot first = await WaitSearchPlanAsync(host);
         check("turn_one_plan", first.CurrentTurnRouteReady, first.CurrentTurnRouteReady.ToString());
@@ -1274,7 +1286,7 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupContinuationPlayerAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitSearchPlanAsync(host);
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_one");
@@ -1306,8 +1318,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupContinuationMismatchAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         check("tamper", CombatControllerTestHooks.TamperTurnSetupContinuationPlanForTest);
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "turn two mismatch page");
@@ -1323,8 +1335,8 @@ internal static class CombatControllerChecks
         check("not_driving", !paused.TurnSetupDriving);
         check("not_plan_ready", !paused.TurnSetupPlanReady);
         check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("paused_this_combat", paused.CombatRunPaused);
         check("no_error", paused.ErrorCode == null, paused.ErrorCode);
     }
 
@@ -1332,8 +1344,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupContinuationPauseAsync(NGame host, Check check, Action action)
     {
         CombatControllerTestHooks.ForceProjectedDeathTurnSetup = true;
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         action("force_full_auto_pause");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2
@@ -1349,15 +1361,15 @@ internal static class CombatControllerChecks
             $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
         check("not_driving", !paused.TurnSetupDriving);
         check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("paused_this_combat", paused.CombatRunPaused);
     }
 
     /// <summary>At least three player turns from one search: turns 2 and 3 reuse the EndTurn plan.</summary>
     private static async Task TurnSetupContinuationFullAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         action("wait_three_turns");
         CombatUiSnapshot third = await WaitAsync(host,
             static s => s.Turn >= 3 && s.ReusedTurns >= 2, 7200, "third player turn");
@@ -1379,9 +1391,9 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupCapsuleSourceAsync(NGame host, Check check, Action action,
         string scenarioId)
     {
-        if (Snapshot().Mode != SolverMode.AutoSearch)
+        if (!(Snapshot().AutoSearchEnabled && !Snapshot().CombatRunActive))
         {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch),
+            check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true),
                 "auto search");
             action("set_mode:auto_search");
         }
@@ -1415,8 +1427,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupCapsuleSourceTurnTwoAsync(NGame host, Check check,
         Action action, string scenarioId)
     {
-        check("mode_auto_search", Snapshot().Mode == SolverMode.AutoSearch,
-            Snapshot().Mode.ToString());
+        check("mode_auto_search", (Snapshot().AutoSearchEnabled && !Snapshot().CombatRunActive),
+            ModeText(Snapshot()));
         CombatUiSnapshot first = await WaitSearchPlanAsync(host);
         check("turn_one_plan", first.CurrentTurnRouteReady, first.CurrentTurnRouteReady.ToString());
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_one");
@@ -1459,8 +1471,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupContinuationProbeAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "continuation probe page");
         action("wait_continuation_probe");
@@ -1532,8 +1544,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupContinuationValidationAsync(NGame host, Check check,
         Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         await WaitAsync(host, static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600,
             "validation reject page");
         action("wait_validation_reject");
@@ -1567,8 +1579,8 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupContinuationGapAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "furnace pause page");
         action("wait_furnace_pause");
@@ -1611,7 +1623,7 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupAutoExecuteAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot page = await WaitSetupPageAsync(host);
         check("page_open", page.TurnSetupPageOpen);
@@ -1660,7 +1672,7 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupAutoManualAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitSetupPageAsync(host);
         await WaitSetupSearchAsync(host);
@@ -1685,8 +1697,8 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupFullAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot activated = await WaitAsync(host,
             static s => s.ReusedTurns > 0 || s.IsDeploying, 3600,
             "full auto setup activated");
@@ -1711,7 +1723,7 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupStopKeepAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitSetupPageAsync(host);
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
@@ -1742,7 +1754,7 @@ internal static class CombatControllerChecks
     {
         if (!forcedFailure)
         {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch),
+            check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true),
                 "auto search");
             action("set_mode:auto_search");
         }
@@ -1805,7 +1817,7 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupStopDriveAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         await WaitSetupPageAsync(host);
         await WaitSetupSearchAsync(host);
@@ -1836,8 +1848,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupPauseAsync(NGame host, Check check, Action action)
     {
         CombatControllerTestHooks.ForceProjectedDeathTurnSetup = true;
-        check("mode_set", Snapshot().Mode == SolverMode.FullAuto
-            || CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused)
+            || CombatSessionController.ArmRunForTest(), "full auto");
         action("force_full_auto_pause");
         await WaitSetupPageAsync(host);
         await WaitSetupSearchAsync(host);
@@ -1848,8 +1860,8 @@ internal static class CombatControllerChecks
         check("plan_ready", paused.TurnSetupPlanReady);
         check("not_driving", !paused.TurnSetupDriving);
         check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("paused_this_combat", paused.CombatRunPaused);
         CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
         int reused = paused.ReusedTurns;
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_setup_pause");
@@ -1864,7 +1876,7 @@ internal static class CombatControllerChecks
 
     private static async Task TurnSetupSceneExitAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitSetupPageAsync(host);
         await WaitSetupSearchAsync(host);
@@ -1937,10 +1949,10 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupExtraTurnSearchAsync(NGame host, Check check, Action action)
     {
-        check("mode_manual", Snapshot().Mode == SolverMode.Manual, Snapshot().Mode.ToString());
+        check("mode_manual", (!Snapshot().AutoSearchEnabled && !Snapshot().CombatRunActive), ModeText(Snapshot()));
         check("no_turn_one_search", Snapshot().Searches == 0, Snapshot().Searches.ToString());
         CombatSessionController.HoldAutoSearchForTest = true;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await StartEndTurnAsync(host);
         action("end_turn_one");
@@ -1984,8 +1996,8 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupTurnTwoAsync(NGame host, Check check, Action action,
         bool fullAuto)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto || !fullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused) || !fullAuto,
+            ModeText(Snapshot()));
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "turn two setup page");
         action("wait_turn_two_setup");
@@ -2043,8 +2055,8 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupAutoPrePlayAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "auto pre play setup page");
         action("wait_auto_pre_play_page");
@@ -2095,8 +2107,8 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupCarryAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "turn two carry setup page");
         action("wait_turn_two_carry_setup");
@@ -2155,12 +2167,12 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupManualEndAsync(NGame host, Check check, Action action)
     {
-        check("mode_manual", Snapshot().Mode == SolverMode.Manual, Snapshot().Mode.ToString());
+        check("mode_manual", (!Snapshot().AutoSearchEnabled && !Snapshot().CombatRunActive), ModeText(Snapshot()));
         check("no_turn_one_search", Snapshot().Searches == 0, Snapshot().Searches.ToString());
         await StartEndTurnAsync(host);
         action("end_turn_one");
         await WaitNativeSideAsync(host, CombatSide.Enemy);
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot page = await WaitAsync(host,
             static s => s.TurnSetupPageOpen && s.Turn >= 2, 3600, "manual end turn two setup page");
@@ -2194,7 +2206,7 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task TurnSetupMultiAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot page = await WaitSetupPageAsync(host);
         check("page_open", page.TurnSetupPageOpen);
@@ -2226,7 +2238,7 @@ internal static class CombatControllerChecks
     private static async Task TurnSetupCrossbowAsync(NGame host, Check check, Action action,
         int expectedOptions)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot page = await WaitSetupPageAsync(host);
         check("page_open", page.TurnSetupPageOpen);
@@ -2304,7 +2316,7 @@ internal static class CombatControllerChecks
     private static async Task DeploymentChoiceMismatchAsync(NGame host, Check check, Action action)
     {
         CombatControllerTestHooks.ForceChoicePlanUnderflowOnce = true;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "choice_mismatch",
@@ -2313,8 +2325,8 @@ internal static class CombatControllerChecks
         check("deployment_failure", paused.DeploymentFailures >= 1,
             paused.DeploymentFailures.ToString());
         check("deviations_zero", paused.Deviations == 0, paused.Deviations.ToString());
-        check("full_auto_off", !paused.FullAutoEnabled, paused.FullAutoEnabled.ToString());
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive, paused.CombatRunActive.ToString());
+        check("paused_this_combat", paused.CombatRunPaused);
         CombatState? live = CombatManager.Instance.DebugOnlyGetState();
         check("native_in_progress", live != null && CombatManager.Instance.IsInProgress,
             $"in_progress={CombatManager.Instance.IsInProgress}");
@@ -2330,7 +2342,7 @@ internal static class CombatControllerChecks
         int forcedAt = 0;
         CombatControllerTestHooks.ForceDeploymentFailure = (deployed, turn) =>
             turn == 1 && ++forcedAt == 2 ? "action_deviation" : null;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "action_deviation",
@@ -2338,17 +2350,16 @@ internal static class CombatControllerChecks
         check("forced_second_action", forcedAt >= 2, forcedAt.ToString());
         check("pause_code", paused.PauseCode == "action_deviation", paused.PauseCode);
         check("deviations", paused.Deviations == 1, paused.Deviations.ToString());
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("mode_full_auto", (paused.CombatRunActive || paused.CombatRunPaused), ModeText(paused));
+        check("paused_this_combat", paused.CombatRunPaused);
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
         int searches = paused.Searches;
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
         await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
         check("summary", Summary().Contains("动作结果与预测不同，已停止", StringComparison.Ordinal),
             Summary());
@@ -2358,19 +2369,20 @@ internal static class CombatControllerChecks
         await Frames(host, 60);
         check("no_research", Snapshot().Searches == searches, $"{searches}->{Snapshot().Searches}");
         CombatControllerTestHooks.ForceDeploymentFailure = null;
-        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
-        action("press_resume_full_auto");
+        // The paused route was dropped, so the execute keys are greyed: the player searches again.
+        await PressPanelButtonAsync(host, PanelButton.Search, "search_after_pause");
+        action("press_search_after_pause");
         CombatUiSnapshot resumed = await WaitAsync(host,
             s => s.Searches > searches || s.IsSearching, 240, "resume search after deviation");
         check("resume_clears_pause", resumed.PauseCode == null, resumed.PauseCode ?? "-");
-        check("resume_not_paused", !resumed.FullAutoPausedThisCombat);
+        check("resume_not_paused", !resumed.CombatRunPaused);
         check("resume_search", resumed.Searches > searches || resumed.IsSearching,
             $"{searches}->{resumed.Searches}");
     }
 
     private static async Task DeviationActionAutoSearchAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching && !s.IsDeploying,
             1800, "route ready");
@@ -2385,24 +2397,23 @@ internal static class CombatControllerChecks
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "action_deviation",
             1800, "auto search deviation pause");
         check("pause_code", paused.PauseCode == "action_deviation", paused.PauseCode);
-        check("mode_auto_search", paused.Mode == SolverMode.AutoSearch, paused.Mode.ToString());
-        check("not_full_auto_paused", !paused.FullAutoPausedThisCombat);
+        check("mode_auto_search", (paused.AutoSearchEnabled && !paused.CombatRunActive), ModeText(paused));
+        check("not_full_auto_paused", !paused.CombatRunPaused);
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
         check("searches_unchanged", paused.Searches == searches,
             $"{searches}->{paused.Searches}");
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
         await Frames(host, 60);
         check("no_research", Snapshot().Searches == searches, $"{searches}->{Snapshot().Searches}");
     }
 
     private static async Task DeviationDeploymentDriftAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching && !s.IsDeploying,
             1800, "route ready");
@@ -2440,8 +2451,8 @@ internal static class CombatControllerChecks
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
         await Frames(host, 60);
         check("no_research", Snapshot().Searches == searches, $"{searches}->{Snapshot().Searches}");
     }
@@ -2462,7 +2473,7 @@ internal static class CombatControllerChecks
             action($"inject_boundary_damage:turn={turn}");
             token.ThrowIfCancellationRequested();
         };
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused
@@ -2472,16 +2483,15 @@ internal static class CombatControllerChecks
         check("searches_unchanged", searchesAtTurnTwo >= 0
             && paused.Searches == searchesAtTurnTwo,
             $"{searchesAtTurnTwo}->{paused.Searches}");
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("mode_full_auto", (paused.CombatRunActive || paused.CombatRunPaused), ModeText(paused));
+        check("paused_this_combat", paused.CombatRunPaused);
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
         await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
         check("summary",
             Summary().Contains("回合开始时实际状态与预测不同，已停止", StringComparison.Ordinal),
@@ -2490,29 +2500,30 @@ internal static class CombatControllerChecks
             Summary().Contains("和路线对不上", StringComparison.Ordinal), Summary());
         CombatControllerTestHooks.BeforeAutoSearch = null;
         int searches = paused.Searches;
-        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
-        action("press_resume_full_auto");
+        // The paused route was dropped, so the execute keys are greyed: the player searches again.
+        await PressPanelButtonAsync(host, PanelButton.Search, "search_after_pause");
+        action("press_search_after_pause");
         CombatUiSnapshot resumed = await WaitAsync(host,
             s => s.Searches > searches || s.IsSearching, 240, "resume after boundary deviation");
         check("resume_clears_pause", resumed.PauseCode == null, resumed.PauseCode ?? "-");
-        check("resume_not_paused", !resumed.FullAutoPausedThisCombat);
+        check("resume_not_paused", !resumed.CombatRunPaused);
         check("resume_search", resumed.Searches > searches || resumed.IsSearching,
             $"{searches}->{resumed.Searches}");
     }
 
     private static async Task DeviationSetupStampAsync(NGame host, Check check, Action action)
     {
-        check("mode_full_auto", Snapshot().Mode == SolverMode.FullAuto,
-            Snapshot().Mode.ToString());
+        check("mode_full_auto", (Snapshot().CombatRunActive || Snapshot().CombatRunPaused),
+            ModeText(Snapshot()));
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused
                 && s.PauseCode == "boundary_deviation", 2400, "setup stamp deviation pause");
         check("damaged", CombatControllerTestHooks.SetupStampDamageInjected,
             "setup Play stamp damage injected");
         check("pause_code", paused.PauseCode == "boundary_deviation", paused.PauseCode);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("mode_full_auto", (paused.CombatRunActive || paused.CombatRunPaused), ModeText(paused));
+        check("paused_this_combat", paused.CombatRunPaused);
         check("route_dropped", paused.Result == null && !paused.CurrentTurnRouteReady);
         check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
         int searches = paused.Searches;
@@ -2524,15 +2535,14 @@ internal static class CombatControllerChecks
             Summary().Contains("回合开始时实际状态与预测不同，已停止", StringComparison.Ordinal),
             Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
     }
 
     private static async Task PlanExhaustedAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching && !s.IsDeploying,
             1800, "route ready");
@@ -2554,30 +2564,31 @@ internal static class CombatControllerChecks
     private static async Task PauseDeathTurnDeploymentAsync(NGame host, Check check, Action action)
     {
         CombatControllerTestHooks.ForceProjectedDeathTurn = true;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "death_turn",
             2400, "death turn deployment pause");
         check("pause_code", paused.PauseCode == "death_turn", paused.PauseCode);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("paused_this_combat", paused.CombatRunPaused);
         check("result_retained", paused.Result != null);
         check("route_ready", paused.CurrentTurnRouteReady);
         await WaitPanelAppliedAsync(host);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
-        // Full auto has no play-this-turn-only key: after its own pause the key still starts full
-        // auto, and pressing it confirms this turn's route and arms full auto again.
-        check("right_text", panel?.ExecuteButtonForTest?.Text == SolverText.Get("开始执行"),
-            panel?.ExecuteButtonForTest?.Text ?? "-");
+        // After the run's own pause both execute keys are back; 执行本场战斗 confirms this turn's
+        // route and runs again.
+        check("right_visible", Usable(panel?.ExecuteCombatButtonForTest)
+            && Usable(panel?.ExecuteTurnButtonForTest), FooterText(panel));
+        check("right_text", panel?.ExecuteCombatButtonForTest?.Text == SolverText.Get("执行本场战斗"),
+            FooterText(panel));
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_death_pause");
         action("press_execute_after_death_pause");
         CombatUiSnapshot resumed = await WaitAsync(host, static s => s.IsDeploying, 600,
             "deployment after death pause");
         check("resume_deploying", resumed.IsDeploying, resumed.Phase.ToString());
-        check("resume_full_auto_on", resumed.FullAutoEnabled);
-        check("resume_not_paused", !resumed.FullAutoPausedThisCombat);
+        check("resume_full_auto_on", resumed.CombatRunActive);
+        check("resume_not_paused", !resumed.CombatRunPaused);
         check("resume_pause_cleared", resumed.PauseCode == null, resumed.PauseCode ?? "-");
         CombatControllerTestHooks.ForceProjectedDeathTurn = false;
         await WaitIdleAsync(host, "deployment after death pause done");
@@ -2591,18 +2602,18 @@ internal static class CombatControllerChecks
     {
         CombatControllerTestHooks.ForceProjectedLaterDeathTurn = true;
         CombatControllerTestHooks.EnableNoSurvivalPause = true;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused && s.PauseCode == "no_survival",
             2400, "no survival pause");
         check("pause_code", paused.PauseCode == "no_survival", paused.PauseCode);
-        check("full_auto_off", !paused.FullAutoEnabled);
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
+        check("full_auto_off", !paused.CombatRunActive);
+        check("paused_this_combat", paused.CombatRunPaused);
         check("result_retained", paused.Result != null);
         check("route_ready", paused.CurrentTurnRouteReady);
         check("not_deploying", !paused.IsDeploying);
-        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
+        await PressPanelButtonAsync(host, PanelButton.ExecuteCombat, "resume_full_auto");
         action("press_resume_full_auto");
         CombatUiSnapshot resumed = await WaitAsync(host,
             static s => s.IsDeploying || (s.Phase == CombatUiPhase.Paused && s.PauseCode == "no_survival"),
@@ -2617,7 +2628,7 @@ internal static class CombatControllerChecks
 
     private static async Task CombatEndAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         long deadline = Environment.TickCount64 + 480_000;
         while (CombatManager.Instance.IsInProgress && Environment.TickCount64 < deadline)
@@ -2676,7 +2687,7 @@ internal static class CombatControllerChecks
     private static async Task PanelTextsAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         await WaitIdleAsync(host, "manual idle");
         await WaitStatusAsync(host, SolverText.Get("等待手动搜索"));
         check("manual_status", Status() == SolverText.Get("等待手动搜索"), Status());
@@ -2746,7 +2757,7 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task SearchFailuresAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int turn = Snapshot().Turn;
@@ -2781,11 +2792,8 @@ internal static class CombatControllerChecks
                     StringComparison.Ordinal), Summary());
         }
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("search_failed_button",
-            panel?.SearchButtonForTest is { Disabled: false } button
-            && button.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text);
-        check("search_failed_no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+        check("search_failed_button", SearchAvailable(panel), FooterText(panel));
+        check("search_failed_no_execute", ExecuteUnavailable(panel), FooterText(panel));
 
         CombatControllerTestHooks.ForceSearchFailure = null;
         await PressPanelButtonAsync(host, PanelButton.Search, "retry");
@@ -2825,10 +2833,7 @@ internal static class CombatControllerChecks
                 Summary().Contains("No route used every potion set to Always use.",
                     StringComparison.Ordinal), Summary());
         }
-        check("potion_failed_button",
-            panel?.SearchButtonForTest is { Disabled: false } potionButton
-            && potionButton.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text);
+        check("potion_failed_button", SearchAvailable(panel), FooterText(panel));
 
         CombatControllerTestHooks.ForceSearchFailure = null;
         await ForceEndTurnAsync(host);
@@ -2842,7 +2847,7 @@ internal static class CombatControllerChecks
 
     private static async Task ImportCapacityAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int turn = Snapshot().Turn;
@@ -2877,14 +2882,11 @@ internal static class CombatControllerChecks
             Summary());
         check("summary_reason", Summary().Contains(expected, StringComparison.Ordinal), Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("button",
-            panel?.SearchButtonForTest is { Disabled: false } button
-            && button.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text);
-        check("no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+        check("button", SearchAvailable(panel), FooterText(panel));
+        check("no_execute", ExecuteUnavailable(panel), FooterText(panel));
         // Mode switches clear the visible failure state. The whole-combat test must still see the
         // unrecovered import failure afterwards.
-        check("mode_clear", CombatUiCommands.Instance.SetMode(SolverMode.Manual));
+        check("mode_clear", CombatSessionController.LeaveRunForTest(autoSearch: false));
         action("set_mode_manual_after_failure");
         await Frames(host, 4);
         string? terminalAfterMode = CombatSessionController.NonProgressingReasonForTest;
@@ -2895,7 +2897,7 @@ internal static class CombatControllerChecks
 
     private static async Task ImportFailureAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         await PressPanelButtonAsync(host, PanelButton.Search, "import_failure");
@@ -2922,16 +2924,13 @@ internal static class CombatControllerChecks
         check("summary_reason", Summary().Contains(reason, StringComparison.Ordinal), Summary());
         check("summary_two_lines", Summary().Contains('\n'), Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("button",
-            panel?.SearchButtonForTest is { Disabled: false } button
-            && button.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text);
-        check("no_execute", panel?.ExecuteButtonForTest?.Visible == false);
+        check("button", SearchAvailable(panel), FooterText(panel));
+        check("no_execute", ExecuteUnavailable(panel), FooterText(panel));
     }
 
     private static async Task SearchStatusFailuresAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         (string Name, CombatSearchStatus Status, bool Memory, string Kind,
@@ -2989,7 +2988,7 @@ internal static class CombatControllerChecks
     private static async Task CapacityDroppedRouteAsync(NGame host, Check check, Action action)
     {
         check("mode_auto_search",
-            CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+            CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         CombatUiSnapshot ready = await WaitAsync(host,
             static s => s.Result != null && !s.IsSearching && !s.IsDeploying
@@ -3009,13 +3008,12 @@ internal static class CombatControllerChecks
             new SortedDictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 });
         check("summary_hint", Summary().Contains(hint, StringComparison.Ordinal), Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
-        check("right_text", panel?.ExecuteButtonForTest?.Text == SolverText.Get("执行本回合"),
-            panel?.ExecuteButtonForTest?.Text ?? "-");
-        check("right_enabled", panel?.ExecuteButtonForTest?.Disabled == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_visible", panel?.ExecuteTurnButtonForTest?.Visible == true, FooterText(panel));
+        check("right_text", panel?.ExecuteTurnButtonForTest?.Text == SolverText.Get("执行本回合"),
+            FooterText(panel));
+        check("right_enabled", panel?.ExecuteTurnButtonForTest?.Disabled == false, FooterText(panel));
     }
 
     private static async Task ThreadSettingAsync(NGame host, Check check, Action action)
@@ -3023,7 +3021,7 @@ internal static class CombatControllerChecks
         SolverSettingsData original = SolverSettings.Current;
         try
         {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+            check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
             await WaitIdleAsync(host, "manual idle");
             foreach (int threads in new[] { 2, 3 })
             {
@@ -3054,7 +3052,7 @@ internal static class CombatControllerChecks
         FastModeType originalFastMode = SaveManager.Instance.PrefsSave.FastMode;
         try
         {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+            check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
             action("set_mode:auto_search");
             await WaitAsync(host, static s => s.Result != null && !s.IsSearching
                 && !s.IsDeploying, 900, "result ready");
@@ -3119,19 +3117,21 @@ internal static class CombatControllerChecks
     private static async Task MultiplayerGateAsync(NGame host, Check check, Action action)
     {
         CombatSessionController.ForceMultiplayerForTest = true;
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("force_multiplayer");
         await Frames(host, 3);
-        check("set_full_auto", !CombatUiCommands.Instance.SetMode(SolverMode.FullAuto),
+        check("set_full_auto", !CombatSessionController.ArmRunForTest(),
             "full auto rejected");
-        check("start", !CombatUiCommands.Instance.StartOrRecalculateSearch(), "search rejected");
+        check("execute_combat", !CombatUiCommands.Instance.ExecuteCombat(), "execute combat rejected");
+        check("continue", !CombatUiCommands.Instance.ContinueSearch(), "continue rejected");
+        check("start", !CombatUiCommands.Instance.StartSearch(), "search rejected");
         check("execute", !CombatUiCommands.Instance.ExecuteCurrentTurn(), "execute rejected");
         check("stop_search", !CombatUiCommands.Instance.StopSearch(), "stop search rejected");
-        check("stop_deployment", !CombatUiCommands.Instance.StopDeployment(),
+        check("stop_deployment", !CombatUiCommands.Instance.StopExecution(),
             "stop deployment rejected");
         check("not_searching", !Snapshot().IsSearching);
         check("not_deploying", !Snapshot().IsDeploying);
-        check("full_auto_off", !Snapshot().FullAutoEnabled);
+        check("full_auto_off", !Snapshot().CombatRunActive);
         SolverOverlay? panel = SolverOverlay.Instance;
         if (panel != null)
         {
@@ -3140,9 +3140,88 @@ internal static class CombatControllerChecks
         }
     }
 
+    /// <summary>
+    /// The footer and the run as the player drives them (user design 2026-11-07). Before the turn's
+    /// first search only 开始搜索 is usable and both execute keys sit greyed; during the search no
+    /// execute key shows; after it 继续搜索 + 重新搜索 and both execute keys. Switching auto search with
+    /// a current route never searches again. 执行本场战斗 deploys this turn and carries on into the next
+    /// turn by itself, showing only 停止执行; pressing it ends the run and hands control back.
+    /// </summary>
+    private static async Task PanelRunFlowAsync(NGame host, Check check, Action action)
+    {
+        check("auto_search_off", CombatSessionController.LeaveRunForTest(autoSearch: false), "auto search off");
+        action("set_auto_search:off");
+        await WaitIdleAsync(host, "idle");
+        await Frames(host, 4);
+        SolverOverlay? panel = SolverOverlay.Instance;
+        CombatUiSnapshot idle = Snapshot();
+        check("stage_not_started", idle.SearchStage == TurnSearchStage.NotStarted, idle.SearchStage.ToString());
+        check("start_key", panel?.SearchButtonForTest is { Visible: true, Disabled: false } start
+            && start.Text == SolverText.Get("开始搜索"), FooterText(panel));
+        check("restart_hidden_before_search", panel?.RestartSearchButtonForTest?.Visible == false,
+            FooterText(panel));
+        check("execute_greyed_before_search",
+            panel?.ExecuteTurnButtonForTest is { Visible: true, Disabled: true }
+            && panel.ExecuteCombatButtonForTest is { Visible: true, Disabled: true }, FooterText(panel));
+        await PressPanelButtonAsync(host, PanelButton.Search, "start_search");
+        action("press_start_search");
+        await WaitAsync(host, static s => s.IsSearching, 240, "search started");
+        await Frames(host, 2);
+        check("no_execute_while_searching", ExecuteUnavailable(panel)
+            && panel?.ExecuteTurnButtonForTest?.Visible == false
+            && panel.ExecuteCombatButtonForTest?.Visible == false, FooterText(panel));
+        CombatUiSnapshot ready = await WaitAsync(host,
+            static s => !s.IsSearching && s.CurrentTurnRouteReady, 1800, "route ready");
+        await Frames(host, 4);
+        check("stage_ended", Snapshot().SearchStage == TurnSearchStage.Ended, Snapshot().SearchStage.ToString());
+        check("continue_restart_pair", panel?.SearchButtonForTest?.Text == SolverText.Get("继续搜索")
+            && panel.RestartSearchButtonForTest is { Visible: true, Disabled: false }, FooterText(panel));
+        check("execute_ready", Usable(panel?.ExecuteTurnButtonForTest)
+            && Usable(panel?.ExecuteCombatButtonForTest), FooterText(panel));
+        int searches = ready.Searches;
+        await PressPanelButtonAsync(host, PanelButton.AutoSearchOn, "auto_search_on");
+        action("toggle_auto_search_on");
+        await Frames(host, 30);
+        check("switch_on_no_search", Snapshot().Searches == searches && !Snapshot().IsSearching,
+            $"{searches}->{Snapshot().Searches}");
+        check("switch_on_saved", SolverSettings.Current.Automation.AutoSearch && Snapshot().AutoSearchEnabled);
+        await PressPanelButtonAsync(host, PanelButton.AutoSearchOff, "auto_search_off");
+        action("toggle_auto_search_off");
+        await Frames(host, 30);
+        check("switch_off_no_search", Snapshot().Searches == searches && Snapshot().CurrentTurnRouteReady,
+            $"{searches}->{Snapshot().Searches}");
+        int turn = Snapshot().Turn;
+        await PressPanelButtonAsync(host, PanelButton.ExecuteCombat, "execute_combat");
+        action("press_execute_combat");
+        await WaitAsync(host, static s => s.IsDeploying, 240, "run deploying");
+        await Frames(host, 2);
+        check("run_active", Snapshot().CombatRunActive, ModeText(Snapshot()));
+        check("only_stop_key", panel?.StopExecutionButtonForTest is { Visible: true }
+            && panel.ExecuteTurnButtonForTest?.Visible == false
+            && panel.ExecuteCombatButtonForTest?.Visible == false
+            && panel.SearchButtonForTest?.Disabled == true, FooterText(panel));
+        CombatUiSnapshot next = await WaitAsync(host,
+            s => s.Turn > turn && (s.IsDeploying || s.IsSearching) || !CombatManager.Instance.IsInProgress,
+            2400, "run reaches the next turn");
+        if (!CombatManager.Instance.IsInProgress)
+        {
+            check("combat_continues", false, "combat ended during the first turn");
+            return;
+        }
+        check("run_next_turn", next.CombatRunActive && (next.IsDeploying || next.IsSearching), ModeText(next));
+        await PressPanelButtonAsync(host, PanelButton.Execute, "stop_execution");
+        action("press_stop_execution");
+        CombatUiSnapshot stopped = await WaitAsync(host,
+            static s => !s.IsDeploying && !s.IsSearching && !s.CombatRunActive, 1800, "run stopped");
+        check("run_ended", !stopped.CombatRunActive && !stopped.CombatRunPaused, ModeText(stopped));
+        await Frames(host, 4);
+        check("stop_key_hidden", panel?.StopExecutionButtonForTest?.Visible == false, FooterText(panel));
+        check("search_available_after_stop", SearchAvailable(panel), FooterText(panel));
+    }
+
     private static async Task ManualReusesRouteAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int reused = Snapshot().ReusedTurns;
@@ -3169,18 +3248,18 @@ internal static class CombatControllerChecks
     private static async Task ModeSwitchMidTurnAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int searches = Snapshot().Searches;
-        await PressPanelButtonAsync(host, PanelButton.AutoSearchMode, "auto_search_mode");
-        action("press_auto_search");
+        await PressPanelButtonAsync(host, PanelButton.AutoSearchOn, "auto_search_on");
+        action("press_auto_search_on");
         CombatUiSnapshot searching = await WaitAsync(host, static s => s.IsSearching, 240,
-            "mode switch started search");
-        check("search_reason", searching.Search?.Reason == "auto_turn_start",
+            "switch started search");
+        check("search_reason", searching.Search?.Reason == "auto_search_switch",
             searching.Search?.Reason);
-        await PressPanelButtonAsync(host, PanelButton.ManualMode, "manual_mode");
-        action("press_manual");
+        await PressPanelButtonAsync(host, PanelButton.AutoSearchOff, "auto_search_off");
+        action("press_auto_search_off");
         await Frames(host, 4);
         check("not_interrupted", Snapshot().IsSearching);
         await WaitIdleAsync(host, "mode switch search done");
@@ -3191,7 +3270,7 @@ internal static class CombatControllerChecks
 
     private static async Task FullAutoPauseCombatAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching
             && !s.IsDeploying, 900, "result ready");
@@ -3200,15 +3279,15 @@ internal static class CombatControllerChecks
                 ? "forced_failure"
                 : null;
         action("force_deployment_failure");
-        check("set_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("set_full_auto", CombatSessionController.ArmRunForTest(), "full auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused
                 && s.PauseCode == "deploy_failed", 2400, "deploy failure pause");
         check("pause_code", paused.PauseCode == "deploy_failed", paused.PauseCode);
         check("failures", paused.DeploymentFailures >= 1, paused.DeploymentFailures.ToString());
-        check("mode_full_auto", paused.Mode == SolverMode.FullAuto, paused.Mode.ToString());
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
-        check("not_armed", !paused.FullAutoEnabled);
+        check("mode_full_auto", (paused.CombatRunActive || paused.CombatRunPaused), ModeText(paused));
+        check("paused_this_combat", paused.CombatRunPaused);
+        check("not_armed", !paused.CombatRunActive);
         CombatControllerTestHooks.ForceDeploymentFailure = null;
         int searches = paused.Searches;
         await ForceEndTurnAsync(host);
@@ -3218,17 +3297,16 @@ internal static class CombatControllerChecks
             "auto search after pause");
         check("auto_search_resumed", searching.Searches > searches,
             $"{searches}->{searching.Searches}");
-        check("still_paused", searching.FullAutoPausedThisCombat);
-        check("mode_still_full_auto", searching.Mode == SolverMode.FullAuto,
-            searching.Mode.ToString());
+        check("run_still_off", !searching.CombatRunActive, ModeText(searching));
+        check("auto_search_still_on", searching.AutoSearchEnabled, ModeText(searching));
         await WaitIdleAsync(host, "post-pause search done");
         check("no_auto_execute", !Snapshot().IsDeploying);
-        await PressPanelButtonAsync(host, PanelButton.FullAutoMode, "resume_full_auto");
+        await PressPanelButtonAsync(host, PanelButton.ExecuteCombat, "resume_full_auto");
         action("press_resume_full_auto");
         CombatUiSnapshot resumed = await WaitAsync(host,
-            static s => !s.FullAutoPausedThisCombat, 120, "full auto resumed");
-        check("resume_flag_cleared", !resumed.FullAutoPausedThisCombat);
-        check("resume_armed", resumed.FullAutoEnabled || resumed.IsDeploying || resumed.IsSearching);
+            static s => !s.CombatRunPaused, 120, "full auto resumed");
+        check("resume_flag_cleared", !resumed.CombatRunPaused);
+        check("resume_armed", resumed.CombatRunActive || resumed.IsDeploying || resumed.IsSearching);
         await WaitAsync(host, static s => s.IsDeploying || s.IsSearching, 240,
             "full auto resumed work");
         if (Snapshot().IsSearching)
@@ -3238,7 +3316,7 @@ internal static class CombatControllerChecks
 
     private static async Task StrategyCommandsAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         check("reset_settings", SolverSettings.Update(settings => settings with
@@ -3278,7 +3356,7 @@ internal static class CombatControllerChecks
         async Task<SearchCase> SearchAsync(string name)
         {
             int before = Snapshot().Searches;
-            check(name + "_start", CombatUiCommands.Instance.StartOrRecalculateSearch(), name);
+            check(name + "_start", CombatUiCommands.Instance.StartSearch(), name);
             CombatUiSnapshot done = await WaitAsync(host,
                 s => s.Searches > before && !s.IsSearching, 2400, name);
             check(name + "_done", done.Searches == before + 1, $"{before}->{done.Searches}");
@@ -3470,7 +3548,7 @@ internal static class CombatControllerChecks
     /// <summary>The strategy panel driven through its controls, in manual mode so no search runs.</summary>
     private static async Task PanelStrategyAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         bool reset = CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart)
@@ -3493,11 +3571,11 @@ internal static class CombatControllerChecks
     private static async Task SearchRulePoolsAsync(NGame host, Check check, Action action,
         string name, string[] expectedPools, string[] expectedCards)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         int before = Snapshot().Searches;
-        check("search_start", CombatUiCommands.Instance.StartOrRecalculateSearch());
+        check("search_start", CombatUiCommands.Instance.StartSearch());
         action(name);
         CombatUiSnapshot done = await WaitAsync(host,
             s => s.Searches > before && !s.IsSearching && !s.IsDeploying, 1800,
@@ -3534,7 +3612,7 @@ internal static class CombatControllerChecks
     /// </summary>
     private static async Task ForcedPotionAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         check("reset_settings", SolverSettings.Update(settings => settings with
@@ -3574,7 +3652,7 @@ internal static class CombatControllerChecks
                 item.Slot == protectedSlot.Slot && item.PotionId == protectedSlot.PotionId
                 && item.Mode == "disabled"), "snapshot disabled");
 
-        check("search_start", CombatUiCommands.Instance.StartOrRecalculateSearch());
+        check("search_start", CombatUiCommands.Instance.StartSearch());
         action("search_forced_potion");
         CombatUiSnapshot done = await WaitAsync(host,
             s => s.Searches > before && !s.IsSearching && !s.IsDeploying, 1800,
@@ -3622,7 +3700,7 @@ internal static class CombatControllerChecks
         SolverSettingsData original = SolverSettings.Current;
         try
         {
-            check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+            check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
             action("set_mode:auto_search");
             await WaitAsync(host, static s => s.Result != null && !s.IsSearching
                 && !s.IsDeploying, 900, "result ready");
@@ -3655,7 +3733,8 @@ internal static class CombatControllerChecks
             check("left_reason", stopping.SearchBlockReason == "executing",
                 stopping.SearchBlockReason ?? "-");
             await Frames(host, 4);
-            check("stop_button_disabled", panel?.ExecuteButtonForTest?.Disabled == true);
+            check("stop_button_disabled", panel?.StopExecutionButtonForTest?.Disabled == true,
+                FooterText(panel));
             await WaitAsync(host, static s => !s.IsDeploying, 1800, "deployment stopped");
             int completedAfter = CombatControllerTestHooks.DeploymentCompletionTimes.Count;
             check("no_new_actions", completedAfter <= completedAtStop + 1,
@@ -3667,7 +3746,7 @@ internal static class CombatControllerChecks
             check("stopped_this_turn", stopped.AutomationStoppedThisTurn);
             check("pause_code", stopped.PauseCode == "stopped", stopped.PauseCode);
             check("not_searching", !stopped.IsSearching);
-            check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
+            check("left_enabled", SearchAvailable(panel), FooterText(panel));
         }
         finally
         {
@@ -3677,7 +3756,7 @@ internal static class CombatControllerChecks
 
     private static async Task SearchBlockReasonsAsync(NGame host, Check check, Action action)
     {
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         CombatUiSnapshot idle = Snapshot();
@@ -3711,17 +3790,17 @@ internal static class CombatControllerChecks
                 panel?.SearchButtonForTest?.TooltipText
                     == SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
                 panel?.SearchButtonForTest?.TooltipText ?? "-");
-            check("actions_rejected", !CombatUiCommands.Instance.StartOrRecalculateSearch());
+            check("actions_rejected", !CombatUiCommands.Instance.StartSearch());
         }
         finally
         {
             CombatControllerTestHooks.ForceActionsRunningForTest = false;
         }
-        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        _ = CombatSessionController.LeaveRunForTest(autoSearch: false);
         await WaitAsync(host, static s => s.CanStartSearch, 120, "actions settled");
         CombatControllerTestHooks.ForceTurnStartForTest = true;
         action("force_turn_start");
-        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        _ = CombatSessionController.LeaveRunForTest(autoSearch: false);
         try
         {
             CombatUiSnapshot start = await WaitAsync(host,
@@ -3740,14 +3819,14 @@ internal static class CombatControllerChecks
         {
             CombatControllerTestHooks.ForceTurnStartForTest = false;
         }
-        _ = CombatUiCommands.Instance.SetMode(SolverMode.Manual);
+        _ = CombatSessionController.LeaveRunForTest(autoSearch: false);
         await WaitAsync(host, static s => s.CanStartSearch, 120, "turn start settled");
     }
 
     private static async Task DeploymentDriftResearchAsync(NGame host, Check check, Action action)
     {
         using SettingsOverride slowTier = SlowSearchTier();
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.Manual), "manual");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         await PressPanelButtonAsync(host, PanelButton.Search, "search");
@@ -3783,10 +3862,9 @@ internal static class CombatControllerChecks
             Summary().Contains("原生动作执行出错", StringComparison.Ordinal), Summary());
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
-        check("left_text", panel?.SearchButtonForTest?.Text == SolverText.Get("重新搜索"),
-            panel?.SearchButtonForTest?.Text ?? "-");
-        check("left_enabled", panel?.SearchButtonForTest?.Disabled == false);
-        check("right_hidden", panel?.ExecuteButtonForTest?.Visible == false);
+        check("left_text", SearchAvailable(panel), FooterText(panel));
+        check("left_enabled", SearchAvailable(panel), FooterText(panel));
+        check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
         await Frames(host, 60);
         check("still_no_research", Snapshot().Searches == searches,
             $"{searches}->{Snapshot().Searches}");
@@ -3805,18 +3883,18 @@ internal static class CombatControllerChecks
                 player.Creature.Block, null);
             await DamagePlayerAsync(state, player, 60);
         };
-        check("mode_set", CombatUiCommands.Instance.SetMode(SolverMode.AutoSearch), "auto search");
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
         action("set_mode:auto_search");
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching
             && !s.IsDeploying, 900, "result ready");
-        check("set_full_auto", CombatUiCommands.Instance.SetMode(SolverMode.FullAuto), "full auto");
+        check("set_full_auto", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
         CombatUiSnapshot paused = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Paused
                 && s.PauseCode == "live_end_turn_risk", 2400, "live end turn pause");
         check("damaged", damaged, "live damage injected");
-        check("paused_this_combat", paused.FullAutoPausedThisCombat);
-        check("not_armed", !paused.FullAutoEnabled);
+        check("paused_this_combat", paused.CombatRunPaused);
+        check("not_armed", !paused.CombatRunActive);
         check("result_retained", paused.Result != null);
         check("route_ready", paused.CurrentTurnRouteReady);
         check("only_end_turn",
@@ -3835,9 +3913,9 @@ internal static class CombatControllerChecks
     {
         Search,
         Execute,
-        ManualMode,
-        AutoSearchMode,
-        FullAutoMode,
+        ExecuteCombat,
+        AutoSearchOn,
+        AutoSearchOff,
     }
 
     private sealed class SettingsOverride : IDisposable
@@ -3859,6 +3937,60 @@ internal static class CombatControllerChecks
             Search = SolverSettings.Current.Search with { Tier = SearchPerformanceTier.ExtraHigh },
         });
 
+    /// <summary>
+    /// The old single search key's intent on the new footer: stop a running search, start the turn's
+    /// first search, continue a stopped one when possible, otherwise search again.
+    /// </summary>
+    private static Button? SearchKey(SolverOverlay panel, CombatUiSnapshot snapshot)
+        => snapshot.IsSearching || snapshot.SearchStage == TurnSearchStage.NotStarted
+            || snapshot.CanContinueSearch
+            ? panel.SearchButtonForTest
+            : panel.RestartSearchButtonForTest;
+
+    /// <summary>
+    /// The old single execute key's intent: stop an execution, confirm a paused run (执行本场战斗),
+    /// otherwise play this turn.
+    /// </summary>
+    private static Button? ExecuteKey(SolverOverlay panel, CombatUiSnapshot snapshot)
+        => snapshot.IsDeploying || snapshot.TurnSetupDriving || snapshot.CombatRunActive
+            || snapshot.IsSearching && snapshot.DeployWhenReady
+            ? panel.StopExecutionButtonForTest
+            : snapshot.CombatRunPaused
+                ? panel.ExecuteCombatButtonForTest
+                : panel.ExecuteTurnButtonForTest;
+
+    private static string ModeText(CombatUiSnapshot snapshot)
+        => $"auto_search={snapshot.AutoSearchEnabled} run={snapshot.CombatRunActive} " +
+            $"paused={snapshot.CombatRunPaused}";
+
+    private static bool Usable(Button? button)
+        => button is { Disabled: false } && button.IsVisibleInTree();
+
+    /// <summary>A search key the player can press: 开始搜索/继续搜索 on the left or 重新搜索.</summary>
+    private static bool SearchAvailable(SolverOverlay? panel)
+        => panel != null
+            && (Usable(panel.SearchButtonForTest)
+                    && panel.SearchButtonForTest!.Text != SolverText.Get("停止搜索")
+                || Usable(panel.RestartSearchButtonForTest));
+
+    /// <summary>No execute-area key can be pressed (hidden or greyed).</summary>
+    private static bool ExecuteUnavailable(SolverOverlay? panel)
+        => panel != null && !Usable(panel.ExecuteTurnButtonForTest)
+            && !Usable(panel.ExecuteCombatButtonForTest) && !Usable(panel.StopExecutionButtonForTest);
+
+    private static string FooterText(SolverOverlay? panel)
+        => panel == null ? "-" : string.Join(" | ", new[]
+        {
+            panel.SearchButtonForTest, panel.RestartSearchButtonForTest, panel.ExecuteTurnButtonForTest,
+            panel.ExecuteCombatButtonForTest, panel.StopExecutionButtonForTest,
+        }.Select(static button => button == null ? "null"
+            : $"{button.Name}:{button.Text}:{(button.Visible ? "v" : "h")}{(button.Disabled ? "d" : "e")}"));
+
+    /// <summary>The visible execute-area key: 停止执行 while executing, else 执行本回合.</summary>
+    private static Button? ExecuteKeyForTest(SolverOverlay? panel)
+        => panel == null ? null
+            : panel.StopExecutionButtonForTest is { Visible: true } stop ? stop : panel.ExecuteTurnButtonForTest;
+
     private static async Task PressPanelButtonAsync(NGame host, PanelButton which, string name)
     {
         for (int frame = 0; frame < 60; frame++)
@@ -3868,13 +4000,17 @@ internal static class CombatControllerChecks
                 ? null
                 : which switch
                 {
-                    PanelButton.Search => panel.SearchButtonForTest,
-                    PanelButton.Execute => panel.ExecuteButtonForTest,
-                    PanelButton.ManualMode => panel.ManualModeButtonForTest,
-                    PanelButton.AutoSearchMode => panel.AutoSearchModeButtonForTest,
-                    PanelButton.FullAutoMode => panel.FullAutoModeButtonForTest,
+                    PanelButton.Search => SearchKey(panel, Snapshot()),
+                    PanelButton.Execute => ExecuteKey(panel, Snapshot()),
+                    PanelButton.ExecuteCombat => panel.ExecuteCombatButtonForTest,
+                    PanelButton.AutoSearchOn or PanelButton.AutoSearchOff => panel.AutoSearchSwitchForTest,
                     _ => throw new ArgumentOutOfRangeException(nameof(which)),
                 };
+            if (button is Godot.CheckButton toggle && toggle.IsVisibleInTree() && !toggle.Disabled)
+            {
+                toggle.ButtonPressed = which == PanelButton.AutoSearchOn;
+                return;
+            }
             if (button != null && button.IsVisibleInTree() && !button.Disabled)
             {
                 button.EmitSignal(BaseButton.SignalName.Pressed);
@@ -4018,8 +4154,8 @@ internal static class CombatControllerChecks
     }
 
     private static ControllerSnapshotRecord SnapshotRecord(CombatUiSnapshot snapshot) => new(
-        snapshot.Sequence, snapshot.Phase.ToString(), snapshot.Mode.ToString(),
-        snapshot.FullAutoEnabled, snapshot.FullAutoPausedThisCombat,
+        snapshot.Sequence, snapshot.Phase.ToString(), snapshot.SearchStage.ToString(),
+        snapshot.AutoSearchEnabled, snapshot.CombatRunActive, snapshot.CombatRunPaused,
         snapshot.AutomaticCalculationEnabled, snapshot.AutomaticSearchPaused,
         snapshot.AutomaticSearchPausedTurn, snapshot.AutomationStoppedThisTurn,
         snapshot.IsSearching, snapshot.IsDeploying, snapshot.IsStoppingDeployment,
@@ -4044,9 +4180,10 @@ internal sealed record CombatControllerCheck(string Name, string Status, string?
 internal sealed record ControllerSnapshotRecord(
     long Sequence,
     string Phase,
-    string Mode,
-    bool FullAutoEnabled,
-    bool FullAutoPausedThisCombat,
+    string SearchStage,
+    bool AutoSearchEnabled,
+    bool CombatRunActive,
+    bool CombatRunPaused,
     bool AutomaticCalculationEnabled,
     bool AutomaticSearchPaused,
     int? AutomaticSearchPausedTurn,

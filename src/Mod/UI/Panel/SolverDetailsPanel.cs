@@ -81,7 +81,7 @@ internal sealed partial class SolverDetailsPanel : PanelContainer
             => text.Append("[color=").Append(muted).Append(']').Append(Escape(label)).Append("[/color]  ")
                 .Append(Escape(value)).Append('\n');
 
-        Heading(SolverText.Get("本场全自动"));
+        Heading(SolverText.Get("本场统计"));
         Line(SolverText.Get("搜索次数"), SolverPanelText.Count(snapshot.Searches));
         Line(SolverText.Get("沿用路线的回合"), SolverPanelText.Count(snapshot.ReusedTurns));
         Line(SolverText.Get("预测偏差"), SolverPanelText.Count(snapshot.Deviations));

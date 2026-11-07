@@ -1,6 +1,6 @@
 // Turn-setup search lifecycle and the exact Play-state handoff. The search itself is a normal
 // portfolio request over the existing search roots; this file only owns the setup-specific result
-// shape, stop/failure cleanup and the one full-auto pause decision used before the page is driven.
+// shape, stop/failure cleanup and the one run pause decision used before the page is driven.
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
@@ -118,7 +118,7 @@ internal static partial class CombatSessionController
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_TURN_SETUP_SEARCH generation={session.Generation} turn={turn} " +
             $"roots={setupCase.Battles.Length} tier={_searchTier} threads={_searchThreads} " +
-            $"mode={_mode} full_auto={_fullAutoEnabled}");
+            $"auto_search={_autoSearch} run={_runCombat}");
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.StopTurnSetupSearchOnStart)
         {
@@ -415,17 +415,17 @@ internal static partial class CombatSessionController
 
     /// <summary>
     /// The page and the plan disagree (or a planned card is absent). Never guess: return the page
-    /// to the player and, in full auto, pause the combat with <c>choice_mismatch</c>.
+    /// to the player and, while 执行本场战斗 runs, pause the run with <c>choice_mismatch</c>.
     /// </summary>
     internal static void FailTurnSetupChoiceMismatch(string detail)
     {
         DiscardTurnSetupPlan("choice_mismatch");
         _errorCode = null;
         _errorDetail = null;
-        if (_fullAutoEnabled)
+        if (_runCombat)
         {
-            DisableFullAuto();
-            _fullAutoPausedThisCombat = true;
+            StopRun("pause");
+            _runPaused = true;
             _pauseCode = "choice_mismatch";
             _pauseReason = detail;
             _phase = CombatUiPhase.Paused;
@@ -547,6 +547,7 @@ internal static partial class CombatSessionController
         CombatStateStamp liveStamp = CombatStateStamp.Capture(live);
         CombatControllerResult activated = result with { Stamp = liveStamp };
         _turnSetupResult = null;
+        _searchedTurn = turn;
         _latestResult = activated;
         _latestStamp = liveStamp;
         _continuationSource = activated;
@@ -564,17 +565,16 @@ internal static partial class CombatSessionController
             $"actions={activated.Plan.Actions.Length} deploy={deploy} reused={_reusedTurns}");
         if (deploy)
             StartDeployment(activated);
-        else if (_fullAutoEnabled)
+        else if (_runCombat)
             StartFullAutoDeployment(activated);
         return true;
     }
 
     /// <summary>
-    /// The single full-auto pre-drive pause decision. Returns true when the page must not be
-    /// driven and full auto is now paused for the combat. To follow the original game (drive first
-    /// and pause after Play), make this method always return false: OnPlanReady/OnFullAutoResumed
-    /// then drive, and TryActivateTurnSetup -> StartFullAutoDeployment applies the existing pause
-    /// policy after Play.
+    /// The single pre-drive pause decision while 执行本场战斗 runs. Returns true when the page must not
+    /// be driven and the run is now paused. To follow the original game (drive first and pause after
+    /// Play), make this method always return false: OnPlanReady then drives, and
+    /// TryActivateTurnSetup -> StartFullAutoDeployment applies the existing pause policy after Play.
     /// </summary>
     internal static bool TryPauseTurnSetupFullAuto(CombatControllerResult result, out string code,
         out string reason)
@@ -604,8 +604,8 @@ internal static partial class CombatSessionController
 
     private static void ApplyTurnSetupFullAutoPause(string code, string reason)
     {
-        DisableFullAuto();
-        _fullAutoPausedThisCombat = true;
+        StopRun("pause");
+        _runPaused = true;
         _continuationSource = null;
         _pauseCode = code;
         _pauseReason = reason;

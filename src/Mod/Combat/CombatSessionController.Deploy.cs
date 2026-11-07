@@ -30,8 +30,8 @@ internal static partial class CombatSessionController
         {
             if (code == CombatPauseCode.NoSurvival)
                 _noSurvivalPauseUsed = true;
-            DisableFullAuto();
-            _fullAutoPausedThisCombat = true;
+            StopRun("pause");
+            _runPaused = true;
             _continuationSource = null;
             _pauseCode = CombatFullAutoPausePolicy.Code(code);
             _pauseReason = code is CombatPauseCode.DeathTurn or CombatPauseCode.NoSurvival
@@ -71,7 +71,7 @@ internal static partial class CombatSessionController
             ModLog.Warn(
                 $"[Sts2Solver] CONTROLLER_DEPLOY_REPLAN turn={result.StartTurn} " +
                 "reason=turn_plan_exhausted");
-            RequestSearch(CombatSearchReason.PlanExhausted, deployWhenReady: !_fullAutoEnabled);
+            RequestSearch(CombatSearchReason.PlanExhausted, deployWhenReady: !_runCombat);
             return;
         }
         if (_latestResult != null)
@@ -96,7 +96,7 @@ internal static partial class CombatSessionController
             : string.Join(',', _state.Enemies.Select(static enemy => $"{enemy.CurrentHp}/{enemy.MaxHp}"));
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_DEPLOY_START turn={result.StartTurn} " +
-            $"actions={turnActions.Length} full_auto={_fullAutoEnabled} enemy_hp={enemyHp} " +
+            $"actions={turnActions.Length} run={_runCombat} enemy_hp={enemyHp} " +
             $"player_hp={_player.Creature.CurrentHp}");
         deployment.Operation = DeployTurnAsync(deployment, result);
     }
@@ -136,8 +136,8 @@ internal static partial class CombatSessionController
             ReleaseDeployment(deployment);
             if (outcome.Pause is { } pause)
             {
-                DisableFullAuto();
-                _fullAutoPausedThisCombat = true;
+                StopRun("pause");
+                _runPaused = true;
                 _continuationSource = null;
                 if (pause.CodeName == "live_end_turn_risk")
                     RetainRemainingEndTurnPlan(turn);
@@ -251,13 +251,13 @@ internal static partial class CombatSessionController
             ModLog.Warn(
                 $"[Sts2Solver] CONTROLLER_DEPLOY_REPLAN turn={turn} reason={reason} " +
                 $"diff={string.Join(" | ", diff)} {detail}");
-            RequestSearch(CombatSearchReason.PlanExhausted, deployWhenReady: !_fullAutoEnabled);
+            RequestSearch(CombatSearchReason.PlanExhausted, deployWhenReady: !_runCombat);
             return;
         }
         if (reason == "choice_mismatch")
         {
-            DisableFullAuto();
-            _fullAutoPausedThisCombat = true;
+            StopRun("pause");
+            _runPaused = true;
             _continuationSource = null;
             _automaticSearchPaused = true;
             _automaticSearchPausedTurn = turn;
@@ -308,10 +308,10 @@ internal static partial class CombatSessionController
         _pendingCompleteBaseline = null;
         _automaticSearchPaused = true;
         _automaticSearchPausedTurn = turn;
-        if (_fullAutoEnabled || _mode == SolverMode.FullAuto)
+        if (_runCombat)
         {
-            DisableFullAuto();
-            _fullAutoPausedThisCombat = true;
+            StopRun("turn_stop");
+            _runPaused = true;
         }
         _pauseCode = code;
         _pauseReason = detail;
@@ -322,7 +322,7 @@ internal static partial class CombatSessionController
         PublishSnapshot();
         ModLog.Warn(
             $"[Sts2Solver] CONTROLLER_TURN_STOP turn={turn} code={code} " +
-            $"mode={_mode} deviation={countDeviation} {detail}");
+            $"run={_runCombat} deviation={countDeviation} {detail}");
     }
 
     private static bool IsDeploymentDeviation(string reason) => reason switch
@@ -397,7 +397,7 @@ internal static partial class CombatSessionController
 #if !STS2_SOLVER_TESTING
         await ValueTask.CompletedTask;
 #endif
-        if (!_fullAutoEnabled || _state == null || _player == null || _rules == null
+        if (!_runCombat || _state == null || _player == null || _rules == null
             || _tracker == null || endTurn.Before.PlayerTurn == _playerConfirmedTurn)
         {
             return null;

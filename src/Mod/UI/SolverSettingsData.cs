@@ -28,14 +28,6 @@ internal enum SolverUiTheme
     Light,
 }
 
-/// <summary>The persisted three-position automation mode.</summary>
-internal enum SolverMode
-{
-    Manual,
-    AutoSearch,
-    FullAuto,
-}
-
 /// <summary>How deployment overrides the game's battle speed; <see cref="FollowGame"/> keeps it.</summary>
 internal enum SolverDeploymentSpeed
 {
@@ -50,7 +42,7 @@ internal enum SolverDeploymentSpeed
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 6;
+    internal const int CurrentSchemaVersion = 7;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -77,8 +69,6 @@ internal sealed record SolverSettingsData
 
     private void ValidateAutomation()
     {
-        if (!Enum.IsDefined(Automation.Mode))
-            throw new InvalidDataException($"未知自动化模式：{Automation.Mode}");
         if (!Enum.IsDefined(Automation.DeploymentSpeed))
             throw new InvalidDataException($"未知自动出牌速度：{Automation.DeploymentSpeed}");
         if (!double.IsFinite(Automation.InterActionDelaySeconds)
@@ -322,8 +312,11 @@ internal static class SolverPotionDirectives
 
 internal sealed record SolverAutomationSettings
 {
-    /// <summary>Manual, automatic search or full automatic; persisted across combats and restarts.</summary>
-    public SolverMode Mode { get; init; } = SolverMode.AutoSearch;
+    /// <summary>
+    /// Search automatically at the start of each player turn; persisted across combats and restarts.
+    /// Executing the whole combat is a per-combat command, never a persisted setting.
+    /// </summary>
+    public bool AutoSearch { get; init; } = true;
 
     /// <summary>Battle speed override while the solver plays cards; follow the game by default.</summary>
     public SolverDeploymentSpeed DeploymentSpeed { get; init; } = SolverDeploymentSpeed.FollowGame;

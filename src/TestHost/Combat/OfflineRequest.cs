@@ -94,7 +94,6 @@ internal sealed record OfflineRequest
     // UI infrastructure scenarios. These only change the test entry point, never the production
     // request or search semantics.
     public bool UiSnapshotForTest { get; init; }
-    public bool AutoStartFullCombatForTest { get; init; }
     public bool EnglishForTest { get; init; }
     public string? ControllerScenarioForTest { get; init; }
     /// <summary>Opens the production turn-setup takeover in the testing build; false by default.</summary>
@@ -103,8 +102,13 @@ internal sealed record OfflineRequest
     public string? SettingsTierForTest { get; init; }
     /// <summary>Host-only search thread count for controller scenarios; clamps to 1..8.</summary>
     public int? SettingsThreadsForTest { get; init; }
-    public string? SettingsModeForTest { get; init; }
-    public bool? SettingsAutoEnableFullAutoForTest { get; init; }
+    /// <summary>The auto-search switch for the request; null keeps the current setting.</summary>
+    public bool? SettingsAutoSearchForTest { get; init; }
+    /// <summary>
+    /// The request runs 执行本场战斗 from its first turn (armed before the held turn-start search
+    /// resumes); fullCombatForTest implies it.
+    /// </summary>
+    public bool RunCombatForTest { get; init; }
 
     // Search/deployment fields present in frozen fixture JSON. They do not affect root construction;
     // ValidateSupported rejects the values this batch does not understand.

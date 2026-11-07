@@ -26,13 +26,13 @@ internal static class SolverPanelText
         ["action_deviation"] = "动作结果与预测不同，已停止",
         ["deploy_failed"] = "自动执行中止",
         ["cancelled"] = "搜索已取消",
-        ["pilot_failed"] = "全自动异常结束",
+        ["pilot_failed"] = "执行本场战斗异常结束",
         ["unsupported_import"] = "当前战斗含有尚未支持的内容",
         ["unsupported"] = "遇到尚未支持的游戏语义",
         ["capacity"] = "超出求解器的状态容量",
         ["not_supported"] = "遇到尚未支持的游戏语义",
         ["invalid_data"] = "战斗数据校验失败",
-        ["invalid_operation"] = "当前状态不允许继续全自动",
+        ["invalid_operation"] = "当前状态不允许继续执行",
         ["timeout"] = "等待游戏响应超时",
     };
 
@@ -424,16 +424,16 @@ internal static class SolverPanelText
             ? SolverText.Get(pauseSource)
             : code switch
             {
-                "turn_limit" => SolverText.Get("回合数超过上限，已暂停全自动"),
-                "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停全自动"),
-                "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停全自动"),
-                "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停全自动"),
-                "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停全自动"),
-                "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停全自动"),
-                "no_survival" => SolverText.Get("未找到生还路线，已暂停全自动"),
+                "turn_limit" => SolverText.Get("回合数超过上限，已暂停执行"),
+                "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停执行"),
+                "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停执行"),
+                "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停执行"),
+                "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停执行"),
+                "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停执行"),
+                "no_survival" => SolverText.Get("未找到生还路线，已暂停执行"),
                 "stopped" => SolverText.Get("搜索已停止"),
-                null => SolverText.Get("全自动已暂停"),
-                _ => SolverText.Format($"全自动已暂停：{code}"),
+                null => SolverText.Get("执行已暂停"),
+                _ => SolverText.Format($"执行已暂停：{code}"),
             };
 
     internal static string StopReason(string code)

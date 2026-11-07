@@ -63,6 +63,7 @@ internal static class UiLogicChecks
         Check("settings_round_trip", () => RoundTrip(directory));
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("settings_third_party_current", () => ThirdPartyCurrentSchema(directory));
+        Check("settings_schema6_upgrade", () => Schema6Upgrade(directory));
         Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
@@ -126,7 +127,7 @@ internal static class UiLogicChecks
             "act_boss_default");
         Require(data.Search.FinalBossHpStrategy == SearchBossHpStrategy.ProgressionFirst,
             "final_boss_default");
-        Require(data.Automation.Mode == SolverMode.AutoSearch, "mode_default");
+        Require(data.Automation.AutoSearch, "auto_search_default");
         Require(data.Automation.DeploymentSpeed == SolverDeploymentSpeed.FollowGame,
             "deployment_speed_default");
         Require(data.Automation.InterActionDelaySeconds == 0d, "inter_action_delay_default");
@@ -172,7 +173,7 @@ internal static class UiLogicChecks
             },
             Automation = new SolverAutomationSettings
             {
-                Mode = SolverMode.FullAuto,
+                AutoSearch = false,
                 DeploymentSpeed = SolverDeploymentSpeed.Fast,
                 InterActionDelaySeconds = 0.5,
             },
@@ -231,7 +232,7 @@ internal static class UiLogicChecks
     {
         string path = Path.Combine(directory, "current-third-party.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":6,\"search\":{\"growthBudgets\":{" +
+            "{\"schemaVersion\":7,\"search\":{\"growthBudgets\":{" +
             "\"handOfGreed\":4,\"example_mod:growth\":7}}}");
         List<string> logs = [];
         SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
@@ -244,6 +245,33 @@ internal static class UiLogicChecks
             && thirdParty.GetInt32() == 7, "third_party_value");
         Require(!Directory.GetFiles(directory, "current-third-party.bad-*.json").Any(),
             "third_party_corrupt");
+    }
+
+    /// <summary>
+    /// Schema 6 stored the three-position mode. Loading it keeps every other value and maps the mode
+    /// onto the auto-search switch: Manual off, AutoSearch and FullAuto on.
+    /// </summary>
+    private static void Schema6Upgrade(string directory)
+    {
+        foreach ((string mode, bool expected) in new[] { ("Manual", false), ("AutoSearch", true), ("FullAuto", true) })
+        {
+            string path = Path.Combine(directory, $"schema6-{mode}.json");
+            File.WriteAllText(path,
+                "{\"schemaVersion\":6,\"automation\":{\"mode\":\"" + mode + "\",\"deploymentSpeed\":\"Fast\"}," +
+                "\"ui\":{\"opacity\":0.8}}");
+            List<string> logs = [];
+            SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+            Require(loaded.Current.SchemaVersion == SolverSettingsData.CurrentSchemaVersion,
+                $"schema6_{mode}_schema");
+            Require(loaded.Current.Automation.AutoSearch == expected, $"schema6_{mode}_auto_search");
+            Require(loaded.Current.Automation.DeploymentSpeed == SolverDeploymentSpeed.Fast,
+                $"schema6_{mode}_speed_kept");
+            Require(Math.Abs(loaded.Current.Ui.Opacity - 0.8f) < 0.0001f, $"schema6_{mode}_opacity_kept");
+            Require(!Directory.GetFiles(directory, $"schema6-{mode}.bad-*.json").Any(),
+                $"schema6_{mode}_not_corrupt");
+            Require(logs.Any(static line => line.Contains("SETTINGS_UPGRADED from=6", StringComparison.Ordinal)),
+                $"schema6_{mode}_log");
+        }
     }
 
     private static void PotionDirectiveReconcile()

@@ -465,7 +465,7 @@ internal sealed partial class SolverOverlay
                 ? SolverText.Format($"当前方案预计第 {deathTurn} 回合死亡，操作权已交还。")
                 : SolverText.Get("未找到生还路线，操作权已交还。");
             SetSummary($"[color={SolverUiTokens.Palette.DangerHex}]{death}\n"
-                + SolverText.Get("可在 设置 中提高搜索档位后重新搜索，或点“全自动”继续执行（本场不再因此暂停）。")
+                + SolverText.Get("可在 设置 中提高搜索档位后重新搜索，或点“执行本场战斗”继续（本场不再因此暂停）。")
                 + "[/color]");
         }
         else if (CombatSessionController.IsTurnStopPause(code))
@@ -486,7 +486,7 @@ internal sealed partial class SolverOverlay
                 SolverText.Format(
                     $"[color={SolverUiTokens.Palette.DangerHex}]路线预计掉血 {snapshot.PausePlannedHpLost ?? 0} HP，")
                 + SolverText.Format(
-                    $"结束回合前实机复核为 {snapshot.PauseLiveHpLost ?? 0} HP；全自动未提交结束回合。[/color]\n"));
+                    $"结束回合前实机复核为 {snapshot.PauseLiveHpLost ?? 0} HP；没有提交结束回合。[/color]\n"));
         }
         else if (code == "choice_mismatch")
         {

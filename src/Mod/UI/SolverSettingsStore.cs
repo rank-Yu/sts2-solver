@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Sts2Solver;
@@ -46,6 +47,43 @@ internal sealed class SolverSettingsStore
         }
     }
 
+    /// <summary>
+    /// Schema 6 stored the three-position automation mode. Schema 7 keeps only the auto-search switch:
+    /// Manual becomes off, AutoSearch and FullAuto become on (executing the whole combat is no longer
+    /// persisted). Every other value is kept as written; other versions go through the normal checks.
+    /// </summary>
+    private static string UpgradeSchema6(string json, Action<string> info)
+    {
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip,
+            });
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+        if (root is not JsonObject settings
+            || settings["schemaVersion"] is not JsonValue version
+            || !version.TryGetValue(out int schema) || schema != 6)
+        {
+            return json;
+        }
+        settings["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
+        if (settings["automation"] is JsonObject automation && automation["mode"] is JsonValue mode)
+        {
+            string? value = mode.TryGetValue(out string? text) ? text : null;
+            automation.Remove("mode");
+            automation["autoSearch"] = !string.Equals(value, "Manual", StringComparison.OrdinalIgnoreCase);
+        }
+        info($"[Sts2Solver] SETTINGS_UPGRADED from=6 to={SolverSettingsData.CurrentSchemaVersion}");
+        return settings.ToJsonString();
+    }
+
     internal static SolverSettingsStore Load(string path, Action<string> info, Action<string> error)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -53,7 +91,7 @@ internal sealed class SolverSettingsStore
         ArgumentNullException.ThrowIfNull(error);
         try
         {
-            string json = File.ReadAllText(path);
+            string json = UpgradeSchema6(File.ReadAllText(path), info);
             SolverSettingsData data = JsonSerializer.Deserialize<SolverSettingsData>(json, JsonOptions)
                 ?? throw new InvalidDataException("设置文件为空。");
             data.Validate();

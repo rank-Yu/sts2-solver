@@ -13,7 +13,9 @@ internal enum CombatSearchReason
     Manual,
     AutoTurnStart,
     Deploy,
-    FullAuto,
+
+    /// <summary>The auto-search switch was turned on in a turn that had not searched yet.</summary>
+    AutoSearchSwitch,
     PlanExhausted,
 
     /// <summary>A setup search started after the first visible native choice page.</summary>

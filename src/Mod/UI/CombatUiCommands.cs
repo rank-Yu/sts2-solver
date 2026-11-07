@@ -10,15 +10,19 @@ namespace Sts2Solver;
 /// </summary>
 internal interface ICombatUiCommands
 {
-    bool SetMode(SolverMode mode);
+    bool SetAutoSearch(bool enabled);
 
-    bool StartOrRecalculateSearch();
+    bool StartSearch();
+
+    bool ContinueSearch();
 
     bool StopSearch();
 
     bool ExecuteCurrentTurn();
 
-    bool StopDeployment();
+    bool ExecuteCombat();
+
+    bool StopExecution();
 
     bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode);
 
@@ -45,16 +49,19 @@ internal static class CombatUiCommands
 
     private sealed class Commands : ICombatUiCommands
     {
-        public bool SetMode(SolverMode mode) => CombatSessionController.SetMode(mode);
+        public bool SetAutoSearch(bool enabled) => CombatSessionController.SetAutoSearch(enabled);
 
-        public bool StartOrRecalculateSearch()
-            => CombatSessionController.StartOrRecalculateSearch();
+        public bool StartSearch() => CombatSessionController.StartSearch();
+
+        public bool ContinueSearch() => CombatSessionController.ContinueSearch();
 
         public bool StopSearch() => CombatSessionController.StopSearch();
 
         public bool ExecuteCurrentTurn() => CombatSessionController.ExecuteCurrentTurn();
 
-        public bool StopDeployment() => CombatSessionController.StopDeployment();
+        public bool ExecuteCombat() => CombatSessionController.ExecuteCombat();
+
+        public bool StopExecution() => CombatSessionController.StopExecution();
 
         public bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode)
             => CombatSessionController.SetPotionDirective(slot, potionId, mode);

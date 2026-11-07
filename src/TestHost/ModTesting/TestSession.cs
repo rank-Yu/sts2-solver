@@ -199,6 +199,10 @@ internal static class TestSession
                 PlayerTurnSetupRuntime.ResetTestState();
                 CombatSessionController.ResetSetupTestState();
                 CombatControllerTestHooks.ResetSetupCarryForTest();
+                // 执行本场战斗 is never persisted: a request that runs the whole combat arms it when
+                // the controller begins the combat, as a press on the first turn would.
+                CombatControllerTestHooks.RunCombatFromStartForTest =
+                    request.FullCombatForTest || request.RunCombatForTest;
                 if (request.FlashTurnSetupRootForTest)
                     TurnSetupRootCapture.BeginBuild();
                 stage = "build";
@@ -486,6 +490,7 @@ internal static class TestSession
                 CombatControllerTestHooks.ForceProjectedDeathTurn = false;
                 CombatControllerTestHooks.ForceProjectedLaterDeathTurn = false;
                 CombatControllerTestHooks.EnableNoSurvivalPause = false;
+                CombatControllerTestHooks.RunCombatFromStartForTest = false;
                 CombatControllerTestHooks.ForceProjectedDeathTurnSetup = false;
                 CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
                 CombatControllerTestHooks.ForceCapacityDropForTest = null;
@@ -649,8 +654,8 @@ internal static class TestSession
             CombatSessionController.SearchPolicyOverrideForTest =
                 (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player);
         }
-        if (request.SettingsTierForTest is null && request.SettingsAutoEnableFullAutoForTest is null
-            && request.SettingsModeForTest is null && request.SettingsThreadsForTest is null
+        if (request.SettingsTierForTest is null && request.SettingsAutoSearchForTest is null
+            && !request.RunCombatForTest && request.SettingsThreadsForTest is null
             && request.SearchThreadsForTest is null && !request.FullCombatForTest)
         {
             return false;
@@ -659,13 +664,8 @@ internal static class TestSession
             ? SearchPerformanceProfile.ParseTier(text)
             : null;
         SolverSettingsData current = SolverSettings.Current;
-        SolverMode mode = request.FullCombatForTest
-            ? SolverMode.FullAuto
-            : request.SettingsModeForTest is { Length: > 0 } modeText
-                ? Enum.Parse<SolverMode>(modeText, ignoreCase: true)
-                : request.SettingsAutoEnableFullAutoForTest is { } auto
-                    ? auto ? SolverMode.FullAuto : SolverMode.AutoSearch
-                    : current.Automation.Mode;
+        bool autoSearch = request.FullCombatForTest || request.RunCombatForTest
+            || (request.SettingsAutoSearchForTest ?? current.Automation.AutoSearch);
         SolverSearchSettings search = current.Search;
         if (tier is { } tierValue)
             search = search with { Tier = tierValue };
@@ -682,7 +682,7 @@ internal static class TestSession
         SolverSettingsData next = current with
         {
             Search = search,
-            Automation = current.Automation with { Mode = mode },
+            Automation = current.Automation with { AutoSearch = autoSearch },
         };
         if (next == current)
             return false;
@@ -706,21 +706,8 @@ internal static class TestSession
                 throw new TimeoutException("控制器没有进入战斗。");
             ModLog.Info(
                 $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +
-                $"tier={tier} mode={SolverSettings.Current.Automation.Mode} " +
-                $"auto_start={request.AutoStartFullCombatForTest}");
-            if (request.AutoStartFullCombatForTest)
-            {
-                long startDeadline = Environment.TickCount64 + 15_000;
-                while (!CombatSessionController.FullAutoEnabled)
-                {
-                    if (Environment.TickCount64 >= startDeadline)
-                        throw new TimeoutException("等待全自动模式武装超时。");
-                    await CombatFrameWaiter.NextFrameAsync(host);
-                }
-                WriteJson(Path.Combine(resultDirectory, "auto-start.json"), new AutoStartEntry(
-                    1, "mode", true, tier.ToString(),
-                    SolverSettings.Current.Automation.Mode == SolverMode.FullAuto));
-            }
+                $"tier={tier} auto_search={SolverSettings.Current.Automation.AutoSearch} " +
+                $"run={CombatSessionController.CombatRunActive}");
             long deadline = Environment.TickCount64
                 + (long)Math.Max(request.TimeoutSeconds, 480d) * 1000L;
             // A search or import failure leaves the phase at Failed rather than Paused, so the
@@ -798,16 +785,12 @@ internal static class TestSession
             throw new NotSupportedException("整场测试不支持回合准备根。");
         if (request.UiSnapshotForTest && !request.FullCombatForTest)
             throw new NotSupportedException("uiSnapshotForTest 需要 fullCombatForTest。");
-        if (request.AutoStartFullCombatForTest && !request.FullCombatForTest)
-            throw new NotSupportedException("autoStartFullCombatForTest 需要 fullCombatForTest。");
         if (request.EnglishForTest && !request.FullCombatForTest
             && request.ControllerScenarioForTest is null)
         {
             throw new NotSupportedException(
                 "englishForTest 需要 fullCombatForTest 或 controllerScenarioForTest。");
         }
-        if (request.AutoStartFullCombatForTest && request.FlashTurnSetupRootForTest)
-            throw new NotSupportedException("自动开启场景不支持回合准备根。");
         if (request.ControllerScenarioForTest is { } scenario)
         {
             if (scenario.Length == 0)
@@ -815,8 +798,6 @@ internal static class TestSession
             if (request.FullCombatForTest)
                 throw new NotSupportedException("控制器场景不能与 fullCombatForTest 同时使用。");
         }
-        if (request.AutoStartFullCombatForTest && request.SearchCancelAfterMillisecondsForTest is not null)
-            throw new NotSupportedException("自动开启场景不支持 searchCancelAfterMillisecondsForTest。");
     }
 
     private static async Task WaitForMainMenuReadyAsync(NGame host)
@@ -913,13 +894,6 @@ internal static class TestSession
         File.WriteAllText(temporary, JsonSerializer.Serialize(value, OfflineJson.Options));
         File.Move(temporary, path, true);
     }
-
-    private sealed record AutoStartEntry(
-        int SchemaVersion,
-        string Source,
-        bool StartedBySetting,
-        string Tier,
-        bool SettingEnabled);
 
     private sealed record CapturedSearch(
         SearchCase SearchCase,

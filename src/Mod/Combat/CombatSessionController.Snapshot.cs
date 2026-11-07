@@ -76,10 +76,13 @@ internal static partial class CombatSessionController
         {
             Phase = _phase,
             Root = current.Root.Length == 0 ? _testRoot ?? "" : current.Root,
-            Mode = _mode,
-            FullAutoEnabled = _fullAutoEnabled,
-            FullAutoPausedThisCombat = _fullAutoPausedThisCombat,
-            AutomaticCalculationEnabled = _mode is SolverMode.AutoSearch or SolverMode.FullAuto,
+            AutoSearchEnabled = _autoSearch,
+            CombatRunActive = _runCombat,
+            CombatRunPaused = _runPaused,
+            AutomaticCalculationEnabled = _autoSearch || _runCombat,
+            SearchStage = _search != null ? TurnSearchStage.Running
+                : _searchedTurn == turn ? TurnSearchStage.Ended
+                : TurnSearchStage.NotStarted,
             AutomaticSearchPaused = _automaticSearchPaused,
             AutomaticSearchPausedTurn = _automaticSearchPausedTurn,
             AutomationStoppedThisTurn = _automaticSearchPaused

@@ -64,8 +64,8 @@ Test conditions:
 ## Usage
 
 - During a fight the solver panel at the top left shows search progress, the route for the whole fight and the step being executed; you can drag, resize and collapse it.
-- Three modes: **Manual** (you press search and execute yourself), **Auto-search** (it searches every turn and you press **Play turn**) and **Full auto** (it searches and plays by itself). The default is Auto-search, and your choice is kept.
-- If a result differs from the prediction or an action cannot be performed, execution stops at once; press **Search again** to continue. When Full auto pauses this way, click **Full auto** in the title bar to resume.
+- The **Auto-search** switch at the left of the footer searches at the start of every turn; it is on by default and your choice is kept. With a route, press **Play turn** to play this turn only, or **Play combat** to keep searching and playing every turn until the combat ends; stop a running search before playing.
+- If a result differs from the prediction, a death is projected or an action cannot be performed, execution stops at once; press **Search again**, or confirm and press **Play combat** to continue.
 - Unsupported content (for example cards added by other Mods) is rejected instead of being played blindly.
 - It can be installed together with CombatSolver, but let only one of them execute each turn, or they get in each other's way.
 - **Settings** holds play speed, search tier, search parallelism and more; **Potions** sets how each potion is used, and **Growth** sets how much extra HP the solver may spend for each long-term gain outside the fight (for example Feed or Genetic Algorithm).

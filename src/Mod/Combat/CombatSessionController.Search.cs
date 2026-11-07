@@ -95,6 +95,9 @@ internal static partial class CombatSessionController
         session.ReviewedWorldlinesBeforeSearch = ReviewedWorldlinesSoFar();
         session.BattleHpLostBeforeSearch = root.Counter(Counter.CumulativeHpLost);
         _search = session;
+        _searchedTurn = turn;
+        // A new search replaces the route the run paused on; its route gets the normal checks.
+        _runPaused = false;
         _displayRoute = null;
         _displayCurrentTurn = null;
         if (!continuation)
@@ -128,7 +131,7 @@ internal static partial class CombatSessionController
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH_REQUEST generation={session.Generation} turn={turn} " +
             $"reason={reason} deploy_when_ready={deployWhenReady} tier={_searchTier} " +
-            $"threads={_searchThreads} mode={_mode} full_auto={_fullAutoEnabled} " +
+            $"threads={_searchThreads} auto_search={_autoSearch} run={_runCombat} " +
             $"continuation={continuation}" +
             (continuation ? $" pass={resume!.Pass} next_member={resume.NextMemberIndex}" : ""));
         _ = RunSearchAsync(session);
@@ -446,10 +449,11 @@ internal static partial class CombatSessionController
             _phase = CombatUiPhase.WaitingTurn;
             _finishedSearch = null;
             PublishSnapshot();
+            _searchedTurn = turn;
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_REUSE turn={turn} source_turn={source.StartTurn} " +
                 $"remaining={trimmed.Actions.Length}");
-            if (_fullAutoEnabled)
+            if (_runCombat)
                 StartFullAutoDeployment(reused);
             else if (deployWhenReady)
                 StartDeployment(reused);
@@ -610,7 +614,7 @@ internal static partial class CombatSessionController
             $"resume_merge={run.Outcome.ResumeMerge?.Reason ?? "-"}");
         if (session.DeployWhenReady)
             StartDeployment(result);
-        else if (_fullAutoEnabled)
+        else if (_runCombat)
             StartFullAutoDeployment(result);
     }
 
@@ -875,7 +879,7 @@ internal static partial class CombatSessionController
         CombatSearchReason.Manual => "manual",
         CombatSearchReason.AutoTurnStart => "auto_turn_start",
         CombatSearchReason.Deploy => "deploy",
-        CombatSearchReason.FullAuto => "full_auto",
+        CombatSearchReason.AutoSearchSwitch => "auto_search_switch",
         CombatSearchReason.PlanExhausted => "plan_exhausted",
         CombatSearchReason.TurnSetup => "turn_setup",
         _ => throw new ArgumentOutOfRangeException(nameof(reason)),

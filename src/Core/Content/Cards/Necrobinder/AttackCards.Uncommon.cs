@@ -65,7 +65,13 @@ public sealed class Fetch : CardDef
         NecrobinderContent.OstyAttack(ref x, NecrobinderContent.Var(ref x, 0));
         if (x.NeedsChoice)
             return;
-        if ((x.Card.Private & Kernel.FetchPlayedBit) == 0)
+        // Fetch.HasBeenPlayedThisTurn reads the history: a replay (Glam, an extra play) sees the first
+        // play already finished. The finished-play mark is set on the play-pile card after each play,
+        // while Exec.Card is the copy taken when the play started, so read the live card.
+        short marks = (uint)x.PlayPosition < (uint)x.B.PlayCount
+            ? Kernel.CurrentPlayCard(ref x).Private
+            : x.Card.Private;
+        if ((marks & Kernel.FetchPlayedBit) == 0)
             Kernel.Draw(ref x, (int)NecrobinderContent.Var(ref x, 1), fromHandDraw: false);
     }
 }

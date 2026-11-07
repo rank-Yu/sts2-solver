@@ -76,6 +76,7 @@ SearchChecks.Check();
 IncumbentAndLoopChecks.Check(rules);
 GoldHookChecks.Check();
 PowerEndingChecks.Check();
+CardPlayStateChecks.Check();
 CheckHookDeactivation(rules);
 bool lateRegistrationThrew = false;
 try
@@ -4437,7 +4438,7 @@ public sealed class Kg2TestResultLocationPower : PowerDef
     public override PowerStackType StackType => PowerStackType.Counter;
 
     public override Pile ModifyCardPlayResultLocation(ref Exec x, Listener self, in Card card,
-        bool isAutoPlay, int energyValue, Pile location, out PilePosition position)
+        bool isAutoPlay, int energyValue, Pile location, ref PilePosition position)
     {
         position = PilePosition.Top;
         return Pile.Draw;

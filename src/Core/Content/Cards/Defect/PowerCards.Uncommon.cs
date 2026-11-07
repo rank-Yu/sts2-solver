@@ -46,13 +46,14 @@ public sealed class Feral : CardDef
     public override void OnPlay(ref Exec x)
     {
         int amount = (int)CardEffects.Var(x, 0);
-        Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.FeralPower>(), amount,
-            Limits.PlayerOwner);
-        if (x.NeedsChoice)
+        ushort feral = Registry.PowerId<Powers.FeralPower>();
+        bool stacked = Kernel.FindPower(x.B, Limits.PlayerOwner, feral) >= 0;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, feral, amount, Limits.PlayerOwner);
+        if (x.NeedsChoice || stacked)
             return;
-        // SimulatedCombatState.InitializeFeralAfterApplied: the new instance starts from the
-        // zero-cost attacks already played this turn.
-        int index = Kernel.FindPower(x.B, Limits.PlayerOwner, Registry.PowerId<Powers.FeralPower>());
+        // FeralPower.AfterApplied runs only for a new instance (PowerCmd.Apply stacks onto an existing
+        // one through ModifyAmount): it starts from the zero-cost attacks already played this turn.
+        int index = Kernel.FindPower(x.B, Limits.PlayerOwner, feral);
         if (index < 0)
             return;
         x.B.Powers[index].Aux0 = x.B.Counter(Counter.ZeroCostAttackStartsThisTurn);

@@ -216,7 +216,7 @@
 
 这一节是和角色无关、但结算口径不显然的卡牌与 Power，很多是怪物施加给玩家的。
 
-**攻击后抽牌的死亡结算。** 原引擎 `CorePowerSupport.ApplyCardPowers` 在镜像攻击之后、卡牌专属补偿之前结算敌人死亡。PommelStrike、DaggerThrow、FlashOfSteel、MinionStrike、PhotonCut、RocketPunch、SweepingBeam、CompileDriver、Ftl 因此在攻击和抽牌之间调用 `ApplyEnemyDeathPowers`，让抽牌时看到的 `HittableEnemies` 和 Hellraiser 与原引擎一致。
+**攻击后抽牌的死亡结算。** 原引擎 `CorePowerSupport.ApplyCardPowers` 在镜像攻击之后、卡牌专属补偿之前结算敌人死亡。PommelStrike、DaggerThrow、FlashOfSteel、MinionStrike、PhotonCut、RocketPunch、SweepingBeam、CompileDriver、Ftl 因此在攻击和抽牌之间调用 `ApplyEnemyDeathPowers`（Thrash 同样在两段命中之后、随机读手牌攻击牌的伤害之前结算：打死窃取力量的敌人会先把力量还给玩家，被消耗的牌按还回后的力量计算），让抽牌时看到的 `HittableEnemies` 和 Hellraiser 与原引擎一致。
 
 **依赖本次出牌伤害的卡。** 这几张读的是本次出牌期间的瞬态伤害合计（字段见 [状态布局](combat-state-layout.md#42-动作期间的瞬态exec)）：
 

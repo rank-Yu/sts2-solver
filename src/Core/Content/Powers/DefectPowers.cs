@@ -400,9 +400,8 @@ public sealed class FeralPower : PowerDef
     }
 
     public override Pile ModifyCardPlayResultLocation(ref Exec x, Listener self, in Card card,
-        bool isAutoPlay, int energyValue, Pile location, out PilePosition position)
+        bool isAutoPlay, int energyValue, Pile location, ref PilePosition position)
     {
-        position = PilePosition.Bottom;
         // Native FeralPower checks CardModel.IsDupe, not IsClone. The only dupes Sts2Solver creates are the
         // HistoryCourse auto-play copies; Card.IsClone marks native CreateClone copies
         // (AdaptiveStrike), which FeralPower does not exclude.

@@ -790,13 +790,14 @@ public abstract class ListenerDef : ContentDef
     /// <summary>
     /// Native <c>ModifyCardPlayResultLocation</c> (<c>CardModel.OnPlayWrapper</c>), after the base
     /// result location. <paramref name="energyValue"/> is <c>CardPlay.Resources.EnergyValue</c>;
-    /// <paramref name="position"/> is the native <c>CardLocation.position</c> (Nostalgia returns to
-    /// the top of the draw pile; the base locations are Bottom).
+    /// <paramref name="position"/> is the native <c>CardLocation.position</c>, passed through like the
+    /// native struct: a listener that leaves the location alone keeps the incoming position (Shining
+    /// Strike's base location is the top of the draw pile), and one that moves the card sets only what
+    /// the native modifier sets (Nostalgia returns to the top of the draw pile).
     /// </summary>
     public virtual Pile ModifyCardPlayResultLocation(ref Exec x, Listener self, in Card card,
-        bool isAutoPlay, int energyValue, Pile location, out PilePosition position)
+        bool isAutoPlay, int energyValue, Pile location, ref PilePosition position)
     {
-        position = PilePosition.Bottom;
         return location;
     }
 

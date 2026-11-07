@@ -514,7 +514,7 @@ public static partial class HookDispatch
             Pile previous = location;
             PilePosition previousPosition = position;
             location = Definition(x.B, listeners[index]).ModifyCardPlayResultLocation(ref x, listeners[index], card,
-                isAutoPlay, energyValue, location, out position);
+                isAutoPlay, energyValue, location, ref position);
             if (location != previous || position != previousPosition)
                 modifiers[modifierCount++] = listeners[index];
         }

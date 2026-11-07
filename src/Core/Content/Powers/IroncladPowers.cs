@@ -725,9 +725,8 @@ public sealed class CorruptionPower : PowerDef
     }
 
     public override Pile ModifyCardPlayResultLocation(ref Exec x, Listener self, in Card card,
-        bool isAutoPlay, int energyValue, Pile location, out PilePosition position)
+        bool isAutoPlay, int energyValue, Pile location, ref PilePosition position)
     {
-        position = PilePosition.Bottom;
         if (self.Owner != Limits.PlayerOwner
             || Kernel.ResolveCardType(x.B, x.R, card) != CardType.Skill)
         {

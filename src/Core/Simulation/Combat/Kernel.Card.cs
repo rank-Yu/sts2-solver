@@ -319,7 +319,13 @@ public static partial class Kernel
             x.CardDamageTotal = 0;
             x.CardKilledTarget = false;
             x.PlayIndex = index;
-            CardPlayInfo play = new(card, target, index, playCount, removeFromCombat ? Pile.Play : result,
+            // Native CardPlay.Card is the live CardModel: a replay's BeforeCardPlayed sees what the
+            // previous play index changed on it (Glam disables itself in AfterCardPlayed, so a Juggling
+            // clone made at the replay's start copies the disabled enchantment).
+            CardPlayInfo play = new((uint)playPosition < (uint)x.B.PlayCount
+                    ? Piles.At(ref x.B, Pile.Play, playPosition)
+                    : card,
+                target, index, playCount, removeFromCombat ? Pile.Play : result,
                 Piles.Start(x.B, Pile.Play) + playPosition);
             BeforeCardPlayedHook before = new() { Play = play };
             HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);

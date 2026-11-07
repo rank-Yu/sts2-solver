@@ -111,10 +111,16 @@ public sealed class Thrash : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        // Thrash.cs: two hits, then a random Attack in hand is read for its damage, that value is
-        // added to this card's Damage (unmodified by Strength/Vulnerable because target is null in
-        // the native ModifyDamage call), and the selected card is exhausted.
+        // Thrash.cs: two hits, then a random Attack in hand is read for its damage, that value goes
+        // through ModifyDamage with a null target (dealer-side modifiers such as Strength and Strike
+        // Dummy apply, target-side ones such as Vulnerable do not), is added to this card's Damage,
+        // and the selected card is exhausted.
         CardEffects.GeneralAttack(ref x, 0, hitCount: 2);
+        if (x.NeedsChoice)
+            return;
+        // DamageCmd.Execute settles a kill (AfterDeath) inside the attack, before the hand is read:
+        // a Possess Strength holder killed by these hits has already returned the stolen Strength.
+        Kernel.ApplyEnemyDeathPowers(ref x);
         if (x.NeedsChoice)
             return;
         int selected = PickRandomHandAttack(ref x);

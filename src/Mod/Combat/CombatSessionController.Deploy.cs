@@ -22,8 +22,10 @@ internal static partial class CombatSessionController
         else if (CombatControllerTestHooks.ForceProjectedLaterDeathTurn)
             outcome = outcome with { DeathTurn = result.StartTurn + 2 };
 #endif
-        CombatPauseCode? pause = CombatFullAutoPausePolicy.BeforeDeployment(
-            result.StartTurn, outcome, noSurvivalPause: NoSurvivalPauseAvailable);
+        CombatPauseCode? pause = result.StartTurn == _playerConfirmedTurn
+            ? null
+            : CombatFullAutoPausePolicy.BeforeDeployment(
+                result.StartTurn, outcome, noSurvivalPause: NoSurvivalPauseAvailable);
         if (pause is { } code)
         {
             if (code == CombatPauseCode.NoSurvival)
@@ -396,7 +398,7 @@ internal static partial class CombatSessionController
         await ValueTask.CompletedTask;
 #endif
         if (!_fullAutoEnabled || _state == null || _player == null || _rules == null
-            || _tracker == null)
+            || _tracker == null || endTurn.Before.PlayerTurn == _playerConfirmedTurn)
         {
             return null;
         }

@@ -207,6 +207,7 @@ internal static partial class CombatSessionController
                 return false;
             if (!PlayerTurnSetupRuntime.TryStartDriving(deployAfterSetup: true))
                 return false;
+            ResumeFullAutoForExecute();
             _automaticSearchPaused = false;
             _automaticSearchPausedTurn = null;
             _pauseCode = null;
@@ -222,12 +223,20 @@ internal static partial class CombatSessionController
             return false;
         if (_turnSetupResult != null)
         {
-            if (TryActivateTurnSetup(CurrentTurn()))
-                return true;
-            return false;
+            if (!TryActivateTurnSetup(CurrentTurn()))
+                return false;
+            // Activation clears the pause on success and sets a new one when the live state moved.
+            if (_mode == SolverMode.FullAuto && _pauseCode == null && !HasBlockingDeployment
+                && _latestResult is { } activated && ResultStampMatches(activated))
+            {
+                ResumeFullAutoForExecute();
+                StartDeployment(activated);
+            }
+            return true;
         }
         if (_latestResult is { } result && ResultStampMatches(result))
         {
+            ResumeFullAutoForExecute();
             StartDeployment(result);
             return true;
         }
@@ -238,6 +247,34 @@ internal static partial class CombatSessionController
         }
         ModLog.Info("[Sts2Solver] CONTROLLER_EXECUTE_REJECT reason=no_current_turn_route");
         return false;
+    }
+
+    /// <summary>
+    /// In full-auto mode the execute key always starts full auto; there is no play-this-turn-only
+    /// key there (user decision 2026-11-07). A pause of this combat (projected death, deviation,
+    /// failure) or a stop by the player is lifted and full auto is armed again. After a pause the
+    /// press confirms the current turn: it deploys without the before-deployment and live end-turn
+    /// pause checks (<see cref="_playerConfirmedTurn"/>); later turns are checked as usual.
+    /// </summary>
+    private static void ResumeFullAutoForExecute()
+    {
+        if (_mode != SolverMode.FullAuto)
+            return;
+        bool wasPaused = _fullAutoPausedThisCombat;
+        string? pause = _pauseCode;
+        _fullAutoPausedThisCombat = false;
+        _pauseCode = null;
+        _pauseReason = null;
+        _rejectCode = null;
+        _automaticSearchPaused = false;
+        _automaticSearchPausedTurn = null;
+        if (wasPaused)
+            _playerConfirmedTurn = CurrentTurn();
+        bool wasEnabled = _fullAutoEnabled;
+        _fullAutoEnabled = CanArmFullAuto();
+        ModLog.Info(
+            $"[Sts2Solver] CONTROLLER_FULL_AUTO_EXECUTE armed={_fullAutoEnabled} was_enabled={wasEnabled} " +
+            $"was_paused={wasPaused} pause={pause ?? "-"} confirmed_turn={_playerConfirmedTurn?.ToString() ?? "-"}");
     }
 
     internal static bool SetPotionDirective(int slot, string potionId, SolverPotionMode mode)

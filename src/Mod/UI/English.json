@@ -225,7 +225,7 @@
   "当前状态不能搜索。": "Search is unavailable in the current state.",
   "正在停止搜索…": "Stopping the search…",
   "本场全自动已暂停，点击恢复": "Full auto is paused for this combat. Click to resume.",
-  "玩家确认后强制执行这条路线。": "Play this route after the player confirms.",
+  "确认这条路线并开始执行，之后每回合由全自动接着搜索和执行。": "Confirm this route and start playing; full auto then searches and plays every turn.",
   "手动不自动搜索；自动搜索每回合搜索但不出牌；全自动搜索后自动执行，已有路线时选它会立即开始执行。": "Manual never searches automatically; Auto-search searches every turn but does not play cards; Full auto executes the searched route; with a route ready, choosing it starts playing at once.",
   "停止这次搜索；本回合不再自动执行。": "Stop this search; no automatic execution in this turn.",
   "自动出牌速度": "Play speed",

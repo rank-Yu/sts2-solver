@@ -1106,11 +1106,7 @@ internal sealed partial class UiPanelObserver : Node
                 : searching
                     ? null
                     : snapshot.CurrentTurnRouteReady
-                        ? continues
-                            ? SolverText.Get("按推荐路线开始执行，之后每回合由全自动接着搜索和执行。")
-                            : snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
-                                ? SolverText.Get("玩家确认后强制执行这条路线。")
-                                : SolverText.Get("执行当前回合的动作。")
+                        ? SolverOverlay.ExecuteTooltip(snapshot, continues)
                         : null;
         bool ok = true;
         string? detail = null;

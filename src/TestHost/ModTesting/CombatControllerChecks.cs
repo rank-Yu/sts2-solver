@@ -2567,7 +2567,20 @@ internal static class CombatControllerChecks
         await WaitPanelAppliedAsync(host);
         SolverOverlay? panel = SolverOverlay.Instance;
         check("right_visible", panel?.ExecuteButtonForTest?.Visible == true);
+        // Full auto has no play-this-turn-only key: after its own pause the key still starts full
+        // auto, and pressing it confirms this turn's route and arms full auto again.
+        check("right_text", panel?.ExecuteButtonForTest?.Text == SolverText.Get("开始执行"),
+            panel?.ExecuteButtonForTest?.Text ?? "-");
+        await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_death_pause");
+        action("press_execute_after_death_pause");
+        CombatUiSnapshot resumed = await WaitAsync(host, static s => s.IsDeploying, 600,
+            "deployment after death pause");
+        check("resume_deploying", resumed.IsDeploying, resumed.Phase.ToString());
+        check("resume_full_auto_on", resumed.FullAutoEnabled);
+        check("resume_not_paused", !resumed.FullAutoPausedThisCombat);
+        check("resume_pause_cleared", resumed.PauseCode == null, resumed.PauseCode ?? "-");
         CombatControllerTestHooks.ForceProjectedDeathTurn = false;
+        await WaitIdleAsync(host, "deployment after death pause done");
     }
 
     /// <summary>

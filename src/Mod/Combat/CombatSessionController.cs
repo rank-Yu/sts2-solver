@@ -44,6 +44,13 @@ internal static partial class CombatSessionController
     private static bool _fullAutoPausedThisCombat;
 
     /// <summary>
+    /// The player turn whose route the player confirmed by pressing the full-auto execute key after a
+    /// full-auto pause. That turn skips the before-deployment and live end-turn pause checks it was
+    /// paused by; later turns are checked as usual.
+    /// </summary>
+    private static int? _playerConfirmedTurn;
+
+    /// <summary>
     /// This combat already paused full auto because no surviving route was found. Resuming keeps it
     /// set, so later far-death routes run; only a death on the turn about to run pauses again.
     /// </summary>
@@ -454,6 +461,7 @@ internal static partial class CombatSessionController
         _latestStamp = null;
         _pendingCompleteBaseline = null;
         _fullAutoPausedThisCombat = false;
+        _playerConfirmedTurn = null;
         _noSurvivalPauseUsed = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;
@@ -637,6 +645,7 @@ internal static partial class CombatSessionController
         _combatActive = false;
         _fullAutoEnabled = false;
         _fullAutoPausedThisCombat = false;
+        _playerConfirmedTurn = null;
         _noSurvivalPauseUsed = false;
         _pendingTurnStartedState = null;
         _automaticSearchPaused = false;
@@ -685,6 +694,7 @@ internal static partial class CombatSessionController
         _pendingCompleteBaseline = null;
         _turnSetupResult = null;
         _fullAutoPausedThisCombat = false;
+        _playerConfirmedTurn = null;
         _noSurvivalPauseUsed = false;
         _pumpObserved = false;
         _pendingTurnStartedState = null;

@@ -157,15 +157,11 @@ internal sealed partial class SolverOverlay
         else if (routeReady)
         {
             showExecute = true;
-            // Armed full auto keeps playing after this turn, so the key starts it; otherwise it
-            // plays this turn only and the next turn waits for the player again.
+            // Full auto always starts full auto (after one of its pauses too: the press confirms
+            // this turn's route and arms full auto again); manual and auto search play this turn.
             bool continues = ExecuteContinues(snapshot);
             executeText = SolverText.Get(continues ? "开始执行" : "执行本回合");
-            executeTooltip = continues
-                ? SolverText.Get("按推荐路线开始执行，之后每回合由全自动接着搜索和执行。")
-                : snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
-                    ? SolverText.Get("玩家确认后强制执行这条路线。")
-                    : SolverText.Get("执行当前回合的动作。");
+            executeTooltip = ExecuteTooltip(snapshot, continues);
         }
         else
         {
@@ -178,10 +174,16 @@ internal sealed partial class SolverOverlay
         _memoryBar?.Apply(snapshot.Memory, snapshot.Search, snapshot.LastSearchMemoryPeakBytes);
     }
 
-    /// <summary>The execute key starts armed, unpaused full auto rather than playing one turn.</summary>
+    /// <summary>In full-auto mode the execute key starts full auto rather than playing one turn.</summary>
     internal static bool ExecuteContinues(CombatUiSnapshot snapshot)
-        => snapshot.Mode == SolverMode.FullAuto && snapshot.FullAutoEnabled
-            && !snapshot.FullAutoPausedThisCombat;
+        => snapshot.Mode == SolverMode.FullAuto;
+
+    internal static string ExecuteTooltip(CombatUiSnapshot snapshot, bool continues)
+        => !continues
+            ? SolverText.Get("执行当前回合的动作。")
+            : snapshot.FullAutoPausedThisCombat && snapshot.PauseCode != null
+                ? SolverText.Get("确认这条路线并开始执行，之后每回合由全自动接着搜索和执行。")
+                : SolverText.Get("按推荐路线开始执行，之后每回合由全自动接着搜索和执行。");
 
     private void RefreshModeButtons(CombatUiSnapshot snapshot)
     {

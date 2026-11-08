@@ -4,10 +4,9 @@ namespace Sts2Solver.Golden;
 
 /// <summary>
 /// The combat-log replay reproduces a wall-clock search. A real-clock coordinator run with 1 ms
-/// per width cuts its members on the deadline; replaying with the recorded expanded nodes and
-/// transitions must select the same member and encode the same result, member by member.
-/// Single-threaded: with parallel expansion a deadline that fires during candidate collection
-/// cannot be located by counters, and the replay may differ.
+/// per width cuts its members on the deadline; replaying with the recorded deadline polls must expand the
+/// same nodes, select the same member and encode the same result. Single-threaded: the polls of a
+/// parallel solve interleave, so its replay may differ.
 /// </summary>
 internal static class ReplayLogContracts
 {
@@ -27,13 +26,13 @@ internal static class ReplayLogContracts
             MillisecondsPerWidth = 1,
             NodesPerWidth = 1024,
         };
-        List<long> liveTransitions = [];
+        List<long> livePolls = [];
         ValueTask<SearchMemberMeasurement> RunLive(SearchCase member, SearchStorage storage,
             CancellationToken token)
         {
             BeamResult beam = new BeamSolver(member.Rules, member.Options with { SearchThreads = 1 })
                 .Solve(member.Battles, storage, token);
-            liveTransitions.Add(beam.Transitions);
+            livePolls.Add(beam.DeadlineExpiredAtPoll);
             return ValueTask.FromResult(new SearchMemberMeasurement(beam, "ok", null, 0));
         }
         CombatSearchResult live = CombatSearchCoordinator.RunAsync(
@@ -42,17 +41,10 @@ internal static class ReplayLogContracts
             .AsTask().GetAwaiter().GetResult();
 
         SearchMemberResult[] ran = [.. live.Members.Where(static member => member.Ran)];
-        List<(long Expanded, long Transitions)?> caps = [];
-        for (int index = 0; index < ran.Length; index++)
-        {
-            caps.Add(ReplayLogCommand.IsBudgetStop(ran[index].StopReason)
-                ? (ran[index].ExpandedNodes, liveTransitions[index])
-                : null);
-        }
-        int cuts = caps.Count(static cap => cap != null);
+        int cuts = livePolls.Count(static poll => poll > 0);
         Assert(cuts > 0, "1 ms per width cuts at least one member on the deadline");
 
-        (CombatSearchResult replayed, List<long> expanded) = ReplayLogCommand.Replay(searchCase, plan, caps, 1);
+        (CombatSearchResult replayed, List<long> expanded) = ReplayLogCommand.Replay(searchCase, plan, livePolls, 1);
         Assert(expanded.SequenceEqual(ran.Select(static member => member.ExpandedNodes)),
             $"member expanded nodes {string.Join(",", ran.Select(static m => m.ExpandedNodes))} "
             + $"replayed as {string.Join(",", expanded)}");
@@ -61,6 +53,6 @@ internal static class ReplayLogContracts
         Assert(live.Beam != null && replayed.Beam != null, "both runs select a result");
         Assert(SearchCodec.EncodeResult(live.Beam!).AsSpan().SequenceEqual(SearchCodec.EncodeResult(replayed.Beam!)),
             "selected result " + (SearchVerifier.FirstDifference(live.Beam!, replayed.Beam!) ?? "<bytes>"));
-        Console.WriteLine($"REPLAY_LOG_CONTRACT members={ran.Length} budget_cuts={cuts} selected={live.SelectedMember}");
+        Console.WriteLine($"REPLAY_LOG_CONTRACT members={ran.Length} deadline_cuts={cuts} selected={live.SelectedMember}");
     }
 }

@@ -166,7 +166,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 每场单人战斗在 `user://sts2solver/combat-logs/<UTC 时间>-<遭遇 Id>/` 下建一个目录（Mac 上即 `~/Library/Application Support/SlayTheSpire2/sts2solver/combat-logs/`），一直记录，没有开关：
 
 - `combat.json`：Mod 版本、游戏版本、角色、遭遇、房间类型、幕、楼层、进阶和界面语言。
-- `search-NNN.json`：每次出牌搜索或回合准备搜索的种类、回合、原因、是否续搜、档位、线程数、搜索计划、状态、选中的成员、耗时、展开数、选中路线的文字描述，以及每个成员的宽度、评价方式、保留方式、用药阶段、运行或跳过原因、耗时、展开数、子状态数、停止原因、胜负、预计掉血、用药数和是否采用。搜索被取消时不写；导入失败等没有请求的情况在 `events.log` 里。
+- `search-NNN.json`：每次出牌搜索或回合准备搜索的种类、回合、原因、是否续搜、档位、线程数、搜索计划、状态、选中的成员、耗时、展开数、选中路线的文字描述，以及每个成员的宽度、评价方式、保留方式、用药阶段、运行或跳过原因、耗时、展开数、截止检查序号（成员内第几次截止检查发现到期，未到期为 0）、停止原因、胜负、预计掉血、用药数和是否采用。搜索被取消时不写；导入失败等没有请求的情况在 `events.log` 里。
 - `search-NNN.sreq.br`、`search-NNN.sres.br`：交给协调器的基础请求（SREQ）和最终选中的结果（SRES），Brotli 压缩。
 - `deviation-NN.json` 与 `.predicted.batl.br`、`.actual.batl.br`：出牌偏差、结束回合偏差、续用边界偏差和回合准备开局预测不符时，预测与实际的 `Battle` 以及差异行。
 - `events.log`：本场开始后的 `[Sts2Solver]` 日志行，战斗结束到下一场开始之间的行也记在这里。

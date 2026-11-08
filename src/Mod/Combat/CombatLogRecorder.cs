@@ -312,12 +312,12 @@ internal sealed record CombatSearchPlanLog(int BaselineWidth, int NarrowWidth, i
 }
 
 /// <summary>
-/// One portfolio member. <see cref="Transitions"/> comes from the member's own measurement: with the
-/// expanded count it pins the exact poll where a budget stop happened, so the replay can stop there.
+/// One portfolio member. <see cref="DeadlinePoll"/> comes from the member's own measurement: the number
+/// of the deadline poll that stopped it, 0 when the deadline never expired, so the replay can stop there.
 /// </summary>
 internal sealed record CombatSearchMemberLog(int Width, string Evaluation, string Retention,
     string Potions, bool Ran, string? Skipped, long ElapsedMilliseconds, long ExpandedNodes,
-    long? Transitions, string StopReason, bool Victory, int? HpLost, int? PotionUses, bool Adopted)
+    long? DeadlinePoll, string StopReason, bool Victory, int? HpLost, int? PotionUses, bool Adopted)
 {
     internal static CombatSearchMemberLog[] From(SearchMemberResult[] members, SearchMemberRunUi[] runs)
     {
@@ -326,10 +326,10 @@ internal sealed record CombatSearchMemberLog(int Width, string Evaluation, strin
         for (int i = 0; i < members.Length; i++)
         {
             SearchMemberResult member = members[i];
-            long? transitions = member.Ran && run < runs.Length ? runs[run++].Transitions : null;
+            long? deadlinePoll = member.Ran && run < runs.Length ? runs[run++].DeadlineExpiredAtPoll : null;
             logs[i] = new(member.Member.Width, member.Member.Evaluation.ToString(),
                 member.Member.Retention.ToString(), member.Member.Potions.ToString(), member.Ran,
-                member.SkippedReason, member.ElapsedMilliseconds, member.ExpandedNodes, transitions,
+                member.SkippedReason, member.ElapsedMilliseconds, member.ExpandedNodes, deadlinePoll,
                 member.StopReason, member.Victory, member.HpLost, member.PotionUses, member.Adopted);
         }
         return logs;

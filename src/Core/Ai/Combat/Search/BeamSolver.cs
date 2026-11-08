@@ -232,6 +232,12 @@ internal sealed record BeamResult(
     public long ExpandedNodesTotal { get; init; }
     public string StopReason { get; init; } = "unknown";
 
+    /// <summary>
+    /// The number of the first deadline poll that found the deadline expired; 0 when it never expired.
+    /// Not encoded in SRES.
+    /// </summary>
+    public long DeadlineExpiredAtPoll { get; init; }
+
     internal static readonly IReadOnlyDictionary<string, int> NoCapacityDrops =
         new Dictionary<string, int>(0);
 
@@ -527,6 +533,8 @@ internal sealed partial class BeamSolver
     private bool _deadlineReached;
     private int _transitions;
     private int _duplicates;
+    private long _deadlinePolls;
+    private long _deadlineExpiredAtPoll;
     private bool _memoryBudgetExceeded;
     private long _memoryBudgetExceededAtBytes;
     private int _capacityPruned;
@@ -588,6 +596,9 @@ internal sealed partial class BeamSolver
 
     /// <summary>The physical transition count of the current solve (readable after a canceled solve).</summary>
     internal int TransitionCount => _transitions;
+
+    /// <summary>Deadline polls of the current solve so far.</summary>
+    internal long DeadlinePolls => Interlocked.Read(ref _deadlinePolls);
 
     /// <summary>Packed size of one route's turn-progress metadata; asserted by KernelChecks.</summary>
     internal static int TurnProgressStateSize => Unsafe.SizeOf<TurnProgressState>();
@@ -706,6 +717,8 @@ internal sealed partial class BeamSolver
         _expandedTotal = 0;
         _transitions = 0;
         _duplicates = 0;
+        _deadlinePolls = 0;
+        _deadlineExpiredAtPoll = 0;
         _memoryBudgetExceeded = false;
         _memoryBudgetExceededAtBytes = 0;
         _bestPotionFree = null;
@@ -1030,6 +1043,7 @@ internal sealed partial class BeamSolver
             SearchMemoryExceededAtBytes = _memoryBudgetExceeded
                 ? _memoryBudgetExceededAtBytes : _storage.Memory.ExceededAtBytes,
             SoftTimeBudgetReached = SoftTimeReached(watch),
+            DeadlineExpiredAtPoll = Interlocked.Read(ref _deadlineExpiredAtPoll),
             RouteNodeStorageBytes = _nodes.StorageBytes,
             RouteNodeCount = _nodes.Count,
             RouteNodePeakCount = _nodes.PeakCount,
@@ -1114,6 +1128,7 @@ internal sealed partial class BeamSolver
             SearchMemoryExceededAtBytes = _memoryBudgetExceeded
                 ? _memoryBudgetExceededAtBytes : _storage.Memory.ExceededAtBytes,
             SoftTimeBudgetReached = SoftTimeReached(watch),
+            DeadlineExpiredAtPoll = Interlocked.Read(ref _deadlineExpiredAtPoll),
             RouteNodeStorageBytes = _nodes.StorageBytes,
             RouteNodeCount = _nodes.Count,
             RouteNodePeakCount = _nodes.PeakCount,
@@ -1521,12 +1536,25 @@ internal sealed partial class BeamSolver
         return true;
     }
 
-    private bool DeadlineExpired() => _options.DeadlineExpired?.Invoke() == true;
+    /// <summary>
+    /// Polls the request's deadline. Polls are numbered from 1; the number of the first poll that found the
+    /// deadline expired becomes <see cref="BeamResult.DeadlineExpiredAtPoll"/>, so a replay of a
+    /// single-threaded solve can stop at the same poll.
+    /// </summary>
+    private bool DeadlineExpired()
+    {
+        long poll = Interlocked.Increment(ref _deadlinePolls);
+        if (_options.DeadlineExpired?.Invoke() != true)
+            return false;
+        Interlocked.CompareExchange(ref _deadlineExpiredAtPoll, poll, 0);
+        return true;
+    }
 
-    private static BeamResult DeadlineBeforeStart(SearchStorage storage) => new([], false,
+    private BeamResult DeadlineBeforeStart(SearchStorage storage) => new([], false,
         double.NegativeInfinity, 0, 0, 0, 0, 0, TimeSpan.Zero)
     {
         SoftTimeBudgetReached = true, PotionPolicySatisfied = false, StopReason = "time",
+        DeadlineExpiredAtPoll = Interlocked.Read(ref _deadlineExpiredAtPoll),
         SearchMemoryUsedBytes = storage.Memory.UsedBytes, SearchMemoryPeakBytes = storage.Memory.PeakBytes,
     };
 

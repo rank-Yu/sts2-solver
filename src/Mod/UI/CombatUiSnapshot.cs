@@ -500,6 +500,9 @@ internal sealed record SearchMemberRunUi
     public int PacerFrameRecoveryWaits { get; init; }
 
     public long PacerFrameRecoveryWaitMilliseconds { get; init; }
+
+    /// <summary>The member's deadline poll that stopped it; 0 when the deadline never expired.</summary>
+    public long DeadlineExpiredAtPoll { get; init; }
 }
 
 /// <summary>A route frozen into per-turn groups; indexes are global over the whole route.</summary>

@@ -397,6 +397,7 @@ internal sealed partial class BeamSolver
     private BeamResult WithSolveDiagnostics(BeamResult result) => result with
     {
         CapacityPruned = _capacityPruned,
+        DeadlineExpiredAtPoll = Interlocked.Read(ref _deadlineExpiredAtPoll),
         TurnLoopGuarded = TurnLoopGuardedTotal,
         CrossTurnNoProgressPruned = CrossTurnNoProgressPrunedTotal,
         RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,

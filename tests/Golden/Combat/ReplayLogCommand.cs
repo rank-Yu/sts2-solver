@@ -6,9 +6,9 @@ namespace Sts2Solver.Golden;
 
 /// <summary>
 /// Reruns the searches of an exported combat log (zip or folder) through the production coordinator.
-/// The coordinator clock never advances; a member the game stopped on its budget is stopped here at its
-/// recorded expanded nodes and transitions, which is the poll where the live deadline or node cap fired. Each search
-/// reports whether the selected result (SRES) and the members' node counts match the recording.
+/// The coordinator clock never advances; a member the game stopped on its deadline is stopped here at the
+/// recorded deadline poll, and a member stopped by its node cap or by finishing runs to the same end. Each
+/// search reports whether the selected result (SRES) and the members' node counts match the recording.
 /// </summary>
 internal static class ReplayLogCommand
 {
@@ -75,21 +75,17 @@ internal static class ReplayLogCommand
         SearchCase searchCase = SearchCodec.DecodeRequest(search.Request);
         SearchPlan plan = ReadPlan(log.GetProperty("plan"));
         int threads = threadOverride ?? Math.Max(1, log.GetProperty("threads").GetInt32());
-        List<(long Expanded, long Transitions)?> caps = [];
+        List<long> polls = [];
         List<long> recordedExpanded = [];
         foreach (JsonElement member in log.GetProperty("members").EnumerateArray())
         {
             if (!member.GetProperty("ran").GetBoolean())
                 continue;
-            long expanded = member.GetProperty("expandedNodes").GetInt64();
-            string stop = member.GetProperty("stopReason").GetString() ?? "";
-            recordedExpanded.Add(expanded);
-            long transitions = member.TryGetProperty("transitions", out JsonElement value)
-                && value.ValueKind == JsonValueKind.Number ? value.GetInt64() : 0;
-            caps.Add(IsBudgetStop(stop) ? (expanded, transitions) : null);
+            recordedExpanded.Add(member.GetProperty("expandedNodes").GetInt64());
+            polls.Add(member.GetProperty("deadlinePoll").GetInt64());
         }
 
-        (CombatSearchResult outcome, List<long> replayedExpanded) = Replay(searchCase, plan, caps, threads);
+        (CombatSearchResult outcome, List<long> replayedExpanded) = Replay(searchCase, plan, polls, threads);
         byte[]? replayed = outcome.Beam == null ? null : SearchCodec.EncodeResult(outcome.Beam);
         bool resultSame = replayed == null
             ? search.Result == null
@@ -115,27 +111,21 @@ internal static class ReplayLogCommand
     }
 
     /// <summary>
-    /// A member that stopped on its budget. Production members carry both a node cap and the wall
-    /// clock and report either as <c>budget</c>; replaying both at the recorded node count stops at
-    /// the same poll, because the node cap is checked where the deadline is.
-    /// </summary>
-    internal static bool IsBudgetStop(string stop) => stop is "budget" or "time" or "deadline";
-
-    /// <summary>
     /// Runs the production coordinator on a recorded request with a clock that never advances. The
-    /// k-th member that runs stops at the first deadline poll where both its expanded nodes and its
-    /// transitions reach <c>caps[k]</c>, the live stop poll; other members end on their node cap or
-    /// naturally, as they did live.
+    /// k-th member that runs finds its deadline expired from deadline poll <c>deadlinePolls[k]</c> on,
+    /// the poll that stopped it live; a member whose deadline never expired (0) ends on its node cap or
+    /// naturally, as it did live. Polls of a multi-threaded solve interleave, so only a single-threaded
+    /// replay is exact.
     /// </summary>
     internal static (CombatSearchResult Outcome, List<long> Expanded) Replay(SearchCase searchCase,
-        SearchPlan plan, IReadOnlyList<(long Expanded, long Transitions)?> caps, int threads)
+        SearchPlan plan, IReadOnlyList<long> deadlinePolls, int threads)
     {
         List<long> replayedExpanded = [];
         int runIndex = 0;
         ValueTask<SearchMemberMeasurement> RunMember(SearchCase member, SearchStorage storage,
             CancellationToken token)
         {
-            (long Expanded, long Transitions)? cap = runIndex < caps.Count ? caps[runIndex] : null;
+            long poll = runIndex < deadlinePolls.Count ? deadlinePolls[runIndex] : 0;
             runIndex++;
             BeamSolver? solver = null;
             BeamOptions options = member.Options with
@@ -145,8 +135,8 @@ internal static class ReplayLogCommand
                 Pacer = null,
                 Trace = null,
                 Progress = null,
-                DeadlineExpired = cap is { } limit
-                    ? () => solver!.ExpandedNodes >= limit.Expanded && solver.TransitionCount >= limit.Transitions
+                DeadlineExpired = poll > 0
+                    ? () => solver!.DeadlinePolls >= poll
                     : member.Options.DeadlineExpired,
             };
             solver = new BeamSolver(member.Rules, options);

@@ -74,7 +74,7 @@
 
 原版在玩家回合开始时先执行 `SetupPlayerTurn`。需要选牌时，玩家 `PlayerTurnPhase` 保持 `Start`，设置页面等待一个玩家选择上下文；这段等待不是动作队列里的一个动作，所以 `FinishedExecutingActions()` 可能已经完成。暂停时原版先跑侧回合开始和球，选择结束后 `RunAutoPrePlayPhase` 把阶段推进到 `AutoPrePlay`，再进入 `Play`。`CombatManager.TurnStarted` 可能在暂停期间就触发，也可能在进入 `Play` 后触发，所以控制器把两种顺序都当作“回合开始事件”，在 `PlayerTurnPhase` 到 `Play` 后才处理计划。
 
-自动搜索开着或本场执行进行中时，会接管可见的回合准备页面，也会接管其后的 `RunAutoPrePlayPhase`。两段共用同一个页面会话和同一份计划，搜索只启动一次：setup 和 AutoPrePlay 谁先看到第一个可见页面，谁就启动搜索。`PlayerTurnSetupRuntime` 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举 Play 根，再用 `CompileSetupRequest` 编译多根请求；计划可以包含 AutoPrePlay 阶段的选择。搜索不在入口启动，而是在第一张真正可见的 `CardSelectCmd` 页面出现后启动；页面在搜索期间不加输入遮挡，玩家可以自己选。没有可见页面的纯隐式选择（例如手里只剩一张牌的烤面包手套）不启动准备搜索，原生自动选完后在 `Play` 照常搜索。混合场景里如果某个隐式请求在侧回合开始后变成了可见页面，观察层会把它提升为可见请求；手牌候选在暂停后重新读取，侧回合开始新增的牌（例如十字弓生成的攻击）会进入候选并参与枚举和计划匹配。
+自动搜索开着或本场执行进行中时，会接管可见的回合准备页面，也会接管其后的 `RunAutoPrePlayPhase`。两段共用同一个页面会话和同一份计划，搜索只启动一次：setup 和 AutoPrePlay 谁先看到第一个可见页面，谁就启动搜索。`PlayerTurnSetupRuntime` 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举 Play 根，再用 `CompileSetupRequest` 编译多根请求；计划可以包含 AutoPrePlay 阶段的选择。搜索不在入口启动，而是在第一张真正可见的 `CardSelectCmd` 页面出现后启动；页面在搜索期间不加输入遮挡，玩家可以自己选。没有可见页面的纯隐式选择（例如手里只剩一张牌的烘焙手套）不启动准备搜索，原生自动选完后在 `Play` 照常搜索。混合场景里如果某个隐式请求在侧回合开始后变成了可见页面，观察层会把它提升为可见请求；手牌候选在暂停后重新读取，侧回合开始新增的牌（例如十字弓生成的攻击）会进入候选并参与枚举和计划匹配。
 
 不在本场执行中时，搜完只发布路线和计划，不点页面；玩家可以自己选，或按“执行本回合”“执行本场战斗”让求解器在页面上点完再部署。本场执行中搜完直接驱动；驱动前评估和普通回合相同的两个暂停条件（“预计本回合死亡” `death_turn`，包括只有死亡路线；本场第一次出现“未找到生还路线” `no_survival`），命中时不点页面、把页面交还玩家并暂停本场执行，路线只作为建议显示。玩家在搜完前自己选了，本次搜索作废，进入 `Play` 后按普通流程处理。AutoPrePlay 的页面按同一规则处理：不在本场执行中只显示，本场执行中在未预计死亡时驱动。
 

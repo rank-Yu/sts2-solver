@@ -4334,14 +4334,14 @@ static void CheckTsKernel(Rules rules)
     Exec toastyProbe = new(ref toastyBattle, rules, default);
     toastyProbe.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
     toastyDef.AfterPlayerTurnStart(ref toastyProbe, self);
-    Check(toastyProbe.NeedsChoice, "TS 烤面包手套应在回合开始请求选牌");
+    Check(toastyProbe.NeedsChoice, "TS 烘焙手套应在回合开始请求选牌");
     Check(toastyProbe.Request.Kind == ChoiceKind.SelectCards
         && toastyProbe.Request.Effect == ChoiceEffect.Exhaust
         && toastyProbe.Request.Source == Pile.Hand
         && toastyProbe.Request.Timing == ChoiceTiming.PlayerTurnStart
         && toastyProbe.Request.MinCount == 1 && toastyProbe.Request.MaxCount == 1
         && toastyProbe.Request.OptionCount == toastyHand,
-        $"TS 烤面包手套选择规格错误 kind={toastyProbe.Request.Kind} effect={toastyProbe.Request.Effect} "
+        $"TS 烘焙手套选择规格错误 kind={toastyProbe.Request.Kind} effect={toastyProbe.Request.Effect} "
         + $"source={toastyProbe.Request.Source} timing={toastyProbe.Request.Timing} "
         + $"count={toastyProbe.Request.MinCount}..{toastyProbe.Request.MaxCount} "
         + $"options={toastyProbe.Request.OptionCount} hand={toastyHand}");
@@ -4350,9 +4350,9 @@ static void CheckTsKernel(Rules rules)
     toastyReplay.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
     toastyDef.AfterPlayerTurnStart(ref toastyReplay, self);
     Check(!toastyReplay.NeedsChoice && toastyReplayBattle.ExhaustCount == 1,
-        $"TS 烤面包手套应消耗 1 张选中的手牌，实际消耗 {toastyReplayBattle.ExhaustCount}");
+        $"TS 烘焙手套应消耗 1 张选中的手牌，实际消耗 {toastyReplayBattle.ExhaustCount}");
     Check(Kernel.GetAmount(toastyReplayBattle, Limits.PlayerOwner, strength) == 2,
-        $"TS 烤面包手套应施加 2 力量，实际 {Kernel.GetAmount(toastyReplayBattle, Limits.PlayerOwner, strength)}");
+        $"TS 烘焙手套应施加 2 力量，实际 {Kernel.GetAmount(toastyReplayBattle, Limits.PlayerOwner, strength)}");
 
     // ChoicesParadox: a generated-card option set (no pile), one selected card enters the hand and
     // carries Retain. The kernel samples CharacterAll in option order with CombatCardGeneration.

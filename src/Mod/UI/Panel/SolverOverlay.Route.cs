@@ -91,6 +91,14 @@ internal sealed partial class SolverOverlay
         _body.AddChild(_routeScroll);
     }
 
+    /// <summary>
+    /// Presentations that show a route being executed: the deployment itself and the turn-setup page
+    /// a run reaches after it (waiting with a carried plan, or driving the page).
+    /// </summary>
+    private bool ShowsDeployedRoute => _presentation is SolverOverlayPresentation.Deploying
+        or SolverOverlayPresentation.TurnSetupContinuation
+        or SolverOverlayPresentation.TurnSetupDriving;
+
     private void PopulateRoute(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
     {
         bool hasTurns = overlay.Turns.Count > 0;
@@ -151,7 +159,7 @@ internal sealed partial class SolverOverlay
                 enemyDamageText: turn.EnemyHpDamageLost is { } damage
                     ? SolverText.Format($"对敌伤害 {damage}")
                     : string.Empty);
-            bool current = _presentation == SolverOverlayPresentation.Deploying
+            bool current = ShowsDeployedRoute
                 ? turn.Turn == snapshot.Turn
                 : index == 0;
             row.SetRowState(current, !current && turn.Turn < snapshot.Turn);
@@ -195,6 +203,18 @@ internal sealed partial class SolverOverlay
                 {
                     row.SetDeploymentProgress(completedLocal, activeLocal);
                 }
+            }
+        }
+        else if (ShowsDeployedRoute && snapshot.Route is { CompletedActions: > 0 } setupRoute)
+        {
+            // A run reaches the next turn's setup page with the previous turn's route still shown;
+            // its executed actions stay completed instead of being redrawn as pending.
+            foreach (SolverRouteRow row in RouteRows)
+            {
+                if (!row.Visible || row.StartActionIndex >= setupRoute.CompletedActions)
+                    continue;
+                row.SetDeploymentProgress(Math.Clamp(
+                    setupRoute.CompletedActions - row.StartActionIndex, 0, row.DeploymentActionCount), null);
             }
         }
         if (_routeScroll != null

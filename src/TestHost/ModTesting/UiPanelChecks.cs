@@ -558,8 +558,8 @@ internal static class UiPanelChecks
     {
         Button?[] buttons =
         [
-            panel.PotionButtonForTest, panel.GrowthButtonForTest, panel.SettingsButtonForTest,
-            panel.CollapseButtonForTest,
+            panel.PotionButtonForTest, panel.GrowthButtonForTest, panel.RelicButtonForTest,
+            panel.SettingsButtonForTest, panel.CollapseButtonForTest,
         ];
         if (buttons.Any(static button => button == null))
         {
@@ -572,16 +572,18 @@ internal static class UiPanelChecks
             string.Join(",", buttons.Select(static button => button!.ButtonPressed)) +
             $" settings={panel.SettingsButtonForTest!.Text}";
         return order.Zip(order.Skip(1)).All(static pair => pair.First >= 0 && pair.Second == pair.First + 1)
-            && order[3] == header.GetChildCount() - 1
+            && order[^1] == header.GetChildCount() - 1
             && buttons.All(static button => button!.Visible && !button.ButtonPressed)
             && panel.PotionButtonForTest!.Text == SolverText.Get("药水")
             && panel.GrowthButtonForTest!.Text == SolverText.Get("成长")
+            && panel.RelicButtonForTest!.Text == SolverText.Get("遗物")
             && panel.SettingsButtonForTest!.Text == SolverText.Get("设置");
     }
 
     private static bool HeaderButtonsHidden(SolverOverlay panel)
         => panel.PotionButtonForTest is { Visible: false }
             && panel.GrowthButtonForTest is { Visible: false }
+            && panel.RelicButtonForTest is { Visible: false }
             && panel.SettingsButtonForTest is { Visible: false };
 
     /// <summary>The sidebar shows one page with its title, and only that page's header button is pressed.</summary>
@@ -597,14 +599,16 @@ internal static class UiPanelChecks
             && sidebar.PageVisibleForTest(kind) && !sidebar.PageVisibleForTest(other)
             && sidebar.TitleForTest == title
             && panel.PotionButtonForTest?.ButtonPressed == (kind == SolverStrategyPageKind.Potions)
-            && panel.GrowthButtonForTest?.ButtonPressed == (kind == SolverStrategyPageKind.Growth);
+            && panel.GrowthButtonForTest?.ButtonPressed == (kind == SolverStrategyPageKind.Growth)
+            && panel.RelicButtonForTest?.ButtonPressed == (kind == SolverStrategyPageKind.Relics);
     }
 
     private static bool SidebarClosed(SolverOverlay panel)
         => panel.ProbeForTest().SidebarPage.Length == 0
             && panel.SidebarForTest is { Visible: false }
             && panel.PotionButtonForTest?.ButtonPressed == false
-            && panel.GrowthButtonForTest?.ButtonPressed == false;
+            && panel.GrowthButtonForTest?.ButtonPressed == false
+            && panel.RelicButtonForTest?.ButtonPressed == false;
 
     /// <summary>The settings page replaces the summary, route and footer; the button reads 返回.</summary>
     private static bool SettingsShown(SolverOverlay panel)

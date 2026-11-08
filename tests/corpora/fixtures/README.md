@@ -24,12 +24,12 @@
 - `ts-a-toasty`、`ts-b-toolbox`、`qf2-gradient-failure` 除了普通根，还会产生回合准备根。
 - 以下测试专用 fixture 不对应冻结根：
   - `ts-d-autopreplay-choice`：第 2 回合由 Mayhem 自动打出 Discovery，覆盖 AutoPrePlay 里的选择；
-  - `ts-g-multi-choice`：第 2 回合 `AfterPlayerTurnStart` 两次选择（暴政 + 烤面包手套），并带熔炉的 `AfterSideTurnStart`；
-  - `ts-h-choice-then-listener`：第 1 回合烤面包手套之后还有宝石面具和十字弓，覆盖同一轮选择后仍有监听器；
-  - `ts-i-plasma-pause`：第 2 回合等离子球与烤面包手套，覆盖准备暂停处的球触发；
-  - `ts-j-crossbow-one-card` / `ts-j-crossbow-many`：烤面包手套 + 十字弓，覆盖暂停后由侧回合开始加入手牌的攻击牌（手牌 1 张和多张两种）；
-  - `ts-k-two-relic-choices`：烤面包手套 + 赌博芯片，同一准备阶段产生两段可见选择；
-  - `ts-ex-extra-turn`：PaelsEye + 烤面包手套，第 1 回合能量 0 且只抽防御牌，结束回合必触发额外回合，覆盖额外回合开始的准备选择。
+  - `ts-g-multi-choice`：第 2 回合 `AfterPlayerTurnStart` 两次选择（暴政 + 烘焙手套），并带熔炉的 `AfterSideTurnStart`；
+  - `ts-h-choice-then-listener`：第 1 回合烘焙手套之后还有宝石面具和十字弓，覆盖同一轮选择后仍有监听器；
+  - `ts-i-plasma-pause`：第 2 回合等离子球与烘焙手套，覆盖准备暂停处的球触发；
+  - `ts-j-crossbow-one-card` / `ts-j-crossbow-many`：烘焙手套 + 十字弓，覆盖暂停后由侧回合开始加入手牌的攻击牌（手牌 1 张和多张两种）；
+  - `ts-k-two-relic-choices`：烘焙手套 + 赌博筹码，同一准备阶段产生两段可见选择；
+  - `ts-ex-extra-turn`：PaelsEye + 烘焙手套，第 1 回合能量 0 且只抽防御牌，结束回合必触发额外回合，覆盖额外回合开始的准备选择。
 
 sts2-sim 整局导出批次（FS1）的归类 fixture 同样是测试专用，不对应 d1 冻结根：
 

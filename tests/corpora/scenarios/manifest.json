@@ -138,6 +138,24 @@
       "separate": true
     },
     {
+      "id": "toasty-full-auto",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "flashTurnSetupRootForTest": false,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Medium",
+        "timeoutSeconds": 1800,
+        "enemyCurrentHp": 100
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
       "id": "manual_start_stop",
       "scenario": "manual_start_stop",
       "group": "controller"

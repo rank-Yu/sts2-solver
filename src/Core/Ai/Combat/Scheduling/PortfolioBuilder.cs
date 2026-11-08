@@ -1,5 +1,9 @@
 // Adapted from CombatSolver src/Search/BeamWidthPortfolio.cs at a62f1850
 // (MIT, Copyright (c) 2026 Torch1230 and contributors).
+// The original's middle stage (at most one potion: power-first at baseline width and wide) is not
+// kept. On the 108 quality roots it was the selected member 11 times; in 10 of them an Allowed
+// member found a route with the same HP loss and no more potions, and dropping it cut expanded
+// nodes by 14.6% with one root (DEFECT-008) drinking one more potion.
 namespace Sts2Solver.Ai.Combat;
 
 internal static class PortfolioBuilder
@@ -24,11 +28,6 @@ internal static class PortfolioBuilder
             SearchPotionLimit.None));
         int primaryCount = members.Count;
 
-        if (power)
-            members.Add(new(plan.BaselineWidth, SearchEvaluation.Standard, SearchRetention.Power,
-                SearchPotionLimit.One));
-        members.Add(new(plan.WideWidth, SearchEvaluation.Standard, SearchRetention.Standard,
-            SearchPotionLimit.One));
         for (int index = 0; index < primaryCount; index++)
         {
             if (members[index].Retention == SearchRetention.SecondBand)

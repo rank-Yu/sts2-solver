@@ -29,12 +29,11 @@ internal static class SearchChecks
         SearchPlan plan = new(12, 8, 16, 5, 100_000_000) { MillisecondsPerWidth = 50 };
         SearchMember[] powered = PortfolioBuilder.Build(plan, power: true);
         SearchMember[] ordinary = PortfolioBuilder.Build(plan, power: false);
-        Assert(powered.Length == 13 && ordinary.Length == 10, "compact portfolio sizes");
+        Assert(powered.Length == 11 && ordinary.Length == 9, "compact portfolio sizes");
         Assert(powered.Take(6).All(m => m.Potions == SearchPotionLimit.None)
-            && powered.Skip(6).Take(2).All(m => m.Potions == SearchPotionLimit.One)
-            && powered.Skip(8).All(m => m.Potions == SearchPotionLimit.Allowed)
-            && powered.Skip(8).All(m => m.Width != plan.NarrowWidth)
-            && powered[9].Width == plan.BaselineWidth && powered[10].Width == plan.WideWidth,
+            && powered.Skip(6).All(m => m.Potions == SearchPotionLimit.Allowed)
+            && powered.Skip(6).All(m => m.Width != plan.NarrowWidth)
+            && powered[7].Width == plan.BaselineWidth && powered[8].Width == plan.WideWidth,
             "compact portfolio stages and widths");
         Console.WriteLine("SEARCH presets/portfolios=pass");
         RemovalOrder();

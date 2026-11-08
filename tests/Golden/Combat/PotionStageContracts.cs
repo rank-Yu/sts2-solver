@@ -101,20 +101,19 @@ internal static class PotionStageContracts
 
         SearchMember[] powered = PortfolioBuilder.Build(plan, power: true);
         SearchMember[] ordinary = PortfolioBuilder.Build(plan, power: false);
-        Assert(powered.Length == 13 && ordinary.Length == 10,
+        Assert(powered.Length == 11 && ordinary.Length == 9,
             "compact portfolio sizes");
         Assert(powered.Take(6).Select(m => m.Potions).SequenceEqual(new[]
             {
                 SearchPotionLimit.None, SearchPotionLimit.None, SearchPotionLimit.None,
                 SearchPotionLimit.None, SearchPotionLimit.None, SearchPotionLimit.None,
             })
-            && powered.Skip(6).Take(2).All(m => m.Potions == SearchPotionLimit.One)
-            && powered.Skip(8).All(m => m.Potions == SearchPotionLimit.Allowed),
-            "compact portfolio keeps the None/One/Allowed stage order");
+            && powered.Skip(6).All(m => m.Potions == SearchPotionLimit.Allowed),
+            "compact portfolio keeps the None/Allowed stage order");
         Assert(powered[1].Width == plan.NarrowWidth && powered[2].Width == plan.WideWidth
-            && powered[8].Width == plan.BaselineWidth && powered[9].Width == plan.BaselineWidth
-            && powered[10].Width == plan.WideWidth
-            && powered.Skip(8).All(m => m.Width != plan.NarrowWidth),
+            && powered[6].Width == plan.BaselineWidth && powered[7].Width == plan.BaselineWidth
+            && powered[8].Width == plan.WideWidth
+            && powered.Skip(6).All(m => m.Width != plan.NarrowWidth),
             "compact portfolio widens the ordinary Allowed stage");
         Console.WriteLine("POTION_STAGE costs/history/targets/portfolios=pass");
     }

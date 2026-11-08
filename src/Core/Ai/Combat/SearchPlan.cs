@@ -4,7 +4,7 @@ namespace Sts2Solver.Ai.Combat;
 
 internal enum SearchEvaluation { Standard, Base, Offensive, Setup, ContinuousSetup }
 internal enum SearchRetention { Standard, Power, SecondBand, QueenKillTiming }
-internal enum SearchPotionLimit { None = 0, One = 1, Allowed = 2 }
+internal enum SearchPotionLimit { None = 0, Allowed = 1 }
 
 /// <summary>Each member describes the four independent search dimensions.</summary>
 internal sealed record SearchMember(int Width, SearchEvaluation Evaluation,

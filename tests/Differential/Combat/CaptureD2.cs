@@ -225,8 +225,7 @@ internal static class CaptureD2
                 member.Options.SecondRankBand ? "SecondBand"
                     : member.Options.AggressivePowerCommitment ? "Power"
                     : queen is { PreserveKillTiming: true } ? "QueenKillTiming" : "Standard",
-                member.Options.Potions.ForceAllDisabled ? "None"
-                    : member.Options.Potions.MaximumUses == 1 ? "One" : "Allowed",
+                member.Options.Potions.ForceAllDisabled ? "None" : "Allowed",
                 member.Options.TheftPolicy?.ToString(),
                 member.Options.PreserveReplayAllocatorOpening,
                 member.Options.BrightestFlameMaxHpLossLimit,

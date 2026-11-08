@@ -129,7 +129,7 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
 | `SearchEvaluation.ContinuousSetup` | `tw-queen-setup-stages` | 只在一个用药阶段加入；该根带一瓶药水，并用 1 点生命让第一遍搜索以失败路线结束后进入用药阶段。 |
 | `QueenSearchPolicy` | `a3-queen-boss`、`tw-queen-setup-stages` | `QueenSearchPolicy.Capture` 要求第 1 回合、`QUEEN` + `TORCH_HEAD_AMALGAM` 两个敌人；两个根都满足。 |
 
-`tw-throwing-axe` 和 `tw-queen-setup-stages` 是按现有 fixture 写法新增的最小开局；前者只注入未使用的投掷斧，后者只保留 1 点生命、一瓶 `FIRE_POTION` 与一张 `INFLAME`，让协调器完整走到三个用药阶段，搜索本身仍然很小。
+`tw-throwing-axe` 和 `tw-queen-setup-stages` 是按现有 fixture 写法新增的最小开局；前者只注入未使用的投掷斧，后者只保留 1 点生命、一瓶 `FIRE_POTION` 与一张 `INFLAME`，让协调器完整走到两个用药阶段，搜索本身仍然很小。
 
 把捕获目录并入 D2 时，用 `Golden refreeze` 的 `--add-requests`：
 

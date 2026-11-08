@@ -408,34 +408,6 @@ internal static partial class CombatSessionController
         return true;
     }
 
-    /// <summary>
-    /// <c>PotionStrategyPreset.OnlyForced</c>: keep the potions already forced, protect the rest.
-    /// </summary>
-    internal static bool SetOnlyForcedPotionDirectives()
-    {
-        RequireMainThread();
-        if (!TryCollectSearchablePotions(out List<(int Slot, string PotionId)> searchable))
-            return false;
-        SolverSettingsData current = SolverSettings.Current;
-        SolverPotionSettings potions = current.Search.Potions;
-        foreach ((int slot, string potionId) in searchable)
-        {
-            SolverPotionMode mode = potions.ResolveDirective(slot, potionId)
-                == PotionDirective.Force ? SolverPotionMode.Force : SolverPotionMode.Disabled;
-            potions = potions.ApplyDirective(slot, potionId, mode);
-        }
-        potions = potions with { Preset = SolverPotionPreset.OnlyForced };
-        if (!SolverSettings.Update(settings => settings with
-            {
-                Search = settings.Search with { Potions = potions },
-            }))
-        {
-            return false;
-        }
-        StrategySettingsChanged($"potions only_forced count={searchable.Count}");
-        return true;
-    }
-
     private static bool TryCollectSearchablePotions(
         out List<(int Slot, string PotionId)> searchable)
     {

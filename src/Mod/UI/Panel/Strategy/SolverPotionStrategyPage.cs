@@ -1,10 +1,11 @@
 // Adapted from CombatSolver src/UI/SolverPotionStrategyPanel.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The four presets, the three-state mode button with its cycle order, labels and colors, the empty
-// state and the ineligible tooltip are the original ones. Each potion is one row (icon, "#slot name",
-// fixed-width mode button) instead of a two-line card; rows come from StrategyUiSnapshot, the presets
-// are disabled when no potion takes a policy, and every change goes through ICombatUiCommands and
-// only saves for the next search.
+// The three-state mode button with its cycle order, labels and colors, the empty state and the
+// ineligible tooltip are the original ones, and so are three of its four presets: "forced only" is
+// left out because protecting all and then forcing one potion gives the same result. Each potion is
+// one row (icon, "#slot name", fixed-width mode button) instead of a two-line card; rows come from
+// StrategyUiSnapshot, the presets are disabled when no potion takes a policy, and every change goes
+// through ICombatUiCommands and only saves for the next search.
 using Godot;
 using MegaCrit.Sts2.Core.Models;
 
@@ -19,7 +20,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
     private readonly Button _allSmart;
     private readonly Button _allProtect;
     private readonly Button _allForce;
-    private readonly Button _onlyForced;
     private readonly VBoxContainer _rows;
     private readonly Label _status;
     private readonly List<PotionRow> _potionRows = [];
@@ -36,7 +36,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         GridContainer presets = new()
         {
             Name = "PotionPresets",
-            Columns = 2,
+            Columns = 3,
             MouseFilter = MouseFilterEnum.Pass,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
@@ -48,8 +48,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Disabled));
         _allForce = CreatePreset(presets, SolverText.Get("全部强制"), "AllForced",
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Force));
-        _onlyForced = CreatePreset(presets, SolverText.Get("仅用已强制"), "OnlyForced",
-            () => CombatUiCommands.Instance.SetOnlyForcedPotionDirectives());
         AddChild(presets);
 
         _rows = new VBoxContainer
@@ -92,7 +90,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
             _rowsKey = key;
         }
         bool anyAssignable = false;
-        bool anyForced = false;
         for (int index = 0; index < potions.Length; index++)
         {
             SolverPotionMode mode = ParseMode(potions[index].Mode);
@@ -100,12 +97,10 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
             row.Mode = mode;
             ApplyModeButton(row.Button, mode, row.CanAssign);
             anyAssignable |= row.CanAssign;
-            anyForced |= row.CanAssign && mode == SolverPotionMode.Force;
         }
         _allSmart.Disabled = !anyAssignable;
         _allProtect.Disabled = !anyAssignable;
         _allForce.Disabled = !anyAssignable;
-        _onlyForced.Disabled = !anyForced;
     }
 
     public bool CommitPending() => true;
@@ -283,8 +278,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
     internal Button AllProtectButtonForTest => _allProtect;
 
     internal Button AllForceButtonForTest => _allForce;
-
-    internal Button OnlyForcedButtonForTest => _onlyForced;
 
     internal string StatusTextForTest => _status.Text;
 

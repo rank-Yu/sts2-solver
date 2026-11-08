@@ -3437,23 +3437,6 @@ internal static class CombatControllerChecks
                     Snapshot().Strategy.Potions.Where(static item => item.CanAssignPolicy)
                         .All(static item => item.Mode == "force"), "snapshot force");
 
-                check("potion_force_reset_one", CombatUiCommands.Instance.SetPotionDirective(
-                    potion.Slot, potion.PotionId, SolverPotionMode.Smart));
-                check("potion_only_forced_cmd",
-                    CombatUiCommands.Instance.SetOnlyForcedPotionDirectives());
-                action("set_only_forced_potions");
-                await NoSearchAsync("potion_only_forced_no_search");
-                SearchCase onlyForced = CombatSessionController.CompileRequestForTest();
-                check("potion_only_forced_request",
-                    onlyForced.Options.Potions.Strategy.Directives.Any(item =>
-                        item.Slot == potion.Slot && item.PotionId == potion.PotionId
-                        && item.Directive == PotionDirective.Disabled)
-                    && onlyForced.Options.Potions.Strategy.Directives.Any(item =>
-                        item.Slot != potion.Slot && item.Directive == PotionDirective.Force),
-                    onlyForced.Options.Potions.Strategy.Directives.Count.ToString());
-                check("potion_only_forced_snapshot",
-                    Snapshot().Strategy.Potions.Any(item => item.Slot == potion.Slot
-                        && item.Mode == "disabled"), "snapshot only-forced");
                 check("potion_all_smart_again",
                     CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart));
             }

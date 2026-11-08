@@ -289,7 +289,7 @@ internal static class UiPanelChecks
         if (index < 0)
         {
             check("potion_presets_disabled", page.AllSmartButtonForTest.Disabled
-                && page.OnlyForcedButtonForTest.Disabled, rows);
+                && page.AllProtectButtonForTest.Disabled && page.AllForceButtonForTest.Disabled, rows);
             await Press(host, panel.PotionButtonForTest);
             return;
         }
@@ -299,17 +299,16 @@ internal static class UiPanelChecks
             .First(potion => potion.Slot == target.Slot).Mode;
         IEnumerable<PotionSlotUi> Assignable() => CombatUiStore.Snapshot.Strategy.Potions
             .Where(static potion => potion.CanAssignPolicy);
-        async Task PressPreset(Button preset, string name, string expected, bool onlyForcedEnabled)
+        async Task PressPreset(Button preset, string name, string expected)
         {
             await Press(host, preset);
             action("press:" + name);
             bool rowsMatch = PotionRowsMatch(panel, CombatUiStore.Snapshot.Strategy, out string detail);
             check("potion_" + name, rowsMatch
                 && Assignable().All(potion => potion.Mode == expected)
-                && page.OnlyForcedButtonForTest.Disabled == !onlyForcedEnabled
                 && page.StatusTextForTest == saved, detail);
         }
-        await PressPreset(page.AllSmartButtonForTest, "all_smart", "smart", false);
+        await PressPreset(page.AllSmartButtonForTest, "all_smart", "smart");
         foreach (string expected in new[] { "disabled", "force", "smart" })
         {
             await Press(host, button);
@@ -318,16 +317,9 @@ internal static class UiPanelChecks
             check("potion_cycle_" + expected, rowsMatch && Mode() == expected
                 && page.StatusTextForTest == saved, detail);
         }
-        await PressPreset(page.AllForceButtonForTest, "all_force", "force", true);
-        await Press(host, button);
-        action($"press:potion_mode:{target.Slot}");
-        await Press(host, page.OnlyForcedButtonForTest);
-        action("press:only_forced");
-        bool onlyRows = PotionRowsMatch(panel, CombatUiStore.Snapshot.Strategy, out string only);
-        check("potion_only_forced", onlyRows && Assignable().All(potion => potion.Mode
-            == (potion.Slot == target.Slot ? "disabled" : "force")), only);
-        await PressPreset(page.AllProtectButtonForTest, "all_protect", "disabled", false);
-        await PressPreset(page.AllSmartButtonForTest, "all_smart_again", "smart", false);
+        await PressPreset(page.AllForceButtonForTest, "all_force", "force");
+        await PressPreset(page.AllProtectButtonForTest, "all_protect", "disabled");
+        await PressPreset(page.AllSmartButtonForTest, "all_smart_again", "smart");
         await Press(host, panel.PotionButtonForTest);
     }
 
@@ -639,13 +631,11 @@ internal static class UiPanelChecks
         IReadOnlyList<(int Slot, string PotionId, bool CanAssign, Button Button)> rows = page.RowsForTest;
         PotionSlotUi[] potions = strategy.Potions;
         bool anyAssignable = potions.Any(static potion => potion.CanAssignPolicy);
-        bool anyForced = potions.Any(static potion => potion.CanAssignPolicy && potion.Mode == "force");
         detail = $"rows={rows.Count} potions={potions.Length} " + string.Join(",", potions.Select(
             static potion => $"{potion.Slot}:{potion.PotionId}:{potion.Mode}:{potion.CanAssignPolicy}"));
         bool presets = page.AllSmartButtonForTest.Disabled == !anyAssignable
             && page.AllProtectButtonForTest.Disabled == !anyAssignable
-            && page.AllForceButtonForTest.Disabled == !anyAssignable
-            && page.OnlyForcedButtonForTest.Disabled == !anyForced;
+            && page.AllForceButtonForTest.Disabled == !anyAssignable;
         if (potions.Length == 0)
         {
             return presets && rows.Count == 0

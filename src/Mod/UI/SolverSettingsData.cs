@@ -11,7 +11,6 @@ internal enum SolverPotionPreset
     Smart,
     ProtectAll,
     ForceAll,
-    OnlyForced,
 }
 
 /// <summary>The per-potion modes wired into the search request.</summary>

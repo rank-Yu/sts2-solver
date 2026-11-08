@@ -28,8 +28,6 @@ internal interface ICombatUiCommands
 
     bool SetAllPotionDirectives(SolverPotionMode mode);
 
-    bool SetOnlyForcedPotionDirectives();
-
     bool SetGrowthBudget(GrowthSource source, int value);
 
     bool SetIgnoreLongTermRewards(bool ignore);
@@ -68,9 +66,6 @@ internal static class CombatUiCommands
 
         public bool SetAllPotionDirectives(SolverPotionMode mode)
             => CombatSessionController.SetAllPotionDirectives(mode);
-
-        public bool SetOnlyForcedPotionDirectives()
-            => CombatSessionController.SetOnlyForcedPotionDirectives();
 
         public bool SetGrowthBudget(GrowthSource source, int value)
             => CombatSessionController.SetGrowthBudget(source, value);

@@ -465,6 +465,33 @@ internal static partial class CombatSessionController
         return true;
     }
 
+    internal static bool SetRelicCounterAllowance(string relicId, int value)
+    {
+        RequireMainThread();
+        if (!RelicCounterCatalog.RelicIds.Contains(relicId) || value is < 0 or > 1000)
+            return false;
+        if (SolverSettings.Current.Search.RelicCounterAllowances.GetValueOrDefault(relicId) == value)
+            return true;
+        if (!SolverSettings.Update(settings =>
+            {
+                Dictionary<string, int> allowances = new(settings.Search.RelicCounterAllowances,
+                    StringComparer.Ordinal);
+                if (value == 0)
+                    allowances.Remove(relicId);
+                else
+                    allowances[relicId] = value;
+                return settings with
+                {
+                    Search = settings.Search with { RelicCounterAllowances = allowances },
+                };
+            }))
+        {
+            return false;
+        }
+        StrategySettingsChanged($"relic_allowance relic={relicId} value={value}");
+        return true;
+    }
+
     internal static bool SetBrightestFlameLimit(int? limit)
     {
         RequireMainThread();

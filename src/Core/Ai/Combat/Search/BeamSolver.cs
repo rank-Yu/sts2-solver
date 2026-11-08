@@ -439,6 +439,8 @@ internal sealed partial class BeamSolver
     private readonly BeamOptions _options;
     private readonly Scorer _scorer;
     private readonly bool _zeroGrowthBudget;
+    private readonly int _relicCreditCeiling;
+    private readonly bool _hasRelicTargets;
     private readonly RouteOrdering _ordering;
     private readonly int _workspaceBufferLimit;
     private RouteNodeStore _nodes = null!;
@@ -618,6 +620,8 @@ internal sealed partial class BeamSolver
         _scorer = options.Scorer
             ?? throw new InvalidOperationException("BeamOptions.Scorer 未设置。");
         _zeroGrowthBudget = _scorer.RulesForCodec.GrowthBudgets.Total == 0;
+        _relicCreditCeiling = _scorer.RelicCreditCeiling;
+        _hasRelicTargets = _scorer.RelicTargetCount != 0;
         _ordering = options.Ordering
             ?? throw new InvalidOperationException("BeamOptions.Ordering 未设置。");
         _bound = options.Bound is { Enabled: true } ? options.Bound : null;
@@ -823,6 +827,7 @@ internal sealed partial class BeamSolver
                 && features.CumulativePlayerHpLost == 0
                 && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
                 && features.PlayerHp >= features.PlayerMaxHp
+                && _scorer.RelicGoalsMet(features)
                 && (!_options.UnlimitedNodes || !_options.HasUnboundedGrowthTargets
                     && _zeroGrowthBudget
                     && _scorer.GrowthTargetsSatisfied(features)
@@ -1321,9 +1326,9 @@ internal sealed partial class BeamSolver
         }
         comparison = left.Key.StrategicHpDeficit.CompareTo(right.Key.StrategicHpDeficit);
         if (comparison != 0) return comparison;
-        comparison = right.Key.GrowthHpCredit.CompareTo(left.Key.GrowthHpCredit);
+        comparison = right.Key.StrategyGoalHpCredit.CompareTo(left.Key.StrategyGoalHpCredit);
         if (comparison != 0) return comparison;
-        comparison = right.Key.GrowthRewardCount.CompareTo(left.Key.GrowthRewardCount);
+        comparison = right.Key.StrategyGoalCount.CompareTo(left.Key.StrategyGoalCount);
         if (comparison != 0) return comparison;
         comparison = left.Key.CombatEndedTurn.CompareTo(right.Key.CombatEndedTurn);
         if (comparison != 0) return comparison;
@@ -1348,7 +1353,7 @@ internal sealed partial class BeamSolver
 
     /// <summary>
     /// The keys of the existing final ordering (<c>FinalPlanOrdering.Select</c>) that the admitted requests
-    /// reach. Growth credits are carried; the removed relic-counter credits no longer exist. The
+    /// reach. Growth and relic counter goal credits are carried. The
     /// sold-HP and boundary tie-breakers are not ported yet. The theft recovery key is carried only
     /// under <c>PreserveResources</c>, matching <c>TheftEncounterStrategy.CompareRecovery</c>.
     /// </summary>
@@ -1358,8 +1363,8 @@ internal sealed partial class BeamSolver
         int DeathSaveUseCount,
         int OutstandingStolenResource,
         int StrategicHpDeficit,
-        int GrowthHpCredit,
-        int GrowthRewardCount,
+        int StrategyGoalHpCredit,
+        int StrategyGoalCount,
         int CombatEndedTurn,
         int HealthResourceCost,
         int LongTermResourceValue,
@@ -1403,8 +1408,8 @@ internal sealed partial class BeamSolver
             features.ProjectedDeathSaveUseCount,
             _theftPolicy == TheftPolicy.PreserveResources ? features.OutstandingStolenResource : 0,
             strategicHpDeficit,
-            features.GrowthHpCredit,
-            features.GrowthRewardCount,
+            features.StrategyGoalHpCredit,
+            features.StrategyGoalCount,
             won ? state.PlayerTurn : int.MaxValue,
             _ordering.InitialPlayerHp - features.PlayerHp
                 + _scorer.RulesForCodec.InitialPlayerMaxHp - features.PlayerMaxHp,
@@ -1436,9 +1441,9 @@ internal sealed partial class BeamSolver
         }
         comparison = left.StrategicHpDeficit.CompareTo(right.StrategicHpDeficit);
         if (comparison != 0) return comparison;
-        comparison = right.GrowthHpCredit.CompareTo(left.GrowthHpCredit);
+        comparison = right.StrategyGoalHpCredit.CompareTo(left.StrategyGoalHpCredit);
         if (comparison != 0) return comparison;
-        comparison = right.GrowthRewardCount.CompareTo(left.GrowthRewardCount);
+        comparison = right.StrategyGoalCount.CompareTo(left.StrategyGoalCount);
         if (comparison != 0) return comparison;
         comparison = left.CombatEndedTurn.CompareTo(right.CombatEndedTurn);
         if (comparison != 0) return comparison;
@@ -1740,7 +1745,10 @@ internal sealed partial class BeamSolver
                 candidateCombatEndedTurn: state.PlayerTurn,
                 ref candidate,
                 effectivePotionPolicy: _effectivePotionPolicy,
-                candidateDeathSaveUseCount: features.ProjectedDeathSaveUseCount))
+                candidateDeathSaveUseCount: features.ProjectedDeathSaveUseCount,
+                candidateGoalHpCredit: features.StrategyGoalHpCredit,
+                candidateGoalCount: features.StrategyGoalCount,
+                candidateGoalsComplete: _scorer.RelicGoalsMet(features)))
         {
             _incumbent = candidate;
         }
@@ -1756,6 +1764,9 @@ internal sealed partial class BeamSolver
         if (incumbent is null || _bound is null)
             return;
         SearchIncumbent bounded = incumbent.Value;
+        // A state can still earn every relic allowance, so its bound gives that credit back. Until the
+        // incumbent meets every relic goal, an equal-HP state may beat it on the goals and is kept.
+        bool goalTiesSettled = !_hasRelicTargets || bounded.GoalsComplete;
         int write = 0;
         for (int read = 0; read < pool.Count; read++)
         {
@@ -1767,10 +1778,11 @@ internal sealed partial class BeamSolver
             if (!certifiedUnknown)
             {
                 incumbentPrune = IncumbentPolicy.ShouldPruneByIncumbent(
-                    values.StrategicHpLowerBound,
+                    values.StrategicHpLowerBound - _relicCreditCeiling,
                     pool.State(read).PlayerTurn,
                     bounded,
-                    pruneEqualHp: _pruneEqualHp && !values.HasRisk);
+                    allowTurnTieBound: goalTiesSettled,
+                    pruneEqualHp: goalTiesSettled && _pruneEqualHp && !values.HasRisk);
             }
             if (!incumbentPrune)
             {
@@ -2116,7 +2128,7 @@ internal sealed partial class BeamSolver
         int PocketwatchCardsPlayedLastTurn,
         SearchRouteTraits Traits,
         int StrategicHpCredit,
-        int GrowthRewardCount,
+        int StrategyGoalCount,
         int AngerCopiesGenerated,
         int RetainedAttackGrowth,
         int FutureSoldHp,
@@ -2211,7 +2223,7 @@ internal sealed partial class BeamSolver
             pocketwatchCardsPlayedLastTurn,
             traits,
             features.StrategicHpCredit,
-            features.GrowthRewardCount,
+            features.StrategyGoalCount,
             features.AngerCopiesGenerated,
             Math.Min(ScoreWeights.RetainedAttackGrowthBeamCap,
                 Math.Max(0, features.RetainedAttackValue - initialRetainedAttackValue)),

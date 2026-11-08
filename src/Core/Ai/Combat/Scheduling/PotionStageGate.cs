@@ -31,6 +31,7 @@ internal static class PotionStageGate
             return false;
         ScoreRules scores = scorer.RulesForCodec;
         if (scores.GrowthBudgets.IsEnabled || scores.RequiredGrowthRewards.IsEnabled
+            || scorer.RelicCreditCeiling > 0
             || options.TheftPolicy == TheftPolicy.PreserveResources
                 && (best.Key.OutstandingStolenResource != 0 || free.Key.OutstandingStolenResource != 0))
             return false;

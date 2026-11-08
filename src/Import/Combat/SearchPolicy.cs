@@ -73,6 +73,12 @@ public sealed record SearchPolicyConfiguration
 
     /// <summary>Per-combat thief override; null keeps the root-derived default.</summary>
     public SearchTheftPolicy? TheftPolicy { get; init; }
+
+    /// <summary>
+    /// Extra HP the player allows for ending a fight with a relic counter one short of triggering, by
+    /// native relic id (<see cref="RelicCounterCatalog"/>). A relic without an entry allows 0.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> RelicCounterAllowances { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
 }
 
 /// <summary>The ten built-in growth budgets, in <c>GrowthValues</c> order.</summary>
@@ -155,6 +161,9 @@ public sealed record SearchPolicy
     /// <summary>Per-slot directives already reconciled against the root potion belt.</summary>
     public IReadOnlyList<SearchPotionDirective> PotionDirectives { get; init; } = [];
 
+    /// <summary>Relic counter allowances by native relic id; see <see cref="SearchPolicyConfiguration"/>.</summary>
+    public IReadOnlyDictionary<string, int> RelicCounterAllowances { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
     /// <summary><c>SearchPolicySnapshot.EffectiveGrowthBudgets</c>.</summary>
     public SearchGrowthBudget EffectiveGrowthBudgets
         => IgnoreLongTermRewards ? default : GrowthBudgets;
@@ -229,7 +238,25 @@ public static class SearchPolicyCapture
             TheftPolicy = theft,
             PotionDefaultMode = settings.PotionDefaultMode,
             PotionDirectives = directives,
+            RelicCounterAllowances = ValidateRelicAllowances(settings.RelicCounterAllowances),
         };
+    }
+
+    private static IReadOnlyDictionary<string, int> ValidateRelicAllowances(
+        IReadOnlyDictionary<string, int> allowances)
+    {
+        ArgumentNullException.ThrowIfNull(allowances);
+        Dictionary<string, int> copy = new(StringComparer.Ordinal);
+        foreach ((string relicId, int hp) in allowances)
+        {
+            if (!RelicCounterCatalog.RelicIds.Contains(relicId) || hp is < 0 or > 1000)
+            {
+                throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
+                    $"遗物计数额度无效：{relicId}={hp}");
+            }
+            copy[relicId] = hp;
+        }
+        return copy;
     }
 
     /// <summary>

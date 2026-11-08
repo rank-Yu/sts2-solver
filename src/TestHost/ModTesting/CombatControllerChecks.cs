@@ -3507,6 +3507,42 @@ internal static class CombatControllerChecks
         check("ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
         check("growth_reset", CombatUiCommands.Instance.SetGrowthBudget(GrowthSource.Feed, 0));
 
+        RelicCounterUi[] relics = Snapshot().Strategy.RelicCounters;
+        bool TargetsMatch(SearchCase request, int firstAllowance, out string detail)
+        {
+            RelicCounterTarget[] targets = request.Options.Scorer?.RulesForCodec.RelicCounterTargets ?? [];
+            detail = string.Join(",", targets.Select(static target =>
+                $"{target.Slot}:{target.Goal}/{target.Period}+{target.HpAllowance}"));
+            return targets.Length == relics.Length
+                && targets.Select((target, index) => target.Slot == relics[index].Slot
+                    && target.Period == relics[index].Period && target.Goal == relics[index].Period - 1
+                    && target.HpAllowance == (index == 0 ? firstAllowance : 0)).All(static ok => ok);
+        }
+        check("relic_targets_default",
+            TargetsMatch(CombatSessionController.CompileRequestForTest(), 0, out string relicDefault),
+            relicDefault);
+        if (relics.Length != 0)
+        {
+            string relicId = relics[0].RelicId;
+            check("relic_cmd", CombatUiCommands.Instance.SetRelicCounterAllowance(relicId, 4));
+            action($"set_relic:{relicId}:4");
+            await NoSearchAsync("relic_no_search");
+            check("relic_snapshot",
+                Snapshot().Strategy.RelicCounterAllowances.TryGetValue(relicId, out int saved) && saved == 4,
+                "snapshot allowance");
+            check("relic_request",
+                TargetsMatch(CombatSessionController.CompileRequestForTest(), 4, out string relicSet), relicSet);
+            check("relic_ignore_cmd", CombatUiCommands.Instance.SetIgnoreLongTermRewards(true));
+            RelicCounterTarget[] ignored = CombatSessionController.CompileRequestForTest()
+                .Options.Scorer?.RulesForCodec.RelicCounterTargets ?? [];
+            check("relic_ignore_request", ignored.Length == 0, ignored.Length.ToString());
+            check("relic_ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
+            check("relic_reset", CombatUiCommands.Instance.SetRelicCounterAllowance(relicId, 0)
+                && !SolverSettings.Current.Search.RelicCounterAllowances.ContainsKey(relicId), "allowance kept");
+        }
+        check("relic_unknown_rejected", !CombatUiCommands.Instance.SetRelicCounterAllowance("BURNING_BLOOD", 3)
+            && !CombatUiCommands.Instance.SetRelicCounterAllowance("PEN_NIB", 1001), "accepted");
+
         check("flame_set_cmd", CombatUiCommands.Instance.SetBrightestFlameLimit(2));
         action("set_brightest_flame:2");
         await NoSearchAsync("flame_no_search");

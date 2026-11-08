@@ -158,6 +158,23 @@ internal static partial class CombatSessionController
                 });
             }
         }
+        List<RelicCounterUi> relics = [];
+        if (_player != null)
+        {
+            for (int index = 0; index < _player.Relics.Count; index++)
+            {
+                var relic = _player.Relics[index];
+                if (relic.IsMelted || !RelicCounterCatalog.TryRead(relic, out int value, out int period))
+                    continue;
+                relics.Add(new RelicCounterUi
+                {
+                    Slot = index,
+                    RelicId = relic.Id.Entry,
+                    Value = value,
+                    Period = period,
+                });
+            }
+        }
         BossHpRelief relief = _state == null
             ? BossHpRelief.None
             : ScoreCompiler.ResolveNativeHpRelief(_state);
@@ -166,6 +183,9 @@ internal static partial class CombatSessionController
             Potions = [.. potions],
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
             IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            RelicCounters = [.. relics],
+            RelicCounterAllowances = new Dictionary<string, int>(search.RelicCounterAllowances,
+                StringComparer.Ordinal),
             BrightestFlameMaxHpLossLimit = search.BrightestFlameMaxHpLossLimit,
             BrightestFlameMaxHpSpent = _state == null ? 0 : NativeHistory.BrightestFlameMaxHpSpent(),
             ActTransitionBossHpStrategy = search.ActTransitionBossHpStrategy,

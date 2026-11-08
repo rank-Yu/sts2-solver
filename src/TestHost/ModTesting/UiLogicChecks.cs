@@ -380,13 +380,18 @@ internal static class UiLogicChecks
         Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 4, false) == null, "live_better");
         Require(CombatFullAutoPausePolicy.LiveEndTurn(5, 5, true)
             == CombatPauseCode.LiveEndTurnRisk, "live_death");
-        // Burning Blood 6 + Meat on the Bone 12 at or below 50%: the panel reports both, clamped
-        // to the missing HP; route ranking only counts the unconditional part.
+        // Burning Blood 6 + Meat on the Bone 12 at or below 50%: the panel and route ranking both count
+        // the heal, clamped to the missing HP. Ending on the threshold pays off from 41 to 51 HP.
         Sts2Solver.Ai.Combat.Policy.PostCombatRelicHealProfile heal = new(6, 12, 50);
         Require(heal.HealFor(70, 80) == 6, "relic_heal_unconditional");
         Require(heal.HealFor(40, 80) == 18, "relic_heal_threshold");
         Require(heal.HealFor(78, 80) == 2, "relic_heal_clamped");
-        Require(heal.MonotoneHealFor(40, 80) == 6, "relic_heal_ranking_monotone");
+        Require(Sts2Solver.Ai.Combat.Policy.ActEndingBossPolicy.RankedPostCombatRelicHeal(heal, true, 40, 80) == 18,
+            "relic_heal_ranking_threshold");
+        Require(heal.ThresholdHealPaysOff(45, 80), "relic_heal_threshold_pays");
+        Require(!heal.ThresholdHealPaysOff(52, 80) && heal.ThresholdHealPaysOff(51, 80),
+            "relic_heal_threshold_break_even");
+        Require(!heal.ThresholdHealPaysOff(40, 80), "relic_heal_on_threshold");
     }
 
     private static void MemoryPriority()

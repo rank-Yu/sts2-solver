@@ -32,6 +32,8 @@ internal interface ICombatUiCommands
 
     bool SetIgnoreLongTermRewards(bool ignore);
 
+    bool SetRelicCounterAllowance(string relicId, int value);
+
     bool SetBrightestFlameLimit(int? limit);
 
     bool SetActTransitionBossHpStrategy(SearchBossHpStrategy strategy);
@@ -75,6 +77,9 @@ internal static class CombatUiCommands
 
         public bool SetIgnoreLongTermRewards(bool ignore)
             => CombatSessionController.SetIgnoreLongTermRewards(ignore);
+
+        public bool SetRelicCounterAllowance(string relicId, int value)
+            => CombatSessionController.SetRelicCounterAllowance(relicId, value);
 
         public bool SetBrightestFlameLimit(int? limit)
             => CombatSessionController.SetBrightestFlameLimit(limit);

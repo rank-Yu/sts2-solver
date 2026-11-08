@@ -2,11 +2,10 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // The big floating-panel layout is kept: CanvasLayer 120, draggable header, right/bottom/corner
 // resize, summary, route rows, details and action footer. The presentation is driven by
-// CombatUiSnapshot and every command goes through ICombatUiCommands. The header's 药水 / 成长 open
-// the strategy sidebar docked beside the panel and 设置 replaces the panel body with the settings
+// CombatUiSnapshot and every command goes through ICombatUiCommands. The header's 药水 / 成长 / 遗物
+// open the strategy sidebar docked beside the panel and 设置 replaces the panel body with the settings
 // page (ToggleSettings, TogglePotionStrategy, ApplyContentVisibility); the frozen route, shortcuts,
-// online/bug-report surfaces, the relic sidebar and the memory-release button are not ported. Theme
-// is always dark.
+// online/bug-report surfaces and the memory-release button are not ported. Theme is always dark.
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Localization;
@@ -41,11 +40,13 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private ColorRect? _footerDivider;
     private Button? _potionButton;
     private Button? _growthButton;
+    private Button? _relicButton;
     private Button? _settingsButton;
     private Button? _collapseButton;
     private SolverSidebar? _sidebar;
     private SolverPotionStrategyPage? _potionPage;
     private SolverGrowthStrategyPage? _growthPage;
+    private SolverRelicStrategyPage? _relicPage;
     private SolverSettingsPage? _settingsPage;
     private CombatUiSnapshot? _lastSnapshot;
     private SolverOverlaySnapshot? _lastOverlay;
@@ -255,7 +256,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         SolverUiTokens.FitWidestText(_theftNoticeButton!, SolverText.Get("改为放走"), SolverText.Get("改为保住"));
         _potionPage = new SolverPotionStrategyPage();
         _growthPage = new SolverGrowthStrategyPage();
-        _sidebar = new SolverSidebar(_potionPage, _growthPage);
+        _relicPage = new SolverRelicStrategyPage();
+        _sidebar = new SolverSidebar(_potionPage, _growthPage, _relicPage);
         _sidebar.CloseRequested += CloseSidebar;
         AddChild(_sidebar);
         BuildResizeHandles();
@@ -304,6 +306,9 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _growthButton = CreateStrategyButton(SolverText.Get("成长"), "GrowthStrategyButton",
             SolverStrategyPageKind.Growth);
         header.AddChild(_growthButton);
+        _relicButton = CreateStrategyButton(SolverText.Get("遗物"), "RelicStrategyButton",
+            SolverStrategyPageKind.Relics);
+        header.AddChild(_relicButton);
         _settingsButton = CreateHeaderButton(SolverText.Get("设置"), 54);
         _settingsButton.Name = "SettingsButton";
         _settingsButton.Pressed += ToggleSettings;
@@ -410,7 +415,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
     }
 
     /// <summary>
-    /// 药水 / 成长: opens the sidebar on that page, switches pages, or closes the sidebar when the page
+    /// 药水 / 成长 / 遗物: opens the sidebar on that page, switches pages, or closes the sidebar when the page
     /// is already open. Open settings are closed first, like the original.
     /// </summary>
     private void ToggleStrategyPage(SolverStrategyPageKind page)
@@ -512,6 +517,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         }
         ApplyStrategyButton(_potionButton, SolverStrategyPageKind.Potions);
         ApplyStrategyButton(_growthButton, SolverStrategyPageKind.Growth);
+        ApplyStrategyButton(_relicButton, SolverStrategyPageKind.Relics);
         if (_settingsButton != null)
         {
             _settingsButton.Visible = !_collapsed;
@@ -587,6 +593,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _settingsPage = null;
         _potionPage = null;
         _growthPage = null;
+        _relicPage = null;
         _summaryText = null;
         _summaryPanel = null;
         _summaryStateLabel = null;
@@ -642,6 +649,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal Button? GrowthButtonForTest => _growthButton;
 
+    internal Button? RelicButtonForTest => _relicButton;
+
     internal Button? SettingsButtonForTest => _settingsButton;
 
     internal bool SettingsOpenForTest => _settingsVisible;
@@ -665,6 +674,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
     internal SolverPotionStrategyPage? PotionPageForTest => _potionPage;
 
     internal SolverGrowthStrategyPage? GrowthPageForTest => _growthPage;
+
+    internal SolverRelicStrategyPage? RelicPageForTest => _relicPage;
 
     internal PanelContainer? TheftNoticeForTest => _theftNotice;
 

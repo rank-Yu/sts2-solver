@@ -141,7 +141,7 @@ internal static class SolverPanelText
             ["Cards"] = "牌组",
             ["Enemies"] = "敌人",
             ["Powers"] = "能力",
-            ["Relics"] = "遗物",
+            ["Relics"] = "遗物数",
             ["Orbs"] = "充能球",
             ["PotionSlots"] = "药水槽",
             ["MonsterRules"] = "怪物规则",

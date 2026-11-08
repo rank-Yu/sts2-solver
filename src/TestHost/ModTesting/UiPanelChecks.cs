@@ -236,6 +236,7 @@ internal static class UiPanelChecks
                 check("theft_notice_hidden", panel.TheftNoticeForTest is { Visible: false }, "visible");
             await PotionPageAsync(host, panel, check, action);
             await GrowthPageAsync(host, panel, check, action);
+            await RelicPageAsync(host, panel, check, action);
             await BossOptionsAsync(host, panel, check, action);
             CombatUiSnapshot after = CombatUiStore.Snapshot;
             check("strategy_ui_no_search", after.Searches == searches && !after.IsSearching,
@@ -383,6 +384,59 @@ internal static class UiPanelChecks
         await Press(host, panel.SidebarForTest?.CloseButtonForTest);
         check("growth_budget_reset", Strategy().GrowthBudgets.Feed == 0 && SidebarClosed(panel),
             Describe(panel));
+    }
+
+    private static async Task RelicPageAsync(NGame host, SolverOverlay panel,
+        CombatControllerChecks.Check check, CombatControllerChecks.Action action)
+    {
+        await Press(host, panel.RelicButtonForTest);
+        SolverRelicStrategyPage page = panel.RelicPageForTest
+            ?? throw new InvalidDataException("relic page missing");
+        check("relic_page_open", SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("遗物策略")),
+            Describe(panel));
+        StrategyUiSnapshot Strategy() => CombatUiStore.Snapshot.Strategy;
+        RelicCounterUi[] relics = Strategy().RelicCounters;
+        if (relics.Length == 0)
+        {
+            check("relic_rows_empty", page.RowCountForTest == 0 && page.EmptyShownForTest,
+                page.RowCountForTest.ToString(CultureInfo.InvariantCulture));
+            await Press(host, panel.SidebarForTest?.CloseButtonForTest);
+            check("relic_page_closed", SidebarClosed(panel), Describe(panel));
+            return;
+        }
+        bool rowsMatch = page.RowCountForTest == relics.Length && relics.All(relic =>
+            page.TitleTextForTest(relic.Slot) == CombatDisplayNames.RelicTitle(relic.RelicId)
+            && page.CountTextForTest(relic.Slot) == SolverText.Format($"当前 {relic.Value}/{relic.Period}")
+            && page.AllowanceInputForTest(relic.Slot).Text == "0"
+            && page.AllowanceInputForTest(relic.Slot).Editable);
+        check("relic_rows", rowsMatch && !page.EmptyShownForTest, string.Join(",", relics.Select(relic =>
+            $"{relic.RelicId}:{page.CountTextForTest(relic.Slot)}:{page.AllowanceInputForTest(relic.Slot).Text}")));
+        RelicCounterUi first = relics[0];
+        LineEdit input = page.AllowanceInputForTest(first.Slot);
+        int Allowance() => Strategy().RelicCounterAllowances.TryGetValue(first.RelicId, out int hp) ? hp : 0;
+        await Submit(host, input, "3");
+        action($"submit:relic:{first.RelicId}:3");
+        input.ReleaseFocus();
+        check("relic_allowance_value", Allowance() == 3 && input.Text == "3"
+            && page.StatusTextForTest == SolverText.Get("已保存，下次搜索生效"), page.StatusTextForTest);
+        await Submit(host, input, "abc");
+        action($"submit:relic:{first.RelicId}:abc");
+        check("relic_allowance_invalid", Allowance() == 3
+            && page.StatusTextForTest == SolverText.Format($"请输入 {0}–{1000} 的整数"), page.StatusTextForTest);
+        await Press(host, panel.SidebarForTest?.CloseButtonForTest);
+        check("relic_invalid_keeps_sidebar",
+            SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("遗物策略")), Describe(panel));
+        await Submit(host, input, "0");
+        action($"submit:relic:{first.RelicId}:0");
+        input.ReleaseFocus();
+        CombatUiCommands.Instance.SetIgnoreLongTermRewards(true);
+        await Frames(host, 3);
+        check("relic_ignore_greys", !page.AllowanceInputForTest(first.Slot).Editable, "editable");
+        CombatUiCommands.Instance.SetIgnoreLongTermRewards(false);
+        await Frames(host, 3);
+        await Press(host, panel.SidebarForTest?.CloseButtonForTest);
+        check("relic_allowance_reset", Allowance() == 0 && page.AllowanceInputForTest(first.Slot).Editable
+            && SidebarClosed(panel), Describe(panel));
     }
 
     private static async Task BossOptionsAsync(NGame host, SolverOverlay panel,

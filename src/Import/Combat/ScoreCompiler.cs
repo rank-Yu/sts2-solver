@@ -75,6 +75,7 @@ internal static class ScoreCompiler
         PostCombatRelicHealProfile postCombatHeal = CompilePostCombatRelicHeal(player);
         BossHpRelief bossHpRelief = ResolveBossHpRelief(state, policy);
         ushort[] rootPotions = RootPotions(root);
+        RelicCounterTarget[] relicTargets = CompileRelicTargets(state, player, root, policy);
 
         ScoreRules Build(int persistent, int suppression, int weak, int retained,
             Rules? ruleTable = null) => new()
@@ -87,6 +88,7 @@ internal static class ScoreCompiler
             RequiredGrowthRewards = policy.EffectiveHasGrowthTargets
                 ? policy.RequiredGrowthRewards.ToCore()
                 : default,
+            RelicCounterTargets = relicTargets,
             PostCombatRelicHeal = postCombatHeal,
             BossHpRelief = bossHpRelief,
             // The reference bridge freezes the request root's native max HP / enemy count. A fixed
@@ -538,6 +540,36 @@ internal static class ScoreCompiler
             }
         }
         return new PostCombatRelicHealProfile(unconditionalHeal, woundedHeal, woundedHpPercent);
+    }
+
+    /// <summary>
+    /// One target per owned, unmelted relic of <see cref="RelicCounterCatalog"/>: end the fight with its
+    /// counter one short of triggering. None when long-term rewards are ignored or the fight ends the run,
+    /// because no combat follows to use the counter.
+    /// </summary>
+    internal static RelicCounterTarget[] CompileRelicTargets(CombatState state, Player player, Battle root,
+        SearchPolicy policy)
+    {
+        if (policy.IgnoreLongTermRewards || ResolveNativeHpRelief(state) == BossHpRelief.RunEnding)
+            return [];
+        List<RelicCounterTarget> targets = [];
+        IReadOnlyList<RelicModel> relics = player.Relics;
+        for (int index = 0; index < relics.Count; index++)
+        {
+            RelicModel relic = relics[index];
+            if (relic.IsMelted || !RelicCounterCatalog.TryRead(relic, out _, out int period))
+                continue;
+            if (index >= root.RelicCount
+                || Registry.Relic(root.Relics[index].Id).NativeId != relic.Id.Entry)
+            {
+                throw new UnsupportedImportException(ImportReason.Unrepresentable,
+                    $"遗物 {relic.Id.Entry} 不在战斗状态的第 {index} 格");
+            }
+            int allowance = policy.RelicCounterAllowances.TryGetValue(relic.Id.Entry, out int hp) ? hp : 0;
+            targets.Add(new RelicCounterTarget(checked((byte)index), checked((byte)period),
+                checked((byte)(period - 1)), allowance));
+        }
+        return [.. targets];
     }
 
     internal static BossHpRelief ResolveBossHpRelief(CombatState state, SearchPolicy policy)

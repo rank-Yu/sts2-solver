@@ -28,7 +28,10 @@ internal static class IncumbentPolicy
         int? candidateCombatEndedTurn,
         ref SearchIncumbent? incumbent,
         PotionUseMode? effectivePotionPolicy = null,
-        int candidateDeathSaveUseCount = 0)
+        int candidateDeathSaveUseCount = 0,
+        int candidateGoalHpCredit = 0,
+        int candidateGoalCount = 0,
+        bool candidateGoalsComplete = true)
     {
         if (!candidateCompleteVictory
             || !candidateSatisfiesHardRules
@@ -43,7 +46,8 @@ internal static class IncumbentPolicy
         if (effectivePotionPolicy is not (PotionUseMode.Disabled or PotionUseMode.Smart))
             return false;
 
-        SearchIncumbent candidate = new(candidateStrategicHpDeficit, combatEndedTurn);
+        SearchIncumbent candidate = new(candidateStrategicHpDeficit, combatEndedTurn,
+            candidateGoalHpCredit, candidateGoalCount, candidateGoalsComplete);
         if (incumbent is { } current
             && InterimResultOrdering.ComparePrimaryQuality(
                 candidateCompleteVictory: true,
@@ -51,7 +55,11 @@ internal static class IncumbentPolicy
                 candidate.CombatEndedTurn,
                 currentCompleteVictory: true,
                 currentStrategicHpDeficit: current.StrategicHpDeficit,
-                currentCombatEndedTurn: current.CombatEndedTurn) >= 0)
+                currentCombatEndedTurn: current.CombatEndedTurn,
+                candidateGoalHpCredit: candidate.GoalHpCredit,
+                currentGoalHpCredit: current.GoalHpCredit,
+                candidateGoalCount: candidate.GoalCount,
+                currentGoalCount: current.GoalCount) >= 0)
         {
             return false;
         }

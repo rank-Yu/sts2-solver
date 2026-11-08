@@ -1,7 +1,7 @@
 // Sidebar shell adapted from CombatSolver src/UI/SolverPotionStrategyPanel.cs and
 // src/UI/SolverGrowthStrategyPanel.cs (box, heading row and close button) at 5c773caa
-// (MIT License, Copyright (c) 2026 Torch1230 and contributors). One container hosts the potion and
-// growth pages; the heading shows the open page's title and a × instead of the original 收起.
+// (MIT License, Copyright (c) 2026 Torch1230 and contributors). One container hosts the potion,
+// growth and relic pages; the heading shows the open page's title and a × instead of the original 收起.
 using Godot;
 
 namespace Sts2Solver;
@@ -10,6 +10,7 @@ internal enum SolverStrategyPageKind
 {
     Potions,
     Growth,
+    Relics,
 }
 
 /// <summary>A page hosted by <see cref="SolverSidebar"/>.</summary>

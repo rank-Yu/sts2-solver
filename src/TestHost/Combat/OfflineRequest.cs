@@ -117,6 +117,7 @@ internal sealed record OfflineRequest
     // carried so a fixture can reproduce a different player setting.
     public OfflineGrowthBudgets? GrowthBudgets { get; init; }
     public bool? IgnoreLongTermRewards { get; init; }
+    public Dictionary<string, int>? RelicCounterAllowances { get; init; }
     public string? ActTransitionBossHpStrategy { get; init; }
     public string? FinalBossHpStrategy { get; init; }
     public string? TheftPolicyForTest { get; init; }

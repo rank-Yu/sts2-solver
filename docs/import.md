@@ -160,7 +160,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `Act3BossStrategy` | 从根推出 | 是否是第三幕 Boss（三个 encounter id） | `SearchPolicySnapshot.IsAct3BossEncounter` |
 | `ActTransitionBossHpStrategy` | `ProgressionFirst` | 是否保留幕间回血 `ActClearHeal` | `SolverSettingsData` |
 | `FinalBossHpStrategy` | `ProgressionFirst` | 是否保留 `RunEnding` | 同上 |
-| `IgnoreLongTermRewards` | false | 同时影响成长额度和目标 | — |
+| `IgnoreLongTermRewards` | false | 同时影响成长额度、成长目标和遗物计数目标 | — |
+| `RelicCounterAllowances` | 空 | 按原版遗物 id 的计数遗物额度，只接受 `RelicCounterCatalog` 的十个遗物，值 0–1000；没有条目按 0 | `SolverSettingsData.RelicCounterRules`（只取额度） |
 | `BrightestFlameMaxHpLossLimit` | `null` | 至亮之焰整场累计最大生命消耗上限；`null` 不限，`0..1000` 为上限。根上已消耗量不算策略字段，由请求编译单独读原生历史 | `SolverSettingsData`、`GrowthCostPolicy` |
 | `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
 | `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
@@ -177,6 +178,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `Powers` | 每个注册 Power 的 `StrategicKind`、`StrategicRequirements`、`PersistentSetupTraits`、`ITemporaryPower`、原生类型与 Danse Macabre 能量阈值 |
 | `PotionStrategicCost` | 规范药水 + `PotionValuationRegistry` 的 Token/High/Elevated/Standard 政策；持有未熔化的 Petrified Toad 时 Potion Shaped Rock 为 0 |
 | `GrowthBudgets`、`RequiredGrowthRewards` | 取 `SearchPolicy.Effective*`；第三方额度以 `unsupported-policy` 拒绝 |
+| `RelicCounterTargets` | 每个持有且未融化的 `RelicCounterCatalog` 遗物一项：遗物格位、计数周期（游戏模型的变量；钢笔尖是代码常量 10）、目标值 = 周期 − 1、`RelicCounterAllowances` 里的额度。`IgnoreLongTermRewards` 打开或跑局最后一战（原生 `RunEnding`）时为空 |
 | `PostCombatRelicHeal` | 原生 `BurningBlood`、`BlackBlood` 的 `Heal`，以及 `MeatOnTheBone` 的 `Heal`/`HpThreshold` |
 | `BossHpRelief` | 原生 `Encounter.RoomType`、当前幕、`SecondBossEncounter`，再按两个 Boss 策略裁决 |
 | `InitialPlayerMaxHp`、`IsActEndingBoss`、`InitialEnemyCount` | 导入后 `Battle` 的玩家最大生命、Boss 减免、敌人数 |

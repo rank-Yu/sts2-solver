@@ -86,7 +86,7 @@ internal sealed partial class BeamSolver
             Math.Max(0, features.ExplicitPotionStrategicCost - forced.ForcedStrategicHpCost),
             optional);
         RouteKey key = Key(end, features, actionCount);
-        bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features);
+        bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features) && _scorer.RelicGoalsMet(features);
         bool safeVictory = key.Won && features.ProjectedDeathSaveUseCount == 0 && goalsSatisfied;
         goalReached = safeVictory && !_options.HasUnboundedGrowthTargets
             && _scorer.RulesForCodec.GrowthBudgets.Total == 0
@@ -95,6 +95,7 @@ internal sealed partial class BeamSolver
             && features.CumulativePlayerHpLost == 0
             && features.PlayerHp >= _ordering.InitialPlayerHp
             && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
+            && !_ordering.PostCombatRelicHeal.ThresholdHealPaysOff(features.PlayerHp, features.PlayerMaxHp)
             && key.OutstandingStolenResource == 0;
         PotionUseMode mode = _effectivePotionPolicy == PotionUseMode.Disabled && optional > 0
             ? PotionUseMode.Smart

@@ -11,7 +11,7 @@ namespace Sts2Solver.Golden;
 internal static class ReplayLogContracts
 {
     private const string Fixture =
-        "tests/Golden/data/d2/requests/c8737af7c32d597ccd647037d938e189ddb5d07b8de5d1d2b92ee7aa6de8601f.request.br";
+        "tests/Golden/data/d2/requests/18fa46c9cb20c477d67d2e4090053db081b3f6513f9352fdae85cfbc3bc5bafd.request.br";
 
     private static void Assert(bool value, string message)
     {

@@ -75,6 +75,10 @@ internal static class ScoreWeights
     // 路线照样把尾巴烧掉。收到十倍之后，任何一条能活着打赢的路线都比烧尾巴强，而这个数量级仍然
     // 远低于 VictoryBonus 和 DeathPenalty：没有别的活路时，尾巴照用不误。
     public const int DeathSavePremiumPercent = 900;
+    // A relic counter goal met on a won state breaks ties inside Beam ranking; HP and the goal allowance
+    // decide routes. Unfinished states get no counter guidance: on the D2 requests holding a counter
+    // relic it aligned one more counter and cost one route 2 HP.
+    public const double RelicGoalBeamValue = 0.1d;
     // This is the minimum cross-turn no-progress horizon and the UI projection horizon. It is not a
     // total turn cap: every new historical combat improvement restarts the no-progress window.
     public const int SetupValueHorizonTurns = 16;

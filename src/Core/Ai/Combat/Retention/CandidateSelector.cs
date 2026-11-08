@@ -1811,7 +1811,7 @@ internal sealed partial class BeamSolver
                 && a.CumulativePlayerHpLost <= b.CumulativePlayerHpLost
                 && a.LongTermResourceValue >= b.LongTermResourceValue
                 && a.StrategicHpCredit >= b.StrategicHpCredit
-                && a.GrowthRewardCount >= b.GrowthRewardCount
+                && a.StrategyGoalCount >= b.StrategyGoalCount
                 && a.AngerCopiesGenerated <= b.AngerCopiesGenerated
                 && (!_preserveTheft || a.OutstandingStolenResource <= b.OutstandingStolenResource)
                 && a.AliveEnemyCount <= b.AliveEnemyCount

@@ -38,8 +38,20 @@ internal readonly record struct ScoreFeatures
     /// <summary><c>Snapshot.GrowthRewards.Total</c>.</summary>
     public int GrowthRewardCount { get; init; }
 
-    /// <summary><c>Snapshot.StrategicHpCredit</c>: the realized growth HP credit.</summary>
+    /// <summary>HP credit of the relic counter goals a won state meets.</summary>
+    public int RelicGoalHpCredit { get; init; }
+
+    /// <summary>Relic counter goals a won state meets.</summary>
+    public int RelicGoalCount { get; init; }
+
+    /// <summary><c>Snapshot.StrategicHpCredit</c>: the realized growth and relic goal HP credit.</summary>
     public int StrategicHpCredit { get; init; }
+
+    /// <summary>The credit route ranking breaks HP ties with: growth rewards plus relic goals.</summary>
+    public int StrategyGoalHpCredit => GrowthHpCredit + RelicGoalHpCredit;
+
+    /// <summary>The goal count route ranking breaks credit ties with.</summary>
+    public int StrategyGoalCount => GrowthRewardCount + RelicGoalCount;
     public int AngerCopiesGenerated { get; init; }
     public int EnemyHp { get; init; }
     public int EnemyBlock { get; init; }

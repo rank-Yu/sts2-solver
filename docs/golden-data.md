@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 9（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 10（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -96,7 +96,7 @@ u32 magic="SREQ" | u16 version=9 | rules 长度 + RULE | battles 数量 + 每个
 
 魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、各类策略开关等。字段清单以代码为准。
 
-- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
+- `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数目标、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `Scorer` 的 base/offensive 评估方式作为两个显式布尔写在 `ScoreRules` 前面；setup/queen 仍是追加扩展。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
 - 宿主回调 `Pacer`、`Trace` 不进入 SREQ。
@@ -120,7 +120,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ` v9 与 `SRES` v6 没有保留槽位。
+`SREQ` v10 与 `SRES` v6 没有保留槽位。
 
 搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
 `SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
@@ -144,7 +144,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 | `battleSize` | 62,744，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：SREQ v8→v9 删除用药次数上限 `PotionPolicy.MaximumUses`，D1 配置与 D2 请求机械重编码（新字节等于旧字节去掉该字段）；D2 的 77 个“最多一瓶”成员请求改成不限次数的生产形态并重冻，去重后 D2 为 2,015 个请求；SRES 仍为 v6。D1 评分哈希只写当前 `ScoreFeatures` 字段集合，没有遗物计数占位和重复策略占位 |
+| `provenance.formatMigration` | 格式迁移说明：SREQ v9→v10 在成长目标之后加入遗物计数目标表，D1 配置与 D2 请求机械重编码（新字节等于旧字节在该位置插入一个空表）；带骨肉的阈值回血计入路线排序后，4 个持带骨肉的请求重冻；SRES 仍为 v6。D1 评分哈希只写当前 `ScoreFeatures` 字段集合，没有遗物计数占位和重复策略占位 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |
@@ -161,7 +161,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
-当前 D1 为 403 个根、4,892 个 K1、14,576 条游走、468,093 个游走状态、455,970 个转移；D2 为 2,015 个请求、2,015 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求时，原有 1,982 个请求逐字节不变。删除用药次数上限（SREQ v9）时，77 个“最多一瓶”成员请求改成不限次数的生产形态：6 个与已有请求相同而去重，其余 71 个里 27 个的结果变化；其它 1,939 个请求的期望结果逐字节不变。当前 `provenance.refreeze` 以 `np3:` 开头（结果集 SHA-256 为 `f20206c14094c2bbb694b9ce879b4b3c8fbcccb1fc1e981f38ae7600fdc1236b`），D2 的 2,015 个期望结果全部一致。当前 `provenance.d1Rerecord` 记录 fs5b2 重录的 48 个根，完整列表见 `manifest.json`；重录前后 K1、游走状态数与转移数不变。
+当前 D1 为 403 个根、4,892 个 K1、14,576 条游走、468,093 个游走状态、455,970 个转移；D2 为 2,015 个请求、2,015 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求时，原有 1,982 个请求逐字节不变。删除用药次数上限（SREQ v9）时，77 个“最多一瓶”成员请求改成不限次数的生产形态：6 个与已有请求相同而去重，其余 71 个里 27 个的结果变化；其它 1,939 个请求的期望结果逐字节不变。加入遗物计数目标（SREQ v10）时请求机械重编码，冻结请求都不带目标；带骨肉的阈值回血计入排序后，持带骨肉的 48 个请求里 4 个路线不变、展开数变少（2,425→2,240 和 3,958→3,651 各两个），期望结果重冻，其余 2,011 个逐字节不变。当前 `provenance.refreeze` 以 `rc1:` 开头（结果集 SHA-256 为 `930a2b493f2e2c80586c44dca15af2ae45e4a826e8f1b837cae7e2020a97680a`），D2 的 2,015 个期望结果全部一致。当前 `provenance.d1Rerecord` 记录 fs5b2 重录的 48 个根，完整列表见 `manifest.json`；重录前后 K1、游走状态数与转移数不变。
 
 ## 9. 重录与重冻会改什么
 

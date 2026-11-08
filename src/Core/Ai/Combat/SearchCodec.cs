@@ -37,7 +37,7 @@ internal static class SearchCodec
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
     /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 9;
+    internal const ushort RequestFormatVersion = 10;
     internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
@@ -401,6 +401,7 @@ internal static class SearchCodec
         Codec.WriteIntArray(writer, rules.PotionStrategicCost);
         EncodeGrowthValues(writer, rules.GrowthBudgets);
         EncodeGrowthValues(writer, rules.RequiredGrowthRewards);
+        EncodeRelicTargets(writer, rules.RelicCounterTargets);
         EncodePostCombatHeal(writer, rules.PostCombatRelicHeal);
         writer.Write((int)rules.BossHpRelief);
         writer.Write(rules.InitialPlayerMaxHp);
@@ -477,6 +478,7 @@ internal static class SearchCodec
         int[] potionCosts = Codec.ReadIntArray(reader, 1 << 16, "药水战略代价");
         GrowthValues growth = DecodeGrowthValues(reader);
         GrowthValues required = DecodeGrowthValues(reader);
+        RelicCounterTarget[] relicTargets = DecodeRelicTargets(reader);
         PostCombatRelicHealProfile heal = DecodePostCombatHeal(reader);
         BossHpRelief relief = ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免");
         int initialMaxHp = reader.ReadInt32();
@@ -501,6 +503,7 @@ internal static class SearchCodec
             PotionStrategicCost = potionCosts,
             GrowthBudgets = growth,
             RequiredGrowthRewards = required,
+            RelicCounterTargets = relicTargets,
             PostCombatRelicHeal = heal,
             BossHpRelief = relief,
             InitialPlayerMaxHp = initialMaxHp,
@@ -745,6 +748,34 @@ internal static class SearchCodec
         => new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
             reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
             reader.ReadInt32(), reader.ReadInt32());
+
+    private static void EncodeRelicTargets(BinaryWriter writer, RelicCounterTarget[] targets)
+    {
+        writer.Write(targets.Length);
+        foreach (RelicCounterTarget target in targets)
+        {
+            writer.Write(target.Slot);
+            writer.Write(target.Period);
+            writer.Write(target.Goal);
+            writer.Write(target.HpAllowance);
+        }
+    }
+
+    private static RelicCounterTarget[] DecodeRelicTargets(BinaryReader reader)
+    {
+        int count = Codec.ReadCount(reader, Limits.Relics, "遗物计数目标");
+        RelicCounterTarget[] targets = new RelicCounterTarget[count];
+        for (int index = 0; index < count; index++)
+        {
+            RelicCounterTarget target = new(reader.ReadByte(), reader.ReadByte(), reader.ReadByte(),
+                reader.ReadInt32());
+            if (target.Slot >= Limits.Relics || target.Period == 0 || target.Goal >= target.Period
+                || target.HpAllowance is < 0 or > 1000)
+                throw new InvalidDataException($"遗物计数目标无效：{target}");
+            targets[index] = target;
+        }
+        return targets;
+    }
 
     private static void EncodePostCombatHeal(BinaryWriter writer, PostCombatRelicHealProfile heal)
     {

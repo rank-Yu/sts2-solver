@@ -94,6 +94,12 @@ internal sealed record SolverSearchSettings
 
     public bool IgnoreLongTermRewards { get; init; }
 
+    /// <summary>
+    /// Extra HP allowed for ending a fight with a relic counter one short of triggering, by native relic
+    /// id; a relic without an entry allows 0, which still prefers the goal among routes of equal HP.
+    /// </summary>
+    public Dictionary<string, int> RelicCounterAllowances { get; init; } = new(StringComparer.Ordinal);
+
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
     public int? BrightestFlameMaxHpLossLimit { get; init; }
 
@@ -120,6 +126,15 @@ internal sealed record SolverSearchSettings
         if (GrowthBudgets is null)
             throw new InvalidDataException("设置缺少 search.growthBudgets。");
         GrowthBudgets.Validate();
+        if (RelicCounterAllowances is null)
+            throw new InvalidDataException("设置缺少 search.relicCounterAllowances。");
+        foreach ((string relicId, int hp) in RelicCounterAllowances)
+        {
+            if (!RelicCounterCatalog.RelicIds.Contains(relicId))
+                throw new InvalidDataException($"未知计数遗物：{relicId}");
+            if (hp is < 0 or > 1000)
+                throw new InvalidDataException($"遗物 {relicId} 的额度必须在 0..1000：{hp}");
+        }
         if (!Enum.IsDefined(ActTransitionBossHpStrategy))
             throw new InvalidDataException($"未知幕末 Boss 血量策略：{ActTransitionBossHpStrategy}");
         if (!Enum.IsDefined(FinalBossHpStrategy))

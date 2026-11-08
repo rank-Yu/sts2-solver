@@ -16,8 +16,8 @@ internal static class InterimResultOrdering
     /// <summary>
     /// Compares the result-quality prefix shared by in-session selection, final candidate
     /// retention, and cross-session audits. A negative value means <paramref name="candidate"/>
-    /// is better. Callers pass strategic HP loss after earned growth credit; realized growth
-    /// breaks ties before combat duration, including when every growth budget is zero.
+    /// is better. Callers pass strategic HP loss after earned growth and relic goal credit; the goals
+    /// break ties before combat duration, including when every budget and allowance is zero.
     /// </summary>
     public static int ComparePrimaryQuality(
         bool candidateCompleteVictory,
@@ -26,18 +26,18 @@ internal static class InterimResultOrdering
         bool currentCompleteVictory,
         int currentStrategicHpDeficit,
         int? currentCombatEndedTurn,
-        int candidateGrowthHpCredit = 0,
-        int currentGrowthHpCredit = 0,
-        int candidateGrowthRewardCount = 0,
-        int currentGrowthRewardCount = 0,
+        int candidateGoalHpCredit = 0,
+        int currentGoalHpCredit = 0,
+        int candidateGoalCount = 0,
+        int currentGoalCount = 0,
         int candidateDeathSaveUseCount = 0,
         int currentDeathSaveUseCount = 0)
         => RouteQualityPolicy.Compare(
             RouteQuality.Primary(candidateCompleteVictory, candidateStrategicHpDeficit,
-                candidateCombatEndedTurn, candidateGrowthHpCredit, candidateGrowthRewardCount,
+                candidateCombatEndedTurn, candidateGoalHpCredit, candidateGoalCount,
                 candidateDeathSaveUseCount),
             RouteQuality.Primary(currentCompleteVictory, currentStrategicHpDeficit,
-                currentCombatEndedTurn, currentGrowthHpCredit, currentGrowthRewardCount,
+                currentCombatEndedTurn, currentGoalHpCredit, currentGoalCount,
                 currentDeathSaveUseCount),
             RouteQualityProjection.Primary);
 

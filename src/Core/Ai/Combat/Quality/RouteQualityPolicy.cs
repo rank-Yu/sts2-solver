@@ -50,10 +50,10 @@ internal static class RouteQualityPolicy
                     current.StrategicHpDeficit, current.PotionStrategicCost,
                     candidate.StrategicHpDeficit, candidate.PotionStrategicCost))
                 return 1;
-            comparison = current.GrowthHpCredit.CompareTo(candidate.GrowthHpCredit);
+            comparison = current.StrategyGoalHpCredit.CompareTo(candidate.StrategyGoalHpCredit);
             if (comparison != 0)
                 return comparison;
-            comparison = current.GrowthRewardCount.CompareTo(candidate.GrowthRewardCount);
+            comparison = current.StrategyGoalCount.CompareTo(candidate.StrategyGoalCount);
             if (comparison != 0)
                 return comparison;
             if (candidate.StrategicHpDeficit == current.StrategicHpDeficit
@@ -92,8 +92,8 @@ internal static class RouteQualityPolicy
             && candidate.StrategicHpDeficit == current.StrategicHpDeficit
             && candidate.PotionStrategicCost == current.PotionStrategicCost
             && candidate.ProjectedBattlePotionCount == current.ProjectedBattlePotionCount
-            && candidate.GrowthHpCredit == current.GrowthHpCredit
-            && candidate.GrowthRewardCount == current.GrowthRewardCount
+            && candidate.StrategyGoalHpCredit == current.StrategyGoalHpCredit
+            && candidate.StrategyGoalCount == current.StrategyGoalCount
             && candidate.ProjectedBattleHpLost != current.ProjectedBattleHpLost)
             return candidate.ProjectedBattleHpLost.CompareTo(current.ProjectedBattleHpLost);
 
@@ -118,10 +118,10 @@ internal static class RouteQualityPolicy
         comparison = candidate.StrategicHpDeficit.CompareTo(current.StrategicHpDeficit);
         if (comparison != 0)
             return comparison;
-        comparison = current.GrowthHpCredit.CompareTo(candidate.GrowthHpCredit);
+        comparison = current.StrategyGoalHpCredit.CompareTo(candidate.StrategyGoalHpCredit);
         if (comparison != 0)
             return comparison;
-        comparison = current.GrowthRewardCount.CompareTo(candidate.GrowthRewardCount);
+        comparison = current.StrategyGoalCount.CompareTo(candidate.StrategyGoalCount);
         return comparison != 0 ? comparison : (candidate.CombatEndedTurn ?? int.MaxValue)
             .CompareTo(current.CombatEndedTurn ?? int.MaxValue);
     }

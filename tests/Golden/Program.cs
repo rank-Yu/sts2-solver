@@ -30,6 +30,7 @@ try
             RemainingTurnsContracts.Run();
             PoisonDelayedDamageContracts.Run();
             ReplayLogContracts.Run();
+            RelicCounterContracts.Run();
             string magics = FormatContract.Run();
             Console.WriteLine($"K0 Passed fields={Rules.SchemaFieldCount} "
                 + $"battleBytes={Unsafe.SizeOf<Battle>()} formatVersion={Codec.FormatVersion} "

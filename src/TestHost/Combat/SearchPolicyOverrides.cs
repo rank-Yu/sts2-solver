@@ -15,6 +15,13 @@ internal static class SearchPolicyOverrides
             policy = policy with { GrowthBudgets = budgets.ToPolicy() };
         if (request.IgnoreLongTermRewards is { } ignore)
             policy = policy with { IgnoreLongTermRewards = ignore };
+        if (request.RelicCounterAllowances is { } relics)
+        {
+            policy = policy with
+            {
+                RelicCounterAllowances = new Dictionary<string, int>(relics, StringComparer.Ordinal),
+            };
+        }
         if (request.ActTransitionBossHpStrategy is { Length: > 0 } actStrategy)
             policy = policy with { ActTransitionBossHpStrategy = ParseBossStrategy(actStrategy) };
         if (request.FinalBossHpStrategy is { Length: > 0 } finalStrategy)

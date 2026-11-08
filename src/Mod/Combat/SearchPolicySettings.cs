@@ -23,6 +23,8 @@ internal static class SolverSearchPolicy
             PotionDefaultMode = ToPolicy(search.Potions.DefaultMode),
             PotionDirectives = MapPotionDirectives(search.Potions.Directives),
             TheftPolicy = theftPolicy,
+            RelicCounterAllowances = new Dictionary<string, int>(search.RelicCounterAllowances,
+                StringComparer.Ordinal),
         };
     }
 

@@ -276,6 +276,27 @@ internal sealed class ScoreRules
     /// </summary>
     public GrowthValues RequiredGrowthRewards { get; init; }
 
+    /// <summary>
+    /// The owned relics whose counter carries into the next combat. A won route earns each target's
+    /// allowance once when its counter ends on the goal. Empty when long-term rewards are ignored or the
+    /// fight ends the run.
+    /// </summary>
+    public RelicCounterTarget[] RelicCounterTargets
+    {
+        get => _relicCounterTargets;
+        init => _relicCounterTargets = value;
+    }
+
+    private RelicCounterTarget[] _relicCounterTargets = [];
+
+    /// <summary>The same score table with other relic counter targets (contracts and offline probes).</summary>
+    internal ScoreRules WithRelicCounterTargets(RelicCounterTarget[] targets)
+    {
+        ScoreRules copy = (ScoreRules)MemberwiseClone();
+        copy._relicCounterTargets = targets;
+        return copy;
+    }
+
     /// <summary>The existing final ordering's post-combat relic heal profile.</summary>
     public PostCombatRelicHealProfile PostCombatRelicHeal { get; init; } = PostCombatRelicHealProfile.None;
 

@@ -9,8 +9,8 @@ internal readonly record struct RouteQuality(
     int DeathSaveUseCount,
     int OutstandingStolenResource,
     int StrategicHpDeficit,
-    int GrowthHpCredit,
-    int GrowthRewardCount,
+    int StrategyGoalHpCredit,
+    int StrategyGoalCount,
     int? CombatEndedTurn,
     int ProjectedBattleHpLost,
     int PotionStrategicCost,
@@ -25,9 +25,9 @@ internal readonly record struct RouteQuality(
         bool won,
         int strategicHpDeficit,
         int? combatEndedTurn,
-        int growthHpCredit = 0,
-        int growthRewardCount = 0,
+        int goalHpCredit = 0,
+        int goalCount = 0,
         int deathSaveUseCount = 0)
         => new(won, false, deathSaveUseCount, 0, strategicHpDeficit,
-            growthHpCredit, growthRewardCount, combatEndedTurn, 0, 0, 0, 0, 0, null);
+            goalHpCredit, goalCount, combatEndedTurn, 0, 0, 0, 0, 0, null);
 }

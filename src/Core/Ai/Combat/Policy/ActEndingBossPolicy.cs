@@ -41,8 +41,8 @@ internal readonly record struct PostCombatRelicHealProfile(
     /// HP these relics will actually restore after a won fight that ends on the given HP.
     /// </summary>
     /// <remarks>
-    /// This is what the player will see happen, so it is what the route summary reports. It is deliberately
-    /// not what route ranking uses: see <see cref="MonotoneHealFor"/>.
+    /// This is what the player will see happen; the route summary reports it and route ranking counts it,
+    /// so a route may end on Meat on the Bone's threshold when the heal more than repays the HP.
     /// </remarks>
     public int HealFor(int finalHp, int finalMaxHp)
     {
@@ -53,22 +53,25 @@ internal readonly record struct PostCombatRelicHealProfile(
     }
 
     /// <summary>
-    /// The part of <see cref="HealFor"/> that route ranking is allowed to count.
+    /// True when ending exactly on Meat on the Bone's threshold would leave the player healthier after the
+    /// heal than ending on <paramref name="finalHp"/>, so a route that loses no HP is not yet the best one.
     /// </summary>
     /// <remarks>
-    /// <c>min(heal, maxHp - finalHp)</c> is non-decreasing in final HP, so counting the unconditional relics
-    /// keeps "ending on more HP is never worse" true and leaves every dominance test and search bound in the
-    /// solver valid exactly as written.
-    ///
-    /// Meat on the Bone breaks that: ending one HP above its threshold is worse than ending on it, so a
-    /// healthier node no longer dominates a wounded one. Several Pareto and transposition tests read raw HP
-    /// and raw damage taken, and relaxing them wrongly would silently drop better routes with nothing in the
-    /// diagnostics to show for it. Until those tests are reworked to compare post-combat HP, the threshold
-    /// heal is reported to the player but kept out of ranking, which can only make the solver value HP
-    /// slightly too highly near the threshold - never the reverse.
+    /// The threshold heal makes ending one HP above the threshold worse than ending on it. The search stays
+    /// sound: the incumbent lower bound subtracts the full heal (<c>PostCombatHeal</c> includes it, and the
+    /// post-combat-only heal potential is never finite with Meat on the Bone, which is not on its relic
+    /// list), duplicate states are merged on the full state, and the HP comparisons in retention only
+    /// choose which states get reserved seats, never which states are dropped. Only the early stop on a
+    /// lossless victory has to ask this question.
     /// </remarks>
-    public int MonotoneHealFor(int finalHp, int finalMaxHp)
-        => ClampToHeadroom(Math.Max(0, UnconditionalHeal), finalHp, finalMaxHp);
+    public bool ThresholdHealPaysOff(int finalHp, int finalMaxHp)
+    {
+        if (WoundedHeal <= 0)
+            return false;
+        int threshold = WoundedThreshold(finalMaxHp);
+        return threshold > 0 && finalHp > threshold
+            && threshold + HealFor(threshold, finalMaxHp) > finalHp + HealFor(finalHp, finalMaxHp);
+    }
 
     /// <summary>Vanilla truncates the percentage, so 50% of 75 max HP is 37, not 38.</summary>
     private int WoundedThreshold(int finalMaxHp)
@@ -137,7 +140,8 @@ internal static class ActEndingBossPolicy
     /// </summary>
     /// <remarks>
     /// These relics only fire on a won fight with the player alive, so a route that fails to clear the room
-    /// earns nothing. Only the monotone part is counted; see <see cref="PostCombatRelicHealProfile"/>.
+    /// earns nothing. Meat on the Bone's threshold heal is counted; see
+    /// <see cref="PostCombatRelicHealProfile.ThresholdHealPaysOff"/>.
     /// </remarks>
     public static int RankedPostCombatRelicHeal(
         PostCombatRelicHealProfile profile,
@@ -145,7 +149,7 @@ internal static class ActEndingBossPolicy
         int finalHp,
         int finalMaxHp)
         => completeVictory && finalHp > 0
-            ? profile.MonotoneHealFor(finalHp, finalMaxHp)
+            ? profile.HealFor(finalHp, finalMaxHp)
             : 0;
 
     /// <summary>

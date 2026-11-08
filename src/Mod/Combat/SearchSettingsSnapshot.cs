@@ -36,10 +36,14 @@ internal sealed record SearchSettingsSnapshot(
             || left.FinalBossHpStrategy != right.FinalBossHpStrategy
             || left.PotionDefaultMode != right.PotionDefaultMode
             || left.TheftPolicy != right.TheftPolicy
-            || left.PotionDirectives.Count != right.PotionDirectives.Count)
+            || left.PotionDirectives.Count != right.PotionDirectives.Count
+            || left.RelicCounterAllowances.Count != right.RelicCounterAllowances.Count)
         {
             return false;
         }
+        foreach ((string relicId, int hp) in left.RelicCounterAllowances)
+            if (!right.RelicCounterAllowances.TryGetValue(relicId, out int other) || other != hp)
+                return false;
         for (int index = 0; index < left.PotionDirectives.Count; index++)
             if (left.PotionDirectives[index] != right.PotionDirectives[index])
                 return false;

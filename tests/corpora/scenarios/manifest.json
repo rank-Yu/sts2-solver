@@ -373,6 +373,29 @@
       "group": "controller"
     },
     {
+      "id": "strategy_commands-relics",
+      "scenario": "strategy_commands",
+      "group": "controller",
+      "request": {
+        "relics": [
+          {
+            "relicId": "PEN_NIB",
+            "addWithoutObtainedEffects": true,
+            "integerMembers": {
+              "AttacksPlayed": 4
+            }
+          },
+          {
+            "relicId": "HAPPY_FLOWER",
+            "addWithoutObtainedEffects": true,
+            "integerMembers": {
+              "TurnsSeen": 1
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "forced_potion",
       "scenario": "forced_potion",
       "group": "controller"
@@ -381,6 +404,29 @@
       "id": "panel_strategy",
       "scenario": "panel_strategy",
       "group": "controller"
+    },
+    {
+      "id": "panel_strategy-relics",
+      "scenario": "panel_strategy",
+      "group": "controller",
+      "request": {
+        "relics": [
+          {
+            "relicId": "PEN_NIB",
+            "addWithoutObtainedEffects": true,
+            "integerMembers": {
+              "AttacksPlayed": 4
+            }
+          },
+          {
+            "relicId": "HAPPY_FLOWER",
+            "addWithoutObtainedEffects": true,
+            "integerMembers": {
+              "TurnsSeen": 1
+            }
+          }
+        ]
+      }
     },
     {
       "id": "manual_switch_at_turn_start",

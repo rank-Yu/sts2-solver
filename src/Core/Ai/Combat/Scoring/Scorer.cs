@@ -25,6 +25,7 @@ internal sealed class Scorer
 
     private readonly bool _baseOnly;
     private readonly bool _offensive;
+    private readonly RelicCounterTarget[] _relicTargets;
 
     public Scorer(ScoreRules score, bool baseOnly = false, bool offensive = false, QueenSearchPolicy? queen = null, SetupSearchPolicy? setup = null)
     {
@@ -33,7 +34,18 @@ internal sealed class Scorer
         _offensive = offensive;
         QueenPolicy = queen;
         SetupPolicy = setup;
+        _relicTargets = score.RelicCounterTargets;
+        int ceiling = 0;
+        foreach (RelicCounterTarget target in _relicTargets)
+            ceiling = checked(ceiling + target.HpAllowance);
+        RelicCreditCeiling = ceiling;
     }
+
+    /// <summary>Number of relic counter targets in the request.</summary>
+    internal int RelicTargetCount => _relicTargets.Length;
+
+    /// <summary>The most relic goal credit any route can earn: every allowance once.</summary>
+    internal int RelicCreditCeiling { get; }
 
     /// <summary>Frozen opt-in policy applied only to the supplemental member.</summary>
     internal QueenSearchPolicy? QueenPolicy { get; }
@@ -412,6 +424,10 @@ internal sealed class Scorer
     public bool GrowthTargetsSatisfied(in ScoreFeatures features)
         => features.GrowthRewards.Satisfies(_score.RequiredGrowthRewards);
 
+    /// <summary>Every relic counter target ends on its goal; true when the request has none.</summary>
+    public bool RelicGoalsMet(in ScoreFeatures features)
+        => features.RelicGoalCount == _relicTargets.Length;
+
     private ScoreFeatures Evaluate(in Battle battle, int actionCount, bool includeRetentionOnly)
     {
         int enemyHp = 0, enemyBlock = 0, rawEnemyHp = 0, maxCurrentEnemyHp = 0;
@@ -502,6 +518,13 @@ internal sealed class Scorer
             realizedLongTermResourceValue * ScoreWeights.LongTermResourceBeamValue,
             ScoreWeights.LongTermResourceBeamCap);
         score += (double)growthHpCredit * hpWeight;
+        RelicCounterGoals relicGoals = default;
+        if (_relicTargets.Length != 0)
+        {
+            relicGoals = RelicCounterGoals.Evaluate(battle, _relicTargets, won);
+            score += (double)relicGoals.HpCredit * hpWeight
+                + relicGoals.Count * ScoreWeights.RelicGoalBeamValue;
+        }
 
         int angerCopiesGenerated = battle.Counter(Counter.AngerCopiesGenerated);
         score += angerCopiesGenerated * ScoreWeights.AngerCopyBeamPenalty;
@@ -951,7 +974,9 @@ internal sealed class Scorer
             GrowthHpCredit = growthHpCredit,
             GrowthRewards = growthRewards,
             GrowthRewardCount = growthRewards.Total,
-            StrategicHpCredit = growthHpCredit,
+            RelicGoalHpCredit = relicGoals.HpCredit,
+            RelicGoalCount = relicGoals.Count,
+            StrategicHpCredit = growthHpCredit + relicGoals.HpCredit,
             AngerCopiesGenerated = angerCopiesGenerated,
             EnemyHp = enemyHp,
             EnemyBlock = enemyBlock,

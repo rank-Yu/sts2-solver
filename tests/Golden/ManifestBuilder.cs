@@ -12,10 +12,9 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "请求 v8→v9、结果仍为 v6：SREQ 删除 PotionPolicy.MaximumUses（生产只发出不限次数，"
-        + "或与 ForceAllDisabled 同时出现的 0）；D1 config.br 与 D2 request.br 机械重编码，"
-        + "新字节等于旧字节去掉这一个布尔加一个 int32。D2 的 77 个“最多一瓶”成员请求改成不限次数的"
-        + "生产形态后重冻，其中 6 个与已有请求相同而去重，D2 请求由 2,021 个变为 2,015 个。"
+        "请求 v9→v10、结果仍为 v6：SREQ 在成长目标之后加入遗物计数目标表（每项为遗物格位、计数周期、"
+        + "目标值和额度）；D1 config.br 与 D2 request.br 机械重编码，新字节等于旧字节在该位置插入一个"
+        + "空表（int32 0）。带骨肉的阈值回血计入路线排序后，4 个持带骨肉的请求路线不变、展开数变少并重冻。"
         + "D1 的 score 哈希只写当前 ScoreFeatures 字段，没有遗物计数占位槽和重复的策略占位。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly

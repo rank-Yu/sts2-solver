@@ -77,8 +77,6 @@ internal sealed partial class BeamSolver
         outcome = end.Outcome;
         if ((outcome == Outcome.Victory) != result.BestIsVictory)
             throw new InvalidDataException("路线结局与搜索结果不一致。");
-        if (_options.Potions.MaximumUses is { } max && uses > max)
-            throw new InvalidDataException("路线超过药水使用上限。");
         int actionCount = result.BestRoute.Length;
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;

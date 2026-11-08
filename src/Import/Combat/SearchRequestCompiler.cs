@@ -298,7 +298,6 @@ internal static class SearchRequestCompiler
         }
         return new PotionPolicy(
             int.MinValue,
-            MaximumUses: null,
             new PotionStrategySnapshot(defaultMode, directives),
             defaultMode,
             ForceAllDisabled: false);
@@ -324,7 +323,6 @@ internal static class SearchRequestCompiler
     private static PotionPolicy DefaultPotionPolicy()
         => new(
             int.MinValue,
-            MaximumUses: null,
             new PotionStrategySnapshot(PotionUseMode.Smart, Array.Empty<PotionSlotDirective>()),
             PotionUseMode.Smart,
             ForceAllDisabled: false);

@@ -14,8 +14,8 @@ namespace Sts2Solver.Golden;
 internal static class SearchResumeContracts
 {
     private const string PlainRoot =
-        "b95f43d6eaf4d7972daafab703b1c330d1e395ded66fec07a05ce6705ca4a085";
-    private const string PotionRoot = "26cddb733f03";
+        "c8737af7c32d597ccd647037d938e189ddb5d07b8de5d1d2b92ee7aa6de8601f";
+    private const string PotionRoot = "56e93ea00a8f";
 
     private static readonly SearchPlan Plan =
         new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };
@@ -421,7 +421,6 @@ internal static class SearchResumeContracts
         ]);
         PotionPolicy potions = original.Options.Potions with
         {
-            MaximumUses = null,
             Strategy = strategy,
             EffectivePolicy = PotionUseMode.Smart,
             ForceAllDisabled = false,

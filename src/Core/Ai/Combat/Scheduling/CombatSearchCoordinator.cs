@@ -54,8 +54,7 @@ internal static class CombatSearchCoordinator
                 initial.Battles, initial.Rules, passOptions);
             PotionPolicy[] policies = new PotionPolicy[members.Length];
             skips = new string?[members.Length];
-            HashSet<(int Width, SearchEvaluation Evaluation, SearchRetention Retention, int? Limit)>
-                seenMembers = [];
+            HashSet<(int Width, SearchEvaluation Evaluation, SearchRetention Retention)> seenMembers = [];
             for (int i = 0; i < members.Length; i++)
             {
                 SearchMember item = members[i];
@@ -65,9 +64,8 @@ internal static class CombatSearchCoordinator
                 bool potionPhase = item.Potions != SearchPotionLimit.None;
                 if (potionPhase && !canUsePotions)
                     skips[i] = "no-allowed-potions";
-                else if (potionPhase && !seenMembers.Add(
-                    (item.Width, item.Evaluation, item.Retention, policy.MaximumUses)))
-                    skips[i] = "duplicate-limit";
+                else if (potionPhase && !seenMembers.Add((item.Width, item.Evaluation, item.Retention)))
+                    skips[i] = "duplicate-member";
             }
             return policies;
         }

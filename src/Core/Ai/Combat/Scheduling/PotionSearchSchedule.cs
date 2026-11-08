@@ -3,7 +3,7 @@ using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat;
 
-/// <summary>Intersect member limits with the request's original slot and count constraints.</summary>
+/// <summary>Applies a member's potion stage to the request's potion policy.</summary>
 internal static class PotionSearchSchedule
 {
     internal static bool HasAllowedUse(IReadOnlyList<Battle> roots, Rules rules, BeamOptions options)
@@ -29,7 +29,7 @@ internal static class PotionSearchSchedule
 
     internal static PotionPolicy Limit(PotionPolicy original, SearchPotionLimit limit) => limit switch
     {
-        SearchPotionLimit.None => original with { ForceAllDisabled = true, MaximumUses = 0 },
+        SearchPotionLimit.None => original with { ForceAllDisabled = true },
         SearchPotionLimit.Allowed => original,
         _ => throw new ArgumentOutOfRangeException(nameof(limit)),
     };

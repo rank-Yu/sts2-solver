@@ -12,13 +12,11 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "请求 v7→v8、结果仍为 v6：SREQ 删除 ScoreRules 的遗物计数规则、"
-        + "BeamOptions.InitialActionCount 和 ScoreRules 的三个初始药水计数；"
-        + "D1 config.br 与 D2 request.br 机械重编码，D1 的 13 个前缀根按计数为 0 重录 scoreHash，"
-        + "其中 qf-misery-roster 的初始显式用药还影响其根/K1/K2 的 score 与 bound 哈希，"
-        + "结构数据与其它 12 个根只更新根 scoreHash。SRES 不编码这些字段，D2 期望结果逐字节不变。"
-        + "D1 评分哈希同时改为只写当前 ScoreFeatures 字段，删除遗物计数占位槽和重复的策略占位；"
-        + "所有 D1 根的根/K1/游走状态 score 哈希按新字段集合重算，字段值、bound 哈希和结构不变。";
+        "请求 v8→v9、结果仍为 v6：SREQ 删除 PotionPolicy.MaximumUses（生产只发出不限次数，"
+        + "或与 ForceAllDisabled 同时出现的 0）；D1 config.br 与 D2 request.br 机械重编码，"
+        + "新字节等于旧字节去掉这一个布尔加一个 int32。D2 的 77 个“最多一瓶”成员请求改成不限次数的"
+        + "生产形态后重冻，其中 6 个与已有请求相同而去重，D2 请求由 2,021 个变为 2,015 个。"
+        + "D1 的 score 哈希只写当前 ScoreFeatures 字段，没有遗物计数占位槽和重复的策略占位。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

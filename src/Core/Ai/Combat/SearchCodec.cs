@@ -37,7 +37,7 @@ internal static class SearchCodec
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
     /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 8;
+    internal const ushort RequestFormatVersion = 9;
     internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
@@ -252,8 +252,6 @@ internal static class SearchCodec
     private static void EncodePotionPolicy(BinaryWriter writer, PotionPolicy policy)
     {
         writer.Write(policy.EarliestPlayerTurn);
-        writer.Write(policy.MaximumUses != null);
-        writer.Write(policy.MaximumUses ?? 0);
         EncodePotionStrategy(writer, policy.Strategy);
         writer.Write((int)policy.EffectivePolicy);
         writer.Write(policy.ForceAllDisabled);
@@ -262,13 +260,10 @@ internal static class SearchCodec
     private static PotionPolicy DecodePotionPolicy(BinaryReader reader)
     {
         int earliest = reader.ReadInt32();
-        bool hasMaximum = Codec.ReadBool(reader);
-        int maximumValue = reader.ReadInt32();
-        int? maximum = hasMaximum ? maximumValue : null;
         PotionStrategySnapshot strategy = DecodePotionStrategy(reader);
         PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "药水政策");
         bool forceDisabled = Codec.ReadBool(reader);
-        return new PotionPolicy(earliest, maximum, strategy, effective, forceDisabled);
+        return new PotionPolicy(earliest, strategy, effective, forceDisabled);
     }
 
     private static void EncodePotionStrategy(BinaryWriter writer, PotionStrategySnapshot strategy)

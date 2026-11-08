@@ -193,19 +193,19 @@ internal sealed record RouteOrdering(
 
 /// <summary>
 /// The existing search's potion constraints at the root (<c>EnumeratePlannedPotionActions</c>): the
-/// earliest player turn, the maximum number of uses, and the strategy/policy identity gate the existing
-/// <c>AllowsPotionUse</c> applies. The gate is by (slot, potion identity), so a potion generated into a
-/// slot during the search is offered exactly when the existing search would offer it.
+/// earliest player turn and the strategy/policy identity gate the existing <c>AllowsPotionUse</c>
+/// applies. The gate is by (slot, potion identity), so a potion generated into a slot during the
+/// search is offered exactly when the existing search would offer it. <see cref="ForceAllDisabled"/>
+/// is the potion-free stage: no explicit use is offered and no route with one is eligible.
 /// </summary>
 internal sealed record PotionPolicy(
     int EarliestPlayerTurn,
-    int? MaximumUses,
     PotionStrategySnapshot Strategy,
     PotionUseMode EffectivePolicy,
     bool ForceAllDisabled)
 {
     public static PotionPolicy Disabled { get; } = new(
-        int.MaxValue, 0,
+        int.MaxValue,
         new PotionStrategySnapshot(PotionUseMode.Disabled, Array.Empty<PotionSlotDirective>()),
         PotionUseMode.Disabled, false);
 
@@ -510,7 +510,6 @@ internal sealed partial class BeamSolver
     private readonly PowerCommitmentCatalog? _powerCommitments;
     private readonly bool _aggressivePowerCommitment;
     private readonly bool _preserveReplayAllocatorOpening;
-    private readonly ushort[] _rootPotions = new ushort[Limits.PotionSlots];
     private readonly BoundFeatures? _bound;
     private readonly bool _pruneEqualHp;
     private readonly bool _preservePotionCostOpportunities;
@@ -715,8 +714,6 @@ internal sealed partial class BeamSolver
         _bestFeatures = default;
         _bestFeaturesNode = -1;
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
-        for (int slot = 0; slot < Limits.PotionSlots; slot++)
-            _rootPotions[slot] = slot < roots[0].PotionSlotCount ? roots[0].Potions[slot] : (ushort)0;
         int width = Math.Max(1, _options.BeamWidth);
         // current and turnFrontier only receive CopyTopTo(width) and the roots. next and ended receive
         // children built in the scratch/free slot; their chunks are allocated on first write and never
@@ -1243,11 +1240,8 @@ internal sealed partial class BeamSolver
         int potionFreeDeficit, int potionFreePlayerHp, int potionFreeDeathSaves, int potionFreeOutstanding,
         bool anyRouteWon)
     {
-        if (_options.Potions.MaximumUses is { } maximum
-            && candidate.ExplicitPotionUseCount > maximum)
-        {
+        if (_options.Potions.ForceAllDisabled && candidate.ExplicitPotionUseCount > 0)
             return false;
-        }
         bool protectsDeathSave = hasPotionFree && potionFreeWon && candidate.Key.Won
             && _effectivePotionPolicy != PotionUseMode.Disabled
             && candidate.Key.OptionalPotionCount > 0
@@ -1815,34 +1809,7 @@ internal sealed partial class BeamSolver
         if ((uint)slot >= (uint)battle.PotionSlotCount || battle.PlayerTurn < policy.EarliestPlayerTurn)
             return false;
         ushort stored = battle.Potions[slot];
-        if (stored == 0 || !policy.AllowsExplicitUse(slot, (ushort)(stored - 1)))
-            return false;
-        if (policy.MaximumUses is { } maximum && ExplicitPotionUsesInState(battle) >= maximum)
-            return false;
-        return true;
-    }
-
-    /// <summary>Root potions consumed after the search root (automatic death saves included).</summary>
-    private int MissingRootPotions(in Battle battle)
-    {
-        int used = 0;
-        for (int slot = 0; slot < Limits.PotionSlots; slot++)
-        {
-            if (_rootPotions[slot] != 0 && (slot >= battle.PotionSlotCount || battle.Potions[slot] != _rootPotions[slot]))
-                used++;
-        }
-        return used;
-    }
-
-    /// <summary>
-    /// The existing <c>ExplicitPotionUseCount</c>: cumulative explicit uses, including the fixed
-    /// prefix's and potions generated during the search, without automatic death-save potions.
-    /// </summary>
-    private int ExplicitPotionUsesInState(in Battle battle)
-    {
-        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount);
-        return MissingRootPotions(battle)
-            + battle.Counter(Counter.GeneratedPotionUseCount) - automaticAfterRoot;
+        return stored != 0 && policy.AllowsExplicitUse(slot, (ushort)(stored - 1));
     }
 
     /// <summary>

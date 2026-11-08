@@ -38,7 +38,7 @@ internal static class PotionStageContracts
                 HasUnboundedGrowthTargets = false,
                 TheftPolicy = null, EffectivePotionPolicy = PotionUseMode.Smart,
                 Ordering = new(75, BossHpRelief.None, PostCombatRelicHealProfile.None),
-                Potions = new(int.MinValue, null, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
+                Potions = new(int.MinValue, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
             };
             BeamSolver.Candidate selected = default(BeamSolver.Candidate) with
             {

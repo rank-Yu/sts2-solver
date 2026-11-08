@@ -203,6 +203,7 @@ internal static class CombatSearchCoordinator
                         false, null, null, false, 0, 0)
                     {
                         TurnLoopGuarded = beam.TurnLoopGuarded,
+                        CrossTurnNoProgressPruned = beam.CrossTurnNoProgressPruned,
                     });
                     // The stopped member published no candidate of its own. Keep the route this
                     // request already owns instead of cancelling the whole decision.
@@ -306,6 +307,7 @@ internal static class CombatSearchCoordinator
                         SearchWorkspacePeakBytes = chosen.SearchWorkspacePeakBytes,
                         SearchWorkspaceGrowablePeakBytes = chosen.SearchWorkspaceGrowablePeakBytes,
                         TurnLoopGuarded = beam.TurnLoopGuarded,
+                        CrossTurnNoProgressPruned = beam.CrossTurnNoProgressPruned,
                     });
                     if (adoption.Kind == SearchAdoptionKind.Stopped)
                         return StopResult(chosen, chosenFromEarlierPass ? -1 : chosenIndex,
@@ -403,6 +405,7 @@ internal static class CombatSearchCoordinator
                     SearchWorkspacePeakBytes = beam?.SearchWorkspacePeakBytes ?? 0,
                     SearchWorkspaceGrowablePeakBytes = beam?.SearchWorkspaceGrowablePeakBytes ?? 0,
                     TurnLoopGuarded = beam?.TurnLoopGuarded ?? 0,
+                    CrossTurnNoProgressPruned = beam?.CrossTurnNoProgressPruned ?? 0,
                 });
                 if (error != null || cancelled || stop == "memory" || goalReached) break;
             }

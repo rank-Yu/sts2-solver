@@ -250,6 +250,12 @@ internal sealed record BeamResult(
     /// </summary>
     public int TurnLoopGuarded { get; init; }
 
+    /// <summary>
+    /// Turn-boundary children refused by the cross-turn no-progress cut. Diagnostic only; this
+    /// boundary is not encoded in SRES.
+    /// </summary>
+    public int CrossTurnNoProgressPruned { get; init; }
+
     /// <summary>High-water number of sparse poison/doom progress details in this solve.</summary>
     public int RouteProgressDetailPeakCount { get; init; }
 
@@ -492,7 +498,8 @@ internal sealed partial class BeamSolver
         int ParentTurn,
         int RoutingMetaId,
         int PotionLineageKeyId,
-        TurnProgressState Progress);
+        TurnProgressState Progress,
+        int CrossTurnId);
 
     /// <summary>
     /// Route-node power-commitment metadata (1-based node field; 0 means no commitment). The existing
@@ -558,6 +565,7 @@ internal sealed partial class BeamSolver
     private int _workspacePrefixExtraTurnUnshared;
     private int _workspacePrefixNotInProgress;
     private int _workspaceTurnLoopGuarded;
+    private int _workspaceCrossTurnNoProgressPruned;
     private SearchEquivalenceDiagnostics _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
 
     /// <summary>Offline route trace (null in production) and the pool phase it reports.</summary>
@@ -684,6 +692,7 @@ internal sealed partial class BeamSolver
         _workspacePrefixExtraTurnUnshared = 0;
         _workspacePrefixNotInProgress = 0;
         _workspaceTurnLoopGuarded = 0;
+        _workspaceCrossTurnNoProgressPruned = 0;
         _workspaceEquivalence = SearchEquivalenceDiagnostics.Empty;
         _workspacePeakBytes = 0;
         _workspaceGrowablePeakBytes = 0;
@@ -827,9 +836,11 @@ internal sealed partial class BeamSolver
             int rootEnemyHighsId = EnemyProgressHighsEmpty(in rootEnemyHighs)
                 ? 0 : _nodes.AddProgressEnemyHighs(in rootEnemyHighs);
             rootProgress = rootProgress with { EnemyHighsId = rootEnemyHighsId };
+            int rootCrossTurnId = _nodes.AddCrossTurn(CaptureCrossTurnProgress(in root, in rootFeatures));
             _nodes.Add(new RouteNode(-1, Math.Max(0, 0), default, 0, 0,
                 ushort.MaxValue, ushort.MaxValue, int.MinValue, 0,
-                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0, rootProgress), 0,
+                0, int.MinValue, 0, 0, 0, int.MaxValue, 0d, 0, 0, 0, 0, rootProgress,
+                rootCrossTurnId), 0,
                 _options.InitialBrightestFlameMaxHpSpent);
             (int rootReachable, int rootZeroCost, _) = _scorer.ReachableHandPotential(root);
             PocketwatchState(root, out int rootPocketwatchThreshold, out int rootPocketwatchPlayed,
@@ -928,6 +939,7 @@ internal sealed partial class BeamSolver
             ended.TracePhase = _tracePhase;
             ended.CopyTopTo(turnFrontier, width, turnBoundary: true);
             PrunePool(turnFrontier);
+            AssignCrossTurnProgress(turnFrontier);
             ProgressCheckpoint(turnFrontier, force: false);
             if (zeroDamageVictory)
                 break;
@@ -988,6 +1000,7 @@ internal sealed partial class BeamSolver
             {
                 CapacityPruned = _capacityPruned,
                 TurnLoopGuarded = TurnLoopGuardedTotal,
+                CrossTurnNoProgressPruned = CrossTurnNoProgressPrunedTotal,
                 RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
                 RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
                 EndTurnPrefixShared = EndTurnPrefixSharedTotal,
@@ -1072,6 +1085,7 @@ internal sealed partial class BeamSolver
         {
             CapacityPruned = _capacityPruned,
             TurnLoopGuarded = TurnLoopGuardedTotal,
+            CrossTurnNoProgressPruned = CrossTurnNoProgressPrunedTotal,
             RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
             RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
             EndTurnPrefixShared = EndTurnPrefixSharedTotal,
@@ -1555,7 +1569,8 @@ internal sealed partial class BeamSolver
         return new ParentExpansionContext(node, _nodes.View(node).Depth, pool.Facts(index),
             pool.RankPosition(index), pool.Rank(index), commitmentIndex > 0, commitment,
             _nodes.TracksBrightestFlameSpent ? _nodes.BrightestFlameSpentAt(node) : 0,
-            progress, _nodes.ProgressEnemyHighsAt(progress.EnemyHighsId));
+            progress, _nodes.ProgressEnemyHighsAt(progress.EnemyHighsId),
+            _nodes.CrossTurnAt(_nodes.CrossTurnIdAt(node)));
     }
 
     private bool NodeBudgetAvailable

@@ -43,6 +43,9 @@ internal static class CompareCommand
         int RouteProgressDetailPeakCount,
         long RouteProgressDetailStorage,
         int TurnLoopGuarded,
+        int CrossTurnNoProgressPruned,
+        int OldTurns,
+        int NewTurns,
         SearchEquivalenceDiagnostics Equivalence,
         string QualityError);
 
@@ -198,6 +201,7 @@ internal static class CompareCommand
                 actual.SearchMemoryUsedBytes, actual.RouteNodeStorageBytes,
                 actual.RouteNodePeakCount, actual.RouteProgressDetailPeakCount,
                 actual.RouteProgressDetailStorageBytes, actual.TurnLoopGuarded,
+                actual.CrossTurnNoProgressPruned, expected.TurnsSearched, actual.TurnsSearched,
                 actual.Equivalence, qualityError));
         });
         watch.Stop();
@@ -208,7 +212,8 @@ internal static class CompareCommand
             writer.WriteLine("config,hash,quality,routeEqual,oldExpanded,newExpanded,oldTransitions,"
                 + "newTransitions,oldScore,newScore,oldVictory,newVictory,ms,managedHeapPeak,"
                 + "searchMemoryUsed,routeNodeStorage,routeNodePeak,"
-                + "routeProgressDetailPeak,routeProgressDetailStorage,turnLoopGuarded,playDeduped,"
+                + "routeProgressDetailPeak,routeProgressDetailStorage,turnLoopGuarded,"
+                + "crossTurnNoProgressPruned,oldTurns,newTurns,playDeduped,"
                 + "playVerifiedExact,playVerifiedApprox,playVerifiedApproxEqual,playVerifiedUnresolved,"
                 + "choiceByClassRequests,choiceVerifiedExact,choiceVerifiedApprox,"
                 + "choiceVerifiedApproxEqual,choiceVerifiedUnresolved,qualityError");
@@ -234,6 +239,9 @@ internal static class CompareCommand
                     row.RouteProgressDetailPeakCount.ToString(CultureInfo.InvariantCulture),
                     row.RouteProgressDetailStorage.ToString(CultureInfo.InvariantCulture),
                     row.TurnLoopGuarded.ToString(CultureInfo.InvariantCulture),
+                    row.CrossTurnNoProgressPruned.ToString(CultureInfo.InvariantCulture),
+                    row.OldTurns.ToString(CultureInfo.InvariantCulture),
+                    row.NewTurns.ToString(CultureInfo.InvariantCulture),
                     e.PlayDeduped.ToString(CultureInfo.InvariantCulture),
                     e.PlayVerifiedExact.ToString(CultureInfo.InvariantCulture),
                     e.PlayVerifiedApprox.ToString(CultureInfo.InvariantCulture),

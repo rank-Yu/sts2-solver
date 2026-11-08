@@ -7,9 +7,10 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.KernelChecks;
 
 /// <summary>
-/// Small closed-world contracts for the pruning certificate and the per-turn no-progress boundary.
+/// Small closed-world contracts for the pruning certificate, the per-turn no-progress boundary and
+/// the cross-turn no-progress cut.
 /// The cards here are test-only content: a self-drawing block loop, a self-drawing poison loop, a
-/// self-drawing Strength loop and a plain one-damage attack.
+/// self-drawing Strength loop, a plain one-damage attack and a one-max-HP growth skill.
 /// </summary>
 internal static class IncumbentAndLoopChecks
 {
@@ -25,6 +26,7 @@ internal static class IncumbentAndLoopChecks
             $"route turn-progress metadata must stay within 16 bytes, actual={BeamSolver.TurnProgressStateSize}");
         CheckPruningBounds(fixtureRules);
         CheckLoopGuard();
+        CheckCrossTurnCut();
         Console.WriteLine("INCUMBENT_AND_LOOP contracts=pass");
     }
 
@@ -329,6 +331,75 @@ internal static class IncumbentAndLoopChecks
     }
 
 
+    private static void CheckCrossTurnCut()
+    {
+        ushort block = CardId("IP1_TEST_BLOCK_LOOP");
+        ushort strike = CardId("IP1_TEST_STRIKE");
+        ushort poison = CardId("IP1_TEST_POISON_LOOP");
+        ushort strength = CardId("IP1_TEST_STRENGTH_LOOP");
+        Rules rules = BuildSearchRules(block, strike, poison, strength, attack: 0);
+
+        // No cards and a harmless enemy: every turn boundary is no progress. The empty deck makes
+        // two deck cycles 2 turns, so the 16-turn floor is the limit: the end-turn child of the 16th
+        // turn would be the 16th boundary without progress and is not generated.
+        Battle stallRoot = EmptyHandRoot(enemyHp: 40);
+        BeamResult stall = Solve(stallRoot, rules, maxNodes: 4000, threads: 1, maxTurns: int.MaxValue);
+        Assert(!stall.BestIsVictory, "the stall fixture cannot be won");
+        Assert(stall.CrossTurnNoProgressPruned == 1,
+            $"the stalling line must be cut once, actual={stall.CrossTurnNoProgressPruned}");
+        Assert(stall.TurnsSearched == ScoreWeights.SetupValueHorizonTurns,
+            $"the stalling line must stop after the floor, turns={stall.TurnsSearched}");
+        Assert(stall.StopReason == "frontier-empty",
+            $"the cut must empty the frontier, reason={stall.StopReason}");
+        BeamResult stall4 = Solve(EmptyHandRoot(enemyHp: 40), rules, maxNodes: 4000, threads: 4,
+            maxTurns: int.MaxValue);
+        Assert(stall4.CrossTurnNoProgressPruned == stall.CrossTurnNoProgressPruned
+            && stall4.TurnsSearched == stall.TurnsSearched
+            && stall4.ExpandedNodes == stall.ExpandedNodes,
+            "the cross-turn cut must not depend on expansion threads");
+
+        // One 1-damage strike every turn lowers the enemy HP at each boundary, so a 40-turn fight
+        // is never cut and is won.
+        Battle slowRoot = SearchRoot(rules, strike, inHand: true, inDiscard: false, enemyHp: 40,
+            withTop: false);
+        BeamResult slow = Solve(slowRoot, rules, maxNodes: 4000, threads: 1, maxTurns: int.MaxValue);
+        Assert(slow.BestIsVictory, "the slow attack fight should be won");
+        Assert(slow.TurnsSearched >= 40, $"the slow fight needs 40 turns, turns={slow.TurnsSearched}");
+        Assert(slow.CrossTurnNoProgressPruned == 0,
+            $"a progressing line must not be cut, actual={slow.CrossTurnNoProgressPruned}");
+
+        // Gaining max HP every turn is progress, so the ordinary count never reaches its limit, but
+        // no turn makes kill progress: the route stops at twice the limit.
+        ushort growth = CardId("NP1_TEST_MAX_HP_GROWTH");
+        Rules growthRules = BuildSearchRules(block, strike, poison, strength, attack: 0, growth);
+        Battle growthRoot = SearchRoot(growthRules, growth, inHand: true, inDiscard: false,
+            enemyHp: 40, withTop: false);
+        BeamResult grown = Solve(growthRoot, growthRules, maxNodes: 4000, threads: 1,
+            maxTurns: int.MaxValue);
+        Assert(grown.CrossTurnNoProgressPruned > 0 && grown.StopReason == "frontier-empty",
+            $"a line without kill progress must be cut, pruned={grown.CrossTurnNoProgressPruned} "
+            + $"reason={grown.StopReason}");
+        Assert(grown.TurnsSearched == 2 * ScoreWeights.SetupValueHorizonTurns,
+            $"kill progress allows twice the limit, turns={grown.TurnsSearched}");
+    }
+
+    private static Battle EmptyHandRoot(int enemyHp)
+    {
+        Battle battle = NewBattle(50, 50, enemyHp, energy: 3);
+        battle.PlayerTurn = 1;
+        battle.Side = Side.Player;
+        battle.Phase = PlayerPhase.Play;
+        battle.Flags |= BattleFlags.PlayerHooksActive;
+        battle.MaxHandSize = 10;
+        battle.EnemyCount = 1;
+        battle.RosterCount = 1;
+        battle.Roster[0] = 0;
+        battle.Enemies[0].Rules = 0;
+        battle.Enemies[0].Move = 0;
+        battle.Enemies[0].Flags = EnemyFlags.InCombat;
+        return battle;
+    }
+
     private static bool SameRoute(IReadOnlyList<PlayerAction> left,
         IReadOnlyList<PlayerAction> right)
     {
@@ -359,7 +430,7 @@ internal static class IncumbentAndLoopChecks
     }
 
     private static Rules BuildSearchRules(ushort block, ushort strike, ushort poison,
-        ushort strength, int attack)
+        ushort strength, int attack, ushort growth = ushort.MaxValue)
     {
         RulesDraft builder = new()
         {
@@ -400,6 +471,8 @@ internal static class IncumbentAndLoopChecks
         builder.SetCard(strike, 0, CardStats(CardType.Attack, TargetType.AnyEnemy, 0, [1m]));
         builder.SetCard(poison, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
         builder.SetCard(strength, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
+        if (growth != ushort.MaxValue)
+            builder.SetCard(growth, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
         return builder.Build();
     }
 
@@ -433,10 +506,11 @@ internal static class IncumbentAndLoopChecks
         return battle;
     }
 
-    private static BeamResult Solve(Battle root, Rules rules, int maxNodes, int threads)
+    private static BeamResult Solve(Battle root, Rules rules, int maxNodes, int threads,
+        int maxTurns = 1)
     {
         ScoreRules score = BuildScoreRules(rules);
-        BeamOptions options = new(BeamWidth: 1, MaxExpandedNodes: maxNodes, MaxTurns: 1,
+        BeamOptions options = new(BeamWidth: 1, MaxExpandedNodes: maxNodes, MaxTurns: maxTurns,
             SoftTimeBudget: TimeSpan.MaxValue)
         {
             Scorer = new Scorer(score),
@@ -582,4 +656,11 @@ public sealed class Ip1StrengthLoopCard : CardDef
             Registry.PowerId<Content.Powers.StrengthPower>(), 1, Limits.PlayerOwner);
         Kernel.Draw(ref x, 1, fromHandDraw: false);
     }
+}
+
+[ContentId("NP1_TEST_MAX_HP_GROWTH")]
+public sealed class Np1MaxHpGrowthCard : CardDef
+{
+    public override void OnPlay(ref Exec x)
+        => Kernel.GainMaxHp(ref x, Limits.PlayerOwner, 1m);
 }

@@ -22,7 +22,8 @@ internal sealed partial class BeamSolver
         PowerCommitmentState Commitment,
         int BrightestFlameSpent,
         TurnProgressState Progress,
-        EnemyProgressHighs EnemyHighs);
+        EnemyProgressHighs EnemyHighs,
+        CrossTurnProgress CrossTurn);
 
     private enum ExpansionEventKind : byte
     {
@@ -185,6 +186,10 @@ internal sealed partial class BeamSolver
         internal int EndTurnPrefixExtraTurnUnshared;
         internal int EndTurnPrefixNotInProgress;
         internal int TurnLoopGuarded;
+        internal int CrossTurnNoProgressPruned;
+
+        /// <summary>The current parent's turn-start record; constant for the whole parent.</summary>
+        private CrossTurnProgress _parentCrossTurn;
 
         internal ExpansionWorkspace(BeamSolver solver, bool directOnly = false)
         {
@@ -321,6 +326,7 @@ internal sealed partial class BeamSolver
             EndTurnPrefixExtraTurnUnshared = 0;
             EndTurnPrefixNotInProgress = 0;
             TurnLoopGuarded = 0;
+            CrossTurnNoProgressPruned = 0;
         }
 
         /// <summary>Starts one parent: drop the previous parent's records and advance the prefix generation.</summary>
@@ -550,6 +556,7 @@ internal sealed partial class BeamSolver
         private void ExpandBody(in Battle parent, in ParentExpansionContext context,
             CancellationToken cancellationToken)
         {
+            _parentCrossTurn = context.CrossTurn;
             int count = Kernel.LegalActions(parent, _solver._rules, _actions);
             scoped ReadOnlySpan<PlayerAction> legal = _actions.AsSpan(0, count);
             for (int actionIndex = 0; actionIndex < count; actionIndex++)
@@ -672,6 +679,14 @@ internal sealed partial class BeamSolver
                 }
                 (double score, double rank, _, int potionCost, ScoreFeatures features) =
                     _solver.Score(in _draft, depth, isTerminal, action.Kind == PlayerActionKind.EndTurn);
+                if (!isTerminal
+                    && (action.Kind == PlayerActionKind.EndTurn || _draft.PlayerTurn != parent.PlayerTurn)
+                    && _solver.CrossTurnNoProgressExceeded(in _parentCrossTurn, in _draft, in features))
+                {
+                    CrossTurnNoProgressPruned++;
+                    _solver._trace?.ChildBlocked(parentNodeKey, in action, "cross-turn-no-progress");
+                    return;
+                }
                 bool nonPure = !IsPureTransition(in parent, in _draft, action, _solver._rules, historyRisk);
                 SearchRouteTraits childTraits = ClassifyRouteTraits(parentFacts, features, action,
                     DeclinedExtraTurn(in parent), nonPure);
@@ -1248,7 +1263,7 @@ internal sealed partial class BeamSolver
                 child.ActionCardId, child.TargetCombatId, routingMeta.SignatureId, routingMeta.Turn,
                 routingMeta.ChoiceDepth, routingMeta.ParentRank, routingMeta.ParentScore,
                 routingMeta.ParentEnergy, parentFacts.Turn, routingMetaId, potionLineageKey,
-                progress),
+                progress, _solver._nodes.CrossTurnIdAt(parentNode)),
                 routingMetaId, brightestFlameSpent);
             if (traceStep > 0)
                 _solver._trace!.NodeCreated(node, traceStep);

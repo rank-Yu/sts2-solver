@@ -398,6 +398,7 @@ internal sealed partial class BeamSolver
     {
         CapacityPruned = _capacityPruned,
         TurnLoopGuarded = TurnLoopGuardedTotal,
+        CrossTurnNoProgressPruned = CrossTurnNoProgressPrunedTotal,
         RouteProgressDetailPeakCount = _nodes.PeakProgressEnemyHighsCount,
         RouteProgressDetailStorageBytes = _nodes.ProgressEnemyHighsStorageBytes,
         EndTurnPrefixShared = EndTurnPrefixSharedTotal,

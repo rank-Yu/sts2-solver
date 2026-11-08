@@ -75,6 +75,8 @@ internal sealed partial class BeamSolver
         private readonly ChunkedList<int> _potionLineageKeyId;
         private readonly ChunkedList<TurnProgressState> _progress;
         private readonly ChunkedList<EnemyProgressHighs> _progressEnemyHighs;
+        private readonly ChunkedList<int> _crossTurnId;
+        private readonly ChunkedList<CrossTurnProgress> _crossTurn;
         private readonly ChunkedList<int>? _brightestFlameSpent;
         private readonly RoutingMetaStore _metas;
         private readonly SearchStorage _storage;
@@ -98,6 +100,8 @@ internal sealed partial class BeamSolver
             _potionLineageKeyId = new ChunkedList<int>(storage);
             _progress = new ChunkedList<TurnProgressState>(storage);
             _progressEnemyHighs = new ChunkedList<EnemyProgressHighs>(storage);
+            _crossTurnId = new ChunkedList<int>(storage);
+            _crossTurn = new ChunkedList<CrossTurnProgress>(storage);
             PeakProgressEnemyHighsCount = 0;
             _storage = storage;
             _brightestFlameSpent = trackBrightestFlameSpent
@@ -138,7 +142,7 @@ internal sealed partial class BeamSolver
                     + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<ushort>() + Unsafe.SizeOf<int>()
                     + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>() + Unsafe.SizeOf<int>()
-                    + Unsafe.SizeOf<TurnProgressState>()
+                    + Unsafe.SizeOf<TurnProgressState>() + Unsafe.SizeOf<int>()
                     + (_brightestFlameSpent is null ? 0 : Unsafe.SizeOf<int>()));
                 long chunks = ((long)PeakCount + ChunkSize - 1) >> ChunkShift;
                 return chunks * chunkBytes;
@@ -163,6 +167,8 @@ internal sealed partial class BeamSolver
             _potionLineageKeyId.Clear();
             _progress.Clear();
             _progressEnemyHighs.Clear();
+            _crossTurnId.Clear();
+            _crossTurn.Clear();
             PeakProgressEnemyHighsCount = 0;
             _brightestFlameSpent?.Clear();
             PeakCount = 0;
@@ -185,6 +191,7 @@ internal sealed partial class BeamSolver
             _parentTurn.Add(node.ParentTurn);
             _potionLineageKeyId.Add(node.PotionLineageKeyId);
             _progress.Add(node.Progress);
+            _crossTurnId.Add(node.CrossTurnId);
             _brightestFlameSpent?.Add(brightestFlameSpent);
             if (Count > PeakCount)
                 PeakCount = Count;
@@ -207,6 +214,61 @@ internal sealed partial class BeamSolver
         internal int PotionLineageKeyAt(int index) => _potionLineageKeyId[index];
 
         internal TurnProgressState ProgressAt(int index) => _progress[index];
+
+        internal int CrossTurnIdAt(int index) => _crossTurnId[index];
+
+        internal void SetCrossTurnId(int index, int id) => _crossTurnId[index] = id;
+
+        /// <summary>Stores a turn-start record and returns its 1-based id; every node has one.</summary>
+        internal int AddCrossTurn(in CrossTurnProgress progress)
+        {
+            _crossTurn.Add(progress);
+            return _crossTurn.Count;
+        }
+
+        internal CrossTurnProgress CrossTurnAt(int id)
+        {
+            if (id <= 0 || id > _crossTurn.Count)
+                throw new InvalidOperationException($"路线跨回合进展记录越界：{id}/{_crossTurn.Count}。");
+            return _crossTurn[id - 1];
+        }
+
+        /// <summary>
+        /// Keeps only the turn-start records a live node references and rewrites their 1-based ids,
+        /// in the same pass order as <see cref="CompactProgressEnemyHighs"/>.
+        /// </summary>
+        internal void CompactCrossTurn()
+        {
+            int count = _crossTurn.Count;
+            if (count == 0)
+                return;
+            int[] map = _storage.IntScratch(count + 1);
+            Array.Fill(map, -1);
+            for (int index = 0; index < Count; index++)
+            {
+                int id = _crossTurnId[index];
+                if (id <= 0 || id > count)
+                    throw new InvalidOperationException($"路线跨回合进展记录越界：{id}/{count}。");
+                map[id] = -2;
+            }
+            int live = 1;
+            for (int id = 1; id <= count; id++)
+            {
+                if (map[id] == -2)
+                    map[id] = live++;
+            }
+            if (live == count + 1)
+                return;
+            for (int id = 1; id <= count; id++)
+            {
+                int target = map[id];
+                if (target > 0 && target != id)
+                    _crossTurn.Move(id - 1, target - 1);
+            }
+            _crossTurn.Truncate(live - 1);
+            for (int index = 0; index < Count; index++)
+                _crossTurnId[index] = map[_crossTurnId[index]];
+        }
 
         internal int AddProgressEnemyHighs(in EnemyProgressHighs highs)
         {
@@ -324,6 +386,7 @@ internal sealed partial class BeamSolver
             _parentTurn.Move(from, to);
             _potionLineageKeyId.Move(from, to);
             _progress.Move(from, to);
+            _crossTurnId.Move(from, to);
             _brightestFlameSpent?.Move(from, to);
         }
 
@@ -344,6 +407,7 @@ internal sealed partial class BeamSolver
             _parentTurn.Truncate(count);
             _potionLineageKeyId.Truncate(count);
             _progress.Truncate(count);
+            _crossTurnId.Truncate(count);
             _brightestFlameSpent?.Truncate(count);
         }
     }
@@ -464,6 +528,7 @@ internal sealed partial class BeamSolver
         CompactCommitments(live);
         CompactRoutingMetadata();
         _nodes.CompactProgressEnemyHighs();
+        _nodes.CompactCrossTurn();
         if (_options.UnlimitedNodes) SearchCheckpoint();
     }
 

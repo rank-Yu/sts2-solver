@@ -91,6 +91,12 @@ internal sealed record SearchMemberResult(SearchMember Member, bool Ran, string?
     /// on loop-like lines within a turn.
     /// </summary>
     public int TurnLoopGuarded { get; init; }
+
+    /// <summary>
+    /// Turn-boundary children this member's search cut because the route had gone the cross-turn
+    /// limit without progress. A large count means stalling lines were reaching the next turn.
+    /// </summary>
+    public int CrossTurnNoProgressPruned { get; init; }
 }
 
 internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult? Beam,

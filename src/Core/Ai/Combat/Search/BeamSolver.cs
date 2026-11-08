@@ -537,6 +537,7 @@ internal sealed partial class BeamSolver
     private int _duplicates;
     private long _deadlinePolls;
     private long _deadlineExpiredAtPoll;
+    private bool _crossTurnCutEnded;
     private bool _memoryBudgetExceeded;
     private long _memoryBudgetExceededAtBytes;
     private int _capacityPruned;
@@ -722,6 +723,7 @@ internal sealed partial class BeamSolver
         _transitions = 0;
         _duplicates = 0;
         _deadlinePolls = 0;
+        _crossTurnCutEnded = false;
         _deadlineExpiredAtPoll = 0;
         _memoryBudgetExceeded = false;
         _memoryBudgetExceededAtBytes = 0;
@@ -893,6 +895,7 @@ internal sealed partial class BeamSolver
             SearchCheckpoint();
             ProgressCheckpoint(turnFrontier, force: turns == 0);
             turns++;
+            int crossTurnCutBefore = CrossTurnNoProgressPrunedTotal;
             // The previous turn's end-turn pool is no longer a route consumer; clear it before the
             // boundary mark-sweep so only states that can still win a seat are retained.
             ended.Clear();
@@ -947,6 +950,14 @@ internal sealed partial class BeamSolver
                 ProgressCheckpoint(current, force: false);
             }
             if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
+            // The cross-turn cut left no next-turn state: this turn's start states are the horizon,
+            // as at MaxTurns, and compete with the terminal routes in the final ordering. Clearing
+            // them would end a search that cannot make progress without any route.
+            if (ended.Count == 0 && CrossTurnNoProgressPrunedTotal > crossTurnCutBefore)
+            {
+                _crossTurnCutEnded = true;
+                break;
+            }
             turnFrontier.Clear();
             // BeamRetentionPolicy.RankBest at the end-turn frontier: the turn-boundary hand leader is
             // a required representative of every potion group.
@@ -1155,6 +1166,8 @@ internal sealed partial class BeamSolver
                 ? _memoryBudgetExceeded ? "memory" : "time" : "budget";
         if (turns >= _options.MaxTurns)
             return "max-turns";
+        if (_crossTurnCutEnded)
+            return "no-progress";
         return "frontier-empty";
     }
 

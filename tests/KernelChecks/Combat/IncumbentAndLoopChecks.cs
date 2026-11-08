@@ -341,7 +341,8 @@ internal static class IncumbentAndLoopChecks
 
         // No cards and a harmless enemy: every turn boundary is no progress. The empty deck makes
         // two deck cycles 2 turns, so the 16-turn floor is the limit: the end-turn child of the 16th
-        // turn would be the 16th boundary without progress and is not generated.
+        // turn would be the 16th boundary without progress and is not generated. The search then
+        // ends at the 16th turn's start, whose route (15 end turns) is the result.
         Battle stallRoot = EmptyHandRoot(enemyHp: 40);
         BeamResult stall = Solve(stallRoot, rules, maxNodes: 4000, threads: 1, maxTurns: int.MaxValue);
         Assert(!stall.BestIsVictory, "the stall fixture cannot be won");
@@ -349,13 +350,17 @@ internal static class IncumbentAndLoopChecks
             $"the stalling line must be cut once, actual={stall.CrossTurnNoProgressPruned}");
         Assert(stall.TurnsSearched == ScoreWeights.SetupValueHorizonTurns,
             $"the stalling line must stop after the floor, turns={stall.TurnsSearched}");
-        Assert(stall.StopReason == "frontier-empty",
-            $"the cut must empty the frontier, reason={stall.StopReason}");
+        Assert(stall.StopReason == "no-progress",
+            $"the cut must end the search, reason={stall.StopReason}");
+        Assert(stall.BestRoute.Length == ScoreWeights.SetupValueHorizonTurns - 1
+            && stall.BestRoute.All(static action => action.Kind == PlayerActionKind.EndTurn),
+            $"the cut keeps the last turn start as the horizon, route={stall.BestRoute.Length}");
         BeamResult stall4 = Solve(EmptyHandRoot(enemyHp: 40), rules, maxNodes: 4000, threads: 4,
             maxTurns: int.MaxValue);
         Assert(stall4.CrossTurnNoProgressPruned == stall.CrossTurnNoProgressPruned
             && stall4.TurnsSearched == stall.TurnsSearched
-            && stall4.ExpandedNodes == stall.ExpandedNodes,
+            && stall4.ExpandedNodes == stall.ExpandedNodes
+            && stall4.BestRoute.Length == stall.BestRoute.Length,
             "the cross-turn cut must not depend on expansion threads");
 
         // One 1-damage strike every turn lowers the enemy HP at each boundary, so a 40-turn fight
@@ -376,9 +381,10 @@ internal static class IncumbentAndLoopChecks
             enemyHp: 40, withTop: false);
         BeamResult grown = Solve(growthRoot, growthRules, maxNodes: 4000, threads: 1,
             maxTurns: int.MaxValue);
-        Assert(grown.CrossTurnNoProgressPruned > 0 && grown.StopReason == "frontier-empty",
+        Assert(grown.CrossTurnNoProgressPruned > 0 && grown.StopReason == "no-progress"
+                && grown.BestRoute.Length > 0,
             $"a line without kill progress must be cut, pruned={grown.CrossTurnNoProgressPruned} "
-            + $"reason={grown.StopReason}");
+            + $"reason={grown.StopReason} route={grown.BestRoute.Length}");
         Assert(grown.TurnsSearched == 2 * ScoreWeights.SetupValueHorizonTurns,
             $"kill progress allows twice the limit, turns={grown.TurnsSearched}");
     }

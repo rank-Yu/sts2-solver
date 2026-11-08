@@ -43,7 +43,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private Button? _growthButton;
     private Button? _settingsButton;
     private Button? _collapseButton;
-    private SolverDetailsPanel? _details;
     private SolverSidebar? _sidebar;
     private SolverPotionStrategyPage? _potionPage;
     private SolverGrowthStrategyPage? _growthPage;
@@ -55,7 +54,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
     private bool _collapsed;
     private SolverStrategyPageKind? _openStrategyPage;
     private bool _settingsVisible;
-    private bool _detailsVisible;
     private bool _rebuildQueued;
     private string? _builtLanguage;
     private int _buildCount;
@@ -138,7 +136,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
             else
             {
                 CancelPointerGesture();
-                _detailsVisible = false;
                 _presentation = SolverOverlayPresentation.Ready;
                 _routeMotionKey = null;
                 _waitingForNextTurnPlan = false;
@@ -234,8 +231,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         BuildRouteSection();
         _body.AddChild(CreateSummarySection());
         _body.MoveChild(_summaryPanel!, 1);
-        _details = new SolverDetailsPanel { Visible = false };
-        _body.AddChild(_details);
 
         _footerDivider = SolverUiTokens.CreateDivider();
         _mainStack.AddChild(_footerDivider);
@@ -343,7 +338,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     private void ApplySnapshot(CombatUiSnapshot snapshot, long now)
     {
-        if (_summaryText == null || _actionBar == null || _details == null)
+        if (_summaryText == null || _actionBar == null)
             return;
         CombatUiSnapshot? previous = _lastSnapshot;
         _lastSnapshot = snapshot;
@@ -354,7 +349,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         SolverOverlaySnapshot overlay = SolverOverlaySnapshot.Build(snapshot, names);
         _lastOverlay = overlay;
         Present(overlay, snapshot, now);
-        _details.Apply(snapshot);
         if (_openStrategyPage != null)
             _sidebar?.Apply(snapshot);
         if (_settingsVisible)
@@ -389,25 +383,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
             return;
         AdvanceSearchReadouts(delta);
         _memoryBar?.Advance(delta);
-    }
-
-    private void ToggleDetails()
-    {
-        SetDetailsVisible(!_detailsVisible);
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=details visible={_detailsVisible}");
-    }
-
-    private void SetDetailsVisible(bool visible)
-    {
-        _detailsVisible = visible;
-        if (_details != null)
-        {
-            _details.Visible = !_collapsed && visible;
-            if (visible && _lastSnapshot != null)
-                _details.Apply(_lastSnapshot);
-        }
-        _detailsButton?.SetExpanded(visible);
-        ApplyContentVisibility();
     }
 
     /// <summary>
@@ -517,8 +492,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
             _settingsPage.Visible = settingsShown;
         if (_sidebar != null)
             _sidebar.Visible = _openStrategyPage != null && !_collapsed;
-        if (_details != null)
-            _details.Visible = !_collapsed && _detailsVisible;
         if (_footerDivider != null)
             _footerDivider.Visible = !_collapsed && !_settingsVisible;
         if (_actionBar != null)
@@ -620,7 +593,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _summaryContextLabel = null;
         _progressText = null;
         _reviewText = null;
-        _detailsButton = null;
         _routeScroll = null;
         _routeOutcomePanel = null;
         _routeHeadingLabel = null;
@@ -643,7 +615,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _footerDivider = null;
         _mainStack = null;
         _body = null;
-        _details = null;
         FreeResizeHandles();
         Build();
     }
@@ -658,7 +629,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _collapsed,
         _settingsVisible && !_collapsed,
         _openStrategyPage != null && !_collapsed ? _openStrategyPage.Value.ToString() : "",
-        _detailsVisible && !_collapsed,
         _builtLanguage ?? "",
         _buildCount,
         _presentation.ToString(),
@@ -677,8 +647,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
     internal bool SettingsOpenForTest => _settingsVisible;
 
     internal Button? CollapseButtonForTest => _collapseButton;
-
-    internal Button? DetailsButtonForTest => _detailsButton;
 
     internal Button? SearchButtonForTest => _searchButton;
 
@@ -738,7 +706,6 @@ internal sealed record SolverOverlayProbe(
     bool Collapsed,
     bool SettingsVisible,
     string SidebarPage,
-    bool DetailsVisible,
     string Language,
     int BuildCount,
     string Presentation,

@@ -4,7 +4,7 @@ using Sts2Solver.Import;
 namespace Sts2Solver;
 
 /// <summary>
-/// Maps the snapshot's stable codes (phase, end reason, error, pause, stop and member labels) to
+/// Maps the snapshot's stable codes (phase, end reason, error, pause and choice labels) to
 /// localized player text. Unknown codes are shown verbatim inside a localized template, so a new
 /// code is visible instead of being mistaken for a known one.
 /// </summary>
@@ -34,62 +34,6 @@ internal static class SolverPanelText
         ["invalid_data"] = "战斗数据校验失败",
         ["invalid_operation"] = "当前状态不允许继续执行",
         ["timeout"] = "等待游戏响应超时",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> StopNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["time"] = "用完时间",
-        ["memory"] = "达到内存上限",
-        ["frontier-empty"] = "搜索树已穷尽",
-        ["deadline"] = "复核超时",
-        ["invalid"] = "结果无效",
-        ["cancelled"] = "已取消",
-        ["skipped"] = "跳过",
-        ["none"] = "没有结果",
-        ["zero-damage-victory"] = "零失血胜利",
-        ["budget"] = "节点预算用完",
-        ["max-turns"] = "达到回合上限",
-        ["ok"] = "完成",
-        ["failed"] = "失败",
-        ["unsupported"] = "不支持",
-        ["capacity"] = "容量不足",
-        ["unknown"] = "未知",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> SkipNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["no-allowed-potions"] = "没有可用药水",
-        ["limit-already-used"] = "用药次数已满",
-        ["duplicate-limit"] = "与已运行的轮次重复",
-        ["stage-economy"] = "用药不划算",
-        ["invalid"] = "前面的轮次出错",
-        ["cancelled"] = "已取消",
-        ["target-reached"] = "目标已达成",
-        ["memory"] = "内存已满",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> EvaluationNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["Standard"] = "标准",
-        ["Base"] = "基础分",
-        ["Offensive"] = "进攻",
-        ["Setup"] = "能力展开",
-        ["ContinuousSetup"] = "连续增益",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> RetentionNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["Standard"] = "标准",
-        ["SecondBand"] = "第二排名段",
-        ["Power"] = "能力优先",
-        ["QueenKillTiming"] = "女王击杀时机",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> PotionLimitNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["None"] = "无药",
-        ["One"] = "最多一瓶",
-        ["Allowed"] = "放开",
     };
 
     private static readonly IReadOnlyDictionary<string, string> PauseNames = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -218,13 +162,6 @@ internal static class SolverPanelText
             ["PowerCommitment.Cards"] = "能力承诺的牌",
         };
 
-    private static readonly IReadOnlyDictionary<string, string> SearchReasonNames = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["initial"] = "首次搜索",
-        ["turn_start"] = "回合开始重新搜索",
-        ["turn_setup"] = "回合开始选择",
-    };
-
     private static readonly IReadOnlyDictionary<string, string> ChoiceEffectNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["Discard"] = "弃",
@@ -248,9 +185,7 @@ internal static class SolverPanelText
 
     /// <summary>Every source string looked up through the maps above; the logic check requires an English entry for each.</summary>
     internal static IEnumerable<string> MappedSourceStrings
-        => ErrorNames.Values.Concat(StopNames.Values).Concat(PauseNames.Values)
-            .Concat(SkipNames.Values).Concat(EvaluationNames.Values).Concat(RetentionNames.Values)
-            .Concat(PotionLimitNames.Values).Concat(SearchReasonNames.Values)
+        => ErrorNames.Values.Concat(PauseNames.Values)
             .Concat(ChoiceEffectNames.Values)
             .Concat(ImportReasonNames.Values).Concat(ContentFallbackNames.Values)
             .Concat(ContentNameFormats.Values).Concat(DeploymentReasonNames.Values)
@@ -436,29 +371,6 @@ internal static class SolverPanelText
                 _ => SolverText.Format($"执行已暂停：{code}"),
             };
 
-    internal static string StopReason(string code)
-        => StopNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
-    internal static string StopReasons(string? joined)
-        => string.IsNullOrEmpty(joined)
-            ? SolverText.Get("无")
-            : string.Join(SolverText.Get("、"), joined.Split(',').Select(StopReason));
-
-    internal static string SkipReason(string code)
-        => SkipNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
-    internal static string Evaluation(string code)
-        => EvaluationNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
-    internal static string Retention(string code)
-        => RetentionNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
-    internal static string PotionLimit(string code)
-        => PotionLimitNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
-    internal static string SearchReason(string code)
-        => SearchReasonNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
-
     internal static string ChoiceEffect(string code)
         => ChoiceEffectNames.TryGetValue(code, out string? source) ? SolverText.Get(source) : code;
 
@@ -492,18 +404,4 @@ internal static class SolverPanelText
         SearchMemoryBudgetSource.Default => SolverText.Get("默认"),
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
-
-    internal static string Bytes(long bytes)
-    {
-        const double mebibyte = 1024d * 1024d;
-        double mib = bytes / mebibyte;
-        return mib < 1024d
-            ? mib.ToString("0", CultureInfo.CurrentCulture) + " MiB"
-            : (mib / 1024d).ToString("0.0", CultureInfo.CurrentCulture) + " GiB";
-    }
-
-    internal static string Seconds(long milliseconds)
-        => SolverText.Format($"{milliseconds / 1000d:0.0} 秒");
-
-    internal static string Count(long value) => value.ToString("N0", CultureInfo.CurrentCulture);
 }

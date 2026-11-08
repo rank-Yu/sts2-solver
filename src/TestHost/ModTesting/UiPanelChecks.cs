@@ -87,25 +87,6 @@ internal static class UiPanelChecks
             CombatUiCommands.Instance.SetAutoSearch(originalAutoSearch);
         await WaitAutoSearchAsync(host, originalAutoSearch, 60);
 
-        bool detailsOpened = false;
-        for (int attempt = 0; attempt < 3 && !detailsOpened; attempt++)
-        {
-            if (!panel.ProbeForTest().DetailsVisible)
-                await Press(host, panel.DetailsButtonForTest);
-            await Frames(host, 2);
-            detailsOpened = panel.ProbeForTest().DetailsVisible;
-        }
-        session.Check("details_opens", detailsOpened, Describe(panel));
-        bool detailsClosed = false;
-        for (int attempt = 0; attempt < 3 && !detailsClosed; attempt++)
-        {
-            if (panel.ProbeForTest().DetailsVisible)
-                await Press(host, panel.DetailsButtonForTest);
-            await Frames(host, 2);
-            detailsClosed = !panel.ProbeForTest().DetailsVisible;
-        }
-        session.Check("details_closes", detailsClosed, Describe(panel));
-
         session.Check("header_buttons", HeaderButtons(panel, out string header), header);
 
         // 药水 / 成长 open the strategy sidebar on their page, switch it, and close it again.
@@ -905,7 +886,6 @@ internal static class UiPanelChecks
         SolverOverlayProbe probe = panel.ProbeForTest();
         return $"visible={probe.Visible} hidden_by_shortcut={probe.HiddenByShortcut} " +
             $"collapsed={probe.Collapsed} settings={probe.SettingsVisible} sidebar={probe.SidebarPage} " +
-            $"details={probe.DetailsVisible} " +
             $"language={probe.Language} builds={probe.BuildCount}";
     }
 

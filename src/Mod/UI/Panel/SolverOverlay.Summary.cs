@@ -16,7 +16,6 @@ internal sealed partial class SolverOverlay
     private Label? _reviewText;
     private PanelContainer? _searchLimitHint;
     private Label? _searchLimitHintLabel;
-    private SolverDetailsButton? _detailsButton;
 
     private Control CreateSummarySection()
     {
@@ -81,18 +80,7 @@ internal sealed partial class SolverOverlay
         _reviewText.CustomMinimumSize = new Vector2(0, 22);
         _reviewText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _reviewText.Visible = false;
-        _detailsButton = new SolverDetailsButton { Visible = false };
-        _detailsButton.Pressed += ToggleDetails;
-        MarginContainer detailsSlot = new()
-        {
-            CustomMinimumSize = new Vector2(0, 24),
-            MouseFilter = Control.MouseFilterEnum.Pass,
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-        };
-        detailsSlot.AddChild(_detailsButton);
         statusRow.AddChild(_summaryText);
-        statusRow.AddChild(detailsSlot);
         layout.AddChild(statusRow);
         statisticsRow.AddChild(_reviewText);
         layout.AddChild(statisticsRow);
@@ -129,11 +117,6 @@ internal sealed partial class SolverOverlay
     {
         if (_summaryPanel != null)
             _summaryPanel.Visible = true;
-        if (_detailsButton != null)
-        {
-            _detailsButton.Visible = snapshot.Search != null || snapshot.Result != null;
-            _detailsButton.SetExpanded(_detailsVisible);
-        }
         SetSearchLimitHint(LimitWarning(snapshot.Search));
         // Show or hide the elapsed-time readout for the new snapshot at once, not at the next tick.
         TickSummary(now);

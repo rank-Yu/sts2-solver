@@ -56,7 +56,6 @@ internal static class SolverUiTokens
         public const float CollapsedWidth = 520f;
         public const float CollapsedHeight = 120f;
         public const float RouteViewportHeight = 148f;
-        public const float RouteViewportHeightWithDetails = 96f;
         public const float RouteRowHeight = 44f;
         public const float ActionPillHeight = 28f;
         public const float TurnColumnWidth = 88f;

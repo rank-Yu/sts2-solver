@@ -177,9 +177,7 @@ internal sealed partial class SolverOverlay
             for (int index = 1; index < TurnRows; index++)
                 SetRouteRowVisible(index, false);
         }
-        SetDetailsVisible(false);
-        if (_detailsButton != null)
-            _detailsButton.Visible = false;
+        ApplyContentVisibility();
         RefreshControls(snapshot);
     }
 
@@ -290,9 +288,7 @@ internal sealed partial class SolverOverlay
         SetReviewText(review);
         PopulateRoute(overlay, snapshot);
         SetOutcomeLabels(overlay, result);
-        if (_detailsButton != null)
-            _detailsButton.Visible = true;
-        SetDetailsVisible(false);
+        ApplyContentVisibility();
         SetPerformanceHintVisible(overlay.ProjectedBattleHpLossKnown
             && IsSignificantBattleHpLoss(true, overlay.ProjectedBattleHpLost));
         RefreshControls(snapshot);
@@ -522,9 +518,7 @@ internal sealed partial class SolverOverlay
             SetSummary(SolverText.Format(
                 $"[color={SolverUiTokens.Palette.DangerHex}]本回合搜索已停止。可手动开始搜索；进入下一回合后是否自动搜索由设置决定。[/color]"));
             SetRouteVisibility(false);
-            if (_detailsButton != null)
-                _detailsButton.Visible = false;
-            SetDetailsVisible(false);
+            ApplyContentVisibility();
         }
         RefreshControls(snapshot);
     }
@@ -548,9 +542,7 @@ internal sealed partial class SolverOverlay
             $"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索已关闭。点击“{action}”生成当前回合路线。[/color]"));
         SetReviewText(null);
         SetRouteVisibility(false);
-        if (_detailsButton != null)
-            _detailsButton.Visible = false;
-        SetDetailsVisible(false);
+        ApplyContentVisibility();
         RefreshControls(snapshot);
     }
 
@@ -564,9 +556,7 @@ internal sealed partial class SolverOverlay
         SetSummary(SolverText.Get("选牌页面出现后自动开始搜索"));
         SetReviewText(null);
         SetRouteVisibility(false);
-        if (_detailsButton != null)
-            _detailsButton.Visible = false;
-        SetDetailsVisible(false);
+        ApplyContentVisibility();
         RefreshControls(snapshot);
     }
 
@@ -612,9 +602,7 @@ internal sealed partial class SolverOverlay
         SetSummary(string.IsNullOrEmpty(reason) ? title : title + "\n" + reason);
         SetReviewText(null);
         SetRouteVisibility(false);
-        if (_detailsButton != null)
-            _detailsButton.Visible = false;
-        SetDetailsVisible(false);
+        ApplyContentVisibility();
     }
 
     private void SetSummary(string text)

@@ -1,8 +1,9 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.cs, SolverSettingsPanel.General.cs and
 // SolverSettingsPanel.Performance.cs at 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and
-// contributors). The page replaces the panel body like the original, without tabs: four groups
-// (出牌, 性能, 幕末 Boss, 显示) with only the settings Sts2Solver wires. The thread count and memory
-// limit are free inputs prefilled with the effective value; an input left as shown writes nothing,
+// contributors). The page replaces the panel body like the original, without tabs: five groups
+// (出牌, 性能, Boss 策略, 显示, 反馈) with only the settings Sts2Solver wires; 反馈 holds the
+// combat log export. The thread count and memory limit are free inputs prefilled with the
+// effective value; an input left as shown writes nothing,
 // and a value equal to the machine default is stored as null so it keeps following the machine. The
 // memory limit has 0.1 GB precision. The two Boss HP policies go through ICombatUiCommands.
 using System.Globalization;
@@ -37,6 +38,8 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     private readonly VBoxContainer _content;
     private readonly ScrollContainer _scroll;
     private readonly Label _status;
+    private readonly Button _exportLog;
+    private Task<CombatLogExport>? _export;
     private SettingsUiSnapshot _settings = new();
     private long _availableMemoryBytes;
     private string _delayShown = string.Empty;
@@ -145,7 +148,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _finalBoss.ItemSelected += OnFinalBossSelected;
         SolverSettingsControls.AddBasicRow(boss, SolverText.Get("最终 Boss 血量取舍"), _finalBoss,
             SolverText.Get("通关优先只要求路线存活并优先保留资源；最低战损会继续比较剩余血量。"));
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("幕末 Boss"), boss);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("Boss 策略"), boss);
 
         GridContainer display = SolverSettingsControls.CreateSettingsGrid();
         HBoxContainer opacityRow = new()
@@ -166,6 +169,18 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         opacityRow.AddChild(_opacityValue);
         SolverSettingsControls.AddBasicRow(display, SolverText.Get("覆盖层透明度"), opacityRow);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("显示"), display);
+
+        HBoxContainer feedback = new()
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _exportLog = SolverUiTokens.CreateButton(SolverText.Get("导出战斗日志"), SolverButtonStyle.Secondary);
+        _exportLog.Name = "ExportCombatLog";
+        _exportLog.TooltipText = SolverText.Get("遇到问题时可导出发给作者");
+        _exportLog.Pressed += ExportCombatLog;
+        feedback.AddChild(_exportLog);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("反馈"), feedback);
 
         _scroll = SolverSettingsControls.CreatePageScroll(content);
         layout.AddChild(_scroll);
@@ -249,13 +264,41 @@ internal sealed partial class SolverSettingsPage : PanelContainer
 
     public override void _Process(double delta)
     {
-        if (_pendingOpacity == null)
+        if (_export is { IsCompleted: true } export)
         {
+            _export = null;
+            ShowExport(export.Result);
+        }
+        if (_pendingOpacity != null && Time.GetTicksMsec() >= _opacitySaveAt)
+            FlushOpacity();
+        if (_pendingOpacity == null && _export == null)
             SetProcess(false);
+    }
+
+    /// <summary>Starts the export; the writer thread completes it and <see cref="_Process"/> reports it.</summary>
+    private void ExportCombatLog()
+    {
+        if (_export != null)
+            return;
+        _exportLog.Disabled = true;
+        SetStatus(SolverText.Get("正在导出…"), SolverUiTokens.Palette.TextSecondary);
+        _export = CombatUiCommands.Instance.ExportCombatLogAsync();
+        SetProcess(true);
+    }
+
+    private void ShowExport(CombatLogExport result)
+    {
+        _exportLog.Disabled = false;
+        if (result.ZipPath is not { } zip)
+        {
+            ModLog.Error($"[Sts2Solver] COMBAT_LOG_EXPORT_FAILED reason={result.Error}");
+            SetStatus(SolverText.Get("导出失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
             return;
         }
-        if (Time.GetTicksMsec() >= _opacitySaveAt)
-            FlushOpacity();
+        ModLog.Info($"[Sts2Solver] COMBAT_LOG_EXPORTED path={zip}");
+        SetStatus(SolverText.Format($"已导出 {Path.GetFileName(zip)}"), SolverUiTokens.Palette.Success);
+        if (!ModEntry.TestMode)
+            OS.ShellShowInFileManager(zip);
     }
 
     public override void _Input(InputEvent inputEvent)
@@ -552,5 +595,9 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     internal OptionButton FinalBossOptionForTest => _finalBoss;
 
     internal string StatusTextForTest => _status.Text;
+
+    internal Button ExportCombatLogButtonForTest => _exportLog;
+
+    internal bool ExportPendingForTest => _export != null;
 #endif
 }

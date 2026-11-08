@@ -220,7 +220,7 @@ internal static class SearchVerifier
             workspaceDirectMilliseconds);
     }
 
-    private static string? FirstDifference(in BeamResult expected, in BeamResult actual)
+    internal static string? FirstDifference(in BeamResult expected, in BeamResult actual)
     {
         string? difference = Difference("BestRoute", expected.BestRoute, actual.BestRoute);
         if (difference != null)

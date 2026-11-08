@@ -148,6 +148,8 @@ internal static partial class CombatSessionController
             CombatSearchRun run = await CombatSearchRunner.RunSetupAsync(host,
                 _testRoot ?? "turn_setup", _rules!, _tracker!, session.State, startRoot, setupCase,
                 session.StartTurn, _searchTier, session.Cancellation.Token);
+            CombatLogRecorder.RecordSearch(run, setup: true, session.StartTurn, "turn_setup",
+                resumed: false);
             if (!ReferenceEquals(_search, session))
                 return;
             _search = null;

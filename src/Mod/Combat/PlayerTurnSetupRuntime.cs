@@ -174,6 +174,8 @@ internal static class PlayerTurnSetupRuntime
                     {
                         List<string> diff = BattleDump.Diff(predicted, liveStart,
                             "predicted", "live");
+                        CombatLogRecorder.RecordDeviation("turn_setup_start", setupTurn, null, diff,
+                            predicted, liveStart);
                         ModLog.Warn(
                             $"[Sts2Solver] TURN_SETUP_START_PREDICTION_MISMATCH " +
                             $"turn={setupTurn} " +

@@ -29,6 +29,7 @@ try
             RetrievalAndWitherContracts.Run();
             RemainingTurnsContracts.Run();
             PoisonDelayedDamageContracts.Run();
+            ReplayLogContracts.Run();
             string magics = FormatContract.Run();
             Console.WriteLine($"K0 Passed fields={Rules.SchemaFieldCount} "
                 + $"battleBytes={Unsafe.SizeOf<Battle>()} formatVersion={Codec.FormatVersion} "
@@ -46,6 +47,8 @@ try
             return RerecordCommand.Run(args[1..]);
         case "manifest":
             return ManifestCommand.Run(args[1..]);
+        case "replay-log":
+            return ReplayLogCommand.Run(args[1..]);
         default:
             PrintUsage();
             return 2;
@@ -79,7 +82,7 @@ static void PrintUsage()
         + "[--only hash-prefix] [--verify] | refreeze <source-dir> <target-dir> [--jobs N] | "
         + "rerecord <source-dir> <target-dir> --roots <file> --reason text "
         + "[--recapture-root <dir>] [--jobs N] | "
-        + "manifest <data-dir> | k0");
+        + "manifest <data-dir> | replay-log <zip|folder> [--threads N] [--search NNN] | k0");
 
 internal static class VerifyCommand
 {

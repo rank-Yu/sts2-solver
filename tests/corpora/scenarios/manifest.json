@@ -223,6 +223,11 @@
       "group": "controller"
     },
     {
+      "id": "combat_log_export",
+      "scenario": "combat_log_export",
+      "group": "controller"
+    },
+    {
       "id": "mode_switch",
       "scenario": "mode_switch",
       "group": "controller"

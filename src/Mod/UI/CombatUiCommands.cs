@@ -39,6 +39,9 @@ internal interface ICombatUiCommands
     bool SetFinalBossHpStrategy(SearchBossHpStrategy strategy);
 
     bool SetTheftPolicy(SearchTheftPolicy policy);
+
+    /// <summary>Zips the current and previous combat logs; completes off the main thread.</summary>
+    Task<CombatLogExport> ExportCombatLogAsync();
 }
 
 internal static class CombatUiCommands
@@ -84,5 +87,7 @@ internal static class CombatUiCommands
 
         public bool SetTheftPolicy(SearchTheftPolicy policy)
             => CombatSessionController.SetTheftPolicy(policy);
+
+        public Task<CombatLogExport> ExportCombatLogAsync() => CombatLogRecorder.ExportAsync();
     }
 }

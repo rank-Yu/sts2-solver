@@ -547,6 +547,8 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return;
         }
+        if (state.Players.Count == 1 && _player != null)
+            CombatLogRecorder.BeginCombat(state, _player);
         if (state.Players.Count == 1 && state.RunState is RunState runState && _player != null)
         {
             try

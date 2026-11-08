@@ -28,6 +28,7 @@ internal static class ModLog
     private static void Write(string level, string message, Action<string> gameLog)
     {
         gameLog(message);
+        CombatLogRecorder.AppendLine(level, message);
         if (_path == null)
             return;
         try

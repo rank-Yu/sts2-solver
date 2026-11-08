@@ -2,6 +2,7 @@
 // published snapshots and write a compact assertion record for controller.json. No scenario
 // bypasses the controller's command validation.
 using System.Diagnostics;
+using System.IO.Compression;
 using Button = Godot.Button;
 using BaseButton = Godot.BaseButton;
 using Sts2Solver.Ai.Combat;
@@ -238,6 +239,9 @@ internal static class CombatControllerChecks
                     break;
                 case "plan_exhausted":
                     await PlanExhaustedAsync(host, Check, Action);
+                    break;
+                case "combat_log_export":
+                    await CombatLogExportAsync(host, Check, Action);
                     break;
                 case "pause_death_turn_deployment":
                     await PauseDeathTurnDeploymentAsync(host, Check, Action);
@@ -1053,6 +1057,47 @@ internal static class CombatControllerChecks
         check("applied", await WaitOptionalAsync(host, static s => s.IsDeploying, 240),
             "execute after the stop deploys the kept route");
         await WaitIdleAsync(host, "execute deployment done");
+    }
+
+    /// <summary>
+    /// One search writes its request, result and summary to the combat folder; the settings page's
+    /// 导出战斗日志 button zips the folder and reports the file name in the status line.
+    /// </summary>
+    private static async Task CombatLogExportAsync(NGame host, Check check, Action action)
+    {
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
+        action("set_mode:auto_search");
+        await WaitAsync(host, static s => s.Result != null, 900, "latest result");
+        await WaitIdleAsync(host, "idle with result");
+        string? folder = CombatLogRecorder.CurrentFolderForTest;
+        check("combat_folder", folder != null, folder);
+        SolverSettingsPage page = SolverOverlay.Instance?.SettingsPageForTest
+            ?? throw new InvalidOperationException("settings page missing");
+        Button button = page.ExportCombatLogButtonForTest;
+        check("export_button", button.Text == SolverText.Get("导出战斗日志")
+            && button.TooltipText == SolverText.Get("遇到问题时可导出发给作者"),
+            $"text={button.Text} tooltip={button.TooltipText}");
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        action("press_export_combat_log");
+        for (int frame = 0; frame < 600 && page.ExportPendingForTest; frame++)
+            await Frames(host, 1);
+        check("export_finished", !page.ExportPendingForTest && !button.Disabled,
+            $"pending={page.ExportPendingForTest} disabled={button.Disabled}");
+        string exports = Path.Combine(Path.GetDirectoryName(folder!)!, CombatLogRecorder.ExportsFolder);
+        string? zip = Directory.Exists(exports)
+            ? Directory.EnumerateFiles(exports, "*.zip").Order(StringComparer.Ordinal).LastOrDefault()
+            : null;
+        check("zip_written", zip != null, exports);
+        if (zip == null)
+            return;
+        check("export_status", page.StatusTextForTest == SolverText.Format($"已导出 {Path.GetFileName(zip)}"),
+            page.StatusTextForTest);
+        using ZipArchive archive = ZipFile.OpenRead(zip);
+        HashSet<string> names = [.. archive.Entries.Select(static entry => entry.FullName)];
+        string prefix = Path.GetFileName(folder!) + "/";
+        foreach (string file in new[] { "combat.json", "events.log", "search-001.json",
+                     "search-001.sreq.br", "search-001.sres.br" })
+            check("zip_" + file, names.Contains(prefix + file), string.Join(",", names.Order()));
     }
 
     private static async Task ExecuteWithoutResultAsync(NGame host, Check check, Action action)

@@ -249,6 +249,8 @@ internal static partial class CombatSessionController
                 null,
 #endif
                 session.Cancellation.Token, session.Resume, session.ResumePlan);
+            CombatLogRecorder.RecordSearch(run, setup: false, session.StartTurn,
+                ReasonName(session.Reason), resumed: session.Resume != null);
             if (!ReferenceEquals(_search, session))
                 return;
             _search = null;
@@ -464,6 +466,8 @@ internal static partial class CombatSessionController
         if (expected is { } expectedAction)
         {
             string[] diff = CombatRouteDecision.BoundaryDiff(expectedAction.Before, live);
+            CombatLogRecorder.RecordDeviation("boundary", turn, expectedAction.Index, diff,
+                expectedAction.Before, live);
             difference = string.Join(" | ", diff);
         }
         else

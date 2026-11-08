@@ -66,6 +66,11 @@ public static class ModEntry
         if (!Enabled)
             return;
         SolverSettings.Initialize();
+#if STS2_SOLVER_TESTING
+        CombatLogRecorder.Initialize(TestMode ? Path.Combine(testDirectory!, "results", "combat-logs") : null);
+#else
+        CombatLogRecorder.Initialize(null);
+#endif
         SolverText.Initialize();
         CombatSessionController.Initialize();
         if (NGame.IsMainThread())

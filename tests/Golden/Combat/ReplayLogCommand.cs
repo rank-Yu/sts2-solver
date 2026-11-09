@@ -48,15 +48,17 @@ internal static class ReplayLogCommand
             searches = [.. searches.Where(search => search.Name == $"search-{only}")];
         if (searches.Count == 0)
             throw new InvalidDataException($"{input} 里没有搜索记录。");
-        int same = 0, different = 0, skipped = 0;
+        int same = 0, different = 0, skipped = 0, unfinished = 0;
         foreach (Recorded search in searches)
         {
             string verdict = ReplayOne(search, threads);
             if (verdict == "same") same++;
             else if (verdict == "different") different++;
+            else if (verdict == "unfinished") unfinished++;
             else skipped++;
         }
-        Console.WriteLine($"REPLAY_LOG searches={searches.Count} same={same} different={different} skipped={skipped}");
+        Console.WriteLine($"REPLAY_LOG searches={searches.Count} same={same} different={different} "
+            + $"unfinished={unfinished} skipped={skipped}");
         return different == 0 ? 0 : 1;
     }
 
@@ -86,6 +88,16 @@ internal static class ReplayLogCommand
         }
 
         (CombatSearchResult outcome, List<long> replayedExpanded) = Replay(searchCase, plan, polls, threads);
+        if (log.GetProperty("status").GetString() == "Running")
+        {
+            // Saved at the start and cancelled before it finished: nothing to compare, the replay runs
+            // every member to its node cap or natural end.
+            Console.WriteLine($"REPLAY {label} verdict=unfinished selected=-1->{outcome.SelectedMember} "
+                + $"members_ran=0->{replayedExpanded.Count} "
+                + $"victory={outcome.Beam?.BestIsVictory.ToString() ?? "-"} "
+                + $"route={outcome.Beam?.BestRoute.Length.ToString() ?? "-"}");
+            return "unfinished";
+        }
         byte[]? replayed = outcome.Beam == null ? null : SearchCodec.EncodeResult(outcome.Beam);
         bool resultSame = replayed == null
             ? search.Result == null

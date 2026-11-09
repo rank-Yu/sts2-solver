@@ -893,7 +893,8 @@ internal sealed partial class BeamSolver
         while (turnFrontier.Count > 0 && turns < _options.MaxTurns && !OutOfBudget(watch))
         {
             SearchCheckpoint();
-            ProgressCheckpoint(turnFrontier, force: turns == 0);
+            ProgressCheckpoint(turnFrontier, force: turns == 0, best is null ? -1 : bestNode,
+                best ?? default);
             turns++;
             int crossTurnCutBefore = CrossTurnNoProgressPrunedTotal;
             // The previous turn's end-turn pool is no longer a route consumer; clear it before the
@@ -947,7 +948,8 @@ internal sealed partial class BeamSolver
                 next.CopyTopTo(current, width);
                 PrunePool(current);
                 playDepth++;
-                ProgressCheckpoint(current, force: false);
+                ProgressCheckpoint(current, force: false, best is null ? -1 : bestNode,
+                    best ?? default);
             }
             if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
             // The cross-turn cut left no next-turn state: this turn's start states are the horizon,
@@ -966,7 +968,8 @@ internal sealed partial class BeamSolver
             ended.CopyTopTo(turnFrontier, width, turnBoundary: true);
             PrunePool(turnFrontier);
             AssignCrossTurnProgress(turnFrontier);
-            ProgressCheckpoint(turnFrontier, force: false);
+            ProgressCheckpoint(turnFrontier, force: false, best is null ? -1 : bestNode,
+                best ?? default);
             if (zeroDamageVictory)
                 break;
         }

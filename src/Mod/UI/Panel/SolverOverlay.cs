@@ -647,6 +647,11 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal int LastOverlayTurnCountForTest => _lastOverlay?.Turns.Count ?? -1;
 
+    /// <summary>The outcome row's two verdicts of the last applied overlay: “未找到生还路线” and a known HP loss.</summary>
+    internal (bool OnlyDeath, bool HpKnown)? OutcomeForTest => _lastOverlay is { } overlay
+        ? (overlay.OnlyDeathRoutesFound, overlay.ProjectedBattleHpLossKnown)
+        : null;
+
     internal CheckButton? AutoSearchSwitchForTest => _autoSearchSwitch;
 
     internal Button? PotionButtonForTest => _potionButton;

@@ -486,8 +486,12 @@ internal static class CombatSearchCoordinator
             PlannedBudgetMilliseconds = plannedMilliseconds,
             ForcedPotionsUnsatisfied = forcedPotionsUnsatisfied,
             ResumeMerge = resumeMerge,
-            OnlyDeathRoutes = resumeMerge is { KeptStopped: true }
-                && resume?.StoppedResult is not null && resume.OnlyDeathRoutes,
+            // The verdict belongs to the route the request returns: a kept stopped result carries
+            // its own, otherwise the selected candidate decides. The last progress preview is not a
+            // verdict: it is whatever the last member held at its last checkpoint.
+            OnlyDeathRoutes = resumeMerge is { KeptStopped: true } && resume?.StoppedResult is not null
+                ? resume.OnlyDeathRoutes
+                : selected is { } chosenCandidate && !chosenCandidate.Key.Survives,
             CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
         };
 

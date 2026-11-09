@@ -267,13 +267,20 @@ Golden 和 Mod 的默认整场流程。订阅只读取搜索状态，不改变�
 | `BestCompleteResult` | 此前成员中已经采用的最好完整胜利路线摘要：成员序号、掉血、用药次数、动作数、分数和结束回合。没有完整胜利时为空。 |
 | `CandidateVersion` | 单调递增的候选版本号；没有候选时保持上一次的值。 |
 
-推演路线取当前保留节点中按最终排序最好的一个，语义对照 CombatSolver
-`src/Search/CombatBeamSolver.Phases.cs:883-1030` 的 `BuildRoutePreview` /
-`PublishRoutePreview`：先过滤没有动作的根席位，再按 `FinalOrdering` 的键比较，淘汰后胜出者
-从根回放。Sts2Solver 不保存每个节点的快照，因此回放同时生成逐回合数值；当前回合预览取回放
+推演路线取当前保留节点和本成员目前最好的终局路线（已经打完的胜利或死亡）中按最终排序最好的
+一个，语义对照 CombatSolver `src/Search/CombatBeamSolver.Phases.cs:883-1030` 的
+`BuildRoutePreview` / `PublishRoutePreview`（候选池是 `retained ∪ completed`）：先过滤没有动作
+的根席位，再按 `FinalOrdering` 的键比较，淘汰后胜出者从根回放。所以一个成员搜到胜利以后，
+即使前沿还在探索更长的拖延路线，推演路线仍是那条胜利；“候选全是死亡路线”只在保留节点和终局
+路线都活不下来时成立。终局路线不在任何保留池里，回放结果就是它被采用时的状态。用药审计成员
+（`_auditPotionPolicy`）的终局候选另行记录，预览仍只取保留节点。Sts2Solver 不保存每个节点的快照，因此回放同时生成逐回合数值；当前回合预览取回放
 结果中起始回合的那一段，对应 `RefreshCurrentTurnPreview`（同文件 `412-451`）。只有完整胜利
 才会更新 `BestCompleteResult`，对应 `src/Search/CombatSearchCoordinator.cs:29-140` 的
 `PublishAdoptableResult` 规则。
+
+搜索结束后面板上的“未找到生还路线”取协调器对返回路线的结论（`CombatSearchResult.OnlyDeathRoutes`）：
+采用或停止时是被采用候选的标记，正常完成时是选中候选活不下来（`!Key.Survives`），续搜保留停止
+结果时沿用那次的标记。它不再取最后一份进度快照：那只是最后一个成员最后一个检查点手里的候选。
 
 ### 9.2 发布时点与节流
 

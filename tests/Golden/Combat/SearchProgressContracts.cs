@@ -43,8 +43,10 @@ internal static class SearchProgressContracts
             CoordinatorAdoption(original, baseline, threads);
             BestCompleteSummary(original, baseline, threads);
             StopChoosesBetterCompleted(original, baseline, threads);
+            TerminalVictoryPreview(original, baseline, threads);
+            CompletedOnlyDeathVerdict(original, baseline, threads);
         }
-        Console.WriteLine("SEARCH_PROGRESS adoption/stop/stale/threads=pass");
+        Console.WriteLine("SEARCH_PROGRESS adoption/stop/stale/terminal/verdict/threads=pass");
     }
 
     private static BeamOptions ForThreads(BeamOptions baseline, int threads,
@@ -222,6 +224,63 @@ internal static class SearchProgressContracts
             $"{threads}t coordinator returns the adopted member result");
         _ = ReplayedRoute.Build(original.Battles[result.Beam!.BestRootIndex], original.Rules,
             result.Beam.BestRoute, result.Beam.BestIsVictory);
+    }
+
+    /// <summary>
+    /// A victory found while the frontier is still undecided is the preview (CombatSolver publishes
+    /// <c>retained ∪ completed</c>), it is not an only-death verdict, and adopting it returns that
+    /// victory. Before POF1 the preview held frontier states only, so a won route never showed.
+    /// </summary>
+    private static void TerminalVictoryPreview(SearchCase original, BeamOptions baseline, int threads)
+    {
+        BeamResult plain = new BeamSolver(original.Rules, baseline with { SearchThreads = threads })
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(plain.BestIsVictory, $"{threads}t the contract request is won");
+        SearchProgressChannel channel = new(0);
+        SearchRoutePreview? victory = null;
+        channel.Published = snapshot =>
+        {
+            if (victory is not null || snapshot.Route is not { Victory: true } route)
+                return;
+            ValidateSnapshot(snapshot, route, threads);
+            Assert(!route.OnlyDeathRoutes, $"{threads}t a victory preview is not an only-death verdict");
+            Assert(route.Turns[^1].CombatEnded, $"{threads}t a victory preview ends the combat");
+            victory = route;
+            Assert(channel.RequestAdopt(route.CandidateVersion),
+                $"{threads}t victory preview adoption is accepted");
+        };
+        BeamResult result = new BeamSolver(original.Rules, ForThreads(baseline, threads, channel))
+            .Solve(original.Battles, CancellationToken.None);
+        Assert(victory is not null, $"{threads}t a victory found during the search becomes the preview");
+        Assert(result.Adoption is { Kind: SearchAdoptionKind.Requested } && result.BestIsVictory
+            && Equal(result.BestRoute, victory!.Actions),
+            $"{threads}t adopting the victory preview returns that victory");
+        _ = ReplayedRoute.Build(original.Battles[result.BestRootIndex], original.Rules,
+            result.BestRoute, result.BestIsVictory);
+    }
+
+    /// <summary>
+    /// A completed request's only-death verdict is the selected route's: a won request is never
+    /// reported as only-death, whatever the last member's last preview held.
+    /// </summary>
+    private static void CompletedOnlyDeathVerdict(SearchCase original, BeamOptions baseline, int threads)
+    {
+        SearchPlan plan = new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };
+        SearchProgressChannel channel = new(0) { Published = static _ => { } };
+        static ValueTask<SearchMemberMeasurement> RunMember(SearchCase member,
+            SearchStorage shared, CancellationToken token)
+            => ValueTask.FromResult(new SearchMemberMeasurement(
+                new BeamSolver(member.Rules, member.Options).Solve(member.Battles, shared, token),
+                "ok", null, 0));
+        CombatSearchResult result = CombatSearchCoordinator.RunAsync(
+            new(original with { Options = baseline with { SearchThreads = threads } }, plan)
+            {
+                Progress = channel,
+            }, new SearchStorage(), RunMember, CancellationToken.None, static () => 0)
+            .AsTask().GetAwaiter().GetResult();
+        Assert(result.Completion == SearchCompletionKind.Completed
+            && result.Status == CombatSearchStatus.Victory && !result.OnlyDeathRoutes,
+            $"{threads}t a won completed request is not an only-death verdict");
     }
 
     private static void StopChoosesBetterCompleted(SearchCase original, BeamOptions baseline,

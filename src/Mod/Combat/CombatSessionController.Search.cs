@@ -878,7 +878,7 @@ internal static partial class CombatSessionController
         ModLog.Error($"[Sts2Solver] CONTROLLER_SEARCH_SETUP_FAILED code={code} {detail}");
     }
 
-    private static string ReasonName(CombatSearchReason reason) => reason switch
+    internal static string ReasonName(CombatSearchReason reason) => reason switch
     {
         CombatSearchReason.Manual => "manual",
         CombatSearchReason.AutoTurnStart => "auto_turn_start",

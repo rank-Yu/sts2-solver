@@ -169,11 +169,45 @@ internal sealed class SolverSettingsStore
                 _error($"[Sts2Solver] SETTINGS_SAVE_FAILED reason=access path={_path} detail={error}");
                 return false;
             }
+            SolverSettingsData previous = _current;
             _current = next;
             error = null;
-            _info($"[Sts2Solver] SETTINGS_SAVED path={_path} schema={next.SchemaVersion}");
+            _info($"[Sts2Solver] SETTINGS_SAVED path={_path} schema={next.SchemaVersion} "
+                + $"changed={DescribeChanges(previous, next)}");
             return true;
         }
+    }
+
+    /// <summary>
+    /// The changed settings as <c>path:old-&gt;new</c> pairs, so a log shows what a save changed (for
+    /// example <c>search.tier:ExtraHigh-&gt;Medium</c>). Arrays compare as one value.
+    /// </summary>
+    internal static string DescribeChanges(SolverSettingsData previous, SolverSettingsData next)
+    {
+        List<string> changes = [];
+        Compare(JsonSerializer.SerializeToNode(previous, JsonOptions),
+            JsonSerializer.SerializeToNode(next, JsonOptions), string.Empty, changes);
+        return changes.Count == 0 ? "-" : string.Join(",", changes);
+
+        static void Compare(JsonNode? before, JsonNode? after, string path, List<string> changes)
+        {
+            if (before is JsonObject left && after is JsonObject right)
+            {
+                foreach (string key in left.Select(static pair => pair.Key)
+                    .Union(right.Select(static pair => pair.Key), StringComparer.Ordinal))
+                {
+                    Compare(left[key], right[key], path.Length == 0 ? key : path + "." + key, changes);
+                }
+                return;
+            }
+            string old = before?.ToJsonString() ?? "null";
+            string now = after?.ToJsonString() ?? "null";
+            if (old != now)
+                changes.Add($"{path}:{Compact(old)}->{Compact(now)}");
+        }
+
+        static string Compact(string json)
+            => json.Replace("\"", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal);
     }
 
     private static SolverSettingsStore Corrupt(string path, string reason, string detail,

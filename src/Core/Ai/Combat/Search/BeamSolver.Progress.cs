@@ -36,7 +36,10 @@ internal sealed partial class BeamSolver
     /// It first consumes a pending adoption/stop request, then publishes at most once per throttle
     /// interval. Workers never reach this method.
     /// </summary>
-    private void ProgressCheckpoint(Pool? retained, bool force)
+    /// <param name="terminalNode">The best terminal route so far (a won or lost combat), or -1.</param>
+    /// <param name="terminalKey">That route's ordering key; ignored when <paramref name="terminalNode"/> is -1.</param>
+    private void ProgressCheckpoint(Pool? retained, bool force, int terminalNode = -1,
+        RouteKey terminalKey = default)
     {
         if (_options.Progress is null)
             return;
@@ -47,7 +50,9 @@ internal sealed partial class BeamSolver
             return;
         _lastProgressAt = now;
 
-        SearchRouteCandidate? built = retained is null ? null : BuildRouteCandidate(retained);
+        SearchRouteCandidate? built = retained is null && terminalNode < 0
+            ? null
+            : BuildRouteCandidate(retained, terminalNode, terminalKey);
         if (built is not null)
             channel.AddCandidate(built);
         SearchRoutePreview? route = built is null ? null : new SearchRoutePreview(
@@ -106,17 +111,20 @@ internal sealed partial class BeamSolver
     }
 
     /// <summary>
-    /// The best final-ordering candidate among the retained nodes, matching
-    /// <c>PublishRoutePreview</c>'s RankFinal + FinalOrdering.Select pass. Root seats carry no action
-    /// and are not viable, exactly like the existing <c>ActionCount &gt; 0</c> filter.
+    /// The best final-ordering candidate among the retained nodes and the best terminal route,
+    /// matching <c>PublishRoutePreview</c>'s RankFinal + FinalOrdering.Select pass over
+    /// <c>retained ∪ completed</c>: a victory found earlier in the member stays the preview while the
+    /// frontier is still undecided. Root seats carry no action and are not viable, exactly like the
+    /// existing <c>ActionCount &gt; 0</c> filter.
     /// </summary>
-    private SearchRouteCandidate? BuildRouteCandidate(Pool retained)
+    private SearchRouteCandidate? BuildRouteCandidate(Pool? retained, int terminalNode,
+        RouteKey terminalKey)
     {
         int bestSlot = -1;
         int bestNode = -1;
         RouteKey bestKey = default;
         bool onlyDeathRoutes = true;
-        for (int slot = 0; slot < retained.Count; slot++)
+        for (int slot = 0; retained is not null && slot < retained.Count; slot++)
         {
             int node = retained.Node(slot);
             int depth = _nodes.View(node).Depth;
@@ -135,18 +143,27 @@ internal sealed partial class BeamSolver
                 bestKey = key;
             }
         }
-        if (bestSlot < 0)
+        bool terminalChosen = terminalNode >= 0
+            && (bestSlot < 0 || CompareRoutes(terminalKey, bestKey) < 0);
+        if (terminalNode >= 0 && terminalKey.Survives)
+            onlyDeathRoutes = false;
+        if (bestSlot < 0 && !terminalChosen)
             return null;
 
-        PlayerAction[] actions = Route(bestNode);
-        int rootIndex = RootIndex(bestNode);
-        Battle finalState = retained.State(bestSlot);
+        int chosenNode = terminalChosen ? terminalNode : bestNode;
+        RouteKey chosenKey = terminalChosen ? terminalKey : bestKey;
+        PlayerAction[] actions = Route(chosenNode);
+        int rootIndex = RootIndex(chosenNode);
         ProgressReplay replay = ReplayProgress(actions, rootIndex);
-        if (!Fingerprint.Equal(replay.FinalState, finalState))
+        // A terminal route keeps no state in a pool; its replay is the state the candidate adopts.
+        Battle finalState = terminalChosen ? replay.FinalState : retained!.State(bestSlot);
+        if (!terminalChosen && !Fingerprint.Equal(replay.FinalState, finalState))
             throw new InvalidDataException("推演候选从根回放后的状态与保留节点不一致。");
+        if (terminalChosen && (replay.FinalState.Outcome == Outcome.Victory) != chosenKey.Won)
+            throw new InvalidDataException("推演候选的终局路线回放后胜负与搜索记录不一致。");
         int version = ++_progressCandidateVersion;
         return new SearchRouteCandidate(version, _initialPlayerTurn, replay.ThroughTurn, rootIndex,
-            actions, finalState, replay.Turns, bestKey.Score, bestKey.Won, onlyDeathRoutes);
+            actions, finalState, replay.Turns, chosenKey.Score, chosenKey.Won, onlyDeathRoutes);
     }
 
     /// <summary>

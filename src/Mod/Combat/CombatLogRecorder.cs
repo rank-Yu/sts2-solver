@@ -5,6 +5,7 @@
 // file I/O, so a slow or failing disk never stalls the game or a search. The settings page exports
 // the two newest combats as a zip the player can send; Golden replay-log reruns the searches.
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using Godot;
@@ -14,6 +15,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Runs;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
+using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver;
@@ -42,6 +44,11 @@ internal static class CombatLogRecorder
     private static int _searches;
     private static int _deviations;
     private static int _writeFailureReported;
+
+    /// <summary>Searches whose request <see cref="BeginSearch"/> already saved, by the compiled case.</summary>
+    private static readonly ConditionalWeakTable<SearchCase, BegunSearch> Begun = new();
+
+    private sealed record BegunSearch(int Index, string? EncodeError);
 
     /// <summary>Resolves the log folder and starts the writer. Test mode passes its result folder.</summary>
     internal static void Initialize(string? rootOverride)
@@ -97,31 +104,73 @@ internal static class CombatLogRecorder
         Enqueue(() => File.AppendAllText(Path.Combine(folder, "events.log"), line));
     }
 
+    /// <summary>
+    /// Saves a search's request and plan as soon as it is compiled, with status <c>Running</c>. A search
+    /// the game cancels before it finishes (the combat ends, the player moves on) never reaches
+    /// <see cref="RecordSearch"/>; its request still replays. <see cref="RecordSearch"/> completes the
+    /// same entry.
+    /// </summary>
+    internal static void BeginSearch(SearchCase searchCase, SearchPlan plan, bool setup, int turn,
+        string reason, bool resumed, SearchPerformanceTier tier, int threads)
+    {
+        if (Volatile.Read(ref _current) is not { } folder)
+            return;
+        int index = Interlocked.Increment(ref _searches);
+        byte[]? request = EncodeRequest(searchCase, index, out string? encodeError);
+        Begun.AddOrUpdate(searchCase, new BegunSearch(index, encodeError));
+        CombatSearchLog entry = CombatSearchLog.Started(index, setup, turn, reason, resumed, tier, threads,
+            plan, encodeError);
+        string stem = Path.Combine(folder, $"search-{index:D3}");
+        Enqueue(() =>
+        {
+            if (request != null)
+                WriteCompressed(stem + ".sreq.br", request);
+            WriteJson(stem + ".json", entry);
+        });
+    }
+
+    private static byte[]? EncodeRequest(SearchCase searchCase, int index, out string? encodeError)
+    {
+        encodeError = null;
+        byte[]? request = null;
+        try
+        {
+            request = SearchCodec.EncodeRequest(searchCase);
+        }
+        catch (InvalidDataException error)
+        {
+            encodeError = error.Message;
+        }
+        catch (InvalidOperationException error)
+        {
+            encodeError = error.Message;
+        }
+        if (encodeError != null)
+            ModLog.Error($"[Sts2Solver] COMBAT_LOG_ENCODE_FAILED search={index} reason={encodeError}");
+        return request;
+    }
+
     /// <summary>Saves one finished search: its request, the selected result and the member summary.</summary>
     internal static void RecordSearch(CombatSearchRun run, bool setup, int turn, string reason, bool resumed)
     {
         if (Volatile.Read(ref _current) is not { } folder)
             return;
-        int index = Interlocked.Increment(ref _searches);
+        int index;
         byte[]? request = null;
         string? encodeError = null;
-        if (run.Case is { } searchCase)
+        if (run.Case is { } begunCase && Begun.TryGetValue(begunCase, out BegunSearch? begun))
         {
-            try
-            {
-                request = SearchCodec.EncodeRequest(searchCase);
-            }
-            catch (InvalidDataException error)
-            {
-                encodeError = error.Message;
-            }
-            catch (InvalidOperationException error)
-            {
-                encodeError = error.Message;
-            }
+            // BeginSearch already wrote the request; this completes its entry.
+            Begun.Remove(begunCase);
+            index = begun.Index;
+            encodeError = begun.EncodeError;
         }
-        if (encodeError != null)
-            ModLog.Error($"[Sts2Solver] COMBAT_LOG_ENCODE_FAILED search={index} reason={encodeError}");
+        else
+        {
+            index = Interlocked.Increment(ref _searches);
+            if (run.Case is { } searchCase)
+                request = EncodeRequest(searchCase, index, out encodeError);
+        }
         BeamResult? beam = run.Outcome.Beam;
         byte[]? result = beam == null ? null : SearchCodec.EncodeResult(beam);
         CombatSearchLog entry = CombatSearchLog.From(run, index, setup, turn, reason, resumed, encodeError);
@@ -342,6 +391,13 @@ internal sealed record CombatSearchLog(int SchemaVersion, int Index, string Kind
     double? Score, int? BestRootIndex, string[] Route, string? ErrorCode, string? ErrorDetail,
     string? EncodeError, CombatSearchMemberLog[] Members)
 {
+    /// <summary>The entry written when a search starts; status and completion stay <c>Running</c> until it finishes.</summary>
+    internal static CombatSearchLog Started(int index, bool setup, int turn, string reason, bool resumed,
+        SearchPerformanceTier tier, int threads, SearchPlan plan, string? encodeError)
+        => new(CombatLogRecorder.SchemaVersion, index, setup ? "setup" : "play", turn, reason, resumed,
+            tier.ToString(), threads, CombatSearchPlanLog.From(plan), "Running", "Running", -1, 0, 0,
+            null, null, null, [], null, null, encodeError, []);
+
     internal static CombatSearchLog From(CombatSearchRun run, int index, bool setup, int turn,
         string reason, bool resumed, string? encodeError)
     {

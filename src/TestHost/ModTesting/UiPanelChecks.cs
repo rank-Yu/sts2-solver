@@ -502,6 +502,9 @@ internal static class UiPanelChecks
                 $"mismatches={observer.HighlightMismatches}");
             session.Check("route_motion_stable_during_deploy", observer.MotionMismatches == 0,
                 $"checks={observer.MotionChecks} mismatches={observer.MotionMismatches}");
+            session.Check("outcome_labels_consistent",
+                observer.OutcomeChecks > 0 && observer.OutcomeMismatches == 0,
+                $"checks={observer.OutcomeChecks} mismatches={observer.OutcomeMismatches}");
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
             // A combat that pauses before its first deployment (e.g. the opening search predicts
@@ -1026,6 +1029,10 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int MotionMismatches { get; private set; }
 
+    internal int OutcomeChecks { get; private set; }
+
+    internal int OutcomeMismatches { get; private set; }
+
     private int _motionTurn = -1;
     private (int Restarts, int Rebuilds)[] _motionBaseline = [];
 
@@ -1087,6 +1094,23 @@ internal sealed partial class UiPanelObserver : Node
         CheckButtons(snapshot);
         CheckRows(snapshot, probe);
         CheckDeploymentMotion(snapshot, probe);
+        CheckOutcomeLabels(snapshot);
+    }
+
+    /// <summary>
+    /// A known HP outcome comes only from a route that wins; “未找到生还路线” says no route survives. The
+    /// two never describe the same route (POF1: the verdict used to come from the last member's last
+    /// preview while the selected route was a won one).
+    /// </summary>
+    private void CheckOutcomeLabels(CombatUiSnapshot snapshot)
+    {
+        if (_panel!.OutcomeForTest is not { } outcome)
+            return;
+        OutcomeChecks++;
+        if (!outcome.OnlyDeath || !outcome.HpKnown)
+            return;
+        OutcomeMismatches++;
+        Record($"outcome seq={snapshot.Sequence} phase={snapshot.Phase} only_death=True hp_known=True");
     }
 
     /// <summary>

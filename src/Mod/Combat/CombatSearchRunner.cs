@@ -82,6 +82,8 @@ internal static class CombatSearchRunner
         if (CombatControllerTestHooks.SearchMillisecondsPerWidthForTest is { } fastMilliseconds)
             plan = plan with { MillisecondsPerWidth = fastMilliseconds };
 #endif
+        CombatLogRecorder.BeginSearch(searchCase, plan, setup: false, turn,
+            CombatSessionController.ReasonName(reason), resumed: resume != null, tier, threads);
         SearchStorage storage = new();
         List<SearchMemberRunUi> memberRuns = [];
         SearchProgressChannel? progress = SearchSession.BeginProgress();
@@ -163,8 +165,7 @@ internal static class CombatSearchRunner
             return RouteFailed(CombatFailureDetail.Capacity(error), "route_capacity");
         }
         tracker.Observe(searchRoot);
-        CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route,
-            finalProgress?.Route?.OnlyDeathRoutes ?? false,
+        CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route, outcome.OnlyDeathRoutes,
             postCombatRelicHeal: searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={reason} ms={outcome.ElapsedMs} " +
@@ -278,6 +279,8 @@ internal static class CombatSearchRunner
         if (CombatControllerTestHooks.SearchMillisecondsPerWidthForTest is { } fastMilliseconds)
             plan = plan with { MillisecondsPerWidth = fastMilliseconds };
 #endif
+        CombatLogRecorder.BeginSearch(searchCase, plan, setup: true, turn, "turn_setup",
+            resumed: false, tier, threads);
         SearchStorage storage = new();
         List<SearchMemberRunUi> memberRuns = [];
         SearchProgressChannel? progress = SearchSession.BeginProgress();
@@ -337,9 +340,8 @@ internal static class CombatSearchRunner
                 "turn_setup_failed", $"准备路线回放超出容量：region={error.Region} {error.Message}");
         }
         tracker.Observe(in searchCase.Battles[beam.BestRootIndex]);
-        CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route,
-            finalProgress?.Route?.OnlyDeathRoutes ?? false, choices,
-            searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
+        CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route, outcome.OnlyDeathRoutes,
+            choices, searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
         CombatStateStamp playStamp = CombatStateStamp.Capture(in searchCase.Battles[beam.BestRootIndex]);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={CombatSearchReason.TurnSetup} " +

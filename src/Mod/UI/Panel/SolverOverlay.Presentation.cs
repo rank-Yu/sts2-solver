@@ -30,6 +30,8 @@ internal sealed partial class SolverOverlay
     private bool _lastDeploymentEndedTurn;
     private SolverOverlaySnapshot? _deploymentOverlay;
     private int _lastResultCandidate = -1;
+    private bool _routeStale;
+    private bool _turnStartHighlighted;
     private long _lastProgressReviewedWorldlines;
     private long _lastProgressSampledAt;
     private long _reviewedWorldlinesBeforeSearch;
@@ -131,7 +133,81 @@ internal sealed partial class SolverOverlay
         {
             ShowManualCalculationReady(snapshot);
         }
+        ApplyRouteFreshness(overlay, snapshot);
+        ApplyTurnStartChoiceHighlight(overlay, snapshot);
     }
+
+    /// <summary>
+    /// A shown result whose start no longer matches the live state (the player played on, or a new turn
+    /// began without a search) stays as a reference, marked the way CombatSolver marks a retained route
+    /// that can no longer run (<c>ShowRetainedRoute</c> at 5c773caa): status 历史路线（仅供参考）, heading
+    /// 已保存路线（已过期）, rows dimmed. When it matches again the result is shown as usual.
+    /// </summary>
+    private void ApplyRouteFreshness(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
+    {
+        bool stale = _presentation == SolverOverlayPresentation.Ready
+            && snapshot.Result != null
+            && snapshot.Phase is not (CombatUiPhase.Searching or CombatUiPhase.Deploying)
+            && !snapshot.CurrentTurnRouteReady
+            && _routeOutcomePanel is { Visible: true };
+        if (stale)
+        {
+            string status = SolverText.Get("历史路线（仅供参考）");
+            if (_summaryStateLabel?.Text != status)
+            {
+                SetStatus(status, SolverUiTokens.Palette.TextMuted,
+                    SolverText.Format($"第 {snapshot.Turn} 回合"));
+            }
+            SetRouteHeading(SolverText.Get("已保存路线（已过期）"));
+        }
+        else if (_routeStale && _presentation == SolverOverlayPresentation.Ready
+                 && snapshot.Result is { } result)
+        {
+            ShowResult(overlay, snapshot, result);
+        }
+        if (_routeScroll != null)
+            _routeScroll.Modulate = stale ? StaleRouteModulate : Godot.Colors.White;
+        _routeStale = stale;
+    }
+
+    private static readonly Godot.Color StaleRouteModulate = new(1f, 1f, 1f, 0.5f);
+
+    /// <summary>
+    /// While the game waits on the turn-setup page with a plan and the solver is not driving it, the current
+    /// turn's start-choice pills are the step to take now (CombatSolver PopulateRoute, PendingTurnSetup).
+    /// </summary>
+    private void ApplyTurnStartChoiceHighlight(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
+    {
+        bool waiting = _presentation is SolverOverlayPresentation.Ready
+                or SolverOverlayPresentation.TurnSetupContinuation
+            && snapshot.TurnSetupPageOpen && snapshot.TurnSetupPlanReady && !snapshot.TurnSetupDriving;
+        if (!waiting && !_turnStartHighlighted)
+            return;
+        for (int index = 0; index < overlay.Turns.Count && index < TurnRows; index++)
+        {
+            if (overlay.Turns[index].Turn != snapshot.Turn)
+                continue;
+            RouteRows[index].SetTurnStartChoiceDeploymentState(active: waiting, completed: false);
+            break;
+        }
+        _turnStartHighlighted = waiting;
+    }
+
+#if STS2_SOLVER_TESTING
+    /// <summary>Whether the shown route is marked as no longer matching the live state.</summary>
+    internal bool RouteStaleForTest => _routeStale;
+
+    /// <summary>Whether the row of <paramref name="turn"/> shows start-choice pills, all lit as the current step.</summary>
+    internal bool TurnStartChoicesActiveForTest(int turn)
+    {
+        for (int index = 0; index < TurnRows; index++)
+        {
+            if (RouteRows[index].Visible && RouteRows[index].Turn == turn)
+                return RouteRows[index].TurnStartChoicesActiveForTest;
+        }
+        return false;
+    }
+#endif
 
     private void ShowSearching(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot,
         SearchUiSnapshot search)

@@ -356,6 +356,12 @@ internal sealed partial class SolverRouteRow : PanelContainer
         }
     }
 
+#if STS2_SOLVER_TESTING
+    /// <summary>The row has start-choice pills and every one is lit as the active step.</summary>
+    internal bool TurnStartChoicesActiveForTest => _turnStartChoicePills.Count > 0
+        && _turnStartChoicePills.All(pill => _pillMotion.TryGetValue(pill, out PillMotion? motion) && motion.Active);
+#endif
+
     public void SetTurnStartChoiceDeploymentState(bool active, bool completed)
     {
         if (_turnStartChoicePills.Count == 0)

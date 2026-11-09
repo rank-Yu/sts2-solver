@@ -450,6 +450,15 @@ internal static class CombatControllerChecks
         check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
+        // A route searched this turn and then left behind by the turn ending stays as a marked reference.
+        await PressPanelButtonAsync(host, PanelButton.Search, "search");
+        action("press_search");
+        CombatUiSnapshot ready = await WaitAsync(host,
+            static s => s.Result != null && !s.IsSearching, 900, "route ready");
+        await Frames(host, 4);
+        SolverOverlay? panel = SolverOverlay.Instance;
+        check("fresh_route_not_stale", ready.CurrentTurnRouteReady && panel?.RouteStaleForTest == false,
+            $"ready={ready.CurrentTurnRouteReady} heading={panel?.RouteHeadingForTest}");
         int before = Snapshot().Searches;
         await ForceEndTurnAsync(host);
         action("force_end_turn");
@@ -458,6 +467,12 @@ internal static class CombatControllerChecks
         check("no_search", after.Searches == before, $"{before}->{after.Searches}");
         check("not_searching", !after.IsSearching);
         check("auto_search_off", !after.AutomaticCalculationEnabled);
+        check("stale_route_kept", after.Result != null && !after.CurrentTurnRouteReady,
+            $"result={after.Result != null} ready={after.CurrentTurnRouteReady}");
+        check("stale_route_marked", panel?.RouteStaleForTest == true
+            && panel.StatusTextForTest == SolverText.Get("历史路线（仅供参考）")
+            && panel.RouteHeadingForTest == SolverText.Get("已保存路线（已过期）"),
+            $"status={panel?.StatusTextForTest} heading={panel?.RouteHeadingForTest}");
     }
 
     /// <summary>
@@ -1310,6 +1325,10 @@ internal static class CombatControllerChecks
         check("page_no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
         string[] texts = SetupChoiceTexts(host);
         check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
+        await Frames(host, 4);
+        check("capsule_highlighted",
+            SolverOverlay.Instance?.TurnStartChoicesActiveForTest(plan.Turn) == true,
+            $"turn={plan.Turn}");
         int reused = plan.ReusedTurns;
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_turn_two_setup");
         action("press_execute_turn_two_setup");

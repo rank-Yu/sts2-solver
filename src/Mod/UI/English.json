@@ -357,5 +357,7 @@
   "还要用：{0}瓶（{1}）": "Remaining: {0} potion(s) ({1})",
   "预计未追回：{0} 张牌 / {1} 金币": "Unrecovered: {0} cards / {1} gold",
   "{0}    已排队执行": "{0}    Execution queued",
-  "第 {0} 回合    已排队执行": "Turn {0}    Execution queued"
+  "第 {0} 回合    已排队执行": "Turn {0}    Execution queued",
+  "历史路线（仅供参考）": "Previous route (reference only)",
+  "已保存路线（已过期）": "Saved route (outdated)"
 }

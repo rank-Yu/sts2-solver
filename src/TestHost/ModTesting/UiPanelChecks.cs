@@ -502,6 +502,10 @@ internal static class UiPanelChecks
                 $"mismatches={observer.HighlightMismatches}");
             session.Check("route_motion_stable_during_deploy", observer.MotionMismatches == 0,
                 $"checks={observer.MotionChecks} mismatches={observer.MotionMismatches}");
+            session.Check("strategy_outcomes_match_result",
+                observer.StrategyChecks > 0 && observer.StrategyMismatches == 0,
+                $"checks={observer.StrategyChecks} shown={observer.StrategyShownFrames} " +
+                $"mismatches={observer.StrategyMismatches}");
             session.Check("outcome_labels_consistent",
                 observer.OutcomeChecks > 0 && observer.OutcomeMismatches == 0,
                 $"checks={observer.OutcomeChecks} mismatches={observer.OutcomeMismatches}");
@@ -1033,6 +1037,12 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int OutcomeMismatches { get; private set; }
 
+    internal int StrategyChecks { get; private set; }
+
+    internal int StrategyShownFrames { get; private set; }
+
+    internal int StrategyMismatches { get; private set; }
+
     private int _motionTurn = -1;
     private (int Restarts, int Rebuilds)[] _motionBaseline = [];
 
@@ -1095,6 +1105,31 @@ internal sealed partial class UiPanelObserver : Node
         CheckRows(snapshot, probe);
         CheckDeploymentMotion(snapshot, probe);
         CheckOutcomeLabels(snapshot);
+        CheckStrategyOutcomes(snapshot);
+    }
+
+    /// <summary>
+    /// The strategy outcome row shows one part per non-empty group of the shown result, derived here from
+    /// the snapshot alone: aligned counters, unmet targets, realized growth; nothing while searching.
+    /// </summary>
+    private void CheckStrategyOutcomes(CombatUiSnapshot snapshot)
+    {
+        (bool headingVisible, string[] texts) = _panel!.StrategyOutcomesForTest;
+        if (!headingVisible)
+            return;
+        StrategyChecks++;
+        CombatResultUiSnapshot? result = snapshot.Result ?? snapshot.RouteResult;
+        int expected = snapshot.Phase == CombatUiPhase.Searching || result == null
+            ? 0
+            : (result.StrategyRelics.Any(static relic => relic.Met) ? 1 : 0)
+                + (result.StrategyRelics.Any(static relic => !relic.Met) ? 1 : 0)
+                + (result.StrategyGrowth.Length > 0 ? 1 : 0);
+        if (texts.Length > 0)
+            StrategyShownFrames++;
+        if (texts.Length == expected)
+            return;
+        StrategyMismatches++;
+        Record($"strategy seq={snapshot.Sequence} phase={snapshot.Phase} expected={expected} shown={texts.Length}");
     }
 
     /// <summary>

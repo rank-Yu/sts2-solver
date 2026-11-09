@@ -14,6 +14,8 @@ internal sealed partial class SolverOverlay
     private PanelContainer? _routeOutcomePanel;
     private Label? _routeHeadingLabel;
     private Label? _deathOutcomeLabel;
+    private HFlowContainer? _strategyOutcomeRow;
+    private string? _strategyOutcomeKey;
     private Label? _potionOutcomeLabel;
     private Label? _hpOutcomeLabel;
     private Label? _hpRecoveredOutcomeLabel;
@@ -49,6 +51,15 @@ internal sealed partial class SolverOverlay
         _potionOutcomeLabel.Visible = false;
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         headingRow.AddChild(_potionOutcomeLabel);
+        _strategyOutcomeRow = new HFlowContainer
+        {
+            Alignment = FlowContainer.AlignmentMode.End,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Visible = false,
+        };
+        _strategyOutcomeRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        headingRow.AddChild(_strategyOutcomeRow);
+        _strategyOutcomeKey = null;
         _hpOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("本局扣血  0 HP"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Success);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
@@ -99,12 +110,52 @@ internal sealed partial class SolverOverlay
         or SolverOverlayPresentation.TurnSetupContinuation
         or SolverOverlayPresentation.TurnSetupDriving;
 
+    /// <summary>Rebuilds the strategy outcome labels only when their text changes (every refresh calls this).</summary>
+    private void PopulateStrategyOutcomes(IReadOnlyList<SolverStrategyOutcome> outcomes)
+    {
+        if (_strategyOutcomeRow == null)
+            return;
+        string key = string.Join("\n", outcomes.Select(static outcome => $"{outcome.Satisfied}|{outcome.Text}"));
+        if (key == _strategyOutcomeKey)
+            return;
+        _strategyOutcomeKey = key;
+        foreach (Node child in _strategyOutcomeRow.GetChildren())
+        {
+            _strategyOutcomeRow.RemoveChild(child);
+            child.QueueFree();
+        }
+        foreach (SolverStrategyOutcome outcome in outcomes)
+        {
+            Label label = SolverUiTokens.CreateLabel(outcome.Text, SolverUiTokens.Type.Body,
+                outcome.Satisfied ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Warning);
+            label.TooltipText = outcome.Text;
+            label.MouseFilter = Control.MouseFilterEnum.Pass;
+            label.HorizontalAlignment = HorizontalAlignment.Right;
+            _strategyOutcomeRow.AddChild(label);
+        }
+        _strategyOutcomeRow.Visible = outcomes.Count > 0;
+    }
+
+#if STS2_SOLVER_TESTING
+    /// <summary>
+    /// Whether the route heading row is on screen, and the strategy outcome texts its row shows in order
+    /// (empty when the row is hidden).
+    /// </summary>
+    internal (bool HeadingVisible, string[] Texts) StrategyOutcomesForTest => (
+        _strategyOutcomeRow?.GetParent() is Control heading && heading.IsVisibleInTree(),
+        _strategyOutcomeRow is { Visible: true } row
+            ? [.. row.GetChildren().OfType<Label>().Where(static label => !label.IsQueuedForDeletion())
+                .Select(static label => label.Text)]
+            : []);
+#endif
+
     private void PopulateRoute(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
     {
         bool hasTurns = overlay.Turns.Count > 0;
         SetRouteVisibility(hasTurns || snapshot.Phase == CombatUiPhase.Searching);
         if (_deathOutcomeLabel != null)
             _deathOutcomeLabel.Visible = overlay.OnlyDeathRoutesFound;
+        PopulateStrategyOutcomes(overlay.StrategyOutcomes);
         if (_potionOutcomeLabel != null)
         {
             _potionOutcomeLabel.Visible = overlay.ProjectedBattlePotionCount > 0;

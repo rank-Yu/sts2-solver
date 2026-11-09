@@ -347,5 +347,9 @@
   "没有可以执行的本回合路线。": "No route for this turn can be played.",
   "只执行当前回合，下一回合等你操作。": "Play this turn only; the next turn waits for you.",
   "确认这条路线并继续执行，之后每回合自动搜索和执行，直到战斗结束。": "Confirm this route and keep playing; every later turn is searched and played until the combat ends.",
-  "执行当前回合，之后每回合自动搜索和执行，直到战斗结束。": "Play this turn, then search and play every turn until the combat ends."
+  "执行当前回合，之后每回合自动搜索和执行，直到战斗结束。": "Play this turn, then search and play every turn until the combat ends.",
+  "已卡：{0}": "Counters aligned: {0}",
+  "未达标：{0}": "Targets unmet: {0}",
+  "{0} {1} 实际 {2}": "{0} {1}, actual {2}",
+  "已获得：{0}": "Growth gained: {0}"
 }

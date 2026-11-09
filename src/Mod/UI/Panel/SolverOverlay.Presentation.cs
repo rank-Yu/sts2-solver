@@ -298,16 +298,7 @@ internal sealed partial class SolverOverlay
     {
         if (_hpOutcomeLabel != null)
         {
-            string text = !overlay.ProjectedBattleHpLossKnown
-                ? SolverText.Get("预计战损 未知")
-                : overlay.ProjectedBattleHpLost > 0 || result.BattleHpLostSoFar > 0
-                    ? result.ProjectedBattleHpLossIncrease > 0
-                        ? SolverText.Format(
-                            $"本局扣血  已 {result.BattleHpLostSoFar}    预计 {overlay.ProjectedBattleHpLost} HP    重算增加 {result.ProjectedBattleHpLossIncrease} HP")
-                        : SolverText.Format(
-                            $"本局扣血  已 {result.BattleHpLostSoFar}    预计 {overlay.ProjectedBattleHpLost} HP")
-                    : SolverText.Get("本局扣血  0 HP");
-            _hpOutcomeLabel.Text = text;
+            _hpOutcomeLabel.Text = overlay.HpOutcomeText;
             _hpOutcomeLabel.Visible = true;
             _hpOutcomeLabel.AddThemeColorOverride("font_color",
                 !overlay.ProjectedBattleHpLossKnown

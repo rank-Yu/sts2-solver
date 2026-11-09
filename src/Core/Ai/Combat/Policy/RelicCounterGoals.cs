@@ -25,15 +25,19 @@ internal readonly record struct RelicCounterGoals(int HpCredit, int Count)
         int count = 0;
         foreach (RelicCounterTarget target in targets)
         {
-            int value = battle.Relics[target.Slot].Counter % target.Period;
-            if (value < 0)
-                value += target.Period;
-            if (value == target.Goal)
+            if (Value(in battle, target) == target.Goal)
             {
                 credit = checked(credit + target.HpAllowance);
                 count++;
             }
         }
         return new RelicCounterGoals(credit, count);
+    }
+
+    /// <summary>The target relic's counter in its period, the value compared with <see cref="RelicCounterTarget.Goal"/>.</summary>
+    internal static int Value(in Battle battle, RelicCounterTarget target)
+    {
+        int value = battle.Relics[target.Slot].Counter % target.Period;
+        return value < 0 ? value + target.Period : value;
     }
 }

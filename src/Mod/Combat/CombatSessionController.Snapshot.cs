@@ -236,6 +236,10 @@ internal static partial class CombatSessionController
         AdoptionKind = result.Adoption?.Kind,
         CandidateVersion = result.CandidateVersion,
         CapacityDroppedRegions = result.CapacityDroppedRegions,
+        StrategyRelics = [.. result.Outcome.RelicCounters.Select(static relic => new StrategyRelicUi(
+            Registry.Relic(relic.RelicId).NativeId, relic.Value, relic.Goal, relic.Met))],
+        StrategyGrowth = [.. result.Outcome.GrowthGained.Select(static gain => new StrategyGrowthUi(
+            gain.Source.ToString(), gain.Count))],
     };
 
     private static string OutcomeName(CombatRouteOutcome outcome)

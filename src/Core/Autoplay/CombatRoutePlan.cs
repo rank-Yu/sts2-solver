@@ -46,10 +46,11 @@ internal sealed class CombatRoutePlan
 
     internal static CombatRoutePlan FromReplay(ReplayedRoute route, bool onlyDeathRoutes = false,
         PlannedChoice[]? rootSetupChoices = null,
-        PostCombatRelicHealProfile postCombatRelicHeal = default)
+        PostCombatRelicHealProfile postCombatRelicHeal = default,
+        RelicCounterTarget[]? relicTargets = null)
     {
         CombatRouteOutcome outcome = CombatRouteOutcome.From(route.Actions, route.Root, route.Victory,
-            onlyDeathRoutes, postCombatRelicHeal);
+            onlyDeathRoutes, postCombatRelicHeal, relicTargets);
         return new CombatRoutePlan(route.Root, route.Actions, route.Rules, route.Victory, false,
             outcome, rootSetupChoices ?? []);
     }
@@ -117,6 +118,12 @@ internal sealed class CombatRoutePlan
     }
 }
 
+/// <summary>One relic counter target at a route's end.</summary>
+internal readonly record struct RelicCounterOutcome(ushort RelicId, int Value, int Goal, bool Met);
+
+/// <summary>One built-in growth source the combat realized by a route's end, with its count.</summary>
+internal readonly record struct GrowthGain(GrowthRewardSource Source, int Count);
+
 /// <summary>The values the panel and the full-auto pause policy read from a replayed route.</summary>
 internal sealed record CombatRouteOutcome(
     int? DeathTurn,
@@ -134,8 +141,18 @@ internal sealed record CombatRouteOutcome(
     /// </summary>
     internal int PostCombatRelicHeal { get; init; }
 
+    /// <summary>
+    /// The request's relic counter targets at the route's end: the counter in its period and whether
+    /// a won route ends on the goal (<see cref="RelicCounterGoals.Evaluate"/>). Empty without targets.
+    /// </summary>
+    internal RelicCounterOutcome[] RelicCounters { get; init; } = [];
+
+    /// <summary>The built-in growth rewards the combat has realized by the route's end, non-zero only.</summary>
+    internal GrowthGain[] GrowthGained { get; init; } = [];
+
     internal static CombatRouteOutcome From(IReadOnlyList<ReplayedAction> actions, in Battle root,
-        bool victory, bool onlyDeathRoutes, PostCombatRelicHealProfile postCombatRelicHeal = default)
+        bool victory, bool onlyDeathRoutes, PostCombatRelicHealProfile postCombatRelicHeal = default,
+        RelicCounterTarget[]? relicTargets = null)
     {
         Dictionary<int, int> hpLostByTurn = [];
         int lastTurn = root.PlayerTurn;
@@ -173,11 +190,43 @@ internal sealed record CombatRouteOutcome(
         int relicHeal = victory && terminal == Outcome.Victory && finalPlayer.CurrentHp > 0
             ? postCombatRelicHeal.HealFor(finalPlayer.CurrentHp, finalPlayer.MaxHp)
             : 0;
+        bool won = victory && terminal == Outcome.Victory;
         return new CombatRouteOutcome(deathTurn, combatEndedTurn, projectedHpLost, potionUses,
             victory, onlyDeathRoutes, hpLostByTurn)
         {
             PostCombatRelicHeal = relicHeal,
+            RelicCounters = actions.Count > 0
+                ? RelicOutcomes(actions[^1].After, relicTargets, won)
+                : RelicOutcomes(root, relicTargets, won),
+            GrowthGained = actions.Count > 0 ? Growth(actions[^1].After) : Growth(root),
         };
+    }
+
+    private static RelicCounterOutcome[] RelicOutcomes(in Battle end, RelicCounterTarget[]? targets, bool won)
+    {
+        if (targets is not { Length: > 0 })
+            return [];
+        RelicCounterOutcome[] outcomes = new RelicCounterOutcome[targets.Length];
+        for (int index = 0; index < targets.Length; index++)
+        {
+            RelicCounterTarget target = targets[index];
+            int value = RelicCounterGoals.Value(in end, target);
+            outcomes[index] = new RelicCounterOutcome(end.Relics[target.Slot].Id, value, target.Goal,
+                won && value == target.Goal);
+        }
+        return outcomes;
+    }
+
+    private static GrowthGain[] Growth(in Battle end)
+    {
+        List<GrowthGain> gained = [];
+        for (int source = 0; source < GrowthRewards.SourceCount; source++)
+        {
+            int count = GrowthRewards.Get(in end, (GrowthRewardSource)source);
+            if (count > 0)
+                gained.Add(new GrowthGain((GrowthRewardSource)source, count));
+        }
+        return [.. gained];
     }
 
     /// <summary>

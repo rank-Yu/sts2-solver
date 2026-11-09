@@ -608,6 +608,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _routeOutcomePanel = null;
         _routeHeadingLabel = null;
         _deathOutcomeLabel = null;
+        _strategyOutcomeRow = null;
+        _strategyOutcomeKey = null;
         _hpOutcomeLabel = null;
         _hpRecoveredOutcomeLabel = null;
         _actionBar = null;

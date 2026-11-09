@@ -166,7 +166,8 @@ internal static class CombatSearchRunner
         }
         tracker.Observe(searchRoot);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route, outcome.OnlyDeathRoutes,
-            postCombatRelicHeal: searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
+            postCombatRelicHeal: searchCase.Options.Ordering?.PostCombatRelicHeal ?? default,
+            relicTargets: searchCase.Options.Scorer?.RulesForCodec.RelicCounterTargets);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={reason} ms={outcome.ElapsedMs} " +
             $"expanded={outcome.TotalExpandedNodes} route={beam.BestRoute.Length} " +
@@ -341,7 +342,8 @@ internal static class CombatSearchRunner
         }
         tracker.Observe(in searchCase.Battles[beam.BestRootIndex]);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route, outcome.OnlyDeathRoutes,
-            choices, searchCase.Options.Ordering?.PostCombatRelicHeal ?? default);
+            choices, searchCase.Options.Ordering?.PostCombatRelicHeal ?? default,
+            searchCase.Options.Scorer?.RulesForCodec.RelicCounterTargets);
         CombatStateStamp playStamp = CombatStateStamp.Capture(in searchCase.Battles[beam.BestRootIndex]);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_SEARCH turn={turn} reason={CombatSearchReason.TurnSetup} " +

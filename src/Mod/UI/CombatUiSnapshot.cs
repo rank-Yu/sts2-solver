@@ -336,7 +336,19 @@ internal sealed record CombatResultUiSnapshot
 
     /// <summary>Capacity regions that dropped candidate branches while still returning this route.</summary>
     public IReadOnlyDictionary<string, int>? CapacityDroppedRegions { get; init; }
+
+    /// <summary>The relic counter targets at the route's end (native relic id, value, goal, met).</summary>
+    public StrategyRelicUi[] StrategyRelics { get; init; } = [];
+
+    /// <summary>The built-in growth rewards realized by the route's end (source name, count).</summary>
+    public StrategyGrowthUi[] StrategyGrowth { get; init; } = [];
 }
+
+/// <summary>One relic counter target at the end of the result route.</summary>
+internal sealed record StrategyRelicUi(string RelicId, int Value, int Goal, bool Met);
+
+/// <summary>One built-in growth source realized by the end of the result route.</summary>
+internal sealed record StrategyGrowthUi(string Source, int Count);
 
 internal sealed record MemoryUiSnapshot
 {

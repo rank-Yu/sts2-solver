@@ -2,6 +2,8 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors). The source is Sts2Solver's
 // CombatUiSnapshot; card, potion, choice and kill names are resolved here on the UI thread so the
 // published snapshot only carries stable ids and numbers.
+using Sts2Solver.Ai.Combat.Policy;
+
 namespace Sts2Solver;
 
 internal enum SolverOverlayTone
@@ -56,6 +58,9 @@ internal sealed record SolverOverlayTurnSnapshot(
     public int StartActionIndex { get; init; }
 }
 
+/// <summary>One part of the strategy outcome row; <see cref="Satisfied"/> picks green or amber.</summary>
+internal sealed record SolverStrategyOutcome(string Text, bool Satisfied);
+
 internal sealed record SolverOverlaySnapshot(
     int ProjectedBattlePotionCount,
     int ProjectedBattleHpLost,
@@ -67,6 +72,11 @@ internal sealed record SolverOverlaySnapshot(
     bool OnlyDeathRoutesFound,
     IReadOnlyList<SolverOverlayTurnSnapshot> Turns)
 {
+    /// <summary>
+    /// The strategy outcome row of the shown result: aligned relic counters, unmet targets and realized
+    /// growth (CombatSolver <c>SolverStrategyOutcomeText.Capture</c> at 5c773caa). Empty while searching.
+    /// </summary>
+    public IReadOnlyList<SolverStrategyOutcome> StrategyOutcomes { get; init; } = [];
 
     internal static SolverOverlaySnapshot Build(CombatUiSnapshot snapshot, CombatDisplayNames names)
     {
@@ -104,11 +114,17 @@ internal sealed record SolverOverlaySnapshot(
                 ? false
                 : search?.RoutePreview?.OnlyDeathRoutes ?? false);
 
+        // The one HP outcome text: the result presentation and every later refresh of the same result
+        // show it, so the recalculation increase does not drop off on a refresh.
+        int increase = result?.ProjectedBattleHpLossIncrease ?? 0;
         string hpOutcome = !projectedKnown
             ? SolverText.Get("预计战损 未知")
             : projectedLost > 0 || lostBefore > 0
-                ? SolverText.Format(
-                    $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP")
+                ? increase > 0
+                    ? SolverText.Format(
+                        $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP    重算增加 {increase} HP")
+                    : SolverText.Format(
+                        $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP")
                 : SolverText.Get("本局扣血  0 HP");
         return new SolverOverlaySnapshot(
             potions,
@@ -119,7 +135,42 @@ internal sealed record SolverOverlaySnapshot(
             recovered,
             result?.PostCombatRelicHeal ?? 0,
             onlyDeath,
-            turns);
+            turns)
+        {
+            StrategyOutcomes = snapshot.Phase == CombatUiPhase.Searching ? [] : StrategyOutcomesFor(result),
+        };
+    }
+
+    // Ported from CombatSolver src/UI/SolverStrategyOutcomeText.cs at 5c773caa (MIT License,
+    // Copyright (c) 2026 Torch1230 and contributors). Targets are fixed one short of triggering, so an
+    // unmet one shows a single goal; Meat on the Bone's heal is in the recovered-HP label instead.
+    private static IReadOnlyList<SolverStrategyOutcome> StrategyOutcomesFor(CombatResultUiSnapshot? result)
+    {
+        if (result == null)
+            return [];
+        List<string> completed = [], pending = [], growth = [];
+        foreach (StrategyRelicUi relic in result.StrategyRelics)
+        {
+            string name = CombatDisplayNames.RelicTitle(relic.RelicId);
+            if (relic.Met)
+                completed.Add($"{name} {relic.Value}");
+            else
+                pending.Add(SolverText.Format($"{name} {relic.Goal} 实际 {relic.Value}"));
+        }
+        foreach (StrategyGrowthUi gain in result.StrategyGrowth)
+        {
+            string name = SolverGrowthStrategyPage.GainTitle(Enum.Parse<GrowthSource>(gain.Source));
+            growth.Add(gain.Count == 1 ? name : $"{name} ×{gain.Count}");
+        }
+        string separator = SolverText.IsEnglish ? ", " : "、";
+        List<SolverStrategyOutcome> parts = [];
+        if (completed.Count > 0)
+            parts.Add(new(SolverText.Format($"已卡：{string.Join(separator, completed)}"), true));
+        if (pending.Count > 0)
+            parts.Add(new(SolverText.Format($"未达标：{string.Join(separator, pending)}"), false));
+        if (growth.Count > 0)
+            parts.Add(new(SolverText.Format($"已获得：{string.Join(separator, growth)}"), true));
+        return parts;
     }
 
     private static SolverOverlayTurnSnapshot FromRouteTurn(RouteTurnUi turn, CombatDisplayNames names)

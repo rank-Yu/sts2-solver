@@ -150,6 +150,12 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         }
     }
 
+    /// <summary>The name a realized growth reward is shown with: the card title, or Goopy's enchantment title.</summary>
+    internal static string GainTitle(GrowthSource source)
+        => source == GrowthSource.Goopy
+            ? ModelDb.Enchantment<Goopy>().Title.GetFormattedText()
+            : SourceCard(source).Title;
+
     private static CardModel SourceCard(GrowthSource source) => source switch
     {
         GrowthSource.HandOfGreed => ModelDb.Card<HandOfGreed>(),

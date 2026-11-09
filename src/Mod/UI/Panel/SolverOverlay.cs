@@ -313,7 +313,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _settingsButton.Name = "SettingsButton";
         _settingsButton.Pressed += ToggleSettings;
         header.AddChild(_settingsButton);
-        _collapseButton = CreateHeaderButton(SolverText.Get("−  收起"), 64);
+        _collapseButton = CreateHeaderButton(CollapseButtonText(_collapsed), 64);
         _collapseButton.Name = "CollapseButton";
         _collapseButton.TooltipText = SolverText.Get("收起路线内容；标题栏保持可见。");
         _collapseButton.Pressed += ToggleCollapsed;
@@ -477,12 +477,16 @@ internal sealed partial class SolverOverlay : CanvasLayer
         if (SolverSettings.Current.Ui.Collapsed != collapsed)
             SolverSettings.Update(current => current with { Ui = current.Ui with { Collapsed = collapsed } });
         if (_collapseButton != null)
-            _collapseButton.Text = collapsed ? SolverText.Get("+  展开") : SolverText.Get("−  收起");
+            _collapseButton.Text = CollapseButtonText(collapsed);
         if (_lastSnapshot != null && _lastOverlay != null)
             PopulateRoute(_lastOverlay, _lastSnapshot);
         ApplyContentVisibility();
         QueueLayout();
     }
+
+    /// <summary>The header button names the action it performs: 展开 while collapsed, 收起 otherwise.</summary>
+    private static string CollapseButtonText(bool collapsed) =>
+        collapsed ? SolverText.Get("+  展开") : SolverText.Get("−  收起");
 
     private void ApplyContentVisibility()
     {

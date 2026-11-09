@@ -66,11 +66,15 @@ internal static class UiPanelChecks
         session.Check("collapse_persists",
             collapsed.Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
         session.Check("collapsed_header_visible", collapsed.Visible, Describe(panel));
+        session.Check("collapsed_button_reads_expand",
+            panel.CollapseButtonForTest?.Text == SolverText.Get("+  展开"), Describe(panel));
         bool switchClickable = await VisibleAndClickable(host, panel.AutoSearchSwitchForTest);
         session.Check("collapsed_auto_search_switch_clickable", switchClickable, Describe(panel));
         await Press(host, panel.CollapseButtonForTest);
         session.Check("expand_persists",
             !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
+        session.Check("expanded_button_reads_collapse",
+            panel.CollapseButtonForTest?.Text == SolverText.Get("−  收起"), Describe(panel));
 
         bool originalAutoSearch = SolverSettings.Current.Automation.AutoSearch;
         await Toggle(host, panel.AutoSearchSwitchForTest, false);
@@ -196,6 +200,7 @@ internal static class UiPanelChecks
             session.Skip("locale_rebuilds_in_english", "already_english");
             session.Skip("locale_rebuild_keeps_sidebar", "already_english");
             session.Skip("settings_button_width_fixed_english", "already_english");
+            session.Skip("collapsed_rebuild_reads_expand", "already_english");
         }
         if (english)
         {
@@ -208,6 +213,19 @@ internal static class UiPanelChecks
             SolverOverlayProbe restored = panel.ProbeForTest();
             session.Check("locale_restores", restored.Language == language
                 && restored.BuildCount == buildsEnglish + 1, Describe(panel));
+
+            // A panel built while collapsed (game start with the saved collapsed state, or a
+            // locale rebuild) must offer 展开. The sidebar is reopened afterwards for the
+            // next-combat check below.
+            await Press(host, panel.CollapseButtonForTest);
+            LocManager.Instance.StartOverridingLanguageAsEnglish();
+            await Frames(host, 4);
+            session.Check("collapsed_rebuild_reads_expand", panel.ProbeForTest().Collapsed
+                && panel.CollapseButtonForTest?.Text == SolverText.Get("+  展开"), Describe(panel));
+            LocManager.Instance.StopOverridingLanguageAsEnglish();
+            await Frames(host, 4);
+            await Press(host, panel.CollapseButtonForTest);
+            await Press(host, panel.PotionButtonForTest);
         }
         string[] missingKeys = SolverText.MissingKeysForTesting;
         session.Check("english_keys_present", missingKeys.Length == 0, string.Join("|", missingKeys));

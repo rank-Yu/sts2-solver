@@ -78,6 +78,15 @@ internal sealed record SolverOverlaySnapshot(
     /// </summary>
     public IReadOnlyList<SolverStrategyOutcome> StrategyOutcomes { get; init; } = [];
 
+    /// <summary>“已用药：N瓶（…）” for the potions drunk before the shown result; null when none or while searching.</summary>
+    public string? UsedPotionOutcomeText { get; init; }
+
+    /// <summary>“预计用药 / 还要用：N瓶（…）” for the shown result's route potions; null when none or while searching.</summary>
+    public string? PlannedPotionOutcomeText { get; init; }
+
+    /// <summary>“预计未追回：N 张牌 / G 金币” when the route ends with stolen resources unrecovered.</summary>
+    public string? UnrecoveredLootText { get; init; }
+
     internal static SolverOverlaySnapshot Build(CombatUiSnapshot snapshot, CombatDisplayNames names)
     {
         SearchUiSnapshot? search = snapshot.Search;
@@ -138,8 +147,48 @@ internal sealed record SolverOverlaySnapshot(
             turns)
         {
             StrategyOutcomes = snapshot.Phase == CombatUiPhase.Searching ? [] : StrategyOutcomesFor(result),
+            UsedPotionOutcomeText = snapshot.Phase == CombatUiPhase.Searching ? null : UsedPotionOutcome(result),
+            PlannedPotionOutcomeText = snapshot.Phase == CombatUiPhase.Searching
+                ? null
+                : PlannedPotionOutcome(result),
+            UnrecoveredLootText = snapshot.Phase == CombatUiPhase.Searching ? null : UnrecoveredLoot(result),
         };
     }
+
+    // Ported from CombatSolver src/UI/SolverOverlaySnapshot.cs at 5c773caa (MIT License,
+    // Copyright (c) 2026 Torch1230 and contributors): UsedPotionOutcome, PlannedPotionOutcome and the
+    // unrecovered-loot text.
+    private static string? UsedPotionOutcome(CombatResultUiSnapshot? result)
+    {
+        if (result is not { PotionsUsedSoFar.Length: > 0 } shown)
+            return null;
+        int count = shown.PotionsUsedSoFar.Length;
+        string names = PotionNames(shown.PotionsUsedSoFar);
+        return SolverText.Format($"已用药：{count}瓶（{names}）");
+    }
+
+    private static string? PlannedPotionOutcome(CombatResultUiSnapshot? result)
+    {
+        if (result is not { PlannedPotionIds.Length: > 0 } shown)
+            return null;
+        int count = shown.PlannedPotionIds.Length;
+        string names = PotionNames(shown.PlannedPotionIds);
+        return shown.PotionsUsedSoFar.Length == 0
+            ? SolverText.Format($"预计用药：{count}瓶（{names}）")
+            : SolverText.Format($"还要用：{count}瓶（{names}）");
+    }
+
+    private static string? UnrecoveredLoot(CombatResultUiSnapshot? result)
+    {
+        if (result is not { } shown || shown.UnrecoveredCards <= 0 && shown.UnrecoveredGold <= 0)
+            return null;
+        int cards = shown.UnrecoveredCards;
+        int gold = shown.UnrecoveredGold;
+        return SolverText.Format($"预计未追回：{cards} 张牌 / {gold} 金币");
+    }
+
+    private static string PotionNames(IEnumerable<string> ids)
+        => string.Join(SolverText.IsEnglish ? ", " : "、", ids.Select(CombatDisplayNames.PotionTitle));
 
     // Ported from CombatSolver src/UI/SolverStrategyOutcomeText.cs at 5c773caa (MIT License,
     // Copyright (c) 2026 Torch1230 and contributors). Targets are fixed one short of triggering, so an

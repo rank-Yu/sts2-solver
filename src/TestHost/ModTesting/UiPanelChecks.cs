@@ -502,6 +502,10 @@ internal static class UiPanelChecks
                 $"mismatches={observer.HighlightMismatches}");
             session.Check("route_motion_stable_during_deploy", observer.MotionMismatches == 0,
                 $"checks={observer.MotionChecks} mismatches={observer.MotionMismatches}");
+            session.Check("heading_extras_match_result",
+                observer.ExtraChecks > 0 && observer.ExtraMismatches == 0,
+                $"checks={observer.ExtraChecks} used_potions={observer.UsedPotionFrames} " +
+                $"queued={observer.QueuedFrames} mismatches={observer.ExtraMismatches}");
             session.Check("strategy_outcomes_match_result",
                 observer.StrategyChecks > 0 && observer.StrategyMismatches == 0,
                 $"checks={observer.StrategyChecks} shown={observer.StrategyShownFrames} " +
@@ -1043,6 +1047,14 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int StrategyMismatches { get; private set; }
 
+    internal int ExtraChecks { get; private set; }
+
+    internal int UsedPotionFrames { get; private set; }
+
+    internal int QueuedFrames { get; private set; }
+
+    internal int ExtraMismatches { get; private set; }
+
     private int _motionTurn = -1;
     private (int Restarts, int Rebuilds)[] _motionBaseline = [];
 
@@ -1106,6 +1118,45 @@ internal sealed partial class UiPanelObserver : Node
         CheckDeploymentMotion(snapshot, probe);
         CheckOutcomeLabels(snapshot);
         CheckStrategyOutcomes(snapshot);
+        CheckHeadingExtras(snapshot, probe);
+    }
+
+    /// <summary>
+    /// The used-potion and unrecovered-loot labels show exactly when the shown result has such entries
+    /// (never while searching), and a searching status names the queued execution exactly when the
+    /// snapshot will deploy the search's route.
+    /// </summary>
+    private void CheckHeadingExtras(CombatUiSnapshot snapshot, SolverOverlayProbe probe)
+    {
+        (bool headingVisible, _) = _panel!.StrategyOutcomesForTest;
+        if (headingVisible)
+        {
+            ExtraChecks++;
+            CombatResultUiSnapshot? result = snapshot.Result ?? snapshot.RouteResult;
+            bool searching = snapshot.Phase == CombatUiPhase.Searching;
+            bool usedExpected = !searching && result is { PotionsUsedSoFar.Length: > 0 };
+            bool lootExpected = !searching && result is { } shown
+                && (shown.UnrecoveredCards > 0 || shown.UnrecoveredGold > 0);
+            (bool used, bool loot) = _panel.OutcomeExtrasForTest;
+            if (used)
+                UsedPotionFrames++;
+            if (used != usedExpected || loot != lootExpected)
+            {
+                ExtraMismatches++;
+                Record($"extras seq={snapshot.Sequence} phase={snapshot.Phase} used={used}/{usedExpected} loot={loot}/{lootExpected}");
+            }
+        }
+        if (probe.Presentation != nameof(SolverOverlayPresentation.Searching)
+            || snapshot.Phase != CombatUiPhase.Searching)
+            return;
+        ExtraChecks++;
+        bool queuedExpected = snapshot.DeployWhenReady || snapshot.CombatRunActive && !snapshot.CombatRunPaused;
+        if (_panel.StatusQueuedForTest)
+            QueuedFrames++;
+        if (_panel.StatusQueuedForTest == queuedExpected)
+            return;
+        ExtraMismatches++;
+        Record($"queued seq={snapshot.Sequence} shown={_panel.StatusQueuedForTest} expected={queuedExpected}");
     }
 
     /// <summary>

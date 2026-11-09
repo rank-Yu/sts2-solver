@@ -240,7 +240,27 @@ internal static partial class CombatSessionController
             Registry.Relic(relic.RelicId).NativeId, relic.Value, relic.Goal, relic.Met))],
         StrategyGrowth = [.. result.Outcome.GrowthGained.Select(static gain => new StrategyGrowthUi(
             gain.Source.ToString(), gain.Count))],
+        PotionsUsedSoFar = result.PotionsUsedSoFar ?? [],
+        PlannedPotionIds = PlannedPotionIds(result.Plan),
+        UnrecoveredCards = result.Outcome.UnrecoveredCards,
+        UnrecoveredGold = result.Outcome.UnrecoveredGold,
     };
+
+    /// <summary>The potions the plan's actions drink, read from the slot each use empties.</summary>
+    private static string[] PlannedPotionIds(CombatRoutePlan plan)
+    {
+        List<string> ids = [];
+        foreach (ReplayedAction action in plan.Actions)
+        {
+            PlayerAction kind = action.Action;
+            if (kind.Kind != PlayerActionKind.UsePotion || kind.PotionSlot >= action.Before.PotionSlotCount)
+                continue;
+            ushort stored = action.Before.Potions[kind.PotionSlot];
+            if (stored != 0)
+                ids.Add(Registry.Potion((ushort)(stored - 1)).NativeId);
+        }
+        return [.. ids];
+    }
 
     private static string OutcomeName(CombatRouteOutcome outcome)
         => outcome.Victory ? "victory"

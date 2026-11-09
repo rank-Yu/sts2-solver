@@ -149,8 +149,11 @@ internal sealed partial class SolverOverlay
         _shownWorldlinesPerSecond = 0d;
         _lastProgressReviewedWorldlines = 0L;
         _lastProgressSampledAt = 0L;
+        _statusQueued = ExecutionQueued(snapshot);
         SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
-            SolverText.Format($"第 {search.Turn} 回合"));
+            _statusQueued
+                ? SolverText.Format($"第 {search.Turn} 回合    已排队执行")
+                : SolverText.Format($"第 {search.Turn} 回合"));
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
         if (_summaryText != null)
         {
@@ -192,7 +195,9 @@ internal sealed partial class SolverOverlay
         string routeContext = _searchBestSnapshot is { Turns.Count: > 0 } best
             ? SolverText.Format($"已规划至第 {best.Turns[^1].Turn} 回合")
             : SolverText.Get("等待候选路线");
-        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent, routeContext);
+        _statusQueued = ExecutionQueued(snapshot);
+        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
+            _statusQueued ? SolverText.Format($"{routeContext}    已排队执行") : routeContext);
         SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
         // ExpandedNodes counts the whole request (finished members plus the running one), so the
         // total only grows; the rate is measured on the main thread's clock between samples, since
@@ -491,6 +496,14 @@ internal sealed partial class SolverOverlay
         PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
+
+    /// <summary>The running search deploys its route when it finishes: 执行本场战斗 or a deploy-when-ready recalculation.</summary>
+    private static bool ExecutionQueued(CombatUiSnapshot snapshot)
+        => snapshot.DeployWhenReady || snapshot.CombatRunActive && !snapshot.CombatRunPaused;
+
+#if STS2_SOLVER_TESTING
+    internal bool StatusQueuedForTest => _statusQueued;
+#endif
 
     private void ShowSearchStopped(CombatUiSnapshot snapshot)
     {

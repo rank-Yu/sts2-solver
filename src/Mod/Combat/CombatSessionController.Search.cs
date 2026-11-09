@@ -437,6 +437,7 @@ internal static partial class CombatSessionController
                 ProjectedBattleHpLossIncrease = 0,
                 RecalculatedAfterCompleteProjection = false,
                 Reason = "reuse",
+                PotionsUsedSoFar = PotionsUsedSoFar(),
             };
             _latestResult = reused;
             _latestStamp = reuseStamp;
@@ -568,7 +569,8 @@ internal static partial class CombatSessionController
             run.Tier, run.Outcome.ElapsedMilliseconds, run.Outcome.TotalExpandedNodes,
             run.Outcome, run.MemberRuns, ReasonName(session.Reason),
             run.Plan.Root.Counter(Sts2Solver.Simulation.Combat.Counter.CumulativeHpLost),
-            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions);
+            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions,
+            PotionsUsedSoFar: PotionsUsedSoFar());
         if (session.StopRequested)
         {
             _names ??= CombatDisplayNames.Capture(_state!);

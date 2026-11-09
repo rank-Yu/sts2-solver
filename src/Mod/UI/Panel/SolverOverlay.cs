@@ -610,6 +610,9 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _deathOutcomeLabel = null;
         _strategyOutcomeRow = null;
         _strategyOutcomeKey = null;
+        _usedPotionOutcomeLabel = null;
+        _unrecoveredLootLabel = null;
+        _statusQueued = false;
         _hpOutcomeLabel = null;
         _hpRecoveredOutcomeLabel = null;
         _actionBar = null;

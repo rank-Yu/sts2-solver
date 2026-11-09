@@ -351,5 +351,11 @@
   "已卡：{0}": "Counters aligned: {0}",
   "未达标：{0}": "Targets unmet: {0}",
   "{0} {1} 实际 {2}": "{0} {1}, actual {2}",
-  "已获得：{0}": "Growth gained: {0}"
+  "已获得：{0}": "Growth gained: {0}",
+  "已用药：{0}瓶（{1}）": "Used: {0} potion(s) ({1})",
+  "预计用药：{0}瓶（{1}）": "Planned: {0} potion(s) ({1})",
+  "还要用：{0}瓶（{1}）": "Remaining: {0} potion(s) ({1})",
+  "预计未追回：{0} 张牌 / {1} 金币": "Unrecovered: {0} cards / {1} gold",
+  "{0}    已排队执行": "{0}    Execution queued",
+  "第 {0} 回合    已排队执行": "Turn {0}    Execution queued"
 }

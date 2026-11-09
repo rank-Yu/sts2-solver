@@ -257,7 +257,8 @@ internal static partial class CombatSessionController
             run.Plan.Root.Counter(Counter.CumulativeHpLost),
             run.TurnSetupChoices,
             run.SetupPlayStamp,
-            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions);
+            CapacityDroppedRegions: run.Outcome.CapacityDroppedRegions,
+            PotionsUsedSoFar: PotionsUsedSoFar());
         _turnSetupResult = result;
         _latestResult = result;
         _latestStamp = result.Stamp;

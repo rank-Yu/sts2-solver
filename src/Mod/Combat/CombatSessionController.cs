@@ -9,6 +9,7 @@ using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Combat.History.Entries;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
@@ -53,6 +54,7 @@ internal static partial class CombatSessionController
     /// pause; the next 执行本场战斗 press confirms the current turn (<see cref="_playerConfirmedTurn"/>).
     /// </summary>
     private static bool _runPaused;
+    private static int _potionHistoryAtStart;
 
     /// <summary>
     /// The player turn that started a search or reused/activated a route. The panel's search stage
@@ -598,6 +600,7 @@ internal static partial class CombatSessionController
         if (CombatControllerTestHooks.RunCombatFromStartForTest)
             _runCombat = CanRunCombat();
 #endif
+        _potionHistoryAtStart = CombatManager.Instance.History.Entries.OfType<PotionUsedEntry>().Count();
         PublishSnapshot();
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_BEGIN combat={state.GetHashCode()} players={state.Players.Count} " +
@@ -644,6 +647,14 @@ internal static partial class CombatSessionController
         PauseForTurnStop(turn, "deploy_failed",
             $"native_callback_failed: {callback}: {detail}", countDeviation: false);
     }
+
+    /// <summary>
+    /// The potions drunk so far this combat, in order (CombatSolver <c>BattleDamageTracker.PotionIdsUsedSoFar</c>
+    /// at 5c773caa): the game's <see cref="PotionUsedEntry"/> history since the controller began.
+    /// </summary>
+    private static string[] PotionsUsedSoFar()
+        => [.. CombatManager.Instance.History.Entries.OfType<PotionUsedEntry>()
+            .Skip(_potionHistoryAtStart).Select(static entry => entry.Potion.Id.Entry)];
 
     internal static void OnCombatEnded()
     {

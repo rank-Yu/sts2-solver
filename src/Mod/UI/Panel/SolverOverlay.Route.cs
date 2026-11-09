@@ -15,7 +15,10 @@ internal sealed partial class SolverOverlay
     private Label? _routeHeadingLabel;
     private Label? _deathOutcomeLabel;
     private HFlowContainer? _strategyOutcomeRow;
+    private Label? _usedPotionOutcomeLabel;
+    private Label? _unrecoveredLootLabel;
     private string? _strategyOutcomeKey;
+    private bool _statusQueued;
     private Label? _potionOutcomeLabel;
     private Label? _hpOutcomeLabel;
     private Label? _hpRecoveredOutcomeLabel;
@@ -46,11 +49,21 @@ internal sealed partial class SolverOverlay
         _deathOutcomeLabel.Visible = false;
         _deathOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         headingRow.AddChild(_deathOutcomeLabel);
+        _usedPotionOutcomeLabel = SolverUiTokens.CreateLabel(string.Empty,
+            SolverUiTokens.Type.Body, SolverUiTokens.Palette.Warning);
+        _usedPotionOutcomeLabel.Visible = false;
+        _usedPotionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
+        headingRow.AddChild(_usedPotionOutcomeLabel);
         _potionOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("预计用1瓶药"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Warning);
         _potionOutcomeLabel.Visible = false;
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         headingRow.AddChild(_potionOutcomeLabel);
+        _unrecoveredLootLabel = SolverUiTokens.CreateLabel(string.Empty,
+            SolverUiTokens.Type.Body, SolverUiTokens.Palette.Danger);
+        _unrecoveredLootLabel.Visible = false;
+        _unrecoveredLootLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
+        headingRow.AddChild(_unrecoveredLootLabel);
         _strategyOutcomeRow = new HFlowContainer
         {
             Alignment = FlowContainer.AlignmentMode.End,
@@ -141,6 +154,10 @@ internal sealed partial class SolverOverlay
     /// Whether the route heading row is on screen, and the strategy outcome texts its row shows in order
     /// (empty when the row is hidden).
     /// </summary>
+    /// <summary>Whether the used-potion and unrecovered-loot labels are shown.</summary>
+    internal (bool UsedPotions, bool UnrecoveredLoot) OutcomeExtrasForTest => (
+        _usedPotionOutcomeLabel?.Visible == true, _unrecoveredLootLabel?.Visible == true);
+
     internal (bool HeadingVisible, string[] Texts) StrategyOutcomesForTest => (
         _strategyOutcomeRow?.GetParent() is Control heading && heading.IsVisibleInTree(),
         _strategyOutcomeRow is { Visible: true } row
@@ -156,10 +173,24 @@ internal sealed partial class SolverOverlay
         if (_deathOutcomeLabel != null)
             _deathOutcomeLabel.Visible = overlay.OnlyDeathRoutesFound;
         PopulateStrategyOutcomes(overlay.StrategyOutcomes);
+        if (_usedPotionOutcomeLabel != null)
+        {
+            _usedPotionOutcomeLabel.Visible = overlay.UsedPotionOutcomeText != null;
+            _usedPotionOutcomeLabel.Text = overlay.UsedPotionOutcomeText ?? string.Empty;
+        }
         if (_potionOutcomeLabel != null)
         {
-            _potionOutcomeLabel.Visible = overlay.ProjectedBattlePotionCount > 0;
-            _potionOutcomeLabel.Text = SolverText.Format($"预计用{overlay.ProjectedBattlePotionCount}瓶药");
+            // CombatSolver's rule: the named route potions when the result has them, otherwise the bare
+            // count (a search preview, or uses the route makes without an explicit potion action).
+            _potionOutcomeLabel.Visible = overlay.PlannedPotionOutcomeText != null
+                || overlay.ProjectedBattlePotionCount > 0 && overlay.UsedPotionOutcomeText == null;
+            _potionOutcomeLabel.Text = overlay.PlannedPotionOutcomeText
+                ?? SolverText.Format($"预计用{overlay.ProjectedBattlePotionCount}瓶药");
+        }
+        if (_unrecoveredLootLabel != null)
+        {
+            _unrecoveredLootLabel.Visible = overlay.UnrecoveredLootText != null;
+            _unrecoveredLootLabel.Text = overlay.UnrecoveredLootText ?? string.Empty;
         }
         if (_hpOutcomeLabel != null)
         {

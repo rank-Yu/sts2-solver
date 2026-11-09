@@ -342,6 +342,18 @@ internal sealed record CombatResultUiSnapshot
 
     /// <summary>The built-in growth rewards realized by the route's end (source name, count).</summary>
     public StrategyGrowthUi[] StrategyGrowth { get; init; } = [];
+
+    /// <summary>Native ids of the potions drunk this combat before the result, in order.</summary>
+    public string[] PotionsUsedSoFar { get; init; } = [];
+
+    /// <summary>Native ids of the potions the result's route drinks, in route order.</summary>
+    public string[] PlannedPotionIds { get; init; } = [];
+
+    /// <summary>Cards a thief still holds when the route ends.</summary>
+    public int UnrecoveredCards { get; init; }
+
+    /// <summary>Gold a thief still holds when the route ends.</summary>
+    public int UnrecoveredGold { get; init; }
 }
 
 /// <summary>One relic counter target at the end of the result route.</summary>

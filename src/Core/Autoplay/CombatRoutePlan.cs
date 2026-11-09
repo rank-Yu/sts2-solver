@@ -150,6 +150,12 @@ internal sealed record CombatRouteOutcome(
     /// <summary>The built-in growth rewards the combat has realized by the route's end, non-zero only.</summary>
     internal GrowthGain[] GrowthGained { get; init; } = [];
 
+    /// <summary>Cards a thief still holds when the route ends (<c>Counter.OutstandingStolenCards</c>).</summary>
+    internal int UnrecoveredCards { get; init; }
+
+    /// <summary>Gold a thief still holds when the route ends (<c>Counter.OutstandingStolenGold</c>).</summary>
+    internal int UnrecoveredGold { get; init; }
+
     internal static CombatRouteOutcome From(IReadOnlyList<ReplayedAction> actions, in Battle root,
         bool victory, bool onlyDeathRoutes, PostCombatRelicHealProfile postCombatRelicHeal = default,
         RelicCounterTarget[]? relicTargets = null)
@@ -199,6 +205,12 @@ internal sealed record CombatRouteOutcome(
                 ? RelicOutcomes(actions[^1].After, relicTargets, won)
                 : RelicOutcomes(root, relicTargets, won),
             GrowthGained = actions.Count > 0 ? Growth(actions[^1].After) : Growth(root),
+            UnrecoveredCards = actions.Count > 0
+                ? actions[^1].After.Counter(Counter.OutstandingStolenCards)
+                : root.Counter(Counter.OutstandingStolenCards),
+            UnrecoveredGold = actions.Count > 0
+                ? actions[^1].After.Counter(Counter.OutstandingStolenGold)
+                : root.Counter(Counter.OutstandingStolenGold),
         };
     }
 

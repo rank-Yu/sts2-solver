@@ -589,18 +589,17 @@ internal static partial class CombatSessionController
         if (CombatControllerTestHooks.ForceProjectedDeathTurnSetup)
             outcome = outcome with { DeathTurn = result.StartTurn };
 #endif
-        CombatPauseCode? pause = outcome.OnlyDeathRoutes
-            ? CombatPauseCode.DeathTurn
-            : CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome,
-                noSurvivalPause: NoSurvivalPauseAvailable);
+        // The same policy as every other deployment: death this turn always pauses, a later death
+        // pauses once per combat. OnlyDeathRoutes is the selected route's survival verdict, so it is
+        // not a pause reason of its own (it used to read as death this turn).
+        CombatPauseCode? pause = CombatFullAutoPausePolicy.BeforeDeployment(result.StartTurn, outcome,
+            noSurvivalPause: NoSurvivalPauseAvailable);
         if (pause is null)
             return false;
         if (pause.Value == CombatPauseCode.NoSurvival)
             _noSurvivalPauseUsed = true;
         code = CombatFullAutoPausePolicy.Code(pause.Value);
-        reason = pause.Value == CombatPauseCode.DeathTurn && outcome.OnlyDeathRoutes
-            ? "only_death_routes=true"
-            : $"death_turn={outcome.DeathTurn}";
+        reason = $"death_turn={outcome.DeathTurn}";
         ApplyTurnSetupFullAutoPause(code, reason);
         return true;
     }

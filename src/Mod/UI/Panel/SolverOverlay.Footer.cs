@@ -217,8 +217,6 @@ internal sealed partial class SolverOverlay
         {
             bool ready = snapshot.CurrentTurnRouteReady;
             string? blocked = ready ? null
-                : snapshot.TurnSetupSearchOnly
-                    ? SolverText.Get("原 CombatSolver 也开着：回合开始的选牌请自己选，选完后再执行。")
                 : notStarted ? SolverText.Get("还没有搜索。")
                 : snapshot.CanStartSearch || snapshot.SearchBlockReason == null
                     ? SolverText.Get("没有可以执行的本回合路线。")

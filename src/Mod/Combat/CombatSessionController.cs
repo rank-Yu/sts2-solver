@@ -264,9 +264,9 @@ internal static partial class CombatSessionController
     /// <summary>
     /// How this turn's setup page is handled. Auto search or 执行本场战斗 takes it over. With
     /// CombatSolver also loaded only 执行本场战斗 takes it over: CombatSolver replaces the same
-    /// setup task while its automatic calculation is on, so auto search alone only searches the page
-    /// and leaves the task and the selection to the game, CombatSolver or the player. A search the
-    /// player stopped this turn handles nothing.
+    /// setup task while its automatic calculation is on, so auto search alone searches the page
+    /// without replacing that task; the player picks, or presses execute to have this Mod pick. A
+    /// search the player stopped this turn handles nothing.
     /// </summary>
     internal static TurnSetupHandling TurnSetupHandlingNow
     {

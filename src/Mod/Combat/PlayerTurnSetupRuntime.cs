@@ -29,8 +29,9 @@ internal enum TurnSetupHandling
     None,
 
     /// <summary>
-    /// Search and publish the plan only. The setup task and the page stay with the game, or with
-    /// CombatSolver when its automatic calculation replaces the same task; nothing is driven.
+    /// Search and publish the plan without replacing the setup task, which stays with the game or
+    /// with CombatSolver when its automatic calculation replaces the same task. The page is driven
+    /// only when the player presses an execute key, by the same clicks a player would make.
     /// </summary>
     SearchOnly,
 
@@ -44,7 +45,7 @@ internal enum TurnSetupHandling
 /// the first visible request exists, and drives the page when asked. A taken-over page runs on a
 /// replacement <c>SetupPlayerTurn</c> task that stays alive until the original setup task has
 /// completed, so a player selection or a stop always returns control to the native flow. A
-/// search-only page shares the same transaction without replacing any task or driving anything.
+/// search-only page shares the same transaction without replacing any task.
 /// </summary>
 internal static class PlayerTurnSetupRuntime
 {
@@ -75,9 +76,6 @@ internal static class PlayerTurnSetupRuntime
 #endif
 
     internal static bool HasActivePage => _active is { PageOpen: true };
-
-    /// <summary>The open page is searched only (<see cref="TurnSetupHandling.SearchOnly"/>).</summary>
-    internal static bool HasSearchOnlyPage => _active is { PageOpen: true, SearchOnly: true };
 
     internal static bool IsDriving => _active is { Driving: true };
 
@@ -592,11 +590,8 @@ internal static class PlayerTurnSetupRuntime
     /// </summary>
     internal static bool TryStartDriving(bool deployAfterSetup)
     {
-        if (_active is not { PageOpen: true, PlanReady: true, Driving: false, SearchOnly: false,
-                Result: not null } t)
-        {
+        if (_active is not { PageOpen: true, PlanReady: true, Driving: false, Result: not null } t)
             return false;
-        }
         NGame? host = NGame.Instance;
         if (host == null)
             return false;
@@ -1003,7 +998,7 @@ internal static class PlayerTurnSetupRuntime
             return;
         }
         // A taken-over page runs the original setup inside this task; a search-only page watches the
-        // setup the game (or CombatSolver) runs and takes leaving the Start phase as its end.
+        // setup and AutoPrePlay the game (or CombatSolver) runs and takes reaching Play as its end.
         Task setup = t.SearchOnly
             ? WaitForSearchOnlySetupEndAsync(host, t)
             : InvokeOriginalSetupAsync(t);
@@ -1120,7 +1115,7 @@ internal static class PlayerTurnSetupRuntime
                     $"search_only={t.SearchOnly}");
             }
             // A taken-over page completes after its AutoPrePlay replacement; a search-only page has
-            // none, so its transaction ends with the setup.
+            // none, so its transaction ends here, at Play.
             if (t.SearchOnly)
                 await CompleteTurnSetupAsync(t);
         }
@@ -1129,16 +1124,17 @@ internal static class PlayerTurnSetupRuntime
     }
 
     /// <summary>
-    /// The setup of a search-only page runs on the game's task (or CombatSolver's replacement). For
-    /// this transaction it ends when the player leaves the Start phase, the combat changes or the
-    /// transaction is cancelled.
+    /// The setup and AutoPrePlay of a search-only page run on the game's tasks (or CombatSolver's
+    /// replacement). For this transaction they end when the player reaches Play, the combat changes
+    /// or the transaction is cancelled, so a plan's AutoPrePlay choices stay in the same session.
     /// </summary>
     private static async Task WaitForSearchOnlySetupEndAsync(NGame host, TurnSetupTransaction t)
     {
         while (!t.Cancellation.IsCancellationRequested
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), t.Combat)
             && CombatManager.Instance.IsInProgress
-            && t.Player.PlayerCombatState is { Phase: PlayerTurnPhase.Start })
+            && t.Player.PlayerCombatState is
+                { Phase: PlayerTurnPhase.Start or PlayerTurnPhase.AutoPrePlay })
         {
             await CombatFrameWaiter.NextFrameAsync(host);
         }

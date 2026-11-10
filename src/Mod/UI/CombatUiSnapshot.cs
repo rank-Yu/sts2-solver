@@ -85,12 +85,6 @@ internal sealed record CombatUiSnapshot
     /// <summary>A visible native turn-setup choice page is open.</summary>
     public bool TurnSetupPageOpen { get; init; }
 
-    /// <summary>
-    /// The open page is only searched (CombatSolver is also loaded): the player or CombatSolver
-    /// makes the choice, so neither execute key can drive it.
-    /// </summary>
-    public bool TurnSetupSearchOnly { get; init; }
-
     /// <summary>A setup search returned a plan and the page is still waiting for the player or the driver.</summary>
     public bool TurnSetupPlanReady { get; init; }
 

@@ -650,6 +650,18 @@
       }
     },
     {
+      "id": "turn_setup_search_only_execute",
+      "scenario": "turn_setup_search_only_execute",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+        "timeoutSeconds": 900,
+        "enemyCurrentHp": 200
+      }
+    },
+    {
       "id": "ts-b-toolbox-auto-execute",
       "scenario": "turn_setup_auto_execute",
       "group": "turn-setup",

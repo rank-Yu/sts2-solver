@@ -4,24 +4,20 @@ namespace Sts2Solver.Ai.Combat;
 
 /// <summary>
 /// Host-only resume point of a coordinator request that stopped with a route. It carries the
-/// per-pass state the member loop had reached, so the next request can continue after the stopped
+/// state the member loop had reached, so the next request can continue after the stopped
 /// member without rerunning it. The state never enters SREQ/SRES or frozen data: the Mod keeps it in
 /// memory and drops it when the turn, the root or the request changes.
 /// </summary>
 internal sealed class SearchResumeState(
-    int pass,
     int nextMemberIndex,
     BeamResult stoppedResult,
     int stoppedIndex,
     SearchAdoptionInfo adoption)
 {
-    /// <summary>Zero-based pass whose member loop was interrupted.</summary>
-    internal int Pass { get; } = pass;
-
     /// <summary>Index of the next member to run; the stopped member itself is not rerun.</summary>
     internal int NextMemberIndex { get; } = nextMemberIndex;
 
-    /// <summary>Member logs of this pass up to and including the stopped member.</summary>
+    /// <summary>Member logs up to and including the stopped member.</summary>
     internal SearchMemberResult[] Members { get; init; } = [];
 
     internal BeamSolver.Candidate? Free { get; init; }

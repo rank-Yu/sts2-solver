@@ -64,6 +64,7 @@ internal static class UiLogicChecks
         Check("settings_corrupt_fallback", () => CorruptFallback(directory));
         Check("settings_third_party_current", () => ThirdPartyCurrentSchema(directory));
         Check("settings_schema6_upgrade", () => Schema6Upgrade(directory));
+        Check("settings_forced_potion_upgrade", () => ForcedPotionUpgrade(directory));
         Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
@@ -232,7 +233,7 @@ internal static class UiLogicChecks
     {
         string path = Path.Combine(directory, "current-third-party.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":7,\"search\":{\"growthBudgets\":{" +
+            "{\"schemaVersion\":8,\"search\":{\"growthBudgets\":{" +
             "\"handOfGreed\":4,\"example_mod:growth\":7}}}");
         List<string> logs = [];
         SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
@@ -274,13 +275,42 @@ internal static class UiLogicChecks
         }
     }
 
+    /// <summary>
+    /// Schemas 6 and 7 could force a potion. Loading drops those directives, keeps the others and
+    /// turns the force-all preset into Smart.
+    /// </summary>
+    private static void ForcedPotionUpgrade(string directory)
+    {
+        foreach (int schema in new[] { 6, 7 })
+        {
+            string path = Path.Combine(directory, $"schema{schema}-forced.json");
+            File.WriteAllText(path,
+                "{\"schemaVersion\":" + schema + ",\"search\":{\"potions\":{\"preset\":\"ForceAll\"," +
+                "\"directives\":[{\"slot\":0,\"potionId\":\"FIRE_POTION\",\"directive\":\"Force\"}," +
+                "{\"slot\":1,\"potionId\":\"BLOCK_POTION\",\"directive\":\"Disabled\"}]}}}");
+            List<string> logs = [];
+            SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+            SolverPotionSettings potions = loaded.Current.Search.Potions;
+            Require(loaded.Current.SchemaVersion == SolverSettingsData.CurrentSchemaVersion,
+                $"schema{schema}_forced_schema");
+            Require(potions.Preset == SolverPotionPreset.Smart, $"schema{schema}_forced_preset");
+            Require(potions.Directives.Length == 1 && potions.Directives[0].Slot == 1
+                && potions.Directives[0].Directive == PotionDirective.Disabled,
+                $"schema{schema}_forced_directives");
+            Require(!Directory.GetFiles(directory, $"schema{schema}-forced.bad-*.json").Any(),
+                $"schema{schema}_forced_not_corrupt");
+            Require(logs.Any(line => line.Contains($"SETTINGS_UPGRADED from={schema} to=8",
+                    StringComparison.Ordinal)), $"schema{schema}_forced_log");
+        }
+    }
+
     private static void PotionDirectiveReconcile()
     {
         SearchPotionDirective[] persisted =
         [
             new(0, "FIRE_POTION", SearchPotionMode.Disabled),
             new(1, "BLOCK_POTION", SearchPotionMode.Disabled),
-            new(2, "STRENGTH_POTION", SearchPotionMode.Force),
+            new(2, "STRENGTH_POTION", SearchPotionMode.Disabled),
         ];
         IReadOnlyList<SearchPotionDirective> reconciled = SearchPolicyCapture.ReconcilePotionDirectives(
             persisted,
@@ -288,10 +318,6 @@ internal static class UiLogicChecks
         Require(reconciled.Count == 1, "reconcile_count");
         Require(reconciled[0].Slot == 0 && reconciled[0].PotionId == "FIRE_POTION"
             && reconciled[0].Mode == SearchPotionMode.Disabled, "reconcile_match");
-        IReadOnlyList<SearchPotionDirective> reconciledForce =
-            SearchPolicyCapture.ReconcilePotionDirectives(persisted, [(2, "STRENGTH_POTION")]);
-        Require(reconciledForce.Count == 1
-            && reconciledForce[0].Mode == SearchPotionMode.Force, "reconcile_force");
         IReadOnlyList<SearchPotionDirective> replaced = SearchPolicyCapture.ReconcilePotionDirectives(
             persisted,
             [(0, "BLOCK_POTION")]);
@@ -304,7 +330,7 @@ internal static class UiLogicChecks
         [
             new(0, "FIRE_POTION", PotionDirective.Disabled),
             new(1, "BLOCK_POTION", PotionDirective.Disabled),
-            new(2, "STRENGTH_POTION", PotionDirective.Force),
+            new(2, "STRENGTH_POTION", PotionDirective.Disabled),
         ];
         PotionSlotDirective[] settingsRetained = SolverPotionDirectives.Reconcile(
             settingsDirectives, [(0, "FIRE_POTION"), (1, "STRENGTH_POTION")]);
@@ -315,14 +341,15 @@ internal static class UiLogicChecks
             "settings_reconcile_replaced");
         Require(SolverPotionDirectives.Reconcile(settingsDirectives, []).Length == 0,
             "settings_reconcile_empty");
-        SolverPotionSettings forced = new SolverPotionSettings()
-            .ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Force);
-        Require(forced.Directives.Length == 1
-            && forced.Directives[0].Directive == PotionDirective.Force, "force_directive_persisted");
-        Require(forced.ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Smart)
+        SolverPotionSettings disabled = new SolverPotionSettings()
+            .ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Disabled);
+        Require(disabled.Directives.Length == 1
+            && disabled.Directives[0].Directive == PotionDirective.Disabled,
+            "disabled_directive_persisted");
+        Require(disabled.ApplyDirective(0, "FIRE_POTION", SolverPotionMode.Smart)
             .Directives.Length == 0, "smart_directive_removed");
-        Require(forced.ResolveDirective(0, "FIRE_POTION") == PotionDirective.Force,
-            "force_directive_resolved");
+        Require(disabled.ResolveDirective(0, "FIRE_POTION") == PotionDirective.Disabled,
+            "disabled_directive_resolved");
     }
 
     private static void DeploymentTiming()

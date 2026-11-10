@@ -360,7 +360,6 @@ internal static partial class CombatSessionController
         PotionDirective next = mode switch
         {
             SolverPotionMode.Disabled => PotionDirective.Disabled,
-            SolverPotionMode.Force => PotionDirective.Force,
             _ => PotionDirective.Smart,
         };
         if (current == next)
@@ -393,7 +392,6 @@ internal static partial class CombatSessionController
         SolverPotionPreset preset = mode switch
         {
             SolverPotionMode.Disabled => SolverPotionPreset.ProtectAll,
-            SolverPotionMode.Force => SolverPotionPreset.ForceAll,
             _ => SolverPotionPreset.Smart,
         };
         potions = potions with { Preset = preset };

@@ -18,7 +18,6 @@ internal static class CombatReasonKind
     internal const string SearchMemoryLimit = "search_memory_limit";
     internal const string SearchCapacityBounded = "search_capacity_bounded";
     internal const string SearchFailed = "search_failed";
-    internal const string ForcedPotion = "forced_potion";
     internal const string TurnSetupFailed = "turn_setup_failed";
     internal const string UnsupportedRuntime = "unsupported_runtime";
     internal const string CapacityRuntime = "capacity_runtime";
@@ -80,7 +79,6 @@ internal static class CombatFailureReasonClassifier
             "timeout" => new() { Kind = CombatReasonKind.Timeout },
             "turn_setup_failed" => new() { Kind = CombatReasonKind.TurnSetupFailed },
             "search_failed" => Search(finishedSearch),
-            "forced_potion_unusable" => new() { Kind = CombatReasonKind.ForcedPotion },
             _ => new() { Kind = CombatReasonKind.Unknown, Code = code, Detail = detail },
         };
     }

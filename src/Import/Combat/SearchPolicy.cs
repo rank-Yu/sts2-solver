@@ -40,7 +40,6 @@ public enum SearchPotionMode
 {
     Smart,
     Disabled,
-    Force,
 }
 
 /// <summary>One persisted per-slot potion directive before root reconciliation.</summary>

@@ -165,7 +165,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `BrightestFlameMaxHpLossLimit` | `null` | 至亮之焰整场累计最大生命消耗上限；`null` 不限，`0..1000` 为上限。根上已消耗量不算策略字段，由请求编译单独读原生历史 | `SolverSettingsData`、`GrowthCostPolicy` |
 | `TheftPolicy` | 从根推出 | 盗贼遭遇或怪物时为 `PreserveResources`，否则为空；适用战斗可以由本场会话覆盖为 `LetEscape` | `TheftEncounterStrategy.IsApplicable`、`SolverController.ResolveTheftPolicy` |
 | `PotionDefaultMode` | `Smart` | 没有逐瓶指令时的药水模式；当前只接受 `Smart` 和 `Disabled` | `SolverSettingsData.PotionPolicy` |
-| `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；接受 `Smart`、`Disabled`、`Force`，`Smart` 不入表 | `CapturePotionStrategy` |
+| `PotionDirectives` | 空 | 逐瓶指令，按当前药栏的 `(slot, potionId)` 对账；接受 `Smart`、`Disabled`，`Smart` 不入表 | `CapturePotionStrategy` |
 | `HasDevelopmentStrategy`、镜像登记标志、第三方成长标志 | 全空 | 非空且生效时以 `unsupported-policy` 拒绝 | — |
 
 评分和下界编译不读逐瓶药水指令，但请求编译会读；`PotionDefaultMode` 和 `PotionDirectives` 因此留在 `SearchPolicy` 里，再由 `SearchRequestCompiler` 转成 `PotionPolicy`。`FixedBudget`、并行度、`IncludeTurnSetup` 这类搜索执行字段仍然不在 `SearchPolicy` 里。差分宿主的请求 DTO 可以覆盖会影响政策的字段（见 [Differential](../tests/Differential/README.md#输入)）；冻结 fixture 都没有覆盖，全部用默认值和根派生值。未知字段显式失败。

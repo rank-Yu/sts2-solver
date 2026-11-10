@@ -26,19 +26,17 @@ internal static class SearchResumeContracts
     internal static void Run()
     {
         SearchCase plain = LoadRequest(PlainRoot + ".request.br");
-        SearchCase potions = LoadForcedCase("FIRE_POTION");
         ResumeKeepsStoppedResult(plain);
         ResumeAcceptsBetterRemainingMember(plain);
         ResumeAfterSecondStop(plain);
-        TwoPassStopInFirstPass(potions);
-        StopAtLastMemberHasNoResume(potions);
+        StopAtLastMemberHasNoResume(LoadPotionCase());
         StopWithoutCandidateAdoptsCompleted(plain);
         StopWithoutCandidateWithoutCompletedCancels(plain);
         RequestedAdoptionHasNoResume(plain);
         CapacityDropsWithRouteReturnsBest(plain);
         CapacityDropsWithoutRouteFails(plain);
         EmptyRouteMemberIsNoResult(plain);
-        Console.WriteLine("SEARCH_RESUME stop/middle/last/two-pass/carried/without-candidate/capacity-drops/empty-route=pass");
+        Console.WriteLine("SEARCH_RESUME stop/middle/last/carried/without-candidate/capacity-drops/empty-route=pass");
     }
 
     /// <summary>
@@ -53,7 +51,7 @@ internal static class SearchResumeContracts
         Assert(real.BestRoute.Length > 0, "empty-route: the real route has actions");
         BeamResult empty = new([], false, double.NegativeInfinity, 0, 0, 0, 0, 0, TimeSpan.Zero);
         Script script = new() { Default = BeamStep(empty) };
-        script.Set((0, 1), BeamStep(real));
+        script.Set(1, BeamStep(real));
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -76,8 +74,8 @@ internal static class SearchResumeContracts
         Assert(count > stopIndex + 1, "plan has a middle member to stop at");
 
         Script stopScript = new() { Default = BeamStep(worse) };
-        stopScript.Set((0, 0), BeamStep(worse));
-        stopScript.Set((0, stopIndex), StoppedStep(better));
+        stopScript.Set(0, BeamStep(worse));
+        stopScript.Set(stopIndex, StoppedStep(better));
         SearchProgressChannel stopChannel = new(0);
         FakeRunner stopRunner = new(stopChannel, Plan, stopScript);
         CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
@@ -88,9 +86,9 @@ internal static class SearchResumeContracts
             stopped.Completion.ToString());
         SearchResumeState resume = stopped.Resume
             ?? throw new InvalidDataException("search-resume: stop did not carry a resume point");
-        Assert(resume.Pass == 0 && resume.NextMemberIndex == stopIndex + 1
+        Assert(resume.NextMemberIndex == stopIndex + 1
             && resume.StoppedIndex == stopIndex && resume.Members.Length == stopIndex + 1,
-            "stop carries pass, next member and member logs");
+            "stop carries next member and member logs");
         Assert(stopped.Beam is not null && Equal(stopped.Beam.BestRoute, better.BestRoute),
             "stop adopts the better stopped candidate");
         Assert(stopped.Adoption is { Kind: SearchAdoptionKind.Stopped }, "stop adoption kind");
@@ -128,8 +126,8 @@ internal static class SearchResumeContracts
             "progress reports the remaining planned time");
 
         Script fullScript = new() { Default = BeamStep(worse) };
-        fullScript.Set((0, 0), BeamStep(worse));
-        fullScript.Set((0, stopIndex), BeamStep(better));
+        fullScript.Set(0, BeamStep(worse));
+        fullScript.Set(stopIndex, BeamStep(better));
         SearchProgressChannel fullChannel = new(0);
         FakeRunner fullRunner = new(fullChannel, Plan, fullScript);
         CombatSearchResult full = Run(original, fullRunner, fullChannel);
@@ -148,7 +146,7 @@ internal static class SearchResumeContracts
         const int betterIndex = 3;
 
         Script stopScript = new() { Default = BeamStep(worse) };
-        stopScript.Set((0, stopIndex), StoppedStep(worse));
+        stopScript.Set(stopIndex, StoppedStep(worse));
         SearchProgressChannel stopChannel = new(0);
         FakeRunner stopRunner = new(stopChannel, Plan, stopScript);
         CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
@@ -158,7 +156,7 @@ internal static class SearchResumeContracts
             "stop adopts the stopped candidate");
 
         Script resumeScript = new() { Default = BeamStep(worse) };
-        resumeScript.Set((0, betterIndex), BeamStep(better));
+        resumeScript.Set(betterIndex, BeamStep(better));
         SearchProgressChannel resumeChannel = new(0);
         FakeRunner resumeRunner = new(resumeChannel, Plan, resumeScript);
         CombatSearchResult resumed = Run(original, resumeRunner, resumeChannel, resume);
@@ -169,8 +167,8 @@ internal static class SearchResumeContracts
             "a better remaining member replaces the stop-time route");
 
         Script fullScript = new() { Default = BeamStep(worse) };
-        fullScript.Set((0, stopIndex), BeamStep(worse));
-        fullScript.Set((0, betterIndex), BeamStep(better));
+        fullScript.Set(stopIndex, BeamStep(worse));
+        fullScript.Set(betterIndex, BeamStep(better));
         SearchProgressChannel fullChannel = new(0);
         FakeRunner fullRunner = new(fullChannel, Plan, fullScript);
         CombatSearchResult full = Run(original, fullRunner, fullChannel);
@@ -186,7 +184,7 @@ internal static class SearchResumeContracts
         (BeamResult better, BeamResult worse) = FindTwoRoutes(original, quality);
 
         Script firstScript = new() { Default = BeamStep(worse) };
-        firstScript.Set((0, 1), StoppedStep(better));
+        firstScript.Set(1, StoppedStep(better));
         SearchProgressChannel firstChannel = new(0);
         FakeRunner firstRunner = new(firstChannel, Plan, firstScript);
         CombatSearchResult first = Run(original, firstRunner, firstChannel);
@@ -195,7 +193,7 @@ internal static class SearchResumeContracts
         Assert(resume.NextMemberIndex == 2, "first stop at member 1");
 
         Script secondScript = new() { Default = BeamStep(worse) };
-        secondScript.Set((0, 4), StoppedStep(worse));
+        secondScript.Set(4, StoppedStep(worse));
         SearchProgressChannel secondChannel = new(0);
         FakeRunner secondRunner = new(secondChannel, Plan, secondScript);
         CombatSearchResult second = Run(original, secondRunner, secondChannel, resume);
@@ -219,69 +217,19 @@ internal static class SearchResumeContracts
             "final route keeps the best stop-time result");
     }
 
-    private static void TwoPassStopInFirstPass(SearchCase original)
+    private static void StopAtLastMemberHasNoResume(SearchCase original)
     {
-        BeamSolver quality = new(original.Rules, original.Options with { AuditPotionPolicy = true });
-        BeamResult forced = ForcedPotionRoute(original, quality);
-        BeamResult other = OtherForcedPotionRoute(original, quality, forced);
-        int count = MemberCount(original);
-        const int stopIndex = 1;
-
-        Script stopScript = new() { Default = FakeStep.None };
-        stopScript.Set((0, 0), BeamStep(forced));
-        stopScript.Set((0, stopIndex), StoppedStep(forced));
-        SearchProgressChannel stopChannel = new(0);
-        FakeRunner stopRunner = new(stopChannel, Plan, stopScript);
-        CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
+        int last = MemberCount(original) - 1;
+        Script script = new() { Default = FakeStep.None };
+        script.Set(last, StoppedStep(FirstRoute(original)));
+        SearchProgressChannel channel = new(0);
+        FakeRunner runner = new(channel, Plan, script);
+        CombatSearchResult stopped = Run(original, runner, channel);
+        Assert(runner.Calls.Count > 0 && runner.Calls[^1].Index == last,
+            "the last member runs");
         Assert(stopped.Completion == SearchCompletionKind.StoppedWithCandidate,
             stopped.Completion.ToString());
-        SearchResumeState resume = stopped.Resume
-            ?? throw new InvalidDataException("search-resume: forced stop did not carry a resume point");
-        Assert(resume.Pass == 0 && resume.NextMemberIndex == stopIndex + 1,
-            "forced-gradient stop carries pass 0");
-
-        Script resumeScript = new() { Default = FakeStep.None };
-        for (int index = 0; index < count; index++)
-            resumeScript.Set((1, index), BeamStep(other));
-        SearchProgressChannel resumeChannel = new(0);
-        FakeRunner resumeRunner = new(resumeChannel, Plan, resumeScript);
-        CombatSearchResult resumed = Run(original, resumeRunner, resumeChannel, resume);
-        Assert(resumeRunner.Calls[0].Pass == 0 && resumeRunner.Calls[0].Index == stopIndex + 1,
-            "resume starts at pass 0 after the stopped member");
-        Assert(resumeRunner.Calls.All(static call => call.Pass == 0),
-            "a selected pass-0 result stops the fallback pass");
-        Assert(resumed.Beam is not null && Equal(resumed.Beam.BestRoute, forced.BestRoute),
-            "resume keeps the pass-0 route");
-
-        Script fullScript = new() { Default = FakeStep.None };
-        fullScript.Set((0, 0), BeamStep(forced));
-        fullScript.Set((0, stopIndex), BeamStep(forced));
-        for (int index = 0; index < count; index++)
-            fullScript.Set((1, index), BeamStep(other));
-        SearchProgressChannel fullChannel = new(0);
-        FakeRunner fullRunner = new(fullChannel, Plan, fullScript);
-        CombatSearchResult full = Run(original, fullRunner, fullChannel);
-        Assert(full.Beam is not null && resumed.Beam is not null
-            && Equal(full.Beam.BestRoute, resumed.Beam.BestRoute),
-            "forced-gradient resume equals the substituted full run");
-    }
-
-    private static void StopAtLastMemberHasNoResume(SearchCase potions)
-    {
-        BeamSolver quality = new(potions.Rules, potions.Options with { AuditPotionPolicy = true });
-        BeamResult forced = ForcedPotionRoute(potions, quality);
-        int potionCount = MemberCount(potions);
-        Script forcedScript = new() { Default = FakeStep.None };
-        forcedScript.Set((1, potionCount - 1), StoppedStep(forced));
-        SearchProgressChannel forcedChannel = new(0);
-        FakeRunner forcedRunner = new(forcedChannel, Plan, forcedScript);
-        CombatSearchResult forcedStop = Run(potions, forcedRunner, forcedChannel);
-        Assert(forcedRunner.Calls.Any(static call => call.Pass == 1),
-            "forced-gradient run reaches the second pass");
-        Assert(forcedStop.Completion == SearchCompletionKind.StoppedWithCandidate,
-            forcedStop.Completion.ToString());
-        Assert(forcedStop.Resume is null,
-            "stop at the last member of the last pass carries no resume point");
+        Assert(stopped.Resume is null, "stop at the last member carries no resume point");
     }
 
     private static void StopWithoutCandidateAdoptsCompleted(SearchCase original)
@@ -289,8 +237,8 @@ internal static class SearchResumeContracts
         BeamSolver quality = new(original.Rules, original.Options with { AuditPotionPolicy = true });
         (BeamResult better, _) = FindTwoRoutes(original, quality);
         Script script = new() { Default = FakeStep.None };
-        script.Set((0, 0), BeamStep(better));
-        script.Set((0, 1), StopWithoutCandidateStep());
+        script.Set(0, BeamStep(better));
+        script.Set(1, StopWithoutCandidateStep());
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -311,7 +259,7 @@ internal static class SearchResumeContracts
     private static void StopWithoutCandidateWithoutCompletedCancels(SearchCase original)
     {
         Script script = new() { Default = FakeStep.None };
-        script.Set((0, 0), StopWithoutCandidateStep());
+        script.Set(0, StopWithoutCandidateStep());
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -323,7 +271,7 @@ internal static class SearchResumeContracts
     private static void RequestedAdoptionHasNoResume(SearchCase original)
     {
         Script script = new() { Default = FakeStep.None };
-        script.Set((0, 0), RequestedStep(FirstRoute(original)));
+        script.Set(0, RequestedStep(FirstRoute(original)));
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -341,7 +289,7 @@ internal static class SearchResumeContracts
         BeamResult route = FirstRoute(original);
         Assert(!route.BestIsVictory, "capacity-drop fixture route must be non-victory");
         Script script = new() { Default = FakeStep.None };
-        script.Set((0, 0), CapacityDroppedStep(route));
+        script.Set(0, CapacityDroppedStep(route));
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -370,7 +318,7 @@ internal static class SearchResumeContracts
             PotionPolicySatisfied = false,
         };
         Script script = new() { Default = FakeStep.None };
-        script.Set((0, 0), BeamStep(empty));
+        script.Set(0, BeamStep(empty));
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, Plan, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -410,98 +358,26 @@ internal static class SearchResumeContracts
         return SearchCodec.DecodeRequest(bytes.ToArray());
     }
 
-    private static SearchCase LoadForcedCase(string forcedPotionId)
+    /// <summary>A root with potions the policy allows, so the potion-stage members run.</summary>
+    private static SearchCase LoadPotionCase()
     {
         SearchCase original = LoadRequestPath(Directory.GetFiles(
             "tests/Golden/data/d2/requests", PotionRoot + "*.request.br").Single());
-        PotionStrategySnapshot strategy = new(PotionUseMode.Smart,
-        [
-            new PotionSlotDirective(0, "POISON_POTION", PotionDirective.Disabled),
-            new PotionSlotDirective(1, forcedPotionId, PotionDirective.Force),
-        ]);
-        PotionPolicy potions = original.Options.Potions with
+        PotionPolicy potions = new(int.MinValue,
+            new PotionStrategySnapshot(PotionUseMode.Smart, []), PotionUseMode.Smart, false);
+        return original with
         {
-            Strategy = strategy,
-            EffectivePolicy = PotionUseMode.Smart,
-            ForceAllDisabled = false,
-            EarliestPlayerTurn = int.MinValue,
+            Options = original.Options with
+            {
+                Potions = potions,
+                EffectivePotionPolicy = PotionUseMode.Smart,
+            },
         };
-        BeamOptions options = original.Options with
-        {
-            BeamWidth = 12,
-            MaxExpandedNodes = 100_000,
-            MaxTurns = int.MaxValue,
-            UnlimitedNodes = false,
-            SoftTimeBudget = TimeSpan.MaxValue,
-            SearchThreads = 1,
-            DeadlineExpired = null,
-            SecondRankBand = false,
-            Potions = potions,
-            EffectivePotionPolicy = PotionUseMode.Smart,
-            PotionFreeBaseline = null,
-            AuditPotionPolicy = true,
-        };
-        options = SearchBudgetPolicy.ApplyRegression(options);
-        return original with { Options = options };
     }
 
     private static BeamResult FirstRoute(SearchCase original)
         => TryRoute(original, [PlayerAction.EndTurn()])
             ?? throw new InvalidDataException("search-resume: fixture cannot end the turn");
-
-    private static BeamResult ForcedPotionRoute(SearchCase original, BeamSolver quality)
-    {
-        foreach (BeamResult candidate in PotionRoutes(original))
-        {
-            try
-            {
-                BeamSolver.Candidate assessed = quality.AssessResult(original.Battles, candidate,
-                    CancellationToken.None, static () => false, out _, out _, out _);
-                if (assessed.ForcedUsesSatisfied && quality.IsPolicyEligible(assessed, null))
-                    return candidate;
-            }
-            catch (InvalidDataException) { }
-            catch (CapacityException) { }
-        }
-        throw new InvalidDataException("search-resume: no forced-potion route in the fixture");
-    }
-
-    private static BeamResult OtherForcedPotionRoute(SearchCase original, BeamSolver quality,
-        BeamResult excluded)
-    {
-        foreach (BeamResult candidate in PotionRoutes(original))
-        {
-            if (ReferenceEquals(candidate, excluded) || Equal(candidate.BestRoute, excluded.BestRoute))
-                continue;
-            try
-            {
-                BeamSolver.Candidate assessed = quality.AssessResult(original.Battles, candidate,
-                    CancellationToken.None, static () => false, out _, out _, out _);
-                if (assessed.ForcedUsesSatisfied && quality.IsPolicyEligible(assessed, null))
-                    return candidate;
-            }
-            catch (InvalidDataException) { }
-            catch (CapacityException) { }
-        }
-        // A second forced route is not required for the contract; reuse the first one.
-        return excluded;
-    }
-
-    private static IEnumerable<BeamResult> PotionRoutes(SearchCase original)
-    {
-        PlayerAction[] legal = new PlayerAction[Kernel.MaxLegalActions];
-        int count = Kernel.LegalActions(original.Battles[0], original.Rules, legal);
-        for (int index = 0; index < count; index++)
-        {
-            if (legal[index].Kind != PlayerActionKind.UsePotion)
-                continue;
-            PlayerAction potion = legal[index];
-            if (TryRoute(original, [potion]) is { } single)
-                yield return single;
-            if (TryRoute(original, [potion, PlayerAction.EndTurn()]) is { } withEnd)
-                yield return withEnd;
-        }
-    }
 
     private static (BeamResult Better, BeamResult Worse) FindTwoRoutes(SearchCase original,
         BeamSolver quality)
@@ -611,39 +487,33 @@ internal static class SearchResumeContracts
 
     private sealed class Script
     {
-        private readonly Dictionary<(int Pass, int Index), FakeStep> _steps = [];
+        private readonly Dictionary<int, FakeStep> _steps = [];
 
         internal FakeStep Default { get; set; } = FakeStep.None;
 
-        internal void Set((int Pass, int Index) key, FakeStep step) => _steps[key] = step;
+        internal void Set(int index, FakeStep step) => _steps[index] = step;
 
-        internal FakeStep For(int pass, int index)
-            => _steps.TryGetValue((pass, index), out FakeStep step) ? step : Default;
+        internal FakeStep For(int index)
+            => _steps.TryGetValue(index, out FakeStep step) ? step : Default;
     }
 
     private sealed class FakeRunner(SearchProgressChannel channel, SearchPlan plan, Script script)
     {
-        private int _pass;
-        private int _lastIndex = -1;
-
-        internal List<(int Pass, int Index, long Configured)> Calls { get; } = [];
+        internal List<(int Index, long Configured)> Calls { get; } = [];
 
         internal ValueTask<SearchMemberMeasurement> Run(SearchCase member, SearchStorage shared,
             CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             int index = channel.MemberIndex;
-            if (index <= _lastIndex)
-                _pass++;
-            _lastIndex = index;
-            Calls.Add((_pass, index,
+            Calls.Add((index,
                 checked((long)member.Options.BeamWidth * plan.MillisecondsPerWidth)));
             return ValueTask.FromResult(Measure(index));
         }
 
         private SearchMemberMeasurement Measure(int index)
         {
-            FakeStep step = script.For(_pass, index);
+            FakeStep step = script.For(index);
             switch (step.Kind)
             {
                 case FakeKind.None:

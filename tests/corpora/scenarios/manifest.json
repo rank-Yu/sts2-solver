@@ -419,11 +419,6 @@
       }
     },
     {
-      "id": "forced_potion",
-      "scenario": "forced_potion",
-      "group": "controller"
-    },
-    {
       "id": "panel_strategy",
       "scenario": "panel_strategy",
       "group": "controller"
@@ -481,13 +476,6 @@
         "potions": [
           {
             "potionId": "BLOOD_POTION"
-          }
-        ],
-        "potionDirectivesForTest": [
-          {
-            "slot": 0,
-            "potionId": "BLOOD_POTION",
-            "mode": "Force"
           }
         ],
         "turnSetupTakeoverForTest": true,

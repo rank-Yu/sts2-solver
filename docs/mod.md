@@ -46,9 +46,9 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ## 设置文件
 
-设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `7`；写入先写 `.tmp` 再原子替换。
+设置保存在 Godot 用户目录下的 `user://sts2solver/settings.json`；实际路径由游戏的用户数据目录决定。文件不存在时使用默认值，第一次修改设置时创建。文件顶层的 `schemaVersion` 当前是 `8`；写入先写 `.tmp` 再原子替换。
 
-设置文件接受当前 `schemaVersion=7`。`schemaVersion=6` 的文件读入时只换算自动化档位：`automation.mode` 为 `Manual` 时自动搜索关，`AutoSearch`、`FullAuto` 时开，其余设置原样保留并写 `SETTINGS_UPGRADED` 日志；更早的版本或未知字段按下面的通用损坏路径处理。
+设置文件接受当前 `schemaVersion=8`。`schemaVersion=6` 和 `7` 的文件读入时升级到 8：`schemaVersion=6` 换算自动化档位（`automation.mode` 为 `Manual` 时自动搜索关，`AutoSearch`、`FullAuto` 时开）；两个版本都去掉 `search.potions.directives` 里 `directive` 为 `Force` 的项，并把 `search.potions.preset` 的 `ForceAll` 改成 `Smart`。其余设置原样保留并写 `SETTINGS_UPGRADED` 日志；更早的版本或未知字段按下面的通用损坏路径处理。
 
 每次保存记一行 `SETTINGS_SAVED`，`changed=` 列出变化的设置，形如 `search.tier:ExtraHigh->Medium`（数组整体比较，没有变化写 `-`），战斗日志的 `events.log` 也会收到这一行。文件在 Mod 初始化时读取，直接修改文件需要重启游戏；运行中通过面板的设置页或策略侧栏修改后，搜索设置在下一次搜索开始时生效。JSON 损坏或字段校验不通过时，文件会改名为同目录的 `settings.bad-<UTC 时间>.json`，记录 `SETTINGS_CORRUPT`，然后用默认值继续，不阻止游戏启动；其他读取失败记录 `SETTINGS_LOAD_FAILED`，同样用默认值继续。旧文件里的未知字段不会被静默忽略。
 
@@ -61,7 +61,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | `search.threads` | `null` | 一个搜索成员的总线程数（含搜索线程本身）；`null` 表示按逻辑核数自动决定。 |
 | `search.potions.defaultMode` | `Smart` | 药水默认策略；请求捕获只接受 `Smart` 和 `Disabled`。 |
 | `search.potions.preset` | `Smart` | 药水预设，只在批量命令中更新；不是搜索输入。 |
-| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索接受 `Smart`、`Disabled` 和 `Force`；`Smart` 不入表。 |
+| `search.potions.directives` | `[]` | 逐槽策略，每项是 `{ "slot", "potionId", "directive" }`。搜索接受 `Smart` 和 `Disabled`；`Smart` 不入表。 |
 | `search.growthBudgets` | 十个来源全为 `0` | 十个内置成长来源的额外战损预算。文件里的第三方来源条目原样保留，但不进入请求。 |
 | `search.relicCounterAllowances` | `{}` | 计数遗物的额外战损额度：键是原版遗物 id（如 `PEN_NIB`），值 0–1000，没有条目按 0。只接受十个计数遗物，见下文遗物页。 |
 | `search.ignoreLongTermRewards` | `false` | 不考虑局外收益。 |
@@ -121,7 +121,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 暂停码只有这些稳定值：`death_turn`、`no_survival`、`live_end_turn_risk`、`repeated_failure`、`choice_mismatch`、`action_deviation`、`boundary_deviation`、`deployment_deviation`、`deploy_failed`、`stopped`。不能搜索的原因写入快照的 `SearchBlockReason`：`enemy_turn`、`turn_start`、`actions_running`、`turn_setup`、`executing`，以及不在战斗、多人、不可玩等拒绝码。
 
-搜索或导入失败的阶段是 `Failed`，错误码写入快照的 `ErrorCode`，例如 `import_failed`、`import_unsupported`、`import_capacity`、`request_invalid`、`route_invalid`、`route_unsupported`、`route_capacity`、`search_failed`、`turn_setup_failed` 和 `forced_potion_unusable`。`turn_setup_failed` 只用于回合准备选牌，不是暂停码；失败后页面交还玩家，替换任务正常完成，原生 `StartTurn` 不进入 fault。主面板显示“求解器消息”和对应文案；失败状态在下一次搜索开始、回合变化、模式切换或战斗结束时清除。
+搜索或导入失败的阶段是 `Failed`，错误码写入快照的 `ErrorCode`，例如 `import_failed`、`import_unsupported`、`import_capacity`、`request_invalid`、`route_invalid`、`route_unsupported`、`route_capacity`、`search_failed` 和 `turn_setup_failed`。`turn_setup_failed` 只用于回合准备选牌，不是暂停码；失败后页面交还玩家，替换任务正常完成，原生 `StartTurn` 不进入 fault。主面板显示“求解器消息”和对应文案；失败状态在下一次搜索开始、回合变化、模式切换或战斗结束时清除。
 
 ### 策略侧栏
 
@@ -129,9 +129,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 各页的改动都经 `ICombatUiCommands` 立即保存，页底状态行写“已保存，下次搜索生效”；不会自动重新搜索，进行中的搜索和已显示的路线不变。
 
-**药水页**：上方一排三个批量按钮“全部智能 / 全部保护 / 全部强制”，下方每个有药水的槽位一行：药水图标、“#槽位 药水名”和模式按钮。模式按钮按“智能使用 → 禁用 / 保护 → 强制使用 → 智能使用”循环，文字分别是灰、红、绿色；按钮宽度取三种文字里最宽的，换档时不跳。禁用和保护是同一档。不能指定策略的药水（例如瓶中精灵）按钮禁用，悬停写“该药水不可指定使用策略”；显示“智能使用”的按钮悬停说明智能使用的门槛。批量按钮只改当前可指定策略的药水，“全部保护”写禁用。原 CombatSolver 还有“仅用已强制”（保留已强制的药水、其余改为禁用），这里没有：先点“全部保护”再把要用的药水点成强制，结果相同。没有可指定策略的药水时三个批量按钮都禁用；药水栏为空时写“当前没有药水”。
-
-强制使用是硬要求：搜索找不到用掉全部“强制使用”药水的路线时，这次搜索显式失败，快照错误码是 `forced_potion_unusable`，摘要写“找不到用掉所有“强制使用”药水的路线，请在药水策略里调整后重新搜索”。
+**药水页**：上方一排两个批量按钮“全部智能 / 全部保护”，下方每个有药水的槽位一行：药水图标、“#槽位 药水名”和模式按钮。模式按钮按“智能使用 → 禁用 / 保护 → 智能使用”循环，文字分别是灰、红色；按钮宽度取两种文字里较宽的，换档时不跳。禁用和保护是同一档。不能指定策略的药水（例如瓶中精灵）按钮禁用，悬停写“该药水不可指定使用策略”；显示“智能使用”的按钮悬停说明智能使用的门槛。批量按钮只改当前可指定策略的药水，“全部保护”写禁用。没有可指定策略的药水时两个批量按钮都禁用；药水栏为空时写“当前没有药水”。
 
 **成长页**：依次是“不考虑局外收益”开关、“限制至亮之焰的最大生命消耗”开关和“每场最多消耗”，再是分组“每次收益允许的额外战损”下的十个内置来源（贪婪之手、狩猎、狂宴、王国资产、炼制药水、遗传算法、巨镰、黏糊防御、禁忌魔典、疯狂科学）。每行有游戏卡图、名称和带 HP 后缀的输入框；输入 0–1000 的整数，回车或离开输入框时保存，0 显示为灰色。填错时文字变红，状态行写“请输入 0–1000 的整数”，侧栏不关闭、不换页。打开“不考虑局外收益”后十个来源变灰、不可编辑，至亮之焰限制照常可用。限制开关关闭时“每场最多消耗”变灰并显示 2；打开开关写入 2，之后可以改，关闭写入 `null`（不限）。悬停说明只挂在“每场最多消耗”（标签和输入框）以及分组标题和十个输入框（同一句）。第三方成长来源不列出。
 

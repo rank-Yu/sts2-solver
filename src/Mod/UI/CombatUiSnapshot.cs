@@ -288,7 +288,7 @@ internal sealed record PotionSlotUi
 
     public string PotionId { get; init; } = "";
 
-    /// <summary>Stable code <c>smart</c>, <c>disabled</c> or <c>force</c>.</summary>
+    /// <summary>Stable code <c>smart</c> or <c>disabled</c>.</summary>
     public string Mode { get; init; } = "smart";
 
     /// <summary>False for potions the search never offers explicitly (for example Fairy in a Bottle).</summary>

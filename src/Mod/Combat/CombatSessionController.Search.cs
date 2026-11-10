@@ -133,7 +133,7 @@ internal static partial class CombatSessionController
             $"reason={reason} deploy_when_ready={deployWhenReady} tier={_searchTier} " +
             $"threads={_searchThreads} auto_search={_autoSearch} run={_runCombat} " +
             $"continuation={continuation}" +
-            (continuation ? $" pass={resume!.Pass} next_member={resume.NextMemberIndex}" : ""));
+            (continuation ? $" next_member={resume!.NextMemberIndex}" : ""));
         _ = RunSearchAsync(session);
     }
 
@@ -641,7 +641,7 @@ internal static partial class CombatSessionController
         byte[] bytes = SearchCodec.EncodeRequest(request);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_CONTINUATION_READY turn={session.StartTurn} " +
-            $"pass={resume.Pass} next_member={resume.NextMemberIndex} " +
+            $"next_member={resume.NextMemberIndex} " +
             $"stopped_member={resume.NextMemberIndex - 1} adopted_member={resume.StoppedIndex} " +
             $"members={resume.Members.Length} request_bytes={bytes.Length}");
         return new CombatSearchContinuation(resume, bytes, session.Stamp, settings, plan,

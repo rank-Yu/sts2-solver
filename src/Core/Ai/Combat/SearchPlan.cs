@@ -140,12 +140,6 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
     internal long PlannedBudgetMilliseconds { get; init; }
 
     /// <summary>
-    /// True when the request forces potions and no route used them all; the request then failed
-    /// with <see cref="CombatSearchStatus.Invalid"/>. Host-only.
-    /// </summary>
-    internal bool ForcedPotionsUnsatisfied { get; init; }
-
-    /// <summary>
     /// Region-to-child-count map when at least one member dropped children at a Battle capacity.
     /// A returned route remains usable; the panel warns that only a subset of lines was explored.
     /// Host-only and never encoded in SREQ/SRES.

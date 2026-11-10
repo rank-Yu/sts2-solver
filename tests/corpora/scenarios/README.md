@@ -12,13 +12,13 @@
 - `english`：是否用游戏自带英文覆盖；
 - `scenarioId`：少数场景（胶囊来源）按 `scenarioId` 选择断言；
 - `separate`：整场请求独占一个实例，避免同一进程的上一场战斗影响本场的面板检查；
-- `request`：覆盖基础请求的其他测试字段，包括 `settingsModeForTest`、`turnSetupTakeoverForTest`、初始生命/敌人生命、药水注入和强制策略。
+- `request`：覆盖基础请求的其他测试字段，包括 `settingsModeForTest`、`turnSetupTakeoverForTest`、初始生命/敌人生命、药水注入和逐瓶药水策略。
 
 ## 为到达稳定回合而调整的输入
 
 | 场景 | 根 | 输入 |
 | --- | --- | --- |
-| `turn_setup_carry` | `ts-a-toasty` | 第 1 回合生命 1/80、敌人 120、注入并强制 `BLOOD_POTION`，全自动 + 接管；`RecoveredHp=16` |
+| `turn_setup_carry` | `ts-a-toasty` | 第 1 回合生命 1/80、敌人 120、注入 `BLOOD_POTION`（智能策略在第 1 回合使用），全自动 + 接管；`RecoveredHp=16` |
 | `turn_setup_continuation_*` | `ts-a-toasty` | 500/500 对 500，全自动或自动搜索 + 接管 |
 | `turn_setup_continuation_hatchet` | `ts-m-hatchet-return` | 跑 `turn_setup_continuation_full`：第 1 回合打出嗡鸣手斧，第 2、3 回合的准备页沿用计划、0 偏差（Start 根要带上“下回合回手”标记） |
 | `turn_setup_continuation_gap` | `ts-g-multi-choice` | 500/500 对 500，全自动 + 接管 |

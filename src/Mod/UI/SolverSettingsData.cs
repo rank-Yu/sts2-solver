@@ -10,7 +10,6 @@ internal enum SolverPotionPreset
 {
     Smart,
     ProtectAll,
-    ForceAll,
 }
 
 /// <summary>The per-potion modes wired into the search request.</summary>
@@ -18,7 +17,6 @@ internal enum SolverPotionMode
 {
     Smart,
     Disabled,
-    Force,
 }
 
 internal enum SolverUiTheme
@@ -41,7 +39,7 @@ internal enum SolverDeploymentSpeed
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 7;
+    internal const int CurrentSchemaVersion = 8;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -281,12 +279,7 @@ internal sealed record SolverPotionSettings
             .Where(item => item.Slot != slot)
             .ToList();
         if (mode != SolverPotionMode.Smart)
-            directives.Add(new PotionSlotDirective(slot, potionId, mode switch
-            {
-                SolverPotionMode.Disabled => PotionDirective.Disabled,
-                SolverPotionMode.Force => PotionDirective.Force,
-                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
-            }));
+            directives.Add(new PotionSlotDirective(slot, potionId, PotionDirective.Disabled));
         return this with
         {
             Directives = directives

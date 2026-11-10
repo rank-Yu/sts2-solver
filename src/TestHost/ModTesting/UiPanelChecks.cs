@@ -308,7 +308,7 @@ internal static class UiPanelChecks
         if (index < 0)
         {
             check("potion_presets_disabled", page.AllSmartButtonForTest.Disabled
-                && page.AllProtectButtonForTest.Disabled && page.AllForceButtonForTest.Disabled, rows);
+                && page.AllProtectButtonForTest.Disabled, rows);
             await Press(host, panel.PotionButtonForTest);
             return;
         }
@@ -328,7 +328,7 @@ internal static class UiPanelChecks
                 && page.StatusTextForTest == saved, detail);
         }
         await PressPreset(page.AllSmartButtonForTest, "all_smart", "smart");
-        foreach (string expected in new[] { "disabled", "force", "smart" })
+        foreach (string expected in new[] { "disabled", "smart" })
         {
             await Press(host, button);
             action($"press:potion_mode:{target.Slot}");
@@ -336,7 +336,6 @@ internal static class UiPanelChecks
             check("potion_cycle_" + expected, rowsMatch && Mode() == expected
                 && page.StatusTextForTest == saved, detail);
         }
-        await PressPreset(page.AllForceButtonForTest, "all_force", "force");
         await PressPreset(page.AllProtectButtonForTest, "all_protect", "disabled");
         await PressPreset(page.AllSmartButtonForTest, "all_smart_again", "smart");
         await Press(host, panel.PotionButtonForTest);
@@ -721,8 +720,7 @@ internal static class UiPanelChecks
         detail = $"rows={rows.Count} potions={potions.Length} " + string.Join(",", potions.Select(
             static potion => $"{potion.Slot}:{potion.PotionId}:{potion.Mode}:{potion.CanAssignPolicy}"));
         bool presets = page.AllSmartButtonForTest.Disabled == !anyAssignable
-            && page.AllProtectButtonForTest.Disabled == !anyAssignable
-            && page.AllForceButtonForTest.Disabled == !anyAssignable;
+            && page.AllProtectButtonForTest.Disabled == !anyAssignable;
         if (potions.Length == 0)
         {
             return presets && rows.Count == 0
@@ -799,7 +797,6 @@ internal static class UiPanelChecks
     {
         "smart" => "—  " + SolverText.Get("智能使用"),
         "disabled" => "✕  " + SolverText.Get("禁用 / 保护"),
-        "force" => "✓  " + SolverText.Get("强制使用"),
         _ => throw new InvalidDataException("unknown potion mode " + mode),
     };
 

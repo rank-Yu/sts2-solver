@@ -137,7 +137,7 @@ internal static class CombatSearchRunner
             string error = outcome.FailureError ?? "搜索没有返回路线";
             return new CombatSearchRun(in searchRoot, searchCase, outcome, null, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
-                outcome.ForcedPotionsUnsatisfied ? "forced_potion_unusable" : "search_failed",
+                "search_failed",
                 $"search {status}: {error}")
             {
                 RequestPlan = plan,

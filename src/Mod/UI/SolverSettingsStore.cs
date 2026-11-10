@@ -48,11 +48,13 @@ internal sealed class SolverSettingsStore
     }
 
     /// <summary>
-    /// Schema 6 stored the three-position automation mode. Schema 7 keeps only the auto-search switch:
-    /// Manual becomes off, AutoSearch and FullAuto become on (executing the whole combat is no longer
-    /// persisted). Every other value is kept as written; other versions go through the normal checks.
+    /// Upgrades schema 6 and 7 files to the current schema. Schema 6 stored the three-position
+    /// automation mode; later schemas keep only the auto-search switch: Manual becomes off, AutoSearch
+    /// and FullAuto become on (executing the whole combat is no longer persisted). Schemas 6 and 7
+    /// could force a potion: those directives are dropped and the force-all preset becomes Smart.
+    /// Every other value is kept as written; other versions go through the normal checks.
     /// </summary>
-    private static string UpgradeSchema6(string json, Action<string> info)
+    private static string UpgradeSchema(string json, Action<string> info)
     {
         JsonNode? root;
         try
@@ -69,19 +71,37 @@ internal sealed class SolverSettingsStore
         }
         if (root is not JsonObject settings
             || settings["schemaVersion"] is not JsonValue version
-            || !version.TryGetValue(out int schema) || schema != 6)
+            || !version.TryGetValue(out int schema) || schema is not (6 or 7))
         {
             return json;
         }
         settings["schemaVersion"] = SolverSettingsData.CurrentSchemaVersion;
-        if (settings["automation"] is JsonObject automation && automation["mode"] is JsonValue mode)
+        if (schema == 6 && settings["automation"] is JsonObject automation
+            && automation["mode"] is JsonValue mode)
         {
             string? value = mode.TryGetValue(out string? text) ? text : null;
             automation.Remove("mode");
             automation["autoSearch"] = !string.Equals(value, "Manual", StringComparison.OrdinalIgnoreCase);
         }
-        info($"[Sts2Solver] SETTINGS_UPGRADED from=6 to={SolverSettingsData.CurrentSchemaVersion}");
+        if (settings["search"] is JsonObject search && search["potions"] is JsonObject potions)
+        {
+            if (potions["directives"] is JsonArray directives)
+            {
+                for (int index = directives.Count - 1; index >= 0; index--)
+                {
+                    if (directives[index] is JsonObject entry && IsText(entry["directive"], "Force"))
+                        directives.RemoveAt(index);
+                }
+            }
+            if (IsText(potions["preset"], "ForceAll"))
+                potions["preset"] = nameof(SolverPotionPreset.Smart);
+        }
+        info($"[Sts2Solver] SETTINGS_UPGRADED from={schema} to={SolverSettingsData.CurrentSchemaVersion}");
         return settings.ToJsonString();
+
+        static bool IsText(JsonNode? node, string expected)
+            => node is JsonValue value && value.TryGetValue(out string? text)
+                && string.Equals(text, expected, StringComparison.OrdinalIgnoreCase);
     }
 
     internal static SolverSettingsStore Load(string path, Action<string> info, Action<string> error)
@@ -91,7 +111,7 @@ internal sealed class SolverSettingsStore
         ArgumentNullException.ThrowIfNull(error);
         try
         {
-            string json = UpgradeSchema6(File.ReadAllText(path), info);
+            string json = UpgradeSchema(File.ReadAllText(path), info);
             SolverSettingsData data = JsonSerializer.Deserialize<SolverSettingsData>(json, JsonOptions)
                 ?? throw new InvalidDataException("设置文件为空。");
             data.Validate();

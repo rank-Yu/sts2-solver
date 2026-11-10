@@ -1,8 +1,8 @@
 // Adapted from CombatSolver src/UI/SolverPotionStrategyPanel.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The three-state mode button with its cycle order, labels and colors, the empty state and the
-// ineligible tooltip are the original ones, and so are three of its four presets: "forced only" is
-// left out because protecting all and then forcing one potion gives the same result. Each potion is
+// The mode button's labels and colors, the empty state and the ineligible tooltip are the original
+// ones. The button has two states (smart, disabled) and the page has two presets (all smart, all
+// protected); the original's forced mode and its presets are left out. Each potion is
 // one row (icon, "#slot name", fixed-width mode button) instead of a two-line card; rows come from
 // StrategyUiSnapshot, the presets are disabled when no potion takes a policy, and every change goes
 // through ICombatUiCommands and only saves for the next search.
@@ -19,7 +19,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
 
     private readonly Button _allSmart;
     private readonly Button _allProtect;
-    private readonly Button _allForce;
     private readonly VBoxContainer _rows;
     private readonly Label _status;
     private readonly List<PotionRow> _potionRows = [];
@@ -36,7 +35,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         GridContainer presets = new()
         {
             Name = "PotionPresets",
-            Columns = 3,
+            Columns = 2,
             MouseFilter = MouseFilterEnum.Pass,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
@@ -46,8 +45,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart));
         _allProtect = CreatePreset(presets, SolverText.Get("全部保护"), "AllProtected",
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Disabled));
-        _allForce = CreatePreset(presets, SolverText.Get("全部强制"), "AllForced",
-            () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Force));
         AddChild(presets);
 
         _rows = new VBoxContainer
@@ -100,7 +97,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         }
         _allSmart.Disabled = !anyAssignable;
         _allProtect.Disabled = !anyAssignable;
-        _allForce.Disabled = !anyAssignable;
     }
 
     public bool CommitPending() => true;
@@ -174,8 +170,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         row.AddChild(button);
         _rows.AddChild(row);
         SolverUiTokens.FitWidestText(button,
-            ModeText(SolverPotionMode.Smart), ModeText(SolverPotionMode.Disabled),
-            ModeText(SolverPotionMode.Force));
+            ModeText(SolverPotionMode.Smart), ModeText(SolverPotionMode.Disabled));
         PotionRow potionRow = new(potion.Slot, potion.PotionId, potion.CanAssignPolicy, button);
         if (potion.CanAssignPolicy)
             button.Pressed += () => CycleMode(potionRow);
@@ -184,12 +179,9 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
 
     private void CycleMode(PotionRow row)
     {
-        SolverPotionMode next = row.Mode switch
-        {
-            SolverPotionMode.Smart => SolverPotionMode.Disabled,
-            SolverPotionMode.Disabled => SolverPotionMode.Force,
-            _ => SolverPotionMode.Smart,
-        };
+        SolverPotionMode next = row.Mode == SolverPotionMode.Smart
+            ? SolverPotionMode.Disabled
+            : SolverPotionMode.Smart;
         bool accepted = CombatUiCommands.Instance.SetPotionDirective(row.Slot, row.PotionId, next);
         ModLog.Info(
             $"[Sts2Solver] UI_ACTION action=potion_mode slot={row.Slot} potion={row.PotionId} " +
@@ -210,14 +202,12 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
     {
         "smart" => SolverPotionMode.Smart,
         "disabled" => SolverPotionMode.Disabled,
-        "force" => SolverPotionMode.Force,
         _ => throw new InvalidDataException($"未知的药水策略码：{code}"),
     };
 
     private static string ModeText(SolverPotionMode mode) => mode switch
     {
         SolverPotionMode.Disabled => "✕  " + SolverText.Get("禁用 / 保护"),
-        SolverPotionMode.Force => "✓  " + SolverText.Get("强制使用"),
         _ => "—  " + SolverText.Get("智能使用"),
     };
 
@@ -226,7 +216,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         Color tone = mode switch
         {
             SolverPotionMode.Disabled => SolverUiTokens.Palette.Danger,
-            SolverPotionMode.Force => SolverUiTokens.Palette.Success,
             _ => SolverUiTokens.Palette.TextSecondary,
         };
         button.Text = ModeText(mode);
@@ -276,8 +265,6 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
     internal Button AllSmartButtonForTest => _allSmart;
 
     internal Button AllProtectButtonForTest => _allProtect;
-
-    internal Button AllForceButtonForTest => _allForce;
 
     internal string StatusTextForTest => _status.Text;
 

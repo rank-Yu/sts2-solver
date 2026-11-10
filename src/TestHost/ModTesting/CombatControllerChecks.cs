@@ -326,9 +326,6 @@ internal static class CombatControllerChecks
                 case "strategy_commands":
                     await StrategyCommandsAsync(host, Check, Action);
                     break;
-                case "forced_potion":
-                    await ForcedPotionAsync(host, Check, Action);
-                    break;
                 case "search_character_pool":
                     await SearchRulePoolsAsync(host, Check, Action, "search_character_pool",
                         [Sts2Solver.Simulation.Combat.CardPools.CharacterAll], []);
@@ -669,7 +666,6 @@ internal static class CombatControllerChecks
         SolverPotionMode originalMode = slot!.Mode switch
         {
             "disabled" => SolverPotionMode.Disabled,
-            "force" => SolverPotionMode.Force,
             _ => SolverPotionMode.Smart,
         };
         try
@@ -794,7 +790,6 @@ internal static class CombatControllerChecks
         SolverPotionMode originalMode = slot!.Mode switch
         {
             "disabled" => SolverPotionMode.Disabled,
-            "force" => SolverPotionMode.Force,
             _ => SolverPotionMode.Smart,
         };
         try
@@ -2302,10 +2297,10 @@ internal static class CombatControllerChecks
         => await TurnSetupTurnTwoAsync(host, check, action, fullAuto: true);
 
     /// <summary>
-    /// Turn one uses a forced Blood Potion, so RecoveredHp is non-zero in the verified EndTurn
+    /// Turn one uses the Blood Potion, so RecoveredHp is non-zero in the verified EndTurn
     /// boundary. Turn two's setup root, selected Play root and first deployment boundary must all
     /// carry the same value, and the predicted Start root must match the live import.
-    /// Request: <c>ts-a-toasty</c>, FullAuto takeover, <c>BLOOD_POTION</c> injected and forced,
+    /// Request: <c>ts-a-toasty</c>, FullAuto takeover, <c>BLOOD_POTION</c> injected,
     /// <c>initialPlayerHp=1</c> of 80, <c>enemyCurrentHp=120</c>. On the e527fdd3 baseline this
     /// exact request passes with RecoveredHp=16; 40/80 (even with enemy 120) heals 0 on both the
     /// baseline and this branch, so it is a route/config property, not a regression.
@@ -2324,14 +2319,10 @@ internal static class CombatControllerChecks
         CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
         check("plan_ready", plan.TurnSetupPlanReady);
         check("choice_count", plan.TurnSetupChoiceCount > 0, plan.TurnSetupChoiceCount.ToString());
-        check("forced_directive",
-            CombatSessionController.LastSearchCaseForTest?.Options.Potions.Strategy
-                .HasForcedDirectives == true,
-            "turn-one request carries the forced potion directive");
-        check("forced_route_uses_potion",
+        check("route_uses_potion",
             CombatSessionController.LastSearchRouteForTest.Any(
                 static action => action.Kind == PlayerActionKind.UsePotion),
-            "turn-one route uses the forced potion");
+            "turn-one route uses the potion");
         check("continuation", plan.TurnSetupContinuation, plan.TurnSetupContinuation.ToString());
         check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
             $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
@@ -2958,7 +2949,7 @@ internal static class CombatControllerChecks
 
     /// <summary>
     /// Forces a search failure through the real completion path and checks the main panel. A retry
-    /// clears the state; a turn change also clears a later forced-potion failure.
+    /// clears the state; a turn change also clears a later failure.
     /// </summary>
     private static async Task SearchFailuresAsync(NGame host, Check check, Action action)
     {
@@ -3013,32 +3004,14 @@ internal static class CombatControllerChecks
             CombatSessionController.NonProgressingReasonForTest ?? "-");
         await WaitIdleAsync(host, "retry search done");
 
-        CombatControllerTestHooks.ForceSearchFailure = static _ => "forced_potion_unusable";
+        CombatControllerTestHooks.ForceSearchFailure = static _ => "search_failed";
         int failedTurn = Snapshot().Turn;
-        await PressPanelButtonAsync(host, PanelButton.Search, "forced_potion_unusable");
-        action("press_forced_potion_unusable");
-        CombatUiSnapshot potion = await WaitAsync(host,
+        await PressPanelButtonAsync(host, PanelButton.Search, "search_failed_again");
+        action("press_search_failed_again");
+        CombatUiSnapshot again = await WaitAsync(host,
             static s => s.Phase == CombatUiPhase.Failed && !s.IsSearching, 240,
-            "forced_potion_unusable phase");
-        check("potion_failed_phase", potion.Phase == CombatUiPhase.Failed, potion.Phase.ToString());
-        check("potion_failed_code", potion.ErrorCode == "forced_potion_unusable",
-            potion.ErrorCode);
-        check("potion_failed_can_retry", potion.CanStartSearch);
-        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
-        check("potion_failed_status", Status() == SolverText.Get("求解器消息"), Status());
-        check("potion_failed_reason_kind",
-            potion.ErrorReason?.Kind == CombatReasonKind.ForcedPotion,
-            potion.ErrorReason?.Kind ?? "-");
-        check("potion_failed_summary",
-            Summary() == SolverPanelText.Error("forced_potion_unusable") + "\n"
-                + SolverPanelText.ErrorReason(potion.ErrorReason), Summary());
-        if (SolverText.IsEnglish)
-        {
-            check("potion_failed_english_reason",
-                Summary().Contains("No route used every potion set to Always use.",
-                    StringComparison.Ordinal), Summary());
-        }
-        check("potion_failed_button", SearchAvailable(panel), FooterText(panel));
+            "second search_failed phase");
+        check("second_failed_code", again.ErrorCode == "search_failed", again.ErrorCode);
 
         CombatControllerTestHooks.ForceSearchFailure = null;
         await ForceEndTurnAsync(host);
@@ -3626,24 +3599,6 @@ internal static class CombatControllerChecks
                 check("potion_all_smart_request",
                     allSmart.Options.Potions.Strategy.Directives.Count == 0,
                     allSmart.Options.Potions.Strategy.Directives.Count.ToString());
-
-                check("potion_all_force_cmd",
-                    CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Force));
-                action("set_all_potions:force");
-                await NoSearchAsync("potion_all_force_no_search");
-                int forceCount = Snapshot().Strategy.Potions.Count(static item => item.CanAssignPolicy);
-                SearchCase allForce = CombatSessionController.CompileRequestForTest();
-                check("potion_all_force_request",
-                    allForce.Options.Potions.Strategy.Directives.Count == forceCount
-                    && allForce.Options.Potions.Strategy.Directives.All(static item =>
-                        item.Directive == PotionDirective.Force),
-                    allForce.Options.Potions.Strategy.Directives.Count.ToString());
-                check("potion_all_force_snapshot",
-                    Snapshot().Strategy.Potions.Where(static item => item.CanAssignPolicy)
-                        .All(static item => item.Mode == "force"), "snapshot force");
-
-                check("potion_all_smart_again",
-                    CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart));
             }
         }
 
@@ -3828,95 +3783,6 @@ internal static class CombatControllerChecks
         {
             return false;
         }
-    }
-
-    /// <summary>
-    /// Forces one potion, protects another, and executes the current turn. The forced potion must be
-    /// planned and then actually consumed by the live deployment.
-    /// </summary>
-    private static async Task ForcedPotionAsync(NGame host, Check check, Action action)
-    {
-        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
-        action("set_mode:manual");
-        await WaitIdleAsync(host, "manual idle");
-        check("reset_settings", SolverSettings.Update(settings => settings with
-        {
-            Search = settings.Search with
-            {
-                Potions = settings.Search.Potions with
-                {
-                    Directives = [],
-                    Preset = SolverPotionPreset.Smart,
-                },
-            },
-        }), "potion settings reset");
-        await Frames(host, 4);
-        PotionSlotUi[] searchable = Snapshot().Strategy.Potions
-            .Where(static item => item.CanAssignPolicy)
-            .ToArray();
-        check("potion_count", searchable.Length >= 1, searchable.Length.ToString());
-        PotionSlotUi forced = searchable[0];
-        PotionSlotUi? disabled = searchable.Skip(1).FirstOrDefault();
-        if (disabled is { } other)
-            check("disable_other", CombatUiCommands.Instance.SetPotionDirective(
-                other.Slot, other.PotionId, SolverPotionMode.Disabled));
-        check("force_cmd", CombatUiCommands.Instance.SetPotionDirective(
-            forced.Slot, forced.PotionId, SolverPotionMode.Force));
-        action($"set_forced_potion:{forced.Slot}:{forced.PotionId}");
-        int before = Snapshot().Searches;
-        await Frames(host, 30);
-        CombatUiSnapshot changed = Snapshot();
-        check("no_search", changed.Searches == before && !changed.IsSearching,
-            $"{before}->{changed.Searches}");
-        check("snapshot_force", changed.Strategy.Potions.Any(item =>
-            item.Slot == forced.Slot && item.PotionId == forced.PotionId && item.Mode == "force"),
-            "snapshot force");
-        if (disabled is { } protectedSlot)
-            check("snapshot_disabled", changed.Strategy.Potions.Any(item =>
-                item.Slot == protectedSlot.Slot && item.PotionId == protectedSlot.PotionId
-                && item.Mode == "disabled"), "snapshot disabled");
-
-        check("search_start", CombatUiCommands.Instance.StartSearch());
-        action("search_forced_potion");
-        CombatUiSnapshot done = await WaitAsync(host,
-            s => s.Searches > before && !s.IsSearching && !s.IsDeploying, 1800,
-            "forced potion search");
-        SearchCase request = CombatSessionController.LastSearchCaseForTest
-            ?? throw new InvalidDataException("forced potion search request missing");
-        check("request_force", request.Options.Potions.Strategy.Directives.Any(item =>
-            item.Slot == forced.Slot && item.PotionId == forced.PotionId
-            && item.Directive == PotionDirective.Force), "force directive");
-        if (disabled is { } requestedDisabled)
-            check("request_disabled", request.Options.Potions.Strategy.Directives.Any(item =>
-                item.Slot == requestedDisabled.Slot && item.PotionId == requestedDisabled.PotionId
-                && item.Directive == PotionDirective.Disabled), "disabled directive");
-        Sts2Solver.Simulation.Combat.PlayerAction[] route =
-            CombatSessionController.LastSearchRouteForTest;
-        check("route_force", route.Any(action =>
-            action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.UsePotion
-            && action.PotionSlot == forced.Slot), "route uses forced potion");
-        if (disabled is { } plannedDisabled)
-            check("route_disabled_absent", !route.Any(action =>
-                action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.UsePotion
-                && action.PotionSlot == plannedDisabled.Slot), "route omits disabled potion");
-
-        RouteUiSnapshot plan = done.Route
-            ?? throw new InvalidDataException("forced potion route missing");
-        RouteTurnUi firstTurn = plan.Turns.FirstOrDefault()
-            ?? throw new InvalidDataException("forced potion route has no turns");
-        check("first_turn_force", firstTurn.Actions.Any(item =>
-            item.Kind == "use_potion" && item.PotionId == forced.PotionId),
-            "forced potion is scheduled in the current turn");
-        check("execute", CombatUiCommands.Instance.ExecuteCurrentTurn());
-        action("execute_forced_potion");
-        await WaitAsync(host, static s => s.IsDeploying, 240, "forced potion deployment");
-        await WaitIdleAsync(host, "forced potion deployment done");
-        CombatUiSnapshot after = Snapshot();
-        check("potion_consumed", after.Strategy.Potions.All(item =>
-            item.Slot != forced.Slot || item.PotionId != forced.PotionId),
-            "live belt no longer holds the forced potion");
-        check("no_deviation", after.Deviations == changed.Deviations,
-            $"{changed.Deviations}->{after.Deviations}");
     }
 
     private static async Task StopDeploymentAsync(NGame host, Check check, Action action)

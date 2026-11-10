@@ -315,7 +315,6 @@ internal static class SearchRequestCompiler
     {
         SearchPotionMode.Smart => PotionDirective.Smart,
         SearchPotionMode.Disabled => PotionDirective.Disabled,
-        SearchPotionMode.Force => PotionDirective.Force,
         _ => throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
             $"未知药水策略：{mode}"),
     };

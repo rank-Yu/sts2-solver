@@ -146,6 +146,9 @@ internal static class TestSession
                     request.ControllerScenarioForTest is { Length: > 0 } ? 0 : 200);
                 string? scenarioName = request.ControllerScenarioForTest;
                 bool turnSetupWait = scenarioName == "turn_setup_wait";
+                // As if CombatSolver were loaded: auto search only searches the setup page.
+                if (scenarioName == "turn_setup_search_only")
+                    ModEntry.SetCombatSolverLoadedForTest();
                 // These scenarios deliver the held turn-start event themselves: the manual switch
                 // needs to change mode before the scheduled search runs, and the once-per-turn
                 // scenario needs the search failure hook installed before the first event.
@@ -502,6 +505,7 @@ internal static class TestSession
                 CombatControllerTestHooks.TamperTurnSetupContinuationBeforeValidationForTest = false;
                 CombatControllerTestHooks.ExpectedSetupOptionCount = -1;
                 PlayerTurnSetupRuntime.TestEnabled = false;
+                ModEntry.ResetCombatSolverLoadedForTest();
                 TurnSetupRootCapture.Reset();
                 if (settingsChanged && !SolverSettings.Update(_ => previousSettings))
                     ModLog.Error($"[Sts2Solver] SETTINGS_RESTORE_FAILED root={root}");
@@ -622,7 +626,7 @@ internal static class TestSession
     private static bool IsTurnSetupScenario(string scenario) => scenario is
         "turn_setup_auto_execute" or "turn_setup_auto_manual" or "turn_setup_full"
         or "turn_setup_stop_keep" or "turn_setup_stop_drop" or "turn_setup_stop_drive"
-        or "turn_setup_fail" or "turn_setup_scene_exit"
+        or "turn_setup_fail" or "turn_setup_scene_exit" or "turn_setup_search_only"
         or "turn_setup_implicit" or "turn_setup_manual" or "turn_setup_pause"
         or "turn_setup_turn2" or "turn_setup_extra_turn" or "turn_setup_extra_turn_search"
         or "turn_setup_autopreplay"

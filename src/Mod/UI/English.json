@@ -339,6 +339,7 @@
   "停止执行本场战斗；正在结算的动作会走完。": "Stop playing this combat; the action being resolved finishes first.",
   "还没有搜索。": "No search yet.",
   "没有可以执行的本回合路线。": "No route for this turn can be played.",
+  "原 CombatSolver 也开着：回合开始的选牌请自己选，选完后再执行。": "CombatSolver is also loaded: make the turn-start choice yourself, then execute.",
   "只执行当前回合，下一回合等你操作。": "Play this turn only; the next turn waits for you.",
   "确认这条路线并继续执行，之后每回合自动搜索和执行，直到战斗结束。": "Confirm this route and keep playing; every later turn is searched and played until the combat ends.",
   "执行当前回合，之后每回合自动搜索和执行，直到战斗结束。": "Play this turn, then search and play every turn until the combat ends.",

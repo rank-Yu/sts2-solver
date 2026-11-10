@@ -27,10 +27,11 @@ internal static partial class CombatSessionController
         bool turnSetupPlanAvailable = _turnSetupResult != null;
         bool turnSetupPlan = turnSetupPlanAvailable && turnSetupPage;
         bool turnSetupDriving = PlayerTurnSetupRuntime.IsDriving;
+        bool turnSetupSearchOnly = PlayerTurnSetupRuntime.HasSearchOnlyPage;
         bool latestStateMatches = _search == null && _latestResult is { } latest
             && ResultStampMatches(latest);
         bool canExecute = (!HasBlockingDeployment && latestStateMatches)
-            || (turnSetupPlan && !turnSetupDriving && _search == null
+            || (turnSetupPlan && !turnSetupDriving && !turnSetupSearchOnly && _search == null
                 && !HasBlockingDeployment);
         bool canStart = false;
         string? searchBlock = null;
@@ -90,6 +91,7 @@ internal static partial class CombatSessionController
             IsSearching = _search != null,
             IsDeploying = HasBlockingDeployment,
             TurnSetupPageOpen = turnSetupPage,
+            TurnSetupSearchOnly = turnSetupSearchOnly,
             TurnSetupPlanReady = turnSetupPlan,
             TurnSetupContinuation = PlayerTurnSetupRuntime.IsContinuationPlanReady,
             TurnSetupDriving = turnSetupDriving,

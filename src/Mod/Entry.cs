@@ -20,11 +20,19 @@ public static class ModEntry
 
     /// <summary>
     /// CombatSolver is loaded (or waiting to load) in the same game. Both solvers stay enabled: the
-    /// player may search with both but should let only one execute. The only flow this Mod would
-    /// otherwise hold for its own plan outside a 执行本场战斗 run, the turn-setup page takeover, is
-    /// limited to the run (<see cref="CombatSessionController.TurnSetupInterceptionAllowed"/>).
+    /// player may search with both but should let only one execute. The turn-setup page is taken over
+    /// only during a 执行本场战斗 run; auto search alone searches it without taking it over
+    /// (<see cref="CombatSessionController.TurnSetupHandlingNow"/>).
     /// </summary>
     public static bool CombatSolverLoaded { get; private set; }
+
+#if STS2_SOLVER_TESTING
+    /// <summary>Test-only: run a request as if CombatSolver were loaded beside this Mod.</summary>
+    internal static void SetCombatSolverLoadedForTest() => CombatSolverLoaded = true;
+
+    /// <summary>Test-only: back to what the mod list says.</summary>
+    internal static void ResetCombatSolverLoadedForTest() => CombatSolverLoaded = CombatSolverPresent();
+#endif
 
     public static void Initialize()
     {
@@ -32,7 +40,7 @@ public static class ModEntry
         if (CombatSolverLoaded)
         {
             MegaCrit.Sts2.Core.Logging.Log.Info(
-                "[Sts2Solver] COEXIST CombatSolver present: both enabled; turn-setup takeover only while playing the combat; let only one solver execute");
+                "[Sts2Solver] COEXIST CombatSolver present: both enabled; turn-setup takeover only while playing the combat, otherwise search only; let only one solver execute");
         }
 
         Enabled = true;

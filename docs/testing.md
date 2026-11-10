@@ -475,6 +475,8 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 后续回合和新页面的场景用 `turn_setup_turn2`（上一回合由求解器结束，第 2 回合沿用 EndTurn 计划，不再搜索）、`turn_setup_manual_end`（自动搜索档，玩家用原生结束回合动作结束上一回合，没有可沿用的计划，走新的准备搜索）、`turn_setup_autopreplay`（`ts-d-autopreplay-choice`，沿用计划包含 AutoPrePlay 选择，驱动消费完且只有一次搜索）、`turn_setup_plasma`（`ts-i-plasma-pause` 第 2 回合沿用）、`turn_setup_multi`（`ts-k-two-relic-choices` 的两段准备选择）和 `turn_setup_carry`（`ts-a-toasty`，初始生命 1/80、敌人 120，第 1 回合强制使用 `BLOOD_POTION` 使 `RecoveredHp=16`，断言第 2 回合准备 Start 根、选中的 Play 根和部署边界都等于该值，且预测 Start 根与实机一致）。`turn_setup_crossbow` / `turn_setup_crossbow_many` 用 `ts-j-crossbow-one-card` / `ts-j-crossbow-many` 验证暂停后加入手牌的十字弓牌进入原生页面候选（分别 2 个和 4 个选项）。
 
+`turn_setup_search_only`（`ts-a-toasty`，测试开关当作 CombatSolver 已加载、只开自动搜索）断言准备页面照样搜索并发布计划，但不加遮挡、不接管 AutoPrePlay，两个执行键变灰并写原因、执行命令被拒；测试替玩家点一张后计划作废，进入 `Play` 后照常自动搜索出可执行路线。
+
 沿用计划的场景另加 `turn_setup_continuation_full`（`ts-a-toasty` 本场执行至少 3 个玩家回合，只搜索一次，复用回合数增加，0 偏差；第 3 回合沿用的结果里本局已扣血等于游戏战斗历史里前两回合掉的血，且大于 0）、`turn_setup_continuation_auto`（自动搜索开着、不在本场执行中，第 2 回合显示沿用计划，执行后驱动并部署）、`turn_setup_continuation_player`（玩家改选后计划作废，出牌阶段正常搜索）、`turn_setup_continuation_validation`（校验前篡改计划，改走新的枚举搜索）、`turn_setup_continuation_gap`（`ts-g-multi-choice` 的熔炉在可见准备页的暂停处多一个候选；可见准备页由 `PreparePlayerPlayPhase` 重放，因此沿用计划通过校验并直接部署，只搜索一次、不改走新搜索）、`turn_setup_continuation_mismatch`（校验通过后、驱动前篡改计划，页面交还，本场执行按 `choice_mismatch` 暂停）、`turn_setup_continuation_pause`（沿用计划命中本场执行的暂停条件）和 `turn_setup_continuation_probe`（只记录沿用计划被校验或续用比较接受还是拒绝，供研究）。胶囊来源用 `turn_setup_capsule_source` / `turn_setup_capsule_source_turn2` 在中文和英文下断言遗物、能力、卡牌来源的本地化标题；`ts-g` 的胶囊来自沿用计划。下一回合场景断言 `CardSelectCmd.Selector` 在 setup 前为 null、`SupersededByTurnSetup` 不产生 `action_deviation`，并要求出牌阶段的精确状态戳一致。
 
 ```bash

@@ -250,39 +250,42 @@ internal static partial class CombatSessionController
 
     internal static CancellationToken CombatToken => _combatCancellation.Token;
 
-    internal static bool TurnSetupInterceptionAllowed
+    /// <summary>This controller's single-player combat is live as the game's current combat.</summary>
+    private static bool TurnSetupCapable
         => _combatActive
             && _state != null
             && _player != null
             && _rules != null
             && _tracker != null
             && !IsMultiplayerSession
-            && TurnSetupTakeoverMode
-            && !(_automaticSearchPaused && _automaticSearchPausedTurn == CurrentTurn())
             && CombatManager.Instance.IsInProgress
             && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
 
     /// <summary>
-    /// Same capability gate as <see cref="TurnSetupInterceptionAllowed"/> without the current-turn
-    /// stop flag: the EndTurn selector release asks whether the next turn could be taken over.
+    /// How this turn's setup page is handled. Auto search or 执行本场战斗 takes it over. With
+    /// CombatSolver also loaded only 执行本场战斗 takes it over: CombatSolver replaces the same
+    /// setup task while its automatic calculation is on, so auto search alone only searches the page
+    /// and leaves the task and the selection to the game, CombatSolver or the player. A search the
+    /// player stopped this turn handles nothing.
     /// </summary>
-    internal static bool NextTurnSetupTakeoverAllowed
-        => _combatActive
-            && _state != null
-            && _player != null
-            && _rules != null
-            && _tracker != null
-            && !IsMultiplayerSession
-            && TurnSetupTakeoverMode
-            && CombatManager.Instance.IsInProgress
-            && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), _state);
+    internal static TurnSetupHandling TurnSetupHandlingNow
+    {
+        get
+        {
+            if (!TurnSetupCapable || _automaticSearchPaused && _automaticSearchPausedTurn == CurrentTurn())
+                return TurnSetupHandling.None;
+            if (TurnSetupTakeoverMode)
+                return TurnSetupHandling.Takeover;
+            return _autoSearch ? TurnSetupHandling.SearchOnly : TurnSetupHandling.None;
+        }
+    }
 
     /// <summary>
-    /// Whether the turn-setup page is taken over: while auto search or 执行本场战斗 is on. With
-    /// CombatSolver also loaded only 执行本场战斗 takes it over, so a CombatSolver (or the player)
-    /// executing the turn is never held on the setup page by this Mod's plan; the play-phase search
-    /// still runs.
+    /// The takeover gate without the current-turn stop flag: the EndTurn selector release asks
+    /// whether the next turn's page could be taken over.
     /// </summary>
+    internal static bool NextTurnSetupTakeoverAllowed => TurnSetupCapable && TurnSetupTakeoverMode;
+
     private static bool TurnSetupTakeoverMode
         => ModEntry.CombatSolverLoaded ? _runCombat : _autoSearch || _runCombat;
 

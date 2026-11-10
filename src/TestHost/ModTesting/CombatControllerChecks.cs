@@ -124,6 +124,9 @@ internal static class CombatControllerChecks
                 case "turn_setup_wait":
                     await TurnSetupWaitAsync(host, Check, Action);
                     break;
+                case "turn_setup_search_only":
+                    await TurnSetupSearchOnlyAsync(host, Check, Action);
+                    break;
                 case "turn_setup_auto_execute":
                     await TurnSetupAutoExecuteAsync(host, Check, Action);
                     break;
@@ -1288,6 +1291,47 @@ internal static class CombatControllerChecks
         action("setup_completed");
         check("searched_after_setup", after.Searches >= 1, after.Searches.ToString());
         await WaitIdleAsync(host, "setup search done");
+    }
+
+    /// <summary>
+    /// CombatSolver loaded and only auto search on: the page is searched and its plan published, but
+    /// the setup task is not replaced (no AutoPrePlay replacement), nothing blocks the page and
+    /// neither execute key drives it. The player's own pick drops the plan; Play then searches the
+    /// turn as usual and the route becomes executable.
+    /// </summary>
+    private static async Task TurnSetupSearchOnlyAsync(NGame host, Check check, Action action)
+    {
+        check("combat_solver_loaded", ModEntry.CombatSolverLoaded, "test override");
+        await WaitSetupPageAsync(host);
+        CombatUiSnapshot page = Snapshot();
+        check("search_only_page", page.TurnSetupSearchOnly && PlayerTurnSetupRuntime.TestLastSetupSearchOnly,
+            $"snapshot={page.TurnSetupSearchOnly} runtime={PlayerTurnSetupRuntime.TestLastSetupSearchOnly}");
+        await WaitSetupSearchAsync(host);
+        action("setup_search_started");
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("plan_published", plan.TurnSetupPlanReady && plan.Result != null,
+            $"plan={plan.TurnSetupPlanReady} result={plan.Result != null}");
+        check("no_blocker", !PlayerTurnSetupRuntime.TestBlockerActive);
+        SolverFooterState footer = SolverOverlay.FooterFor(plan);
+        string reason = SolverText.Get("原 CombatSolver 也开着：回合开始的选牌请自己选，选完后再执行。");
+        check("execute_keys_disabled", !plan.CurrentTurnRouteReady
+                && footer.ExecuteTurn.Disabled && footer.ExecuteCombat.Disabled
+                && footer.ExecuteTurn.Tooltip == reason,
+            $"ready={plan.CurrentTurnRouteReady} turn={footer.ExecuteTurn.Disabled} " +
+            $"combat={footer.ExecuteCombat.Disabled} tooltip={footer.ExecuteTurn.Tooltip}");
+        check("execute_refused", !CombatUiCommands.Instance.ExecuteCurrentTurn()
+            && !CombatUiCommands.Instance.ExecuteCombat(), "execute on a search-only page");
+        check("not_driving", !Snapshot().TurnSetupDriving && !PlayerTurnSetupRuntime.TestDriving);
+        await PlayerTurnSetupRuntime.SelectFirstVisibleForTesting(host, 1, CancellationToken.None);
+        action("player_selected");
+        await WaitNativePlayAsync(host);
+        CombatUiSnapshot after = await WaitAsync(host,
+            static s => s.Searches >= 2 && !s.IsSearching && s.Result != null, 2400,
+            "play search after the player's pick");
+        check("searched_at_play", after.Searches >= 2 && after.CurrentTurnRouteReady,
+            $"searches={after.Searches} ready={after.CurrentTurnRouteReady}");
+        check("auto_pre_play_not_replaced", PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount == 0,
+            PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount.ToString());
     }
 
     private static async Task<CombatUiSnapshot> WaitSetupPageAsync(NGame host)

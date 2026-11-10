@@ -1,4 +1,4 @@
-// Visible-page turn-setup takeover. The transaction shape, gate, first-visible-surface start and
+// Visible-page turn-setup takeover and search. The transaction shape, gate, first-visible-surface start and
 // cleanup follow CombatSolver src/Runtime/PlayerTurnSetupPatches.cs at commit 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors). Search, request compilation and
 // result storage use Sts2Solver's own SearchSession/CombatSearchRunner.
@@ -21,11 +21,30 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver;
 
 /// <summary>
+/// How this Mod handles a turn-setup page; see
+/// <see cref="CombatSessionController.TurnSetupHandlingNow"/>.
+/// </summary>
+internal enum TurnSetupHandling
+{
+    None,
+
+    /// <summary>
+    /// Search and publish the plan only. The setup task and the page stay with the game, or with
+    /// CombatSolver when its automatic calculation replaces the same task; nothing is driven.
+    /// </summary>
+    SearchOnly,
+
+    /// <summary>Run the setup task here (replacing the native one) and drive the page when asked.</summary>
+    Takeover,
+}
+
+/// <summary>
 /// Main-thread owner of the visible turn-setup page and its search transaction. The controller owns
 /// the search session and UI; this type only observes the native page, starts the setup search once
-/// the first visible request exists, and drives the page when asked. A replacement
-/// <c>SetupPlayerTurn</c> task stays alive until the original setup task has completed, so a player
-/// selection or a stop always returns control to the native flow.
+/// the first visible request exists, and drives the page when asked. A taken-over page runs on a
+/// replacement <c>SetupPlayerTurn</c> task that stays alive until the original setup task has
+/// completed, so a player selection or a stop always returns control to the native flow. A
+/// search-only page shares the same transaction without replacing any task or driving anything.
 /// </summary>
 internal static class PlayerTurnSetupRuntime
 {
@@ -57,6 +76,9 @@ internal static class PlayerTurnSetupRuntime
 
     internal static bool HasActivePage => _active is { PageOpen: true };
 
+    /// <summary>The open page is searched only (<see cref="TurnSetupHandling.SearchOnly"/>).</summary>
+    internal static bool HasSearchOnlyPage => _active is { PageOpen: true, SearchOnly: true };
+
     internal static bool IsDriving => _active is { Driving: true };
 
     internal static int ChoiceCount => _active?.Result?.SetupChoices.Length ?? 0;
@@ -86,11 +108,12 @@ internal static class PlayerTurnSetupRuntime
         Player player, HookPlayerChoiceContext choiceContext, out Task? task)
     {
         task = null;
+        TurnSetupHandling handling = CombatSessionController.TurnSetupHandlingNow;
         if (_invokingOriginalSetup
             || _active != null
             || !ModEntry.Enabled
             || !TakeoverEnabled
-            || !CombatSessionController.TurnSetupInterceptionAllowed
+            || handling == TurnSetupHandling.None
             || !ReferenceEquals(LocalContext.GetMe(manager.DebugOnlyGetState()), player)
             || player.PlayerCombatState is not { Phase: PlayerTurnPhase.Start })
         {
@@ -290,10 +313,14 @@ internal static class PlayerTurnSetupRuntime
             combat, player, $"turn_setup:{player.PlayerCombatState!.TurnNumber}");
         CancellationTokenSource cancellation =
             CancellationTokenSource.CreateLinkedTokenSource(CombatSessionController.CombatToken);
+        bool searchOnly = handling == TurnSetupHandling.SearchOnly;
         TurnSetupTransaction transaction = new(
             combat, player, rules, tracker, turnState, choiceContext, startRoot, choices,
             cancellation, setupTurn, startRootTakingExtraTurn,
-            continuation ? continuationResult : null);
+            continuation ? continuationResult : null)
+        {
+            SearchOnly = searchOnly,
+        };
         _active = transaction;
         _lastTurn = setupTurn;
         _lastDroveSelection = false;
@@ -303,8 +330,18 @@ internal static class PlayerTurnSetupRuntime
         TestLastInterceptTurn = setupTurn;
         TestLastInterceptTakingExtraTurn = takingExtraTurn;
         TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
+        TestLastSetupSearchOnly = searchOnly;
 #endif
-        CombatSessionController.OnTurnSetupIntercepted(setupTurn);
+        if (searchOnly)
+        {
+            // The game (or CombatSolver) keeps the setup task, so a deployment waiting on this
+            // boundary is not superseded either.
+            ModLog.Info($"[Sts2Solver] TURN_SETUP_SEARCH_ONLY turn={setupTurn} reason=combat_solver_loaded");
+        }
+        else
+        {
+            CombatSessionController.OnTurnSetupIntercepted(setupTurn);
+        }
         Task operation;
         try
         {
@@ -316,6 +353,8 @@ internal static class PlayerTurnSetupRuntime
             NativeCallbackGuard.Report("RunTurnSetupStart", error);
             return false;
         }
+        if (searchOnly)
+            return false;
         transaction.SetupTask = operation;
         task = operation;
         return true;
@@ -332,7 +371,8 @@ internal static class PlayerTurnSetupRuntime
     {
         task = null;
         if (_invokingOriginalAutoPrePlay
-            || _active is not { Completed: false, AutoPrePlayIntercepted: false } transaction
+            || _active is not { Completed: false, AutoPrePlayIntercepted: false, SearchOnly: false }
+                transaction
             || !ReferenceEquals(transaction.Player, player)
             || !ReferenceEquals(transaction.Combat, manager.DebugOnlyGetState())
             || !ReferenceEquals(transaction.SetupTask, setupTask))
@@ -552,8 +592,11 @@ internal static class PlayerTurnSetupRuntime
     /// </summary>
     internal static bool TryStartDriving(bool deployAfterSetup)
     {
-        if (_active is not { PageOpen: true, PlanReady: true, Driving: false, Result: not null } t)
+        if (_active is not { PageOpen: true, PlanReady: true, Driving: false, SearchOnly: false,
+                Result: not null } t)
+        {
             return false;
+        }
         NGame? host = NGame.Instance;
         if (host == null)
             return false;
@@ -866,6 +909,8 @@ internal static class PlayerTurnSetupRuntime
 
     internal static bool TestSelectorNullAtLastIntercept { get; private set; }
 
+    internal static bool TestLastSetupSearchOnly { get; private set; }
+
     /// <summary>The last intercepted <c>SetupPlayerTurn</c> belonged to an extra turn.</summary>
     internal static bool TestLastInterceptTakingExtraTurn { get; private set; }
 
@@ -894,6 +939,7 @@ internal static class PlayerTurnSetupRuntime
         TestLastInterceptTakingExtraTurn = false;
         TestSelectorNullAtLastIntercept = false;
         TestAutoPrePlayInterceptCount = 0;
+        TestLastSetupSearchOnly = false;
         TestLastSearchStartedInAutoPrePlay = false;
         TestPredictedStartCompared = false;
         TestPredictedStartMatched = false;
@@ -956,7 +1002,11 @@ internal static class PlayerTurnSetupRuntime
             Reset("host_missing");
             return;
         }
-        Task originalSetup = InvokeOriginalSetupAsync(t);
+        // A taken-over page runs the original setup inside this task; a search-only page watches the
+        // setup the game (or CombatSolver) runs and takes leaving the Start phase as its end.
+        Task setup = t.SearchOnly
+            ? WaitForSearchOnlySetupEndAsync(host, t)
+            : InvokeOriginalSetupAsync(t);
         Task<TurnSetupEnumeration>? enumerationTask = null;
         if (t.ContinuationResult == null)
         {
@@ -968,10 +1018,10 @@ internal static class PlayerTurnSetupRuntime
         try
         {
             bool visible = await t.Choices.WaitForFirstVisibleSurfaceAsync(
-                host, originalSetup, t.Cancellation.Token);
+                host, setup, t.Cancellation.Token);
             ModLog.Info(
                 $"[Sts2Solver] TURN_SETUP_FIRST_VISIBLE turn={t.Turn} visible={visible} " +
-                $"original_done={originalSetup.IsCompleted} " +
+                $"original_done={setup.IsCompleted} " +
                 $"enum_done={enumerationTask?.IsCompleted.ToString() ?? "-"}");
             if (visible)
             {
@@ -985,14 +1035,14 @@ internal static class PlayerTurnSetupRuntime
                 }
                 else
                 {
-                    while (!enumerationTask!.IsCompleted && !originalSetup.IsCompleted)
+                    while (!enumerationTask!.IsCompleted && !setup.IsCompleted)
                     {
-                        ObservePlayerChoice(t, originalSetup);
+                        ObservePlayerChoice(t, setup);
                         if (t.PageOpen && t.Choices.DriverFaulted)
                             HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
                         await CombatFrameWaiter.NextFrameAsync(host);
                     }
-                    if (!originalSetup.IsCompleted)
+                    if (!setup.IsCompleted)
                     {
                         (EnumerationWait wait, TurnSetupEnumeration? enumerationValue) =
                             await AwaitEnumerationAsync(t, enumerationTask!, "visible_choice");
@@ -1004,14 +1054,14 @@ internal static class PlayerTurnSetupRuntime
             // The setup task stays alive until the native setup body completes, even after the
             // search has started: the page driver consumes the remaining setup choices and the
             // AutoPrePlay prefix later continues the same session.
-            while (!originalSetup.IsCompleted)
+            while (!setup.IsCompleted)
             {
-                ObservePlayerChoice(t, originalSetup);
+                ObservePlayerChoice(t, setup);
                 if (t.Driving && t.Choices.DriverFaulted)
                     HandleDriveFailure(t, t.Choices.DriverTask?.Exception?.GetBaseException());
                 await CombatFrameWaiter.NextFrameAsync(host);
             }
-            ObservePlayerChoice(t, originalSetup);
+            ObservePlayerChoice(t, setup);
         }
         catch (OperationCanceledException) when (t.Cancellation.IsCancellationRequested)
         {
@@ -1059,18 +1109,39 @@ internal static class PlayerTurnSetupRuntime
         }
         finally
         {
-            await originalSetup.ConfigureAwait(
+            await setup.ConfigureAwait(
                 ConfigureAwaitOptions.ContinueOnCapturedContext
                 | ConfigureAwaitOptions.SuppressThrowing);
             if (ReferenceEquals(_active, t) && !t.Completed)
             {
                 ModLog.Info(
                     $"[Sts2Solver] TURN_SETUP_SETUP_DONE turn={t.Turn} search={t.SearchStarted} " +
-                    $"plan={t.PlanReady} auto_pre_play={t.AutoPrePlayIntercepted}");
+                    $"plan={t.PlanReady} auto_pre_play={t.AutoPrePlayIntercepted} " +
+                    $"search_only={t.SearchOnly}");
             }
+            // A taken-over page completes after its AutoPrePlay replacement; a search-only page has
+            // none, so its transaction ends with the setup.
+            if (t.SearchOnly)
+                await CompleteTurnSetupAsync(t);
         }
-        if (originalSetup.IsFaulted)
-            await originalSetup;
+        if (setup.IsFaulted)
+            await setup;
+    }
+
+    /// <summary>
+    /// The setup of a search-only page runs on the game's task (or CombatSolver's replacement). For
+    /// this transaction it ends when the player leaves the Start phase, the combat changes or the
+    /// transaction is cancelled.
+    /// </summary>
+    private static async Task WaitForSearchOnlySetupEndAsync(NGame host, TurnSetupTransaction t)
+    {
+        while (!t.Cancellation.IsCancellationRequested
+            && ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), t.Combat)
+            && CombatManager.Instance.IsInProgress
+            && t.Player.PlayerCombatState is { Phase: PlayerTurnPhase.Start })
+        {
+            await CombatFrameWaiter.NextFrameAsync(host);
+        }
     }
 
     /// <summary>
@@ -1532,6 +1603,7 @@ internal static class PlayerTurnSetupRuntime
         internal bool Completed { get; set; }
         internal bool EnumerationObserved { get; set; }
         internal bool AutoPrePlayIntercepted { get; set; }
+        internal bool SearchOnly { get; init; }
         internal Task SetupTask { get; set; } = Task.CompletedTask;
         internal Task<TurnSetupEnumeration>? EnumerationTask { get; set; }
         internal SearchCase? Case { get; set; }

@@ -543,9 +543,9 @@ internal static class ScoreCompiler
     }
 
     /// <summary>
-    /// One target per owned, unmelted relic of <see cref="RelicCounterCatalog"/>: end the fight with its
-    /// counter one short of triggering. None when long-term rewards are ignored or the fight ends the run,
-    /// because no combat follows to use the counter.
+    /// One target per owned, unmelted relic of <see cref="RelicCounterCatalog"/> that the policy lists:
+    /// end the fight with its counter one short of triggering. None when long-term rewards are ignored or
+    /// the fight ends the run, because no combat follows to use the counter.
     /// </summary>
     internal static RelicCounterTarget[] CompileRelicTargets(CombatState state, Player player, Battle root,
         SearchPolicy policy)
@@ -557,15 +557,17 @@ internal static class ScoreCompiler
         for (int index = 0; index < relics.Count; index++)
         {
             RelicModel relic = relics[index];
-            if (relic.IsMelted || !RelicCounterCatalog.TryRead(relic, out _, out int period))
+            if (relic.IsMelted || !RelicCounterCatalog.TryRead(relic, out _, out int period)
+                || !policy.RelicCounterAllowances.TryGetValue(relic.Id.Entry, out int allowance))
+            {
                 continue;
+            }
             if (index >= root.RelicCount
                 || Registry.Relic(root.Relics[index].Id).NativeId != relic.Id.Entry)
             {
                 throw new UnsupportedImportException(ImportReason.Unrepresentable,
                     $"遗物 {relic.Id.Entry} 不在战斗状态的第 {index} 格");
             }
-            int allowance = policy.RelicCounterAllowances.TryGetValue(relic.Id.Entry, out int hp) ? hp : 0;
             targets.Add(new RelicCounterTarget(checked((byte)index), checked((byte)period),
                 checked((byte)(period - 1)), allowance));
         }

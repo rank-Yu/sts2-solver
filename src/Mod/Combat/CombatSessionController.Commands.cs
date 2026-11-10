@@ -463,6 +463,32 @@ internal static partial class CombatSessionController
         return true;
     }
 
+    internal static bool SetRelicCounterEnabled(string relicId, bool enabled)
+    {
+        RequireMainThread();
+        if (!RelicCounterCatalog.RelicIds.Contains(relicId))
+            return false;
+        if (SolverSettings.Current.Search.RelicCounterRelics.Contains(relicId) == enabled)
+            return true;
+        if (!SolverSettings.Update(settings =>
+            {
+                SortedSet<string> relics = new(settings.Search.RelicCounterRelics, StringComparer.Ordinal);
+                if (enabled)
+                    relics.Add(relicId);
+                else
+                    relics.Remove(relicId);
+                return settings with
+                {
+                    Search = settings.Search with { RelicCounterRelics = [.. relics] },
+                };
+            }))
+        {
+            return false;
+        }
+        StrategySettingsChanged($"relic_enabled relic={relicId} enabled={enabled}");
+        return true;
+    }
+
     internal static bool SetRelicCounterAllowance(string relicId, int value)
     {
         RequireMainThread();

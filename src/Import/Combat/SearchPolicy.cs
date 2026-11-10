@@ -74,8 +74,9 @@ public sealed record SearchPolicyConfiguration
     public SearchTheftPolicy? TheftPolicy { get; init; }
 
     /// <summary>
-    /// Extra HP the player allows for ending a fight with a relic counter one short of triggering, by
-    /// native relic id (<see cref="RelicCounterCatalog"/>). A relic without an entry allows 0.
+    /// The counter relics the search tries to leave one short of triggering, by native relic id
+    /// (<see cref="RelicCounterCatalog"/>), each with the extra HP the player allows for it (0 still
+    /// prefers the goal among routes of equal HP). A relic without an entry is not a goal.
     /// </summary>
     public IReadOnlyDictionary<string, int> RelicCounterAllowances { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
 }

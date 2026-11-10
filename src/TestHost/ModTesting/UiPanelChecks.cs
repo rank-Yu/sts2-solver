@@ -425,12 +425,22 @@ internal static class UiPanelChecks
             page.TitleTextForTest(relic.Slot) == CombatDisplayNames.RelicTitle(relic.RelicId)
             && page.CountTextForTest(relic.Slot) == SolverText.Format($"当前 {relic.Value}/{relic.Period}")
             && page.AllowanceInputForTest(relic.Slot).Text == "0"
-            && page.AllowanceInputForTest(relic.Slot).Editable);
+            // Every relic starts switched off, and a switched-off relic's allowance cannot be edited.
+            && !page.EnabledToggleForTest(relic.Slot).ButtonPressed
+            && !page.EnabledToggleForTest(relic.Slot).Disabled
+            && !page.AllowanceInputForTest(relic.Slot).Editable);
         check("relic_rows", rowsMatch && !page.EmptyShownForTest, string.Join(",", relics.Select(relic =>
             $"{relic.RelicId}:{page.CountTextForTest(relic.Slot)}:{page.AllowanceInputForTest(relic.Slot).Text}")));
         RelicCounterUi first = relics[0];
         LineEdit input = page.AllowanceInputForTest(first.Slot);
         int Allowance() => Strategy().RelicCounterAllowances.TryGetValue(first.RelicId, out int hp) ? hp : 0;
+        bool On() => Array.IndexOf(Strategy().RelicCounterRelics, first.RelicId) >= 0;
+        await Toggle(host, page.EnabledToggleForTest(first.Slot), true);
+        action($"toggle:relic:{first.RelicId}:on");
+        check("relic_switch_on", On() && input.Editable
+            && Strategy().RelicCounterRelics.Length == 1
+            && page.StatusTextForTest == SolverText.Get("已保存，下次搜索生效"),
+            $"on={On()} editable={input.Editable} status={page.StatusTextForTest}");
         await Submit(host, input, "3");
         action($"submit:relic:{first.RelicId}:3");
         input.ReleaseFocus();
@@ -448,12 +458,18 @@ internal static class UiPanelChecks
         input.ReleaseFocus();
         CombatUiCommands.Instance.SetIgnoreLongTermRewards(true);
         await Frames(host, 3);
-        check("relic_ignore_greys", !page.AllowanceInputForTest(first.Slot).Editable, "editable");
+        check("relic_ignore_greys", !page.AllowanceInputForTest(first.Slot).Editable
+            && page.EnabledToggleForTest(first.Slot).Disabled, "editable");
         CombatUiCommands.Instance.SetIgnoreLongTermRewards(false);
         await Frames(host, 3);
-        await Press(host, panel.SidebarForTest?.CloseButtonForTest);
         check("relic_allowance_reset", Allowance() == 0 && page.AllowanceInputForTest(first.Slot).Editable
-            && SidebarClosed(panel), Describe(panel));
+            && !page.EnabledToggleForTest(first.Slot).Disabled, Describe(panel));
+        await Toggle(host, page.EnabledToggleForTest(first.Slot), false);
+        action($"toggle:relic:{first.RelicId}:off");
+        check("relic_switch_off", !On() && !page.AllowanceInputForTest(first.Slot).Editable
+            && Strategy().RelicCounterRelics.Length == 0, $"on={On()}");
+        await Press(host, panel.SidebarForTest?.CloseButtonForTest);
+        check("relic_page_closed_after_edit", SidebarClosed(panel), Describe(panel));
     }
 
     private static async Task BossOptionsAsync(NGame host, SolverOverlay panel,

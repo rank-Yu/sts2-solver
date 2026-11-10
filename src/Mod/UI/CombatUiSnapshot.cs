@@ -241,6 +241,9 @@ internal sealed record StrategyUiSnapshot
     /// <summary>The player's unmelted counter relics, in relic order, with their live counters.</summary>
     public RelicCounterUi[] RelicCounters { get; init; } = [];
 
+    /// <summary>Native ids of the counter relics switched on as search goals.</summary>
+    public string[] RelicCounterRelics { get; init; } = [];
+
     /// <summary>Saved extra HP allowances by native relic id; a missing id allows 0.</summary>
     public IReadOnlyDictionary<string, int> RelicCounterAllowances { get; init; }
         = new Dictionary<string, int>(StringComparer.Ordinal);

@@ -1,7 +1,8 @@
 // The relic list follows CombatSolver src/UI/SolverRelicStrategyPanel.cs at 5c773caa (MIT License,
 // Copyright (c) 2026 Torch1230 and contributors): the owned counter relics with their native icons.
-// Each row keeps one allowance, laid out like this Mod's growth page; the target is fixed at one count
-// short of triggering, so the original's range, priority, switches and unowned list are not ported.
+// Each row has its own switch, off by default, and one allowance laid out like this Mod's growth page;
+// the target is fixed at one count short of triggering, so the original's range, priority and unowned
+// list are not ported.
 using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
@@ -65,7 +66,10 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         Apply(CombatUiStore.Snapshot);
     }
 
-    /// <summary>Shows the owned counter relics and their saved allowances; a box being edited keeps its text.</summary>
+    /// <summary>
+    /// Shows the owned counter relics with their switches and saved allowances; a box being edited keeps
+    /// its text. A relic that is switched off, or any relic while long-term rewards are ignored, is greyed.
+    /// </summary>
     public void Apply(CombatUiSnapshot snapshot)
     {
         StrategyUiSnapshot strategy = snapshot.Strategy;
@@ -73,13 +77,16 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
             static counter => $"{counter.Slot}:{counter.RelicId}"));
         if (relics != _builtRelics)
             Rebuild(strategy.RelicCounters, relics);
-        bool enabled = !strategy.IgnoreLongTermRewards;
+        bool pageEnabled = !strategy.IgnoreLongTermRewards;
         foreach (RelicRow row in _relicRows)
         {
             RelicCounterUi counter = Array.Find(strategy.RelicCounters, item => item.Slot == row.Slot)!;
             row.Count.Text = SolverText.Format($"当前 {counter.Value}/{counter.Period}");
+            bool on = Array.IndexOf(strategy.RelicCounterRelics, row.RelicId) >= 0;
+            row.Toggle.SetPressedNoSignal(on);
+            row.Toggle.Disabled = !pageEnabled;
             ApplyRow(row, strategy.RelicCounterAllowances.TryGetValue(row.RelicId, out int hp) ? hp : 0,
-                enabled);
+                pageEnabled && on);
         }
     }
 
@@ -161,11 +168,16 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         count.Name = "RelicCount";
         count.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         row.AddChild(count);
+        CheckButton toggle = SolverSettingsControls.CreateToggle();
+        toggle.Name = "RelicEnabled";
+        toggle.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        row.AddChild(toggle);
         (PanelContainer box, LineEdit edit) = SolverSettingsControls.CreateHpInput();
         box.Name = counter.RelicId;
         row.AddChild(box);
         _rows.AddChild(row);
-        RelicRow relicRow = new(counter.Slot, counter.RelicId, icon, title, count, edit);
+        RelicRow relicRow = new(counter.Slot, counter.RelicId, icon, title, count, toggle, edit);
+        toggle.Toggled += pressed => SetEnabled(relicRow, pressed);
         edit.TextSubmitted += _ => Commit(relicRow);
         edit.FocusExited += () => Commit(relicRow);
         edit.TextChanged += _ => ColorNumber(relicRow);
@@ -187,6 +199,18 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         row.Icon.Modulate = new Color(1f, 1f, 1f, enabled ? 1f : GreyedIconAlpha);
         if (!row.Edit.HasFocus())
             Show(row, value);
+    }
+
+    private void SetEnabled(RelicRow row, bool enabled)
+    {
+        bool accepted = CombatUiCommands.Instance.SetRelicCounterEnabled(row.RelicId, enabled);
+        ModLog.Info(
+            $"[Sts2Solver] UI_ACTION action=relic_enabled relic={row.RelicId} enabled={enabled} accepted={accepted}");
+        SetStatus(accepted
+                ? SolverText.Get("已保存，下次搜索生效")
+                : SolverText.Get("保存失败，详情已写入游戏日志"),
+            accepted ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Danger);
+        Apply(CombatUiStore.Snapshot);
     }
 
     private bool Commit(RelicRow row)
@@ -237,7 +261,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
             : SolverUiTokens.Palette.TextPrimary);
 
     private sealed class RelicRow(int slot, string relicId, TextureRect icon, Label title, Label count,
-        LineEdit edit)
+        CheckButton toggle, LineEdit edit)
     {
         public int Slot { get; } = slot;
 
@@ -248,6 +272,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         public Label Title { get; } = title;
 
         public Label Count { get; } = count;
+
+        public CheckButton Toggle { get; } = toggle;
 
         public LineEdit Edit { get; } = edit;
 
@@ -260,6 +286,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
     internal bool EmptyShownForTest => _rows.GetNodeOrNull("NoRelics") != null;
 
     internal LineEdit AllowanceInputForTest(int slot) => _relicRows.Single(row => row.Slot == slot).Edit;
+
+    internal CheckButton EnabledToggleForTest(int slot) => _relicRows.Single(row => row.Slot == slot).Toggle;
 
     internal string CountTextForTest(int slot) => _relicRows.Single(row => row.Slot == slot).Count.Text;
 

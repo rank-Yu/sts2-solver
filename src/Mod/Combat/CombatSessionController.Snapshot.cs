@@ -184,6 +184,7 @@ internal static partial class CombatSessionController
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
             IgnoreLongTermRewards = search.IgnoreLongTermRewards,
             RelicCounters = [.. relics],
+            RelicCounterRelics = [.. search.RelicCounterRelics],
             RelicCounterAllowances = new Dictionary<string, int>(search.RelicCounterAllowances,
                 StringComparer.Ordinal),
             BrightestFlameMaxHpLossLimit = search.BrightestFlameMaxHpLossLimit,

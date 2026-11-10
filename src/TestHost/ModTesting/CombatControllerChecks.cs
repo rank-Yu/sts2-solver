@@ -3633,6 +3633,18 @@ internal static class CombatControllerChecks
                     && target.Period == relics[index].Period && target.Goal == relics[index].Period - 1
                     && target.HpAllowance == (index == 0 ? firstAllowance : 0)).All(static ok => ok);
         }
+        RelicCounterTarget[] RequestTargets()
+            => CombatSessionController.CompileRequestForTest().Options.Scorer?.RulesForCodec.RelicCounterTargets ?? [];
+        // Every relic is switched off by default: the request carries no relic goal at all.
+        check("relic_targets_off_by_default",
+            Snapshot().Strategy.RelicCounterRelics.Length == 0 && RequestTargets().Length == 0,
+            RequestTargets().Length.ToString());
+        foreach (RelicCounterUi relic in relics)
+            check($"relic_enable_cmd:{relic.RelicId}",
+                CombatUiCommands.Instance.SetRelicCounterEnabled(relic.RelicId, true));
+        check("relic_enabled_snapshot",
+            Snapshot().Strategy.RelicCounterRelics.Length == relics.Select(static relic => relic.RelicId).Distinct().Count(),
+            string.Join(",", Snapshot().Strategy.RelicCounterRelics));
         check("relic_targets_default",
             TargetsMatch(CombatSessionController.CompileRequestForTest(), 0, out string relicDefault),
             relicDefault);
@@ -3654,7 +3666,23 @@ internal static class CombatControllerChecks
             check("relic_ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
             check("relic_reset", CombatUiCommands.Instance.SetRelicCounterAllowance(relicId, 0)
                 && !SolverSettings.Current.Search.RelicCounterAllowances.ContainsKey(relicId), "allowance kept");
+            // Switching one relic off removes exactly its goal.
+            check("relic_disable_cmd", CombatUiCommands.Instance.SetRelicCounterEnabled(relicId, false));
+            await NoSearchAsync("relic_disable_no_search");
+            RelicCounterTarget[] remaining = RequestTargets();
+            check("relic_disable_request",
+                remaining.Length == relics.Count(relic => relic.RelicId != relicId)
+                && remaining.All(target => target.Slot != relics[0].Slot),
+                string.Join(",", remaining.Select(static target => target.Slot)));
         }
+        foreach (RelicCounterUi relic in relics)
+            check($"relic_disable_all:{relic.RelicId}",
+                CombatUiCommands.Instance.SetRelicCounterEnabled(relic.RelicId, false));
+        check("relic_all_off",
+            SolverSettings.Current.Search.RelicCounterRelics.Length == 0 && RequestTargets().Length == 0,
+            RequestTargets().Length.ToString());
+        check("relic_enable_unknown_rejected",
+            !CombatUiCommands.Instance.SetRelicCounterEnabled("BURNING_BLOOD", true), "accepted");
         check("relic_unknown_rejected", !CombatUiCommands.Instance.SetRelicCounterAllowance("BURNING_BLOOD", 3)
             && !CombatUiCommands.Instance.SetRelicCounterAllowance("PEN_NIB", 1001), "accepted");
 

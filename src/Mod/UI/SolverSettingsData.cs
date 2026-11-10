@@ -93,8 +93,15 @@ internal sealed record SolverSearchSettings
     public bool IgnoreLongTermRewards { get; init; }
 
     /// <summary>
-    /// Extra HP allowed for ending a fight with a relic counter one short of triggering, by native relic
-    /// id; a relic without an entry allows 0, which still prefers the goal among routes of equal HP.
+    /// Native ids of the counter relics the search tries to leave one short of triggering, in ordinal
+    /// order. Empty by default: a relic that is not listed is not a search goal at all.
+    /// </summary>
+    public string[] RelicCounterRelics { get; init; } = [];
+
+    /// <summary>
+    /// Extra HP allowed for ending a fight with a listed relic's counter one short of triggering, by
+    /// native relic id; a relic without an entry allows 0, which still prefers the goal among routes of
+    /// equal HP. Kept for relics that are switched off, so switching one back on restores its value.
     /// </summary>
     public Dictionary<string, int> RelicCounterAllowances { get; init; } = new(StringComparer.Ordinal);
 
@@ -124,6 +131,16 @@ internal sealed record SolverSearchSettings
         if (GrowthBudgets is null)
             throw new InvalidDataException("设置缺少 search.growthBudgets。");
         GrowthBudgets.Validate();
+        if (RelicCounterRelics is null)
+            throw new InvalidDataException("设置缺少 search.relicCounterRelics。");
+        for (int index = 0; index < RelicCounterRelics.Length; index++)
+        {
+            string relicId = RelicCounterRelics[index];
+            if (relicId is null || !RelicCounterCatalog.RelicIds.Contains(relicId))
+                throw new InvalidDataException($"未知计数遗物：{relicId}");
+            if (index > 0 && string.CompareOrdinal(RelicCounterRelics[index - 1], relicId) >= 0)
+                throw new InvalidDataException($"search.relicCounterRelics 必须按 id 升序且不重复：{relicId}");
+        }
         if (RelicCounterAllowances is null)
             throw new InvalidDataException("设置缺少 search.relicCounterAllowances。");
         foreach ((string relicId, int hp) in RelicCounterAllowances)

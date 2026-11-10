@@ -241,8 +241,8 @@
       "group": "controller"
     },
     {
-      "id": "combat_log_export",
-      "scenario": "combat_log_export",
+      "id": "combat_log_files",
+      "scenario": "combat_log_files",
       "group": "controller"
     },
     {

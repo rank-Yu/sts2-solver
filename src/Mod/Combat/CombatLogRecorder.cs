@@ -2,8 +2,8 @@
 // user://sts2solver/combat-logs holding combat.json, every search's request (SREQ), selected result
 // (SRES) and member summary, the predicted and actual states of each deployment deviation, and the
 // [Sts2Solver] log lines. The main thread only encodes and enqueues; one background writer owns all
-// file I/O, so a slow or failing disk never stalls the game or a search. The settings page exports
-// the two newest combats as a zip the player can send; Golden replay-log reruns the searches.
+// file I/O, so a slow or failing disk never stalls the game or a search. Golden replay-log reruns
+// the searches from a combat folder.
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -20,17 +20,11 @@ using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver;
 
-/// <summary>Result of one export: the zip and its folder, or a stable error code.</summary>
-internal sealed record CombatLogExport(string? ZipPath, string? Error);
-
 internal static class CombatLogRecorder
 {
     internal const string RelativeRoot = "user://sts2solver/combat-logs";
-    internal const string ExportsFolder = "exports";
     internal const int SchemaVersion = 1;
     internal const int KeptCombats = 20;
-    internal const int KeptExports = 10;
-    internal const int ExportedCombats = 2;
 
     private static readonly Channel<System.Action> Queue = Channel.CreateUnbounded<System.Action>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -205,66 +199,16 @@ internal static class CombatLogRecorder
         });
     }
 
-    /// <summary>
-    /// Zips the two newest combat folders after every earlier write has finished. Completes with the
-    /// zip path, or with <c>empty</c>/<c>unavailable</c>/an I/O message.
-    /// </summary>
-    internal static Task<CombatLogExport> ExportAsync()
+#if STS2_SOLVER_TESTING
+    /// <summary>Completes once every write enqueued before the call has finished.</summary>
+    internal static Task FlushForTest()
     {
-        if (_root is not { } root)
-            return Task.FromResult(new CombatLogExport(null, "unavailable"));
-        TaskCompletionSource<CombatLogExport> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        Enqueue(() =>
-        {
-            // An unexpected exception still stops the writer (and is logged above); the page
-            // gets a failed export instead of waiting forever.
-            try
-            {
-                done.SetResult(WriteExport(root));
-            }
-            finally
-            {
-                done.TrySetResult(new CombatLogExport(null, "writer_failed"));
-            }
-        });
+        TaskCompletionSource done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Enqueue(() => done.SetResult());
         return done.Task;
     }
 
-    private static CombatLogExport WriteExport(string root)
-    {
-        try
-        {
-            string[] combats = CombatFolders(root);
-            if (combats.Length == 0)
-                return new CombatLogExport(null, "empty");
-            string exports = Path.Combine(root, ExportsFolder);
-            Directory.CreateDirectory(exports);
-            string zip = Path.Combine(exports, $"sts2solver-combat-log-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
-            string temporary = zip + ".tmp";
-            using (FileStream file = new(temporary, FileMode.Create, System.IO.FileAccess.Write, FileShare.None))
-            using (ZipArchive archive = new(file, ZipArchiveMode.Create))
-            {
-                foreach (string combat in combats.TakeLast(ExportedCombats))
-                {
-                    string name = Path.GetFileName(combat);
-                    foreach (string path in Directory.EnumerateFiles(combat).Order(StringComparer.Ordinal))
-                        archive.CreateEntryFromFile(path, $"{name}/{Path.GetFileName(path)}", CompressionLevel.Optimal);
-                }
-            }
-            File.Move(temporary, zip, overwrite: true);
-            PruneExports(exports);
-            return new CombatLogExport(zip, null);
-        }
-        catch (IOException error)
-        {
-            return new CombatLogExport(null, error.Message);
-        }
-        catch (UnauthorizedAccessException error)
-        {
-            return new CombatLogExport(null, error.Message);
-        }
-    }
-
+#endif
     private static void Enqueue(System.Action item)
     {
         if (!Queue.Writer.TryWrite(item))
@@ -302,9 +246,7 @@ internal static class CombatLogRecorder
 
     private static string[] CombatFolders(string root)
         => Directory.Exists(root)
-            ? [.. Directory.EnumerateDirectories(root)
-                .Where(static path => Path.GetFileName(path) != ExportsFolder)
-                .Order(StringComparer.Ordinal)]
+            ? [.. Directory.EnumerateDirectories(root).Order(StringComparer.Ordinal)]
             : [];
 
     private static void PruneCombats(string root, string current)
@@ -315,13 +257,6 @@ internal static class CombatLogRecorder
             if (old != current)
                 Directory.Delete(old, recursive: true);
         }
-    }
-
-    private static void PruneExports(string exports)
-    {
-        string[] zips = [.. Directory.EnumerateFiles(exports, "*.zip").Order(StringComparer.Ordinal)];
-        foreach (string old in zips.Take(Math.Max(0, zips.Length - KeptExports)))
-            File.Delete(old);
     }
 
     private static void WriteCompressed(string path, byte[] bytes)

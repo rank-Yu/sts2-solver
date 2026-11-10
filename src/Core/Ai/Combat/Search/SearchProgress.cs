@@ -129,9 +129,6 @@ internal sealed record SearchProgressSnapshot(
     SearchInterimResult? BestCompleteResult,
     int CandidateVersion)
 {
-    /// <summary>The coordinator's planned duration for the whole request; zero before it is known.</summary>
-    internal long PlannedBudgetMilliseconds { get; init; }
-
     /// <summary>
     /// Nodes this request expanded so far: the finished members plus the running one.
     /// <see cref="ExpandedNodes"/> is the running member's own count and restarts with every member.
@@ -182,7 +179,6 @@ internal sealed class SearchProgressChannel
     private int _memberIndex;
     private SearchInterimResult? _bestComplete;
     private SearchProgressSnapshot? _latest;
-    private long _plannedBudgetMilliseconds;
     private long _completedExpandedNodes;
 
     internal SearchProgressChannel(int throttleMilliseconds, int retainedCandidates = DefaultRetainedCandidates)
@@ -222,12 +218,6 @@ internal sealed class SearchProgressChannel
             Interlocked.Add(ref _completedExpandedNodes, nodes);
     }
 
-    /// <summary>Set by the coordinator before any member runs; read by the publishing thread.</summary>
-    internal long PlannedBudgetMilliseconds
-    {
-        get => Volatile.Read(ref _plannedBudgetMilliseconds);
-        set => Volatile.Write(ref _plannedBudgetMilliseconds, value);
-    }
 
     /// <summary>Stores one snapshot and invokes the publisher-side observer, outside the lock.</summary>
     internal void Publish(SearchProgressSnapshot snapshot)

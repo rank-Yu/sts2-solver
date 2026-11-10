@@ -67,9 +67,6 @@ internal static class CombatSearchCoordinator
         {
             throw new InvalidDataException("接续状态与当前搜索计划不一致。");
         }
-        long plannedMilliseconds = RemainingPlannedMilliseconds(resume?.NextMemberIndex ?? 0);
-        if (progress != null)
-            progress.PlannedBudgetMilliseconds = plannedMilliseconds;
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
         List<SearchMemberResult> logs = resume != null ? [.. resume.Members] : new(members.Length);
         BeamSolver.Candidate? free = resume?.Free, selected = resume?.Selected;
@@ -206,7 +203,6 @@ internal static class CombatSearchCoordinator
                 {
                     Completion = SearchCompletionKind.Cancelled,
                     SearchThreads = initial.Options.SearchThreads,
-                    PlannedBudgetMilliseconds = plannedMilliseconds,
                 };
             }
             if (beam is { Adoption: { } adoption })
@@ -278,7 +274,6 @@ internal static class CombatSearchCoordinator
                     Adoption = adoption,
                     OnlyDeathRoutes = chosenOnlyDeath,
                     SearchThreads = initial.Options.SearchThreads,
-                    PlannedBudgetMilliseconds = plannedMilliseconds,
                     CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
                 };
             }
@@ -425,7 +420,6 @@ internal static class CombatSearchCoordinator
                 : error != null || capacityBounded ? SearchCompletionKind.Failed
                 : SearchCompletionKind.Completed,
             SearchThreads = initial.Options.SearchThreads,
-            PlannedBudgetMilliseconds = plannedMilliseconds,
             ResumeMerge = resumeMerge,
             // The verdict belongs to the route the request returns: a kept stopped result carries
             // its own, otherwise the selected candidate decides. The last progress preview is not a
@@ -441,16 +435,6 @@ internal static class CombatSearchCoordinator
             => drops is { Count: > 0 }
                 ? new SortedDictionary<string, int>(drops, StringComparer.Ordinal)
                 : null;
-
-        long RemainingPlannedMilliseconds(int firstMember)
-        {
-            long total = 0L;
-            _ = ResolvePolicies(out string?[] plannedSkips);
-            for (int i = firstMember; i < members.Length; i++)
-                if (plannedSkips[i] is null)
-                    total += checked((long)members[i].Width * plan.MillisecondsPerWidth);
-            return total;
-        }
 
         CombatSearchResult StopResult(BeamResult chosen, int chosenIndex,
             SearchAdoptionInfo adoption, bool chosenOnlyDeath)
@@ -484,7 +468,6 @@ internal static class CombatSearchCoordinator
                 Adoption = adoption,
                 OnlyDeathRoutes = chosenOnlyDeath,
                 SearchThreads = initial.Options.SearchThreads,
-                PlannedBudgetMilliseconds = plannedMilliseconds,
                 Resume = continuation,
                 CapacityDroppedRegions = SnapshotCapacityDrops(capacityDrops),
             };

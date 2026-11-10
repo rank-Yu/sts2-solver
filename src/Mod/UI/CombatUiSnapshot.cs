@@ -399,12 +399,7 @@ internal sealed record SearchUiSnapshot
 
     public int ActiveMemberWidth { get; init; }
 
-    /// <summary>The active member's time share (width × milliseconds per width).</summary>
-    public long ActiveMemberBudgetMilliseconds { get; init; }
-
     public long ActiveMemberStartedAtMilliseconds { get; init; }
-
-    public long BudgetMilliseconds { get; init; }
 
     public long ElapsedMilliseconds { get; init; }
 

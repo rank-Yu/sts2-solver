@@ -175,7 +175,7 @@ internal static class CombatSearchRunner
             $"relic_heal={planResult.Outcome.PostCombatRelicHeal} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
-            $"planned_ms={outcome.PlannedBudgetMilliseconds} completion={outcome.Completion}");
+            $"completion={outcome.Completion}");
         return new CombatSearchRun(in searchRoot, searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null)
@@ -353,7 +353,7 @@ internal static class CombatSearchRunner
             $"choices={choices.Length} members={outcome.Members.Length} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
-            $"planned_ms={outcome.PlannedBudgetMilliseconds} completion={outcome.Completion}");
+            $"completion={outcome.Completion}");
         return new CombatSearchRun(in searchCase.Battles[beam.BestRootIndex], searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null)

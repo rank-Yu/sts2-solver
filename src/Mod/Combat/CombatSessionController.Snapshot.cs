@@ -293,11 +293,7 @@ internal static partial class CombatSessionController
             StartedAtMilliseconds = _searchStartedAt,
             ActiveMemberRun = _activeMemberRun,
             ActiveMemberWidth = _activeMemberWidth,
-            ActiveMemberBudgetMilliseconds = _activeMemberBudget,
             ActiveMemberStartedAtMilliseconds = _activeMemberStartedAt,
-            BudgetMilliseconds = progress?.PlannedBudgetMilliseconds is > 0
-                ? progress.PlannedBudgetMilliseconds
-                : checked((long)_searchProfile.BaselineWidth * _searchProfile.MillisecondsPerWidth),
             ElapsedMilliseconds = progress?.ElapsedMilliseconds
                 ?? Math.Max(0, Environment.TickCount64 - _searchStartedAt),
             ExpandedNodes = progress?.RequestExpandedNodes ?? 0,
@@ -411,9 +407,6 @@ internal static partial class CombatSessionController
                 Reason = ReasonName(session.Reason),
                 StartedAtMilliseconds = _searchStartedAt,
                 SearchThreads = _searchThreads,
-                BudgetMilliseconds = _lastProgress?.PlannedBudgetMilliseconds is > 0
-                    ? _lastProgress.PlannedBudgetMilliseconds
-                    : checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
                 ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - _searchStartedAt),
                 Status = status,
                 SearchStatus = status,

@@ -53,7 +53,7 @@ internal static class SearchResumeContracts
         Script script = new() { Default = BeamStep(empty) };
         script.Set(1, BeamStep(real));
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.SelectedMember == 1 && result.Beam is not null
             && Equal(result.Beam.BestRoute, real.BestRoute),
@@ -61,7 +61,7 @@ internal static class SearchResumeContracts
 
         Script none = new() { Default = BeamStep(empty) };
         SearchProgressChannel noneChannel = new(0);
-        CombatSearchResult nothing = Run(original, new FakeRunner(noneChannel, Plan, none), noneChannel);
+        CombatSearchResult nothing = Run(original, new FakeRunner(noneChannel, none), noneChannel);
         Assert(nothing.Beam is null, "empty-route: no member with a route returns no beam");
     }
 
@@ -77,9 +77,9 @@ internal static class SearchResumeContracts
         stopScript.Set(0, BeamStep(worse));
         stopScript.Set(stopIndex, StoppedStep(better));
         SearchProgressChannel stopChannel = new(0);
-        FakeRunner stopRunner = new(stopChannel, Plan, stopScript);
+        FakeRunner stopRunner = new(stopChannel, stopScript);
         CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
-        Assert(stopRunner.Calls.Select(static call => call.Index)
+        Assert(stopRunner.Calls
                 .SequenceEqual(Enumerable.Range(0, stopIndex + 1)),
             "stop runs members 0..k once");
         Assert(stopped.Completion == SearchCompletionKind.StoppedWithCandidate,
@@ -92,21 +92,19 @@ internal static class SearchResumeContracts
         Assert(stopped.Beam is not null && Equal(stopped.Beam.BestRoute, better.BestRoute),
             "stop adopts the better stopped candidate");
         Assert(stopped.Adoption is { Kind: SearchAdoptionKind.Stopped }, "stop adoption kind");
-        long stopPlanned = stopped.PlannedBudgetMilliseconds;
-        long stopSpent = stopRunner.Calls.Sum(static call => call.Configured);
 
         Script resumeScript = new() { Default = BeamStep(worse) };
         SearchProgressChannel resumeChannel = new(0);
-        FakeRunner resumeRunner = new(resumeChannel, Plan, resumeScript);
+        FakeRunner resumeRunner = new(resumeChannel, resumeScript);
         CombatSearchResult resumed = Run(original, resumeRunner, resumeChannel, resume);
-        Assert(resumeRunner.Calls.All(static call => call.Index > stopIndex),
+        Assert(resumeRunner.Calls.All(static call => call > stopIndex),
             "resume never reruns the stopped member");
         for (int call = 1; call < resumeRunner.Calls.Count; call++)
-            Assert(resumeRunner.Calls[call - 1].Index < resumeRunner.Calls[call].Index,
+            Assert(resumeRunner.Calls[call - 1] < resumeRunner.Calls[call],
                 "resume runs the remaining members in order");
         int[] expectedRuns = [.. Enumerable.Range(stopIndex + 1, count - stopIndex - 1)
             .Where(index => resumed.Members[index].Ran)];
-        Assert(resumeRunner.Calls.Select(static call => call.Index).SequenceEqual(expectedRuns)
+        Assert(resumeRunner.Calls.SequenceEqual(expectedRuns)
             && resumed.Members.Length == count
             && resumed.Members.Skip(stopIndex + 1)
                 .All(static member => member.Ran || member.SkippedReason != null),
@@ -117,19 +115,12 @@ internal static class SearchResumeContracts
         Assert(resumed.SelectedMember == stopIndex
             && resumed.Beam is not null && Equal(resumed.Beam.BestRoute, better.BestRoute),
             "resume keeps the stop-time route and marks its member");
-        long resumePlanned = resumed.PlannedBudgetMilliseconds;
-        Assert(resumePlanned == resumeRunner.Calls.Sum(static call => call.Configured),
-            "resumed planned time is the remaining member sum");
-        Assert(stopPlanned == stopSpent + resumePlanned,
-            $"planned time {stopPlanned} = spent {stopSpent} + remaining {resumePlanned}");
-        Assert(resumeChannel.PlannedBudgetMilliseconds == resumePlanned,
-            "progress reports the remaining planned time");
 
         Script fullScript = new() { Default = BeamStep(worse) };
         fullScript.Set(0, BeamStep(worse));
         fullScript.Set(stopIndex, BeamStep(better));
         SearchProgressChannel fullChannel = new(0);
-        FakeRunner fullRunner = new(fullChannel, Plan, fullScript);
+        FakeRunner fullRunner = new(fullChannel, fullScript);
         CombatSearchResult full = Run(original, fullRunner, fullChannel);
         Assert(full.Completion == SearchCompletionKind.Completed, full.Completion.ToString());
         Assert(full.Beam is not null && resumed.Beam is not null
@@ -148,7 +139,7 @@ internal static class SearchResumeContracts
         Script stopScript = new() { Default = BeamStep(worse) };
         stopScript.Set(stopIndex, StoppedStep(worse));
         SearchProgressChannel stopChannel = new(0);
-        FakeRunner stopRunner = new(stopChannel, Plan, stopScript);
+        FakeRunner stopRunner = new(stopChannel, stopScript);
         CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
         SearchResumeState resume = stopped.Resume
             ?? throw new InvalidDataException("search-resume: stop did not carry a resume point");
@@ -158,7 +149,7 @@ internal static class SearchResumeContracts
         Script resumeScript = new() { Default = BeamStep(worse) };
         resumeScript.Set(betterIndex, BeamStep(better));
         SearchProgressChannel resumeChannel = new(0);
-        FakeRunner resumeRunner = new(resumeChannel, Plan, resumeScript);
+        FakeRunner resumeRunner = new(resumeChannel, resumeScript);
         CombatSearchResult resumed = Run(original, resumeRunner, resumeChannel, resume);
         Assert(resumed.ResumeMerge is { Compared: true, KeptStopped: false, Reason: "completed_better" },
             resumed.ResumeMerge?.ToString() ?? "-");
@@ -170,7 +161,7 @@ internal static class SearchResumeContracts
         fullScript.Set(stopIndex, BeamStep(worse));
         fullScript.Set(betterIndex, BeamStep(better));
         SearchProgressChannel fullChannel = new(0);
-        FakeRunner fullRunner = new(fullChannel, Plan, fullScript);
+        FakeRunner fullRunner = new(fullChannel, fullScript);
         CombatSearchResult full = Run(original, fullRunner, fullChannel);
         Assert(full.Beam is not null && resumed.Beam is not null
             && Equal(full.Beam.BestRoute, resumed.Beam.BestRoute),
@@ -186,7 +177,7 @@ internal static class SearchResumeContracts
         Script firstScript = new() { Default = BeamStep(worse) };
         firstScript.Set(1, StoppedStep(better));
         SearchProgressChannel firstChannel = new(0);
-        FakeRunner firstRunner = new(firstChannel, Plan, firstScript);
+        FakeRunner firstRunner = new(firstChannel, firstScript);
         CombatSearchResult first = Run(original, firstRunner, firstChannel);
         SearchResumeState resume = first.Resume
             ?? throw new InvalidDataException("search-resume: first stop did not carry a resume point");
@@ -195,7 +186,7 @@ internal static class SearchResumeContracts
         Script secondScript = new() { Default = BeamStep(worse) };
         secondScript.Set(4, StoppedStep(worse));
         SearchProgressChannel secondChannel = new(0);
-        FakeRunner secondRunner = new(secondChannel, Plan, secondScript);
+        FakeRunner secondRunner = new(secondChannel, secondScript);
         CombatSearchResult second = Run(original, secondRunner, secondChannel, resume);
         SearchResumeState secondResume = second.Resume
             ?? throw new InvalidDataException("search-resume: second stop did not carry a resume point");
@@ -203,14 +194,14 @@ internal static class SearchResumeContracts
             "second stop resumes after its member and keeps the better earlier route");
         Assert(second.Beam is not null && Equal(second.Beam.BestRoute, better.BestRoute),
             "second stop keeps the better earlier route");
-        Assert(secondRunner.Calls.All(static call => call.Index is > 1 and <= 4),
+        Assert(secondRunner.Calls.All(static call => call is > 1 and <= 4),
             "second stop only ran the members between the stops");
 
         Script thirdScript = new() { Default = BeamStep(worse) };
         SearchProgressChannel thirdChannel = new(0);
-        FakeRunner thirdRunner = new(thirdChannel, Plan, thirdScript);
+        FakeRunner thirdRunner = new(thirdChannel, thirdScript);
         CombatSearchResult third = Run(original, thirdRunner, thirdChannel, secondResume);
-        Assert(thirdRunner.Calls.All(static call => call.Index > 4),
+        Assert(thirdRunner.Calls.All(static call => call > 4),
             "third request starts after the second stopped member");
         Assert(third.Completion == SearchCompletionKind.Completed, third.Completion.ToString());
         Assert(third.Beam is not null && Equal(third.Beam.BestRoute, better.BestRoute),
@@ -223,9 +214,9 @@ internal static class SearchResumeContracts
         Script script = new() { Default = FakeStep.None };
         script.Set(last, StoppedStep(FirstRoute(original)));
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult stopped = Run(original, runner, channel);
-        Assert(runner.Calls.Count > 0 && runner.Calls[^1].Index == last,
+        Assert(runner.Calls.Count > 0 && runner.Calls[^1] == last,
             "the last member runs");
         Assert(stopped.Completion == SearchCompletionKind.StoppedWithCandidate,
             stopped.Completion.ToString());
@@ -240,7 +231,7 @@ internal static class SearchResumeContracts
         script.Set(0, BeamStep(better));
         script.Set(1, StopWithoutCandidateStep());
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.Completion == SearchCompletionKind.StoppedWithCandidate,
             result.Completion.ToString());
@@ -261,7 +252,7 @@ internal static class SearchResumeContracts
         Script script = new() { Default = FakeStep.None };
         script.Set(0, StopWithoutCandidateStep());
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.Completion == SearchCompletionKind.Cancelled, result.Completion.ToString());
         Assert(result.Beam is null && result.Resume is null && result.SelectedMember == -1,
@@ -273,7 +264,7 @@ internal static class SearchResumeContracts
         Script script = new() { Default = FakeStep.None };
         script.Set(0, RequestedStep(FirstRoute(original)));
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.Completion == SearchCompletionKind.Adopted, result.Completion.ToString());
         Assert(result.Beam is not null && result.Resume is null,
@@ -291,7 +282,7 @@ internal static class SearchResumeContracts
         Script script = new() { Default = FakeStep.None };
         script.Set(0, CapacityDroppedStep(route));
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.Completion == SearchCompletionKind.Completed,
             result.Completion.ToString());
@@ -320,7 +311,7 @@ internal static class SearchResumeContracts
         Script script = new() { Default = FakeStep.None };
         script.Set(0, BeamStep(empty));
         SearchProgressChannel channel = new(0);
-        FakeRunner runner = new(channel, Plan, script);
+        FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
         Assert(result.Status == CombatSearchStatus.CapacityBounded, result.Status.ToString());
         Assert(result.Beam is null && result.Completion == SearchCompletionKind.Failed
@@ -497,17 +488,16 @@ internal static class SearchResumeContracts
             => _steps.TryGetValue(index, out FakeStep step) ? step : Default;
     }
 
-    private sealed class FakeRunner(SearchProgressChannel channel, SearchPlan plan, Script script)
+    private sealed class FakeRunner(SearchProgressChannel channel, Script script)
     {
-        internal List<(int Index, long Configured)> Calls { get; } = [];
+        internal List<int> Calls { get; } = [];
 
         internal ValueTask<SearchMemberMeasurement> Run(SearchCase member, SearchStorage shared,
             CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             int index = channel.MemberIndex;
-            Calls.Add((index,
-                checked((long)member.Options.BeamWidth * plan.MillisecondsPerWidth)));
+            Calls.Add(index);
             return ValueTask.FromResult(Measure(index));
         }
 

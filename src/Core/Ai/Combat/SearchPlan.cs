@@ -136,8 +136,6 @@ internal sealed record CombatSearchResult(CombatSearchStatus Status, BeamResult?
     /// <summary>True when the adopted route contains only death lines; host-only.</summary>
     internal bool OnlyDeathRoutes { get; init; }
 
-    /// <summary>Sum of the coordinator's planned member time limits; host-only.</summary>
-    internal long PlannedBudgetMilliseconds { get; init; }
 
     /// <summary>
     /// Region-to-child-count map when at least one member dropped children at a Battle capacity.

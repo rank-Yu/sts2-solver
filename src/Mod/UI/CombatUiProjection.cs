@@ -67,7 +67,6 @@ internal static class CombatUiProjection
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
             SearchThreads = searchThreads,
-            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "running",
         };
 
@@ -83,7 +82,6 @@ internal static class CombatUiProjection
             StartedAtMilliseconds = startedAtMilliseconds,
             SearchThreads = searchThreads,
             ElapsedMilliseconds = Math.Max(0, Environment.TickCount64 - startedAtMilliseconds),
-            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "failed",
             SearchStatus = "invalid",
             ErrorCode = errorCode,
@@ -105,7 +103,6 @@ internal static class CombatUiProjection
             ExpandedNodes = memberRuns.Sum(static run => (long)run.ExpandedNodes),
             Transitions = memberRuns.Sum(static run => (long)run.Transitions),
             MemberRuns = memberRuns,
-            BudgetMilliseconds = checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             Status = "cancelled",
             SearchStatus = "cancelled",
             ErrorCode = "cancelled",
@@ -141,9 +138,6 @@ internal static class CombatUiProjection
             Reason = reason,
             StartedAtMilliseconds = startedAtMilliseconds,
             SearchThreads = outcome.SearchThreads,
-            BudgetMilliseconds = outcome.PlannedBudgetMilliseconds > 0
-                ? outcome.PlannedBudgetMilliseconds
-                : checked((long)profile.BaselineWidth * profile.MillisecondsPerWidth),
             ElapsedMilliseconds = outcome.ElapsedMilliseconds,
             ExpandedNodes = outcome.TotalExpandedNodes,
             Transitions = memberRuns.Sum(static run => (long)run.Transitions),

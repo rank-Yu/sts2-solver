@@ -157,7 +157,6 @@ internal static partial class CombatSessionController
     private static int _lastCandidateVersion;
     private static int _activeMemberRun = -1;
     private static int _activeMemberWidth;
-    private static long _activeMemberBudget;
     private static long _activeMemberStartedAt;
     private static long _lastProgressPublishAt;
     private static string? _testRoot;
@@ -1042,7 +1041,6 @@ internal static partial class CombatSessionController
             _lastCandidateVersion = progress.CandidateVersion;
         _activeMemberRun = progress.MemberIndex;
         _activeMemberWidth = progress.Member.Width;
-        _activeMemberBudget = checked((long)progress.Member.Width * _searchProfile.MillisecondsPerWidth);
         int runningExpanded = _memberRuns.Sum(static run => run.ExpandedNodes);
         if (progress.ExpandedNodes > runningExpanded)
             _activeMemberStartedAt = Math.Max(0,

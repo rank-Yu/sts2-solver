@@ -115,7 +115,6 @@ internal static partial class CombatSessionController
         _lastCandidateVersion = 0;
         _activeMemberRun = -1;
         _activeMemberWidth = 0;
-        _activeMemberBudget = 0;
         _activeMemberStartedAt = _searchStartedAt;
         _currentActionIndex = 0;
         _completedActions = 0;

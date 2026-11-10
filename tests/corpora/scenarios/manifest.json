@@ -246,6 +246,11 @@
       "group": "controller"
     },
     {
+      "id": "main_menu_stops_search",
+      "scenario": "main_menu_stops_search",
+      "group": "controller"
+    },
+    {
       "id": "mode_switch",
       "scenario": "mode_switch",
       "group": "controller"

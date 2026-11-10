@@ -65,4 +65,17 @@ internal static class NativeCallbackGuard
             CombatSessionController.Reset("tree_exiting");
             SearchSession.Cancel("tree_exiting");
         });
+
+    /// <summary>
+    /// Returning to the main menu leaves the combat without CombatEnded. Release the setup page's
+    /// input blocker first, then stop the search and execution as the game's exit does, so nothing
+    /// keeps running in the menu until the next combat starts.
+    /// </summary>
+    internal static void OnReturnToMainMenu()
+        => Try("ReturnToMainMenu", () =>
+        {
+            PlayerTurnSetupRuntime.PrepareForSceneExit();
+            CombatSessionController.Reset("main_menu");
+            SearchSession.Cancel("main_menu");
+        });
 }

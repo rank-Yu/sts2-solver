@@ -85,7 +85,7 @@ internal sealed class PlayerTurnSetupSceneExitPatch : IPatchMethod
 {
     public static string PatchId => "sts2solver_player_turn_setup_scene_exit";
 
-    public static string Description => "返回主菜单前释放回合准备页面的输入遮挡";
+    public static string Description => "返回主菜单前释放回合准备页面的输入遮挡，并停止搜索和执行";
 
     public static ModPatchTarget[] GetTargets() =>
     [
@@ -93,7 +93,5 @@ internal sealed class PlayerTurnSetupSceneExitPatch : IPatchMethod
     ];
 
     [HarmonyPriority(Priority.High)]
-    public static void Prefix()
-        => NativeCallbackGuard.Try("PlayerTurnSetupSceneExit",
-            PlayerTurnSetupRuntime.PrepareForSceneExit);
+    public static void Prefix() => NativeCallbackGuard.OnReturnToMainMenu();
 }

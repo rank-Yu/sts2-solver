@@ -242,6 +242,9 @@ internal static class CombatControllerChecks
                 case "combat_log_files":
                     await CombatLogFilesAsync(host, Check, Action);
                     break;
+                case "main_menu_stops_search":
+                    await MainMenuStopsSearchAsync(host, Check, Action);
+                    break;
                 case "pause_death_turn_deployment":
                     await PauseDeathTurnDeploymentAsync(host, Check, Action);
                     break;
@@ -1112,6 +1115,28 @@ internal static class CombatControllerChecks
         foreach (string file in new[] { "combat.json", "events.log", "search-001.json",
                      "search-001.sreq.br", "search-001.sres.br" })
             check("file_" + file, names.Contains(file), string.Join(",", names.Order()));
+    }
+
+    /// <summary>
+    /// Returning to the main menu during a search stops it right away instead of leaving it running
+    /// in the menu until the next combat starts, and leaves the controller idle.
+    /// </summary>
+    private static async Task MainMenuStopsSearchAsync(NGame host, Check check, Action action)
+    {
+        using SettingsOverride slowTier = SlowSearchTier();
+        check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: true), "auto search");
+        action("set_mode:auto_search");
+        await WaitAsync(host, static s => s.IsSearching, 900, "search running");
+        check("search_running", SearchSession.IsRunning, "before main menu");
+        action("return_to_main_menu");
+        await host.ReturnToMainMenu();
+        for (int frame = 0; frame < 60 && SearchSession.IsRunning; frame++)
+            await Frames(host, 1);
+        CombatUiSnapshot after = Snapshot();
+        check("search_stopped", !SearchSession.IsRunning && !after.IsSearching,
+            $"running={SearchSession.IsRunning} searching={after.IsSearching}");
+        check("controller_idle", after.Phase == CombatUiPhase.Idle, after.Phase.ToString());
+        check("not_in_progress", !RunManager.Instance.IsInProgress);
     }
 
     private static async Task ExecuteWithoutResultAsync(NGame host, Check check, Action action)

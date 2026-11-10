@@ -39,10 +39,10 @@ public sealed class NinjaScroll : RelicDef
 }
 
 /// <summary>
-/// <c>Bread</c>: <c>ModifyMaxEnergy</c> adds 1 on every turn except turn 1
-/// (<c>PersistentPowerSupport.GetTurnBasedMaxEnergyContribution</c>). The native
-/// <c>AfterSideTurnStart</c> lose-2-energy case is turn 1 only and belongs to the combat-start turn,
-/// before the root.
+/// <c>Bread</c>: <c>ModifyMaxEnergy</c> adds 1 on every turn except turn 1; <c>AfterSideTurnStart</c>
+/// loses 2 energy on turn 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("BREAD")]
 public sealed partial class Bread : RelicDef

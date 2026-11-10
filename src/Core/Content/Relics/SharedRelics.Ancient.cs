@@ -275,8 +275,9 @@ public sealed class RunicPyramid : RelicDef
 }
 
 /// <summary>
-/// <c>VeryHotCocoa</c>: <c>AfterSideTurnStart</c> gains 4 energy only when the player turn number is
-/// &lt;= 1 (<c>TriggerRelicsAfterSideTurnStart</c>). The player turn 1 start is before the root.
+/// <c>VeryHotCocoa</c>: <c>AfterSideTurnStart</c> gains 4 energy when the player turn number is &lt;= 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("VERY_HOT_COCOA")]
 public sealed partial class VeryHotCocoa : RelicDef;
@@ -693,11 +694,21 @@ public sealed class DelicateFrond : RelicDef
 
 /// <summary>
 /// <c>DiamondDiadem</c>: gain 20 Unpowered block and 1 Blur at the first side turn start
-/// (<c>AfterSideTurnStart</c> with <c>TurnNumber &lt;= 1</c>), before the captured root.
+/// (<c>AfterSideTurnStart</c> with <c>TurnNumber &lt;= 1</c>).
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("DIAMOND_DIADEM")]
 public sealed class DiamondDiadem : RelicDef
 {
+    // DiamondDiadem.cs: BlockVar(20, Unpowered) then 1 Blur, turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side != Side.Player || x.B.PlayerTurn > 1)
+            return;
+        Kernel.GainBlock(ref x, Limits.PlayerOwner, 20m, ValueProps.Unpowered, fromCard: false);
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<BlurPower>(), 1, Limits.PlayerOwner);
+    }
 }
 
 /// <summary>

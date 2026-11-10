@@ -4,7 +4,8 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Content.Relics;
 
 /// <summary>
-/// <c>InfusedCore</c>: channels 3 Lightning at the first side turn start (before the root) and adds
+/// <c>InfusedCore</c>: channels 3 Lightning at the first side turn start (before a play-phase root;
+/// replayed for a turn 1 setup root) and adds
 /// its ExtraDamage to every Lightning orb value (<c>SimulatedCombatState.RelicTurnStart</c> case
 /// InfusedCore; native <c>ModifyOrbValue</c> over the combat listeners).
 /// </summary>
@@ -21,6 +22,12 @@ public sealed class InfusedCore : RelicDef
         return value + rules.RelicVar(Id, 1);
     }
 
+    // InfusedCore.cs: channels Lightning (3) orbs one at a time, turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.ChannelOrbs(ref x, Kernel.OrbId("LIGHTNING_ORB"), (int)x.R.RelicVar(Id, 0));
+    }
 }
 
 /// <summary>
@@ -42,11 +49,19 @@ public sealed partial class PhylacteryUnbound : RelicDef
 
 /// <summary>
 /// <c>DivineDestiny</c>: gains 7 stars at the first side turn start
-/// (<c>AfterSideTurnStart</c> with <c>TurnNumber &lt;= 1</c>), before the captured root.
+/// (<c>AfterSideTurnStart</c> with <c>TurnNumber &lt;= 1</c>).
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("DIVINE_DESTINY")]
 public sealed class DivineDestiny : RelicDef
 {
+    // DivineDestiny.cs: StarsVar(7), turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.GainStars(ref x, 7);
+    }
 }
 
 [ContentId("BLACK_BLOOD")] public sealed class BlackBlood : RelicDef; // AfterCombatVictory

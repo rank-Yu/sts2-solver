@@ -1,6 +1,7 @@
-// Opening-combat effects that native models run before the captured play-phase root. These are the
-// solver-side counterparts of the pre-root imports documented in docs/import.md; the values
-// are the native canonical bases (the same values the content table exports for the rules).
+// Opening-combat effects of native models. A play-phase root is captured after them and imports their
+// results (docs/import.md). A turn 1 setup root is captured at the native SetupPlayerTurn entry, so the
+// turn-1-only hooks from the energy reset onward are implemented here and run in the replayed preamble.
+// Values are the native canonical bases; these relic variables have no runtime writer.
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Content.Relics;
@@ -85,18 +86,39 @@ public sealed partial class RedMask : RelicDef
 
 public sealed partial class BagOfPreparation : RelicDef
 {
+    // BagOfPreparation.cs: CardsVar(2), turn number <= 1.
+    public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
+        => x.B.PlayerTurn <= 1 ? amount + 2m : amount;
 }
 
 public sealed partial class BloodVial : RelicDef
 {
+    // BloodVial.cs: HealVar(2), AfterPlayerTurnStartLate, turn number <= 1.
+    public override void AfterPlayerTurnStartLate(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn <= 1)
+            Kernel.Heal(ref x, Limits.PlayerOwner, 2m);
+    }
 }
 
 public sealed partial class Lantern : RelicDef
 {
+    // Lantern.cs: EnergyVar(1), turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.GainEnergy(ref x, 1m);
+    }
 }
 
 public sealed partial class VeryHotCocoa : RelicDef
 {
+    // VeryHotCocoa.cs: EnergyVar(4), turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.GainEnergy(ref x, 4m);
+    }
 }
 
 public sealed partial class FurCoat : RelicDef
@@ -158,6 +180,12 @@ public sealed partial class Metronome : RelicDef
 
 public sealed partial class Bread : RelicDef
 {
+    // Bread.cs: EnergyVar("LoseEnergy", 2), turn number == 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn == 1)
+            Kernel.LoseEnergy(ref x, 2m);
+    }
 }
 
 public sealed partial class TwistedFunnel : RelicDef
@@ -174,14 +202,36 @@ public sealed partial class FuneraryMask : RelicDef
 
 public sealed partial class FencingManual : RelicDef
 {
+    // The forge creates a Sovereign Blade when the player has none.
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [(Kernel.SovereignBladeId, 0)];
+
+    // FencingManual.cs: ForgeVar(10), turn number <= 1.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.Forge(ref x, 10);
+    }
 }
 
 public sealed partial class Akabeko : RelicDef
 {
+    // Akabeko.cs: PowerVar<VigorPower>(8), turn number <= 1, applied by the owner.
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1)
+            Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.VigorPower>(), 8,
+                Limits.PlayerOwner);
+    }
 }
 
 public sealed partial class FestivePopper : RelicDef
 {
+    // FestivePopper.cs: DamageVar(9, Unpowered) to every hittable enemy, turn number == 1.
+    public override void AfterPlayerTurnStart(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn == 1)
+            CardEffects.DamageAllEnemies(ref x, 9m, ValueProps.Unpowered, Limits.PlayerOwner);
+    }
 }
 
 public sealed partial class BurningSticks : RelicDef

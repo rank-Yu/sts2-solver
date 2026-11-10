@@ -1,0 +1,63 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "TS-L-HEAL",
+ "characterId": "IRONCLAD",
+ "encounterId": "NIBBITS_NORMAL",
+ "seed": "TSLHEAL",
+ "ascension": 0,
+ "initialPlayerMaxHp": 80,
+ "initialPlayerHp": 50,
+ "initialPlayerEnergy": 3,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "clearRunDeck": true,
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "BLOOD_VIAL",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "FAKE_BLOOD_VIAL",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "FESTIVE_POPPER",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "ROYAL_POISON",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "LANTERN",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "AKABEKO",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "BAG_OF_PREPARATION",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "orbs": [],
+ "runCards": [
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "pile": "Deck",
+   "count": 6
+  },
+  {
+   "cardId": "STRIKE_IRONCLAD",
+   "pile": "Deck",
+   "count": 6
+  }
+ ]
+}

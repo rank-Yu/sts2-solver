@@ -114,8 +114,9 @@ public sealed class VitruvianMinion : RelicDef
 }
 
 /// <summary>
-/// <c>FencingManual</c>: <c>AfterSideTurnStart</c> forges 10 on turn 1 only. A combat root is captured
-/// after that turn start, so the forge already happened before the root; later turns are no-ops.
+/// <c>FencingManual</c>: <c>AfterSideTurnStart</c> forges 10 on turn 1 only.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("FENCING_MANUAL")]
 public sealed partial class FencingManual : RelicDef;

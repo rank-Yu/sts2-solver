@@ -44,17 +44,18 @@ public sealed partial class Anchor : RelicDef;
 public sealed partial class BagOfMarbles : RelicDef;
 
 /// <summary>
-/// <c>BagOfPreparation</c>: <c>ModifyHandDraw</c> adds 2 only when the turn number is &lt;= 1
-/// (<c>PersistentPowerSupport.IsBranchOwnedHandDrawRelic</c> and <c>GetTurnBasedHandDrawContribution</c>).
-/// The turn 1 hand draw happens before the root; on turn 2 the condition is false.
+/// <c>BagOfPreparation</c>: <c>ModifyHandDraw</c> adds 2 only when the turn number is &lt;= 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("BAG_OF_PREPARATION")]
 public sealed partial class BagOfPreparation : RelicDef;
 
 /// <summary>
-/// <c>BloodVial</c>: <c>AfterPlayerTurnStartLate</c> heals 2 on turn &lt;= 1; the existing engine runs the
-/// same heal from <c>ContinueRelicsAfterPlayerTurnStart</c> on turn &lt;= 1. That is before the root and
-/// no later turn satisfies it.
+/// <c>BloodVial</c>: <c>AfterPlayerTurnStartLate</c> heals 2 on turn &lt;= 1, after every
+/// <c>AfterPlayerTurnStart</c> listener (so after a Toasty Mittens choice).
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("BLOOD_VIAL")]
 public sealed partial class BloodVial : RelicDef;
@@ -67,8 +68,10 @@ public sealed partial class BloodVial : RelicDef;
 public sealed partial class BronzeScales : RelicDef;
 
 /// <summary>
-/// <c>FestivePopper</c>: <c>AfterPlayerTurnStart</c> damages all opponents only when the turn number is
-/// &lt;= 1 (<c>ContinueRelicsAfterPlayerTurnStart</c>). The turn 1 start is before the root.
+/// <c>FestivePopper</c>: <c>AfterPlayerTurnStart</c> deals 9 unpowered damage to every hittable enemy
+/// on turn 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("FESTIVE_POPPER")]
 public sealed partial class FestivePopper : RelicDef;
@@ -81,8 +84,9 @@ public sealed partial class FestivePopper : RelicDef;
 public sealed partial class Gorget : RelicDef;
 
 /// <summary>
-/// <c>Lantern</c>: <c>AfterSideTurnStart</c> gains 1 energy only when the player turn number is &lt;= 1
-/// (<c>TriggerRelicsAfterSideTurnStart</c>). The player turn 1 start is before the root.
+/// <c>Lantern</c>: <c>AfterSideTurnStart</c> gains 1 energy when the player turn number is &lt;= 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("LANTERN")]
 public sealed partial class Lantern : RelicDef;

@@ -249,11 +249,9 @@ public sealed class SelfFormingClay : RelicDef
 }
 
 /// <summary>
-/// <c>Akabeko</c>: <c>AfterSideTurnStart</c> applies Vigor only when the player turn number is &lt;= 1
-/// (<c>SimulatedCombatState.RelicTurnStart.TriggerRelicsAfterSideTurnStart</c>). The player-side turn 1
-/// start precedes the root; the relic owner never participates in the enemy side's relic batch
-/// (<c>RelicsParticipatingInSideTurn</c> requires the owner creature in the participants), so no later
-/// side can trigger it.
+/// <c>Akabeko</c>: <c>AfterSideTurnStart</c> applies 8 Vigor when the player turn number is &lt;= 1.
+/// A play-phase root is captured after that; a turn 1 setup root (a turn-start choice page) is
+/// captured at the native <c>SetupPlayerTurn</c> entry, so the replayed preamble runs it.
 /// </summary>
 [ContentId("AKABEKO")]
 public sealed partial class Akabeko : RelicDef;

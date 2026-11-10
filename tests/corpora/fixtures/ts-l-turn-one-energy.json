@@ -1,0 +1,51 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "TS-L-ENERGY",
+ "characterId": "IRONCLAD",
+ "encounterId": "NIBBITS_NORMAL",
+ "seed": "TSLENERGY",
+ "ascension": 0,
+ "initialPlayerMaxHp": 80,
+ "initialPlayerHp": 50,
+ "initialPlayerEnergy": 3,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "clearRunDeck": true,
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "VERY_HOT_COCOA",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "BREAD",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "DIAMOND_DIADEM",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "BIG_MUSHROOM",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "orbs": [],
+ "runCards": [
+  {
+   "cardId": "DEFEND_IRONCLAD",
+   "pile": "Deck",
+   "count": 6
+  },
+  {
+   "cardId": "STRIKE_IRONCLAD",
+   "pile": "Deck",
+   "count": 6
+  }
+ ]
+}

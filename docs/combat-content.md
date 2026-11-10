@@ -312,6 +312,8 @@
 
 **ChoicesParadox、ToastyMittens 的开局选择。** 两者的原版钩子在玩家第 1 回合开始、根捕获之前，所以搜索根里已经是选好的牌和弃掉的牌。之后的回合（`AfterPlayerTurnStart`），Sts2Solver 按同一个 `TurnStartChoiceSupport` 协议发出 `GenerateToHand`、`Exhaust` 请求，选择由结束回合动作携带。
 
+**第 1 回合准备页上的“仅第 1 回合”效果。** 第 1 回合开始时如果有可见的选择页（ToastyMittens、Toolbox、GamblingChip 等），准备根在原版 `SetupPlayerTurn` 入口捕获，能量重置之后的整段回合开始流程由内核重放，因此这段流程里只在第 1 回合触发的效果必须有定义，不能当作“根之前已结算”。已实现：BagOfPreparation、BigMushroom（`ModifyHandDraw`），FestivePopper、RoyalPoison（`AfterPlayerTurnStart`），BloodVial、FakeBloodVial（`AfterPlayerTurnStartLate`，在所有 `AfterPlayerTurnStart` 监听器之后，也就是 ToastyMittens 选完牌之后），Lantern、VeryHotCocoa、Bread、Akabeko、DivineDestiny、DiamondDiadem、FencingManual、InfusedCore（`AfterSideTurnStart`），以及原有的 Bellows、JeweledMask。数值用原版基础值常量（这些遗物变量没有运行时写入方），不进规则表。尚未实现、遇到第 1 回合准备页时计划会与实机不符并按偏差停下：BoomingConch（需要精英房间信息）、NinjaScroll、RadiantPearl、FuneraryMask、BlessedAntler、OrangeDough、BigHat（要在准备阶段生成牌）和 WhisperingEarring 的第 1 回合自动打出。
+
 ### 7.4 没有原引擎镜像的遗物
 
 - 有战斗内行为：`BOOK_REPAIR_KNIFE`（Doom 击杀后治疗）、`INFUSED_CORE`（闪电球值）、`LUNAR_PASTRY`（星能）、`PHYLACTERY_UNBOUND`（Osty 召唤）、`SEAL_OF_GOLD`（金币换能量）、`SNECKO_EYE`（抽牌数）、`WHISPERING_EARRING`（最大能量；也是自动预打出的计划来源，但没有战斗内效果）。

@@ -1,0 +1,39 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "TS-L-DEFECT",
+ "characterId": "DEFECT",
+ "encounterId": "NIBBITS_NORMAL",
+ "seed": "TSLDEFECT",
+ "ascension": 0,
+ "initialPlayerMaxHp": 80,
+ "initialPlayerHp": 50,
+ "initialPlayerEnergy": 3,
+ "clearPlayerHand": true,
+ "clearPlayerPiles": true,
+ "clearAllPowers": true,
+ "clearRunDeck": true,
+ "timeoutSeconds": 180,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "INFUSED_CORE",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "orbs": [],
+ "runCards": [
+  {
+   "cardId": "DEFEND_DEFECT",
+   "pile": "Deck",
+   "count": 6
+  },
+  {
+   "cardId": "STRIKE_DEFECT",
+   "pile": "Deck",
+   "count": 6
+  }
+ ]
+}

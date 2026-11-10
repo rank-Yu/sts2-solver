@@ -312,6 +312,9 @@ public sealed partial class FakeSneckoEye : RelicDef
 [ContentId("BIG_MUSHROOM")]
 public sealed class BigMushroom : RelicDef
 {
+    // BigMushroom.cs: CardsVar(2) fewer cards in the turn 1 hand draw.
+    public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
+        => x.B.PlayerTurn == 1 ? amount - 2m : amount;
 }
 
 [ContentId("FAKE_ANCHOR")] public sealed partial class FakeAnchor : RelicDef; // BeforeCombatStart block
@@ -319,11 +322,27 @@ public sealed class BigMushroom : RelicDef
 [ContentId("FAKE_BLOOD_VIAL")]
 public sealed class FakeBloodVial : RelicDef
 {
+    // FakeBloodVial.cs: HealVar(1), AfterPlayerTurnStartLate, turn number <= 1.
+    public override void AfterPlayerTurnStartLate(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn <= 1)
+            Kernel.Heal(ref x, Limits.PlayerOwner, 1m);
+    }
 }
 
 [ContentId("ROYAL_POISON")]
 public sealed class RoyalPoison : RelicDef
 {
+    // RoyalPoison.cs: DamageVar(4, Unblockable | Unpowered) to the owner with no dealer, turn number <= 1.
+    public override void AfterPlayerTurnStart(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn > 1)
+            return;
+        Span<byte> targets = stackalloc byte[1];
+        targets[0] = Limits.PlayerOwner;
+        Kernel.Damage(ref x, targets, 4m, ValueProps.Unblockable | ValueProps.Unpowered, Limits.NoOwner,
+            hasCardSource: false, default);
+    }
 }
 
 [ContentId("SWORD_OF_JADE")] public sealed partial class SwordOfJade : RelicDef; // AfterRoomEntered Strength

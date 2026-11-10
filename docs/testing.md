@@ -309,6 +309,10 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-i-plasma-pause --setup-turn 2
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-j-crossbow-one-card
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-j-crossbow-many
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-l-turn-one-heal
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-l-turn-one-energy
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-l-turn-one-regent
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-l-turn-one-defect
 dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-k-two-relic-choices
 ```
 

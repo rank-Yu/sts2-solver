@@ -139,7 +139,10 @@ internal sealed partial class SolverOverlay
 
     /// <summary>
     /// A shown result whose start no longer matches the live state (the player played on, or a new turn
-    /// began without a search) stays as a reference, marked the way CombatSolver marks a retained route
+    /// began without a search) stays as a reference, but only while the player could act: during the
+    /// enemy turn, action resolution or a turn-start page the route is waiting for the next turn, not out
+    /// of date (<see cref="CombatUiSnapshot.CanStartSearch"/> is false there). It is marked the way
+    /// CombatSolver marks a retained route
     /// that can no longer run (<c>ShowRetainedRoute</c> at 5c773caa): status 历史路线（仅供参考）, heading
     /// 已保存路线（已过期）, rows dimmed. When it matches again the result is shown as usual.
     /// </summary>
@@ -149,6 +152,7 @@ internal sealed partial class SolverOverlay
             && snapshot.Result != null
             && snapshot.Phase is not (CombatUiPhase.Searching or CombatUiPhase.Deploying)
             && !snapshot.CurrentTurnRouteReady
+            && snapshot.CanStartSearch
             && _routeOutcomePanel is { Visible: true };
         if (stale)
         {

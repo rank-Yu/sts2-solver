@@ -512,6 +512,9 @@ internal static class UiPanelChecks
             session.Check("outcome_labels_consistent",
                 observer.OutcomeChecks > 0 && observer.OutcomeMismatches == 0,
                 $"checks={observer.OutcomeChecks} mismatches={observer.OutcomeMismatches}");
+            session.Check("route_not_stale_while_blocked",
+                observer.StaleChecks > 0 && observer.StaleMismatches == 0,
+                $"checks={observer.StaleChecks} mismatches={observer.StaleMismatches}");
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
             // A combat that pauses before its first deployment (e.g. the opening search predicts
@@ -1046,6 +1049,10 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int ExtraChecks { get; private set; }
 
+    internal int StaleChecks { get; private set; }
+
+    internal int StaleMismatches { get; private set; }
+
     internal int UsedPotionFrames { get; private set; }
 
     internal int QueuedFrames { get; private set; }
@@ -1116,6 +1123,25 @@ internal sealed partial class UiPanelObserver : Node
         CheckOutcomeLabels(snapshot);
         CheckStrategyOutcomes(snapshot);
         CheckHeadingExtras(snapshot, probe);
+        CheckRouteFreshness(snapshot);
+    }
+
+    /// <summary>
+    /// A route is marked out of date only while the player could act on a state it no longer matches.
+    /// While no search can start (enemy turn, actions resolving, a turn-start page being driven) the
+    /// kept route is waiting, not out of date.
+    /// </summary>
+    private void CheckRouteFreshness(CombatUiSnapshot snapshot)
+    {
+        if (snapshot.CanStartSearch)
+            return;
+        StaleChecks++;
+        if (_panel!.RouteStaleForTest)
+        {
+            StaleMismatches++;
+            Record($"stale seq={snapshot.Sequence} phase={snapshot.Phase} block={snapshot.SearchBlockReason} " +
+                $"run={snapshot.CombatRunActive}");
+        }
     }
 
     /// <summary>

@@ -662,6 +662,20 @@
       }
     },
     {
+      "id": "turn_setup_search_only_execute_combat",
+      "scenario": "turn_setup_search_only_execute_combat",
+      "group": "turn-setup",
+      "fixture": "ts-a-toasty",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
       "id": "ts-b-toolbox-auto-execute",
       "scenario": "turn_setup_auto_execute",
       "group": "turn-setup",

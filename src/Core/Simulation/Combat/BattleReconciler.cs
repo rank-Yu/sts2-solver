@@ -58,6 +58,11 @@ internal static class BattleReconciler
         // the native game does not expose it. Zero it in the comparison view so a carried value
         // cannot hide a real card-pile/RNG divergence.
         copy.ShuffleEventCount = 0;
+        // TurnStartChoicePauses records how the host will answer later turn-start choices (its
+        // turn-setup takeover mode), which the player can change between a search and its boundary
+        // (pressing 执行本场战斗 with another solver loaded). It is not native state; whatever it
+        // changed in the simulated state is still compared through the bytes it produced.
+        copy.Flags &= ~BattleFlags.TurnStartChoicePauses;
         // A detached card is a value snapshot, not a pile card that entered combat. The importer's
         // one-time power-affliction entry marker is not observable for it, and the kernel's clone
         // semantics clear it; normalize it on both sides.

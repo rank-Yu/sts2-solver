@@ -130,6 +130,9 @@ internal static class CombatControllerChecks
                 case "turn_setup_search_only_execute":
                     await TurnSetupSearchOnlyExecuteAsync(host, Check, Action);
                     break;
+                case "turn_setup_search_only_execute_combat":
+                    await TurnSetupSearchOnlyExecuteCombatAsync(host, Check, Action);
+                    break;
                 case "turn_setup_auto_execute":
                     await TurnSetupAutoExecuteAsync(host, Check, Action);
                     break;
@@ -1358,6 +1361,40 @@ internal static class CombatControllerChecks
         check("auto_pre_play_not_replaced", PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount == 0,
             PlayerTurnSetupRuntime.TestAutoPrePlayInterceptCount.ToString());
         await WaitIdleAsync(host, "search-only execute done");
+    }
+
+    /// <summary>
+    /// 执行本场战斗 on a search-only setup page turns the host's turn-setup takeover on, so the
+    /// host's turn-start choice mode now differs from the one the plan was searched with. That mode
+    /// is not combat state: the page is driven, the plan deploys, and turns 2 and 3 reuse it from
+    /// the EndTurn plan without a deviation or a new search.
+    /// </summary>
+    private static async Task TurnSetupSearchOnlyExecuteCombatAsync(NGame host, Check check,
+        Action action)
+    {
+        check("combat_solver_loaded", ModEntry.CombatSolverLoaded, "test override");
+        await WaitSetupPageAsync(host);
+        check("search_only_page", PlayerTurnSetupRuntime.TestLastSetupSearchOnly);
+        await WaitSetupSearchAsync(host);
+        CombatUiSnapshot plan = await WaitSetupPlanAsync(host);
+        check("route_ready", plan.TurnSetupPlanReady && plan.CurrentTurnRouteReady,
+            $"plan={plan.TurnSetupPlanReady} ready={plan.CurrentTurnRouteReady}");
+        int searches = plan.Searches;
+        await PressPanelButtonAsync(host, PanelButton.ExecuteCombat, "execute_combat_turn_setup");
+        action("press_execute_combat");
+        CombatUiSnapshot third = await WaitAsync(host,
+            static s => s.Turn >= 3 && s.ReusedTurns >= 2
+                || s.Deviations > 0 || s.Phase == CombatUiPhase.Paused,
+            7200, "third player turn");
+        check("zero_deviations", third.Deviations == 0, third.Deviations.ToString());
+        check("not_paused", third.Phase != CombatUiPhase.Paused, third.PauseCode);
+        check("turn_three", third.Turn >= 3, third.Turn.ToString());
+        check("one_search", third.Searches == searches, $"{searches}->{third.Searches}");
+        check("reused", third.ReusedTurns >= 2, third.ReusedTurns.ToString());
+        check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 1,
+            $"{PlayerTurnSetupRuntime.TestContinuationValidationOk} " +
+            $"{PlayerTurnSetupRuntime.TestLastContinuationValidationDetail}");
+        check("no_error", third.ErrorCode == null, third.ErrorCode);
     }
 
     private static async Task<CombatUiSnapshot> WaitSetupPageAsync(NGame host)

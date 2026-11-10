@@ -184,8 +184,14 @@ internal static class PlayerTurnSetupRuntime
                         out Battle predicted, out bool predictedExtraTurn))
                 {
                     NormalizeSetupStartRoot(ref predicted, tracker);
+                    // The host's turn-start choice mode comes from this turn's live import: the
+                    // EndTurn prediction carries the mode of the search that planned it.
+                    predicted.Flags = (predicted.Flags & ~BattleFlags.TurnStartChoicePauses)
+                        | (liveStart.Flags & BattleFlags.TurnStartChoicePauses);
+                    // Same reconciliation surface as every other plan boundary (permanently dead
+                    // enemies' move machines are reset natively).
                     matched = predictedExtraTurn == takingExtraTurn
-                        && Fingerprint.Equal(predicted, liveStart);
+                        && BattleReconciler.Same(predicted, liveStart);
                     if (matched)
                     {
                         startRoot = predicted;
@@ -193,8 +199,7 @@ internal static class PlayerTurnSetupRuntime
                     }
                     else
                     {
-                        List<string> diff = BattleDump.Diff(predicted, liveStart,
-                            "predicted", "live");
+                        List<string> diff = [.. BattleReconciler.Diff(predicted, liveStart)];
                         CombatLogRecorder.RecordDeviation("turn_setup_start", setupTurn, null, diff,
                             predicted, liveStart);
                         ModLog.Warn(

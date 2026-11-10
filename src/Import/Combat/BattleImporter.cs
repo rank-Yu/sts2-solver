@@ -651,7 +651,7 @@ public static class BattleImporter
                 }
                 else if (history.FetchPlayedThisTurn(card))
                     value.Private |= FetchPlayedBit;
-                if (history.ReturnsToHand(card))
+                if (history.ReturnsToHand(card, beforeHandDraw: playerState.Phase == PlayerTurnPhase.Start))
                     value.ReturnToHandNextTurn = true;
                 Piles.Append(ref battle, target, value);
             }

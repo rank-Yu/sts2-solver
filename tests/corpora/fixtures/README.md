@@ -30,6 +30,7 @@
   - `ts-j-crossbow-one-card` / `ts-j-crossbow-many`：烘焙手套 + 十字弓，覆盖暂停后由侧回合开始加入手牌的攻击牌（手牌 1 张和多张两种）；
   - `ts-k-two-relic-choices`：烘焙手套 + 赌博筹码，同一准备阶段产生两段可见选择；
   - `ts-l-turn-one-heal` / `-energy` / `-regent` / `-defect`：第 1 回合烘焙手套加只在第 1 回合触发的遗物（鲜血瓶、灯笼、节庆礼炮、准备背包、热可可、面包、击剑手册、注能核心等），覆盖准备根重放里的这些效果；
+  - `ts-m-hatchet-return`：`ts-a-toasty` 加 10 张嗡鸣手斧，供场景 `turn_setup_continuation_hatchet` 使用，覆盖上回合打出的回手牌在下一回合 Start 根里的导入；
   - `ts-ex-extra-turn`：PaelsEye + 烘焙手套，第 1 回合能量 0 且只抽防御牌，结束回合必触发额外回合，覆盖额外回合开始的准备选择。
 
 sts2-sim 整局导出批次（FS1）的归类 fixture 同样是测试专用，不对应 d1 冻结根：

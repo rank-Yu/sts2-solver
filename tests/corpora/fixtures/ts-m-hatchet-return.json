@@ -1,0 +1,21 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "TS-M-HATCHET-RETURN",
+ "characterId": "IRONCLAD",
+ "encounterId": "NIBBITS_NORMAL",
+ "seed": "TSA1",
+ "ascension": 0,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS"
+  }
+ ],
+ "runCards": [
+  {
+   "cardId": "THRUMMING_HATCHET",
+   "pile": "Deck",
+   "count": 10
+  }
+ ],
+ "flashTurnSetupRootForTest": true
+}

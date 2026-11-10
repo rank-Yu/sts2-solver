@@ -273,6 +273,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 原生选项的顺序和枚举顺序不同，比较时按 `golden.br` 的根顺序把独立重建的根逐一对齐；根的内容仍由原生重建。`--setup-enumerate` 还会对每个枚举计划重建一次原生准备页，比较每个计划的 Play 根；三个冻结 fixture 的每个原生计划都一致。多段选择已离线验证：`qf-turn-start-choice-forge` 第 2 回合的 BeforeHandDraw + AfterPlayerTurnStart 两段、`ts-a-toasty` 第 2 回合再次触发；测试专用 fixture 覆盖 AutoPrePlay（`ts-d-autopreplay-choice`）、AfterPlayerTurnStart 两段 + 熔炉侧回合开始（`ts-g-multi-choice`）、同一轮选择后还有监听器（`ts-h-choice-then-listener`）和 Plasma 在暂停处触发（`ts-i-plasma-pause`）。这些 fixture 不属于冻结数据。
 
+**回手牌标记。** `Card.ReturnToHandNextTurn` 表示这张 Bolas / ThrummingHatchet 会在下一次 `BeforeHandDraw` 回到手牌；原版在那里判断的是“上一个玩家回合打出过”。出牌阶段的根按本回合的打出记录置位。`SetupPlayerTurn` 入口的 Start 根（`Phase = Start`）回合号已经加一、本回合的 `BeforeHandDraw` 还没执行，按上一个玩家回合的打出记录置位；否则内核重放少一张回手牌，准备页选项数对不上。
+
 ## 9. 已知限制
 
 - 冻结 `config.br` 的根顺序仍按 `golden.br` 的选择记录对齐；`--setup-enumerate` 已独立逐计划验证枚举，不再依赖 M0 选择记录来选取根。实机测试模式只捕获第一个准备选项，完整枚举只在差分宿主里验证。

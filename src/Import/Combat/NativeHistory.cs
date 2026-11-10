@@ -213,11 +213,18 @@ internal sealed class NativeHistory
     public int CardsGenerated(Player player)
         => _cardsGenerated.Count(entry => ReferenceEquals(entry.Creator, player));
 
-    /// <summary><c>SimulatedCombatState._returnToHandNextTurn</c> root seeding.</summary>
-    public bool ReturnsToHand(CardModel card)
-        => _cardPlaysFinished.Any(entry => ThisTurn(entry)
-            && ReferenceEquals(entry.CardPlay.Card, card)
-            && entry.CardPlay.Card is Bolas or ThrummingHatchet);
+    /// <summary>
+    /// <c>SimulatedCombatState._returnToHandNextTurn</c> root seeding: the card returns at the next
+    /// <c>BeforeHandDraw</c>, where the native Bolas/ThrummingHatchet test is "played in the owner's
+    /// last player turn" [GAME ThrummingHatchet.cs BeforeHandDraw, CombatHistoryEntry.HappenedLastPlayerTurn].
+    /// At a play-phase root that is a play of the current turn. At a <c>SetupPlayerTurn</c> entry
+    /// root (<paramref name="beforeHandDraw"/>) the turn number has already advanced and this turn's
+    /// <c>BeforeHandDraw</c> has not run yet, so it is a play of the last player turn.
+    /// </summary>
+    public bool ReturnsToHand(CardModel card, bool beforeHandDraw)
+        => card is Bolas or ThrummingHatchet
+            && _cardPlaysFinished.Any(entry => ReferenceEquals(entry.CardPlay.Card, card)
+                && (beforeHandDraw ? entry.HappenedLastPlayerTurn(card.Owner) : ThisTurn(entry)));
 
     public bool WasCardPlayFinished(CardPlay play)
         => _cardPlaysFinished.Any(entry => ReferenceEquals(entry.CardPlay, play));

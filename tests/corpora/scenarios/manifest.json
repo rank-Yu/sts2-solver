@@ -1014,6 +1014,22 @@
       }
     },
     {
+      "id": "turn_setup_continuation_hatchet",
+      "scenario": "turn_setup_continuation_full",
+      "group": "turn-setup",
+      "fixture": "ts-m-hatchet-return",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
       "id": "turn_setup_continuation_probe",
       "scenario": "turn_setup_continuation_probe",
       "group": "turn-setup",

@@ -20,6 +20,7 @@
 | --- | --- | --- |
 | `turn_setup_carry` | `ts-a-toasty` | 第 1 回合生命 1/80、敌人 120、注入并强制 `BLOOD_POTION`，全自动 + 接管；`RecoveredHp=16` |
 | `turn_setup_continuation_*` | `ts-a-toasty` | 500/500 对 500，全自动或自动搜索 + 接管 |
+| `turn_setup_continuation_hatchet` | `ts-m-hatchet-return` | 跑 `turn_setup_continuation_full`：第 1 回合打出嗡鸣手斧，第 2、3 回合的准备页沿用计划、0 偏差（Start 根要带上“下回合回手”标记） |
 | `turn_setup_continuation_gap` | `ts-g-multi-choice` | 500/500 对 500，全自动 + 接管 |
 | `turn_setup_turn2` / `turn_setup_plasma` / `turn_setup_autopreplay` | `ts-a-toasty` / `ts-i-plasma-pause` / `ts-d-autopreplay-choice` | 500/500 对 500 |
 | `turn_setup_extra_turn` | `ts-ex-extra-turn` | 第 1 回合能量 0、PaelsEye 触发额外回合，全自动 + 接管；校验额外回合的准备沿用计划、无偏差 |

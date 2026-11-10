@@ -656,6 +656,13 @@ internal static partial class CombatSessionController
         => [.. CombatManager.Instance.History.Entries.OfType<PotionUsedEntry>()
             .Skip(_potionHistoryAtStart).Select(static entry => entry.Potion.Id.Entry)];
 
+    /// <summary>
+    /// The player's HP lost so far this combat, the value a live root import puts in its loss counter
+    /// (CombatSolver <c>BattleDamageTracker</c> at 5c773caa reads it again for every display). A kept
+    /// route shown on a later turn reads it again instead of keeping its search root's value.
+    /// </summary>
+    private static int BattleHpLostSoFar() => NativeHistory.HpLostSoFar(_player!.Creature);
+
     internal static void OnCombatEnded()
     {
         int generation = _combatGeneration;

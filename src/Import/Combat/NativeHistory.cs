@@ -170,8 +170,17 @@ internal sealed class NativeHistory
             && ReferenceEquals(entry.Receiver, receiver) && entry.Result.UnblockedDamage > 0);
 
     /// <summary><c>SimulatedCombatState._cumulativeHpLost</c>: player unblocked damage over the combat.</summary>
-    public int CumulativeHpLost(Creature receiver)
-        => _damageReceived.Where(entry => ReferenceEquals(entry.Receiver, receiver))
+    public int CumulativeHpLost(Creature receiver) => SumHpLost(_damageReceived, receiver);
+
+    /// <summary>
+    /// The same combat HP loss read from the live <c>CombatManager.History</c> (cleared at every combat
+    /// end), for a kept route the Mod shows again after its search root.
+    /// </summary>
+    public static int HpLostSoFar(Creature receiver)
+        => SumHpLost(CombatManager.Instance.History.Entries.OfType<DamageReceivedEntry>(), receiver);
+
+    private static int SumHpLost(IEnumerable<DamageReceivedEntry> entries, Creature receiver)
+        => entries.Where(entry => ReferenceEquals(entry.Receiver, receiver))
             .Sum(entry => Math.Max(0, entry.Result.UnblockedDamage));
 
     public bool WasDoomAppliedThisTurn(Creature applier)

@@ -473,6 +473,22 @@ internal static class CombatControllerChecks
             && panel.StatusTextForTest == SolverText.Get("历史路线（仅供参考）")
             && panel.RouteHeadingForTest == SolverText.Get("已保存路线（已过期）"),
             $"status={panel?.StatusTextForTest} heading={panel?.RouteHeadingForTest}");
+        // The turn ended without a card played, so the enemies hit; a new search shows that loss as the
+        // battle's loss so far, and its projection adds the route's own.
+        int lost = NativeHistory.HpLostSoFar(LocalContext.GetMe(CombatManager.Instance.DebugOnlyGetState())!.Creature);
+        await PressPanelButtonAsync(host, PanelButton.Search, "search");
+        action("press_search");
+        CombatUiSnapshot second = await WaitAsync(host,
+            s => s.Result != null && !s.IsSearching && s.Searches > after.Searches, 900, "second route ready");
+        await Frames(host, 4);
+        CombatResultUiSnapshot result = second.Result!;
+        int routeLost = second.Route?.Turns.Sum(static turn => turn.HpLoss) ?? 0;
+        check("battle_hp_lost_so_far", lost > 0 && result.BattleHpLostSoFar == lost
+            && (result.CombatEndedTurn == null || result.ProjectedBattleHpLost == lost + routeLost),
+            $"history={lost} shown={result.BattleHpLostSoFar} projected={result.ProjectedBattleHpLost} route={routeLost}");
+        string expected = SolverText.Format($"本局扣血  已 {lost}    预计 {result.ProjectedBattleHpLost} HP");
+        check("battle_hp_text", result.CombatEndedTurn == null || panel?.HpOutcomeTextForTest == expected,
+            $"text={panel?.HpOutcomeTextForTest} expected={expected}");
     }
 
     /// <summary>
@@ -1449,6 +1465,16 @@ internal static class CombatControllerChecks
         check("validation_ok", PlayerTurnSetupRuntime.TestContinuationValidationOk >= 2,
             PlayerTurnSetupRuntime.TestContinuationValidationOk.ToString());
         check("no_error", third.ErrorCode == null, third.ErrorCode);
+        // The kept route is shown again on turn 3: the battle's loss so far is what turns 1 and 2 lost,
+        // not the turn-1 search root's value.
+        CombatState state = CombatManager.Instance.DebugOnlyGetState()!;
+        Creature me = LocalContext.GetMe(state)!.Creature;
+        int lostBefore = CombatManager.Instance.History.Entries.OfType<MegaCrit.Sts2.Core.Combat.History.Entries.DamageReceivedEntry>()
+            .Where(entry => ReferenceEquals(entry.Receiver, me) && !entry.HappenedThisTurn(state))
+            .Sum(static entry => Math.Max(0, entry.Result.UnblockedDamage));
+        CombatResultUiSnapshot? shown = third.Result ?? third.RouteResult;
+        check("kept_route_hp_lost_so_far", lostBefore > 0 && shown?.BattleHpLostSoFar == lostBefore,
+            $"history_before_turn={lostBefore} shown={shown?.BattleHpLostSoFar} reused={shown?.WasReused}");
     }
 
     /// <summary>Source titles come from the localized relic/power/card names, never ids.</summary>

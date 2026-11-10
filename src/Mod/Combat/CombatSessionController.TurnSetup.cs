@@ -394,6 +394,8 @@ internal static partial class CombatSessionController
             SetupPlayStamp = null,
             IsContinuationSetup = true,
             Reason = "turn_setup_continuation",
+            PotionsUsedSoFar = PotionsUsedSoFar(),
+            BattleHpLostSoFar = BattleHpLostSoFar(),
         };
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_TURN_SETUP_CONTINUATION turn={turn} " +

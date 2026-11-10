@@ -197,6 +197,9 @@ internal sealed partial class SolverOverlay
     /// <summary>Whether the shown route is marked as no longer matching the live state.</summary>
     internal bool RouteStaleForTest => _routeStale;
 
+    /// <summary>The heading's battle HP text as shown.</summary>
+    internal string? HpOutcomeTextForTest => _hpOutcomeLabel?.Text;
+
     /// <summary>Whether the row of <paramref name="turn"/> shows start-choice pills, all lit as the current step.</summary>
     internal bool TurnStartChoicesActiveForTest(int turn)
     {

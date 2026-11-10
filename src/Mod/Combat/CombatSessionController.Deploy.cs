@@ -358,6 +358,8 @@ internal static partial class CombatSessionController
                 Plan = remaining,
                 Stamp = CombatStateStamp.Capture(live),
                 Reason = "live_end_turn_risk",
+                PotionsUsedSoFar = PotionsUsedSoFar(),
+                BattleHpLostSoFar = BattleHpLostSoFar(),
             };
             _latestResult = retained;
             _latestStamp = retained.Stamp;

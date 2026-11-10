@@ -438,6 +438,7 @@ internal static partial class CombatSessionController
                 RecalculatedAfterCompleteProjection = false,
                 Reason = "reuse",
                 PotionsUsedSoFar = PotionsUsedSoFar(),
+                BattleHpLostSoFar = BattleHpLostSoFar(),
             };
             _latestResult = reused;
             _latestStamp = reuseStamp;

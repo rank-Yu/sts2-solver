@@ -190,9 +190,13 @@ internal static class PlayerTurnSetupRuntime
                     predicted.Flags = (predicted.Flags & ~BattleFlags.TurnStartChoicePauses)
                         | (liveStart.Flags & BattleFlags.TurnStartChoicePauses);
                     // Same reconciliation surface as every other plan boundary (permanently dead
-                    // enemies' move machines are reset natively).
+                    // enemies' move machines are reset natively). The live root carries the
+                    // ledgers of the last deployed boundary, before the end-turn transition; like
+                    // every other boundary, the comparison takes them from the prediction.
+                    Battle liveCompared = liveStart;
+                    LiveCombatTracker.CarryNonNativeForSetup(ref liveCompared, predicted);
                     matched = predictedExtraTurn == takingExtraTurn
-                        && BattleReconciler.Same(predicted, liveStart);
+                        && BattleReconciler.Same(predicted, liveCompared);
                     if (matched)
                     {
                         startRoot = predicted;
@@ -200,9 +204,9 @@ internal static class PlayerTurnSetupRuntime
                     }
                     else
                     {
-                        List<string> diff = [.. BattleReconciler.Diff(predicted, liveStart)];
+                        List<string> diff = [.. BattleReconciler.Diff(predicted, liveCompared)];
                         CombatLogRecorder.RecordDeviation("turn_setup_start", setupTurn, null, diff,
-                            predicted, liveStart);
+                            predicted, liveCompared);
                         ModLog.Warn(
                             $"[Sts2Solver] TURN_SETUP_START_PREDICTION_MISMATCH " +
                             $"turn={setupTurn} " +

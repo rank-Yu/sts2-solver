@@ -323,9 +323,12 @@ internal sealed class LiveCombatTracker
     /// <summary>
     /// Carries the non-native ledgers into a turn-setup root. Vital Spark is a setup-root fact
     /// (normalized to zero at the native setup entry), so it is deliberately not copied; the caller
-    /// zeroes the action-local shuffle counter and takes HasRisk from the tracker.
+    /// zeroes the action-local shuffle counter and takes HasRisk from the tracker. The setup-start
+    /// comparison also uses it to give the live root the predicted setup start's ledgers: the
+    /// native game cannot show what the end-turn transition added to them (a turn-start heal adds
+    /// to RecoveredHp), so they are not compared.
     /// </summary>
-    private static void CarryNonNativeForSetup(ref Battle live, in Battle predicted)
+    internal static void CarryNonNativeForSetup(ref Battle live, in Battle predicted)
     {
         foreach (Counter counter in CarriedCounters)
         {

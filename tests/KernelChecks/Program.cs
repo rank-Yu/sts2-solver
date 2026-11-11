@@ -1803,6 +1803,38 @@ static void CheckNbKernel()
     Check(battle.Enemies[0].Creature.IsDead, "Doom 达到生命值应在敌方回合末击杀");
     Check(battle.RosterCount == 0, "被 Doom 击杀的敌人应离开名单");
 
+    // Book Repair Knife heals for a doomed enemy whose death is fatal, not for a doomed minion: native
+    // MinionPower stays on the dead minion (ShouldPowerBeRemovedAfterOwnerDeath false) and refuses it.
+    Check(Registry.TryRelic("BOOK_REPAIR_KNIFE", out ushort repairKnife), "缺少 BOOK_REPAIR_KNIFE");
+    Check(Registry.TryPower("MINION_POWER", out ushort minionPower), "缺少 MINION_POWER");
+    foreach (bool minion in new[] { false, true })
+    {
+        battle = NewBattle();
+        battle.Player.CurrentHp = 30;
+        battle.RelicCount = 1;
+        battle.Relics[0] = new Relic { Id = repairKnife };
+        battle.EnemyCount = 2;
+        battle.RosterCount = 2;
+        battle.Roster[1] = 1;
+        battle.Enemies[0].Creature.CurrentHp = 10;
+        battle.Enemies[1].Creature = new Creature { CurrentHp = 100, MaxHp = 100, Flags = CreatureFlags.Present };
+        battle.Enemies[1].Flags = EnemyFlags.InCombat;
+        PlayerAction noAction = default;
+        Exec setup = new(ref battle, rules, noAction);
+        if (minion)
+            Kernel.ApplyPower(ref setup, enemy, minionPower, 1, enemy);
+        Kernel.ApplyPower(ref setup, enemy, doom, 15, Limits.PlayerOwner);
+        int knifeDoom = Kernel.FindPower(battle, enemy, doom);
+        Exec endTurn = new(ref battle, rules, noAction);
+        Registry.Power(doom).BeforeSideTurnEnd(ref endTurn, new Listener(ListenerKind.Power, checked((byte)knifeDoom), enemy),
+            Side.Enemy, Kernel.ParticipantMask(enemy));
+        Check(battle.Enemies[0].Creature.IsDead, "Doom 应击杀 10 血的敌人");
+        int expected = minion ? 30 : 30 + (int)rules.RelicVar(repairKnife, 0);
+        Check(battle.Player.CurrentHp == expected,
+            $"书本修复刀：Doom 击杀{(minion ? "随从" : "普通敌人")}后生命应为 {expected}，实际 {battle.Player.CurrentHp}");
+    }
+    Console.WriteLine("BOOK_REPAIR_KNIFE doom_minion=pass");
+
     // RightHandHand: any play whose energy value reaches its Energy variable returns the copy from the
     // discard pile to hand.
     battle = NewBattle();
@@ -1869,6 +1901,9 @@ static void CheckNbKernel()
 static Rules NbRules()
 {
     RulesDraft builder = new() { BaseMaxEnergy = 3, HasEncounter = true, EncounterSlots = ["first"], RootEnemyCount = 1 };
+    // BookRepairKnife (Heal 3) heals after doomed enemies die (the Doom contract).
+    Registry.TryRelic("BOOK_REPAIR_KNIFE", out ushort bookRepairKnife);
+    builder.SetRelicVars(bookRepairKnife, [3m]);
     Registry.TryCard("STRIKE_NECROBINDER", out ushort strike);
     Registry.TryCard("DEFEND_NECROBINDER", out ushort defend);
     Registry.TryCard("BODYGUARD", out ushort bodyguard);

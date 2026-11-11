@@ -66,6 +66,27 @@ public static partial class Kernel
     public static int OstyMaxHp(in Battle battle)
         => (battle.Flags & BattleFlags.OstyPresent) == 0 ? 0 : battle.Osty.MaxHp;
 
+    /// <summary>
+    /// The creature holds a positive power that native keeps on it after its death
+    /// (<c>ShouldPowerBeRemovedAfterOwnerDeath</c> false) and that refuses a fatal death (MinionPower).
+    /// </summary>
+    private static bool KeptPowerRefusesFatal(in Battle battle, byte owner)
+    {
+        for (int index = 0; index < battle.PowerCount; index++)
+        {
+            ref readonly Power power = ref battle.Powers[index];
+            if (power.Owner != owner || power.Amount <= 0)
+                continue;
+            PowerDef def = Registry.Power(power.Id);
+            if (!def.ShouldPowerBeRemovedAfterOwnerDeath
+                && !def.ShouldOwnerDeathTriggerFatal(battle, new Listener(ListenerKind.Power, (byte)index, owner)))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>Mirrors <c>SimulatedCombatState.DoomKill</c>: kill the doomed creatures one at a time in
     /// order, complete each native death cleanup, then heal the player for every fatal kill through a
     /// supported <c>BookRepairKnife</c>.</summary>
@@ -77,6 +98,14 @@ public static partial class Kernel
         // Hook.AfterDiedToDoom; CreatureCmd.Kill has already run the creature's AfterDeath hook and
         // power removal by then. Complete the deferred death pass after each kill, exactly like the
         // existing engine's DoomKill, before the fatal count below reads the power table.
+        // Native AfterDiedToDoom (BookRepairKnife) reads each dead creature's remaining powers. A creature
+        // that leaves combat keeps the powers whose ShouldPowerBeRemovedAfterOwnerDeath is false on the
+        // native object (MinionPower: a doomed minion is not a fatal kill), while this power table drops
+        // every row of an enemy outside the roster. Record before the kills whether such a kept power
+        // refuses a fatal death; an enemy still in the roster (Reattach) is read after the kills.
+        Span<bool> keptNonFatal = stackalloc bool[creatures.Length];
+        for (int index = 0; index < creatures.Length; index++)
+            keptNonFatal[index] = IsEnemyOwner(creatures[index]) && KeptPowerRefusesFatal(x.B, creatures[index]);
         Span<byte> one = stackalloc byte[1];
         foreach (byte creature in creatures)
         {
@@ -89,9 +118,14 @@ public static partial class Kernel
                 return;
         }
         int fatal = 0;
-        foreach (byte creature in creatures)
+        for (int index = 0; index < creatures.Length; index++)
         {
-            if (creature != Limits.PlayerOwner && TargetDeathTriggersFatal(x.B, creature))
+            byte creature = creatures[index];
+            if (creature == Limits.PlayerOwner)
+                continue;
+            if (IsEnemyOwner(creature) && !InRoster(x.B, creature) && keptNonFatal[index])
+                continue;
+            if (TargetDeathTriggersFatal(x.B, creature))
                 fatal++;
         }
         if (fatal <= 0 || !Registry.TryRelic("BOOK_REPAIR_KNIFE", out ushort knife))

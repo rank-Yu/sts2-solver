@@ -35,6 +35,10 @@ internal static partial class CombatSessionController
     private static CombatSearchSession? _search;
     private static CombatDeploymentSession? _deployment;
     private static CombatControllerResult? _latestResult;
+    // Display only: the continuation a driven setup page handed to the turn start. The panel keeps
+    // its route rows while RunTurnStartedAsync waits for the game to settle and until the turn
+    // reuses (or rejects) the route. Deployment, search and button rules never read it.
+    private static CombatControllerResult? _handedOffContinuation;
     private static CombatControllerResult? _deploymentResult;
     private static CombatControllerResult? _continuationSource;
     private static CombatSearchContinuation? _searchContinuation;
@@ -474,6 +478,7 @@ internal static partial class CombatSessionController
         _search = null;
         _deployment = null;
         _latestResult = null;
+        _handedOffContinuation = null;
         _deploymentResult = null;
         _continuationSource = null;
         _searchContinuation = null;
@@ -731,6 +736,7 @@ internal static partial class CombatSessionController
         _search = null;
         _deployment = null;
         _latestResult = null;
+        _handedOffContinuation = null;
         _deploymentResult = null;
         _continuationSource = null;
         _latestStamp = null;
@@ -928,6 +934,8 @@ internal static partial class CombatSessionController
             }
             bool deployAfterSetup = PlayerTurnSetupRuntime.LastTurnSetupDeployAfterSetup(turn);
             PlayerTurnSetupRuntime.ConsumeLastTurnSetup();
+            // From here the reuse below (or a search) decides what the panel shows.
+            _handedOffContinuation = null;
             if (_continuationSource != null
                 && TryReuseContinuation(turn, deployWhenReady: deployAfterSetup,
                     out bool stoppedForDeviation))
@@ -954,7 +962,10 @@ internal static partial class CombatSessionController
         finally
         {
             if (ReferenceEquals(_turnSchedule, schedule))
+            {
                 _turnSchedule = null;
+                _handedOffContinuation = null;
+            }
             schedule.Dispose();
         }
     }

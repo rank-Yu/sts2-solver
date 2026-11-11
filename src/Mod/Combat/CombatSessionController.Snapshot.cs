@@ -64,6 +64,7 @@ internal static partial class CombatSessionController
         bool continuationSearch = _search is { IsContinuation: true };
         CombatControllerResult? routeSource = _search == null
             ? _latestResult ?? _deploymentResult
+                ?? (_handedOffContinuation is { } handed && handed.StartTurn == turn ? handed : null)
             : continuationSearch ? _latestResult : null;
         CombatControllerResult? shown = _search == null || continuationSearch
             ? _latestResult : null;

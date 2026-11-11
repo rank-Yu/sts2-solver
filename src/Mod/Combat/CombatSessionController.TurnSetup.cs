@@ -465,14 +465,16 @@ internal static partial class CombatSessionController
                 PublishSnapshot();
                 return false;
             }
-            // Drop the display-only preview. The ordinary continuation comparison in
-            // RunTurnStartedAsync decides whether the reused route still matches the Play state.
+            // Drop the preview as a result. The ordinary continuation comparison in
+            // RunTurnStartedAsync decides whether the reused route still matches the Play state;
+            // until then the panel keeps the preview's rows (display only).
             _turnSetupResult = null;
             if (_latestResult != null && ReferenceEquals(_latestResult, result))
             {
                 _latestResult = null;
                 _latestStamp = null;
             }
+            _handedOffContinuation = result;
             _phase = CombatUiPhase.WaitingTurn;
             PublishSnapshot();
             ModLog.Info(

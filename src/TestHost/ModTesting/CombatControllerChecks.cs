@@ -2231,9 +2231,23 @@ internal static class CombatControllerChecks
         check("predicted_start_matched", PlayerTurnSetupRuntime.TestPredictedStartMatched);
         check("no_pause", plan.PauseCode == null, plan.PauseCode);
         int searches = plan.Searches;
-        CombatUiSnapshot activated = await WaitAsync(host,
-            static s => s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2, 3600,
-            "turn two setup activated");
+        // From the plan until turn two reuses the route, the panel keeps the route rows. After the
+        // page is driven, the continuation is handed to the turn start, which first waits for the
+        // game to settle (1.5 s) before reusing it.
+        int routeFrames = 0;
+        int emptyRouteFrames = 0;
+        CombatUiSnapshot activated = await WaitAsync(host, s =>
+        {
+            if (SolverOverlay.Instance is { } panel)
+            {
+                routeFrames++;
+                if (panel.LastOverlayTurnCountForTest <= 0)
+                    emptyRouteFrames++;
+            }
+            return s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2;
+        }, 3600, "turn two setup activated");
+        check("route_rows_kept_until_reuse", routeFrames > 0 && emptyRouteFrames == 0,
+            $"frames={routeFrames} empty={emptyRouteFrames}");
         check("one_setup_search", activated.Searches == searches,
             $"{searches}->{activated.Searches}");
         check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());

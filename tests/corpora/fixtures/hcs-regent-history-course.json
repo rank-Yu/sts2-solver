@@ -1,0 +1,143 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "hcs-regent-history-course",
+ "characterId": "REGENT",
+ "encounterId": "CULTISTS_NORMAL",
+ "seed": "AFD147958D40EB0D",
+ "ascension": 0,
+ "actIndexForTest": 0,
+ "targetRoomType": "Monster",
+ "targetMapPointType": "Monster",
+ "enemyCurrentHp": 2147483647,
+ "initialPlayerHp": 59,
+ "initialPlayerMaxHp": 75,
+ "cards": [],
+ "runCards": [
+  {
+   "cardId": "STRIKE_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "STRIKE_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "DEFEND_REGENT",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "FALLING_STAR",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "VENERATE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "BLACK_HOLE",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "BULWARK",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  },
+  {
+   "cardId": "TYRANNY",
+   "count": 1,
+   "upgradeLevels": 0,
+   "enchantmentAmount": 1,
+   "afflictionAmount": 1
+  }
+ ],
+ "relics": [
+  {
+   "relicId": "SMALL_CAPSULE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "PETRIFIED_TOAD",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "HISTORY_COURSE",
+   "addWithoutObtainedEffects": true
+  },
+  {
+   "relicId": "TOASTY_MITTENS",
+   "addWithoutObtainedEffects": true
+  }
+ ],
+ "potions": [
+  {
+   "potionId": "POTION_SHAPED_ROCK"
+  },
+  {
+   "potionId": "POTION_SHAPED_ROCK"
+  },
+  {
+   "potionId": "KINGS_COURAGE"
+  }
+ ],
+ "clearRunDeck": true,
+ "timeoutSeconds": 600,
+ "searchThreadsForTest": 2,
+ "fullCombatForTest": true,
+ "searchTier": "Low",
+ "deterministicSearchForTest": false
+}

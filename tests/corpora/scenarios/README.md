@@ -30,7 +30,7 @@
 | `import_capacity` / `import_failure` | `k3-basic-potions` | 清空跑局牌组后注入 641 张 `STRIKE_IRONCLAD`，超过 `Limits.Cards` |
 | `search_failures-t1` / `manual_switch_at_turn_start` / `auto_turn_start_once` | `k3-basic-potions` | 单搜索线程；前两者切到手动，后者验证同一回合不重复自动搜索 |
 
-整场组用五个角色的 `quality-<角色>-001`，面板压力组用 `quality-DEFECT-000` 和 `clone-289-axebots`。整场请求都是中档、全自动、默认搜索线程；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
+整场组用五个角色的 `quality-<角色>-001`，加上实机问题的整场复现（`hl1f*`、`hl2-*`、`toasty-full-auto`、`hcs-regent-history-course`），面板压力组用 `quality-DEFECT-000` 和 `clone-289-axebots`。`hcs-regent-history-course` 是摄政王对邪教徒、加历史课和烤面包手套，低档、全自动 + 接管：每张攻击牌打出后的逐动作核对和第 2、3 回合准备页的开局比对都要求历史课记录的攻击牌与实机一致，0 偏差。整场请求除此之外都是中档、全自动；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
 
 ## 运行
 

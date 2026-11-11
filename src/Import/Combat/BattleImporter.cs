@@ -616,6 +616,9 @@ public static class BattleImporter
                 dampen[card] = level;
         }
         HashSet<CardModel> imported = new(ReferenceEqualityComparer.Instance);
+        Dictionary<CardModel, Card>? values = rules.HasHistoryCourse
+            ? new(ReferenceEqualityComparer.Instance)
+            : null;
         (CardPile Pile, Pile Target)[] piles =
         [
             (playerState.Hand, Pile.Hand),
@@ -653,9 +656,12 @@ public static class BattleImporter
                     value.Private |= FetchPlayedBit;
                 if (history.ReturnsToHand(card, beforeHandDraw: playerState.Phase == PlayerTurnPhase.Start))
                     value.ReturnToHandNextTurn = true;
+                values?.Add(card, value);
                 Piles.Append(ref battle, target, value);
             }
         }
+        if (values != null)
+            ImportHistoryCourseCard(ref battle, player, playerState, history, values);
         foreach (CardModel card in dampen.Keys)
         {
             if (imported.Contains(card))
@@ -665,6 +671,28 @@ public static class BattleImporter
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 $"Dampen 记录不在牌堆中：{card.Id.Entry}");
         }
+    }
+
+    /// <summary>
+    /// <see cref="Battle.HistoryCourseCard"/>: the attack HistoryCourse will copy, as its card row in the
+    /// piles. A Play root holds this turn's last attack (the kernel records each finished attack); a Start
+    /// root still holds last turn's, which the coming AutoPrePlay takes. During AutoPrePlay the relic may
+    /// already have fired, so such a root is not represented.
+    /// </summary>
+    private static void ImportHistoryCourseCard(ref Battle battle, Player player, PlayerCombatState playerState,
+        NativeHistory history, Dictionary<CardModel, Card> values)
+    {
+        if (playerState.Phase is not (PlayerTurnPhase.Start or PlayerTurnPhase.Play))
+            throw new UnsupportedImportException(ImportReason.Unrepresentable,
+                $"历史课在回合阶段 {playerState.Phase} 的记录无法表示");
+        if (history.HistoryCourseAttack(player, lastPlayerTurn: playerState.Phase == PlayerTurnPhase.Start)
+            is not { } attack)
+            return;
+        if (!values.TryGetValue(attack, out Card recorded))
+            throw new UnsupportedImportException(ImportReason.Unrepresentable,
+                $"历史课记录的攻击牌不在牌堆中：{attack.Id.Entry}");
+        battle.HistoryCourseCard = recorded;
+        battle.Flags |= BattleFlags.HistoryCourseCardPresent;
     }
 
     private static Card Card(ref Battle battle, CardModel card, Rules rules, bool rootCard, int dampenOriginalUpgrade)

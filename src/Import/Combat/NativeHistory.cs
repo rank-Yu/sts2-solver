@@ -68,6 +68,17 @@ internal sealed class NativeHistory
 
     private bool ThisTurn(CombatHistoryEntry entry) => entry.HappenedThisTurn(_state);
 
+    /// <summary>
+    /// <c>HistoryCourse.AfterAutoPrePlayPhaseEntered</c>'s lookup: the last finished play by
+    /// <paramref name="player"/> of a non-dupe Attack. The game reads it from the last player turn when
+    /// the next AutoPrePlay starts; before that (Start) it is last turn's card, during Play this turn's.
+    /// </summary>
+    public CardModel? HistoryCourseAttack(Player player, bool lastPlayerTurn)
+        => _cardPlaysFinished.LastOrDefault(entry => entry.CardPlay.Player == player
+            && (lastPlayerTurn ? entry.HappenedLastPlayerTurn(player) : ThisTurn(entry))
+            && entry.CardPlay.Card.Type == CardType.Attack
+            && !entry.CardPlay.Card.IsDupe)?.CardPlay.Card;
+
     public int CardsPlayedThisTurn(Creature owner)
         => _cardPlaysStarted.Count(entry => ThisTurn(entry) && entry.CardPlay.IsFirstInSeries
             && ReferenceEquals(entry.CardPlay.Player.Creature, owner));

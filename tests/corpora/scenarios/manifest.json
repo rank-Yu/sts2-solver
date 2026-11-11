@@ -156,6 +156,22 @@
       "separate": true
     },
     {
+      "id": "hcs-regent-history-course",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hcs-regent-history-course",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
       "id": "manual_start_stop",
       "scenario": "manual_start_stop",
       "group": "controller"
@@ -480,7 +496,6 @@
         ],
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900
       }
@@ -592,7 +607,6 @@
         "enemyCurrentHp": 500,
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900
       }
@@ -608,7 +622,6 @@
         "enemyCurrentHp": 500,
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900
       }
@@ -695,7 +708,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "enemyCurrentHp": 200
@@ -805,7 +817,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -821,7 +832,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -837,7 +847,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -867,7 +876,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -883,7 +891,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -977,7 +984,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -993,7 +999,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -1009,7 +1014,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -1025,7 +1029,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -1041,7 +1044,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -1057,7 +1059,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,
@@ -1073,7 +1074,6 @@
       "request": {
         "turnSetupTakeoverForTest": true,
         "settingsAutoSearchForTest": true,
-
         "runCombatForTest": true,
         "timeoutSeconds": 900,
         "initialPlayerHp": 500,

@@ -31,6 +31,20 @@ internal static class PotionUsePolicy
             ? Math.Max(1, optionalPotionStrategicCost - replacementHpCredit)
             : optionalPotionStrategicCost;
 
+    /// <summary>
+    /// Potions whose whole effect is a buff that lasts the combat and never decays: Strength, Dexterity,
+    /// Focus, Fysh Oil (Strength and Dexterity), Mazaleth's Gift (Ritual) and Liquid Bronze (Thorns).
+    /// Drinking one later than the search's first turn is never better than drinking it then, so the
+    /// search offers a root potion of these kinds only on its first turn. Decaying or consumed buffs
+    /// (Heart of Iron, Gigantification, Clarity), effects that depend on when they land (Soldier's Stew
+    /// on the Strikes present, King's Courage forging, Potion of Capacity changing when orbs evoke) and
+    /// one-turn buffs are not listed. No monster in the game reacts to a buff the player applies.
+    /// </summary>
+    public static readonly IReadOnlySet<string> OpeningOnlyPotionIds = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "STRENGTH_POTION", "DEXTERITY_POTION", "FOCUS_POTION", "FYSH_OIL", "MAZALETHS_GIFT", "LIQUID_BRONZE",
+    };
+
     /// <summary>Share of its strategic cost each optional potion beyond the dearest one is priced at.</summary>
     public const decimal AdditionalPotionPriceFactor = 0.5m;
 

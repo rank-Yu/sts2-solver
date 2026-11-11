@@ -6,7 +6,7 @@
     "d2": "75217006903195bc94654680423bb9ca580ec48a",
     "d1Config": "66a43838d89e7a03b05c0f04d5e4941ff555baec",
     "formatMigration": "\u8BF7\u6C42 v9\u2192v10\u3001\u7ED3\u679C\u4ECD\u4E3A v6\uFF1ASREQ \u5728\u6210\u957F\u76EE\u6807\u4E4B\u540E\u52A0\u5165\u9057\u7269\u8BA1\u6570\u76EE\u6807\u8868\uFF08\u6BCF\u9879\u4E3A\u9057\u7269\u683C\u4F4D\u3001\u8BA1\u6570\u5468\u671F\u3001\u76EE\u6807\u503C\u548C\u989D\u5EA6\uFF09\uFF1BD1 config.br \u4E0E D2 request.br \u673A\u68B0\u91CD\u7F16\u7801\uFF0C\u65B0\u5B57\u8282\u7B49\u4E8E\u65E7\u5B57\u8282\u5728\u8BE5\u4F4D\u7F6E\u63D2\u5165\u4E00\u4E2A\u7A7A\u8868\uFF08int32 0\uFF09\u3002\u5E26\u9AA8\u8089\u7684\u9608\u503C\u56DE\u8840\u8BA1\u5165\u8DEF\u7EBF\u6392\u5E8F\u540E\uFF0C4 \u4E2A\u6301\u5E26\u9AA8\u8089\u7684\u8BF7\u6C42\u8DEF\u7EBF\u4E0D\u53D8\u3001\u5C55\u5F00\u6570\u53D8\u5C11\u5E76\u91CD\u51BB\u3002D1 \u7684 score \u54C8\u5E0C\u53EA\u5199\u5F53\u524D ScoreFeatures \u5B57\u6BB5\uFF0C\u6CA1\u6709\u9057\u7269\u8BA1\u6570\u5360\u4F4D\u69FD\u548C\u91CD\u590D\u7684\u7B56\u7565\u5360\u4F4D\u3002",
-    "refreeze": "eff1: \u8DEF\u7EBF\u6309\u6298\u7B97\u6218\u635F\u6392\u5E8F\uFF08\u53EF\u9009\u836F\u6700\u8D35\u4E00\u74F6\u539F\u4EF7\u3001\u5176\u4F59\u534A\u4EF7\uFF09\uFF0C\u7528\u836F\u80DC\u5229\u4E5F\u4F5C\u73B0\u4EFB\u6700\u4F18 sha256=f9aeda287149bbbdca6fa6a4db9a17541806cd39d8fe47dac2c23597aa43d1b9",
+    "refreeze": "opn1: \u5F00\u5C40\u836F\uFF08\u529B\u91CF\u3001\u654F\u6377\u3001\u96C6\u4E2D\u3001\u9C7C\u6CB9\u3001\u9A6C\u624E\u96F7\u65AF\u7684\u9988\u8D60\u3001\u6DB2\u6001\u9752\u94DC\uFF09\u53EA\u5728\u641C\u7D22\u7B2C\u4E00\u4E2A\u56DE\u5408\u5C55\u5F00 sha256=be6c846a86889db75d86b9c1d67455e33016320457429d3b40046d1c1df314f0",
     "d1Rerecord": "roots=a3-aeonglass-boss,a3-axebots-normal,a3-construct-menagerie-normal,a3-devoted-sculptor-weak,a3-fabricator-normal,a3-frog-knight-normal,a3-globe-head-normal,a3-knights-elite,a3-mecha-knight-elite,a3-owl-magistrate-normal,a3-queen-boss,a3-queen-chains,a3-scrolls-of-biting-normal,a3-scrolls-of-biting-weak,a3-slimed-berserker-normal,a3-soul-nexus-elite,a3-test-subject-boss,a3-the-lost-and-forgotten-normal,a3-turret-operator-weak,c1-choice-cards,cx-a-enchantments,cx-b-melancholy,df-a-orbs,df-b-attacks,df-c-powers,df-d-generation,df-e-relics,df-f-starters,df-g-extra,df-h-creator,dt-doom-fatal-timing,dx3-axebot-stock,dx3-chains-clone,dx3-dampen-level-zero,dx3-galvanic,dx3-gigantification-pending,dx3-hellraiser-infinite,dx3-hellraiser-revive,dx3-lamp-envenom,dx3-rampage-dampen,dx3-rampart-offroster,dx3-scythe-dampen,dx3-spawn-initial-log,dx3-vambrace-sly,dx4-drain-upgrade-ending,dx4-dread-baseline,dx4-sly-identity,dx5-battleworn-dummy-v1,dx5-battleworn-dummy-v2,dx5-battleworn-dummy-v3,dx5-history-course,dx5-history-course-choice,dx5-pen-nib-sly,dx6-dampen-echoing,dx7-distilled-chaos,dx7-droplet-fetched-power,dx7-duplicate-stomp,dx7-end-of-days-shroud,ec-a-event-attacks,ec-b-event-skills,ec-c-ancient,ec-d-quest-token,ec-e-mad-science,hs-chains-turn-reset,hs2-sword-sage-forge,hs3-calamity-nested,hs3-regent13-rolling,hs3-stoke-hand-cost,hs3-stoke-identity,hs4-dread-root-dexterity,hs4-testsubject-multiclaw,id-a-monologue-swordsage,id-b-nightmare-phantom,id-c-instanced-powers,id-d-fetch-delay,id-e-vambrace-lamp,id-f-generation,id-g-callofthevoid,k2-temporary-strength-artifact,k3-basic-potions,k4-player-plating-thorns,k5-intangible,ka-ceremonial-beast-boss,ka-infested-prisms-elite,ka-living-fog-normal,ka-mystic-lighter,ka-vine-shambler-normal,kb-a-thrash-decimal,kb-b-thrash-decimal-upgraded,kb-c-beatdown-relocate,kb-d-beatdown-relocate-upgraded,kg1-a-autoplay,kg1-b-autoplay-piles,kg1-c-transform-jackpot,kg2-a-corruption-unrelenting,kg2-b-stomp,kg2-c-one-two-punch,kg2-d-duplicator,kg2-e-vicious,kg2-f-the-abacus,kg2-g-chemical-x,kg2-h-ice-cream,kg2-i-ruined-helmet,kg2-j-ghost-seed,kg2-k-tear-asunder,kg2-l-unrelenting,kg2-m-thrash,km-fogmog-normal,km-two-tailed-rats-normal,km2-bowlbugs-normal,km2-bowlbugs-weak,km2-decimillipede,km2-hunter-killer,km2-kaiser-crab,km2-louse-progenitor,km2-phrog-parasite,km2-slumbering-beetle,ks-corpse-slugs-normal,ks-corpse-slugs-weak,ks-lagavulin-matriarch-boss,ks-terror-eel-elite,lr-a-choices,lr-b-decisions,lr-c1-history,lr-c2-generation,ls-a-silent-attacks,ls-b-silent-powers,ls-c-the-hunt,ls-d-necro,ls-e-defect,ls-g-mirage,ls-h-reptile,mb-entropic-brew,mb-insatiable,mb-knowledge-demon,nb-a-osty,nb-b-doom,nb-c-utility,nb-d-powers,nb-g-utility2,nb-h-powers3,nb-i-sacrifice,nb-j-eidolon,nb-k-doomkill,nb-l-osty-defense,p1-fuzzy-wurm-weak,p1-nibbits-normal,p1-nibbits-weak,p10-a-turn-end-status,p10-b-turn-end-curses,p10-c-empty-status,p10-d-empty-curses,p11-a-beating-remnant,p11-b-lizard-tail,p11-c-red-skull,p11-d-potions,p11-e-status-cards,p11-f-enthralled,p11-g-normality,p11-h-bygone-effigy-kill,p12-phantasmal-gardeners-elite,p12-skulking-colony-elite,p12-soul-fysh-boss,p12-the-kin-boss,p12-vantom-boss,p13-chompers-normal,p13-entomancer-elite,p13-exoskeletons-normal,p13-exoskeletons-weak,p13-mytes-normal,p13-ovicopter-normal,p13-spiny-toad-normal,p13-the-obscura-normal,p13-tunneler-weak,p14-a-power-cards,p14-b-aggression-discard,p14-c-unmovable-multi-block,p14-d-rupture,p15-a-skills,p15-b-draw-search,p15-c-turn-powers,p15-d-attacks,p15-e-attack-skill-mix,p15-f-powers-block,p15-g-hand-conditions,p15-h-restlessness,p16-a-damage-history,p16-b-selection-random,p16-c-instanced-powers,p16-d-entropy,p16-potions-character,p16-potions-colorless,p16-potions-gigantification,p2-a-basic-attacks,p2-b-calculated,p2-c-powers,p2-d-x-random,p3-a-power-cards,p3-b-block-exhaust,p3-c-self-damage,p3-d-feed-fatal,p4-a-power-cards,p4-b-temporary-powers,p4-c-attacks,p4-d-exhaust-draw,p7-class1-a,p7-class1-b,p7-class2,p7-class3-cards,p7-class3-empty-hand,p7-class3-turn2,p7-class3-turn3,p7-class3-turn7,p8-a-counters,p8-b-turn-relics,p8-c-rage-juggling-dark-embrace,p8-d-crimson-inferno,p9-card-flow,p9-damage,p9-debuff-damage,p9-defensive-powers,p9-draw,p9-heal,p9-heal-block,p9-offensive-powers,p9-replay-select,p9-stat-powers,p9-temp-powers,p9-upgrade,p9-utility-powers,pr-a-potions,pr-b-potions2,pr-c-relics,pr-d-inert,pr-e-osty-doom,pr-f-whispering,pr-g-orbs,pr-h-potions3,qf-fisticuffs-replay,qf-misery-roster,qf-negative-pulse-roster,qf-nightmare-detached,qf-seance-soul,qf-turn-start-choice-forge,qf2-gradient-failure,qf3-burrowed-compensation,qf3-decisions-duplicate,qf3-decisions-repeat,qf3-defect-endturn-orbs,qf3-hellraiser-entropy,qf3-mangle-plow,qf3-mayhem-summon-forth,qf3-seeking-edge-order,qf4-touch-of-insanity-xcost,qf5-anger-dampen-clone,qp1-ashwater,qp1-gamblers-brew,qp1-liquid-memories,qp1-touch-of-insanity,qt2-art-of-war-endturn,qt2-kusarigama-endturn,quality-DEFECT-000,quality-DEFECT-001,quality-DEFECT-002,quality-DEFECT-003,quality-DEFECT-004,quality-DEFECT-005,quality-DEFECT-006,quality-DEFECT-007,quality-DEFECT-008,quality-DEFECT-009,quality-DEFECT-010,quality-DEFECT-011,quality-DEFECT-012,quality-DEFECT-013,quality-DEFECT-014,quality-DEFECT-015,quality-DEFECT-016,quality-DEFECT-018,quality-DEFECT-019,quality-DEFECT-021,quality-DEFECT-022,quality-IRONCLAD-000,quality-IRONCLAD-001,quality-IRONCLAD-002,quality-IRONCLAD-003,quality-IRONCLAD-004,quality-IRONCLAD-005,quality-IRONCLAD-006,quality-IRONCLAD-007,quality-IRONCLAD-008,quality-IRONCLAD-009,quality-IRONCLAD-010,quality-IRONCLAD-011,quality-IRONCLAD-012,quality-IRONCLAD-013,quality-IRONCLAD-014,quality-IRONCLAD-015,quality-IRONCLAD-016,quality-IRONCLAD-018,quality-IRONCLAD-019,quality-IRONCLAD-021,quality-IRONCLAD-022,quality-NECROBINDER-000,quality-NECROBINDER-001,quality-NECROBINDER-002,quality-NECROBINDER-003,quality-NECROBINDER-004,quality-NECROBINDER-005,quality-NECROBINDER-006,quality-NECROBINDER-007,quality-NECROBINDER-008,quality-NECROBINDER-009,quality-NECROBINDER-010,quality-NECROBINDER-011,quality-NECROBINDER-012,quality-NECROBINDER-013,quality-NECROBINDER-014,quality-NECROBINDER-015,quality-NECROBINDER-016,quality-NECROBINDER-018,quality-NECROBINDER-019,quality-NECROBINDER-021,quality-NECROBINDER-022,quality-REGENT-000,quality-REGENT-001,quality-REGENT-002,quality-REGENT-003,quality-REGENT-004,quality-REGENT-005,quality-REGENT-006,quality-REGENT-007,quality-REGENT-008,quality-REGENT-009,quality-REGENT-010,quality-REGENT-011,quality-REGENT-012,quality-REGENT-013,quality-REGENT-014,quality-REGENT-015,quality-REGENT-016,quality-REGENT-018,quality-REGENT-019,quality-REGENT-021,quality-REGENT-022,quality-SILENT-000,quality-SILENT-001,quality-SILENT-002,quality-SILENT-003,quality-SILENT-004,quality-SILENT-005,quality-SILENT-006,quality-SILENT-007,quality-SILENT-008,quality-SILENT-009,quality-SILENT-010,quality-SILENT-011,quality-SILENT-012,quality-SILENT-013,quality-SILENT-014,quality-SILENT-015,quality-SILENT-016,quality-SILENT-018,quality-SILENT-019,quality-SILENT-021,quality-SILENT-022,r2-a-relic-combat,r2-b-relic-turns,r2-c-fiddle-draw,r2-d-no-combat,r2-e-no-combat,r2-f-no-combat,r2-g-no-combat,r3-a-distilled-chaos,r3-b-distilled-chaos-shuffle,r3-c-distilled-chaos-short,rg-a-star,rg-b-forge,rg-c-powers,rg-d-forge-create,sk-a-discard-sly,sk-b-shiv,sk-c-poison,sk-d-simple,sk-e-powers,sk-f-xcalc,sk-g-starters-upgraded,sw2-entropy-transform,sw2-smart-bound-relic,ts-a-toasty,ts-b-toolbox,tw-gremlin-merc,tw-thieving-hopper,tw-thieving-hopper-recover,tw-waterfall-giant reason=PT1: R calibration (real damage, growth, Doom, orbs, Osty), poison kill-order ticks, Axebot stock HP, Seeker Strike no longer sets HasRisk, enemy powered-hit counter widened sha256=67295bb386e2d27698faf666e700da78331c083dc04f7f546d98f3f1fdcbf566"
   },
   "compression": "brotli",
@@ -29,7 +29,7 @@
       "timeAffected": 0
     }
   },
-  "totalBytes": 23461266,
+  "totalBytes": 23461229,
   "targetBytes": 52428800,
   "files": [
     {
@@ -6990,7 +6990,7 @@
     {
       "path": "d2/expected/1b1fdc93aa5a306ef575dbe33717a2306f0416f90de7cb1055b463516f1691c9.result.br",
       "bytes": 77,
-      "sha256": "39457f228c2727065318ea6fa26d55516f19236284aaad8d4eea2cd38a9d0aed"
+      "sha256": "3104e352bc935c15e024c0f1c30a8280cd543d505b5dd77a3c6a8ec4885b2fe8"
     },
     {
       "path": "d2/expected/1b27a55ede28f74c40f83751bc0783d352385363f9623e97b73e6f62fc7710bc.result.br",
@@ -8220,7 +8220,7 @@
     {
       "path": "d2/expected/3b29748bbef0a14c703eba9e441510c7f8728230101ae753619079d022d661e4.result.br",
       "bytes": 70,
-      "sha256": "43e5fe6acddd0880e2f17b7300a2e3f38c5a5a399d4d417130e60b245329b75a"
+      "sha256": "0ab05673aa313af0fe2bf5b3c91c9533e9c9cd803ad954dbd11e74cd9e30f1e3"
     },
     {
       "path": "d2/expected/3b68a4f9b016d36baef949ae2a908055bdcdb163360dfd55347a04a5514cdfde.result.br",
@@ -9160,7 +9160,7 @@
     {
       "path": "d2/expected/53ce852f422b5b6d9f769d7ad78a150093492eabe146040a48dca4dfe0cc30c7.result.br",
       "bytes": 120,
-      "sha256": "427fc8e31393659ec41850d9c5951db5927cd79c7e077e81b750a514752446d8"
+      "sha256": "168c0189e4187e789843ef6684e5dc713618a033c35e849bc771f955c7b8600a"
     },
     {
       "path": "d2/expected/53dabadc147e27fdc8563e0bfda61830a8d5e813cfc5d2f749ac63c8327ba438.result.br",
@@ -9505,7 +9505,7 @@
     {
       "path": "d2/expected/5c83f7108044e205c4368efccab1fae2e9ab453a349160d6dc93057d8ee4f030.result.br",
       "bytes": 86,
-      "sha256": "70a82ea12aaa0ca4ce2ce407b52f1b81e6866edb90b359b294883b6f81595576"
+      "sha256": "418c9d1d9b2c7c2f40570bfedb2f9caffd8ca7dd272c2bd67b083424a98f9864"
     },
     {
       "path": "d2/expected/5cacb375b122004a5ede72aa7b5a86b9096e20db531dd33d2d912fa89585d315.result.br",
@@ -9569,8 +9569,8 @@
     },
     {
       "path": "d2/expected/5e08eb2ec8cbc62136cf42dd3ecd2eaa03e0124b94db6654893cc53f927bc0ef.result.br",
-      "bytes": 80,
-      "sha256": "2adc9416941da70a54c3f649816fda7e1d8cda2b03ee902b2324dbc42cafd506"
+      "bytes": 79,
+      "sha256": "53ee20ea4ce199bfdaf058dfb2b5accf6262019dd107a619b46d6225930de2f5"
     },
     {
       "path": "d2/expected/5e199759255d9333721e0107db5e356e7542ccb18b0ff3648be0d4a4abc095f9.result.br",
@@ -9595,7 +9595,7 @@
     {
       "path": "d2/expected/5ebd8fff72ee8478f041aaf5055c92813bae2210eacc4c9e5363d59aad2f3607.result.br",
       "bytes": 86,
-      "sha256": "70a82ea12aaa0ca4ce2ce407b52f1b81e6866edb90b359b294883b6f81595576"
+      "sha256": "418c9d1d9b2c7c2f40570bfedb2f9caffd8ca7dd272c2bd67b083424a98f9864"
     },
     {
       "path": "d2/expected/5ed0cc6305a4c0711693540e873b6ea5bb11d943d343abd1d5be208c23c74255.result.br",
@@ -9914,8 +9914,8 @@
     },
     {
       "path": "d2/expected/67495fb2dad62a167505da9ba0c7e1f9b4cfaa847a72f3cc138a6f4666741ff8.result.br",
-      "bytes": 91,
-      "sha256": "ca85710cf163006bcd7d5b509d29b7a2bc2f176b9c6bd279fa28f62352fff36b"
+      "bytes": 90,
+      "sha256": "2000a21898bd0d1785e002c2f4c4a6a9d6906859cb1b30b25c2a0810dcd0a966"
     },
     {
       "path": "d2/expected/675d2694bae535eaeb24c5289af136fe3af82056181cd96f7069a77fb82f59ad.result.br",
@@ -10614,8 +10614,8 @@
     },
     {
       "path": "d2/expected/778ab7b7d836265b15afe606fc416da84b5cca3f30c6c7275f74cf72b3c98737.result.br",
-      "bytes": 124,
-      "sha256": "90cb10c1e7871103321fe978f3210dfab0f235fd1ab90a1c77dc04a4f77ec714"
+      "bytes": 121,
+      "sha256": "a361c79cd55371876684d0b436e4023b77beacb72296232404da014b0ab12622"
     },
     {
       "path": "d2/expected/7791f3fac0fe0bce1a42cc21821d8b8395a6fb7232cb14f8d06cf62ad1fc86b8.result.br",
@@ -10639,8 +10639,8 @@
     },
     {
       "path": "d2/expected/77ee100eff40ff995254b439e79b4af8078a3ff1c45ce2f2e7f22707f2bd2747.result.br",
-      "bytes": 115,
-      "sha256": "3eed30b2fc9c5077e0cedf4252cb839eead6065724224641bc32965fe1f0242c"
+      "bytes": 116,
+      "sha256": "da9db7fb742e5f56a6053406ba98131f8a7f50fbd407ba32ff93140cbbd8bcc6"
     },
     {
       "path": "d2/expected/7871c4c704bf9634ed72ea3348a7ee32b3ecc5b9502b0c1ea9c7bd5093061a34.result.br",
@@ -10870,7 +10870,7 @@
     {
       "path": "d2/expected/7cb4e09214daf7811b317befa99d697888d5202f7ed613fa373f0ccd4c85d212.result.br",
       "bytes": 120,
-      "sha256": "427fc8e31393659ec41850d9c5951db5927cd79c7e077e81b750a514752446d8"
+      "sha256": "168c0189e4187e789843ef6684e5dc713618a033c35e849bc771f955c7b8600a"
     },
     {
       "path": "d2/expected/7cbf73655a15077bbb3d35e729ebe2767e1f8d326acb83f7e48a984074106b52.result.br",
@@ -10909,8 +10909,8 @@
     },
     {
       "path": "d2/expected/7d8a7dda1aa15607af3c833649e95ecde724fc173a84f734724ffcf7af223478.result.br",
-      "bytes": 90,
-      "sha256": "c5bee4f20cfb8b924f4d6b9adbc15e0c5e868b86f06fc24c28043bedf1f5b301"
+      "bytes": 89,
+      "sha256": "95a940dfb5172855bead4a413109f873dc5685744d19c89cbec122ff407ed52f"
     },
     {
       "path": "d2/expected/7d9488e7e873fa3bc13ba54ec92c9c8b4c5e78812931ffa94295e731f4bafa0f.result.br",
@@ -10964,8 +10964,8 @@
     },
     {
       "path": "d2/expected/7ec88c11b6e66226e67e043b46268bab0f6ba96f3334591d580e2f35cfba2bdb.result.br",
-      "bytes": 115,
-      "sha256": "3eed30b2fc9c5077e0cedf4252cb839eead6065724224641bc32965fe1f0242c"
+      "bytes": 116,
+      "sha256": "da9db7fb742e5f56a6053406ba98131f8a7f50fbd407ba32ff93140cbbd8bcc6"
     },
     {
       "path": "d2/expected/7ecdfb35fd0a221042146d6aac0cdc54be50a5366c18905cba0da240087e76f5.result.br",
@@ -11009,8 +11009,8 @@
     },
     {
       "path": "d2/expected/7f7cf4193261c9e2a4c9753ae04b80a409b0efae65d52a7b5a9bd3197f4c8003.result.br",
-      "bytes": 84,
-      "sha256": "269e6eb2f9025d0126f3822e19455c4091c5aa8faaa70e36db0c484c50af6b82"
+      "bytes": 83,
+      "sha256": "e0bdeac774106563252edd874635b9c6be59dfd6cf81b4c6b86608251df7dcab"
     },
     {
       "path": "d2/expected/7fb0cb609ec0a7cbf222d85bdf64c67aadbc3e813e11e0457530914fc23a0534.result.br",
@@ -11384,8 +11384,8 @@
     },
     {
       "path": "d2/expected/887e83ab83713830c0432e009eac86f529a69a3d1ee8661ed65a7880ac34eabd.result.br",
-      "bytes": 149,
-      "sha256": "d6c5dd123065b1bfef70a4c1587f042ede2a1b0632ace0d418758f94eff7ffd1"
+      "bytes": 143,
+      "sha256": "e603eba586f5249366dcee11820763a1d72b5bc586f1bf0604afb998ee6119ef"
     },
     {
       "path": "d2/expected/88b098bd5ae3008fa435feb50c636ca2cff5f1473f6f0b9a318ed57b1ce86166.result.br",
@@ -11564,8 +11564,8 @@
     },
     {
       "path": "d2/expected/8caccb82e703a3494629c0bf18e7fd791a9cda51c97dfe76454e186710d79798.result.br",
-      "bytes": 78,
-      "sha256": "88723ef51b3cab8c29427a992c905089b42e7d2a70e125c7005144624e33ac69"
+      "bytes": 79,
+      "sha256": "31587cf6e9a5d9d704077cfef11b97fc78cffa4c08c6ed3b1cf809e4866a62d8"
     },
     {
       "path": "d2/expected/8cf36d0c05f6296b164956325125721226f2076092b17a792a88e4b002f4c01b.result.br",
@@ -12359,8 +12359,8 @@
     },
     {
       "path": "d2/expected/a2b80113d872bdd561c57bda2d6d5c1db481b5bdb8b53d138a216f948d605759.result.br",
-      "bytes": 112,
-      "sha256": "9c29aebb91959d1e6493e475b0bf128bd8ed7d005bc0a600f052f5a6120edd0c"
+      "bytes": 106,
+      "sha256": "491ceb93eab02f4a91c36a49b0e90fcaedb458b220d1bfa9cc24f63fc3f909cf"
     },
     {
       "path": "d2/expected/a2bf22ed786216168565119cdeaf478a745f50cf0c3ccd83d3423ece48d83732.result.br",
@@ -12619,8 +12619,8 @@
     },
     {
       "path": "d2/expected/a973959e93a63313b11cb3df5f5e2d016d1d0d5a70d7b63771d3e1725105d37e.result.br",
-      "bytes": 111,
-      "sha256": "c097e3e193337e558e9cb62ee3aa5409f94d403b0c28c9d2144f7739d93af8e0"
+      "bytes": 101,
+      "sha256": "63a7d87fbfc4556b5f117f48cddef4330d547f6bb04aea085ea60adb1374c68b"
     },
     {
       "path": "d2/expected/a97cbe08daa37014306d76ccfcde6dbdd2a09a783fbed4e29ddf57d6a920b5b9.result.br",
@@ -12769,8 +12769,8 @@
     },
     {
       "path": "d2/expected/addaddf7bb72c0dc4393e23e11894e9cacfe9332c79e5e80017122ea057cfc4b.result.br",
-      "bytes": 98,
-      "sha256": "1a470e552c36824f3eb49ff80f8c97ba0e78a9d58564273accf4ee134929570b"
+      "bytes": 94,
+      "sha256": "806b549d94ace79df55ce66a03d161635d064877f2cb91181442158ed9acca50"
     },
     {
       "path": "d2/expected/ade4046f34aacecb1d150ed6b49352f35bee12081ba93563c3e91c7b09c0f8e4.result.br",
@@ -13349,8 +13349,8 @@
     },
     {
       "path": "d2/expected/be3d91efc956d7789c9808521d3fcab51cabf5542f3d005b63b87cd7415142db.result.br",
-      "bytes": 124,
-      "sha256": "fccb07d163870771a1abfeeed673fd99cd7f9a7eaaf369b3b821bdc7795ac1e1"
+      "bytes": 125,
+      "sha256": "25954d002a90cdbddf696b9f8b71c5394bae38bffb1d0cd06eeba23a48628b61"
     },
     {
       "path": "d2/expected/be46920087bf9713f962dfea3767e907f5dd66f7a3a9eec7bc44b7aca3e5c9c0.result.br",
@@ -13469,8 +13469,8 @@
     },
     {
       "path": "d2/expected/c1039eddca774e13afb41d20c2a0771b3f85aa2db097f99dc45f32d48325a982.result.br",
-      "bytes": 91,
-      "sha256": "ca85710cf163006bcd7d5b509d29b7a2bc2f176b9c6bd279fa28f62352fff36b"
+      "bytes": 90,
+      "sha256": "2000a21898bd0d1785e002c2f4c4a6a9d6906859cb1b30b25c2a0810dcd0a966"
     },
     {
       "path": "d2/expected/c111b108485f9ce450e590d7849ea4c077ae1765cb8fc50d96cac488b4c0d7d1.result.br",
@@ -13534,8 +13534,8 @@
     },
     {
       "path": "d2/expected/c2690bfefb9f28fa8fc7f013b0da05fd1053a5eda2ea400e5de92aaa80cf6f1f.result.br",
-      "bytes": 149,
-      "sha256": "d6c5dd123065b1bfef70a4c1587f042ede2a1b0632ace0d418758f94eff7ffd1"
+      "bytes": 143,
+      "sha256": "e603eba586f5249366dcee11820763a1d72b5bc586f1bf0604afb998ee6119ef"
     },
     {
       "path": "d2/expected/c2956d0b1bacf4d2698bd93d6f8a0d0ac7bb21d7596dad3edb460b6cd9f53178.result.br",
@@ -13744,8 +13744,8 @@
     },
     {
       "path": "d2/expected/c7f281daca166481ffcf93adf80406c7827afb5eb30f39992eccad7bbd4803e1.result.br",
-      "bytes": 76,
-      "sha256": "5309313ba75a00faad0f4cd1adcf7c409234982b63fdb4cf3bb0d62efe6b5d40"
+      "bytes": 79,
+      "sha256": "e223b98bff65c2a2a33834c8828c41b3b072709570c7808593c6b5519dc1e0c8"
     },
     {
       "path": "d2/expected/c803a6888031a4dabb44fe9f153a79cda8bcd176f5cd14a844a5aa8cd6a86dea.result.br",
@@ -13824,8 +13824,8 @@
     },
     {
       "path": "d2/expected/c9fe59ea0ba5eba00b64ec7d2cee6eebfe1cded53a28e6b95c282539d6bf0f1f.result.br",
-      "bytes": 90,
-      "sha256": "c5bee4f20cfb8b924f4d6b9adbc15e0c5e868b86f06fc24c28043bedf1f5b301"
+      "bytes": 89,
+      "sha256": "95a940dfb5172855bead4a413109f873dc5685744d19c89cbec122ff407ed52f"
     },
     {
       "path": "d2/expected/ca01958c45a386439576f104664fced7292e975b7e701b6a323d6f7db90f9ba3.result.br",
@@ -14129,8 +14129,8 @@
     },
     {
       "path": "d2/expected/d0cb496da1d519593d4ce5796f693e5f67b54b488ce7156f64cb0dcfcf4d8e5e.result.br",
-      "bytes": 100,
-      "sha256": "6c9a5a0e241fc0c4532e1f52da1693a73c3cbf59a762cafd26efe7eaa132d351"
+      "bytes": 101,
+      "sha256": "994f0888b75b2024054b5778520aa58bb7be8252c2278282343617b111649ffa"
     },
     {
       "path": "d2/expected/d0d53283be3f6aa9f59efa25595312ca08e32301ea7a5ae445449e0161393a85.result.br",
@@ -14344,8 +14344,8 @@
     },
     {
       "path": "d2/expected/d609c9a6235ef3340c1a31db67b7428ef0e9cfa255603dab829698d8dbebfdb9.result.br",
-      "bytes": 112,
-      "sha256": "9c29aebb91959d1e6493e475b0bf128bd8ed7d005bc0a600f052f5a6120edd0c"
+      "bytes": 106,
+      "sha256": "491ceb93eab02f4a91c36a49b0e90fcaedb458b220d1bfa9cc24f63fc3f909cf"
     },
     {
       "path": "d2/expected/d613521698cd986e4a2ab9e41a581fdfee52b0bd1dc47a2043716db88ef59629.result.br",
@@ -14825,7 +14825,7 @@
     {
       "path": "d2/expected/e16005bce92e28840fbf1c01c450c24602ea0528217250798caab994a15fcca0.result.br",
       "bytes": 74,
-      "sha256": "d7dd30b9f1cd921b625c3f781179a6e2f4ee19e9871225bb026642bec774db63"
+      "sha256": "c5ea8d26d139fc0de8618896c5010b9c9ebd278274f18c29612612c82902921d"
     },
     {
       "path": "d2/expected/e174480c7a70bbf1a1ba582ddfc7a3bfef4b0f44364407632903aa40f81493af.result.br",
@@ -14840,7 +14840,7 @@
     {
       "path": "d2/expected/e1ebc90a4bb8a6282c5c06c97588ed086707241c3d3cce785f00dbdc7f883d82.result.br",
       "bytes": 74,
-      "sha256": "d7dd30b9f1cd921b625c3f781179a6e2f4ee19e9871225bb026642bec774db63"
+      "sha256": "c5ea8d26d139fc0de8618896c5010b9c9ebd278274f18c29612612c82902921d"
     },
     {
       "path": "d2/expected/e2227dfa6a30b820f7ffe2a97882e20905e98b04aa989b3790dcb19891bc1e63.result.br",
@@ -15094,8 +15094,8 @@
     },
     {
       "path": "d2/expected/e75d27e7c903e43499ec78d26acb825ea40414cde7ef2c1eec97d416d8fa2b12.result.br",
-      "bytes": 105,
-      "sha256": "ce69d4b20c271f7d51af21e3f8b68d2099409bad166cc8d3b920102db3ed17a8"
+      "bytes": 106,
+      "sha256": "fbebe2f10fed1bacc022cb1f2644ad792badb26e589cf582c66f3dd56880d142"
     },
     {
       "path": "d2/expected/e762c0008f1e18f0293be1340b423ac89f69640340982fafafd4248f2b94d137.result.br",
@@ -15274,8 +15274,8 @@
     },
     {
       "path": "d2/expected/eb9114fac35acdaf9f6fd87c329058b132a0142547bb1d371e754c0fbcf7a49f.result.br",
-      "bytes": 78,
-      "sha256": "88723ef51b3cab8c29427a992c905089b42e7d2a70e125c7005144624e33ac69"
+      "bytes": 79,
+      "sha256": "31587cf6e9a5d9d704077cfef11b97fc78cffa4c08c6ed3b1cf809e4866a62d8"
     },
     {
       "path": "d2/expected/ebd2b9ab7e28dbc7b93c211cfd78884b54d4e4f2b92b9cbe77fba227558b132d.result.br",

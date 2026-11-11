@@ -541,6 +541,10 @@ internal sealed partial class BeamSolver
     // potion can be generated into a slot (the slot diff would then read a refilled potion as unused)
     // and every root potion's strategic cost is known (non-negative).
     private readonly bool _potionCostMonotone;
+    // Per root potion slot: the stored value (id + 1) of an opening-only potion the root holds there, else 0.
+    private readonly ushort[] _openingOnlyRootPotion = new ushort[Limits.PotionSlots];
+    // The search's first player turn (the latest one when several roots are searched together).
+    private int _openingPotionTurn;
     private int _expanded;
     private long _expandedTotal;
     private bool _deadlineReached;
@@ -639,6 +643,13 @@ internal sealed partial class BeamSolver
         _bound = options.Bound is { Enabled: true } ? options.Bound : null;
         _potionCostMonotone = rules.PotionPool.Count == 0 && rules.OutOfCombatPotionPool.Count == 0
             && RootPotionCostsKnown(_scorer.RulesForCodec);
+        ScoreRules rootScore = _scorer.RulesForCodec;
+        for (int slot = 0; slot < rootScore.RootPotionSlotCount && slot < Limits.PotionSlots; slot++)
+        {
+            ushort stored = rootScore.RootPotions[slot];
+            if (stored != 0 && PotionUsePolicy.OpeningOnlyPotionIds.Contains(Registry.Potion((ushort)(stored - 1)).NativeId))
+                _openingOnlyRootPotion[slot] = stored;
+        }
         _pruneEqualHp = _bound?.PruneEqualHp ?? false;
         _preservePotionCostOpportunities = _bound?.RequireCertifiedHealingProof ?? false;
         _effectivePotionPolicy = options.EffectivePotionPolicy;
@@ -742,6 +753,9 @@ internal sealed partial class BeamSolver
         _memoryBudgetExceededAtBytes = 0;
         _bestPotionFree = null;
         _incumbent = _options.IncumbentSeed;
+        _openingPotionTurn = int.MinValue;
+        foreach (Battle root in roots)
+            _openingPotionTurn = Math.Max(_openingPotionTurn, root.PlayerTurn);
         _auditBestByPotionCount = null;
         _anyAuditedVictory = false;
         _bestFeatures = default;
@@ -1876,6 +1890,8 @@ internal sealed partial class BeamSolver
     /// The slot holds a searchable potion the request's strategy/policy offers now. The existing
     /// <c>EnumeratePlannedPotionActions</c> reads the potion currently in the slot, so a potion generated
     /// during the search is offered by its own identity rather than by the root potion's policy.
+    /// A root potion of an opening-only kind (<see cref="PotionUsePolicy.OpeningOnlyPotionIds"/>) still in
+    /// its root slot is offered only on the search's first turn: drinking it later is never better.
     /// </summary>
     private bool PotionAllowed(in Battle battle, int slot)
     {
@@ -1883,7 +1899,9 @@ internal sealed partial class BeamSolver
         if ((uint)slot >= (uint)battle.PotionSlotCount || battle.PlayerTurn < policy.EarliestPlayerTurn)
             return false;
         ushort stored = battle.Potions[slot];
-        return stored != 0 && policy.AllowsExplicitUse(slot, (ushort)(stored - 1));
+        if (stored == 0 || !policy.AllowsExplicitUse(slot, (ushort)(stored - 1)))
+            return false;
+        return battle.PlayerTurn <= _openingPotionTurn || _openingOnlyRootPotion[slot] != stored;
     }
 
     /// <summary>

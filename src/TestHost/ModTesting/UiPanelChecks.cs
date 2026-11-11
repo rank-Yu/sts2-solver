@@ -502,6 +502,9 @@ internal static class UiPanelChecks
         await Press(host, panel.SettingsButtonForTest);
     }
 
+    /// <summary>Searches shorter than this may finish between two frames of a loaded headless game.</summary>
+    private const long ShortSearchMilliseconds = 250;
+
     internal static async Task FinishAsync(NGame host, Session session, string resultDirectory)
     {
         UiPanelObserver? observer = session.Observer;
@@ -538,12 +541,16 @@ internal static class UiPanelChecks
             session.Check("panel_visible_during_combat", observer.HiddenFrames == 0,
                 $"hidden={observer.HiddenFrames}");
             // A combat that pauses before its first deployment (e.g. the opening search predicts
-            // death this turn) never shows the deploy state, so it has no deploy frames to check.
+            // death this turn) never shows the deploy state, so it has no deploy frames to check. A
+            // combat whose searches all finish within a few frames (HL15: one 44 ms search) may never
+            // leave a searching frame for the panel to apply; its results still prove the searches ran.
+            bool searchesTooShortToDraw = observer.LongestResultSearchMilliseconds is >= 0 and < ShortSearchMilliseconds;
             session.Check("button_rules_frames",
-                observer.SearchFrames > 0 && observer.IdleFrames > 0
+                (observer.SearchFrames > 0 || searchesTooShortToDraw) && observer.IdleFrames > 0
                     && (observer.DeployFrames > 0 || observer.PausedBeforeDeploy),
                 $"search={observer.SearchFrames} deploy={observer.DeployFrames} idle={observer.IdleFrames} " +
-                $"paused_before_deploy={observer.PausedBeforeDeploy}");
+                $"paused_before_deploy={observer.PausedBeforeDeploy} " +
+                $"longest_search_ms={observer.LongestResultSearchMilliseconds}");
             session.Check("button_rules_match", observer.ButtonMismatches == 0,
                 $"mismatches={observer.ButtonMismatches}");
         }
@@ -1095,6 +1102,12 @@ internal sealed partial class UiPanelObserver : Node
     /// <summary>The controller paused before any deploy frame was observed.</summary>
     internal bool PausedBeforeDeploy { get; private set; }
 
+    /// <summary>
+    /// Longest search behind any result the controller published (-1 before the first result). Searches
+    /// that all end within a few frames may never leave a searching frame for the panel to apply.
+    /// </summary>
+    internal long LongestResultSearchMilliseconds { get; private set; } = -1;
+
     internal int ButtonMismatches { get; private set; }
 
     internal List<string> Mismatches { get; } = [];
@@ -1113,6 +1126,11 @@ internal sealed partial class UiPanelObserver : Node
         if (_panel == null || !IsInstanceValid(_panel) || !CombatManager.Instance.IsInProgress)
             return;
         CombatUiSnapshot snapshot = CombatUiStore.Snapshot;
+        if ((snapshot.Result ?? snapshot.RouteResult) is { } published
+            && published.SearchElapsedMilliseconds > LongestResultSearchMilliseconds)
+        {
+            LongestResultSearchMilliseconds = published.SearchElapsedMilliseconds;
+        }
         SolverOverlayProbe probe = _panel.ProbeForTest();
         if (!probe.Visible)
         {

@@ -273,8 +273,13 @@ internal static partial class CombatSessionController
     {
         if (result == null || _names == null)
             return null;
+        // The progress indices count actions of the deployed plan. Another route shown meanwhile
+        // (the next turn's continuation while the previous EndTurn still waits for its boundary)
+        // is numbered from its own first action and has not started.
+        bool deployed = ReferenceEquals(result, _deploymentResult);
         return CombatUiProjection.Route(result.Plan, _names, CurrentTurn(),
-            _currentActionIndex, _completedActions, result.WasReused, _actionRunning);
+            deployed ? _currentActionIndex : 0, deployed ? _completedActions : 0, result.WasReused,
+            deployed && _actionRunning);
     }
 
     private static SearchUiSnapshot? BuildSearchUi()

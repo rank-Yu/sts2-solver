@@ -2234,20 +2234,43 @@ internal static class CombatControllerChecks
         // From the plan until turn two reuses the route, the panel keeps the route rows. After the
         // page is driven, the continuation is handed to the turn start, which first waits for the
         // game to settle (1.5 s) before reusing it.
+        // The continuation route starts at turn two; turn one's deployment progress must not mark
+        // any of its actions as executed.
         int routeFrames = 0;
         int emptyRouteFrames = 0;
+        int continuationFrames = 0;
+        int staleProgressFrames = 0;
+        string staleProgress = "";
         CombatUiSnapshot activated = await WaitAsync(host, s =>
         {
-            if (SolverOverlay.Instance is { } panel)
+            bool reused = s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2;
+            if (!reused && SolverOverlay.Instance is { } panel)
             {
                 routeFrames++;
                 if (panel.LastOverlayTurnCountForTest <= 0)
                     emptyRouteFrames++;
+                if (s.Route is { } route && route.StartTurn == s.Turn && s.Turn >= 2)
+                {
+                    continuationFrames++;
+                    int completedPills = panel.ProbeForTest().Rows
+                        .Sum(static row => row.Pills.Count(static pill => pill.State == "completed"));
+                    if (route.CompletedActions > 0 || route.ActionRunning || completedPills > 0)
+                    {
+                        if (staleProgressFrames++ == 0)
+                        {
+                            staleProgress = $"first: phase={s.Phase} completed={route.CompletedActions} " +
+                                $"current={route.CurrentActionIndex} running={route.ActionRunning} " +
+                                $"pills={completedPills} presentation={panel.ProbeForTest().Presentation}";
+                        }
+                    }
+                }
             }
-            return s.ReusedTurns > 0 || s.IsDeploying && s.Turn >= 2;
+            return reused;
         }, 3600, "turn two setup activated");
         check("route_rows_kept_until_reuse", routeFrames > 0 && emptyRouteFrames == 0,
             $"frames={routeFrames} empty={emptyRouteFrames}");
+        check("continuation_route_not_executed", continuationFrames > 0 && staleProgressFrames == 0,
+            $"frames={continuationFrames} stale={staleProgressFrames} {staleProgress}");
         check("one_setup_search", activated.Searches == searches,
             $"{searches}->{activated.Searches}");
         check("reused", activated.ReusedTurns > 0, activated.ReusedTurns.ToString());

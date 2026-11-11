@@ -146,9 +146,10 @@ internal static partial class CombatSessionController
     private static SearchProgressSnapshot? _lastProgress;
 
     /// <summary>
-    /// The route preview the panel shows while searching. CombatSolver's coordinator rule: once a
-    /// winning preview is shown, a later member's preview replaces it only when it also wins and is
-    /// not worse; before that the panel follows the running member.
+    /// The route preview the panel shows while searching. Once a winning preview is shown, a later
+    /// preview replaces it only when it ranks at least as well by the search's own route ordering
+    /// (<see cref="BeamSolver.CompareRouteKeys"/>: potions priced in HP, relic goals, death saves);
+    /// before that the panel follows the running member.
     /// </summary>
     private static SearchRoutePreview? _displayRoute;
     private static SearchCurrentTurnPreview? _displayCurrentTurn;
@@ -991,17 +992,8 @@ internal static partial class CombatSessionController
             return true;
         if (!candidate.Victory)
             return false;
-        int lost = PreviewHpLost(candidate);
-        int shownLost = PreviewHpLost(shown);
-        return lost < shownLost
-            || lost == shownLost && PreviewPotions(candidate) <= PreviewPotions(shown);
+        return BeamSolver.CompareRouteKeys(candidate.RankKey, shown.RankKey) <= 0;
     }
-
-    private static int PreviewHpLost(SearchRoutePreview preview)
-        => preview.Turns.Sum(static turn => turn.HpLost - turn.HpRecovered);
-
-    private static int PreviewPotions(SearchRoutePreview preview)
-        => preview.Actions.Count(static action => action.Kind == PlayerActionKind.UsePotion);
 
     /// <summary>Worldlines reviewed this combat before the next search starts.</summary>
     private static long ReviewedWorldlinesSoFar()

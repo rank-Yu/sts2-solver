@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Ai.Combat.Quality;
 using Sts2Solver.Ai.Combat.Scoring;
 using Sts2Solver.Simulation.Combat;
 
@@ -22,6 +23,18 @@ internal static class SearchContracts
         Assert(SearchCodec.EncodeRequest(original).AsSpan()
             .SequenceEqual(SearchCodec.EncodeRequest(SearchCodec.DecodeRequest(SearchCodec.EncodeRequest(original)))),
             "request round trip");
+        // The starting pruning bound a coordinator hands a member is the optional INC1 extension:
+        // absent from every frozen request, carried exactly when set.
+        Assert(original.Options.IncumbentSeed is null, "frozen request has no incumbent seed");
+        SearchIncumbent seed = new(23, 4, 3, 1, GoalsComplete: false);
+        byte[] seeded = SearchCodec.EncodeRequest(original with
+        {
+            Options = original.Options with { IncumbentSeed = seed },
+        });
+        Assert(SearchCodec.DecodeRequest(seeded).Options.IncumbentSeed == seed
+            && SearchCodec.EncodeRequest(SearchCodec.DecodeRequest(seeded)).AsSpan().SequenceEqual(seeded)
+            && !seeded.AsSpan().SequenceEqual(SearchCodec.EncodeRequest(original)),
+            "incumbent seed survives SREQ");
 
         Scorer standardScorer = original.Options.Scorer ?? throw new InvalidDataException("夹具没有评分器。");
         ScoreFeatures rootFeatures = standardScorer.Features(original.Battles[0], 0);

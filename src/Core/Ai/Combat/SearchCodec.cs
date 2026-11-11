@@ -32,6 +32,7 @@ internal static class SearchCodec
     internal const uint RequestMagic = 0x51455253; // "SREQ"
     internal const uint ResultMagic = 0x53455253; // "SRES"
     internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
+    internal const uint IncumbentSeedExtensionMagic = 0x31434E49; // "INC1"
 
     /// <summary>
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
@@ -146,6 +147,15 @@ internal static class SearchCodec
             writer.Write(options.Scorer.SetupPolicy!.Continuous ? 0x32505553u : 0x31505553u); // SUP2 continuous / SUP1 activation.
             options.Scorer.SetupPolicy!.Encode(writer);
         }
+        if (options.IncumbentSeed is { } seed)
+        {
+            writer.Write(IncumbentSeedExtensionMagic);
+            writer.Write(seed.EffectiveHpDeficit);
+            writer.Write(seed.CombatEndedTurn);
+            writer.Write(seed.GoalHpCredit);
+            writer.Write(seed.GoalCount);
+            writer.Write(seed.GoalsComplete);
+        }
     }
 
     private static BeamOptions DecodeOptions(BinaryReader reader, Rules rules)
@@ -188,10 +198,18 @@ internal static class SearchCodec
         bool sawFlame = false;
         bool sawSetup = false;
         bool sawQueen = false;
+        SearchIncumbent? seed = null;
         while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
             uint extension = reader.ReadUInt32();
-            if (extension == BrightestFlameExtensionMagic)
+            if (extension == IncumbentSeedExtensionMagic)
+            {
+                if (seed is not null)
+                    throw new InvalidDataException("初始现任最优扩展重复。");
+                seed = new SearchIncumbent(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
+                    reader.ReadInt32(), reader.ReadBoolean());
+            }
+            else if (extension == BrightestFlameExtensionMagic)
             {
                 if (sawFlame)
                     throw new InvalidDataException("至亮之焰扩展重复。");
@@ -246,6 +264,7 @@ internal static class SearchCodec
             PowerCommitments = commitments,
             BrightestFlameMaxHpLossLimit = flameLimit,
             InitialBrightestFlameMaxHpSpent = flameSpent,
+            IncumbentSeed = seed,
         };
     }
 

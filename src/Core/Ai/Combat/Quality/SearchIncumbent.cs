@@ -2,12 +2,13 @@
 namespace Sts2Solver.Ai.Combat.Quality;
 
 /// <summary>
-/// The best potion-free victory found so far. <see cref="StrategicHpDeficit"/> is net of the goal
-/// credit it earned; <see cref="GoalsComplete"/> is false while some relic counter target is unmet, and
-/// then an equal-HP state may still beat it on the goals.
+/// The best selectable victory found so far, potion routes included. <see cref="EffectiveHpDeficit"/> is
+/// the route key's effective deficit: the strategic HP deficit net of the goal credit it earned, plus its
+/// optional potions priced in HP. <see cref="GoalsComplete"/> is false while some relic counter target is
+/// unmet, and then an equal-value state may still beat it on the goals.
 /// </summary>
 internal readonly record struct SearchIncumbent(
-    int StrategicHpDeficit,
+    int EffectiveHpDeficit,
     int CombatEndedTurn,
     int GoalHpCredit = 0,
     int GoalCount = 0,

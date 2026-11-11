@@ -2,6 +2,7 @@
 // CombatSearchCoordinator.PotionChain.cs at a62f1850 (MIT License, Copyright (c) 2026 Torch1230
 // and contributors). Every member has an independent deadline.
 using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Ai.Combat.Quality;
 using Sts2Solver.Ai.Combat.Scoring;
 using Sts2Solver.Simulation.Combat;
 
@@ -81,6 +82,9 @@ internal static class CombatSearchCoordinator
             ? new SortedDictionary<string, int>(drops, StringComparer.Ordinal)
             : null;
         SearchInterimResult? bestComplete = resume?.BestComplete;
+        // The best selectable victory so far, handed to every later member as its starting pruning
+        // bound. A resumed search starts without one.
+        SearchIncumbent? bestIncumbent = null;
         PotionPolicy[] policies = ResolvePolicies(out string?[] skips);
         for (int index = resume?.NextMemberIndex ?? 0; index < members.Length; index++)
         {
@@ -130,6 +134,7 @@ internal static class CombatSearchCoordinator
                 Potions = policies[index],
                 AuditPotionPolicy = potionPhase,
                 PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
+                IncumbentSeed = bestIncumbent,
                 Progress = progress,
             };
             options = SearchBudgetPolicy.Apply(options, SearchBudgetPolicy.EndedKeepWidths,
@@ -301,7 +306,8 @@ internal static class CombatSearchCoordinator
                 try
                 {
                     BeamSolver.Candidate candidate = quality.AssessResult(initial.Battles, beam,
-                        token, ValidationExpired, out Outcome outcome, out int rawHpLost, out bool meetsGoal);
+                        token, ValidationExpired, out Outcome outcome, out int rawHpLost, out bool meetsGoal,
+                        out SearchIncumbent? memberBound);
                     hpLost = rawHpLost;
                     potionCount = candidate.ExplicitPotionUseCount;
                     memberStatus = outcome == Outcome.Victory ? CombatSearchStatus.Victory
@@ -312,6 +318,9 @@ internal static class CombatSearchCoordinator
                         && (free is null || quality.ComparePolicyResults(candidate, free.Value) < 0))
                         free = candidate;
                     bool policyEligible = quality.IsPolicyEligible(candidate, free);
+                    if (policyEligible && memberBound is { } bound
+                        && IncumbentPolicy.IsTighter(bound, bestIncumbent))
+                        bestIncumbent = bound;
                     if (policyEligible
                         && (selected is null || quality.ComparePolicyResults(candidate, selected.Value) < 0))
                     {

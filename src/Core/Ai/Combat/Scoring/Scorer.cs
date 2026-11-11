@@ -414,6 +414,52 @@ internal sealed class Scorer
     /// them when a state actually enters a retention pool; the K4 differential calls the default
     /// (true) and keeps checking every field.
     /// </param>
+    /// <summary>
+    /// Potion uses read from the state: root slots whose potion is gone (Fairy in a Bottle is the only
+    /// automatic one) plus the generated-potion counters. Shared by the features and the pruning bound.
+    /// </summary>
+    internal PotionUsage MeasurePotions(in Battle battle)
+    {
+        int potionUseCount = 0;
+        int potionStrategicCost = 0;
+        int explicitPotionStrategicCost = 0;
+        int dearestExplicitCost = 0;
+        for (int slot = 0; slot < _score.RootPotionSlotCount && slot < Limits.PotionSlots; slot++)
+        {
+            ushort rootPotion = _score.RootPotions[slot];
+            if (rootPotion == 0)
+                continue;
+            if (slot >= battle.PotionSlotCount || battle.Potions[slot] != rootPotion)
+            {
+                int cost = _score.PotionStrategicCost[rootPotion - 1];
+                potionUseCount = checked(potionUseCount + 1);
+                potionStrategicCost = checked(potionStrategicCost + cost);
+                // Automatic potion uses are death saves (Fairy in a Bottle), which the search never
+                // offers explicitly and which empty their slot when they fire.
+                if (rootPotion != _score.FairyInABottlePotionId + 1)
+                {
+                    explicitPotionStrategicCost = checked(explicitPotionStrategicCost + cost);
+                    dearestExplicitCost = Math.Max(dearestExplicitCost, cost);
+                }
+            }
+        }
+        int automaticPotionUseCount = battle.Counter(Counter.AutomaticPotionUseCount);
+        // Generated potions never occupied a root slot, so the slot diff cannot see their use. The
+        // packed cost distinguishes explicit from automatic uses (Fairy in a Bottle); the free
+        // EntropicBrew uses carry zero.
+        potionUseCount = checked(potionUseCount + battle.Counter(Counter.GeneratedPotionUseCount));
+        int generatedCosts = battle.Counter(Counter.GeneratedPotionStrategicCost);
+        int generatedExplicitCost = generatedCosts & 0xFFFF;
+        int generatedAutomaticCost = (int)((uint)generatedCosts >> 16);
+        potionStrategicCost = checked(potionStrategicCost + generatedExplicitCost + generatedAutomaticCost);
+        explicitPotionStrategicCost = checked(explicitPotionStrategicCost + generatedExplicitCost);
+        // The generated uses are one packed sum, so they count as a single potion here: the dearest
+        // cost can only be overstated, never understated, and it still never falls along a route.
+        dearestExplicitCost = Math.Max(dearestExplicitCost, generatedExplicitCost);
+        return new PotionUsage(potionUseCount, potionStrategicCost, explicitPotionStrategicCost,
+            automaticPotionUseCount, dearestExplicitCost);
+    }
+
     public ScoreFeatures Features(in Battle battle, int actionCount, bool includeRetentionOnly = true)
         => Evaluate(battle, actionCount, includeRetentionOnly);
 
@@ -917,35 +963,8 @@ internal sealed class Scorer
         if (risk)
             score += ScoreWeights.RiskPenalty;
 
-        int potionUseCount = 0;
-        int potionStrategicCost = 0;
-        int explicitPotionStrategicCost = 0;
-        for (int slot = 0; slot < _score.RootPotionSlotCount && slot < Limits.PotionSlots; slot++)
-        {
-            ushort rootPotion = _score.RootPotions[slot];
-            if (rootPotion == 0)
-                continue;
-            if (slot >= battle.PotionSlotCount || battle.Potions[slot] != rootPotion)
-            {
-                int cost = _score.PotionStrategicCost[rootPotion - 1];
-                potionUseCount = checked(potionUseCount + 1);
-                potionStrategicCost = checked(potionStrategicCost + cost);
-                // Automatic potion uses are death saves (Fairy in a Bottle), which the search never
-                // offers explicitly and which empty their slot when they fire.
-                if (rootPotion != _score.FairyInABottlePotionId + 1)
-                    explicitPotionStrategicCost = checked(explicitPotionStrategicCost + cost);
-            }
-        }
-        int automaticPotionUseCount = battle.Counter(Counter.AutomaticPotionUseCount);
-        // Generated potions never occupied a root slot, so the slot diff cannot see their use. The
-        // packed cost distinguishes explicit from automatic uses (Fairy in a Bottle); the free
-        // EntropicBrew uses carry zero.
-        potionUseCount = checked(potionUseCount + battle.Counter(Counter.GeneratedPotionUseCount));
-        int generatedCosts = battle.Counter(Counter.GeneratedPotionStrategicCost);
-        int generatedExplicitCost = generatedCosts & 0xFFFF;
-        int generatedAutomaticCost = (int)((uint)generatedCosts >> 16);
-        potionStrategicCost = checked(potionStrategicCost + generatedExplicitCost + generatedAutomaticCost);
-        explicitPotionStrategicCost = checked(explicitPotionStrategicCost + generatedExplicitCost);
+        (int potionUseCount, int potionStrategicCost, int explicitPotionStrategicCost,
+            int automaticPotionUseCount, _) = MeasurePotions(battle);
         int defensiveBlockValue = MeasureDefensiveBlockReserve(battle, blockConsumed);
 
         // Retention-only projections (the existing search's StateEvaluation): the projected shuffle
@@ -3010,3 +3029,7 @@ internal sealed class Scorer
             ScoreWeights.RetainedAttackGrowthBeamCap,
             Math.Max(0, features.RetainedAttackValue - _score.InitialRetainedAttackValue));
 }
+
+/// <summary>The potion uses <see cref="Scorer.MeasurePotions"/> reads from a state.</summary>
+internal readonly record struct PotionUsage(int UseCount, int StrategicCost, int ExplicitStrategicCost,
+    int AutomaticUseCount, int DearestExplicitStrategicCost);

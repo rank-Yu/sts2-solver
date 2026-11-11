@@ -33,6 +33,7 @@ internal sealed record CaptureD2Member(
     bool SetupPolicy,
     bool ContinuousSetup,
     bool PotionFreeBaseline,
+    bool IncumbentSeed,
     long ElapsedMilliseconds,
     int ExpandedNodes,
     int TurnsSearched,
@@ -234,6 +235,7 @@ internal static class CaptureD2
                 setup,
                 continuous,
                 member.Options.PotionFreeBaseline != null,
+                member.Options.IncumbentSeed != null,
                 memberWatch.ElapsedMilliseconds,
                 beam?.ExpandedNodes ?? 0,
                 beam?.TurnsSearched ?? 0,
@@ -282,6 +284,7 @@ internal static class CaptureD2
                 + $"flame={member.BrightestFlameMaxHpLossLimit?.ToString() ?? "-"} "
                 + $"queen={member.QueenPolicy} setup={member.SetupPolicy} "
                 + $"continuous={member.ContinuousSetup} baseline={member.PotionFreeBaseline} "
+                + $"seed={member.IncumbentSeed} "
                 + $"ms={member.ElapsedMilliseconds} expanded={member.ExpandedNodes} "
                 + $"turns={member.TurnsSearched} stop={member.StopReason} win={member.Victory}");
         return 0;

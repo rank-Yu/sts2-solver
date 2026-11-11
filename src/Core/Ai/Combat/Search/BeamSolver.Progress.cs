@@ -63,7 +63,8 @@ internal sealed partial class BeamSolver
             built.Actions,
             built.Turns,
             built.Victory,
-            built.OnlyDeathRoutes);
+            built.OnlyDeathRoutes,
+            built.RankKey);
         SearchCurrentTurnPreview? current = built is null ? null : CurrentTurnPreview(built);
         channel.Publish(new SearchProgressSnapshot(
             channel.MemberIndex,
@@ -162,7 +163,7 @@ internal sealed partial class BeamSolver
             throw new InvalidDataException("推演候选的终局路线回放后胜负与搜索记录不一致。");
         int version = ++_progressCandidateVersion;
         return new SearchRouteCandidate(version, _initialPlayerTurn, replay.ThroughTurn, rootIndex,
-            actions, finalState, replay.Turns, chosenKey.Score, chosenKey.Won, onlyDeathRoutes);
+            actions, finalState, replay.Turns, chosenKey.Score, chosenKey.Won, onlyDeathRoutes, chosenKey);
     }
 
     /// <summary>

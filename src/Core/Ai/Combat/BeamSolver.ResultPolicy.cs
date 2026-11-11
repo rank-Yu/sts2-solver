@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Ai.Combat.Quality;
 using Sts2Solver.Ai.Combat.Scoring;
 using Sts2Solver.Simulation.Combat;
 
@@ -10,6 +11,16 @@ internal sealed partial class BeamSolver
     /// <summary>Replays and validates a member result against the request's original policy.</summary>
     internal Candidate AssessResult(IReadOnlyList<Battle> roots, BeamResult result,
         CancellationToken token, Func<bool> expired, out Outcome outcome, out int hpLost, out bool goalReached)
+        => AssessResult(roots, result, token, expired, out outcome, out hpLost, out goalReached, out _);
+
+    /// <summary>
+    /// As above; <paramref name="incumbent"/> is the pruning bound the route sets for later members (a
+    /// victory without death save or risk, valued by its effective deficit), or null. Whether the
+    /// potion policy admits the route is the caller's check.
+    /// </summary>
+    internal Candidate AssessResult(IReadOnlyList<Battle> roots, BeamResult result,
+        CancellationToken token, Func<bool> expired, out Outcome outcome, out int hpLost, out bool goalReached,
+        out SearchIncumbent? incumbent)
     {
         if ((uint)result.BestRootIndex >= (uint)roots.Count)
             throw new InvalidDataException("搜索路线的根索引无效。");
@@ -76,9 +87,13 @@ internal sealed partial class BeamSolver
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;
         int optional = Math.Max(0, features.ExplicitPotionUseCount);
-        int optionalCost = OptionalPotionStrategicCost(
-            Math.Max(0, features.ExplicitPotionStrategicCost), optional);
         RouteKey key = Key(end, features, actionCount);
+        int optionalCost = key.OptionalPotionPrice;
+        incumbent = _bound is not null && key.Won && features.ProjectedDeathSaveUseCount == 0
+            && !_bound.HasRisk(end)
+                ? new SearchIncumbent(key.EffectiveHpDeficit, end.PlayerTurn, features.StrategyGoalHpCredit,
+                    features.StrategyGoalCount, _scorer.RelicGoalsMet(features))
+                : null;
         bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features) && _scorer.RelicGoalsMet(features);
         bool safeVictory = key.Won && features.ProjectedDeathSaveUseCount == 0 && goalsSatisfied;
         goalReached = safeVictory && !_options.HasUnboundedGrowthTargets

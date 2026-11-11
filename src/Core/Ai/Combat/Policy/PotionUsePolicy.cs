@@ -31,6 +31,22 @@ internal static class PotionUsePolicy
             ? Math.Max(1, optionalPotionStrategicCost - replacementHpCredit)
             : optionalPotionStrategicCost;
 
+    /// <summary>Share of its strategic cost each optional potion beyond the dearest one is priced at.</summary>
+    public const decimal AdditionalPotionPriceFactor = 0.5m;
+
+    /// <summary>
+    /// The strategic price of a route's optional potions: the dearest at its full cost, every other one at
+    /// <see cref="AdditionalPotionPriceFactor"/>. A single potion keeps its full price; further potions
+    /// cost less, so a second potion pays off once it saves half its own price. The price never falls as
+    /// a route drinks more, and it does not depend on the drinking order.
+    /// </summary>
+    public static int OptionalPotionPrice(int explicitPotionStrategicCost, int dearestPotionStrategicCost)
+    {
+        int total = Math.Max(0, explicitPotionStrategicCost);
+        int dearest = Math.Clamp(dearestPotionStrategicCost, 0, total);
+        return checked(dearest + (int)Math.Ceiling((total - dearest) * AdditionalPotionPriceFactor));
+    }
+
     public static int HpSaved(int potionFreeHpDeficit, int potionRouteHpDeficit)
         => Math.Max(0, potionFreeHpDeficit - potionRouteHpDeficit);
 

@@ -92,7 +92,8 @@ internal sealed record SearchRoutePreview(
     PlayerAction[] Actions,
     SearchProgressTurn[] Turns,
     bool Victory,
-    bool OnlyDeathRoutes);
+    bool OnlyDeathRoutes,
+    BeamSolver.RouteKey RankKey);
 
 /// <summary>The speculative route's current-turn slice and its end-of-turn values.</summary>
 internal sealed record SearchCurrentTurnPreview(
@@ -153,7 +154,8 @@ internal sealed record SearchRouteCandidate(
     SearchProgressTurn[] Turns,
     double Score,
     bool Victory,
-    bool OnlyDeathRoutes);
+    bool OnlyDeathRoutes,
+    BeamSolver.RouteKey RankKey);
 
 /// <summary>One pending adoption/stop request; only the channel's lock protects it.</summary>
 internal readonly record struct SearchControlRequest(int CandidateVersion, bool Stop);

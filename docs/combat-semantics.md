@@ -118,7 +118,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 3. **进入打出区**：卡从手牌移到打出区（不触发 `AfterCardChangedPiles`）；确定基础去向（复制品或能力牌 → 无；下次打出时消耗或带消耗关键字 → 消耗堆；其余 → 弃牌堆；个别卡牌覆写）；`ModifyCardPlayResultLocation`，随后只对改变去向的监听者派发 `AfterModifyingCardPlayResultLocation`（Corruption 把 Skill 改成消耗；改变“移出战斗”的基础去向显式拒绝）。去向的位置和原生 `CardLocation` 结构一样逐个监听者传下去：不改去向的监听者保留传入的位置（ShiningStrike 的基础去向是抽牌堆顶，Feral 不生效时它仍回到堆顶，也不算 Feral 改过），改去向的只改原版改的字段；消耗堆不支持非堆底位置，遇到时显式拒绝；打出次数 = 附魔重放 + 1 → `ModifyCardPlayCount` → `AfterModifyingCardPlayCount`（只对改变次数的监听者；OneTwoPunch/Duplication 在此递减）；持有者已死则结束。
 4. **每次打出**：战斗已结束则停止；`BeforeCardPlayed`（原生 `CardPlay.Card` 是可变的 `CardModel`，这里读打出区上的实时牌值：魅惑在第一次打出的 `AfterCardPlayed` 里停用，重放开始时 Juggling 克隆出的牌带着已停用的魅惑）；历史计数；执行卡牌效果；结算卡牌自身选择。
 5. **卡牌效果顺序**：一张牌的效果分两段执行，顺序与原引擎相同。先跑“镜像”部分，也就是原引擎从原版代码推断或专门复刻的攻击、格挡、抽牌；再跑“补偿”部分，也就是 `CardEffectSpecRegistry` 与 `CorePowerSupport.ApplyCardPowers` 里另外补写的 Power、资源、生成效果。**补偿效果总在镜像效果之后**，这是原引擎的实际顺序。
-   - 两段之间要先结算一次敌人死亡。原引擎在 `CorePowerSupport.ApplyCardPowers` 里先执行 `CardOnPlaySupport.Apply`，接着立即 `ApplyEnemyDeathPowers`，最后才进入这张牌专属的补偿 `switch`。像 Thunderclap 这样的牌，镜像攻击可能杀掉一个死后会召唤新怪的敌人，接着又要给“当前所有敌人”上 Power，新怪必须先进场。Sts2Solver 的对应定义在镜像攻击和专属补偿之间调用 `ApplyEnemyDeathPowers`；`PlayFromPlay` 还会在整张牌的 `OnPlay` 之后、`OwnChoice` 之前再结算一次。
+   - 两段之间要先结算一次敌人死亡。原引擎在 `CorePowerSupport.ApplyCardPowers` 里先执行 `CardOnPlaySupport.Apply`，接着立即 `ApplyEnemyDeathPowers`，最后才进入这张牌专属的补偿 `switch`。像 Thunderclap 这样的牌，镜像攻击可能杀掉一个死后会召唤新怪的敌人，接着又要给“当前所有敌人”上 Power，新怪必须先进场。Sts2Solver 在击杀内部就结算死亡效果（见[伤害管线](#5-伤害管线)第 6 步），新怪在补偿效果之前已经进场；对应定义仍在镜像攻击和专属补偿之间调用 `ApplyEnemyDeathPowers`，派发排队的 Power 数量变化；`PlayFromPlay` 还会在整张牌的 `OnPlay` 之后、`OwnChoice` 之前再调用一次。
    - 卡牌可以覆写 `ResultLocation`，复刻 `CardResultLocationMirrors.GetResultLocationForCardPlay`：ShiningStrike 回抽牌堆顶，ParticleWall 回手牌。基础去向仍由规则表的类型和关键字决定。
 6. **收尾**：持有者已死则中止；附魔 OnPlay → 苦难 OnPlay；`AfterCardPlayed` 普通阶段 → 重新读取监听列表后跑 Late 阶段（战斗正在结束也照常触发）；`ResolvePowerAmountChanges`（`CompleteCardPlayEffects`）；生命周期计数。
 7. **去向**：仍在打出区的卡按去向处理（无 → 移出战斗；消耗 → `AfterCardExhausted`；否则加入目标牌堆）；不在嵌套效果中时触发 `AfterHandEmptied`；清理费用与目标。
@@ -160,7 +160,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 
 ## 5. 伤害管线
 
-攻击、伤害、击杀三层依次嵌套：攻击决定打几下、打谁；伤害对每个目标算数值和格挡；击杀处理死亡和死亡阻止。敌人的死亡效果统一延后到动作边界结算。
+攻击、伤害、击杀三层依次嵌套：攻击决定打几下、打谁；伤害对每个目标算数值和格挡；击杀处理死亡和死亡阻止。敌人的死亡效果在击杀内部当场结算，与原版 `CreatureCmd.Kill` 一致；原引擎把它延后到出牌补偿之前或动作边界，Sts2Solver 不沿用这一近似。
 
 来源：`S/CombatPredictionSimulator.Attack.cs:83-165`、`S/CombatPredictionSimulator.Damage.cs:55-467`、`M/Hooks/Damage/ModifyDamageMirrors.cs`。
 
@@ -168,8 +168,8 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 2. **伤害**：先对全部目标计算并扣除，再统一处理结果。
 3. **单目标**：目标已死则跳过；`ModifyDamage` = 附魔加成与倍率 → 按监听顺序的加法阶段（力量等）→ 乘法阶段（易伤、虚弱等）→ 取所有 `ModifyDamageCap` 的最小值 → 钳制到 ≥ 0。全程 `decimal`，不取整。卡牌动态变量同样按原引擎的 `decimal` 读取：Thrash 的 `Damage` 偏移存在 `Battle.DecimalVars`，`CardEffects.Var` 返回同一个 `decimal`；只有 HP 损失按原引擎的位置 `(int)` 截断，评估先做 `decimal` 加法再转 `double`。`BeforeDamageReceived`；格挡吸收（目标是 Osty 时扣其主人的格挡；不可格挡伤害跳过）；`ModifyHpLost` BeforeOsty 与其 Late → Osty 重定向 → AfterOsty 与其 Late → `AfterModifyingHpLostAfterOsty`；失血时 `(int)` 截断；失血 ≥ 当前 HP 视为击杀。
 4. **结果处理**：`AfterBlockBroken` → `AfterCurrentHpChanged` → `AfterDamageGiven` → 未被击杀时 `AfterDamageReceived`（含 Late）；之后执行击杀，或所有玩家死亡时判负。每次结果同时按 `RecordDamageReceived` 记录玩家对敌人的 powered attack 命中（完全格挡也计数，非强化伤害不计），供 BeatIntoShape 的按目标锻造乘数读取；该计数在玩家回合开始清零，超过 255 按 `UnsupportedException` 拒绝。卡牌击杀目标（`Exec.CardKilledTarget`）按伤害的卡来源判断，玩家或 Osty 打出的同一张牌都能置位。
-5. **击杀**：扣光剩余 HP 并触发 `AfterCurrentHpChanged` → `BeforeDeath` → `ShouldDie`（第一个阻止者生效）。死亡：`AfterDeath` → 移出阵容 → 主敌人死亡且只剩附属时附属一并死亡。被阻止：`AfterDeath(prevented)` 与 `AfterPreventingDeath`，最多递归 10 次。
-6. **敌人死亡效果**：由 `ApplyEnemyDeathPowers` 结算（`P/CorePowerSupport.cs:597-674`）：死亡 Power（Ravenous、Surrounded、召唤）→ 清除死者施加的 Constrict、Hex、Shrink、MagicBomb。卡牌攻击在 `ApplyCardPowers` 的位置统一结算；遗物和 Power 在回合/出牌 Hook 里独立造成的伤害（Kusarigama、Tingsha、ParryingShield、ForgottenSoul、SerpentForm）在伤害调用返回后立即结算，下一次重放能看到死亡 Power 的效果。`SteamEruptionPower.AfterDeath` 属于普通 `AfterDeath` 监听者，在 `Kill` 内部立即改写死亡，不进入这条清算；见 [偷窃与瀑布巨兽](#14-偷窃与瀑布巨兽)。
+5. **击杀**：扣光剩余 HP 并触发 `AfterCurrentHpChanged` → `BeforeDeath` → `ShouldDie`（第一个阻止者生效）。死亡：`AfterDeath` → 敌人死亡效果的前半（第 6 步）→ 读取存活队友（包含刚召唤的新怪）→ 移出阵容 → 判定是否主敌人 → 死亡效果的后半 → 主敌人死亡且只剩附属时附属一并死亡。被阻止：`AfterDeath(prevented)` 与 `AfterPreventingDeath`，最多递归 10 次。
+6. **敌人死亡效果**：在击杀内部、原版 `AfterDeath` 的位置结算（`Kernel.BeginEnemyDeath`、`Kernel.CompleteEnemyDeath`）。前半标记死亡已处理，按死亡前的 Power 快照执行死亡 Power（Surprise、Infested 召唤新怪，Possess 归还偷走的力量或敏捷，Reattach、Adaptable 转入复活招式），再归还被偷的资源；后半在死者离开阵容后移除它的 Power、完成死亡阶段，并清除它施加的 Constrict、Hex、Shrink、MagicBomb。所以同一次攻击的下一击已经能看到新召唤的怪和还回的力量：随机多段攻击在新怪里抽目标，打全体的多段攻击也会打到它们。`ApplyEnemyDeathPowers` 仍在原引擎的位置调用（出牌补偿之前、Hook 伤害之后、动作边界），只结算没有经过 `Kill` 的死亡，并派发排队的 Power 数量变化。`SteamEruptionPower.AfterDeath` 属于普通 `AfterDeath` 监听者，在 `Kill` 内部立即改写死亡，不进入这条清算；见 [偷窃与瀑布巨兽](#14-偷窃与瀑布巨兽)。
 
 **攻击后的死亡结算。** 原版 `DamageCmd.Attack.Execute` 返回前已结算被击杀敌人的死亡 Power；同一张卡在攻击之后立刻读取状态时必须看到这些结算。Uproar 在两段攻击后先结算敌人死亡 Power，再抽牌选择自动打出的攻击，所以击杀 ShrinkerBeetle 后 ShrinkPower 已移除，后续伤害按未缩小计算。
 
@@ -346,7 +346,7 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 
 **TwoTailedRat**：AI 寄存器 0 是 `_turnsUntilSummonable`（初始 2），1 是 `_callForBackupCount`（初始 0）。`SCRATCH_MOVE`/`DISEASE_BITE_MOVE`/`SCREECH_MOVE` 递减前者；`CALL_FOR_BACKUP_MOVE` 在 `LastFreeSlot` 生成一只新鼠，再把名单中所有鼠的后一个寄存器同步为（最大值 + 1）。随机分支权重按 `BranchMonsterAi.GetBranchWeight`：可召唤时 CALL_FOR_BACKUP 为 0.75、其余三者各 1/12；不可召唤时 CALL_FOR_BACKUP 为 0、其余为 1。可召唤条件按 `CanTwoTailedRatSummon`：回合计数不大于 0、计数小于 3、`NextFreeSlot` 非空，且其他鼠当前行动不是 CALL_FOR_BACKUP。`SCREECH_MOVE` 还给玩家 1 层 Frail。
 
-**寄生死亡与召唤**：`InfestedPower` 在死亡效果清算阶段（`ApplyEnemyDeathPowers` 的 `DeathPowerSupport.Trigger` 位置）生成四只 `Wriggler` 到 `wriggler1..4` 槽位，创建时 `StartStunned = true`。它们是主要敌人；在死亡效果尚未清算、尸体已离开名单的窗口里，`HasUnresolvedSpawningDeath`（`SpawnsPrimaryEnemyOnDeath`）让 `IsEnding` 继续为假，与原引擎一致（`Hook.ShouldStopCombatFromEnding` 的活动监听表此时看不到已移除尸体的 Power）。
+**寄生死亡与召唤**：`InfestedPower` 在击杀内部、原版 `AfterDeath` 的位置生成四只 `Wriggler` 到 `wriggler1..4` 槽位，创建时 `StartStunned = true`；此时尸体还在名单里，与原版先 `AfterDeath` 后移出战斗的顺序一致。它们是主要敌人，同一次攻击的后续命中可以打到它们。`HasUnresolvedSpawningDeath`（`SpawnsPrimaryEnemyOnDeath`）让尸体已离开名单、死亡效果尚未结算时 `IsEnding` 继续为假；击杀已在内部结算，只有不经过 `Kill` 的死亡才会走到这里。
 
 **重接复活**：`ReattachPower` 不阻止击杀命中，但阻止尸体离场（`PreventsRemovalAfterDeath`），`ShouldPowerBeRemovedAfterOwnerDeath` 为假。死亡效果清算时，若还有另一段能行动（存活或 `Reviving`）则死亡阶段改为 `Reviving` 并强制 `DEAD_MOVE`，否则所有段改为 `PermanentlyDead`。`REATTACH_MOVE` 由怪物的 `ResolveReviveMove` 处理：仍有一段能行动时按 `ReattachPower` 数量回血并清除 `Reviving`。Reviving 段的 `CurrentHp` 为 0，`IsHittable` 自然为假；评估的 `EffectiveEnemyHp` 在有其他未永久死亡段时取 `ReattachPower` 数量，否则为 0。`ShouldOwnerDeathTriggerFatal` 同样按分支名单的 Power 与 HP/死亡状态计算；Sts2Solver 使用 `Battle` 段状态，原引擎使用 `SimulatedCombatState.ShouldOwnerDeathTriggerFatal`，双方都不能调用原版 live `ReattachPower.AreAllOtherSegmentsDead`。
 

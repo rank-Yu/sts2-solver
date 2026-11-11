@@ -48,7 +48,8 @@ public static partial class Kernel
         // Native Hook.ShouldStopCombatFromEnding iterates the active listeners, which no longer hold a
         // removed dead creature's powers, so the existing engine's equivalent stop is
         // SimulatedCombatState.HasUnresolvedSpawningDeath: an enemy that left the roster, has not
-        // completed its death effects, and still holds a power that spawns primary enemies.
+        // completed its death effects, and still holds a power that spawns primary enemies. A kill
+        // completes the death effects inside Kill, so only a death outside Kill can reach this.
         if (HasUnresolvedSpawningDeath(battle))
             return false;
         return true;

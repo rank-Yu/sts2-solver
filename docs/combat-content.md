@@ -28,7 +28,7 @@
 
 - **Scrape**：攻击后抽 `Cards` 张，弃掉其中费用不为 0 的牌（X 费也算；不可打出的 -1 费会保留负值，因此会被弃掉）。抽牌钩子移动或自动打出抽到的牌后仍按对象身份弃置。对照 `CardDrawCardMirrors.ScrapeOnPlay` 与 `CardCmd.Discard`。
 - **KnifeTrap**：按消耗堆顺序取出 Shiv（按“值 + 同值第几张”定位），升级版先把该 Shiv 升一级，再自动打出到同一目标；Shiv 带消耗关键字，打出后回到消耗堆。位置假设不成立（抽牌钩子移动了牌）时抛 `UnsupportedException`。对照 `CardOnPlaySupport.Batch043.ApplyKnifeTrap`。
-- **EchoingSlash**：`Kernel.CardAttackRepeating` 在一个攻击上下文里分波打全体敌人，`BeforeAttack`、`AfterAttack` 各只派发一次。每波对当前全部存活敌人造成一次伤害，随后用**当前名单**结算死亡，每击杀一名敌人追加一波。每波开始前从 `Exec.PlayPosition` 重新读取当前打出的牌和伤害变量（原引擎每波读 `base.DynamicVars.Damage`）：Dampen 的最后一位施法者在本波死亡时会恢复卡牌升级，后续波次必须用恢复后的伤害。因为死亡结算只遍历当前名单，击杀后已离场的 Infested 尸体不会在下一波伤害前生成 Wriggler。对照 `CardOnPlaySupport.Batch042.ApplyEchoingSlash`。
+- **EchoingSlash**：`Kernel.CardAttackRepeating` 在一个攻击上下文里分波打全体敌人，`BeforeAttack`、`AfterAttack` 各只派发一次。每波对当前全部存活敌人造成一次伤害，随后用**当前名单**结算死亡，每击杀一名敌人追加一波。每波开始前从 `Exec.PlayPosition` 重新读取当前打出的牌和伤害变量（原引擎每波读 `base.DynamicVars.Damage`）：Dampen 的最后一位施法者在本波死亡时会恢复卡牌升级，后续波次必须用恢复后的伤害。死亡效果在击杀内部已经结算，击杀 Infested 后生成的 Wriggler 在下一波之前进场并挨打（原版每波重新读取 `HittableEnemies`）；打死 Possess 敌人时还回的力量也计入下一波。对照 `CardOnPlaySupport.Batch042.ApplyEchoingSlash`。
 - **Burst**：`BurstPower.ModifyCardPlayCount` 给技能牌 +1 次重放，`AfterModifyingCardPlayCount` 减一层，`EndTurnRegular` 移除。对照 `ModifyCardPlayCountMirrors` 与 `CorePowerSupport` 的 Burst 分支。
 - **Shadowmeld**：`ShadowmeldPower.ModifyBlockMultiplicative` 按 2^层数放大其主人的格挡（不少于 96 层时取 `decimal.MaxValue`，与原引擎的溢出阀一致），侧回合末移除。对照 `ModifyBlockMultiplicativeMirrors.HandleShadowmeldPower`。
 - **ToolsOfTheTrade**：`ModifyHandDraw` 加层数；玩家回合开始按层数弃牌。对照 `TurnStartPowerSupport` 的 ToolsOfTheTrade 分支、`PlanChoiceEffect.Discard`。
@@ -216,12 +216,13 @@
 
 这一节是和角色无关、但结算口径不显然的卡牌与 Power，很多是怪物施加给玩家的。
 
-**攻击后抽牌的死亡结算。** 原引擎 `CorePowerSupport.ApplyCardPowers` 在镜像攻击之后、卡牌专属补偿之前结算敌人死亡。PommelStrike、DaggerThrow、FlashOfSteel、MinionStrike、PhotonCut、RocketPunch、SweepingBeam、CompileDriver、Ftl 因此在攻击和抽牌之间调用 `ApplyEnemyDeathPowers`（Thrash 同样在两段命中之后、随机读手牌攻击牌的伤害之前结算：打死窃取力量的敌人会先把力量还给玩家，被消耗的牌按还回后的力量计算），让抽牌时看到的 `HittableEnemies` 和 Hellraiser 与原引擎一致。
+**攻击后抽牌的死亡结算。** 原引擎 `CorePowerSupport.ApplyCardPowers` 在镜像攻击之后、卡牌专属补偿之前结算敌人死亡。PommelStrike、DaggerThrow、FlashOfSteel、MinionStrike、PhotonCut、RocketPunch、SweepingBeam、CompileDriver、Ftl 因此在攻击和抽牌之间调用 `ApplyEnemyDeathPowers`（Thrash 同样在两段命中之后、随机读手牌攻击牌的伤害之前调用）。击杀的死亡效果已在击杀内部结算（打死窃取力量的敌人时力量当场还给玩家，Thrash 被消耗的牌按还回后的力量计算），这些调用派发排队的 Power 数量变化，让抽牌时的 Hellraiser 等监听与原引擎一致。
 
 **依赖本次出牌伤害的卡。** 这几张读的是本次出牌期间的瞬态伤害合计（字段见 [状态布局](combat-state-layout.md#42-动作期间的瞬态exec)）：
 
 - **Fisticuffs**：镜像攻击后先结算敌人死亡，再按本次出牌全部命中的伤害合计获得格挡（`CorePowerSupport` 的 Fisticuffs 分支）。
-- **Omnislice**：第一击后结算死亡，再把最近一次伤害的“格挡 + 未格挡 + 溢出”以 `Unpowered | Move` 打给目标以外的所有可命中敌人（`CardOnPlaySupport.Batch042.ApplyOmnislice`）。原始命中与复制命中在同一个 `AttackContext` 里：`BeforeAttack` 一次、`AfterAttack` 在两者都结束后一次，`AddHit` 不增加出牌的攻击历史计数。它的死亡结算也只遍历当前名单，所以击杀后离场的 Infested 尸体不会在复制伤害前生成 Wriggler。
+- **Omnislice**：第一击后结算死亡，再把最近一次伤害的“格挡 + 未格挡 + 溢出”以 `Unpowered | Move` 打给目标以外的所有可命中敌人（`CardOnPlaySupport.Batch042.ApplyOmnislice`）。原始命中与复制命中在同一个 `AttackContext` 里：`BeforeAttack` 一次、`AfterAttack` 在两者都结束后一次，`AddHit` 不增加出牌的攻击历史计数。击杀 Infested 时 Wriggler 在击杀内部生成，作为目标的队友也会挨复制伤害（原版按 `GetTeammatesOf` 重新读取可命中敌人）。
+- **Feed**：出牌前按目标所有 Power 的 `ShouldOwnerDeathTriggerFatal` 判定致命（随从不算；Decimillipede 的一节只有其余各节都已死亡时才算），攻击击杀目标且致命时提高最大生命并记成长收益。
 - **HandOfGreed**：镜像攻击后检查本次出牌是否击杀了目标、且目标所有 Power 都允许致命（`ShouldOwnerDeathTriggerFatal`），成功则走 `Kernel.GainGold`（原版 `PlayerCmd.GainGold`）并把实际到手的整数金币记入 `LongTermResourceValue`，随后照常记成长收益。
 - **战斗内金币。** `Kernel.GainGold` 是战斗内唯一的得金币入口：先按原版顺序跑 `ModifyGoldGained`（跑局监听者先于战斗监听者；BowlerHat 乘 `GoldIncrease`，Ectoplasm 归零），只对截断后金额发生变化的监听者派发 `AfterModifyingGoldGained`；修饰后金额为正时把截断值加到 `Battle.Gold`，再跑 `AfterGoldGained`（DragonFruit 按 `MaxHp` 变量调用 `GainMaxHp`，同时提高最大生命并回复同量，Melted 遗物不参与）。原生 `AfterGoldGained` 只遍历跑局监听者（牌组卡、遗物、药水、Modifier 等），战斗内的 Power、怪物、球和战斗牌副本不在此列；Sts2Solver 只表示遗物和药水，牌组卡若带这些 Hook 在导入时拒绝。LuckyFysh 在贼死亡归还被偷牌时会因牌进入牌组而在战斗内得到金币，内核没有镜像 `AfterCardChangedPiles` 的这条牌组写入，因此剪枝把它当作不能按 HandOfGreed 存活份数界定的来源。
 - **GoldAxe**：`FinishedCardPlays` 计数器导入根历史的 `GetFinishedPlaysBeforePrediction`，每次完成出牌加一，作为 `CalculatedVarSpecRegistry` 的乘数。

@@ -19,15 +19,14 @@ public sealed class Feed : CardDef
     public override void OnPlay(ref Exec x)
     {
         byte target = x.Target;
-        // CorePowerSupport captures targetDeathTriggersFatal before the card's effects run. MinionPower
-        // is the only supported power that rejects a fatal kill, and it does so by making the owner a
-        // secondary enemy, which IsPrimaryEnemy reports.
-        bool fatal = target != Limits.NoOwner && Kernel.IsPrimaryEnemy(x.B, target);
+        // Native Feed reads Target.Powers.All(ShouldOwnerDeathTriggerFatal) before the attack: a minion
+        // never counts, and a Decimillipede segment (ReattachPower) counts only when every other
+        // segment is already dead.
+        bool fatal = target != Limits.NoOwner && Kernel.TargetDeathTriggersFatal(x.B, target);
         CardEffects.GeneralAttack(ref x, 0);
         if (x.NeedsChoice || target == Limits.NoOwner || x.B.Creature(target).IsAlive)
             return;
-        // CorePowerSupport.Feed only gains MaxHp after a fatal hit and only when every power of the
-        // target lets its owner's death trigger fatal (MinionPower is the supported such power).
+        // Feed only gains MaxHp after a fatal hit.
         if (!fatal)
             return;
         Kernel.GainMaxHp(ref x, Limits.PlayerOwner, CardEffects.Var(x, 1));

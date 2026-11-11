@@ -6,8 +6,8 @@
     "d2": "75217006903195bc94654680423bb9ca580ec48a",
     "d1Config": "66a43838d89e7a03b05c0f04d5e4941ff555baec",
     "formatMigration": "\u8BF7\u6C42 v10\u2192v11\u3001\u7ED3\u679C\u4ECD\u4E3A v6\uFF1ASREQ \u5220\u9664\u836F\u6C34\u653F\u7B56\u7684\u6700\u65E9\u559D\u836F\u56DE\u5408\u4E0E\u751F\u6548\u6A21\u5F0F\uFF08\u6539\u8BFB\u836F\u6C34\u7B56\u7565\u7684\u9ED8\u8BA4\u6A21\u5F0F\uFF09\u3001\u9009\u9879\u7684\u751F\u6548\u7528\u836F\u6A21\u5F0F\uFF08\u6539\u8BFB\u836F\u6C34\u653F\u7B56\uFF09\u3001\u4E0B\u754C\u914D\u7F6E\u7684\u5168\u90E8\u7981\u7528\u836F\u6C34\u3001\u6700\u591A\u7528\u836F\u6B21\u6570\u4E0E\u6839\u836F\u6C34\u526F\u672C\u3002D1 config.br \u4E0E D2 request.br \u673A\u68B0\u91CD\u7F16\u7801\uFF1B\u65E7\u6570\u636E\u91CC\u53EA\u5DEE\u8FD9\u4E9B\u5B57\u6BB5\u7684 28 \u4E2A\u91CD\u590D D2 \u8BF7\u6C42\u5408\u5E76\u4E3A\u4E00\u4E2A\uFF082015\u21921987\uFF09\uFF0C\u6309\u65B0\u8BED\u4E49\u91CD\u51BB\u540E 22 \u4E2A\u671F\u671B\u7ED3\u679C\u53D8\u5316\uFF081 \u6761\u8DEF\u7EBF\u591A 1 \u8840\uFF0C\u5176\u4F59\u53EA\u662F\u5C55\u5F00\u6570\uFF09\uFF0C\u5176\u4F59 1965 \u4E2A\u9010\u5B57\u8282\u4E0D\u53D8\u3002D1 \u7684 score \u54C8\u5E0C\u53EA\u5199\u5F53\u524D ScoreFeatures \u5B57\u6BB5\u3002",
-    "refreeze": "cln1: SREQ v11 \u5220\u9664\u6700\u65E9\u559D\u836F\u56DE\u5408\u3001\u4E0B\u754C\u836F\u6C34\u9650\u5236\u4E0E\u6839\u836F\u6C34\u526F\u672C\uFF0C\u751F\u6548\u7528\u836F\u6A21\u5F0F\u6539\u8BFB\u836F\u6C34\u7B56\u7565\uFF1B28 \u4E2A\u53EA\u5DEE\u8FD9\u4E9B\u5B57\u6BB5\u7684\u91CD\u590D\u8BF7\u6C42\u5408\u5E76 sha256=22f8f6b43bb967d32f6405ea49963e535180970b1238a474aab3ecb835a0c6ef",
-    "d1Rerecord": "roots=a3-aeonglass-boss,a3-axebots-normal,a3-construct-menagerie-normal,a3-devoted-sculptor-weak,a3-fabricator-normal,a3-frog-knight-normal,a3-globe-head-normal,a3-knights-elite,a3-mecha-knight-elite,a3-owl-magistrate-normal,a3-queen-boss,a3-queen-chains,a3-scrolls-of-biting-normal,a3-scrolls-of-biting-weak,a3-slimed-berserker-normal,a3-soul-nexus-elite,a3-test-subject-boss,a3-the-lost-and-forgotten-normal,a3-turret-operator-weak,c1-choice-cards,cx-a-enchantments,cx-b-melancholy,df-a-orbs,df-b-attacks,df-c-powers,df-d-generation,df-e-relics,df-f-starters,df-g-extra,df-h-creator,dt-doom-fatal-timing,dx3-axebot-stock,dx3-chains-clone,dx3-dampen-level-zero,dx3-galvanic,dx3-gigantification-pending,dx3-hellraiser-infinite,dx3-hellraiser-revive,dx3-lamp-envenom,dx3-rampage-dampen,dx3-rampart-offroster,dx3-scythe-dampen,dx3-spawn-initial-log,dx3-vambrace-sly,dx4-drain-upgrade-ending,dx4-dread-baseline,dx4-sly-identity,dx5-battleworn-dummy-v1,dx5-battleworn-dummy-v2,dx5-battleworn-dummy-v3,dx5-history-course,dx5-history-course-choice,dx5-pen-nib-sly,dx6-dampen-echoing,dx7-distilled-chaos,dx7-droplet-fetched-power,dx7-duplicate-stomp,dx7-end-of-days-shroud,ec-a-event-attacks,ec-b-event-skills,ec-c-ancient,ec-d-quest-token,ec-e-mad-science,hs-chains-turn-reset,hs2-sword-sage-forge,hs3-calamity-nested,hs3-regent13-rolling,hs3-stoke-hand-cost,hs3-stoke-identity,hs4-dread-root-dexterity,hs4-testsubject-multiclaw,id-a-monologue-swordsage,id-b-nightmare-phantom,id-c-instanced-powers,id-d-fetch-delay,id-e-vambrace-lamp,id-f-generation,id-g-callofthevoid,k2-temporary-strength-artifact,k3-basic-potions,k4-player-plating-thorns,k5-intangible,ka-ceremonial-beast-boss,ka-infested-prisms-elite,ka-living-fog-normal,ka-mystic-lighter,ka-vine-shambler-normal,kb-a-thrash-decimal,kb-b-thrash-decimal-upgraded,kb-c-beatdown-relocate,kb-d-beatdown-relocate-upgraded,kg1-a-autoplay,kg1-b-autoplay-piles,kg1-c-transform-jackpot,kg2-a-corruption-unrelenting,kg2-b-stomp,kg2-c-one-two-punch,kg2-d-duplicator,kg2-e-vicious,kg2-f-the-abacus,kg2-g-chemical-x,kg2-h-ice-cream,kg2-i-ruined-helmet,kg2-j-ghost-seed,kg2-k-tear-asunder,kg2-l-unrelenting,kg2-m-thrash,km-fogmog-normal,km-two-tailed-rats-normal,km2-bowlbugs-normal,km2-bowlbugs-weak,km2-decimillipede,km2-hunter-killer,km2-kaiser-crab,km2-louse-progenitor,km2-phrog-parasite,km2-slumbering-beetle,ks-corpse-slugs-normal,ks-corpse-slugs-weak,ks-lagavulin-matriarch-boss,ks-terror-eel-elite,lr-a-choices,lr-b-decisions,lr-c1-history,lr-c2-generation,ls-a-silent-attacks,ls-b-silent-powers,ls-c-the-hunt,ls-d-necro,ls-e-defect,ls-g-mirage,ls-h-reptile,mb-entropic-brew,mb-insatiable,mb-knowledge-demon,nb-a-osty,nb-b-doom,nb-c-utility,nb-d-powers,nb-g-utility2,nb-h-powers3,nb-i-sacrifice,nb-j-eidolon,nb-k-doomkill,nb-l-osty-defense,p1-fuzzy-wurm-weak,p1-nibbits-normal,p1-nibbits-weak,p10-a-turn-end-status,p10-b-turn-end-curses,p10-c-empty-status,p10-d-empty-curses,p11-a-beating-remnant,p11-b-lizard-tail,p11-c-red-skull,p11-d-potions,p11-e-status-cards,p11-f-enthralled,p11-g-normality,p11-h-bygone-effigy-kill,p12-phantasmal-gardeners-elite,p12-skulking-colony-elite,p12-soul-fysh-boss,p12-the-kin-boss,p12-vantom-boss,p13-chompers-normal,p13-entomancer-elite,p13-exoskeletons-normal,p13-exoskeletons-weak,p13-mytes-normal,p13-ovicopter-normal,p13-spiny-toad-normal,p13-the-obscura-normal,p13-tunneler-weak,p14-a-power-cards,p14-b-aggression-discard,p14-c-unmovable-multi-block,p14-d-rupture,p15-a-skills,p15-b-draw-search,p15-c-turn-powers,p15-d-attacks,p15-e-attack-skill-mix,p15-f-powers-block,p15-g-hand-conditions,p15-h-restlessness,p16-a-damage-history,p16-b-selection-random,p16-c-instanced-powers,p16-d-entropy,p16-potions-character,p16-potions-colorless,p16-potions-gigantification,p2-a-basic-attacks,p2-b-calculated,p2-c-powers,p2-d-x-random,p3-a-power-cards,p3-b-block-exhaust,p3-c-self-damage,p3-d-feed-fatal,p4-a-power-cards,p4-b-temporary-powers,p4-c-attacks,p4-d-exhaust-draw,p7-class1-a,p7-class1-b,p7-class2,p7-class3-cards,p7-class3-empty-hand,p7-class3-turn2,p7-class3-turn3,p7-class3-turn7,p8-a-counters,p8-b-turn-relics,p8-c-rage-juggling-dark-embrace,p8-d-crimson-inferno,p9-card-flow,p9-damage,p9-debuff-damage,p9-defensive-powers,p9-draw,p9-heal,p9-heal-block,p9-offensive-powers,p9-replay-select,p9-stat-powers,p9-temp-powers,p9-upgrade,p9-utility-powers,pr-a-potions,pr-b-potions2,pr-c-relics,pr-d-inert,pr-e-osty-doom,pr-f-whispering,pr-g-orbs,pr-h-potions3,qf-fisticuffs-replay,qf-misery-roster,qf-negative-pulse-roster,qf-nightmare-detached,qf-seance-soul,qf-turn-start-choice-forge,qf2-gradient-failure,qf3-burrowed-compensation,qf3-decisions-duplicate,qf3-decisions-repeat,qf3-defect-endturn-orbs,qf3-hellraiser-entropy,qf3-mangle-plow,qf3-mayhem-summon-forth,qf3-seeking-edge-order,qf4-touch-of-insanity-xcost,qf5-anger-dampen-clone,qp1-ashwater,qp1-gamblers-brew,qp1-liquid-memories,qp1-touch-of-insanity,qt2-art-of-war-endturn,qt2-kusarigama-endturn,quality-DEFECT-000,quality-DEFECT-001,quality-DEFECT-002,quality-DEFECT-003,quality-DEFECT-004,quality-DEFECT-005,quality-DEFECT-006,quality-DEFECT-007,quality-DEFECT-008,quality-DEFECT-009,quality-DEFECT-010,quality-DEFECT-011,quality-DEFECT-012,quality-DEFECT-013,quality-DEFECT-014,quality-DEFECT-015,quality-DEFECT-016,quality-DEFECT-018,quality-DEFECT-019,quality-DEFECT-021,quality-DEFECT-022,quality-IRONCLAD-000,quality-IRONCLAD-001,quality-IRONCLAD-002,quality-IRONCLAD-003,quality-IRONCLAD-004,quality-IRONCLAD-005,quality-IRONCLAD-006,quality-IRONCLAD-007,quality-IRONCLAD-008,quality-IRONCLAD-009,quality-IRONCLAD-010,quality-IRONCLAD-011,quality-IRONCLAD-012,quality-IRONCLAD-013,quality-IRONCLAD-014,quality-IRONCLAD-015,quality-IRONCLAD-016,quality-IRONCLAD-018,quality-IRONCLAD-019,quality-IRONCLAD-021,quality-IRONCLAD-022,quality-NECROBINDER-000,quality-NECROBINDER-001,quality-NECROBINDER-002,quality-NECROBINDER-003,quality-NECROBINDER-004,quality-NECROBINDER-005,quality-NECROBINDER-006,quality-NECROBINDER-007,quality-NECROBINDER-008,quality-NECROBINDER-009,quality-NECROBINDER-010,quality-NECROBINDER-011,quality-NECROBINDER-012,quality-NECROBINDER-013,quality-NECROBINDER-014,quality-NECROBINDER-015,quality-NECROBINDER-016,quality-NECROBINDER-018,quality-NECROBINDER-019,quality-NECROBINDER-021,quality-NECROBINDER-022,quality-REGENT-000,quality-REGENT-001,quality-REGENT-002,quality-REGENT-003,quality-REGENT-004,quality-REGENT-005,quality-REGENT-006,quality-REGENT-007,quality-REGENT-008,quality-REGENT-009,quality-REGENT-010,quality-REGENT-011,quality-REGENT-012,quality-REGENT-013,quality-REGENT-014,quality-REGENT-015,quality-REGENT-016,quality-REGENT-018,quality-REGENT-019,quality-REGENT-021,quality-REGENT-022,quality-SILENT-000,quality-SILENT-001,quality-SILENT-002,quality-SILENT-003,quality-SILENT-004,quality-SILENT-005,quality-SILENT-006,quality-SILENT-007,quality-SILENT-008,quality-SILENT-009,quality-SILENT-010,quality-SILENT-011,quality-SILENT-012,quality-SILENT-013,quality-SILENT-014,quality-SILENT-015,quality-SILENT-016,quality-SILENT-018,quality-SILENT-019,quality-SILENT-021,quality-SILENT-022,r2-a-relic-combat,r2-b-relic-turns,r2-c-fiddle-draw,r2-d-no-combat,r2-e-no-combat,r2-f-no-combat,r2-g-no-combat,r3-a-distilled-chaos,r3-b-distilled-chaos-shuffle,r3-c-distilled-chaos-short,rg-a-star,rg-b-forge,rg-c-powers,rg-d-forge-create,sk-a-discard-sly,sk-b-shiv,sk-c-poison,sk-d-simple,sk-e-powers,sk-f-xcalc,sk-g-starters-upgraded,sw2-entropy-transform,sw2-smart-bound-relic,ts-a-toasty,ts-b-toolbox,tw-gremlin-merc,tw-thieving-hopper,tw-thieving-hopper-recover,tw-waterfall-giant reason=PT1: R calibration (real damage, growth, Doom, orbs, Osty), poison kill-order ticks, Axebot stock HP, Seeker Strike no longer sets HasRisk, enemy powered-hit counter widened sha256=67295bb386e2d27698faf666e700da78331c083dc04f7f546d98f3f1fdcbf566"
+    "refreeze": "dth1: \u654C\u4EBA\u6B7B\u4EA1\u6548\u679C\u5728\u51FB\u6740\u5185\u90E8\u7ED3\u7B97\uFF0CPHROG_PARASITE \u7684 Wriggler \u5728\u540C\u4E00\u6B21\u653B\u51FB\u4E2D\u8FDB\u573A sha256=1825d50b1c7e2bfde5ff7ca89030c8b14e03e2fbb9bb50a6352c508111637039",
+    "d1Rerecord": "roots=quality-REGENT-013,quality-SILENT-004 reason=dth1: \u654C\u4EBA\u6B7B\u4EA1\u6548\u679C\u5728\u51FB\u6740\u5185\u90E8\u7ED3\u7B97\uFF08Surprise/Infested \u53EC\u5524\u3001Possess \u5F52\u8FD8\u3001Reattach \u8F6C\u5165\u590D\u6D3B\u62DB\u5F0F\uFF09 sha256=a2886bc00762b749b530238e08693316bee4c6ef924836f74058c1a017356d41"
   },
   "compression": "brotli",
   "counts": {
@@ -15,8 +15,8 @@
       "roots": 403,
       "k1": 4892,
       "walks": 14576,
-      "walkStates": 468093,
-      "transitions": 455970,
+      "walkStates": 468082,
+      "transitions": 455959,
       "files": 395
     },
     "d2": {
@@ -29,7 +29,7 @@
       "timeAffected": 0
     }
   },
-  "totalBytes": 23283639,
+  "totalBytes": 23283114,
   "targetBytes": 52428800,
   "files": [
     {
@@ -5094,8 +5094,8 @@
     },
     {
       "path": "d1/quality-REGENT-013/golden.br",
-      "bytes": 32581,
-      "sha256": "80fad10af83a7cc4d87e428a241524c5925b1864fd8bb1ec1bff55f3a22f2913"
+      "bytes": 32552,
+      "sha256": "ac74660d936b823ce7a2262af4698fbcce3e0305f506d286fec69ee4d33ec8be"
     },
     {
       "path": "d1/quality-REGENT-013/meta.json",
@@ -5274,13 +5274,13 @@
     },
     {
       "path": "d1/quality-SILENT-004/golden.br",
-      "bytes": 58284,
-      "sha256": "81aaf77a7fa94f0c9836eefc06b5df1dbfc5c3cc65b42a18d9525e310ffa66c1"
+      "bytes": 57765,
+      "sha256": "5c43ee5ae36bb8d21e0db161634349a014b4fcca2ba79b9095dac69c7c01fa34"
     },
     {
       "path": "d1/quality-SILENT-004/meta.json",
       "bytes": 499,
-      "sha256": "0e51fd4a06a71bea40a86b4d9155ed5bd70707e8d9938d08ab54aa60b0dbe416"
+      "sha256": "b219bdfb491d7fa3f84725f26f3ba0584bc1adc31eb5711d94679358f777aa78"
     },
     {
       "path": "d1/quality-SILENT-005/config.br",
@@ -7074,8 +7074,8 @@
     },
     {
       "path": "d2/expected/1be8ea2d65c63a0650c99b18a03ede4e2c39cd810d2c06d70d6c3c6751c792ae.result.br",
-      "bytes": 123,
-      "sha256": "35920c5787d98f1736d4607ee1c32c1878d199933fc044f29a94c854a7a687f9"
+      "bytes": 120,
+      "sha256": "46f28f3db48737360edadd0d03e8349372ad682410711f987d41a0d0f4169455"
     },
     {
       "path": "d2/expected/1bf57d36f768caa3297423fa36a622f919b7a085fb4b005e5b981ba346aef011.result.br",
@@ -7399,8 +7399,8 @@
     },
     {
       "path": "d2/expected/2450a84774af9ae8ff56452c7495bf35c9650cdd2a7adfef58d8380dc5f3d938.result.br",
-      "bytes": 116,
-      "sha256": "40b8b19b49265cb8dd4b8ea3590284c5c5638bdd90bfc0ba57cf058264a48497"
+      "bytes": 128,
+      "sha256": "e39fed368e341c6bb4d41fa8e2e224abd3c12741d97c12ca8b18414e8f748c44"
     },
     {
       "path": "d2/expected/245be8d22ee4893e14ed4b6ce5b4f8e978e904518cad261d3671c1643fc486de.result.br",
@@ -8554,8 +8554,8 @@
     },
     {
       "path": "d2/expected/41e967a59d1d0bfcaaa3eccf8b62a869be416f410d636d85c8bdeb4464b2a9ca.result.br",
-      "bytes": 123,
-      "sha256": "35920c5787d98f1736d4607ee1c32c1878d199933fc044f29a94c854a7a687f9"
+      "bytes": 120,
+      "sha256": "46f28f3db48737360edadd0d03e8349372ad682410711f987d41a0d0f4169455"
     },
     {
       "path": "d2/expected/423255ede8208bdcc87b532c2db4bbe15dc3c1bfccc2dc0c35d1fa5f4a953440.result.br",
@@ -10109,8 +10109,8 @@
     },
     {
       "path": "d2/expected/6ca788bd9caac233c19b7f21b6cf3eeace4a9189a25be55f5626d33a7f8afdae.result.br",
-      "bytes": 113,
-      "sha256": "279fad2f390921481c86afcaa7a527b8c62710701b1620409d8c44d1af212ba0"
+      "bytes": 122,
+      "sha256": "d5fe52893f0245742bdd7212312abb99307d2a6d09b80d167982f24df557f626"
     },
     {
       "path": "d2/expected/6cc9a63a742b98dc50ed45c95de26bb96c8009e060d392fea47f3b9d4b835c65.result.br",
@@ -11864,8 +11864,8 @@
     },
     {
       "path": "d2/expected/9855245b22cc76eef58394b840144dc603a47160169bcbc868fb618aeb567943.result.br",
-      "bytes": 130,
-      "sha256": "063c4543d4ff4019f6449081e224f28e019145afe4dcfbc4dec476acafb77e15"
+      "bytes": 129,
+      "sha256": "c623a5a6a6f0e1f65dafbf2d98c4e4527ba9f85f1f227827f5746871d2e45c3a"
     },
     {
       "path": "d2/expected/9892a091d0508c9fc0ca018ae691ba106e0f52f5e5cd786a3db4f2e187d7adfa.result.br",
@@ -12884,8 +12884,8 @@
     },
     {
       "path": "d2/expected/b265a1ec53b8320cac2990714d583b5455500457ea0364108bd93b948e054d6a.result.br",
-      "bytes": 130,
-      "sha256": "063c4543d4ff4019f6449081e224f28e019145afe4dcfbc4dec476acafb77e15"
+      "bytes": 129,
+      "sha256": "c623a5a6a6f0e1f65dafbf2d98c4e4527ba9f85f1f227827f5746871d2e45c3a"
     },
     {
       "path": "d2/expected/b2740d0c646f9b35848c257650477433acf172ae38ef202977032b8634394ae9.result.br",
@@ -15599,8 +15599,8 @@
     },
     {
       "path": "d2/expected/f7f102fa70a610cb5ed4a749a45aad4cf673b45488c33b29d0b0aea8b795fab6.result.br",
-      "bytes": 99,
-      "sha256": "42408d3c85069a21bdef39070781e6df55017711bbee7d13f4356aa052e32480"
+      "bytes": 100,
+      "sha256": "2931363e809ed7526edd50ad49196bd48fd11b8120cdffcb7d07eab8d01cbb18"
     },
     {
       "path": "d2/expected/f7f92e45402c539b8a12f4caec27840c648d9e3221ecc1270b00e5a0fec6dbeb.result.br",
@@ -15719,8 +15719,8 @@
     },
     {
       "path": "d2/expected/fb2bba9c4e0d05b386bad51462afe171189b93d296567b75b7bf7375269b9092.result.br",
-      "bytes": 113,
-      "sha256": "279fad2f390921481c86afcaa7a527b8c62710701b1620409d8c44d1af212ba0"
+      "bytes": 122,
+      "sha256": "d5fe52893f0245742bdd7212312abb99307d2a6d09b80d167982f24df557f626"
     },
     {
       "path": "d2/expected/fb320ea452aa29b5cf31b643c0929e6a6d91370f6191f8ded57c2868e16b3ece.result.br",

@@ -539,6 +539,13 @@ public static partial class Kernel
             return;
         if (IsEnemyOwner(owner))
         {
+            // Native Kill runs every AfterDeath listener inside the kill, before it reads the teammates
+            // and removes the creature from combat. The death powers (Surprise and Infested spawns,
+            // Possess returning the stolen Strength/Dexterity, Reattach, Adaptable) therefore act before
+            // the next hit of the same attack picks its target or computes its damage.
+            bool deathPass = BeginEnemyDeath(ref x, owner);
+            if (x.NeedsChoice)
+                return;
             Span<byte> aliveTeammates = stackalloc byte[Limits.Enemies];
             int aliveCount = 0;
             for (int position = 0; position < x.B.RosterCount; position++)
@@ -550,8 +557,15 @@ public static partial class Kernel
             if (remove && InRoster(x.B, owner))
                 RemoveFromRoster(ref x.B, owner);
             // ICombatPredictionCreatureSemantics.IsPrimaryEnemy reads EffectivePowers, which hold only the powers of
-            // roster creatures: once removed, the dead enemy has no secondary-making power there.
+            // roster creatures: once removed, the dead enemy has no secondary-making power there. Native
+            // reads IsPrimaryEnemy before RemoveAllPowersAfterDeath.
             bool isPrimary = !InRoster(x.B, owner) || IsPrimaryEnemy(x.B, owner);
+            if (deathPass)
+            {
+                CompleteEnemyDeath(ref x, owner);
+                if (x.NeedsChoice)
+                    return;
+            }
             if (isPrimary && aliveCount > 0)
             {
                 bool allSecondary = true;
@@ -705,16 +719,17 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Mirrors <c>CorePowerSupport.ApplyEnemyDeathPowers</c> for enemies without death powers:
-    /// marks new deaths processed, removes the dead enemy's powers and completes its death phase.
+    /// The boundary death pass (<c>CorePowerSupport.ApplyEnemyDeathPowers</c>): completes the death of
+    /// any dead enemy not processed yet, then resolves the queued power amount changes. An enemy killed
+    /// through <see cref="Kill"/> is already processed inside the kill (<see cref="BeginEnemyDeath"/>,
+    /// <see cref="CompleteEnemyDeath"/>), so for it this pass only resolves the queued changes.
     /// </summary>
     public static void ApplyEnemyDeathPowers(ref Exec x) => ApplyEnemyDeathPowersCore(ref x, rosterOnly: false);
 
     /// <summary>
-    /// The death pass over enemies that are still in the roster, matching the existing engine's
-    /// <c>ApplyEnemyDeathPowers(..., combat.Enemies, ...)</c> call sites (Omnislice, EchoingSlash):
-    /// a creature removed from the roster on death is not revisited there, so a summoning death power
-    /// (Infested) does not spawn its minions until the action boundary's known-enemy pass.
+    /// The boundary death pass over enemies still in the roster (between the waves of Omnislice and
+    /// EchoingSlash). Kills are processed inside <see cref="Kill"/>, so a summoning death power
+    /// (Infested) has already added its creatures when the next wave reads the hittable enemies.
     /// </summary>
     public static void ApplyEnemyDeathPowersInRoster(ref Exec x) => ApplyEnemyDeathPowersCore(ref x, rosterOnly: true);
 
@@ -742,25 +757,51 @@ public static partial class Kernel
         for (int index = 0; index < count; index++)
         {
             byte owner = EnemyOwner(newlyDead[index]);
-            x.B.Enemies[newlyDead[index]].Flags |= EnemyFlags.DeathProcessed;
-            // DeathPowerSupport.Trigger runs the death cases of every positive power over a snapshot
-            // taken before this death's power cleanup; stolen-resource recovery is rejected at
-            // admission until theft is supported.
-            TriggerDeathPowers(ref x, owner);
+            BeginEnemyDeath(ref x, owner);
             if (x.NeedsChoice)
                 return;
-            // DeathPowerSupport.Trigger: stolen resources are recovered after the death cases and
-            // before the dead owner's powers are removed.
-            RecoverStolenResources(ref x.B, owner);
-            RemovePowersAfterDeath(ref x, owner);
-            ref Enemy enemy = ref x.B.Enemies[newlyDead[index]];
-            if (enemy.DeathPhase != DeathPhase.Reviving)
-                enemy.DeathPhase = DeathPhase.PermanentlyDead;
-            ApplierDeath(ref x, owner);
+            CompleteEnemyDeath(ref x, owner);
             if (x.NeedsChoice)
                 return;
         }
         ResolvePowerAmountChanges(ref x);
+    }
+
+    /// <summary>
+    /// The first half of one enemy's death (<c>DeathPowerSupport.Trigger</c>), at the native
+    /// <c>AfterDeath</c> point of <c>Kill</c>: marks the death processed, runs the death cases of every
+    /// positive power over a snapshot taken before this death's power cleanup, then recovers the stolen
+    /// resources. Returns false (doing nothing) when the enemy is alive or its death was processed.
+    /// Every kill runs it, including a Reattach segment another segment's death has just marked
+    /// permanently dead: native runs <c>AfterDeath</c> and the power cleanup on each kill.
+    /// </summary>
+    private static bool BeginEnemyDeath(ref Exec x, byte owner)
+    {
+        ref Enemy enemy = ref x.B.Enemy(owner);
+        if ((enemy.Flags & EnemyFlags.DeathProcessed) != 0 || enemy.Creature.IsAlive)
+            return false;
+        enemy.Flags |= EnemyFlags.DeathProcessed;
+        TriggerDeathPowers(ref x, owner);
+        if (x.NeedsChoice)
+            return true;
+        // DeathPowerSupport.Trigger: stolen resources are recovered after the death cases and before
+        // the dead owner's powers are removed.
+        RecoverStolenResources(ref x.B, owner);
+        return true;
+    }
+
+    /// <summary>
+    /// The second half of one enemy's death, after it left the roster (native
+    /// <c>RemoveAllPowersAfterDeath</c>): removes its powers, completes its death phase and runs the
+    /// applier cleanup of the powers it applied.
+    /// </summary>
+    private static void CompleteEnemyDeath(ref Exec x, byte owner)
+    {
+        RemovePowersAfterDeath(ref x, owner);
+        ref Enemy enemy = ref x.B.Enemy(owner);
+        if (enemy.DeathPhase != DeathPhase.Reviving)
+            enemy.DeathPhase = DeathPhase.PermanentlyDead;
+        ApplierDeath(ref x, owner);
     }
 
     /// <summary>

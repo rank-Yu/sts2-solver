@@ -1053,6 +1053,9 @@ internal sealed partial class UiPanelObserver : Node
 
     internal int HighlightMismatches { get; private set; }
 
+    /// <summary>Frames whose route area shows the overlay kept from the last deployment.</summary>
+    internal int KeptDeploymentFrames { get; private set; }
+
     internal int MotionChecks { get; private set; }
 
     internal int MotionMismatches { get; private set; }
@@ -1172,7 +1175,7 @@ internal sealed partial class UiPanelObserver : Node
     private void CheckHeadingExtras(CombatUiSnapshot snapshot, SolverOverlayProbe probe)
     {
         (bool headingVisible, _) = _panel!.StrategyOutcomesForTest;
-        if (headingVisible)
+        if (headingVisible && !_panel.RouteShowsKeptDeploymentForTest)
         {
             ExtraChecks++;
             CombatResultUiSnapshot? result = snapshot.Result ?? snapshot.RouteResult;
@@ -1211,6 +1214,13 @@ internal sealed partial class UiPanelObserver : Node
         (bool headingVisible, string[] texts) = _panel!.StrategyOutcomesForTest;
         if (!headingVisible)
             return;
+        // After a deployment the panel keeps the executed route (and its outcome labels) while the
+        // snapshot has no route; those labels describe the executed result, not the snapshot's.
+        if (_panel.RouteShowsKeptDeploymentForTest)
+        {
+            KeptDeploymentFrames++;
+            return;
+        }
         StrategyChecks++;
         CombatResultUiSnapshot? result = snapshot.Result ?? snapshot.RouteResult;
         int expected = snapshot.Phase == CombatUiPhase.Searching || result == null

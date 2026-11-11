@@ -33,6 +33,9 @@ internal sealed class CombatDisplayNames
     private static string? _rosterLanguage;
     private static Dictionary<uint, string> _rosterNames = [];
     private static Dictionary<string, int> _rosterOrdinals = new(StringComparer.Ordinal);
+    // Fallback names already shown for predicted enemies that are not live yet, by (CombatId, monster
+    // id). The live capture adopts them, so a summon keeps the name its pills showed before it appeared.
+    private static Dictionary<(uint CombatId, string MonsterId), string> _shownFallbacks = [];
 
     private readonly Dictionary<uint, string> _creatures;
     private readonly string _playerName;
@@ -74,6 +77,7 @@ internal sealed class CombatDisplayNames
             _rosterLanguage = _cacheLanguage;
             _rosterNames = [];
             _rosterOrdinals = new(StringComparer.Ordinal);
+            _shownFallbacks = [];
         }
         Dictionary<string, int> fresh = new(StringComparer.Ordinal);
         foreach (Creature creature in state.Enemies)
@@ -91,7 +95,18 @@ internal sealed class CombatDisplayNames
             string baseName = BaseMonsterName(creature);
             int used = _rosterOrdinals.GetValueOrDefault(baseName);
             string name = used == 0 && fresh[baseName] == 1 ? baseName : $"{baseName} #{used + 1}";
-            _rosterOrdinals[baseName] = used + 1;
+            int next = used + 1;
+            // A summon whose predicted pills already named it keeps that name; renaming it here
+            // changed the target text of later pills and rebuilt their rows mid-deployment.
+            if (creature.Monster?.Id.Entry is { } monsterId
+                && _shownFallbacks.TryGetValue((combatId, monsterId), out string? shown))
+            {
+                name = shown;
+                int mark = shown.LastIndexOf(" #", StringComparison.Ordinal);
+                if (mark >= 0 && int.TryParse(shown.AsSpan(mark + 2), out int ordinal))
+                    next = Math.Max(next, ordinal);
+            }
+            _rosterOrdinals[baseName] = next;
             _rosterNames[combatId] = name;
         }
         Dictionary<uint, string> creatures = new(_rosterNames);
@@ -228,8 +243,14 @@ internal sealed class CombatDisplayNames
     {
         if (_creatures.TryGetValue(combatId, out string? captured))
             return captured;
+        // A predicted enemy that is not live yet: the first name shown for it is kept until it
+        // appears (later predictions may count a different number of the same monster).
+        if (_shownFallbacks.TryGetValue((combatId, monsterId), out string? shown))
+            return shown;
         string name = MonsterById(monsterId);
-        return ordinal > 0 ? $"{name} #{ordinal}" : name;
+        name = ordinal > 0 ? $"{name} #{ordinal}" : name;
+        _shownFallbacks[(combatId, monsterId)] = name;
+        return name;
     }
 
     private string MonsterById(string nativeId)

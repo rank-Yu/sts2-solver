@@ -158,6 +158,16 @@ internal sealed partial class SolverOverlay
     internal (bool UsedPotions, bool UnrecoveredLoot) OutcomeExtrasForTest => (
         _usedPotionOutcomeLabel?.Visible == true, _unrecoveredLootLabel?.Visible == true);
 
+    /// <summary>
+    /// The route area shows the overlay kept from the deployment (<see cref="ShowDeploymentComplete"/>
+    /// and <see cref="ShowWaitingForNextTurnPlan"/> when the snapshot has no route any more), so its
+    /// outcome labels describe the executed result rather than the snapshot's.
+    /// </summary>
+    internal bool RouteShowsKeptDeploymentForTest => _shownRouteOverlay != null
+        && !ReferenceEquals(_shownRouteOverlay, _lastOverlay);
+
+    private SolverOverlaySnapshot? _shownRouteOverlay;
+
     internal (bool HeadingVisible, string[] Texts) StrategyOutcomesForTest => (
         _strategyOutcomeRow?.GetParent() is Control heading && heading.IsVisibleInTree(),
         _strategyOutcomeRow is { Visible: true } row
@@ -168,6 +178,9 @@ internal sealed partial class SolverOverlay
 
     private void PopulateRoute(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
     {
+#if STS2_SOLVER_TESTING
+        _shownRouteOverlay = overlay;
+#endif
         bool hasTurns = overlay.Turns.Count > 0;
         SetRouteVisibility(hasTurns || snapshot.Phase == CombatUiPhase.Searching);
         if (_deathOutcomeLabel != null)
@@ -287,10 +300,12 @@ internal sealed partial class SolverOverlay
                 }
             }
         }
-        else if (ShowsDeployedRoute && snapshot.Route is { CompletedActions: > 0 } setupRoute)
+        else if (snapshot.Route is { CompletedActions: > 0 } setupRoute)
         {
-            // A run reaches the next turn's setup page with the previous turn's route still shown;
-            // its executed actions stay completed instead of being redrawn as pending.
+            // The projection passes deployment progress only for the deployed route. Outside the
+            // Deploying phase (a run reaching the next turn's setup page, or the WaitingTurn frames
+            // right after a turn's deployment finished) its executed actions stay completed instead
+            // of being redrawn as pending when the rows are rebuilt.
             foreach (SolverRouteRow row in RouteRows)
             {
                 if (!row.Visible || row.StartActionIndex >= setupRoute.CompletedActions)

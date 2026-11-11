@@ -221,7 +221,7 @@ internal sealed record SettingsUiSnapshot
     /// <summary>Effective search memory ceiling.</summary>
     public long MemoryBudgetBytes { get; init; }
 
-    /// <summary>The machine default: 20% of the memory available to the runtime, at least 1 GiB.</summary>
+    /// <summary>The machine default: 15% of the memory available to the runtime, at least 1 GiB.</summary>
     public long MemoryBudgetDefaultBytes { get; init; }
 }
 

@@ -24,7 +24,7 @@ internal readonly record struct SearchMemoryBudgetResolution(
 /// <summary>
 /// Resolves the Mod's search-memory ceiling. The search core only receives the resulting byte count;
 /// it never reads process or GC state, so the same request still produces the same route offline.
-/// Priority: the settings override, then 20% of the total memory the runtime may use
+/// Priority: the settings override, then 15% of the total memory the runtime may use
 /// (<see cref="GC.GetGCMemoryInfo"/>), with a 1 GiB floor. The value is a fixed per-machine ceiling,
 /// not the momentary free memory.
 /// </summary>
@@ -63,13 +63,13 @@ internal static class SearchMemoryBudget
 
     internal static long DefaultBytes() => DefaultBytes(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes);
 
-    /// <summary>20% of <paramref name="availableBytes"/>, at least 1 GiB.</summary>
+    /// <summary>15% of <paramref name="availableBytes"/>, at least 1 GiB.</summary>
     internal static long DefaultBytes(long availableBytes)
     {
         if (availableBytes <= 0)
             return FloorBytes;
-        // Integer arithmetic avoids overflowing the 20% product on very large machines.
-        return Math.Max(FloorBytes, availableBytes / 100 * 20 + availableBytes % 100 * 20 / 100);
+        // Integer arithmetic avoids overflowing the 15% product on very large machines.
+        return Math.Max(FloorBytes, availableBytes / 100 * 15 + availableBytes % 100 * 15 / 100);
     }
 
     private static SearchMemoryBudgetResolution ResolveCore(long? settingsBytes, long fallbackBytes)

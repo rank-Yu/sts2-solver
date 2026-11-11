@@ -469,7 +469,7 @@ internal static class UiLogicChecks
     private static void MemoryDefault()
     {
         const long gib = 1L << 30;
-        Require(SearchMemoryBudget.DefaultBytes(16 * gib) == 3_435_973_836L, "twenty_percent");
+        Require(SearchMemoryBudget.DefaultBytes(16 * gib) == 2_576_980_377L, "fifteen_percent");
         Require(SearchMemoryBudget.DefaultBytes(4 * gib) == gib, "floor");
         Require(SearchMemoryBudget.DefaultBytes(0) == gib, "unknown_available");
         long available = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;

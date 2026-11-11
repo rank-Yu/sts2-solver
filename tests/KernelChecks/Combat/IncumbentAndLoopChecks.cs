@@ -194,8 +194,6 @@ internal static class IncumbentAndLoopChecks
             BossHpRelief = BossHpRelief.None,
             RequireCertifiedHealingProof = certificate == HealingCertificate.Component,
             PruneEqualHp = true,
-            ForceAllPotionsDisabled = false,
-            MaximumPotionUses = null,
             ComponentUnsafeCard = certificate == HealingCertificate.Component
                 ? [.. knownBlockingCard]
                 : new bool[Registry.CardCount],
@@ -224,8 +222,6 @@ internal static class IncumbentAndLoopChecks
             ReattachSafeMonster = new bool[Registry.MonsterCount],
             RegenPowerId = regenPower,
             ReattachPowerId = reattachPower,
-            RootPotions = new ushort[Limits.PotionSlots],
-            RootPotionSlotCount = 0,
         };
     }
 
@@ -522,7 +518,6 @@ internal static class IncumbentAndLoopChecks
             Scorer = new Scorer(score),
             Ordering = new RouteOrdering(50, BossHpRelief.None, PostCombatRelicHealProfile.None),
             Potions = PotionPolicy.Disabled,
-            EffectivePotionPolicy = PotionUseMode.Disabled,
             SearchMemoryBudgetBytes = 512L << 20,
             StatePoolBudgetBytes = 256L << 20,
             SearchThreads = threads,

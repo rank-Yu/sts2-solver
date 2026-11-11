@@ -101,7 +101,7 @@ internal static class RetrievalAndWitherContracts
                 SoftTimeBudget = TimeSpan.MaxValue, Act3BossStrategy = enabled, Trace = trace,
                 Bound = null,
                 Ordering = new(battle.Player.CurrentHp, BossHpRelief.None, PostCombatRelicHealProfile.None),
-                Potions = new(int.MinValue, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
+                Potions = new(new(PotionUseMode.Smart, []), false),
             };
             _ = new BeamSolver(item.Rules, options).Solve([battle], CancellationToken.None);
             return trace;

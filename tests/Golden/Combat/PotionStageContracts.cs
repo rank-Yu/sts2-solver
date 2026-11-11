@@ -36,9 +36,9 @@ internal static class PotionStageContracts
             BeamOptions options = fixture.Options with
             {
                 HasUnboundedGrowthTargets = false,
-                TheftPolicy = null, EffectivePotionPolicy = PotionUseMode.Smart,
+                TheftPolicy = null,
                 Ordering = new(75, BossHpRelief.None, PostCombatRelicHealProfile.None),
-                Potions = new(int.MinValue, new(PotionUseMode.Smart, []), PotionUseMode.Smart, false),
+                Potions = new(new(PotionUseMode.Smart, []), false),
             };
             BeamSolver.Candidate selected = default(BeamSolver.Candidate) with
             {

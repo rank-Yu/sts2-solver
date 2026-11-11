@@ -14,9 +14,9 @@ namespace Sts2Solver.Golden;
 internal static class RelicCounterContracts
 {
     private const string Requests = "tests/Golden/data/d2/requests/";
-    private const string HappyFlower = "fad1f9cd85b4fbae85474a2e8de6e619d6ed950216f40e57207de678b9f51ea8";
-    private const string PenNibJossPaper = "a5883a433e5a38495e510d0380c08e450f9870fd9b8a565ddba14e5189d3ef77";
-    private const string Pendulum = "a6d1744e850e9b837dd8a0fbdc5d85e554855b902cfef528f5f10cfdc5d65a54";
+    private const string HappyFlower = "294ca14288c38d8ae86d700d36c72f32dd458cb4748b5956510a30ef0189ec52";
+    private const string PenNibJossPaper = "86e7fa14365f470e5b90befa58a6d4ef92b1ed707c451aa2279e6de8350cc486";
+    private const string Pendulum = "bb32b85c6d55b5c0d381f08643fdd6aa28ed3829e7bb2a79bde5d47f71f11f72";
 
     private static readonly Dictionary<string, int> PeriodVar = new(StringComparer.Ordinal)
     {

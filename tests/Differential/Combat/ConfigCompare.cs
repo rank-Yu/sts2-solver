@@ -666,10 +666,6 @@ internal static class ConfigCompare
             return "requireCertifiedHealingProof";
         if (expected.PruneEqualHp != actual.PruneEqualHp)
             return "pruneEqualHp";
-        if (expected.ForceAllPotionsDisabled != actual.ForceAllPotionsDisabled)
-            return "forceAllPotionsDisabled";
-        if (expected.MaximumPotionUses != actual.MaximumPotionUses)
-            return "maximumPotionUses";
         if (!expected.ComponentUnsafeCard.AsSpan().SequenceEqual(actual.ComponentUnsafeCard))
             return "componentUnsafeCard";
         if (!expected.ComponentUnsafePower.AsSpan().SequenceEqual(actual.ComponentUnsafePower))
@@ -714,10 +710,6 @@ internal static class ConfigCompare
             return "regenPowerId";
         if (expected.ReattachPowerId != actual.ReattachPowerId)
             return "reattachPowerId";
-        if (!expected.RootPotions.AsSpan().SequenceEqual(actual.RootPotions))
-            return "rootPotions";
-        if (expected.RootPotionSlotCount != actual.RootPotionSlotCount)
-            return "rootPotionSlotCount";
         return "boundConfig";
     }
 

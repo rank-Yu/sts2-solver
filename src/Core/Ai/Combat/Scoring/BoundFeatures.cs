@@ -51,8 +51,6 @@ internal sealed class BoundFeatures
         public required BossHpRelief BossHpRelief { get; init; }
         public required bool RequireCertifiedHealingProof { get; init; }
         public required bool PruneEqualHp { get; init; }
-        public required bool ForceAllPotionsDisabled { get; init; }
-        public required int? MaximumPotionUses { get; init; }
         public required bool[] ComponentUnsafeCard { get; init; }
         public required bool[] ComponentUnsafePower { get; init; }
         public required bool[] ComponentUnsafeRelic { get; init; }
@@ -75,8 +73,6 @@ internal sealed class BoundFeatures
         public required bool[] ReattachSafeMonster { get; init; }
         public required int RegenPowerId { get; init; }
         public required int ReattachPowerId { get; init; }
-        public required ushort[] RootPotions { get; init; }
-        public required int RootPotionSlotCount { get; init; }
     }
 
     /// <summary>
@@ -343,9 +339,6 @@ internal sealed class BoundFeatures
             if (power.Id == _config.ReattachPowerId && !ReattachOwnerIsSafe(battle, power.Owner))
                 return new PruningHealing(int.MaxValue, 0);
         }
-        bool canUsePotion = !_config.ForceAllPotionsDisabled
-            && (_config.MaximumPotionUses is not { } maximum
-                || ExplicitPotionUses(battle) < maximum);
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
         {
             ushort potion = battle.Potions[slot];
@@ -358,8 +351,7 @@ internal sealed class BoundFeatures
                 continue;
             if (id == FruitJuicePotionId)
             {
-                if (canUsePotion)
-                    maxHpGain += PotionHealing(rules, (ushort)id, 0);
+                maxHpGain += PotionHealing(rules, (ushort)id, 0);
                 continue;
             }
             return new PruningHealing(int.MaxValue, 0);
@@ -435,9 +427,6 @@ internal sealed class BoundFeatures
             }
             return new PruningHealing(int.MaxValue, 0);
         }
-        bool canUsePotion = !_config.ForceAllPotionsDisabled
-            && (_config.MaximumPotionUses is not { } maximum
-                || ExplicitPotionUses(battle) < maximum);
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
         {
             ushort potion = battle.Potions[slot];
@@ -447,8 +436,6 @@ internal sealed class BoundFeatures
             if (!_config.NativePotion[id])
                 return new PruningHealing(int.MaxValue, 0);
             if (id == FairyPotionId)
-                continue;
-            if (!canUsePotion)
                 continue;
             if (_config.RegenPotion[id])
                 regen += Math.Max(0, _config.RegenPotionAmount[id]);
@@ -799,9 +786,6 @@ internal sealed class BoundFeatures
             if ((relic.Flags & RelicFlags.Melted) == 0 && _config.KnownBlockingRelic[relic.Id])
                 return int.MaxValue;
         }
-        bool canUsePotion = !_config.ForceAllPotionsDisabled
-            && (_config.MaximumPotionUses is not { } maximum
-                || ExplicitPotionUses(battle) < maximum);
         long directHeal = 0;
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
         {
@@ -811,8 +795,6 @@ internal sealed class BoundFeatures
             int id = potion - 1;
             if (!_config.NativePotion[id] || _config.FairyPotion[id])
                 return int.MaxValue;
-            if (!canUsePotion)
-                continue;
             if (_config.RegenPotion[id])
                 regen += Math.Max(0, _config.RegenPotionAmount[id]);
             else if (_config.DirectHealPotion[id])
@@ -823,21 +805,6 @@ internal sealed class BoundFeatures
         }
         return (int)Math.Min(int.MaxValue,
             directHeal + StrategicHpRecoveryBound.RegenerationHealingUpperBound(regen, _config.PostCombatHeal));
-    }
-
-    private int ExplicitPotionUses(in Battle battle)
-    {
-        int uses = 0;
-        for (int slot = 0; slot < _config.RootPotionSlotCount; slot++)
-        {
-            ushort rootPotion = _config.RootPotions[slot];
-            if (rootPotion == 0)
-                continue;
-            if (slot >= battle.PotionSlotCount || battle.Potions[slot] != rootPotion)
-                uses++;
-        }
-        int automaticAfterRoot = battle.Counter(Counter.AutomaticPotionUseCount);
-        return uses - automaticAfterRoot;
     }
 
     /// <summary>K5: the members that differ, as <c>name expected=… actual=…</c>.</summary>

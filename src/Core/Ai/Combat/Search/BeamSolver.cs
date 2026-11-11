@@ -62,8 +62,11 @@ internal sealed record BeamOptions(
     /// </summary>
     public BoundFeatures? Bound { get; init; }
 
-    /// <summary>The existing primary member's effective potion policy, used to qualify incumbent tightening.</summary>
-    public PotionUseMode EffectivePotionPolicy { get; init; } = PotionUseMode.Smart;
+    /// <summary>
+    /// The request's default potion mode (<see cref="PotionPolicy.EffectivePolicy"/>), used to qualify
+    /// incumbent tightening. Read from <see cref="Potions"/>; it is not stored separately.
+    /// </summary>
+    public PotionUseMode EffectivePotionPolicy => Potions.EffectivePolicy;
 
     /// <summary>The request's theft policy; <c>PreserveResources</c> adds the existing final ordering's recovery keys.</summary>
     public TheftPolicy? TheftPolicy { get; init; }
@@ -200,21 +203,20 @@ internal sealed record RouteOrdering(
 
 /// <summary>
 /// The existing search's potion constraints at the root (<c>EnumeratePlannedPotionActions</c>): the
-/// earliest player turn and the strategy/policy identity gate the existing <c>AllowsPotionUse</c>
-/// applies. The gate is by (slot, potion identity), so a potion generated into a slot during the
-/// search is offered exactly when the existing search would offer it. <see cref="ForceAllDisabled"/>
-/// is the potion-free stage: no explicit use is offered and no route with one is eligible.
+/// strategy/policy identity gate the existing <c>AllowsPotionUse</c> applies. The gate is by (slot,
+/// potion identity), so a potion generated into a slot during the search is offered exactly when the
+/// existing search would offer it. <see cref="ForceAllDisabled"/> is the potion-free stage: no
+/// explicit use is offered and no route with one is eligible.
 /// </summary>
 internal sealed record PotionPolicy(
-    int EarliestPlayerTurn,
     PotionStrategySnapshot Strategy,
-    PotionUseMode EffectivePolicy,
     bool ForceAllDisabled)
 {
     public static PotionPolicy Disabled { get; } = new(
-        int.MaxValue,
-        new PotionStrategySnapshot(PotionUseMode.Disabled, Array.Empty<PotionSlotDirective>()),
-        PotionUseMode.Disabled, false);
+        new PotionStrategySnapshot(PotionUseMode.Disabled, Array.Empty<PotionSlotDirective>()), false);
+
+    /// <summary>The request's default mode, which per-slot directives refine.</summary>
+    public PotionUseMode EffectivePolicy => Strategy.DefaultPolicy;
 
     /// <summary><c>PotionStrategySnapshot.AllowsExplicitUse</c> for the potion now in the slot.</summary>
     public bool AllowsExplicitUse(int slot, ushort potionId)
@@ -1896,7 +1898,7 @@ internal sealed partial class BeamSolver
     private bool PotionAllowed(in Battle battle, int slot)
     {
         PotionPolicy policy = _options.Potions;
-        if ((uint)slot >= (uint)battle.PotionSlotCount || battle.PlayerTurn < policy.EarliestPlayerTurn)
+        if ((uint)slot >= (uint)battle.PotionSlotCount)
             return false;
         ushort stored = battle.Potions[slot];
         if (stored == 0 || !policy.AllowsExplicitUse(slot, (ushort)(stored - 1)))

@@ -42,8 +42,7 @@ internal sealed partial class BeamSolver
             if (action.Kind == PlayerActionKind.UsePotion)
             {
                 int slot = action.PotionSlot;
-                if ((uint)slot >= before.PotionSlotCount || before.Potions[slot] == 0
-                    || before.PlayerTurn < _options.Potions.EarliestPlayerTurn)
+                if ((uint)slot >= before.PotionSlotCount || before.Potions[slot] == 0)
                     throw new InvalidDataException("路线包含不允许使用的药水。");
                 ushort potion = (ushort)(before.Potions[slot] - 1);
                 if (!_options.Potions.AllowsExplicitUse(slot, potion))

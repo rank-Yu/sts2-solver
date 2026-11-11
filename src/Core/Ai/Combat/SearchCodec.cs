@@ -38,7 +38,7 @@ internal static class SearchCodec
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
     /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 10;
+    internal const ushort RequestFormatVersion = 11;
     internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
@@ -107,7 +107,6 @@ internal static class SearchCodec
         writer.Write(options.Bound != null);
         if (options.Bound is { } bound)
             EncodeBoundConfig(writer, bound.ConfigForCodec);
-        writer.Write((int)options.EffectivePotionPolicy);
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
             writer.Write((int)theft);
@@ -180,7 +179,6 @@ internal static class SearchCodec
         RouteOrdering? ordering = hasOrdering ? DecodeOrdering(reader) : null;
         bool hasBound = Codec.ReadBool(reader);
         BoundFeatures? bound = hasBound ? new BoundFeatures(DecodeBoundConfig(reader)) : null;
-        PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "有效药水政策");
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
         bool hasBaseline = Codec.ReadBool(reader);
@@ -252,7 +250,6 @@ internal static class SearchCodec
             Scorer = scorer,
             Ordering = ordering,
             Bound = bound,
-            EffectivePotionPolicy = effective,
             TheftPolicy = theft,
             PotionFreeBaseline = baseline,
             AuditPotionPolicy = audit,
@@ -270,19 +267,15 @@ internal static class SearchCodec
 
     private static void EncodePotionPolicy(BinaryWriter writer, PotionPolicy policy)
     {
-        writer.Write(policy.EarliestPlayerTurn);
         EncodePotionStrategy(writer, policy.Strategy);
-        writer.Write((int)policy.EffectivePolicy);
         writer.Write(policy.ForceAllDisabled);
     }
 
     private static PotionPolicy DecodePotionPolicy(BinaryReader reader)
     {
-        int earliest = reader.ReadInt32();
         PotionStrategySnapshot strategy = DecodePotionStrategy(reader);
-        PotionUseMode effective = ReadEnumInt<PotionUseMode>(reader, "药水政策");
         bool forceDisabled = Codec.ReadBool(reader);
-        return new PotionPolicy(earliest, strategy, effective, forceDisabled);
+        return new PotionPolicy(strategy, forceDisabled);
     }
 
     private static void EncodePotionStrategy(BinaryWriter writer, PotionStrategySnapshot strategy)
@@ -663,9 +656,6 @@ internal static class SearchCodec
         writer.Write((int)config.BossHpRelief);
         writer.Write(config.RequireCertifiedHealingProof);
         writer.Write(config.PruneEqualHp);
-        writer.Write(config.ForceAllPotionsDisabled);
-        writer.Write(config.MaximumPotionUses != null);
-        writer.Write(config.MaximumPotionUses ?? 0);
         WriteBools(writer, config.ComponentUnsafeCard);
         WriteBools(writer, config.ComponentUnsafePower);
         WriteBools(writer, config.ComponentUnsafeRelic);
@@ -688,8 +678,6 @@ internal static class SearchCodec
         WriteBools(writer, config.ReattachSafeMonster);
         writer.Write(config.RegenPowerId);
         writer.Write(config.ReattachPowerId);
-        Codec.WriteUShortArray(writer, config.RootPotions);
-        writer.Write(config.RootPotionSlotCount);
     }
 
     private static BoundFeatures.Config DecodeBoundConfig(BinaryReader reader)
@@ -704,11 +692,7 @@ internal static class SearchCodec
         BossHpRelief relief = ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免");
         bool certified = Codec.ReadBool(reader);
         bool pruneEqual = Codec.ReadBool(reader);
-        bool forceDisabled = Codec.ReadBool(reader);
-        bool hasMaximum = Codec.ReadBool(reader);
-        int maximumValue = reader.ReadInt32();
-        int? maximum = hasMaximum ? maximumValue : null;
-        return new BoundFeatures.Config
+        BoundFeatures.Config config = new BoundFeatures.Config
         {
             Enabled = enabled,
             DisabledReason = reason,
@@ -718,8 +702,6 @@ internal static class SearchCodec
             BossHpRelief = relief,
             RequireCertifiedHealingProof = certified,
             PruneEqualHp = pruneEqual,
-            ForceAllPotionsDisabled = forceDisabled,
-            MaximumPotionUses = maximum,
             ComponentUnsafeCard = ReadBools(reader, 1 << 16, "下界卡牌安全表"),
             ComponentUnsafePower = ReadBools(reader, 1 << 16, "下界 Power 安全表"),
             ComponentUnsafeRelic = ReadBools(reader, 1 << 16, "下界遗物安全表"),
@@ -742,9 +724,8 @@ internal static class SearchCodec
             ReattachSafeMonster = ReadBools(reader, 1 << 16, "重挂安全怪物表"),
             RegenPowerId = reader.ReadInt32(),
             ReattachPowerId = reader.ReadInt32(),
-            RootPotions = Codec.ReadUShortArray(reader, Limits.PotionSlots, "下界根药水"),
-            RootPotionSlotCount = reader.ReadInt32(),
         };
+        return config;
     }
 
     private static void EncodeGrowthValues(BinaryWriter writer, GrowthValues values)

@@ -257,7 +257,6 @@ internal static class SearchRequestCompiler
                 score.BossHpRelief,
                 score.PostCombatRelicHeal),
             Potions = potions,
-            EffectivePotionPolicy = ToUseMode(policy.PotionDefaultMode),
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             Act3BossStrategy = policy.Act3BossStrategy,
             InitialPlayerTurn = battles[0].PlayerTurn,
@@ -297,9 +296,7 @@ internal static class SearchRequestCompiler
                 directive.Slot, directive.PotionId, ToDirective(directive.Mode)));
         }
         return new PotionPolicy(
-            int.MinValue,
             new PotionStrategySnapshot(defaultMode, directives),
-            defaultMode,
             ForceAllDisabled: false);
     }
 
@@ -321,9 +318,7 @@ internal static class SearchRequestCompiler
 
     private static PotionPolicy DefaultPotionPolicy()
         => new(
-            int.MinValue,
             new PotionStrategySnapshot(PotionUseMode.Smart, Array.Empty<PotionSlotDirective>()),
-            PotionUseMode.Smart,
             ForceAllDisabled: false);
 
     /// <summary><c>CombatRootSnapshot.HasUnusedCardReplayAllocator</c>.</summary>

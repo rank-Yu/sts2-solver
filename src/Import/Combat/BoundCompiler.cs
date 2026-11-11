@@ -107,8 +107,6 @@ internal static class BoundCompiler
             BossHpRelief = ScoreCompiler.ResolveBossHpRelief(state, policy),
             RequireCertifiedHealingProof = component,
             PruneEqualHp = true,
-            ForceAllPotionsDisabled = false,
-            MaximumPotionUses = null,
             ComponentUnsafeCard = UnsafeCards,
             ComponentUnsafePower = UnsafePowers,
             ComponentUnsafeRelic = UnsafeRelics,
@@ -131,8 +129,6 @@ internal static class BoundCompiler
             ReattachSafeMonster = ReattachSafeMonsters,
             RegenPowerId = HealingBoundTables.RegenPowerId,
             ReattachPowerId = HealingBoundTables.ReattachPowerId,
-            RootPotions = RootPotions(root),
-            RootPotionSlotCount = root.PotionSlotCount,
         };
     }
 
@@ -164,8 +160,6 @@ internal static class BoundCompiler
         BossHpRelief = BossHpRelief.None,
         RequireCertifiedHealingProof = false,
         PruneEqualHp = false,
-        ForceAllPotionsDisabled = false,
-        MaximumPotionUses = null,
         ComponentUnsafeCard = [],
         ComponentUnsafePower = [],
         ComponentUnsafeRelic = [],
@@ -188,8 +182,6 @@ internal static class BoundCompiler
         ReattachSafeMonster = [],
         RegenPowerId = -1,
         ReattachPowerId = -1,
-        RootPotions = [],
-        RootPotionSlotCount = 0,
     };
 
     private static bool HasPendingReturningCards(in Battle root)
@@ -208,14 +200,6 @@ internal static class BoundCompiler
         foreach (GrowthRewardSource source in Enum.GetValues<GrowthRewardSource>())
             total = checked(total + GrowthRewards.Get(root, source));
         return total;
-    }
-
-    private static ushort[] RootPotions(in Battle root)
-    {
-        ushort[] potions = new ushort[Limits.PotionSlots];
-        for (int slot = 0; slot < Limits.PotionSlots && slot < root.PotionSlotCount; slot++)
-            potions[slot] = root.Potions[slot];
-        return potions;
     }
 
     /// <summary>

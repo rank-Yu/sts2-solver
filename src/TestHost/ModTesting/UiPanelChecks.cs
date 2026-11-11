@@ -1083,6 +1083,7 @@ internal sealed partial class UiPanelObserver : Node
     internal int ExtraMismatches { get; private set; }
 
     private int _motionTurn = -1;
+    private int _motionBuild = -1;
     private (int Restarts, int Rebuilds)[] _motionBaseline = [];
 
     internal int SearchFrames { get; private set; }
@@ -1267,9 +1268,13 @@ internal sealed partial class UiPanelObserver : Node
         }
         (int Restarts, int Rebuilds)[] counts =
             [.. probe.Rows.Select(static row => (row.MotionRestarts, row.Rebuilds))];
-        if (_motionTurn != snapshot.Turn || counts.Length != _motionBaseline.Length)
+        // A panel rebuild (language, settings) creates fresh rows whose counters restart at zero; the
+        // comparison is only meaningful between frames of the same build.
+        if (_motionTurn != snapshot.Turn || counts.Length != _motionBaseline.Length
+            || probe.BuildCount != _motionBuild)
         {
             _motionTurn = snapshot.Turn;
+            _motionBuild = probe.BuildCount;
             _motionBaseline = counts;
             return;
         }

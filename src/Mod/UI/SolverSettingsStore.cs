@@ -48,11 +48,14 @@ internal sealed class SolverSettingsStore
     }
 
     /// <summary>
-    /// Upgrades schema 6 and 7 files to the current schema. Schema 6 stored the three-position
+    /// Upgrades schema 6, 7 and 8 files to the current schema. Schema 6 stored the three-position
     /// automation mode; later schemas keep only the auto-search switch: Manual becomes off, AutoSearch
     /// and FullAuto become on (executing the whole combat is no longer persisted). Schemas 6 and 7
     /// could force a potion: those directives are dropped and the force-all preset becomes Smart.
-    /// Every other value is kept as written; other versions go through the normal checks.
+    /// Up to schema 8 one ignoreLongTermRewards switch also turned the relic counter goals off; it
+    /// becomes ignoreGrowthRewards, and when it was on the relic switches are cleared, so the search
+    /// behaves as before. Every other value is kept as written; other versions go through the normal
+    /// checks.
     /// </summary>
     private static string UpgradeSchema(string json, Action<string> info)
     {
@@ -71,7 +74,7 @@ internal sealed class SolverSettingsStore
         }
         if (root is not JsonObject settings
             || settings["schemaVersion"] is not JsonValue version
-            || !version.TryGetValue(out int schema) || schema is not (6 or 7))
+            || !version.TryGetValue(out int schema) || schema is not (6 or 7 or 8))
         {
             return json;
         }
@@ -83,7 +86,7 @@ internal sealed class SolverSettingsStore
             automation.Remove("mode");
             automation["autoSearch"] = !string.Equals(value, "Manual", StringComparison.OrdinalIgnoreCase);
         }
-        if (settings["search"] is JsonObject search && search["potions"] is JsonObject potions)
+        if (schema < 8 && settings["search"] is JsonObject search && search["potions"] is JsonObject potions)
         {
             if (potions["directives"] is JsonArray directives)
             {
@@ -95,6 +98,14 @@ internal sealed class SolverSettingsStore
             }
             if (IsText(potions["preset"], "ForceAll"))
                 potions["preset"] = nameof(SolverPotionPreset.Smart);
+        }
+        if (settings["search"] is JsonObject searchSettings
+            && searchSettings["ignoreLongTermRewards"] is JsonNode ignored)
+        {
+            searchSettings.Remove("ignoreLongTermRewards");
+            searchSettings["ignoreGrowthRewards"] = ignored;
+            if (ignored is JsonValue flag && flag.TryGetValue(out bool on) && on)
+                searchSettings["relicCounterRelics"] = new JsonArray();
         }
         info($"[Sts2Solver] SETTINGS_UPGRADED from={schema} to={SolverSettingsData.CurrentSchemaVersion}");
         return settings.ToJsonString();

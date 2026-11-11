@@ -20,6 +20,9 @@ public static class RelicCounterCatalog
         "NUNCHAKU", "TUNING_FORK", "JOSS_PAPER", "IRON_CLUB", "GALACTIC_DUST",
     ];
 
+    /// <summary>The counter a route aims to end the fight on: one short of triggering.</summary>
+    public static int TargetCount(int period) => period - 1;
+
     /// <summary>Pen Nib's attack threshold is a code constant (<c>PenNib.AttacksPlayed % 10</c>).</summary>
     private const int PenNibPeriod = 10;
 

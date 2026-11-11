@@ -97,7 +97,7 @@ internal static class ScoreCompiler
             InitialPlayerMaxHp = player.Creature.MaxHp,
             IsActEndingBoss = bossHpRelief != BossHpRelief.None,
             Act3BossStrategy = policy.Act3BossStrategy,
-            IgnoreLongTermRewards = policy.IgnoreLongTermRewards,
+            IgnoreGrowthRewards = policy.IgnoreGrowthRewards,
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             InitialEnemyCount = state.Enemies.Count,
             InitialPersistentBuffValue = persistent,
@@ -160,7 +160,7 @@ internal static class ScoreCompiler
             throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
                 "DevelopmentStrategy：Prioritize/Retain 依赖 ActionCandidate 与 RankBest 必保通道");
         }
-        if (!policy.IgnoreLongTermRewards && policy.HasThirdPartyGrowthSources)
+        if (!policy.IgnoreGrowthRewards && policy.HasThirdPartyGrowthSources)
         {
             throw new UnsupportedImportException(ImportReason.UnsupportedPolicy,
                 "第三方成长来源的额度未移植");
@@ -544,13 +544,14 @@ internal static class ScoreCompiler
 
     /// <summary>
     /// One target per owned, unmelted relic of <see cref="RelicCounterCatalog"/> that the policy lists:
-    /// end the fight with its counter one short of triggering. None when long-term rewards are ignored or
-    /// the fight ends the run, because no combat follows to use the counter.
+    /// end the fight with its counter one short of triggering. None when the fight ends the run, because
+    /// no combat follows to use the counter. The growth switch (<c>IgnoreGrowthRewards</c>) does not
+    /// apply: each relic has its own switch.
     /// </summary>
     internal static RelicCounterTarget[] CompileRelicTargets(CombatState state, Player player, Battle root,
         SearchPolicy policy)
     {
-        if (policy.IgnoreLongTermRewards || ResolveNativeHpRelief(state) == BossHpRelief.RunEnding)
+        if (ResolveNativeHpRelief(state) == BossHpRelief.RunEnding)
             return [];
         List<RelicCounterTarget> targets = [];
         IReadOnlyList<RelicModel> relics = player.Relics;
@@ -569,7 +570,7 @@ internal static class ScoreCompiler
                     $"遗物 {relic.Id.Entry} 不在战斗状态的第 {index} 格");
             }
             targets.Add(new RelicCounterTarget(checked((byte)index), checked((byte)period),
-                checked((byte)(period - 1)), allowance));
+                checked((byte)RelicCounterCatalog.TargetCount(period)), allowance));
         }
         return [.. targets];
     }

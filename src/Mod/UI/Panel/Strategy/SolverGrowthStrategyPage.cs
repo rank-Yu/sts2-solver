@@ -1,8 +1,10 @@
 // Adapted from CombatSolver src/UI/SolverGrowthStrategyPanel.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The row order, the ten built-in sources with their card portraits and names (Goopy as the
-// enchantment plus Defend, Mad Science with the Improvement rider), the two switches, the flame
-// limit's default of 2 and the greyed budgets under "ignore" are the original ones. Budgets are
+// The ten built-in sources with their card portraits and names (Goopy as the enchantment plus
+// Defend, Mad Science with the Improvement rider), the flame limit switch with its default of 2 and
+// the greyed budgets are the original ones. The original "ignore long-term rewards" switch at the top
+// is replaced by 考虑成长性卡牌收益 directly above the budgets: it covers only the growth cards
+// (relic counter goals have their own switches), and the flame limit now comes first. Budgets are
 // text boxes with an HP suffix that accept integers 0–1000 instead of SpinBoxes, the tooltips are
 // shortened, third-party sources are not listed, and every change goes through ICombatUiCommands
 // and only saves for the next search.
@@ -28,7 +30,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
     private const float RowHeight = 32f;
     private const float GreyedPortraitAlpha = 0.45f;
 
-    private readonly CheckButton _ignore;
+    private readonly CheckButton _growth;
     private readonly CheckButton _limitFlame;
     private readonly HpRow _flame;
     private readonly HpRow[] _budgets;
@@ -49,7 +51,6 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         top.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        _ignore = AddSwitchRow(top, SolverText.Get("不考虑局外收益"), "IgnoreLongTermRewards");
         CardModel flame = ModelDb.Card<BrightestFlame>();
         _limitFlame = AddSwitchRow(top, SolverText.Format($"限制{flame.Title}的最大生命消耗"),
             "LimitBrightestFlame");
@@ -66,6 +67,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         section.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        _growth = AddSwitchRow(section, SolverText.Get("考虑成长性卡牌收益"), "GrowthRewards");
         string budgetTip = SolverText.Get("0 仍优先获取同等战损下的收益；多次成功触发逐次累计。");
         HBoxContainer heading = SolverSettingsControls.CreateSectionHeading(
             SolverText.Get("每次收益允许的额外战损"));
@@ -94,7 +96,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_status);
 
-        _ignore.Toggled += OnIgnoreToggled;
+        _growth.Toggled += OnGrowthToggled;
         _limitFlame.Toggled += OnFlameLimitToggled;
     }
 
@@ -114,14 +116,14 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
     public void Apply(CombatUiSnapshot snapshot)
     {
         StrategyUiSnapshot strategy = snapshot.Strategy;
-        _ignore.SetPressedNoSignal(strategy.IgnoreLongTermRewards);
+        _growth.SetPressedNoSignal(!strategy.IgnoreGrowthRewards);
         _limitFlame.SetPressedNoSignal(strategy.BrightestFlameMaxHpLossLimit.HasValue);
         ApplyRow(_flame, strategy.BrightestFlameMaxHpLossLimit ?? DefaultFlameLimit,
             strategy.BrightestFlameMaxHpLossLimit.HasValue);
         foreach (GrowthSource source in Enum.GetValues<GrowthSource>())
         {
             ApplyRow(_budgets[(int)source], Budget(strategy.GrowthBudgets, source),
-                !strategy.IgnoreLongTermRewards);
+                !strategy.IgnoreGrowthRewards);
         }
     }
 
@@ -293,10 +295,10 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         return accepted;
     }
 
-    private void OnIgnoreToggled(bool ignore)
+    private void OnGrowthToggled(bool consider)
     {
-        bool accepted = CombatUiCommands.Instance.SetIgnoreLongTermRewards(ignore);
-        ModLog.Info($"[Sts2Solver] UI_ACTION action=ignore_long_term_rewards value={ignore} accepted={accepted}");
+        bool accepted = CombatUiCommands.Instance.SetIgnoreGrowthRewards(!consider);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=growth_rewards value={consider} accepted={accepted}");
         ShowSaved(accepted);
         Apply(CombatUiStore.Snapshot);
     }
@@ -356,7 +358,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
     }
 
 #if STS2_SOLVER_TESTING
-    internal CheckButton IgnoreToggleForTest => _ignore;
+    internal CheckButton GrowthToggleForTest => _growth;
 
     internal CheckButton FlameLimitToggleForTest => _limitFlame;
 

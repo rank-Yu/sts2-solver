@@ -16,7 +16,7 @@ internal static class SolverSearchPolicy
         return new SearchPolicyConfiguration
         {
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
-            IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            IgnoreGrowthRewards = search.IgnoreGrowthRewards,
             BrightestFlameMaxHpLossLimit = search.BrightestFlameMaxHpLossLimit,
             ActTransitionBossHpStrategy = search.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = search.FinalBossHpStrategy,

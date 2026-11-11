@@ -30,7 +30,7 @@ internal sealed record SearchSettingsSnapshot(
         SearchPolicyConfiguration right)
     {
         if (left.GrowthBudgets != right.GrowthBudgets
-            || left.IgnoreLongTermRewards != right.IgnoreLongTermRewards
+            || left.IgnoreGrowthRewards != right.IgnoreGrowthRewards
             || left.BrightestFlameMaxHpLossLimit != right.BrightestFlameMaxHpLossLimit
             || left.ActTransitionBossHpStrategy != right.ActTransitionBossHpStrategy
             || left.FinalBossHpStrategy != right.FinalBossHpStrategy

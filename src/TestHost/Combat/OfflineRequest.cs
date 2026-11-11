@@ -116,7 +116,7 @@ internal sealed record OfflineRequest
     // defaults and root-derived values; these are the request overrides the harness protocol
     // carried so a fixture can reproduce a different player setting.
     public OfflineGrowthBudgets? GrowthBudgets { get; init; }
-    public bool? IgnoreLongTermRewards { get; init; }
+    public bool? IgnoreGrowthRewards { get; init; }
     public Dictionary<string, int>? RelicCounterAllowances { get; init; }
     public string? ActTransitionBossHpStrategy { get; init; }
     public string? FinalBossHpStrategy { get; init; }

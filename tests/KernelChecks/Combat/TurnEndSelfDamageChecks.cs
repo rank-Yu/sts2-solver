@@ -293,7 +293,7 @@ internal static class TurnEndSelfDamageChecks
         InitialPlayerMaxHp = 1000,
         IsActEndingBoss = false,
         Act3BossStrategy = false,
-        IgnoreLongTermRewards = true,
+        IgnoreGrowthRewards = true,
         TheftPolicy = null,
         InitialEnemyCount = 1,
         InitialPersistentBuffValue = 0,

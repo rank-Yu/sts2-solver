@@ -236,7 +236,8 @@ internal sealed record StrategyUiSnapshot
 
     public SearchGrowthBudget GrowthBudgets { get; init; }
 
-    public bool IgnoreLongTermRewards { get; init; }
+    /// <summary>考虑成长性卡牌收益 switched off.</summary>
+    public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>The player's unmelted counter relics, in relic order, with their live counters.</summary>
     public RelicCounterUi[] RelicCounters { get; init; } = [];
@@ -283,6 +284,9 @@ internal sealed record RelicCounterUi
     public int Value { get; init; }
 
     public int Period { get; init; }
+
+    /// <summary>The counter the search aims to end the fight on (one short of triggering).</summary>
+    public int Target { get; init; }
 }
 
 internal sealed record PotionSlotUi

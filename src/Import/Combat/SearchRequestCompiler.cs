@@ -265,7 +265,7 @@ internal static class SearchRequestCompiler
             SearchMemoryBudgetBytes = searchMemoryBudgetBytes,
             PowerCommitments = PowerCatalogBuilder.Build(evaluationRoot, rules, scorer,
                 state.RunState.TotalFloor),
-            HasUnboundedGrowthTargets = policy.HasUnboundedGrowthTargets && !policy.IgnoreLongTermRewards,
+            HasUnboundedGrowthTargets = policy.HasUnboundedGrowthTargets && !policy.IgnoreGrowthRewards,
             BrightestFlameMaxHpLossLimit = policy.BrightestFlameMaxHpLossLimit,
             InitialBrightestFlameMaxHpSpent = policy.BrightestFlameMaxHpLossLimit.HasValue
                 ? NativeHistory.BrightestFlameMaxHpSpent() : 0,

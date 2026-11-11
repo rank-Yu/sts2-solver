@@ -407,7 +407,7 @@ internal static class SearchCodec
         writer.Write(rules.InitialPlayerMaxHp);
         writer.Write(rules.IsActEndingBoss);
         writer.Write(rules.Act3BossStrategy);
-        writer.Write(rules.IgnoreLongTermRewards);
+        writer.Write(rules.IgnoreGrowthRewards);
         writer.Write(rules.TheftPolicy != null);
         writer.Write((int)(rules.TheftPolicy ?? TheftPolicy.LetEscape));
         writer.Write(rules.InitialEnemyCount);
@@ -484,7 +484,7 @@ internal static class SearchCodec
         int initialMaxHp = reader.ReadInt32();
         bool actEnding = Codec.ReadBool(reader);
         bool act3 = Codec.ReadBool(reader);
-        bool ignoreLongTerm = Codec.ReadBool(reader);
+        bool ignoreGrowth = Codec.ReadBool(reader);
         bool hasTheft = Codec.ReadBool(reader);
         int theftValue = reader.ReadInt32();
         TheftPolicy? theft = hasTheft
@@ -509,7 +509,7 @@ internal static class SearchCodec
             InitialPlayerMaxHp = initialMaxHp,
             IsActEndingBoss = actEnding,
             Act3BossStrategy = act3,
-            IgnoreLongTermRewards = ignoreLongTerm,
+            IgnoreGrowthRewards = ignoreGrowth,
             TheftPolicy = theft,
             InitialEnemyCount = enemyCount,
             InitialPersistentBuffValue = persistent,

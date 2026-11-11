@@ -39,7 +39,7 @@ internal enum SolverDeploymentSpeed
 /// </summary>
 internal sealed record SolverSettingsData
 {
-    internal const int CurrentSchemaVersion = 8;
+    internal const int CurrentSchemaVersion = 9;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -90,7 +90,11 @@ internal sealed record SolverSearchSettings
 
     public SolverGrowthBudgets GrowthBudgets { get; init; } = new();
 
-    public bool IgnoreLongTermRewards { get; init; }
+    /// <summary>
+    /// 考虑成长性卡牌收益 switched off: the ten growth cards' rewards are not valued. Relic counter
+    /// goals do not depend on it.
+    /// </summary>
+    public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>
     /// Native ids of the counter relics the search tries to leave one short of triggering, in ordinal

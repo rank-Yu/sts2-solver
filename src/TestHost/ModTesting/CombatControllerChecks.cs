@@ -3540,7 +3540,7 @@ internal static class CombatControllerChecks
             {
                 Potions = settings.Search.Potions with { Directives = [] },
                 GrowthBudgets = new SolverGrowthBudgets(),
-                IgnoreLongTermRewards = false,
+                IgnoreGrowthRewards = false,
                 BrightestFlameMaxHpLossLimit = null,
                 ActTransitionBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
                 FinalBossHpStrategy = SearchBossHpStrategy.ProgressionFirst,
@@ -3646,17 +3646,17 @@ internal static class CombatControllerChecks
         SearchCase growth = await SearchAsync("growth");
         check("growth_request", growth.Options.Scorer?.RulesForCodec.GrowthBudgets.Feed == 7,
             growth.Options.Scorer?.RulesForCodec.GrowthBudgets.Feed.ToString() ?? "-");
-        check("ignore_cmd", CombatUiCommands.Instance.SetIgnoreLongTermRewards(true));
-        action("set_ignore_long_term:true");
+        check("ignore_cmd", CombatUiCommands.Instance.SetIgnoreGrowthRewards(true));
+        action("set_ignore_growth:true");
         await NoSearchAsync("ignore_no_search");
-        check("ignore_snapshot", Snapshot().Strategy.IgnoreLongTermRewards, "snapshot ignore");
+        check("ignore_snapshot", Snapshot().Strategy.IgnoreGrowthRewards, "snapshot ignore");
         SearchCase ignore = await SearchAsync("ignore");
-        check("ignore_request", ignore.Options.Scorer?.RulesForCodec.IgnoreLongTermRewards == true,
+        check("ignore_request", ignore.Options.Scorer?.RulesForCodec.IgnoreGrowthRewards == true,
             "ignore flag");
         check("ignore_effective_budget",
             ignore.Options.Scorer?.RulesForCodec.GrowthBudgets.Total == 0,
             ignore.Options.Scorer?.RulesForCodec.GrowthBudgets.Total.ToString() ?? "-");
-        check("ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
+        check("ignore_reset", CombatUiCommands.Instance.SetIgnoreGrowthRewards(false));
         check("growth_reset", CombatUiCommands.Instance.SetGrowthBudget(GrowthSource.Feed, 0));
 
         RelicCounterUi[] relics = Snapshot().Strategy.RelicCounters;
@@ -3696,11 +3696,12 @@ internal static class CombatControllerChecks
                 "snapshot allowance");
             check("relic_request",
                 TargetsMatch(CombatSessionController.CompileRequestForTest(), 4, out string relicSet), relicSet);
-            check("relic_ignore_cmd", CombatUiCommands.Instance.SetIgnoreLongTermRewards(true));
-            RelicCounterTarget[] ignored = CombatSessionController.CompileRequestForTest()
-                .Options.Scorer?.RulesForCodec.RelicCounterTargets ?? [];
-            check("relic_ignore_request", ignored.Length == 0, ignored.Length.ToString());
-            check("relic_ignore_reset", CombatUiCommands.Instance.SetIgnoreLongTermRewards(false));
+            // The growth switch covers only the growth cards: relic goals keep their own switches.
+            check("relic_growth_off_cmd", CombatUiCommands.Instance.SetIgnoreGrowthRewards(true));
+            check("relic_growth_off_keeps_targets",
+                TargetsMatch(CombatSessionController.CompileRequestForTest(), 4, out string growthOff),
+                growthOff);
+            check("relic_growth_off_reset", CombatUiCommands.Instance.SetIgnoreGrowthRewards(false));
             check("relic_reset", CombatUiCommands.Instance.SetRelicCounterAllowance(relicId, 0)
                 && !SolverSettings.Current.Search.RelicCounterAllowances.ContainsKey(relicId), "allowance kept");
             // Switching one relic off removes exactly its goal.
@@ -3796,7 +3797,7 @@ internal static class CombatControllerChecks
         action("set_mode:manual");
         await WaitIdleAsync(host, "manual idle");
         bool reset = CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart)
-            && CombatUiCommands.Instance.SetIgnoreLongTermRewards(false)
+            && CombatUiCommands.Instance.SetIgnoreGrowthRewards(false)
             && CombatUiCommands.Instance.SetBrightestFlameLimit(null)
             && CombatUiCommands.Instance.SetActTransitionBossHpStrategy(SearchBossHpStrategy.ProgressionFirst)
             && CombatUiCommands.Instance.SetFinalBossHpStrategy(SearchBossHpStrategy.ProgressionFirst)

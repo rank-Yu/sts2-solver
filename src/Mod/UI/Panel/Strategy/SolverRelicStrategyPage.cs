@@ -1,8 +1,9 @@
 // The relic list follows CombatSolver src/UI/SolverRelicStrategyPanel.cs at 5c773caa (MIT License,
 // Copyright (c) 2026 Torch1230 and contributors): the owned counter relics with their native icons.
 // Each row has its own switch, off by default, and one allowance laid out like this Mod's growth page;
-// the target is fixed at one count short of triggering, so the original's range, priority and unowned
-// list are not ported.
+// the target is fixed at one count short of triggering and shown in the row, so the original's range,
+// priority and unowned list are not ported. There is no page-wide switch: with every row off the
+// search ignores relic counters.
 using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
@@ -33,7 +34,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
 
         VBoxContainer content = SolverSettingsControls.CreatePageContent("RelicContent");
-        _heading = SolverSettingsControls.CreateSectionHeading(SolverText.Get("允许的额外战损"));
+        _heading = SolverSettingsControls.CreateSectionHeading(
+            SolverText.Get("卡遗物计数允许的额外战损"));
         _heading.Name = "RelicHeading";
         content.AddChild(_heading);
         _rows = new VBoxContainer
@@ -67,8 +69,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
     }
 
     /// <summary>
-    /// Shows the owned counter relics with their switches and saved allowances; a box being edited keeps
-    /// its text. A relic that is switched off, or any relic while long-term rewards are ignored, is greyed.
+    /// Shows the owned counter relics with their targets, switches and saved allowances; a box being
+    /// edited keeps its text. A relic that is switched off is greyed.
     /// </summary>
     public void Apply(CombatUiSnapshot snapshot)
     {
@@ -77,16 +79,13 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
             static counter => $"{counter.Slot}:{counter.RelicId}"));
         if (relics != _builtRelics)
             Rebuild(strategy.RelicCounters, relics);
-        bool pageEnabled = !strategy.IgnoreLongTermRewards;
         foreach (RelicRow row in _relicRows)
         {
             RelicCounterUi counter = Array.Find(strategy.RelicCounters, item => item.Slot == row.Slot)!;
-            row.Count.Text = SolverText.Format($"当前 {counter.Value}/{counter.Period}");
+            row.Count.Text = SolverText.Format($"目标 {counter.Target}/{counter.Period}");
             bool on = Array.IndexOf(strategy.RelicCounterRelics, row.RelicId) >= 0;
             row.Toggle.SetPressedNoSignal(on);
-            row.Toggle.Disabled = !pageEnabled;
-            ApplyRow(row, strategy.RelicCounterAllowances.TryGetValue(row.RelicId, out int hp) ? hp : 0,
-                pageEnabled && on);
+            ApplyRow(row, strategy.RelicCounterAllowances.TryGetValue(row.RelicId, out int hp) ? hp : 0, on);
         }
     }
 

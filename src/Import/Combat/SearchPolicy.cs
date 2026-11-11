@@ -55,7 +55,8 @@ public sealed record SearchPolicyConfiguration
 
     public SearchGrowthBudget GrowthBudgets { get; init; }
 
-    public bool IgnoreLongTermRewards { get; init; }
+    /// <summary>The ten growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
+    public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
     public int? BrightestFlameMaxHpLossLimit { get; init; }
@@ -133,7 +134,8 @@ public sealed record SearchPolicy
     public SearchBossHpStrategy FinalBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
 
-    public bool IgnoreLongTermRewards { get; init; }
+    /// <summary>The ten growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
+    public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null leaves the default path.</summary>
     public int? BrightestFlameMaxHpLossLimit { get; init; }
@@ -166,21 +168,21 @@ public sealed record SearchPolicy
 
     /// <summary><c>SearchPolicySnapshot.EffectiveGrowthBudgets</c>.</summary>
     public SearchGrowthBudget EffectiveGrowthBudgets
-        => IgnoreLongTermRewards ? default : GrowthBudgets;
+        => IgnoreGrowthRewards ? default : GrowthBudgets;
 
     /// <summary><c>SearchPolicySnapshot.HasGrowthTargets</c>.</summary>
     public bool HasGrowthTargets
         => RequiredGrowthRewards.Total != 0 || HasUnboundedGrowthTargets;
 
     /// <summary><c>SearchPolicySnapshot.EffectiveHasGrowthTargets</c>.</summary>
-    public bool EffectiveHasGrowthTargets => !IgnoreLongTermRewards && HasGrowthTargets;
+    public bool EffectiveHasGrowthTargets => !IgnoreGrowthRewards && HasGrowthTargets;
 }
 
 /// <summary>
 /// Reconstructs the policy snapshot from the native root. When no configuration is passed, the
 /// fixed settings mirror the M0 offline host: <c>ModRuntime.ApplyFixedBudgetSettings</c> left growth
 /// budgets at zero, relic strategy enabled with no rules, both boss strategies
-/// <c>ProgressionFirst</c>, <c>IgnoreLongTermRewards=false</c>, no potion directives, and no
+/// <c>ProgressionFirst</c>, <c>IgnoreGrowthRewards=false</c>, no potion directives, and no
 /// development/third-party registrations. The profile flags default to the harness defaults
 /// (<c>ordering=baseline</c>, no continuous threat, no perturbation). Act-3/theft/growth fields are
 /// then derived exactly as <c>SolverController.CaptureSearchPolicy</c> does; potion directives are
@@ -233,7 +235,7 @@ public static class SearchPolicyCapture
             Act3BossStrategy = IsAct3BossEncounter(state),
             ActTransitionBossHpStrategy = settings.ActTransitionBossHpStrategy,
             FinalBossHpStrategy = settings.FinalBossHpStrategy,
-            IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
+            IgnoreGrowthRewards = settings.IgnoreGrowthRewards,
             BrightestFlameMaxHpLossLimit = settings.BrightestFlameMaxHpLossLimit,
             TheftPolicy = theft,
             PotionDefaultMode = settings.PotionDefaultMode,

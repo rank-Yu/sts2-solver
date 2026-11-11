@@ -170,4 +170,4 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 - fixture：`tests/corpora/fixtures/<root>.json`；
 - 质量语料：`tests/corpora/quality/<name>/spec.json` 与 `request.json`，根名为 `quality-<name>`。
 
-请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`ignoreLongTermRewards`、两个 Boss 策略、`theftPolicyForTest`、`potionDefaultModeForTest`、`potionDirectivesForTest`、`act3BossStrategyForTest`）。未知字段和不支持的搜索或部署取值都显式失败。
+请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`ignoreGrowthRewards`、两个 Boss 策略、`theftPolicyForTest`、`potionDefaultModeForTest`、`potionDirectivesForTest`、`act3BossStrategyForTest`）。未知字段和不支持的搜索或部署取值都显式失败。

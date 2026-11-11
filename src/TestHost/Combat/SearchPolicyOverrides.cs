@@ -13,8 +13,8 @@ internal static class SearchPolicyOverrides
     {
         if (request.GrowthBudgets is { } budgets)
             policy = policy with { GrowthBudgets = budgets.ToPolicy() };
-        if (request.IgnoreLongTermRewards is { } ignore)
-            policy = policy with { IgnoreLongTermRewards = ignore };
+        if (request.IgnoreGrowthRewards is { } ignore)
+            policy = policy with { IgnoreGrowthRewards = ignore };
         if (request.RelicCounterAllowances is { } relics)
         {
             policy = policy with

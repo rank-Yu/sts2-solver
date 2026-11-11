@@ -65,6 +65,7 @@ internal static class UiLogicChecks
         Check("settings_third_party_current", () => ThirdPartyCurrentSchema(directory));
         Check("settings_schema6_upgrade", () => Schema6Upgrade(directory));
         Check("settings_forced_potion_upgrade", () => ForcedPotionUpgrade(directory));
+        Check("settings_growth_switch_upgrade", () => GrowthSwitchUpgrade(directory));
         Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
         Check("full_auto_pause_policy", PausePolicy);
@@ -109,7 +110,7 @@ internal static class UiLogicChecks
         Require(data.Search.Potions.Directives.Length == 0, "potion_directives_default");
         Require(data.Search.GrowthBudgets.ToPolicy() == default, "growth_default");
         Require(data.Search.GrowthBudgets.ThirdParty.Count == 0, "growth_third_party_default");
-        Require(!data.Search.IgnoreLongTermRewards, "ignore_long_term_default");
+        Require(!data.Search.IgnoreGrowthRewards, "ignore_growth_default");
         Require(data.Search.BrightestFlameMaxHpLossLimit is null, "brightest_flame_default");
         bool flameRejected = false;
         try
@@ -167,7 +168,7 @@ internal static class UiLogicChecks
                         ["example_mod:growth"] = JsonSerializer.SerializeToElement(7),
                     },
                 },
-                IgnoreLongTermRewards = true,
+                IgnoreGrowthRewards = true,
                 BrightestFlameMaxHpLossLimit = 3,
                 ActTransitionBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
                 FinalBossHpStrategy = SearchBossHpStrategy.MinimizeHpLoss,
@@ -233,7 +234,7 @@ internal static class UiLogicChecks
     {
         string path = Path.Combine(directory, "current-third-party.json");
         File.WriteAllText(path,
-            "{\"schemaVersion\":8,\"search\":{\"growthBudgets\":{" +
+            "{\"schemaVersion\":9,\"search\":{\"growthBudgets\":{" +
             "\"handOfGreed\":4,\"example_mod:growth\":7}}}");
         List<string> logs = [];
         SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
@@ -299,8 +300,38 @@ internal static class UiLogicChecks
                 $"schema{schema}_forced_directives");
             Require(!Directory.GetFiles(directory, $"schema{schema}-forced.bad-*.json").Any(),
                 $"schema{schema}_forced_not_corrupt");
-            Require(logs.Any(line => line.Contains($"SETTINGS_UPGRADED from={schema} to=8",
+            Require(logs.Any(line => line.Contains(
+                    $"SETTINGS_UPGRADED from={schema} to={SolverSettingsData.CurrentSchemaVersion}",
                     StringComparison.Ordinal)), $"schema{schema}_forced_log");
+        }
+    }
+
+    /// <summary>
+    /// Up to schema 8 ignoreLongTermRewards also turned the relic counter goals off. It becomes
+    /// ignoreGrowthRewards; when it was on, the relic switches are cleared so the search behaves as
+    /// before, and when it was off they are kept.
+    /// </summary>
+    private static void GrowthSwitchUpgrade(string directory)
+    {
+        foreach (bool ignored in new[] { true, false })
+        {
+            string path = Path.Combine(directory, $"schema8-ignore-{ignored}.json");
+            File.WriteAllText(path,
+                "{\"schemaVersion\":8,\"search\":{\"ignoreLongTermRewards\":" + (ignored ? "true" : "false") +
+                ",\"relicCounterRelics\":[\"PEN_NIB\"],\"relicCounterAllowances\":{\"PEN_NIB\":3}}}");
+            List<string> logs = [];
+            SolverSettingsStore loaded = SolverSettingsStore.Load(path, logs.Add, logs.Add);
+            SolverSearchSettings search = loaded.Current.Search;
+            string name = $"schema8_ignore_{ignored}".ToLowerInvariant();
+            Require(loaded.Current.SchemaVersion == SolverSettingsData.CurrentSchemaVersion, name + "_schema");
+            Require(search.IgnoreGrowthRewards == ignored, name + "_growth");
+            Require(search.RelicCounterRelics.Length == (ignored ? 0 : 1), name + "_relics");
+            Require(search.RelicCounterAllowances.TryGetValue("PEN_NIB", out int hp) && hp == 3,
+                name + "_allowance_kept");
+            Require(!Directory.GetFiles(directory, $"schema8-ignore-{ignored}.bad-*.json").Any(),
+                name + "_not_corrupt");
+            Require(logs.Any(static line => line.Contains("SETTINGS_UPGRADED from=8", StringComparison.Ordinal)),
+                name + "_log");
         }
     }
 

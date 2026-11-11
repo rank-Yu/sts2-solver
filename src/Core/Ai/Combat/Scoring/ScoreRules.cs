@@ -313,7 +313,8 @@ internal sealed class ScoreRules
     /// </summary>
     public required bool Act3BossStrategy { get; init; }
 
-    public required bool IgnoreLongTermRewards { get; init; }
+    /// <summary>Growth card rewards (growth credit and long-term resource value) are not valued.</summary>
+    public required bool IgnoreGrowthRewards { get; init; }
 
     public required TheftPolicy? TheftPolicy { get; init; }
 

@@ -539,8 +539,8 @@ internal static class ConfigCompare
             return $"isActEndingBoss {expected.IsActEndingBoss}->{actual.IsActEndingBoss}";
         if (expected.Act3BossStrategy != actual.Act3BossStrategy)
             return $"act3BossStrategy {expected.Act3BossStrategy}->{actual.Act3BossStrategy}";
-        if (expected.IgnoreLongTermRewards != actual.IgnoreLongTermRewards)
-            return $"ignoreLongTermRewards {expected.IgnoreLongTermRewards}->{actual.IgnoreLongTermRewards}";
+        if (expected.IgnoreGrowthRewards != actual.IgnoreGrowthRewards)
+            return $"ignoreGrowthRewards {expected.IgnoreGrowthRewards}->{actual.IgnoreGrowthRewards}";
         if (expected.TheftPolicy != actual.TheftPolicy)
             return $"theftPolicy {expected.TheftPolicy}->{actual.TheftPolicy}";
         if (expected.InitialEnemyCount != actual.InitialEnemyCount)

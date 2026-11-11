@@ -552,7 +552,7 @@ internal static class IncumbentAndLoopChecks
             InitialPlayerMaxHp = 50,
             IsActEndingBoss = false,
             Act3BossStrategy = false,
-            IgnoreLongTermRewards = false,
+            IgnoreGrowthRewards = false,
             TheftPolicy = null,
             InitialEnemyCount = 1,
             InitialPersistentBuffValue = 0,

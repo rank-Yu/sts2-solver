@@ -447,19 +447,19 @@ internal static partial class CombatSessionController
         return true;
     }
 
-    internal static bool SetIgnoreLongTermRewards(bool ignore)
+    internal static bool SetIgnoreGrowthRewards(bool ignore)
     {
         RequireMainThread();
-        if (SolverSettings.Current.Search.IgnoreLongTermRewards == ignore)
+        if (SolverSettings.Current.Search.IgnoreGrowthRewards == ignore)
             return true;
         if (!SolverSettings.Update(settings => settings with
             {
-                Search = settings.Search with { IgnoreLongTermRewards = ignore },
+                Search = settings.Search with { IgnoreGrowthRewards = ignore },
             }))
         {
             return false;
         }
-        StrategySettingsChanged($"ignore_long_term_rewards={ignore}");
+        StrategySettingsChanged($"ignore_growth_rewards={ignore}");
         return true;
     }
 

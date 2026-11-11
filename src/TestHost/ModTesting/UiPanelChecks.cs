@@ -362,11 +362,13 @@ internal static class UiPanelChecks
             await Frames(host, 3);
         }
 
-        await Toggle(page.IgnoreToggleForTest, true, "ignore_long_term_rewards");
-        CheckRows("growth_ignore_on", Strategy().IgnoreLongTermRewards
+        check("growth_rewards_default_on", page.GrowthToggleForTest.ButtonPressed,
+            page.GrowthToggleForTest.ButtonPressed.ToString());
+        await Toggle(page.GrowthToggleForTest, false, "growth_rewards");
+        CheckRows("growth_rewards_off", Strategy().IgnoreGrowthRewards
             && !page.BudgetInputForTest(GrowthSource.Feed).Editable && page.StatusTextForTest == saved);
-        await Toggle(page.IgnoreToggleForTest, false, "ignore_long_term_rewards");
-        CheckRows("growth_ignore_off", !Strategy().IgnoreLongTermRewards
+        await Toggle(page.GrowthToggleForTest, true, "growth_rewards");
+        CheckRows("growth_rewards_on", !Strategy().IgnoreGrowthRewards
             && page.BudgetInputForTest(GrowthSource.Feed).Editable);
 
         await Toggle(page.FlameLimitToggleForTest, true, "brightest_flame_limit");
@@ -423,7 +425,8 @@ internal static class UiPanelChecks
         }
         bool rowsMatch = page.RowCountForTest == relics.Length && relics.All(relic =>
             page.TitleTextForTest(relic.Slot) == CombatDisplayNames.RelicTitle(relic.RelicId)
-            && page.CountTextForTest(relic.Slot) == SolverText.Format($"当前 {relic.Value}/{relic.Period}")
+            && relic.Target == relic.Period - 1
+            && page.CountTextForTest(relic.Slot) == SolverText.Format($"目标 {relic.Target}/{relic.Period}")
             && page.AllowanceInputForTest(relic.Slot).Text == "0"
             // Every relic starts switched off, and a switched-off relic's allowance cannot be edited.
             && !page.EnabledToggleForTest(relic.Slot).ButtonPressed
@@ -456,11 +459,12 @@ internal static class UiPanelChecks
         await Submit(host, input, "0");
         action($"submit:relic:{first.RelicId}:0");
         input.ReleaseFocus();
-        CombatUiCommands.Instance.SetIgnoreLongTermRewards(true);
+        // The growth page's switch covers only the growth cards; the relic row stays usable.
+        CombatUiCommands.Instance.SetIgnoreGrowthRewards(true);
         await Frames(host, 3);
-        check("relic_ignore_greys", !page.AllowanceInputForTest(first.Slot).Editable
-            && page.EnabledToggleForTest(first.Slot).Disabled, "editable");
-        CombatUiCommands.Instance.SetIgnoreLongTermRewards(false);
+        check("relic_growth_off_independent", page.AllowanceInputForTest(first.Slot).Editable
+            && !page.EnabledToggleForTest(first.Slot).Disabled, "editable");
+        CombatUiCommands.Instance.SetIgnoreGrowthRewards(false);
         await Frames(host, 3);
         check("relic_allowance_reset", Allowance() == 0 && page.AllowanceInputForTest(first.Slot).Editable
             && !page.EnabledToggleForTest(first.Slot).Disabled, Describe(panel));
@@ -776,10 +780,10 @@ internal static class UiPanelChecks
         }
         int? limit = strategy.BrightestFlameMaxHpLossLimit;
         LineEdit flame = page.FlameLimitInputForTest;
-        detail = $"ignore={page.IgnoreToggleForTest.ButtonPressed}/{strategy.IgnoreLongTermRewards} " +
+        detail = $"growth={page.GrowthToggleForTest.ButtonPressed}/{!strategy.IgnoreGrowthRewards} " +
             $"flame={page.FlameLimitToggleForTest.ButtonPressed}:{flame.Text}:{flame.Editable}/" +
             $"{limit?.ToString(CultureInfo.InvariantCulture) ?? "null"}";
-        bool ok = page.IgnoreToggleForTest.ButtonPressed == strategy.IgnoreLongTermRewards
+        bool ok = page.GrowthToggleForTest.ButtonPressed == !strategy.IgnoreGrowthRewards
             && page.FlameLimitToggleForTest.ButtonPressed == limit.HasValue
             && flame.Text == (limit ?? 2).ToString(CultureInfo.InvariantCulture)
             && flame.Editable == limit.HasValue;
@@ -788,7 +792,7 @@ internal static class UiPanelChecks
             LineEdit input = page.BudgetInputForTest(source);
             int value = Budget(strategy.GrowthBudgets, source);
             if (input.Text != value.ToString(CultureInfo.InvariantCulture)
-                || input.Editable == strategy.IgnoreLongTermRewards)
+                || input.Editable == strategy.IgnoreGrowthRewards)
             {
                 detail += $" {source}={input.Text}:{input.Editable}/{value}";
                 ok = false;

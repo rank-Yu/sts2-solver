@@ -489,7 +489,7 @@ internal sealed class Scorer
         score -= ActEndingBossPolicy.DeathSaveBeamCost(
             deathSaveHpRestored + projectedDeathSaveHpRestored) * hpWeight;
 
-        int realizedLongTermResourceValue = _score.IgnoreLongTermRewards
+        int realizedLongTermResourceValue = _score.IgnoreGrowthRewards
             ? 0
             : battle.Counter(Counter.LongTermResourceValue);
         int exhaustedTheHunts = 0;
@@ -507,10 +507,10 @@ internal sealed class Scorer
             ? 0
             : Math.Max(0, GetAmount(battle, _score.TheHuntPowerId, Limits.PlayerOwner));
         int missedTheHuntRewards = Math.Max(0, exhaustedTheHunts - rewardedTheHunts);
-        int longTermResourceValue = _score.IgnoreLongTermRewards
+        int longTermResourceValue = _score.IgnoreGrowthRewards
             ? 0
             : realizedLongTermResourceValue - missedTheHuntRewards * TheHuntLongTermResourceValue;
-        GrowthValues growthRewards = _score.IgnoreLongTermRewards
+        GrowthValues growthRewards = _score.IgnoreGrowthRewards
             ? default
             : CaptureGrowthRewards(battle);
         int growthHpCredit = _score.GrowthBudgets.Credit(growthRewards);

@@ -173,6 +173,7 @@ internal static partial class CombatSessionController
                     RelicId = relic.Id.Entry,
                     Value = value,
                     Period = period,
+                    Target = RelicCounterCatalog.TargetCount(period),
                 });
             }
         }
@@ -183,7 +184,7 @@ internal static partial class CombatSessionController
         {
             Potions = [.. potions],
             GrowthBudgets = search.GrowthBudgets.ToPolicy(),
-            IgnoreLongTermRewards = search.IgnoreLongTermRewards,
+            IgnoreGrowthRewards = search.IgnoreGrowthRewards,
             RelicCounters = [.. relics],
             RelicCounterRelics = [.. search.RelicCounterRelics],
             RelicCounterAllowances = new Dictionary<string, int>(search.RelicCounterAllowances,

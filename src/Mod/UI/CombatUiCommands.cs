@@ -30,7 +30,7 @@ internal interface ICombatUiCommands
 
     bool SetGrowthBudget(GrowthSource source, int value);
 
-    bool SetIgnoreLongTermRewards(bool ignore);
+    bool SetIgnoreGrowthRewards(bool ignore);
 
     bool SetRelicCounterEnabled(string relicId, bool enabled);
 
@@ -74,8 +74,8 @@ internal static class CombatUiCommands
         public bool SetGrowthBudget(GrowthSource source, int value)
             => CombatSessionController.SetGrowthBudget(source, value);
 
-        public bool SetIgnoreLongTermRewards(bool ignore)
-            => CombatSessionController.SetIgnoreLongTermRewards(ignore);
+        public bool SetIgnoreGrowthRewards(bool ignore)
+            => CombatSessionController.SetIgnoreGrowthRewards(ignore);
 
         public bool SetRelicCounterEnabled(string relicId, bool enabled)
             => CombatSessionController.SetRelicCounterEnabled(relicId, enabled);

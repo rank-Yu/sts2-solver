@@ -156,6 +156,22 @@
       "separate": true
     },
     {
+      "id": "tsm-silent-mytes-terminal-setup",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "tsm-silent-mytes-terminal-setup",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
       "id": "hcs-regent-history-course",
       "scenario": null,
       "group": "full-combat",

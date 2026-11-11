@@ -39,6 +39,9 @@ internal sealed class ActionDeployer(
 {
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan BoundaryTimeout = TimeSpan.FromSeconds(180);
+    // How long a terminal prediction's native combat must stay settled in a Play phase before the
+    // deployer stops waiting for the predicted end.
+    private static readonly TimeSpan TerminalContinuedSettle = TimeSpan.FromMilliseconds(500);
 
     // Set while an EndTurn deployment keeps its selector for the enemy turn; main thread only.
     private static Action? _releaseEndTurnSelector;
@@ -115,7 +118,13 @@ internal sealed class ActionDeployer(
                 };
                 _releaseEndTurnSelector = endTurnRelease;
             }
-            await WaitForBoundaryAsync(planned.After, token, () => selector.FailureDetail);
+            // A terminal prediction stops waiting once the native combat settles in a Play phase
+            // from this turn (a card or potion) or the next one (EndTurn) instead of ending.
+            int terminalPlayTurn = planned.Action.Kind == PlayerActionKind.EndTurn
+                ? planned.Before.PlayerTurn + 1
+                : planned.Before.PlayerTurn;
+            await WaitForBoundaryAsync(planned.After, token, () => selector.FailureDetail,
+                terminalPlayTurn);
             if (selector.FailureDetail is { } mismatch)
                 throw new DeploymentFailureException("choice_mismatch", mismatch);
             // Native selectors return an empty selection without asking once the combat is over or
@@ -147,6 +156,23 @@ internal sealed class ActionDeployer(
             if (endTurnRelease != null && ReferenceEquals(_releaseEndTurnSelector, endTurnRelease))
                 _releaseEndTurnSelector = null;
             selectorScope?.Dispose();
+        }
+        if (planned.After.Outcome != Outcome.None
+            && CombatManager.Instance.IsInProgress && !CombatManager.Instance.IsOverOrEnding)
+        {
+            // The predicted end did not happen. After an EndTurn the next turn's setup page may
+            // have taken over with its own plan, which the caller checks first; otherwise the
+            // prediction deviated.
+            if (planned.Action.Kind != PlayerActionKind.EndTurn)
+            {
+                throw new DeploymentFailureException("combat_continued",
+                    $"预测这一步结束战斗，原生战斗仍在进行（turn={planned.Before.PlayerTurn} " +
+                    $"index={planned.Index} outcome={planned.After.Outcome}）。");
+            }
+            ModLog.Info(
+                $"[Sts2Solver] DEPLOY_TERMINAL_CONTINUED turn={planned.Before.PlayerTurn} " +
+                $"index={planned.Index} action={planned.Action} outcome={planned.After.Outcome}");
+            return planned.After;
         }
         if (planned.After.Outcome != Outcome.None)
         {
@@ -394,10 +420,11 @@ internal sealed class ActionDeployer(
 
     /// <summary>Waits until the live combat reaches the predicted stable boundary.</summary>
     private async Task WaitForBoundaryAsync(Battle expected, CancellationToken token,
-        Func<string?>? choiceFailure = null)
+        Func<string?>? choiceFailure = null, int terminalPlayTurn = int.MaxValue)
     {
         Stopwatch watch = Stopwatch.StartNew();
         Stopwatch? mismatchWatch = null;
+        Stopwatch? continuedWatch = null;
         while (true)
         {
             if (choiceFailure?.Invoke() is { } mismatch)
@@ -419,6 +446,30 @@ internal sealed class ActionDeployer(
             }
             if (expected.Outcome != Outcome.None)
             {
+                // The prediction ends the combat here. If the native combat instead settles in the
+                // player's Play phase (the next turn after an EndTurn), the predicted end did not
+                // happen: return and let the caller decide instead of waiting forever.
+                if (!CombatManager.Instance.IsOverOrEnding
+                    && live.CurrentSide == CombatSide.Player
+                    && LocalContext.GetMe(live)?.PlayerCombatState is
+                        { Phase: PlayerTurnPhase.Play } playState
+                    && playState.TurnNumber >= terminalPlayTurn
+                    && RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted)
+                {
+                    continuedWatch ??= Stopwatch.StartNew();
+                    if (continuedWatch.Elapsed >= TerminalContinuedSettle)
+                        return;
+                }
+                else
+                {
+                    continuedWatch = null;
+                }
+                if (watch.Elapsed > BoundaryTimeout)
+                {
+                    throw new DeploymentFailureException("boundary_timeout",
+                        $"预测战斗结束，等待原生战斗结束超时（turn={expected.PlayerTurn} " +
+                        $"outcome={expected.Outcome}）。");
+                }
                 await CombatFrameWaiter.NextFrameAsync(host);
                 continue;
             }

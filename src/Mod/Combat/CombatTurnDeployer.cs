@@ -174,6 +174,13 @@ internal sealed class CombatTurnDeployer(
             return new CombatTurnDeployment(false, false, null, null, [], false, null,
                 SupersededByTurnSetup: true);
         }
+        if (endTurn.After.Outcome != Outcome.None
+            && CombatManager.Instance.IsInProgress && !CombatManager.Instance.IsOverOrEnding)
+        {
+            string detail = $"预测结束回合后战斗结束（{endTurn.After.Outcome}），原生战斗仍在进行（turn={turn}）。";
+            ModLog.Error($"[Sts2Solver] CONTROLLER_END_TURN_DEVIATION turn={turn} diff={detail}");
+            return new CombatTurnDeployment(true, false, "action_deviation", detail, [detail], false, null);
+        }
         if (endTurn.After.Outcome == Outcome.None
             && !CombatRouteDecision.ActionMatches(endTurn, ended))
         {

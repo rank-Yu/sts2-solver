@@ -30,7 +30,7 @@
 | `import_capacity` / `import_failure` | `k3-basic-potions` | 清空跑局牌组后注入 641 张 `STRIKE_IRONCLAD`，超过 `Limits.Cards` |
 | `search_failures-t1` / `manual_switch_at_turn_start` / `auto_turn_start_once` | `k3-basic-potions` | 单搜索线程；前两者切到手动，后者验证同一回合不重复自动搜索 |
 
-整场组用五个角色的 `quality-<角色>-001`，加上实机问题的整场复现（`hl1f*`、`hl2-*`、`toasty-full-auto`、`hcs-regent-history-course`），面板压力组用 `quality-DEFECT-000` 和 `clone-289-axebots`。`hcs-regent-history-course` 是摄政王对邪教徒、加历史课和烤面包手套，低档、全自动 + 接管：每张攻击牌打出后的逐动作核对和第 2、3 回合准备页的开局比对都要求历史课记录的攻击牌与实机一致，0 偏差。整场请求除此之外都是中档、全自动；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
+整场组用五个角色的 `quality-<角色>-001`，加上实机问题的整场复现（`hl1f*`、`hl2-*`、`toasty-full-auto`、`hcs-regent-history-course`、`tsm-silent-mytes-terminal-setup`），面板压力组用 `quality-DEFECT-000` 和 `clone-289-axebots`。`hcs-regent-history-course` 是摄政王对邪教徒、加历史课和烤面包手套，低档、全自动 + 接管：每张攻击牌打出后的逐动作核对和第 2、3 回合准备页的开局比对都要求历史课记录的攻击牌与实机一致，0 偏差。`tsm-silent-mytes-terminal-setup` 是静默猎手对 Mytes（低档、全自动 + 接管）：路线预测第 4 回合结束回合后、第 5 回合准备页选完牌战斗就结束，实机准备页现搜的路线还要再打一张牌；部署器不再无限等待预测的战斗结束，由准备页的方案接管第 5 回合并打完整场（修复前控制器在这里卡住直到超时）。整场请求除此之外都是中档、全自动；面板检查共 54 项，失败必须为 0（每场独立实例的第一场按设计跳过两项进程间检查）。
 
 ## 运行
 

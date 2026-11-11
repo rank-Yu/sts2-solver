@@ -40,6 +40,20 @@ internal sealed class ActionDeployer(
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan BoundaryTimeout = TimeSpan.FromSeconds(180);
 
+    // Set while an EndTurn deployment keeps its selector for the enemy turn; main thread only.
+    private static Action? _releaseEndTurnSelector;
+
+    /// <summary>
+    /// Releases the EndTurn deployment selector at the next turn's setup interception, after every
+    /// enemy-turn choice has been asked. No-op when no EndTurn deployment is waiting.
+    /// </summary>
+    internal static void ReleaseEndTurnSelectorForSetup()
+    {
+        Action? release = _releaseEndTurnSelector;
+        _releaseEndTurnSelector = null;
+        release?.Invoke();
+    }
+
     internal NGame Host => host;
 
     internal CombatState Combat => combat;
@@ -63,6 +77,7 @@ internal sealed class ActionDeployer(
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
         IDisposable? selectorScope = PlannedNativeSelector.Activate(selector);
         bool endTurnSelectorReleased = false;
+        Action? endTurnRelease = null;
         try
         {
             switch (planned.Action.Kind)
@@ -80,19 +95,25 @@ internal sealed class ActionDeployer(
                     throw new DeploymentFailureException("action_kind",
                         $"未知动作 {planned.Action.Kind}");
             }
-            // The EndTurn action itself has completed. When the next turn may open a visible setup
-            // page, release the automated selector before waiting for Play: the native gate
-            // requires Selector == null, and the setup transaction (not this route) answers the
-            // next turn's PlayerTurnStart choices.
+            // The EndTurn action itself has completed, but the enemy turn has not run yet and can
+            // still ask planned choices (KnowledgeDemon CURSE_OF_KNOWLEDGE). When the next turn may
+            // open a visible setup page, the selector therefore stays active through the enemy turn
+            // and is released by the setup interception itself: the native gate requires
+            // Selector == null, and the setup transaction (not this route) answers the next
+            // turn's PlayerTurnStart choices.
             if (planned.Action.Kind == PlayerActionKind.EndTurn
                 && PlayerTurnSetupRuntime.MayNeedNextTurnSetup(player))
             {
-                selectorScope?.Dispose();
-                selectorScope = null;
-                endTurnSelectorReleased = true;
-                ModLog.Info(
-                    $"[Sts2Solver] DEPLOY_END_TURN_SELECTOR_RELEASED turn={planned.Before.PlayerTurn} " +
-                    $"next={planned.Before.PlayerTurn + 1} pending_choices={selector.PendingCount}");
+                endTurnRelease = () =>
+                {
+                    selectorScope?.Dispose();
+                    selectorScope = null;
+                    endTurnSelectorReleased = true;
+                    ModLog.Info(
+                        $"[Sts2Solver] DEPLOY_END_TURN_SELECTOR_RELEASED turn={planned.Before.PlayerTurn} " +
+                        $"next={planned.Before.PlayerTurn + 1} pending_choices={selector.PendingCount}");
+                };
+                _releaseEndTurnSelector = endTurnRelease;
             }
             await WaitForBoundaryAsync(planned.After, token, () => selector.FailureDetail);
             if (selector.FailureDetail is { } mismatch)
@@ -123,6 +144,8 @@ internal sealed class ActionDeployer(
         }
         finally
         {
+            if (endTurnRelease != null && ReferenceEquals(_releaseEndTurnSelector, endTurnRelease))
+                _releaseEndTurnSelector = null;
             selectorScope?.Dispose();
         }
         if (planned.After.Outcome != Outcome.None)

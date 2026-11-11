@@ -106,7 +106,7 @@
 
 ### 结束回合与下一回合的准备
 
-`ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会在等待下一回合边界之前释放 `PlannedNativeSelector`。之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。结束回合的内核预测和这次释放保持一致：Mod 导入搜索根时按同一个接管门（`PlayerTurnSetupRuntime.NextTurnChoicesPause`）设置 `BattleFlags.TurnStartChoicePauses`。接管时普通 EndTurn 在第一个回合开始选择处暂停，和可见准备页的 `PreparePlayerPlayPhase` 重放一致；不接管时按 selector 立即回答、不暂停。比对导入沿用预测里的这一位。`ts-g-multi-choice` 的熔炉在可见准备页暂停处多出的候选因此已经在上一回合的计划里，沿用校验通过，不会落入入口校验失败后的新搜索。
+`ActionDeployer` 执行结束回合动作后，如果下一回合可能请求准备选择（同一套快速门：自动档、单人、战斗进行中、`RequiresSolverChoice` 对下一回合为真），会把 `PlannedNativeSelector` 留到敌方回合结束，由下一回合的准备拦截（`TryInterceptSetup`）在检查 selector 之前释放。敌方回合里提出的计划选择（知识恶魔的 CURSE_OF_KNOWLEDGE）因此仍由这条路线回答；之后原生准备页能以 `CardSelectCmd.Selector == null` 出现，交给 setup 事务；没有准备内容的战斗仍在边界等待期间保持 selector，行为和以前相同。结束回合的内核预测和这次释放保持一致：Mod 导入搜索根时按同一个接管门（`PlayerTurnSetupRuntime.NextTurnChoicesPause`）设置 `BattleFlags.TurnStartChoicePauses`。接管时普通 EndTurn 在第一个回合开始选择处暂停，和可见准备页的 `PreparePlayerPlayPhase` 重放一致；不接管时按 selector 立即回答、不暂停。比对导入沿用预测里的这一位。`ts-g-multi-choice` 的熔炉在可见准备页暂停处多出的候选因此已经在上一回合的计划里，沿用校验通过，不会落入入口校验失败后的新搜索。
 
 额外回合（PaelsEye、AmbergrisPower）的回合准备走同一条接管和沿用路径：额外回合事实来自原生 `CombatTurnState.PlayersTakingExtraTurn`；普通 EndTurn 与额外回合的预测都按 selector 是否释放（`TurnStartChoicePauses`）走对应顺序，准备根、候选枚举和沿用校验都带这个事实，不需要另建一套流程。
 

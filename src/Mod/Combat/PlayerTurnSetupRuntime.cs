@@ -117,6 +117,7 @@ internal static class PlayerTurnSetupRuntime
         {
             return false;
         }
+        ActionDeployer.ReleaseEndTurnSelectorForSetup();
         if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
         {
             ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=selector_active");

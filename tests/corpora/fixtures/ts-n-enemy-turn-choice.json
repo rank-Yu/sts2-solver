@@ -1,0 +1,14 @@
+{
+ "schemaVersion": 1,
+ "scenarioId": "FLASH-TS-N-ENEMY-TURN-CHOICE",
+ "characterId": "IRONCLAD",
+ "encounterId": "KNOWLEDGE_DEMON_BOSS",
+ "seed": "TSN1",
+ "ascension": 0,
+ "relics": [
+  {
+   "relicId": "TOASTY_MITTENS"
+  }
+ ],
+ "flashTurnSetupRootForTest": true
+}

@@ -814,6 +814,22 @@
       }
     },
     {
+      "id": "turn_setup_turn2_enemy_choice",
+      "scenario": "turn_setup_turn2",
+      "group": "turn-setup",
+      "fixture": "ts-n-enemy-turn-choice",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+
+        "runCombatForTest": true,
+        "timeoutSeconds": 900,
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 500
+      }
+    },
+    {
       "id": "turn_setup_extra_turn",
       "scenario": "turn_setup_extra_turn",
       "group": "turn-setup",

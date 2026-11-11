@@ -174,8 +174,25 @@ public sealed class PanachePower : PowerDef
         power.Aux0--;
         if (power.Aux0 > 0)
             return;
+        byte owner = power.Owner;
+        ushort id = power.Id;
+        int occurrence = 0;
+        for (int prior = 0; prior < self.Index; prior++)
+        {
+            ref readonly Power earlier = ref x.B.Powers[prior];
+            if (earlier.Owner == owner && earlier.Id == id)
+                occurrence++;
+        }
         CardEffects.DamageAllEnemies(ref x, power.Amount, ValueProps.Unpowered, self.Owner);
-        power.Aux0 = 5;
+        if (x.NeedsChoice)
+            return;
+        // A kill inside the damage completes the enemy's death (Possess returning stolen Strength can
+        // remove an earlier player row), so the pre-damage row may have moved. Re-resolve the instance
+        // by (owner, id, occurrence) before restarting CardsLeft, like RollingBoulderPower.
+        int row = Kernel.FindPowerOccurrence(x.B, owner, id, occurrence);
+        if (row < 0)
+            throw new UnsupportedException("Panache 的 Power 行在伤害后消失。");
+        x.B.Powers[row].Aux0 = 5;
     }
 
     public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)

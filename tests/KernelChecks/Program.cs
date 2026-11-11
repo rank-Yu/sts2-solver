@@ -3921,6 +3921,45 @@ static void CheckM2cSemantics(Rules rules)
     Check(panacheRow >= 0 && battle.Powers[panacheRow].Target == Limits.NoOwner,
         "Panache 的 Power.Target 应为 NoOwner");
 
+    // Panache kills The Lost: the kill returns the stolen Strength (-2 -> 0), which removes the
+    // player's earlier Strength row while Panache's hook still holds its pre-damage row.
+    Check(Registry.TryPower("STRENGTH_POWER", out ushort strengthPower), "缺少 STRENGTH_POWER");
+    Check(Registry.TryPower("POSSESS_STRENGTH_POWER", out ushort possessStrength), "缺少 POSSESS_STRENGTH_POWER");
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    battle.EnemyCount = 2;
+    battle.RosterCount = 2;
+    battle.Roster[1] = 1;
+    battle.Enemies[0].Creature.CurrentHp = 5;
+    battle.Enemies[0].Creature.MaxHp = 5;
+    battle.Enemies[1].Creature = new Creature { CurrentHp = 100, MaxHp = 100, Flags = CreatureFlags.Present };
+    battle.Enemies[1].Flags = EnemyFlags.InCombat;
+    battle.PowerCount = 3;
+    battle.Powers[0] = new Power
+    {
+        Id = strengthPower, Owner = Limits.PlayerOwner, Applier = Limits.FirstEnemyOwner,
+        Target = Limits.NoOwner, Amount = -2,
+    };
+    battle.Powers[1] = new Power
+    {
+        Id = panachePower, Owner = Limits.PlayerOwner, Applier = Limits.PlayerOwner,
+        Target = Limits.NoOwner, Amount = 10, Aux0 = 1, Aux1 = 1,
+    };
+    battle.Powers[2] = new Power
+    {
+        Id = possessStrength, Owner = Limits.FirstEnemyOwner, Applier = Limits.FirstEnemyOwner,
+        Target = Limits.NoOwner, Amount = 1, Aux0 = -2,
+    };
+    Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, anticipate));
+    Kernel.Step(ref battle, PlayerAction.PlayCard(0, Limits.NoOwner), rules, out _);
+    Check(battle.Enemies[0].Creature.IsDead, "Panache 应打死 5 血的敌人");
+    Check(Kernel.FindPower(battle, Limits.PlayerOwner, strengthPower) < 0,
+        "打死 The Lost 后被偷的力量应还回到 0，力量行移除");
+    int panacheAfterKill = Kernel.FindLastPower(battle, Limits.PlayerOwner, panachePower);
+    Check(panacheAfterKill >= 0 && battle.Powers[panacheAfterKill].Aux0 == 5,
+        $"Panache 伤害后应把自己的 CardsLeft 重置为 5，实际 {(panacheAfterKill >= 0 ? battle.Powers[panacheAfterKill].Aux0 : -1)}");
+    Console.WriteLine("PANACHE_KILL row_shift=pass");
+
     battle = NewBattle();
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, toric));
     Kernel.Step(ref battle, PlayerAction.PlayCard(0, Limits.NoOwner), rules, out _);

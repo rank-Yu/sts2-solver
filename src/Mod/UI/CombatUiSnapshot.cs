@@ -547,6 +547,14 @@ internal sealed record SearchMemberRunUi
 
     public long PacerFrameRecoveryWaitMilliseconds { get; init; }
 
+    /// <summary>Process-wide GC pause time while the member ran (other mods included).</summary>
+    public long GcPauseMilliseconds { get; init; }
+
+    /// <summary>Game frames at or above the frame-pressure gap while the member ran.</summary>
+    public int LongFrames { get; init; }
+
+    public double MaxFrameMilliseconds { get; init; }
+
     /// <summary>The member's deadline poll that stopped it; 0 when the deadline never expired.</summary>
     public long DeadlineExpiredAtPoll { get; init; }
 }

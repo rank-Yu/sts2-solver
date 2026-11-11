@@ -169,7 +169,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 - `search-NNN.json`：每次出牌搜索或回合准备搜索的种类、回合、原因、是否续搜、档位、线程数、搜索计划、状态、选中的成员、耗时、展开数、选中路线的文字描述，以及每个成员的宽度、评价方式、保留方式、用药阶段、运行或跳过原因、耗时、展开数、截止检查序号（成员内第几次截止检查发现到期，未到期为 0）、停止原因、胜负、预计掉血、用药数和是否采用。请求编好、搜索开始时就先写一份，状态和完成方式都是 `Running`，成员为空；搜索结束后用同一个编号补全。所以搜索中途被取消（战斗结束、局面已变）时仍留有请求和计划，状态停在 `Running`。导入失败等没有请求的情况在 `events.log` 里。
 - `search-NNN.sreq.br`、`search-NNN.sres.br`：交给协调器的基础请求（SREQ，搜索开始时写）和最终选中的结果（SRES，搜索结束时写），Brotli 压缩。
 - `deviation-NN.json` 与 `.predicted.batl.br`、`.actual.batl.br`：出牌偏差、结束回合偏差、续用边界偏差和回合准备开局预测不符时，预测与实际的 `Battle` 以及差异行。
-- `events.log`：本场开始后的 `[Sts2Solver]` 日志行，战斗结束到下一场开始之间的行也记在这里。
+- `events.log`：本场开始后的 `[Sts2Solver]` 日志行，战斗结束到下一场开始之间的行也记在这里。每个搜索成员结束时的 `SEARCH_DONE`（以及取消、停止、失败行）带运行环境字段：成员运行期间的 GC 停顿总时长 `gc_pause_ms` 和 0/1/2 代回收次数 `gc_counts`、结束时的内存占用比例 `memory_load_pct`（最近一次 GC 时已用内存占 GC 可用内存的百分比）、游戏帧达到防卡顿阈值的帧数 `long_frames` 和最长一帧 `max_frame_ms`。GC 和内存是整个游戏进程的数，同时搜索的其他 Mod 也算在内。`CONTROLLER_SEARCH` 给出各成员的 GC 停顿、等帧次数、长帧数合计和最长一帧。
 
 只保留最新 20 场，新战斗开始时删除更早的目录。主线程只编码和入队，一个后台线程按顺序写盘。写盘失败只在游戏日志写一次 `COMBAT_LOG_WRITE_FAILED`，不影响搜索和执行；写盘线程遇到磁盘以外的异常会停止并记 `COMBAT_LOG_WRITER_STOPPED`；请求编码失败记 `COMBAT_LOG_ENCODE_FAILED`，这次搜索只写摘要。测试模式写到结果目录的 `combat-logs/`。Mod 不打包这些记录；排查问题时由玩家把整个目录、`settings.json` 和游戏日志目录 `logs/` 发给作者。离线重放见 [测试与验证](testing.md#44-战斗日志重放)。
 

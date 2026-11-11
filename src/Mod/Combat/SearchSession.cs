@@ -189,6 +189,10 @@ internal static class SearchSession
             long managedPeak = 0;
             long workingSetPeak = 0;
             long allocatedBefore = GC.GetTotalAllocatedBytes(precise: false);
+            // Process-wide like the allocation count: another mod's collections stop these workers too.
+            GcActivity gcBefore = GcActivity.Capture();
+            int longFrames = 0;
+            double maxFrameMilliseconds = 0d;
             long lastFrame = Stopwatch.GetTimestamp();
             worker = Task.Run(() =>
             {
@@ -207,6 +211,9 @@ internal static class SearchSession
                 {
                     double frameMilliseconds = Stopwatch.GetElapsedTime(lastFrame, now).TotalMilliseconds;
                     signal.ObserveFrame(frameMilliseconds, searchActive: true);
+                    if (frameMilliseconds >= signal.PressureFrameGapMilliseconds)
+                        longFrames++;
+                    maxFrameMilliseconds = Math.Max(maxFrameMilliseconds, frameMilliseconds);
                 }
                 lastFrame = now;
                 SampleMemory(ref managedPeak, ref workingSetPeak);
@@ -224,6 +231,10 @@ internal static class SearchSession
             long allocated = GC.GetTotalAllocatedBytes(precise: false) - allocatedBefore;
             int frameWaits = pacer?.FrameRecoveryWaitCount ?? 0;
             long frameWaitMilliseconds = (long)(pacer?.FrameRecoveryWaitDuration.TotalMilliseconds ?? 0d);
+            GcActivity gc = GcActivity.Capture().Since(gcBefore);
+            string runtime = $"gc_pause_ms={gc.PauseMilliseconds} gc_counts={gc.Gen0}/{gc.Gen1}/{gc.Gen2} "
+                + $"memory_load_pct={gc.MemoryLoadPercent} long_frames={longFrames} "
+                + $"max_frame_ms={maxFrameMilliseconds:0}";
 
             bool workerExited = worker.IsCompleted;
             SearchRunResult result;
@@ -242,7 +253,7 @@ internal static class SearchSession
                     $"[Sts2Solver] SEARCH_CANCELLED root={root} reason={result.Error} "
                     + $"threads={result.SearchThreads} ms={elapsed.ElapsedMilliseconds} "
                     + $"worker_exited={workerExited} yields={result.PacerYields} "
-                    + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds}");
+                    + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} {runtime}");
             }
             else if (worker.IsFaulted)
             {
@@ -258,7 +269,7 @@ internal static class SearchSession
                 };
                 ModLog.Error(
                     $"[Sts2Solver] SEARCH_FAILED root={root} stage=solve kind={result.ErrorKind} "
-                    + $"reason={result.Error} ms={elapsed.ElapsedMilliseconds}");
+                    + $"reason={result.Error} ms={elapsed.ElapsedMilliseconds} {runtime}");
             }
             else
             {
@@ -275,7 +286,7 @@ internal static class SearchSession
                     };
                     ModLog.Info(
                         $"[Sts2Solver] SEARCH_STOPPED root={root} reason=no_candidate "
-                        + $"ms={elapsed.ElapsedMilliseconds} worker_exited={workerExited}");
+                        + $"ms={elapsed.ElapsedMilliseconds} worker_exited={workerExited} {runtime}");
                 }
                 else
                 {
@@ -302,10 +313,16 @@ internal static class SearchSession
                         + $"turn_loop_guarded={beam.TurnLoopGuarded} "
                         + $"cross_turn_no_progress_pruned={beam.CrossTurnNoProgressPruned} "
                         + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "
-                        + $"workspace_peak_mb={ToMegabytes(beam.SearchWorkspacePeakBytes):0.0}");
+                        + $"workspace_peak_mb={ToMegabytes(beam.SearchWorkspacePeakBytes):0.0} {runtime}");
                 }
             }
 
+            result = result with
+            {
+                GcPauseMilliseconds = gc.PauseMilliseconds,
+                LongFrames = longFrames,
+                MaxFrameMilliseconds = maxFrameMilliseconds,
+            };
             if (resultDirectory != null)
                 WriteJson(Path.Combine(resultDirectory, "search.json"),
                     result.ToMetrics(tier, deterministic));
@@ -460,6 +477,14 @@ internal sealed record SearchRunResult(
     public int PacerFrameRecoveryWaits { get; init; }
     public long PacerFrameRecoveryWaitMilliseconds { get; init; }
 
+    /// <summary>Process-wide GC pause time while the member ran (other mods included).</summary>
+    public long GcPauseMilliseconds { get; init; }
+
+    /// <summary>Game frames at or above the frame-pressure gap while the member ran.</summary>
+    public int LongFrames { get; init; }
+
+    public double MaxFrameMilliseconds { get; init; }
+
     /// <summary>How this member ended; adoption and stop are never reported as a plain completion.</summary>
     public SearchCompletionKind Completion { get; init; } = SearchCompletionKind.Completed;
 
@@ -559,3 +584,30 @@ internal sealed record SearchMetrics(
     int WorkspaceOverflowParents,
     long SearchWorkspaceGrowablePeakBytes,
     long SearchWorkspacePeakBytes);
+
+/// <summary>
+/// Process-wide GC activity for the search log: total pause time and collection counts, plus the
+/// memory load (percent of the memory available to the GC) as of the last collection.
+/// </summary>
+internal readonly record struct GcActivity(long PauseMilliseconds, int Gen0, int Gen1, int Gen2,
+    int MemoryLoadPercent)
+{
+    internal static GcActivity Capture()
+    {
+        GCMemoryInfo info = GC.GetGCMemoryInfo();
+        int load = info.TotalAvailableMemoryBytes > 0
+            ? (int)(info.MemoryLoadBytes * 100 / info.TotalAvailableMemoryBytes)
+            : 0;
+        return new((long)GC.GetTotalPauseDuration().TotalMilliseconds, GC.CollectionCount(0),
+            GC.CollectionCount(1), GC.CollectionCount(2), load);
+    }
+
+    /// <summary>The pauses and collections since <paramref name="before"/>; the load stays current.</summary>
+    internal GcActivity Since(GcActivity before) => this with
+    {
+        PauseMilliseconds = PauseMilliseconds - before.PauseMilliseconds,
+        Gen0 = Gen0 - before.Gen0,
+        Gen1 = Gen1 - before.Gen1,
+        Gen2 = Gen2 - before.Gen2,
+    };
+}

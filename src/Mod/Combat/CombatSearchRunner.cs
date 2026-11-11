@@ -175,7 +175,7 @@ internal static class CombatSearchRunner
             $"relic_heal={planResult.Outcome.PostCombatRelicHeal} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
-            $"completion={outcome.Completion}");
+            $"{RuntimeSummary(memberRuns)} completion={outcome.Completion}");
         return new CombatSearchRun(in searchRoot, searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null)
@@ -216,6 +216,9 @@ internal static class CombatSearchRunner
                 PacerYields = result.PacerYields,
                 PacerFrameRecoveryWaits = result.PacerFrameRecoveryWaits,
                 PacerFrameRecoveryWaitMilliseconds = result.PacerFrameRecoveryWaitMilliseconds,
+                GcPauseMilliseconds = result.GcPauseMilliseconds,
+                LongFrames = result.LongFrames,
+                MaxFrameMilliseconds = result.MaxFrameMilliseconds,
             });
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_SEARCH_MEMBER turn={turn} reason={reason} " +
@@ -226,6 +229,13 @@ internal static class CombatSearchRunner
                 result.WorkingSetPeakBytes);
         }
     }
+
+    /// <summary>The members' process-wide GC pauses, frame waits and long frames, summed for the summary line.</summary>
+    private static string RuntimeSummary(List<SearchMemberRunUi> runs)
+        => $"gc_pause_ms={runs.Sum(run => run.GcPauseMilliseconds)} "
+            + $"frame_waits={runs.Sum(run => run.PacerFrameRecoveryWaits)} "
+            + $"long_frames={runs.Sum(run => run.LongFrames)} "
+            + $"max_frame_ms={(runs.Count == 0 ? 0d : runs.Max(run => run.MaxFrameMilliseconds)):0}";
 
     /// <summary>Card count across the player's combat piles, used only to explain a Cards capacity.</summary>
     private static int? CountCombatCards(Player player)
@@ -353,7 +363,7 @@ internal static class CombatSearchRunner
             $"choices={choices.Length} members={outcome.Members.Length} " +
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
-            $"completion={outcome.Completion}");
+            $"{RuntimeSummary(memberRuns)} completion={outcome.Completion}");
         return new CombatSearchRun(in searchCase.Battles[beam.BestRootIndex], searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null)
@@ -385,6 +395,9 @@ internal static class CombatSearchRunner
                 PacerYields = result.PacerYields,
                 PacerFrameRecoveryWaits = result.PacerFrameRecoveryWaits,
                 PacerFrameRecoveryWaitMilliseconds = result.PacerFrameRecoveryWaitMilliseconds,
+                GcPauseMilliseconds = result.GcPauseMilliseconds,
+                LongFrames = result.LongFrames,
+                MaxFrameMilliseconds = result.MaxFrameMilliseconds,
             });
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_SEARCH_MEMBER turn={turn} reason=turn_setup " +

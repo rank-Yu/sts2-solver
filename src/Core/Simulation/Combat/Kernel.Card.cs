@@ -206,6 +206,7 @@ public static partial class Kernel
         x.Target = target;
         x.CurrentPlayEnergyValue = energyValue;
         x.CurrentPlayIsAutoPlay = false;
+        x.CurrentPlayIsHistoryCourseDupe = card.IsDupe;
         ChoiceSource savedOrigin = x.ChoiceOrigin;
         x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, card.Id, card.Upgrade);
         try
@@ -447,6 +448,8 @@ public static partial class Kernel
             // records the finished play before AfterCardPlayed, so effects triggered there (Calamity
             // generating a card, Stomp.AfterEnteredCombat counting attacks) must see this play.
             RecordCardPlayFinished(ref x, stats, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card));
+            if (Registry.Card(card.Id).ResolveCardType(x.B, x.R, card) == CardType.Attack)
+                RecordHistoryCourseAttack(ref x, playPosition);
             // CardPlayFinishedEntry.WasEthereal is `card.Keywords.Contains(Ethereal)`, taken when the
             // entry is created, before AfterCardPlayed. Keywords runs Hook.ModifyKeywords: a Hexed card
             // counts as Ethereal while HexPower is up, so the battle-aware helper (local keyword plus
@@ -480,11 +483,7 @@ public static partial class Kernel
                 completed = false;
                 break;
             }
-            Card completedCard = (uint)playPosition < (uint)x.B.PlayCount
-                ? Piles.At(ref x.B, Pile.Play, playPosition)
-                : x.Card;
-            RecordCardPlayed(ref x, stats, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card),
-                completedCard);
+            RecordCardPlayed(ref x, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card));
             // SimulatedCombatState.RecordCardLifecycle: the completed play records the exact Fetch
             // object in _fetchCardsPlayedThisTurn. The value still sits in the play pile here.
             if ((uint)playPosition < (uint)x.B.PlayCount
@@ -622,24 +621,9 @@ public static partial class Kernel
             battle.AddCounter(Counter.ShivsPlayedThisTurn, 1);
     }
 
-    private static void RecordCardPlayed(ref Exec x, CardStats stats, CardType cardType,
-        in Card completedCard)
+    private static void RecordCardPlayed(ref Exec x, CardType cardType)
     {
         ref Battle battle = ref x.B;
-        if (cardType == CardType.Attack)
-        {
-            // SimulatedCombatState.RecordHistoryCourseAttack: the last attack completed this turn,
-            // skipping dupes (HistoryCourse's own copies). The native v0.111.0 HistoryCourse reads
-            // a mutable CardModel from CardPlaysFinished; CardModel.Play later clears its played
-            // energy/star costs. Our next-turn slot is a value copy, so store those completed-play
-            // costs explicitly without changing the live card during repeated plays.
-            if (x.R.HasHistoryCourse && !x.CurrentPlayIsHistoryCourseDupe)
-            {
-                battle.HistoryCourseCard = completedCard;
-                AfterCardPlayedCleanup(ref battle.HistoryCourseCard);
-                battle.Flags |= BattleFlags.HistoryCourseCardPresent;
-            }
-        }
         battle.AddCounter(Counter.CardsPlayedThisTurn, 1);
         // CardPlayFinished entry: CombatPredictionHistory records one per completed card play.
         battle.AddCounter(Counter.FinishedCardPlays, 1);

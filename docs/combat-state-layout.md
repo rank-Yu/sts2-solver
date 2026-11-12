@@ -150,13 +150,15 @@
 `Card` 是一张牌的完整值，92 字节。字段集以原引擎的卡牌状态键（`CaptureCardStateFingerprintForTesting`、`CardChoiceSupport.ChoiceCardKey`）为准：
 
 - 卡牌 Id、升级等级、本地关键字位图；
-- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 16，Stomp 每打出一张攻击追加一条本回合修饰）、星能费用；修饰数量用独立字节记；
+- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 16，Stomp 每打出一张攻击追加一条本回合修饰）、星能费用；`ModifierCount` 低 5 位保存修饰数量，第 5–6 位保存 `HistoryCourseRole`，第 7 位保存 `IsDupe`；
 - 临时星能费用：当前条目 `TemporaryStarCost`，加上最多两个同成本的旧条目（`TemporaryStarCostStack`：低 2 位是旧条目数，之后每个旧条目 2 位清除标志）；回合末或打出后按清除标志逐条移除，成本不同的旧条目按容量拒绝；
 - 状态标志 `CardFlags`：下次打出时消耗、本回合狡诈、本回合保留、是否牌组卡、已移出战斗、X 费、X 星费，以及 bit 7 `PowerAfflictionChecked`；
 - `ReplayCount`；
 - 语义动态变量相对规则表基础值的增量 `Var0`、`Var1`，以及私有值 `Private`（见下）；
 - 附魔 Id、数量、私有值，苦难 Id 与数量；
 - `DampenOriginalUpgrade`：被 MagiKnight 的 DampenPower 降级前的升级等级加一（0 表示未降级）。`DowngradeCard` 把卡重置到 0 级动态变量、基础费用与本地关键字时写入；最后一个施法者死亡时 `RestoreDampenedCards` 按它逐级恢复。克隆、变化和替换产生的卡清零。
+- `HistoryCourseRole`：1 为本回合最后攻击的来源，2 为回合准备期间的上一回合来源，3 为两者都是；随原牌移动，克隆清零。
+- `IsDupe`：原版复制品身份，克隆保留，手动和自动打出后都移出战斗。
 - `TransientMark`：一次动作内的对象身份标记（见下）。
 
 **`CostState` 的位。**
@@ -250,7 +252,9 @@
 
 ### 3.11 `HistoryCourseCard`
 
-唯一的跨回合卡值槽：玩家本回合最后完成的一张攻击牌的完整值（原引擎 `SimulatedCombatState._lastAttackThisTurn`），有效与否看 `HistoryCourseCardPresent`。HISTORY_COURSE 在下一个玩家回合的自动预打出阶段复制它，结算见 [内容专属机制](combat-content.md#72-history_course-与-pen-nib)。导入只取原引擎本回合的那本字典，不取已退役的上一回合字典：所有受支持的根都在出牌阶段，自动预打出已经消费过它。
+玩家当前回合最后完成的非复制攻击牌的值，有效与否看 `HistoryCourseCardPresent`。牌堆中的原牌通过 `HistoryCourseRole` 标记，动作完成时刷新槽值；槽里的副本不带来源或临时身份标记。
+
+出牌阶段导入本回合记录，回合准备 `Start` 根导入上一玩家回合记录。执行准备阶段时，`Exec.PreviousHistoryCourseCard` 保存上一回合的后备值，原牌暂带上一回合标记；自动出牌前再次读取原牌最新值。本回合准备期间新打出的攻击写入当前槽，两个回合不会相互覆盖。结算见[内容专属机制](combat-content.md#72-history_course-与-pen-nib)。
 
 ## 4. 不进入 `Battle` 的值
 
@@ -275,7 +279,8 @@
 | `CardDamageTotal`、`LastDamageTotal`、`LastDamageOverkill` | 本次出牌全部命中的伤害合计，以及最近一次伤害的结果（Fisticuffs、Omnislice 读；对应原引擎 `CombatPredictionDamageReceivedEntry.Result`）；每次出牌开始清零 |
 | `AttackProps`、`AttackHasCardSource` | 当前攻击上下文的伤害属性和卡来源事实（`AttackCommand.DamageProps`/`ModelSource is CardModel`），供 `AfterAttack` 监听者读取 |
 | `AttackFirstResultSeen`、`AttackFirstResultUnblocked`、`DamageCallDepth` | 当前攻击上下文内每个敌人的第一条伤害结果及是否未格挡；`DamageCallDepth` 区分攻击自身的伤害与结果钩子里的嵌套伤害。SkittishPower 的 `AfterAttack` 读取 |
-| `CurrentPlayIsHistoryCourseDupe` | 当前打出的是 HISTORY_COURSE 的复制品 |
+| `CurrentPlayIsHistoryCourseDupe` | 当前打出的牌带有原版 IsDupe 身份，包括复制品再生成的克隆 |
+| `PreviousHistoryCourseCard`、`HasPreviousHistoryCourseCard` | 回合准备开始时保存的上一回合攻击；包含在结束回合的执行上下文快照中 |
 | `StarValue` | 本次出牌的星能 X 值（原版 `LastStarsSpent`） |
 | `BrightestFlameMaxHpSpent` | 本动作中至亮之焰请求消耗的最大生命合计：按每次打出（含自动打出和重放）卡牌的动态 `MaxHp` 累计；动作结束后由搜索读取，不进入 `Battle` |
 | `ChoiceRequest.GeneratedOptions` | 不在牌堆里的选项卡值：Discovery、Splash 的生成选项，Knowledge Demon 的两张诅咒；需要选择时整个动作从父状态重执行 |

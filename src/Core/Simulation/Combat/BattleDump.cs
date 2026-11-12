@@ -249,7 +249,7 @@ public static class BattleDump
         Add(records, key + ".BaseStarCost", card.BaseStarCost, offset + FieldOffset<Card>(nameof(Card.BaseStarCost)));
         Add(records, key + ".ReplayCount", card.ReplayCount, offset + FieldOffset<Card>(nameof(Card.ReplayCount)));
         Add(records, key + ".CostState", card.CostState, offset + FieldOffset<Card>(nameof(Card.CostState)));
-        Add(records, key + ".ModifierCount", card.ModifierCount, offset + FieldOffset<Card>(nameof(Card.ModifierCount)));
+        Add(records, key + ".ModifierCount", card.EnergyModifierCount, offset + FieldOffset<Card>(nameof(Card.ModifierCount)));
         Add(records, key + ".TemporaryStarCost", card.TemporaryStarCost, offset + FieldOffset<Card>(nameof(Card.TemporaryStarCost)));
         Add(records, key + ".TemporaryStarCostStack", card.TemporaryStarCostStack,
             offset + FieldOffset<Card>(nameof(Card.TemporaryStarCostStack)));
@@ -266,7 +266,9 @@ public static class BattleDump
         Add(records, key + ".TransientMark", card.TransientMark, offset + FieldOffset<Card>(nameof(Card.TransientMark)));
         int modifierOffset = offset + FieldOffset<Card>(nameof(Card.EnergyModifiers));
         int modifierSize = Marshal.SizeOf<CostModifier>();
-        for (int index = 0; index < card.ModifierCount; index++)
+        Add(records, key + ".IsDupe", card.IsDupe, offset + FieldOffset<Card>(nameof(Card.ModifierCount)));
+        Add(records, key + ".HistoryCourseRole", card.HistoryCourseRole, offset + FieldOffset<Card>(nameof(Card.ModifierCount)));
+        for (int index = 0; index < card.EnergyModifierCount; index++)
         {
             CostModifier modifier = card.EnergyModifiers[index];
             records.Add(new(modifierOffset + index * modifierSize, $"{key}.EnergyModifiers[{index}].Amount", modifier.Amount.ToString()));

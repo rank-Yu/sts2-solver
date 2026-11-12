@@ -360,12 +360,10 @@ public struct Battle
     public OrbArray Orbs;
 
     /// <summary>
-    /// The last attack the player finished this turn, as a full card value
-    /// (<c>SimulatedCombatState._lastAttackThisTurn</c>; HistoryCourse clones it at the next player turn's
-    /// AutoPrePlay). One cross-turn slot; <see cref="BattleFlags.HistoryCourseCardPresent"/> says
-    /// whether it is live. It sits at <see cref="HeaderSize"/> - <c>sizeof(Card)</c>, immediately
-    /// before the variable-length card storage. Imported from the existing engine's per-turn dictionary
-    /// (never from the retired previous-turn dictionary: AutoPrePlay already ran before every search root).
+    /// The last non-dupe attack of the player turn. The source card carries HistoryCourseRole;
+    /// stable boundaries refresh this value from that original, matching the mutable native history
+    /// reference. Start-phase roots hold the previous turn; ContinuePlayerPlayPhase separates it into
+    /// Exec before the new turn's draw/auto-play hooks. The snapshot itself has no source mark.
     /// </summary>
     public Card HistoryCourseCard;
 
@@ -495,6 +493,7 @@ public static class Piles
         int position = Start(battle, pile) + index;
         Span<Card> all = MemoryMarshal.CreateSpan(ref battle.Cards[0], total);
         Card card = all[position];
+        Kernel.PreserveHistoryCourseSource(ref battle, card);
         all.Slice(position + 1, total - position - 1).CopyTo(all.Slice(position));
         SetCount(ref battle, pile, count - 1);
         return card;

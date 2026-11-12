@@ -55,7 +55,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | `DetachedCards` | `NightmarePower.selectedCard`、`SwipePower.StolenCard` | 直接读 |
 | `DecimalVars` | `DynamicVars` 与规则基值的差 | `DecimalVars.TryAllocate/TryCanonicalize` |
 | `Counters` | `CombatManager.History` 的 13 类条目，加上根上为 0 的账本 | 独立实现，对照 `RootCombatHistorySnapshot`、`SimulatedCombatState` 的 getter |
-| `HistoryCourseCard` | `CombatManager.History.CardPlaysFinished` | 持有历史课时取玩家最后一次打完的非复制攻击牌，与历史课在自动出牌阶段的查找相同：出牌阶段的根取本回合，回合开始（准备）根取上一个玩家回合；槽里放这张牌在牌堆中的导入值。牌已不在牌堆中，或根处于自动出牌阶段（历史课可能已触发）时显式拒绝 |
+| `HistoryCourseCard` | `CombatManager.History.CardPlaysFinished` | 持有历史课时取玩家最后一次打完的非复制攻击牌，与历史课在自动出牌阶段的查找相同：出牌阶段的根取本回合，回合开始（准备）根取上一个玩家回合；槽里放这张牌在牌堆中的导入值，并给原牌标记来源。结束阶段也可读取当前记录；没有历史记录时保持空槽。牌已不在牌堆中，或根处于自动出牌阶段（历史课可能已触发）时显式拒绝 |
 
 新根上的成长、死亡、偷窃与累计 HP 账本都从零开始，本回合计数从原生 History 现算。`VitalSparkNormalizedAmount` 在普通根是 `int.MinValue`，在回合准备根是 0（原导入层在准备阶段至少做过一次规范化）。
 

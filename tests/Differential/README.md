@@ -165,6 +165,8 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 
 用原版创建战斗，低档组合搜索后通过原版动作执行，核对每个稳定边界与终局合同。`--pilot-dir` 目录里的每个 `*.json` 是一份请求，仍然一请求一子进程；`--pilot-shard i n` 和 `--pilot-results` 与按根名运行时含义相同。子进程入口是 `--pilot-request <文件>`。它和 `--offline-combat` 的内核回放评测是两回事。
 
+设置 `STS2_SOLVER_PILOT_EVIDENCE=<目录>` 时，逐动作对照把偏差的预测 BATL、实际 BATL、规则和字段差异保存到用例子目录，便于独立复查。
+
 ## 输入
 
 - fixture：`tests/corpora/fixtures/<root>.json`；

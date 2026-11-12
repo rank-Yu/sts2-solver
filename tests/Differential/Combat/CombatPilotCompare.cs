@@ -191,6 +191,8 @@ internal static class CombatPilotCompare
                         string reason = Field(status, "reason", "?");
                         rejects[reason] = rejects.GetValueOrDefault(reason) + 1;
                         Console.WriteLine($"PILOT-REJECT-CASE {item.Name} {reason}");
+                        foreach (string line in lines.Where(static line => line.StartsWith("  ", StringComparison.Ordinal)))
+                            Console.WriteLine(line);
                     }
                 }
                 else
@@ -360,7 +362,19 @@ internal static class CombatPilotCompare
             SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
                 SearchPolicyCapture.Capture(combat, combatPlayer), request, combatPlayer);
             NativePilotHost host = new(loop, combat, combatPlayer, nativeRules, tracker, opening,
-                policy, SearchPerformanceProfile.For(effectiveTier), OfflineCombatSettings.DefaultMemoryBudgetBytes);
+                policy, SearchPerformanceProfile.For(effectiveTier), OfflineCombatSettings.DefaultMemoryBudgetBytes,
+                onDifference: (predicted, live) =>
+                {
+                    if (Environment.GetEnvironmentVariable("STS2_SOLVER_PILOT_EVIDENCE") is not { Length: > 0 } evidence)
+                        return;
+                    string directory = Path.Combine(evidence, caseName);
+                    Directory.CreateDirectory(directory);
+                    File.WriteAllBytes(Path.Combine(directory, "predicted.batl"), BattleCodec.Encode(predicted));
+                    File.WriteAllBytes(Path.Combine(directory, "actual.batl"), BattleCodec.Encode(live));
+                    File.WriteAllBytes(Path.Combine(directory, "rules.rule"), RulesCodec.Encode(nativeRules));
+                    File.WriteAllLines(Path.Combine(directory, "diff.txt"),
+                        BattleDump.Diff(predicted, live, "predicted", "live"));
+                });
             CombatPilotResult result = CombatPilot.RunAsync(host, caseName, CancellationToken.None)
                 .GetAwaiter().GetResult();
             if (result.Deviations == 0 && result.FailureLog.Length != 0

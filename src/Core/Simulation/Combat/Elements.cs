@@ -125,7 +125,7 @@ public struct Card
     /// </summary>
     public byte CostState;
 
-    /// <summary>Number of used entries in <see cref="EnergyModifiers"/> (0..<see cref="Limits.CardEnergyCostModifiers"/>).</summary>
+    /// <summary>Low five bits: energy modifier count. Bits 5-6: HistoryCourse source membership; bit 7: native IsDupe.</summary>
     public byte ModifierCount;
 
     public sbyte TemporaryStarCost;
@@ -177,14 +177,28 @@ public struct Card
     public readonly bool IsDetachedCardPresent
         => Id != 0 || (Flags & CardFlags.PowerAfflictionChecked) != 0;
 
+    /// <summary>1 = current turn's last attack; 2 = previous turn during AutoPrePlay; 3 = both.</summary>
+    public byte HistoryCourseRole
+    {
+        readonly get => (byte)((ModifierCount >> 5) & 3);
+        set => ModifierCount = (byte)((ModifierCount & 0x9f) | (value << 5));
+    }
+
+    /// <summary>Native IsDupe; CreateClone preserves it, including AdaptiveStrike's generated clone.</summary>
+    public bool IsDupe
+    {
+        readonly get => (ModifierCount & 0x80) != 0;
+        set => ModifierCount = (byte)((ModifierCount & 0x7f) | (value ? 0x80 : 0));
+    }
+
     public int EnergyModifierCount
     {
-        readonly get => ModifierCount;
+        readonly get => ModifierCount & 0x1f;
         set
         {
             if ((uint)value > Limits.CardEnergyCostModifiers)
                 throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-            ModifierCount = (byte)value;
+            ModifierCount = (byte)((ModifierCount & 0xe0) | value);
         }
     }
 

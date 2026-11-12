@@ -140,6 +140,7 @@ public static partial class Kernel
         entered.TransientMark = mark;
         try
         {
+            PreserveHistoryCourseSource(ref x.B, Piles.At(ref x.B, pile, index));
             Piles.At(ref x.B, pile, index) = entered;
             int insert = index;
             x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
@@ -377,6 +378,7 @@ public static partial class Kernel
         // The clone is a new native object; a BeatDown transient mark and Dampen's per-card original
         // upgrade belong to the original.
         clone.TransientMark = 0;
+        clone.HistoryCourseRole = 0;
         clone.DampenOriginalUpgrade = 0;
         // PredictedCard/CardModel clones are new objects: the existing engine's per-card dictionaries
         // have no entry for them until their first normalization/play. Other cards keep Private (the

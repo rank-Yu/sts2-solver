@@ -735,6 +735,7 @@ public static partial class Kernel
     internal static void ContinuePlayerPlayPhase(ref Exec x, bool firstTurn, bool rootSetup,
         SetupPauseState? setup = null)
     {
+        BeginHistoryCourseTurn(ref x);
         // GAME CombatManager.cs:888-900: reset energy (or keep it when a listener says so), then
         // Hook.AfterEnergyReset before Hook.BeforeHandDraw.
         if (HookDispatch.ShouldPlayerResetEnergy(x.B, x.R, Limits.PlayerOwner))

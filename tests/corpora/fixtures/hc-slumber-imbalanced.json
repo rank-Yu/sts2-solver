@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "HC-SLUMBER-IMBALANCED",
+  "characterId": "NECROBINDER",
+  "encounterId": "SLUMBERING_BEETLE_NORMAL",
+  "seed": "A4C02C9272996E26",
+  "ascension": 0,
+  "actIndexForTest": 1,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 32,
+  "initialPlayerMaxHp": 66,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "TEZCATARAS_EMBER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BODYGUARD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BORROWED_TIME",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "THE_SCYTHE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CALCIFY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MISERY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SEVERANCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BURY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NECRO_MASTERY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SIC_EM",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEBILITATE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "SMALL_CAPSULE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "FUNERARY_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BLOOD_VIAL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ODDLY_SMOOTH_STONE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "NUTRITIOUS_SOUP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "HISTORY_COURSE",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

@@ -55,6 +55,8 @@ internal static class ExecCoverage
         nameof(Exec.MusicBoxPlayIdentity),
         nameof(Exec.CurrentPlayIsAutoPlay),
         nameof(Exec.CurrentPlayIsHistoryCourseDupe),
+        nameof(Exec.PreviousHistoryCourseCard),
+        nameof(Exec.HasPreviousHistoryCourseCard),
         nameof(Exec.CurrentPlayEnergyValue),
         nameof(Exec.BrightestFlameMaxHpSpent),
     ];

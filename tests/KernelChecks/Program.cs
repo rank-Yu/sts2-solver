@@ -2986,6 +2986,7 @@ static void CheckDx5Kernel(Rules rules)
     historyBattle.HistoryCourseCard = previous;
     historyBattle.Flags |= BattleFlags.HistoryCourseCardPresent;
     Exec historyExec = new(ref historyBattle, historyRules, PlayerAction.EndTurn());
+    Kernel.BeginHistoryCourseTurn(ref historyExec);
     Kernel.AutoPrePlay(ref historyExec);
     Check(!historyExec.NeedsChoice, "HistoryCourse 的复制品自动打出不应请求选择");
     Check(historyBattle.Counter(Counter.FinishedCardPlays) == 1,

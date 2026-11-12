@@ -82,6 +82,8 @@ public static partial class Kernel
             if (!x.NeedsChoice)
                 NormalizeCardAfflictions(ref x);
         }
+        if (!x.NeedsChoice)
+            RefreshHistoryCourse(ref x);
         if (!x.NeedsChoice && x.R.HasDecimalCardVars)
             DecimalVars.Canonicalize(ref x.B);
         if (!x.NeedsChoice)

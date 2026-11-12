@@ -46,7 +46,7 @@ public static partial class Kernel
         int callerXValue = x.XValue;
         int callerStarValue = x.StarValue;
         int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
-        x.CurrentPlayIsHistoryCourseDupe = false;
+        x.CurrentPlayIsHistoryCourseDupe = card.IsDupe;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
             || !TryResolveAutoPlayTarget(ref x.B, x.R, card, ref target))
@@ -133,12 +133,13 @@ public static partial class Kernel
         int callerXValue = x.XValue;
         int callerStarValue = x.StarValue;
         int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
-        x.CurrentPlayIsHistoryCourseDupe = historyCourseDupe;
+        x.CurrentPlayIsHistoryCourseDupe = historyCourseDupe || card.IsDupe;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
             || !TryResolveAutoPlayTarget(ref x.B, x.R, card, ref target))
         {
             MoveToResultPileWithoutPlaying(ref x, card, Pile.Play, 0, inPile: false);
+            x.CurrentPlayIsHistoryCourseDupe = callerHistoryCourseDupe;
             return false;
         }
 
@@ -290,7 +291,7 @@ public static partial class Kernel
         bool inPile)
     {
         // CardModel.GetResultLocationForCardPlay returns PileType.None for IsDupe: the card leaves
-        // combat instead of exhausting/discarding. The HistoryCourse copy is the only dupe Sts2Solver creates.
+        // combat instead of exhausting/discarding. HistoryCourse copies and their generated clones retain the native IsDupe identity.
         if (x.CurrentPlayIsHistoryCourseDupe)
         {
             if (inPile)

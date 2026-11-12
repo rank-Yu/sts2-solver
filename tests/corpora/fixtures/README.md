@@ -8,6 +8,16 @@
 - `tw-throwing-axe.json`：最小 Ironclad 开局，只注入未使用的 `THROWING_AXE`，用于覆盖生产请求的 `PreserveReplayAllocatorOpening`。
 - `tw-queen-setup-stages.json`：1 点生命的 Queen 开局并带一瓶药水；第一遍搜索以失败路线结束后，生产协调器会走到用药阶段，覆盖 `Setup`、`ContinuousSetup` 与 `QueenSearchPolicy` 成员。
 
+## 历史课回归输入
+
+下列输入由 sts2-sim 固定种子整局导出，再加入历史课，用原版逐动作对照确认。它们属于场景回归，不是 D1 冻结根。
+
+- `hc-fetch-record`：Fetch 打出后更新原牌的出牌记录。
+- `hc-cost-refresh`、`hc-sovereign-blade`：后续动作改变已记录攻击牌的费用或伤害。
+- `hc-early-attack`、`hc-early-stomp`：回合准备期间先打出攻击，历史课仍复制上一回合的攻击，并保留本回合记录。
+- `hc-adaptive-strike`：历史课复制适应打击，生成牌保留复制品身份，后续打出时移出战斗。
+- `hc-slumber-imbalanced`：失衡传播到沉睡甲虫后，醒来行动仍需执行。
+
 ## 来源
 
 - 源仓库：CombatSolver，源提交 `a62f1850`

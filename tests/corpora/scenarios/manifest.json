@@ -1284,6 +1284,118 @@
       },
       "threads": 8,
       "separate": true
+    },
+    {
+      "id": "hc-fetch-record",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-fetch-record",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-cost-refresh",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-cost-refresh",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-sovereign-blade",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-sovereign-blade",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-early-attack",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-early-attack",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-early-stomp",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-early-stomp",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-adaptive-strike",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-adaptive-strike",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
+    },
+    {
+      "id": "hc-slumber-imbalanced",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "hc-slumber-imbalanced",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 1,
+      "separate": true
     }
   ]
 }

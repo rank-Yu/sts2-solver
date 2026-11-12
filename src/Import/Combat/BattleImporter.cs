@@ -393,11 +393,11 @@ public static class BattleImporter
                         $"{monster.Id.Entry} 的 STUNNED 后继仍是 STUNNED");
                 enemy.Move = checked((byte)machine.StunnedNode);
                 enemy.ForcedMove = checked((byte)NodeIndex(machine, followUp, monster));
-                // ImbalancedPower is the native source of a fully-blocked-attack stun: its
-                // AfterDamageGiven either calls CreatureCmd.Stun or sets BowlbugRock.IsOffBalance.
-                // Both outcomes install the synthetic STUNNED move and make the monster lose its
-                // next action; no other native Stun source coexists with this power.
-                if (HasImbalancedPower(creature))
+                // Imbalanced can spread to SlumberingBeetle through Contagion. Its initial
+                // STUNNED still executes WakeUpMove (removing Plating), rather than skipping it.
+                // Once awake, an Imbalanced stun has the ordinary empty move.
+                if (HasImbalancedPower(creature)
+                    && monster is not MegaCrit.Sts2.Core.Models.Monsters.SlumberingBeetle { IsAwake: false })
                     enemy.Flags |= EnemyFlags.SkipNextMove;
             }
             else if (current == "REVIVE_MOVE")
@@ -616,7 +616,7 @@ public static class BattleImporter
                 dampen[card] = level;
         }
         HashSet<CardModel> imported = new(ReferenceEqualityComparer.Instance);
-        Dictionary<CardModel, Card>? values = rules.HasHistoryCourse
+        Dictionary<CardModel, int>? values = rules.HasHistoryCourse
             ? new(ReferenceEqualityComparer.Instance)
             : null;
         (CardPile Pile, Pile Target)[] piles =
@@ -656,7 +656,7 @@ public static class BattleImporter
                     value.Private |= FetchPlayedBit;
                 if (history.ReturnsToHand(card, beforeHandDraw: playerState.Phase == PlayerTurnPhase.Start))
                     value.ReturnToHandNextTurn = true;
-                values?.Add(card, value);
+                values?.Add(card, battle.CardCount);
                 Piles.Append(ref battle, target, value);
             }
         }
@@ -680,18 +680,19 @@ public static class BattleImporter
     /// already have fired, so such a root is not represented.
     /// </summary>
     private static void ImportHistoryCourseCard(ref Battle battle, Player player, PlayerCombatState playerState,
-        NativeHistory history, Dictionary<CardModel, Card> values)
+        NativeHistory history, Dictionary<CardModel, int> values)
     {
-        if (playerState.Phase is not (PlayerTurnPhase.Start or PlayerTurnPhase.Play))
-            throw new UnsupportedImportException(ImportReason.Unrepresentable,
-                $"历史课在回合阶段 {playerState.Phase} 的记录无法表示");
         if (history.HistoryCourseAttack(player, lastPlayerTurn: playerState.Phase == PlayerTurnPhase.Start)
             is not { } attack)
             return;
-        if (!values.TryGetValue(attack, out Card recorded))
+        if (playerState.Phase == PlayerTurnPhase.AutoPrePlay)
+            throw new UnsupportedImportException(ImportReason.Unrepresentable,
+                $"历史课在回合阶段 {playerState.Phase} 的记录无法表示");
+        if (!values.TryGetValue(attack, out int sourceIndex))
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 $"历史课记录的攻击牌不在牌堆中：{attack.Id.Entry}");
-        battle.HistoryCourseCard = recorded;
+        battle.Cards[sourceIndex].HistoryCourseRole = 1;
+        battle.HistoryCourseCard = Kernel.HistoryCourseValue(battle.Cards[sourceIndex]);
         battle.Flags |= BattleFlags.HistoryCourseCardPresent;
     }
 
@@ -709,8 +710,6 @@ public static class BattleImporter
         {
             throw new UnsupportedImportException(ImportReason.RulesMismatch, error.Message);
         }
-        if (card.IsDupe)
-            throw new UnsupportedImportException(ImportReason.UnsupportedCard, $"{card.Id.Entry} 复制品");
         CardDef def = Registry.Card(id);
         Card result = new()
         {
@@ -725,6 +724,7 @@ public static class BattleImporter
             BaseStarCost = checked((sbyte)card.BaseStarCost),
             ReplayCount = checked((byte)card.BaseReplayCount),
             IsClone = card.IsClone,
+            IsDupe = card.IsDupe,
         };
         if (def.UsesIdentityLedger)
             result.Private = Limits.UninitializedLedger;

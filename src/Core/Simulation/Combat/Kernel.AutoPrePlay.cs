@@ -17,30 +17,23 @@ public static partial class Kernel
     {
         if (IsOverOrEnding(x.B) || x.B.Player.IsDead)
             return;
-        // The current slot is the previous turn's last attack (set by CommitHistoryCourseTurn at the
-        // prior turn end). Take it before any Bombardment/Mayhem auto-play records this turn's last
-        // attack into the same slot; the existing engine keeps the two dictionaries separate.
-        Card historyCoursePrevious = default;
-        bool hasHistoryCoursePrevious = false;
-        if (x.R.HasHistoryCourse)
-        {
-            hasHistoryCoursePrevious = (x.B.Flags & BattleFlags.HistoryCourseCardPresent) != 0;
-            historyCoursePrevious = x.B.HistoryCourseCard;
-            x.B.HistoryCourseCard = default;
-            x.B.Flags &= ~BattleFlags.HistoryCourseCardPresent;
-        }
+        // Turn-start draws and hooks may already have played this turn's first attack.
+        // The previous turn was separated before those hooks, not when this phase starts.
         AutoPlayBombardments(ref x);
         if (x.NeedsChoice)
             return;
         AutoPlayScheduled(ref x);
         if (x.NeedsChoice)
             return;
-        if (hasHistoryCoursePrevious)
+        if (x.HasPreviousHistoryCourseCard)
         {
-            AutoPlayHistoryCourse(ref x, historyCoursePrevious);
+            AutoPlayHistoryCourse(ref x, x.PreviousHistoryCourseCard);
             if (x.NeedsChoice)
                 return;
         }
+        if (x.R.HasHistoryCourse)
+            for (int i = 0; i < x.B.CardCount; i++)
+                x.B.Cards[i].HistoryCourseRole &= 1;
         AutoPlayImbued(ref x);
     }
 
@@ -197,7 +190,8 @@ public static partial class Kernel
             ref readonly Relic row = ref x.B.Relics[relic];
             if (row.Id != historyCourse || (row.Flags & RelicFlags.Melted) != 0)
                 continue;
-            Card copy = CloneCard(previous);
+            Card copy = CloneCard(PreviousHistoryCourse(x.B, previous));
+            copy.IsDupe = true;
             copy.Keywords &= ~Keywords.Exhaust;
             // The clone is a new object: it is not in the existing engine's _returnToHandNextTurn set.
             copy.ReturnToHandNextTurn = false;

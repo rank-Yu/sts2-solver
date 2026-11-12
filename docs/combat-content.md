@@ -277,10 +277,12 @@
 
 **HISTORY_COURSE。** 它只读上一玩家回合最后一张攻击牌的完整卡值，存在 `Battle.HistoryCourseCard`（见 [状态布局](combat-state-layout.md#311-historycoursecard)）：
 
-- 每完成一张**非复制品**的攻击牌，就用打出区的实时值写入这个槽。记录同时清除“打出后失效”的能量和星星费用修正，保留整场有效的修正；这与游戏历史记录引用的原牌在出牌完成后的费用状态一致。
-- 自动预打出阶段开始时，先取出并清空它（原引擎的两本字典在这时分开）；Mayhem 之后，每个未熔化的 `HISTORY_COURSE` 复制一份（`CloneCard`、去掉消耗关键字、清 `ReturnToHandNextTurn`、`IsClone = true`）并自动打出。
-- 复制品的身份经栈上的 `Exec.CurrentPlayIsHistoryCourseDupe` 传播：它的结果去向是移出战斗（`PileType.None`），不写回“本回合最后一次攻击”；Feral、Rebound、ChainsOfBinding 等按 `IsDupe` 跳过的 Hook 在这里同样跳过。
-- `Rules.HasHistoryCourse` 为假时，记录和复制都跳过。
+- 原版在攻击效果完成、`AfterCardPlayed` 之前记录攻击。内核在同一时点标记原牌；后续嵌套打出的攻击可以成为更新的记录。
+- 原牌的 `HistoryCourseRole` 随牌堆移动。每个动作边界从原牌刷新槽值，所以改费、升级、伤害成长、Fetch 标志和回合末清理都会同步；克隆不继承这个来源标记。
+- 新回合准备开始时，先把上一回合来源单独保存在执行上下文。抽牌和准备钩子中打出的攻击属于本回合，不会覆盖历史课本次要复制的来源。
+- Mayhem 之后，每个未熔化的 `HISTORY_COURSE` 从上一回合原牌的最新值复制、移除消耗关键字，并自动打出。
+- `Card.IsDupe` 保存原版复制品身份。适应打击从复制品生成的克隆也保留此身份；手动或自动打出后移出战斗，不成为历史课的下一次来源。Feral、Rebound、ChainsOfBinding 等钩子按同一身份处理。
+- `Rules.HasHistoryCourse` 为假时，来源跟踪和复制路径直接跳过。
 
 **Pen Nib。** 第十次攻击的锁存保存触发它那次出牌的 `Exec.PlayIdentity`（在 `Relic.Aux`），不是布尔值。`ModifyDamageMultiplicative` 只在当前 `PlayIdentity` 与它相等、且 dealer 是玩家或玩家的 Osty 时加倍，`AfterCardPlayed` 只在 `LastPlayIdentity` 相等时清除。这样，弃牌选择里嵌套自动打出的 Sly 牌（另一次出牌）不会继承加倍。玩家死亡等原因留下的未完成锁存，由 `Rules.PenNibRelicIndex` 在稳定边界清掉。对照 `PenNib.ModifyDamageMultiplicative` 的 `dealer == Owner.Creature || dealer == Owner.Osty`，以及 `BeforeCardPlayedMirrors.HandlePenNib`、`ModifyDamageMirrors.HandlePenNib`、`AfterCardPlayedMirrors.HandlePenNib` 的 `AttackToDouble == CardSource.Original`。
 

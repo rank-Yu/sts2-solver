@@ -1396,6 +1396,38 @@
       },
       "threads": 1,
       "separate": true
+    },
+    {
+      "id": "souls-power-upgrade",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "souls-power-upgrade",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "turn-setup-terminal-continuation",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "turn-setup-terminal-continuation",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
     }
   ]
 }

@@ -213,7 +213,9 @@ internal sealed record CombatControllerResult(
 {
     internal bool WasReused => Plan.WasReused;
 
-    internal int StartTurn => Plan.StartTurn;
+    internal int StartTurn => IsContinuationSetup && Plan.Actions.Length == 0
+        ? Plan.Root.PlayerTurn
+        : Plan.StartTurn;
 
     /// <summary>The setup selections this result must replay, or an empty array.</summary>
     internal PlannedChoice[] SetupChoices => TurnSetupChoices ?? [];

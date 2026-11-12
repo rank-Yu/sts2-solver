@@ -439,6 +439,8 @@ tools/testing/run-headless.sh --instance combat-smoke --root ROOT_NAME \
 
 测试模式读取请求 JSON，创建场景，捕获根，按请求执行单次搜索或整场战斗。测试专用补丁只处理进度隔离、无头教程、Discovery 展示顺序和回合准备快照。请求失败时写明原因，清理后再处理下一个请求。实机测试模式显式拒绝前缀动作，回合准备 fixture 只捕获第一个准备选项。每个请求结束回主菜单后，TestHost 等到 `AssetSets.CommonAssets` 和 `AssetSets.MainMenuSet` 全部进入 `PreloadManager.Cache` 再建下一个根；`NGame.ReturnToMainMenu` 只等预加载会话建立，不等它完成，直接建局会让 Common 与 characters 两套预加载重叠。
 
+测试牌的附魔先恢复，再应用升级，顺序与原版 v0.111.0 `CardModel.FromSerializable` 一致。牌升级后移除消耗关键字，仍可保留此前获得的灵魂之力。
+
 启动器用 `HEADLESS_GAME_EXIT code=... [signal=...]` 记录游戏进程退出状态，末尾打印 `HEADLESS_EXIT ...`；探测成功但主动终止的进程同样会记录收到的信号。失败（提前退出、超时、加载异常或结果失败）时，启动器先打印 `launcher.log` 最后 200 行和 Godot 日志最后 100 行，再把 `godot-headless.log`、`launcher.log`、`run/`（请求、`mod.log`、`game-exit.txt` 和已有结果）复制到 `.local/headless-failures/<实例>-<UTC 时间>/`，打印 `HEADLESS_FAILURE_ARTIFACTS path=...`，最后才按 `--cleanup-instance-on-exit` 删除实例；`--failure-root DIR` 可改证据根。`--log-dir DIR` 在正常和失败收尾时都把 Godot 日志、`launcher.log`、`mod.log` 和 `game-exit.txt` 复制到指定目录并打印 `HEADLESS_LOGS path=...`。启动器还从 Godot 日志统计 `Invalid Task ID`，打印 `HEADLESS_GODOT_ERROR invalid_task_id=N build_invalid_task_id=M`；`M` 只统计每个 `BUILD_STARTED` 到对应 `BUILD_COMPLETED` 之间的部分，用来区分建局过程中的预加载重叠与建局前后的启动/收尾预加载。
 
 请求由差分宿主生成：`--emit-live-requests <目录>` 配合 `--root`、`--roots-file` 或 `--all`（`--all` 跳过前缀输入）。可选 `--search-tier Low|Medium|High|ExtraHigh`（默认 `Medium`）、`--search-normal`（关掉确定性，用正常的软时间）、`--search-cancel-after-ms N`（取消测试）和 `--full-combat`。

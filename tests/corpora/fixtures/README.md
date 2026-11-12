@@ -121,3 +121,6 @@ FS6 批次修好的对照 fixture（均为原 FS6 请求，只改 `scenarioId`�
 两类根的导入方式见 [原生导入](../../../docs/import.md#8-前缀根与回合准备根)。
 
 控制器、回合准备和整场回归使用的长期请求清单在 [`../scenarios/`](../scenarios/README.md)，与冻结 fixture 输入分开维护。
+
+- `souls-power-upgrade.json`：恢复带灵魂之力的升级版秘密技法，附魔在升级前恢复；原版整场战斗回归。
+- `turn-setup-terminal-continuation.json`：静默猎手对 Exoskeletons，第五回合准备选择后直接获胜；沿用上一回合选择计划，即使没有后续出牌也完成选择。

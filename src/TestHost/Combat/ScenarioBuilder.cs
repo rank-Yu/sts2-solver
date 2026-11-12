@@ -526,15 +526,8 @@ internal static class ScenarioBuilder
                     throw new InvalidOperationException($"游戏拒绝为测试卡牌 {canonical.Id} 建立跑局版本。");
                 card.DeckVersion = deckVersion;
             }
-            for (int level = 0; level < injection.UpgradeLevels && card.IsUpgradable; level++)
-                CardCmd.Upgrade(card, CardPreviewStyle.None);
-            foreach ((string key, int value) in injection.DynamicVars)
-            {
-                if (!card.DynamicVars.TryGetValue(key, out DynamicVar? dynamicVar))
-                    throw new InvalidOperationException($"卡牌 {card.Id.Entry} 不存在动态变量 {key}。");
-                dynamicVar.BaseValue = value;
-            }
-            ApplyCardEnumMembers(card, injection.EnumMembers);
+            // Match native v0.111.0 CardModel.FromSerializable: enchant before upgrading.
+            // SoulsPower remains valid when a later upgrade removes the base Exhaust keyword.
             if (!string.IsNullOrWhiteSpace(injection.EnchantmentId))
             {
                 EnchantmentModel enchantment = NativeLookup.ResolveUnique(
@@ -544,6 +537,15 @@ internal static class ScenarioBuilder
                         $"附魔 {enchantment.Id} 不能用于测试卡牌 {card.Id}。");
                 CardCmd.Enchant(enchantment, card, injection.EnchantmentAmount);
             }
+            for (int level = 0; level < injection.UpgradeLevels && card.IsUpgradable; level++)
+                CardCmd.Upgrade(card, CardPreviewStyle.None);
+            foreach ((string key, int value) in injection.DynamicVars)
+            {
+                if (!card.DynamicVars.TryGetValue(key, out DynamicVar? dynamicVar))
+                    throw new InvalidOperationException($"卡牌 {card.Id.Entry} 不存在动态变量 {key}。");
+                dynamicVar.BaseValue = value;
+            }
+            ApplyCardEnumMembers(card, injection.EnumMembers);
             if (!string.IsNullOrWhiteSpace(injection.AfflictionId))
             {
                 AfflictionModel affliction = NativeLookup.ResolveUnique(
@@ -570,6 +572,16 @@ internal static class ScenarioBuilder
         for (int index = 0; index < injection.Count; index++)
         {
             CardModel card = runState.CreateCard(canonical, player);
+            // Match native v0.111.0 CardModel.FromSerializable: enchant before upgrading.
+            // SoulsPower remains valid when a later upgrade removes the base Exhaust keyword.
+            if (!string.IsNullOrWhiteSpace(injection.EnchantmentId))
+            {
+                EnchantmentModel enchantment = NativeLookup.ResolveUnique(
+                    ModelDb.DebugEnchantments, injection.EnchantmentId, "附魔").ToMutable();
+                if (!enchantment.CanEnchant(card))
+                    throw new InvalidOperationException($"附魔 {enchantment.Id} 不能用于测试卡牌 {card.Id}。");
+                CardCmd.Enchant(enchantment, card, injection.EnchantmentAmount);
+            }
             for (int level = 0; level < injection.UpgradeLevels && card.IsUpgradable; level++)
                 CardCmd.Upgrade(card, CardPreviewStyle.None);
             foreach ((string key, int value) in injection.DynamicVars)
@@ -579,14 +591,6 @@ internal static class ScenarioBuilder
                 dynamicVar.BaseValue = value;
             }
             ApplyCardEnumMembers(card, injection.EnumMembers);
-            if (!string.IsNullOrWhiteSpace(injection.EnchantmentId))
-            {
-                EnchantmentModel enchantment = NativeLookup.ResolveUnique(
-                    ModelDb.DebugEnchantments, injection.EnchantmentId, "附魔").ToMutable();
-                if (!enchantment.CanEnchant(card))
-                    throw new InvalidOperationException($"附魔 {enchantment.Id} 不能用于测试卡牌 {card.Id}。");
-                CardCmd.Enchant(enchantment, card, injection.EnchantmentAmount);
-            }
             if (!string.IsNullOrWhiteSpace(injection.AfflictionId))
             {
                 AfflictionModel affliction = NativeLookup.ResolveUnique(

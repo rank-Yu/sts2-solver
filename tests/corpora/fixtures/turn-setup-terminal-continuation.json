@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TURN-SETUP-TERMINAL-CONTINUATION",
+  "characterId": "SILENT",
+  "encounterId": "EXOSKELETONS_NORMAL",
+  "seed": "9D5F703D831A2A44",
+  "ascension": 10,
+  "actIndexForTest": 1,
+  "targetRoomType": "Monster",
+  "targetMapPointType": "Monster",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 56,
+  "initialPlayerMaxHp": 80,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SPIRAL",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NEUTRALIZE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SURVIVOR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "INFINITE_BLADES",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ESCAPE_PLAN",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LEG_SWEEP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHADOW_STEP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "LEG_SWEEP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPOSE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HIDDEN_DAGGERS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "IMBUED",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRANGLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DASH",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TOOLS_OF_THE_TRADE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PHANTOM_BLADES",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ACCELERANT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFLECT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ULTIMATE_STRIKE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "CORRUPTED",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BULLET_TIME",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DAGGER_SPRAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "LAVA_ROCK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GAME_PIECE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CAULDRON",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "TINGSHA",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PAPER_KRANE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "MERCURY_HOURGLASS",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LASTING_CANDY",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ELECTRIC_SHRYMP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "POTION_BELT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "STRIKE_DUMMY",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEAR",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POTION_OF_BINDING"
+    },
+    {
+      "potionId": "RADIANT_TINCTURE"
+    }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

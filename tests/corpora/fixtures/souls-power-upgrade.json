@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "SOULS-POWER-UPGRADE",
+  "characterId": "IRONCLAD",
+  "encounterId": "AEONGLASS_BOSS",
+  "seed": "91BB8A407F82D304",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "targetRoomType": "Boss",
+  "targetMapPointType": "Boss",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 79,
+  "initialPlayerMaxHp": 80,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SPIRAL",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BASH",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SHRUG_IT_OFF",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "HAVOC",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "INFLAME",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ANGER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ANGER",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EVIL_EYE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POMMEL_STRIKE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BLUDGEON",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STOMP",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPECT_A_FIGHT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "INFLAME",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "UNRELENTING",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MANGLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "WHIRLWIND",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 3,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "INFLAME",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FEEL_NO_PAIN",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DISCOVERY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STONE_ARMOR",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "VICIOUS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PROWESS",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SECRET_TECHNIQUE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentId": "SOULS_POWER",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "CALAMITY",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPECT_A_FIGHT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "VICIOUS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DECAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FINESSE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ALCHEMIZE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PANIC_BUTTON",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "SCROLL_BOXES",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BRONZE_SCALES",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ANCHOR",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PAELS_TEARS",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "_hadLeftoverEnergy": false
+      }
+    },
+    {
+      "relicId": "STRIKE_DUMMY",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "DINGY_RUG",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "RED_MASK",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PENDULUM",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 2
+      }
+    },
+    {
+      "relicId": "BONE_TEA",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "CombatsLeft": 0
+      }
+    },
+    {
+      "relicId": "KUNAI",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "_attacksPlayedThisTurn": 0
+      }
+    },
+    {
+      "relicId": "SIGNET_RING",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ORICHALCUM",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "WHETSTONE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GNARLED_HAMMER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "SPARKLING_ROUGE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "NUNCHAKU",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "AttacksPlayed": 0
+      }
+    },
+    {
+      "relicId": "STONE_CRACKER",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "ASHWATER"
+    },
+    {
+      "potionId": "VULNERABLE_POTION"
+    }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120
+}

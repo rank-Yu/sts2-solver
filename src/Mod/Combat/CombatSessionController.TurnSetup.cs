@@ -380,8 +380,17 @@ internal static partial class CombatSessionController
         if (planned.Length == 0)
             return false;
         CombatRoutePlan? trimmed = source.Plan.TrimToTurn(turn);
-        if (trimmed == null || trimmed.Actions.Length == 0
-            || trimmed.Actions[0].Before.PlayerTurn != turn)
+        if (trimmed == null && endTurn.After.PlayerTurn == turn
+            && endTurn.After.Outcome != Outcome.None)
+        {
+            // A turn-start choice can finish combat before Play. It still needs to be driven,
+            // even though the winning route has no further card actions to trim.
+            ReplayedRoute terminal = ReplayedRoute.Build(endTurn.After, source.Plan.Rules, [],
+                endTurn.After.Outcome == Outcome.Victory);
+            trimmed = CombatRoutePlan.FromReplay(terminal, source.Outcome.OnlyDeathRoutes);
+        }
+        if (trimmed == null
+            || (trimmed.Actions.Length > 0 && trimmed.Actions[0].Before.PlayerTurn != turn))
         {
             return false;
         }

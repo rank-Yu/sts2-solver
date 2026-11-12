@@ -72,8 +72,7 @@ internal sealed record BeamOptions(
     public TheftPolicy? TheftPolicy { get; init; }
 
     /// <summary>
-    /// The audited potion-free baseline the existing final ordering compares an audited potion route
-    /// against; null means the evaluated candidates decide it. Only potion-audit requests set it.
+    /// Legacy SREQ v11 payload retained for request round-tripping; search no longer reads it.
     /// </summary>
     public PotionFreePolicyBaseline? PotionFreeBaseline { get; init; }
 
@@ -85,8 +84,7 @@ internal sealed record BeamOptions(
     public SearchIncumbent? IncumbentSeed { get; init; }
 
     /// <summary>
-    /// Port the existing final ordering's potion policy filter. Set only for the potion audits;
-    /// primary/refinement and clean continuations keep the prior route key.
+    /// Track the best legal potion-enabled candidate using the same route ordering as other members.
     /// </summary>
     public bool AuditPotionPolicy { get; init; }
 
@@ -458,7 +456,6 @@ internal sealed partial class BeamSolver
     private SearchStorage _storage = null!;
     private int _nodeCleanupThreshold = 1_000_000;
     private readonly List<int> _compactRoots = [];
-    private readonly List<int> _auditKeysScratch = [];
 
     /// <summary>
     /// Routing-choice signatures accumulated on the route. They are node metadata only; no value here
@@ -533,11 +530,7 @@ internal sealed partial class BeamSolver
     private readonly PotionUseMode _effectivePotionPolicy;
     private readonly TheftPolicy? _theftPolicy;
     private readonly bool _auditPotionPolicy;
-    private readonly PotionFreePolicyBaseline? _potionFreeBaseline;
-    private readonly ushort _ambergrisPotionId;
-    private Dictionary<int, Candidate>? _auditBestByPotionCount;
-    private Candidate? _bestPotionFree;
-    private bool _anyAuditedVictory;
+    private Candidate? _bestAudited;
     private SearchIncumbent? _incumbent;
     // The drunk-potion price is a valid part of the pruning bound only while it can never fall: no
     // potion can be generated into a slot (the slot diff would then read a refilled potion as unused)
@@ -657,8 +650,6 @@ internal sealed partial class BeamSolver
         _effectivePotionPolicy = options.EffectivePotionPolicy;
         _theftPolicy = options.TheftPolicy;
         _auditPotionPolicy = options.AuditPotionPolicy;
-        _potionFreeBaseline = options.PotionFreeBaseline;
-        _ambergrisPotionId = _scorer.RulesForCodec.AmbergrisPotionId;
         _initialPlayerTurn = options.InitialPlayerTurn;
         _powerCommitments = options.PowerCommitments is { Rules.Length: > 0 } catalog ? catalog : null;
         _aggressivePowerCommitment = options.AggressivePowerCommitment;
@@ -753,13 +744,11 @@ internal sealed partial class BeamSolver
         _deadlineExpiredAtPoll = 0;
         _memoryBudgetExceeded = false;
         _memoryBudgetExceededAtBytes = 0;
-        _bestPotionFree = null;
         _incumbent = _options.IncumbentSeed;
+        _bestAudited = null;
         _openingPotionTurn = int.MinValue;
         foreach (Battle root in roots)
             _openingPotionTurn = Math.Max(_openingPotionTurn, root.PlayerTurn);
-        _auditBestByPotionCount = null;
-        _anyAuditedVictory = false;
         _bestFeatures = default;
         _bestFeaturesNode = -1;
         if (DeadlineExpired()) return DeadlineBeforeStart(storage);
@@ -1209,135 +1198,31 @@ internal sealed partial class BeamSolver
         return "frontier-empty";
     }
 
-    /// <summary>Records an audited candidate; true when the potion policy admits it right now.</summary>
+    /// <summary>Records the best legal candidate under the common final ordering.</summary>
     private bool ConsiderAudited(int node, in ScoreFeatures features, in RouteKey key)
     {
-        if (key.Won)
-            _anyAuditedVictory = true;
-        int optionalPotionCount = Math.Max(0, features.ExplicitPotionUseCount);
-        int optionalPotionStrategicCost = key.OptionalPotionPrice;
-        PotionUseMode effectivePotionPolicy = _effectivePotionPolicy == PotionUseMode.Disabled
-            && optionalPotionCount > 0
-                ? PotionUseMode.Smart
-                : _effectivePotionPolicy;
-        RouteKey auditedKey = key with
-        {
-            OptionalPotionCount = optionalPotionCount,
-        };
-        Candidate candidate = new(
-            node,
-            auditedKey,
-            features.ExplicitPotionUseCount,
-            features.PotionUseCount,
-            features.ExplicitPotionStrategicCost,
-            optionalPotionStrategicCost,
-            Math.Max(0, AmbergrisUses(node)),
-            features.PlayerHp,
-            features.ProjectedDeathSaveUseCount,
-            effectivePotionPolicy);
-        if (candidate.ExplicitPotionUseCount == 0
-            && (_bestPotionFree is not { } free || ComparePotionFree(candidate, free) < 0))
-        {
-            _bestPotionFree = candidate;
-        }
-        Dictionary<int, Candidate> bestByCount = _auditBestByPotionCount ??= new();
-        int bucket = candidate.ExplicitPotionUseCount;
-        if (!bestByCount.TryGetValue(bucket, out Candidate current)
-            || CompareAudited(candidate, current) < 0)
-        {
-            bestByCount[bucket] = candidate;
-        }
-        return IsCurrentAuditedPolicyEligible(candidate);
+        Candidate candidate = new(node, key, features.ExplicitPotionUseCount,
+            features.ProjectedDeathSaveUseCount);
+        if (!IsPolicyEligible(candidate))
+            return false;
+        if (_bestAudited is not { } current || CompareAudited(candidate, current) < 0)
+            _bestAudited = candidate;
+        return true;
     }
 
-    /// <summary>
-    /// The existing <c>FinalPlanOrdering.Select</c> filter and ordering, applied to the best candidate
-    /// per explicit potion count. The request's audited baseline is authoritative when present; otherwise
-    /// the best potion-free candidate of this search supplies it, exactly like the existing evaluated set.
-    /// </summary>
     private bool SelectAudited(out int node, out RouteKey key, out bool victory)
     {
-        Candidate? selected = null;
-        if (_auditBestByPotionCount is { } bestByCount)
-        {
-            foreach (Candidate candidate in bestByCount.Values)
-            {
-                if (!IsCurrentAuditedPolicyEligible(candidate))
-                {
-                    continue;
-                }
-                if (selected is not { } current || CompareAudited(candidate, current) < 0)
-                    selected = candidate;
-            }
-        }
-        if (selected is not { } bestCandidate)
+        if (_bestAudited is not { } candidate)
         {
             node = 0;
             key = default;
             victory = false;
             return false;
         }
-        node = bestCandidate.Node;
-        key = bestCandidate.Key;
-        victory = bestCandidate.Key.Won;
+        node = candidate.Node;
+        key = candidate.Key;
+        victory = candidate.Key.Won;
         return true;
-    }
-
-    private bool IsCurrentAuditedPolicyEligible(Candidate candidate)
-    {
-        bool hasPotionFree = _potionFreeBaseline is not null || _bestPotionFree is not null;
-        bool potionFreeWon = _potionFreeBaseline?.Won ?? _bestPotionFree?.Key.Won ?? false;
-        int potionFreeDeficit = _potionFreeBaseline?.HpDeficit
-            ?? _bestPotionFree?.Key.StrategicHpDeficit
-            ?? _ordering.InitialPlayerHp;
-        int potionFreePlayerHp = _potionFreeBaseline?.PlayerHp ?? _bestPotionFree?.PlayerHp ?? 0;
-        int potionFreeDeathSaves = _potionFreeBaseline?.DeathSaveUseCount
-            ?? (_bestPotionFree is { } free ? free.ProjectedDeathSaveUseCount : int.MaxValue);
-        int potionFreeOutstanding = _potionFreeBaseline?.OutstandingStolenResource
-            ?? _bestPotionFree?.Key.OutstandingStolenResource ?? int.MaxValue;
-        bool anyRouteWon = potionFreeWon || _anyAuditedVictory;
-        return IsAuditedPolicyEligible(candidate, hasPotionFree, potionFreeWon, potionFreeDeficit,
-            potionFreePlayerHp, potionFreeDeathSaves, potionFreeOutstanding, anyRouteWon);
-    }
-
-    private bool IsAuditedPolicyEligible(Candidate candidate, bool hasPotionFree, bool potionFreeWon,
-        int potionFreeDeficit, int potionFreePlayerHp, int potionFreeDeathSaves, int potionFreeOutstanding,
-        bool anyRouteWon)
-    {
-        if (_options.Potions.ForceAllDisabled && candidate.ExplicitPotionUseCount > 0)
-            return false;
-        bool protectsDeathSave = hasPotionFree && potionFreeWon && candidate.Key.Won
-            && _effectivePotionPolicy != PotionUseMode.Disabled
-            && candidate.Key.OptionalPotionCount > 0
-            && candidate.ProjectedDeathSaveUseCount < potionFreeDeathSaves;
-        // FinalPlanOrdering.Select: under the preserve policy, more potion use is allowed when it
-        // recovers outstanding loot; the soft-policy exception requires an actual potion use, while
-        // the Ambergris exception applies to the recovered-loot key even with zero potions.
-        bool recoversLoot = _theftPolicy == TheftPolicy.PreserveResources
-            && candidate.Key.OutstandingStolenResource < potionFreeOutstanding;
-        bool recoversLootWithPotion = recoversLoot && candidate.PotionUseCount > 0;
-        bool passesSoftPolicy = PotionUsePolicy.IsEligible(
-                candidate.EffectivePotionPolicy,
-                candidate.Key.OptionalPotionCount,
-                PotionUsePolicy.SmartRequiredHpSaved(
-                    candidate.OptionalPotionStrategicCost, _ordering.BossHpRelief),
-                potionFreeWon,
-                potionFreeDeficit,
-                anyRouteWon,
-                candidate.Key.Won,
-                candidate.Key.StrategicHpDeficit)
-            || protectsDeathSave
-            || recoversLootWithPotion;
-        bool passesAmbergris = protectsDeathSave
-            || recoversLoot
-            || PotionUsePolicy.MeetsAmbergrisRestriction(
-                hasPotionFree,
-                candidate.AmbergrisUses,
-                candidate.OptionalPotionStrategicCost,
-                _scorer.RulesForCodec.InitialPlayerMaxHp,
-                potionFreePlayerHp,
-                candidate.PlayerHp);
-        return passesSoftPolicy && passesAmbergris;
     }
 
     /// <summary>Negative when <paramref name="left"/> wins the audited final ordering.</summary>
@@ -1346,51 +1231,6 @@ internal sealed partial class BeamSolver
         int comparison = CompareRoutes(left.Key, right.Key);
         return comparison != 0 ? comparison : left.Node.CompareTo(right.Node);
     }
-
-    /// <summary>
-    /// <c>the existing search's FinalPlanOrdering.ComparePotionFreePolicyBaselines</c> restricted to the
-    /// admitted keys (growth and sold HP are zero/rejected; the theft recovery key is included); the
-    /// route index breaks exact ties.
-    /// </summary>
-    private int ComparePotionFree(in Candidate left, in Candidate right)
-    {
-        int comparison = right.Key.Won.CompareTo(left.Key.Won);
-        if (comparison != 0) return comparison;
-        if (!left.Key.Won && !right.Key.Won)
-        {
-            comparison = RightSurvives(right).CompareTo(RightSurvives(left));
-            if (comparison != 0) return comparison;
-        }
-        comparison = left.Key.DeathSaveUseCount.CompareTo(right.Key.DeathSaveUseCount);
-        if (comparison != 0) return comparison;
-        if (_theftPolicy == TheftPolicy.PreserveResources)
-        {
-            comparison = left.Key.OutstandingStolenResource.CompareTo(right.Key.OutstandingStolenResource);
-            if (comparison != 0) return comparison;
-        }
-        comparison = left.Key.StrategicHpDeficit.CompareTo(right.Key.StrategicHpDeficit);
-        if (comparison != 0) return comparison;
-        comparison = right.Key.StrategyGoalHpCredit.CompareTo(left.Key.StrategyGoalHpCredit);
-        if (comparison != 0) return comparison;
-        comparison = right.Key.StrategyGoalCount.CompareTo(left.Key.StrategyGoalCount);
-        if (comparison != 0) return comparison;
-        comparison = left.Key.CombatEndedTurn.CompareTo(right.Key.CombatEndedTurn);
-        if (comparison != 0) return comparison;
-        comparison = left.Key.HealthResourceCost.CompareTo(right.Key.HealthResourceCost);
-        if (comparison != 0) return comparison;
-        comparison = right.Key.LongTermResourceValue.CompareTo(left.Key.LongTermResourceValue);
-        if (comparison != 0) return comparison;
-        comparison = left.Key.AngerCopiesGenerated.CompareTo(right.Key.AngerCopiesGenerated);
-        if (comparison != 0) return comparison;
-        comparison = left.Key.EnemyHp.CompareTo(right.Key.EnemyHp);
-        if (comparison != 0) return comparison;
-        comparison = right.Key.Score.CompareTo(left.Key.Score);
-        if (comparison != 0) return comparison;
-        comparison = left.Key.ActionCount.CompareTo(right.Key.ActionCount);
-        return comparison != 0 ? comparison : left.Node.CompareTo(right.Node);
-    }
-
-    private static int RightSurvives(in Candidate candidate) => candidate.Key.Survives ? 1 : 0;
 
     private delegate void TerminalSink(in Battle state, int node, in ScoreFeatures features,
         double score);
@@ -1422,26 +1262,18 @@ internal sealed partial class BeamSolver
         int OptionalPotionPrice = 0)
     {
         /// <summary>
-        /// The strategic HP deficit with the route's optional potions priced in HP: the HP the Smart policy
-        /// requires them to save for their price (<see cref="PotionUsePolicy.OptionalPotionPrice"/>, then
-        /// <see cref="PotionUsePolicy.SmartRequiredHpSaved"/>). The Smart threshold reads the same price,
-        /// so ranking by it agrees with the threshold and also prices each further potion.
+        /// Strategic HP deficit plus the HP-equivalent price of optional potions.
+        /// Every legal route is compared by this value, independent of a potion-free baseline.
         /// </summary>
         public int EffectiveHpDeficit => StrategicHpDeficit + PotionHpCost;
     }
 
-    /// <summary>An audited final candidate: the ordering key plus the values its policy filter reads.</summary>
+    /// <summary>A replayable candidate and the fields used by the coordinator.</summary>
     internal readonly record struct Candidate(
         int Node,
         RouteKey Key,
         int ExplicitPotionUseCount,
-        int PotionUseCount,
-        int ExplicitPotionStrategicCost,
-        int OptionalPotionStrategicCost,
-        int AmbergrisUses,
-        int PlayerHp,
-        int ProjectedDeathSaveUseCount,
-        PotionUseMode EffectivePotionPolicy);
+        int ProjectedDeathSaveUseCount);
 
     private RouteKey Key(in Battle state, in ScoreFeatures features, int actionCount)
     {
@@ -1500,8 +1332,7 @@ internal sealed partial class BeamSolver
         // Key leaves it zero otherwise.
         comparison = left.OutstandingStolenResource.CompareTo(right.OutstandingStolenResource);
         if (comparison != 0) return comparison;
-        // Potions priced in HP first; on a tie the lower raw deficit wins, which is the Smart threshold's
-        // ">= required" (a potion route that saves exactly its price is preferred, as before).
+        // Compare total HP-equivalent cost first; lower raw HP loss breaks an exact cost tie.
         comparison = left.EffectiveHpDeficit.CompareTo(right.EffectiveHpDeficit);
         if (comparison != 0) return comparison;
         comparison = left.StrategicHpDeficit.CompareTo(right.StrategicHpDeficit);
@@ -1699,23 +1530,6 @@ internal sealed partial class BeamSolver
         return uses;
     }
 
-    private int AmbergrisUses(int node)
-    {
-        if (_ambergrisPotionId == ushort.MaxValue)
-            return 0;
-        int uses = 0;
-        for (int cursor = node; _nodes.View(cursor).Parent >= 0;
-             cursor = _nodes.View(cursor).Parent)
-        {
-            PlayerAction action = _nodes.View(cursor).Action;
-            if (action.Kind != PlayerActionKind.UsePotion)
-                continue;
-            if (_nodes.View(cursor).PotionId == _ambergrisPotionId)
-                uses++;
-        }
-        return uses;
-    }
-
     private PlayerAction[] Route(int node)
     {
         List<PlayerAction> route = [];
@@ -1786,10 +1600,10 @@ internal sealed partial class BeamSolver
     private static int OptionalPotionPrice(in PotionUsage usage)
         => PotionUsePolicy.OptionalPotionPrice(usage.ExplicitStrategicCost, usage.DearestExplicitStrategicCost);
 
-    /// <summary>The HP the Smart policy requires a potion price to save: its weight in the route key.</summary>
+    /// <summary>The potion price converted to the route key's HP units.</summary>
     private int PotionHpCost(int optionalPotionPrice)
         => optionalPotionPrice > 0
-            ? PotionUsePolicy.SmartRequiredHpSaved(optionalPotionPrice, _ordering.BossHpRelief)
+            ? PotionUsePolicy.HpEquivalentCost(optionalPotionPrice, _ordering.BossHpRelief)
             : 0;
 
     private static bool RootPotionCostsKnown(ScoreRules rules)

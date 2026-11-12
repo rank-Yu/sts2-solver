@@ -167,9 +167,9 @@ internal static class SearchContracts
         SearchPlan timedPlan = plan with { BaselineWidth = 8, NarrowWidth = 8, WideWidth = 8, OffensiveWidth = 8 };
         CombatSearchResult validated = CombatSearchCoordinator.RunAsync(new(original, timedPlan),
             new(), StaleThenValid, CancellationToken.None, () => clock).AsTask().GetAwaiter().GetResult();
+        SearchMemberResult nextRun = validated.Members.Skip(1).First(m => m.Ran);
         Assert(validated.Members[0].StopReason == "deadline" && !validated.Members[0].Adopted
-            && validated.Members[1].Ran && validated.Members[1].HpLost.HasValue
-            && validated.Members[1].StopReason != "deadline",
+            && nextRun.HpLost.HasValue && nextRun.StopReason != "deadline",
             "expired result cannot be adopted; a later member can still validate its real route");
 
         int retentionChecks = 0;

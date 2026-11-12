@@ -765,7 +765,7 @@ internal static class UiPanelChecks
             (int slot, string potionId, bool canAssign, Button button) = rows[index];
             string tooltip = !potion.CanAssignPolicy
                 ? SolverText.Get("该药水不可指定使用策略")
-                : potion.Mode == "smart" ? SolverText.Get("只在能省下足够的血、或不用就赢不了时使用。") : "";
+                : potion.Mode == "smart" ? SolverText.Get("计入药水成本，与不用药的路线一起比较，选择综合结果更好的路线。") : "";
             if (slot != potion.Slot || potionId != potion.PotionId || canAssign != potion.CanAssignPolicy
                 || button.Disabled != !potion.CanAssignPolicy || button.Text != ModeText(potion.Mode)
                 || button.TooltipText != tooltip)

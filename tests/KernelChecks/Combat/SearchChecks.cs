@@ -29,12 +29,59 @@ internal static class SearchChecks
         SearchPlan plan = new(12, 8, 16, 5, 100_000_000) { MillisecondsPerWidth = 50 };
         SearchMember[] powered = PortfolioBuilder.Build(plan, power: true);
         SearchMember[] ordinary = PortfolioBuilder.Build(plan, power: false);
-        Assert(powered.Length == 11 && ordinary.Length == 9, "compact portfolio sizes");
-        Assert(powered.Take(6).All(m => m.Potions == SearchPotionLimit.None)
-            && powered.Skip(6).All(m => m.Potions == SearchPotionLimit.Allowed)
-            && powered.Skip(6).All(m => m.Width != plan.NarrowWidth)
-            && powered[7].Width == plan.BaselineWidth && powered[8].Width == plan.WideWidth,
-            "compact portfolio stages and widths");
+        Assert(powered.Length == 10 && ordinary.Length == 8, "compact portfolio sizes");
+        Assert(powered.Select(m => m.Potions).SequenceEqual(new[]
+            {
+                SearchPotionLimit.None, SearchPotionLimit.Allowed, SearchPotionLimit.None,
+                SearchPotionLimit.None, SearchPotionLimit.Allowed, SearchPotionLimit.None,
+                SearchPotionLimit.None, SearchPotionLimit.Allowed,
+                SearchPotionLimit.None, SearchPotionLimit.Allowed,
+            })
+            && powered[2].Width == plan.NarrowWidth && powered[3].Width == plan.WideWidth,
+            "main methods are paired without changing ordinary or wide widths");
+        foreach (SearchPlan preset in new[] { low, medium, high, extra })
+        foreach (bool power in new[] { false, true })
+        {
+            SearchMember[] members = PortfolioBuilder.Build(preset, power);
+            int first = power ? 2 : 0;
+            Assert(members[first] == new SearchMember(preset.NarrowWidth,
+                SearchEvaluation.Standard, SearchRetention.Standard, SearchPotionLimit.None),
+                "ordinary member uses the tier narrow width without potions");
+            SearchMember[] allowed = members.Where(m => m.Potions == SearchPotionLimit.Allowed).ToArray();
+            Assert(allowed.Count(m => m.Evaluation == SearchEvaluation.Standard
+                    && m.Retention == SearchRetention.Standard) == 1
+                && allowed.Single(m => m.Evaluation == SearchEvaluation.Standard
+                    && m.Retention == SearchRetention.Standard).Width == preset.WideWidth,
+                "only the wide standard member remains in the Allowed stage");
+        }
+        foreach (bool power in new[] { false, true })
+        foreach (bool setup in new[] { false, true })
+        foreach (bool continuous in new[] { false, true })
+        foreach (bool queen in new[] { false, true })
+        {
+            SearchPlan pairedPlan = medium with
+            {
+                SetupStrategies = setup, ContinuousSetupStrategies = continuous,
+            };
+            SearchMember[] main = PortfolioBuilder.Build(pairedPlan, power);
+            SearchMember[] all = SupplementPortfolio.Append(main, pairedPlan, queen);
+            Assert(all.Take(main.Length).SequenceEqual(main), "supplements follow all main members");
+            List<SearchMember> expected = [];
+            if (setup)
+            {
+                expected.Add(new(medium.WideWidth, SearchEvaluation.Setup, SearchRetention.Standard, SearchPotionLimit.None));
+                expected.Add(new(medium.WideWidth, SearchEvaluation.Setup, SearchRetention.Standard, SearchPotionLimit.Allowed));
+            }
+            if (setup && continuous)
+                expected.Add(new(medium.WideWidth, SearchEvaluation.ContinuousSetup, SearchRetention.Standard, SearchPotionLimit.Allowed));
+            if (queen)
+            {
+                expected.Add(new(medium.NarrowWidth, SearchEvaluation.Standard, SearchRetention.QueenKillTiming, SearchPotionLimit.None));
+                expected.Add(new(medium.NarrowWidth, SearchEvaluation.Standard, SearchRetention.QueenKillTiming, SearchPotionLimit.Allowed));
+            }
+            Assert(all.Skip(main.Length).SequenceEqual(expected)
+                && all.Distinct().Count() == all.Length, "supplement pairs appear once and obey encounter flags");
+        }
         Console.WriteLine("SEARCH presets/portfolios=pass");
         RemovalOrder();
     }

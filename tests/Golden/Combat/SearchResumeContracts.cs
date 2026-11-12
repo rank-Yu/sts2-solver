@@ -51,11 +51,12 @@ internal static class SearchResumeContracts
         Assert(real.BestRoute.Length > 0, "empty-route: the real route has actions");
         BeamResult empty = new([], false, double.NegativeInfinity, 0, 0, 0, 0, 0, TimeSpan.Zero);
         Script script = new() { Default = BeamStep(empty) };
-        script.Set(1, BeamStep(real));
+        int realIndex = RunnableIndices(original)[1];
+        script.Set(realIndex, BeamStep(real));
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
-        Assert(result.SelectedMember == 1 && result.Beam is not null
+        Assert(result.SelectedMember == realIndex && result.Beam is not null
             && Equal(result.Beam.BestRoute, real.BestRoute),
             $"empty-route: the only member with a route is selected (selected={result.SelectedMember})");
 
@@ -69,7 +70,7 @@ internal static class SearchResumeContracts
     {
         BeamSolver quality = new(original.Rules, original.Options with { AuditPotionPolicy = true });
         (BeamResult better, BeamResult worse) = FindTwoRoutes(original, quality);
-        const int stopIndex = 1;
+        int stopIndex = RunnableIndices(original)[1];
         int count = MemberCount(original);
         Assert(count > stopIndex + 1, "plan has a middle member to stop at");
 
@@ -80,7 +81,7 @@ internal static class SearchResumeContracts
         FakeRunner stopRunner = new(stopChannel, stopScript);
         CombatSearchResult stopped = Run(original, stopRunner, stopChannel);
         Assert(stopRunner.Calls
-                .SequenceEqual(Enumerable.Range(0, stopIndex + 1)),
+                .SequenceEqual(RunnableIndices(original).Where(index => index <= stopIndex)),
             "stop runs members 0..k once");
         Assert(stopped.Completion == SearchCompletionKind.StoppedWithCandidate,
             stopped.Completion.ToString());
@@ -97,7 +98,7 @@ internal static class SearchResumeContracts
         SearchProgressChannel resumeChannel = new(0);
         FakeRunner resumeRunner = new(resumeChannel, resumeScript);
         CombatSearchResult resumed = Run(original, resumeRunner, resumeChannel, resume);
-        Assert(resumeRunner.Calls.All(static call => call > stopIndex),
+        Assert(resumeRunner.Calls.All(call => call > stopIndex),
             "resume never reruns the stopped member");
         for (int call = 1; call < resumeRunner.Calls.Count; call++)
             Assert(resumeRunner.Calls[call - 1] < resumeRunner.Calls[call],
@@ -133,8 +134,8 @@ internal static class SearchResumeContracts
     {
         BeamSolver quality = new(original.Rules, original.Options with { AuditPotionPolicy = true });
         (BeamResult better, BeamResult worse) = FindTwoRoutes(original, quality);
-        const int stopIndex = 1;
-        const int betterIndex = 3;
+        int stopIndex = RunnableIndices(original)[1];
+        int betterIndex = RunnableIndices(original)[2];
 
         Script stopScript = new() { Default = BeamStep(worse) };
         stopScript.Set(stopIndex, StoppedStep(worse));
@@ -174,34 +175,36 @@ internal static class SearchResumeContracts
         BeamSolver quality = new(original.Rules, original.Options with { AuditPotionPolicy = true });
         (BeamResult better, BeamResult worse) = FindTwoRoutes(original, quality);
 
+        int firstIndex = RunnableIndices(original)[1];
+        int secondIndex = RunnableIndices(original)[3];
         Script firstScript = new() { Default = BeamStep(worse) };
-        firstScript.Set(1, StoppedStep(better));
+        firstScript.Set(firstIndex, StoppedStep(better));
         SearchProgressChannel firstChannel = new(0);
         FakeRunner firstRunner = new(firstChannel, firstScript);
         CombatSearchResult first = Run(original, firstRunner, firstChannel);
         SearchResumeState resume = first.Resume
             ?? throw new InvalidDataException("search-resume: first stop did not carry a resume point");
-        Assert(resume.NextMemberIndex == 2, "first stop at member 1");
+        Assert(resume.NextMemberIndex == firstIndex + 1, "first stop carries the next member");
 
         Script secondScript = new() { Default = BeamStep(worse) };
-        secondScript.Set(4, StoppedStep(worse));
+        secondScript.Set(secondIndex, StoppedStep(worse));
         SearchProgressChannel secondChannel = new(0);
         FakeRunner secondRunner = new(secondChannel, secondScript);
         CombatSearchResult second = Run(original, secondRunner, secondChannel, resume);
         SearchResumeState secondResume = second.Resume
             ?? throw new InvalidDataException("search-resume: second stop did not carry a resume point");
-        Assert(secondResume.NextMemberIndex == 5 && secondResume.StoppedIndex == 1,
+        Assert(secondResume.NextMemberIndex == secondIndex + 1 && secondResume.StoppedIndex == firstIndex,
             "second stop resumes after its member and keeps the better earlier route");
         Assert(second.Beam is not null && Equal(second.Beam.BestRoute, better.BestRoute),
             "second stop keeps the better earlier route");
-        Assert(secondRunner.Calls.All(static call => call is > 1 and <= 4),
+        Assert(secondRunner.Calls.All(call => call > firstIndex && call <= secondIndex),
             "second stop only ran the members between the stops");
 
         Script thirdScript = new() { Default = BeamStep(worse) };
         SearchProgressChannel thirdChannel = new(0);
         FakeRunner thirdRunner = new(thirdChannel, thirdScript);
         CombatSearchResult third = Run(original, thirdRunner, thirdChannel, secondResume);
-        Assert(thirdRunner.Calls.All(static call => call > 4),
+        Assert(thirdRunner.Calls.All(call => call > secondIndex),
             "third request starts after the second stopped member");
         Assert(third.Completion == SearchCompletionKind.Completed, third.Completion.ToString());
         Assert(third.Beam is not null && Equal(third.Beam.BestRoute, better.BestRoute),
@@ -229,7 +232,8 @@ internal static class SearchResumeContracts
         (BeamResult better, _) = FindTwoRoutes(original, quality);
         Script script = new() { Default = FakeStep.None };
         script.Set(0, BeamStep(better));
-        script.Set(1, StopWithoutCandidateStep());
+        int stopIndex = RunnableIndices(original)[1];
+        script.Set(stopIndex, StopWithoutCandidateStep());
         SearchProgressChannel channel = new(0);
         FakeRunner runner = new(channel, script);
         CombatSearchResult result = Run(original, runner, channel);
@@ -239,11 +243,11 @@ internal static class SearchResumeContracts
             "a stopped member without a candidate keeps the completed best result");
         Assert(result.Adoption is { Kind: SearchAdoptionKind.Stopped }, "adoption kind is stopped");
         Assert(result.SelectedMember == 0 && result.Members[0].Adopted
-            && result.Members[1].StopReason == "stopped",
+            && result.Members[stopIndex].StopReason == "stopped",
             "member log marks the completed result and the stopped member");
         SearchResumeState resume = result.Resume
             ?? throw new InvalidDataException("search-resume: completed adoption lost the resume point");
-        Assert(resume.NextMemberIndex == 2,
+        Assert(resume.NextMemberIndex == stopIndex + 1,
             "the adopted completed result still carries a resume point");
     }
 
@@ -269,6 +273,16 @@ internal static class SearchResumeContracts
         Assert(result.Completion == SearchCompletionKind.Adopted, result.Completion.ToString());
         Assert(result.Beam is not null && result.Resume is null,
             "a requested adoption ends the request without a resume point");
+    }
+
+    private static int[] RunnableIndices(SearchCase searchCase)
+    {
+        SearchMember[] members = PortfolioBuilder.Build(Plan,
+            searchCase.Options.PowerCommitments is { Rules.Length: > 0 });
+        bool canUse = PotionSearchSchedule.HasAllowedUse(
+            searchCase.Battles, searchCase.Rules, searchCase.Options);
+        return [.. Enumerable.Range(0, members.Length)
+            .Where(i => members[i].Potions == SearchPotionLimit.None || canUse)];
     }
 
     private static int MemberCount(SearchCase searchCase)

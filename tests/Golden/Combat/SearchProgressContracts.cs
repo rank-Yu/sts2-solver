@@ -295,7 +295,7 @@ internal static class SearchProgressContracts
             && Equal(completedBetter.Beam.BestRoute, better.BestRoute),
             $"{threads}t stop keeps the better completed member");
         Assert(completedBetter.SelectedMember == 0
-            && completedBetter.Members[0].Adopted && !completedBetter.Members[1].Adopted,
+            && completedBetter.Members[0].Adopted && !completedBetter.Members.Last(m => m.Ran).Adopted,
             $"{threads}t stop marks the substituted member");
         CombatSearchResult stopBetter = RunStop(original, baseline, threads, worse, better);
         Assert(stopBetter.Completion == SearchCompletionKind.StoppedWithCandidate

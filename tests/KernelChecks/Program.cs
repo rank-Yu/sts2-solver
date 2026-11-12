@@ -120,6 +120,7 @@ CheckDx3Kernel(rules);
 CheckPrKernel();
 CheckEcKernel(rules);
 CheckDx5Kernel(rules);
+HistoryCourseChecks.Run();
 CheckCardPoolContracts();
 CheckStatusCardContracts();
 TurnEndSelfDamageChecks.Check();

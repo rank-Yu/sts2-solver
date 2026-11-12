@@ -29,8 +29,6 @@ internal sealed partial class BeamSolver
         Battle root = roots[result.BestRootIndex];
         Unsafe.SkipInit(out Battle end);
         Battle.CopyPacked(in root, ref end);
-        int uses = 0;
-        int ambergris = 0;
         int brightestFlameSpent = _options.InitialBrightestFlameMaxHpSpent;
         for (int i = 0; i < result.BestRoute.Length; i++)
         {
@@ -47,8 +45,6 @@ internal sealed partial class BeamSolver
                 ushort potion = (ushort)(before.Potions[slot] - 1);
                 if (!_options.Potions.AllowsExplicitUse(slot, potion))
                     throw new InvalidDataException("路线违反药水保护指令。");
-                uses++;
-                if (potion == _ambergrisPotionId) ambergris++;
             }
             for (int prefix = 0; prefix <= action.ChoiceCount; prefix++)
             {
@@ -85,9 +81,7 @@ internal sealed partial class BeamSolver
         int actionCount = result.BestRoute.Length;
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;
-        int optional = Math.Max(0, features.ExplicitPotionUseCount);
         RouteKey key = Key(end, features, actionCount);
-        int optionalCost = key.OptionalPotionPrice;
         incumbent = _bound is not null && key.Won && features.ProjectedDeathSaveUseCount == 0
             && !_bound.HasRisk(end)
                 ? new SearchIncumbent(key.EffectiveHpDeficit, end.PlayerTurn, features.StrategyGoalHpCredit,
@@ -103,35 +97,15 @@ internal sealed partial class BeamSolver
             && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
             && !_ordering.PostCombatRelicHeal.ThresholdHealPaysOff(features.PlayerHp, features.PlayerMaxHp)
             && key.OutstandingStolenResource == 0;
-        PotionUseMode mode = _effectivePotionPolicy == PotionUseMode.Disabled && optional > 0
-            ? PotionUseMode.Smart
-            : _effectivePotionPolicy;
-        key = key with
-        {
-            OptionalPotionCount = optional,
-        };
-        return new Candidate(0, key, features.ExplicitPotionUseCount, features.PotionUseCount,
-            features.ExplicitPotionStrategicCost, optionalCost, Math.Max(0, ambergris),
-            features.PlayerHp, features.ProjectedDeathSaveUseCount, mode);
+        return new Candidate(0, key, features.ExplicitPotionUseCount,
+            features.ProjectedDeathSaveUseCount);
     }
 
-    internal bool IsPolicyEligible(in Candidate candidate, Candidate? baseline)
-    {
-        Candidate free = baseline.GetValueOrDefault();
-        return IsAuditedPolicyEligible(candidate, baseline.HasValue, baseline.HasValue && free.Key.Won,
-            baseline.HasValue ? free.Key.StrategicHpDeficit : _ordering.InitialPlayerHp,
-            baseline.HasValue ? free.PlayerHp : 0,
-            baseline.HasValue ? free.ProjectedDeathSaveUseCount : int.MaxValue,
-            baseline.HasValue ? free.Key.OutstandingStolenResource : int.MaxValue,
-            candidate.Key.Won || baseline.HasValue && free.Key.Won);
-    }
+    // Per-bottle directives are enforced while expanding and replaying actions.
+    internal bool IsPolicyEligible(in Candidate candidate)
+        => !_options.Potions.ForceAllDisabled || candidate.ExplicitPotionUseCount == 0;
 
     internal int ComparePolicyResults(in Candidate left, in Candidate right) => CompareAudited(left, right);
-    internal static PotionFreePolicyBaseline PotionBaseline(in Candidate candidate) => new(
-        candidate.Key.Won, candidate.Key.StrategicHpDeficit, candidate.PlayerHp,
-        candidate.Key.Won ? candidate.Key.CombatEndedTurn : null)
-    { DeathSaveUseCount = candidate.ProjectedDeathSaveUseCount,
-      OutstandingStolenResource = candidate.Key.OutstandingStolenResource };
 
     /// <summary>The last player turn a replayable result reaches; false when it cannot be scored.</summary>
     internal bool TryGetResultThroughTurn(IReadOnlyList<Battle> roots, in BeamResult result,

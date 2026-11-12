@@ -277,7 +277,7 @@
 
 **HISTORY_COURSE。** 它只读上一玩家回合最后一张攻击牌的完整卡值，存在 `Battle.HistoryCourseCard`（见 [状态布局](combat-state-layout.md#311-historycoursecard)）：
 
-- 每完成一张**非复制品**的攻击牌，就用打出区的实时值写入这个槽。
+- 每完成一张**非复制品**的攻击牌，就用打出区的实时值写入这个槽。记录同时清除“打出后失效”的能量和星星费用修正，保留整场有效的修正；这与游戏历史记录引用的原牌在出牌完成后的费用状态一致。
 - 自动预打出阶段开始时，先取出并清空它（原引擎的两本字典在这时分开）；Mayhem 之后，每个未熔化的 `HISTORY_COURSE` 复制一份（`CloneCard`、去掉消耗关键字、清 `ReturnToHandNextTurn`、`IsClone = true`）并自动打出。
 - 复制品的身份经栈上的 `Exec.CurrentPlayIsHistoryCourseDupe` 传播：它的结果去向是移出战斗（`PileType.None`），不写回“本回合最后一次攻击”；Feral、Rebound、ChainsOfBinding 等按 `IsDupe` 跳过的 Hook 在这里同样跳过。
 - `Rules.HasHistoryCourse` 为假时，记录和复制都跳过。

@@ -889,6 +889,10 @@ internal static class CombatControllerChecks
             $"stopped={firstStopped}");
         PlayerAction[] retained = CombatSessionController.LastSearchRouteForTest;
         int firstAdopted = first.Search?.SelectedMember ?? -1;
+        SearchCase comparisonCase = CombatSessionController.CompileRequestForTest();
+        BeamSolver quality = new(comparisonCase.Rules, comparisonCase.Options);
+        BeamResult firstResult = new(retained, first.Result?.Victory == true,
+            0, 0, 0, 0, 0, 0, TimeSpan.Zero);
 
         CombatControllerTestHooks.StopAtMemberForTest = 4;
         await PressPanelButtonAsync(host, PanelButton.Search, "continue_then_stop");
@@ -933,9 +937,15 @@ internal static class CombatControllerChecks
                 ? RouteEquals(CombatSessionController.LastSearchRouteForTest, retainedSecond)
                 : selected > secondStopped),
             $"selected={selected} second_adopted={secondAdopted}");
-        check("first_route_still_owned",
-            secondAdopted == firstAdopted && RouteEquals(retainedSecond, retained),
-            "the better first-stop route is still the route after the second stop");
+        BeamResult secondResult = new(retainedSecond, second.Result?.Victory == true,
+            0, 0, 0, 0, 0, 0, TimeSpan.Zero);
+        bool compared = quality.TryCompareResultQuality(comparisonCase.Battles,
+            firstResult, secondResult, out int comparison);
+        check("first_route_kept_or_improved", compared
+            && (secondAdopted == firstAdopted
+                ? comparison == 0 && RouteEquals(retainedSecond, retained)
+                : secondAdopted > firstStopped && secondAdopted <= secondStopped && comparison > 0),
+            $"first_adopted={firstAdopted} second_adopted={secondAdopted} compared={compared} comparison={comparison}");
     }
 
     private static async Task ContinueSearchRequestMismatchAsync(NGame host, Check check,

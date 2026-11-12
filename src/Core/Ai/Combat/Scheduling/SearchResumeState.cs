@@ -20,7 +20,6 @@ internal sealed class SearchResumeState(
     /// <summary>Member logs up to and including the stopped member.</summary>
     internal SearchMemberResult[] Members { get; init; } = [];
 
-    internal BeamSolver.Candidate? Free { get; init; }
     internal BeamSolver.Candidate? Selected { get; init; }
     internal BeamResult? Best { get; init; }
     internal int BestIndex { get; init; } = -1;

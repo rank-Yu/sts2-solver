@@ -8,36 +8,25 @@ namespace Sts2Solver.Ai.Combat;
 
 internal static class PortfolioBuilder
 {
-    /// <summary>Builds the compact staged portfolio used by every production request.</summary>
+    /// <summary>Runs each search method without potions, then with potions when applicable.</summary>
     internal static SearchMember[] Build(SearchPlan plan, bool power)
     {
         List<SearchMember> members = [];
         if (power)
-            members.Add(new(plan.BaselineWidth, SearchEvaluation.Standard, SearchRetention.Power,
-                SearchPotionLimit.None));
-        int ordinaryIndex = members.Count;
+            AddPair(plan.BaselineWidth, SearchEvaluation.Standard, SearchRetention.Power);
         members.Add(new(plan.NarrowWidth, SearchEvaluation.Standard, SearchRetention.Standard,
             SearchPotionLimit.None));
-        members.Add(new(plan.WideWidth, SearchEvaluation.Standard, SearchRetention.Standard,
-            SearchPotionLimit.None));
+        AddPair(plan.WideWidth, SearchEvaluation.Standard, SearchRetention.Standard);
         members.Add(new(plan.BaselineWidth, SearchEvaluation.Standard, SearchRetention.SecondBand,
             SearchPotionLimit.None));
-        members.Add(new(plan.BaselineWidth, SearchEvaluation.Base, SearchRetention.Standard,
-            SearchPotionLimit.None));
-        members.Add(new(plan.OffensiveWidth, SearchEvaluation.Offensive, SearchRetention.Standard,
-            SearchPotionLimit.None));
-        int primaryCount = members.Count;
-
-        for (int index = 0; index < primaryCount; index++)
-        {
-            if (members[index].Retention == SearchRetention.SecondBand)
-                continue;
-            members.Add(members[index] with
-            {
-                Potions = SearchPotionLimit.Allowed,
-                Width = index == ordinaryIndex ? plan.BaselineWidth : members[index].Width,
-            });
-        }
+        AddPair(plan.BaselineWidth, SearchEvaluation.Base, SearchRetention.Standard);
+        AddPair(plan.OffensiveWidth, SearchEvaluation.Offensive, SearchRetention.Standard);
         return [.. members];
+
+        void AddPair(int width, SearchEvaluation evaluation, SearchRetention retention)
+        {
+            members.Add(new(width, evaluation, retention, SearchPotionLimit.None));
+            members.Add(new(width, evaluation, retention, SearchPotionLimit.Allowed));
+        }
     }
 }

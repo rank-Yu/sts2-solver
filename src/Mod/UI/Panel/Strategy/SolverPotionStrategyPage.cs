@@ -223,7 +223,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         button.TooltipText = !canAssign
             ? SolverText.Get("该药水不可指定使用策略")
             : mode == SolverPotionMode.Smart
-                ? SolverText.Get("只在能省下足够的血、或不用就赢不了时使用。")
+                ? SolverText.Get("计入药水成本，与不用药的路线一起比较，选择综合结果更好的路线。")
                 : string.Empty;
         button.AddThemeColorOverride("font_color", tone);
         button.AddThemeColorOverride("font_hover_color", tone.Lightened(0.12f));

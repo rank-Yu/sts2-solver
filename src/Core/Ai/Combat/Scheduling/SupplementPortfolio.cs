@@ -1,26 +1,27 @@
 namespace Sts2Solver.Ai.Combat;
 
-/// <summary>Supplemental members appended to each existing potion stage.</summary>
+/// <summary>Supplemental methods follow the main portfolio, paired by potion policy.</summary>
 internal static class SupplementPortfolio
 {
     internal static bool IsSupplement(SearchMember member)
         => member.Evaluation is SearchEvaluation.Setup or SearchEvaluation.ContinuousSetup
             || member.Retention == SearchRetention.QueenKillTiming;
 
-    internal static SearchMember[] AppendToStages(SearchMember[] members, SearchPlan plan, bool queen = true)
+    internal static SearchMember[] Append(SearchMember[] members, SearchPlan plan, bool queen = true)
     {
-        List<SearchMember> result = new(members.Length + 6);
-        for (int i = 0; i < members.Length; i++)
+        List<SearchMember> result = new(members.Length + 5);
+        result.AddRange(members);
+        if (plan.SetupStrategies)
         {
-            SearchMember member = members[i];
-            result.Add(member);
-            if (i + 1 < members.Length && members[i + 1].Potions == member.Potions) continue;
-            if (plan.SetupStrategies)
-                result.Add(new(plan.WideWidth, SearchEvaluation.Setup, SearchRetention.Standard, member.Potions));
-            if (plan.SetupStrategies && plan.ContinuousSetupStrategies && member.Potions == SearchPotionLimit.Allowed)
-                result.Add(new(plan.WideWidth, SearchEvaluation.ContinuousSetup, SearchRetention.Standard, member.Potions));
-            if (queen)
-                result.Add(new(plan.NarrowWidth, SearchEvaluation.Standard, SearchRetention.QueenKillTiming, member.Potions));
+            result.Add(new(plan.WideWidth, SearchEvaluation.Setup, SearchRetention.Standard, SearchPotionLimit.None));
+            result.Add(new(plan.WideWidth, SearchEvaluation.Setup, SearchRetention.Standard, SearchPotionLimit.Allowed));
+        }
+        if (plan.SetupStrategies && plan.ContinuousSetupStrategies)
+            result.Add(new(plan.WideWidth, SearchEvaluation.ContinuousSetup, SearchRetention.Standard, SearchPotionLimit.Allowed));
+        if (queen)
+        {
+            result.Add(new(plan.NarrowWidth, SearchEvaluation.Standard, SearchRetention.QueenKillTiming, SearchPotionLimit.None));
+            result.Add(new(plan.NarrowWidth, SearchEvaluation.Standard, SearchRetention.QueenKillTiming, SearchPotionLimit.Allowed));
         }
         return [.. result];
     }

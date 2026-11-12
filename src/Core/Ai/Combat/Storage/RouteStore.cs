@@ -447,13 +447,8 @@ internal sealed partial class BeamSolver
             AddRoot(roots, workspace.EndTurnPrefixNode);
             AddRoot(roots, workspace.EndTurnPrefixAttemptNode);
         }
-        if (_bestPotionFree is { } potionFree)
-            AddRoot(roots, potionFree.Node);
-        if (_auditBestByPotionCount is { } audited)
-        {
-            foreach (Candidate candidate in audited.Values)
-                AddRoot(roots, candidate.Node);
-        }
+        if (_bestAudited is { } audited)
+            AddRoot(roots, audited.Node);
         int count = _nodes.Count;
         if (count == 0)
             return;
@@ -511,20 +506,8 @@ internal sealed partial class BeamSolver
             workspace.EndTurnPrefixAttemptNode =
                 RemapNode(map, workspace.EndTurnPrefixAttemptNode);
         }
-        if (_bestPotionFree is { } bestFree)
-            _bestPotionFree = bestFree with { Node = RemapNode(map, bestFree.Node) };
-        if (_auditBestByPotionCount is { } bestByCount)
-        {
-            _auditKeysScratch.Clear();
-            foreach (int key in bestByCount.Keys)
-                _auditKeysScratch.Add(key);
-            for (int index = 0; index < _auditKeysScratch.Count; index++)
-            {
-                int key = _auditKeysScratch[index];
-                Candidate candidate = bestByCount[key];
-                bestByCount[key] = candidate with { Node = RemapNode(map, candidate.Node) };
-            }
-        }
+        if (_bestAudited is { } bestAudited)
+            _bestAudited = bestAudited with { Node = RemapNode(map, bestAudited.Node) };
         CompactCommitments(live);
         CompactRoutingMetadata();
         _nodes.CompactProgressEnemyHighs();

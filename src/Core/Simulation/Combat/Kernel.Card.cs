@@ -629,11 +629,14 @@ public static partial class Kernel
         if (cardType == CardType.Attack)
         {
             // SimulatedCombatState.RecordHistoryCourseAttack: the last attack completed this turn,
-            // skipping dupes (HistoryCourse's own copies). Recorded after the tail hooks, from the
-            // live play-pile value, exactly like the existing engine's mutable CardModel reference.
+            // skipping dupes (HistoryCourse's own copies). The native v0.111.0 HistoryCourse reads
+            // a mutable CardModel from CardPlaysFinished; CardModel.Play later clears its played
+            // energy/star costs. Our next-turn slot is a value copy, so store those completed-play
+            // costs explicitly without changing the live card during repeated plays.
             if (x.R.HasHistoryCourse && !x.CurrentPlayIsHistoryCourseDupe)
             {
                 battle.HistoryCourseCard = completedCard;
+                AfterCardPlayedCleanup(ref battle.HistoryCourseCard);
                 battle.Flags |= BattleFlags.HistoryCourseCardPresent;
             }
         }

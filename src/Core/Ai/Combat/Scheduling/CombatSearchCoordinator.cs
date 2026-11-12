@@ -37,7 +37,7 @@ internal static class CombatSearchCoordinator
         SetupSearchPolicy? continuousSetup = setup && plan.ContinuousSetupStrategies
             ? SetupSearchPolicy.Capture(initial.Battles[0], initial.Rules, continuous: true) : null;
         if (setup || queen is not null && plan.QueenStrategies)
-            members = SupplementPortfolio.AppendToStages(members, plan, queen is not null && plan.QueenStrategies);
+            members = SupplementPortfolio.Append(members, plan, queen is not null && plan.QueenStrategies);
         QueenSearchPolicy? timing = queen is null ? null : queen with { PreserveKillTiming = true };
         // Resolve all limits before dividing time so skipped and duplicate layers receive no share.
         PotionPolicy[] ResolvePolicies(out string?[] skips)
@@ -70,7 +70,7 @@ internal static class CombatSearchCoordinator
         }
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
         List<SearchMemberResult> logs = resume != null ? [.. resume.Members] : new(members.Length);
-        BeamSolver.Candidate? free = resume?.Free, selected = resume?.Selected;
+        BeamSolver.Candidate? selected = resume?.Selected;
         BeamResult? best = resume?.Best;
         Outcome bestOutcome = resume?.BestOutcome ?? Outcome.None;
         int bestIndex = resume?.BestIndex ?? -1;
@@ -91,14 +91,6 @@ internal static class CombatSearchCoordinator
             token.ThrowIfCancellationRequested();
             SearchMember member = members[index];
             bool potionPhase = member.Potions != SearchPotionLimit.None;
-            bool stageStart = index == 0 || members[index - 1].Potions != member.Potions;
-            if (potionPhase && stageStart
-                && PotionStageGate.CanSkip(initial.Battles, initial.Rules, initial.Options, selected, free))
-            {
-                for (int j = index; j < members.Length && members[j].Potions == member.Potions; j++)
-                    if (PotionStageGate.HasRunCombination(logs, members[j]))
-                        skips[j] ??= "stage-economy";
-            }
             if (skips[index] is { } reason)
             {
                 logs.Add(new SearchMemberResult(member, false, reason, 0, 0, "skipped", false, null, null, false, 0, 0));
@@ -133,7 +125,6 @@ internal static class CombatSearchCoordinator
                 AggressivePowerCommitment = member.Retention == SearchRetention.Power,
                 Potions = policies[index],
                 AuditPotionPolicy = potionPhase,
-                PotionFreeBaseline = free is { } freeCandidate ? BeamSolver.PotionBaseline(freeCandidate) : null,
                 IncumbentSeed = bestIncumbent,
                 Progress = progress,
             };
@@ -313,11 +304,7 @@ internal static class CombatSearchCoordinator
                     memberStatus = outcome == Outcome.Victory ? CombatSearchStatus.Victory
                         : outcome is Outcome.Defeat or Outcome.EventDefeat ? CombatSearchStatus.Defeat
                         : CombatSearchStatus.Incomplete;
-                    if (member.Potions == SearchPotionLimit.None
-                        && candidate.ExplicitPotionUseCount == 0
-                        && (free is null || quality.ComparePolicyResults(candidate, free.Value) < 0))
-                        free = candidate;
-                    bool policyEligible = quality.IsPolicyEligible(candidate, free);
+                    bool policyEligible = quality.IsPolicyEligible(candidate);
                     if (policyEligible && memberBound is { } bound
                         && IncumbentPolicy.IsTighter(bound, bestIncumbent))
                         bestIncumbent = bound;
@@ -455,7 +442,6 @@ internal static class CombatSearchCoordinator
                 : new SearchResumeState(logs.Count, chosen, chosenIndex, adoption)
                 {
                     Members = [.. logs],
-                    Free = free,
                     Selected = selected,
                     Best = best,
                     BestIndex = bestIndex,

@@ -168,7 +168,7 @@
   "禁用 / 保护": "Disabled / Protected",
   "当前没有药水": "No potions",
   "该药水不可指定使用策略": "This potion has no selectable use policy",
-  "只在能省下足够的血、或不用就赢不了时使用。": "Used only when it saves enough HP or is needed to win.",
+  "计入药水成本，与不用药的路线一起比较，选择综合结果更好的路线。": "Includes the potion cost when comparing routes, with or without potions, to choose the better overall result.",
   "考虑成长性卡牌收益": "Value growth card rewards",
   "限制{0}的最大生命消耗": "Limit {0} max HP cost",
   "每场最多消耗": "Max HP per combat",

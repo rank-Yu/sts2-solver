@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "dread-eidolon-sloth",
+  "characterId": "NECROBINDER",
+  "encounterId": "KNIGHTS_ELITE",
+  "gameModeForTest": "Dread",
+  "ascension": 10,
+  "seed": "R1-D05-Necrobinder-07",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "GRAVEBLAST",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEVOUR_LIFE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "HANG",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEBILITATE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "CLEANSE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SHROUD",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "NEGATIVE_PULSE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "REAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BURY",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BONE_SHARDS",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SCOURGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BORROWED_TIME",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SEVERANCE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEMESNE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SEANCE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEFY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SACRIFICE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "EIDOLON",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BANSHEES_CRY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "AFTERLIFE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "INVOKE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "MISERY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "dominionForTest": "KNOWLEDGE_DEMON_DOMINION",
+  "targetRoomType": "Elite"
+}

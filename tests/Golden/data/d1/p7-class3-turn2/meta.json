@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p7-class3-turn2",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p7-class3-turn2.json\u0022}",
-  "rulesSha256": "0a8f14bfe202bef6c3691abc78cd1d6c4dc6bf39f8af0e58622edd3a8c728328",
+  "rulesSha256": "6df999fc005ecab7670fadd6f3da9b17d04c8c8d78c972fde8331f9e301bd015",
   "counts": {
     "roots": 1,
     "k1": 10,

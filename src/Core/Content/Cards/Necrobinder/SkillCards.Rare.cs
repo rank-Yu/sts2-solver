@@ -240,9 +240,9 @@ public sealed class Eidolon : CardDef
         for (int index = 0; index < count; index++)
         {
             int position = positions[index];
-            if (!Kernel.AutoPlay(ref x, Pile.Exhaust, position))
-                return;
-            if (x.NeedsChoice)
+            // A blocked auto-play still moves this card and the native loop attempts the rest.
+            Kernel.AutoPlay(ref x, Pile.Exhaust, position);
+            if (x.NeedsChoice || Kernel.IsOverOrEnding(x.B))
                 return;
             for (int later = index + 1; later < count; later++)
             {

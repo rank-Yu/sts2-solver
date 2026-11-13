@@ -9,14 +9,6 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 public static partial class Kernel
 {
-    // PersistentPowerSupport.TriggerOwnerAfterSideTurnStart, in source order.
-    private static readonly string[] OwnerAfterSideTurnStartOrder =
-    [
-        "BIASED_COGNITION_POWER", "COOLANT_POWER", "DEMON_FORM_POWER", "FERAL_POWER", "FURNACE_POWER",
-        "NEUROSURGE_POWER", "NOXIOUS_FUMES_POWER", "PREP_TIME_POWER", "REFLECT_POWER", "SHADOW_STEP_POWER",
-        "WRAITH_FORM_POWER", "CLARITY_POWER", "ARCHERY_POWER", "HIDDEN_ROOTS_POWER",
-    ];
-
     // SimulatedCombatState.TriggerBaseSideTurnStart, in source order.
     private static readonly string[] BaseSideTurnStartOrder =
         ["BLUR_POWER", "DRAW_CARDS_NEXT_TURN_POWER", "PLATING_POWER", "SLOW_POWER"];
@@ -37,7 +29,7 @@ public static partial class Kernel
     private static readonly string[] PlayerSideTurnEndOrder = ["CONSTRICT_POWER", "TANGLED_POWER", "RINGING_POWER", "DOUBLE_DAMAGE_POWER"];
 
     // CorePowerSupport.TriggerEnemySideTurnEndEffects, per enemy, before TriggerRegular.
-    private static readonly string[] EnemySideTurnEndOrder = ["REGEN_POWER", "PLATING_POWER", "DOUBLE_DAMAGE_POWER"];
+    private static readonly string[] EnemySideTurnEndOrder = ["REGEN_POWER", "DOUBLE_DAMAGE_POWER"];
 
     // CorePowerSupport.CompletePlayerEarlySideTurnEndEffects, per player.
     private static readonly string[] CompletePlayerEarlyOrder = ["REGEN_POWER"];
@@ -50,7 +42,6 @@ public static partial class Kernel
     private static readonly Lazy<ushort[]> ApplierDeathIds = new(() => Resolve(ApplierDeathOrder));
     private static readonly Lazy<ushort> MagicBombId = new(() => PowerIdOrMax("MAGIC_BOMB_POWER"));
 
-    private static readonly Lazy<ushort[]> OwnerAfterSideTurnStartIds = new(() => Resolve(OwnerAfterSideTurnStartOrder));
     private static readonly Lazy<ushort[]> BaseSideTurnStartIds = new(() => Resolve(BaseSideTurnStartOrder));
     private static readonly Lazy<ushort[]> GlobalAfterSideTurnStartIds = new(() => Resolve(GlobalAfterSideTurnStartOrder));
     private static readonly Lazy<ushort[]> TransientRemovalIds = new(() => Resolve(TransientRemovals));
@@ -499,7 +490,9 @@ public static partial class Kernel
         }
         foreach (byte owner in participants)
         {
-            PowerTypeSequence(ref x, PowerPhase.OwnerAfterSideTurnStart, owner, OwnerAfterSideTurnStartIds.Value, side, participates: true);
+            // Native Hook.AfterSideTurnStart follows acquisition order within each creature.
+            PowerListenerPass(ref x, PowerPhase.OwnerAfterSideTurnStart, side, participants,
+                owner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
             if (x.NeedsChoice)
                 return;
         }
@@ -572,7 +565,13 @@ public static partial class Kernel
     internal static void TriggerEnemySideTurnEndEffects(ref Exec x, scoped ReadOnlySpan<byte> enemies)
     {
         x.EnemySideTurnEndReached = true;
-        // EndTurnPowerSupport.TriggerVeryEarly has no supported source (Asleep is rejected at admission).
+        // Native Plating.BeforeSideTurnEndEarly precedes Doom.BeforeSideTurnEnd.
+        foreach (byte owner in enemies)
+        {
+            int plating = FindPower(x.B, owner, PlatingPowerId.Value);
+            if (plating >= 0)
+                InvokePowerPhase(ref x, PowerPhase.EnemySideTurnEnd, plating, Side.Enemy, participates: true, flag: false);
+        }
         TriggerEnemyDoom(ref x, enemies);
         if (x.NeedsChoice)
             return;
@@ -777,13 +776,17 @@ public static partial class Kernel
     /// </summary>
     internal static void AfterPlayerTurnStart(ref Exec x)
     {
+        // Hand-draw auto-plays can end combat before this native hook pass begins.
+        if (IsOverOrEnding(x.B))
+            return;
         PowerListenerPass(ref x, PowerPhase.AfterPlayerTurnStart, Side.Player, default, Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
         if (x.NeedsChoice)
             return;
         RelicPass(ref x, RelicPhase.AfterPlayerTurnStart, Side.Player);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player);
+        if (!IsOverOrEnding(x.B))
+            RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player);
     }
 
     /// <summary><c>PersistentPowerSupport.GetModifiedMaxEnergy</c>: every combat listener's modifier.</summary>

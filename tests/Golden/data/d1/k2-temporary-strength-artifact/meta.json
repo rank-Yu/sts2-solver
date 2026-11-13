@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "k2-temporary-strength-artifact",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-k2-temporary-strength-artifact.json\u0022}",
-  "rulesSha256": "d10dfeb68d214a5a2bfedf851c061f672a4a8bfccf9f30be4a3bacc22b6f9620",
+  "rulesSha256": "3b220bfdaef1471563bb404ed0d2cf0913f02657313a217b5844a5932fa46af2",
   "counts": {
     "roots": 1,
     "k1": 7,

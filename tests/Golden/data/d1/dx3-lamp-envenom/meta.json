@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "dx3-lamp-envenom",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-lamp-envenom.json\u0022}",
-  "rulesSha256": "01d38f9486d6cf560e874957e503a8439ee0f08d387de58d8a7698e934406bc2",
+  "rulesSha256": "ebe213d8c77f8bb3d8f77c1433fbf50bcd737c711aa8269f6a1b87c4b0649b1a",
   "counts": {
     "roots": 1,
     "k1": 26,

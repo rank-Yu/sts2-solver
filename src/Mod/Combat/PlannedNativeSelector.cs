@@ -150,6 +150,27 @@ internal sealed class PlannedNativeSelector(
                     return false;
                 }
             }
+            map = new int[count];
+            for (int option = 0; option < count; option++)
+            {
+                int index = choice.Request.Options[option] - choice.SourceStart;
+                if ((uint)index >= (uint)source.Count
+                    || !TryIdentity(choice.PileOptions[option], out CardIdentity expected)
+                    || Identity(source[index]) != expected)
+                {
+                    error = $"{owner} 计划牌堆位置 {index} 与原生状态不符。";
+                    return false;
+                }
+                int match = live.FindIndex(card => ReferenceEquals(card, source[index]));
+                if (match < 0)
+                {
+                    error = $"{owner} 计划牌堆位置 {index} 不在选项中。";
+                    return false;
+                }
+                map[option] = match;
+            }
+            error = "";
+            return true;
         }
         bool[] used = new bool[count];
         int[] result = new int[count];

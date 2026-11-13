@@ -35,7 +35,8 @@ internal sealed class ActionDeployer(
     CombatState combat,
     Player player,
     Rules rules,
-    LiveCombatTracker tracker)
+    LiveCombatTracker tracker,
+    SolverDeploymentSpeed speed)
 {
     private static readonly TimeSpan ActionTimeout = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan BoundaryTimeout = TimeSpan.FromSeconds(180);
@@ -483,6 +484,7 @@ internal sealed class ActionDeployer(
                 && live.CurrentSide == CombatSide.Player
                 && state.Phase == PlayerTurnPhase.Play
                 && state.TurnNumber == expected.PlayerTurn
+                && !RunManager.Instance.ActionExecutor.IsPaused
                 && RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted)
             {
                 return;
@@ -499,25 +501,29 @@ internal sealed class ActionDeployer(
     }
 
     /// <summary>
-    /// Lets action visuals/timers finish. Turn starts use the existing 1.5s settle; mid-turn actions
-    /// use a shorter wait, and instant combat speed shortens it further.
+    /// Fast deployment follows native completion and one process frame, as CombatSolver
+    /// src/Runtime/SolverController.cs DeployCurrentTurn at 9f83bea7 (v0.51.1, MIT,
+    /// Copyright (c) 2026 Torch1230 and contributors) does. Other speed modes retain their visual pause.
     /// </summary>
     private async Task SettleAsync(ReplayedAction planned, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         Task finished = RunManager.Instance.ActionExecutor.FinishedExecutingActions();
         if (!finished.IsCompleted)
-            await finished.WaitAsync(TimeSpan.FromSeconds(30));
+            await finished.WaitAsync(TimeSpan.FromSeconds(30), token);
         if (planned.After.Outcome == Outcome.None
             && planned.After.PlayerTurn > planned.Before.PlayerTurn)
         {
-            await CombatFrameWaiter.SettleAsync(host);
+            await CombatFrameWaiter.SettleAsync(host, speed, token);
             return;
         }
-        bool instant = SaveManager.Instance.PrefsSave.FastMode == FastModeType.Instant;
-        double seconds = instant ? 0.05 : 0.2;
-        await host.ToSignal(host.GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
+        if (speed != SolverDeploymentSpeed.Fast)
+        {
+            bool instant = SaveManager.Instance.PrefsSave.FastMode == FastModeType.Instant;
+            await CombatDeploymentTiming.WaitAsync(host, instant ? 0.05 : 0.2, token);
+        }
         await CombatFrameWaiter.NextFrameAsync(host);
+        token.ThrowIfCancellationRequested();
     }
 
     private static string PredictedPotionName(ushort stored)

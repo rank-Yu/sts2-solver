@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-pile-choice-identity",
+  "characterId": "NECROBINDER",
+  "encounterId": "SLUMBERING_BEETLE_NORMAL",
+  "gameModeForTest": "Blitz",
+  "ascension": 1,
+  "seed": "B1-Necrobinder-05",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "BONE_SHARDS",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BLIGHT_STRIKE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SENTRY_MODE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "NO_ESCAPE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DREDGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SQUEEZE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NECRO_MASTERY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NEGATIVE_PULSE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SPIRIT_OF_ASH",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEATHS_DOOR",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SIC_EM",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PROTECTOR",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DANSE_MACABRE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "TRANSFIGURE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SEVERANCE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DRAIN_POWER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "EIDOLON",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "REAPER_FORM",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PULL_AGGRO",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CLEANSE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "NIMBLE",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "STEADY",
+      "enchantmentAmount": 1
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "SWIFT",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "upgradeLevels": 0,
+      "enchantmentId": "VIGOROUS",
+      "enchantmentAmount": 5
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low"
+}

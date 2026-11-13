@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "ls-c-the-hunt",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-c-the-hunt.json\u0022}",
-  "rulesSha256": "7c7e670447b6109c002f507cd693a6ae3607ece66af501db0eed3fd5e0e07618",
+  "rulesSha256": "078fa43ddf3d87d2a361caaff08b2a60077dc061541b7446f1fa43d33610dff9",
   "counts": {
     "roots": 1,
     "k1": 3,

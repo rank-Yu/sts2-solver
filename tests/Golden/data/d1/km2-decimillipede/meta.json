@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "km2-decimillipede",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-decimillipede.json\u0022}",
-  "rulesSha256": "c2485a62cfc87f9a01105f192a0acb8a44f25eca0aca9b761b747b5e8740df39",
+  "rulesSha256": "a22113092426cde16518f175e00d20efd038d6a35eaf71162cee6992bfd2d5b2",
   "counts": {
     "roots": 1,
     "k1": 15,

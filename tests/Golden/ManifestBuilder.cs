@@ -18,7 +18,9 @@ internal static class ManifestProvenance
         + "按当前求解器生成期望结果。原提交哈希保留为语料祖先；具体变更原因及内容哈希见 d1Rerecord/refreeze。"
         + "格式 9 使用当前 64 字节卡牌与 43856 字节 Battle，固定遗物清单独立编码；RULE 删除派生笔尖下标，"
         + "SREQ 12 删除失效基线并固定选项顺序。迁移用清理前内核回放核对旧状态哈希，仅改卡牌哈希以转换评分表示；"
-        + "全部录制动作、下界、路线特征与 SRES 6 期望保持不变。";
+        + "全部录制动作、下界、路线特征与 SRES 6 期望保持不变。"
+        + "格式 10 新增拇指夹，按遗物身份迁移共享清单、变量表和下界表中的编号；"
+        + "Battle 打包前缀、全部状态与特征哈希、动作和 SRES 6 期望逐字节不变。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

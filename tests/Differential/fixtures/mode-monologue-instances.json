@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "characterId": "REGENT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "MONOLOGUE021",
+  "enemyCurrentHp": 500,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 150,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "scenarioId": "mode-monologue-instances",
+  "powers": [
+    {
+      "powerId": "MONOLOGUE_POWER",
+      "target": "Player",
+      "amount": 1,
+      "dynamicVars": {
+        "StrengthPower": 3
+      }
+    },
+    {
+      "powerId": "MONOLOGUE_POWER",
+      "target": "Player",
+      "amount": 1,
+      "dynamicVars": {
+        "StrengthPower": 5
+      }
+    }
+  ],
+  "cards": [
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Hand"
+    }
+  ]
+}

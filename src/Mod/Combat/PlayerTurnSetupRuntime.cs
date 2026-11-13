@@ -565,6 +565,7 @@ internal static class PlayerTurnSetupRuntime
             Selection = first.Selection,
             Implicit = first.Implicit,
             PileOptions = first.PileOptions,
+            SourceStart = first.SourceStart,
             GeneratedOptions = first.GeneratedOptions,
         };
         choices = [broken, .. choices.Skip(1)];
@@ -735,6 +736,7 @@ internal static class PlayerTurnSetupRuntime
             Selection = first.Request.OptionCount >= 63 ? 1UL << 62 : 1UL << first.Request.OptionCount,
             Implicit = false,
             PileOptions = first.PileOptions,
+            SourceStart = first.SourceStart,
             GeneratedOptions = first.GeneratedOptions,
         };
         choices = [broken, .. choices.Skip(1)];

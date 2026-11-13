@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "blitz-fool",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-blitz-fool.json\u0022}",
-  "rulesSha256": "62eebd4c226efbb3893c4d1fb2cca3d89dee7c24f8367f0d152b4a43534b086a",
+  "rulesSha256": "cce953325c3fba2d5ff0cc783a93feadafaac6fd8eecc200389e376188c9ca77",
   "counts": {
     "roots": 1,
     "k1": 9,

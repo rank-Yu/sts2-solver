@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "characterId": "REGENT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "MONOLOGUE021",
+  "enemyCurrentHp": 500,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 150,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "scenarioId": "mode-monologue-order",
+  "powers": [
+    {
+      "powerId": "PALE_BLUE_DOT_POWER",
+      "target": "Player",
+      "amount": 2
+    }
+  ],
+  "cards": [
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Hand",
+      "count": 3
+    },
+    {
+      "cardId": "MONOLOGUE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Hand"
+    }
+  ]
+}

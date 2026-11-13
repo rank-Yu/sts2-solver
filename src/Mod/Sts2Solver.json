@@ -3,7 +3,7 @@
   "name": "尖塔求解器",
   "author": "rank-Yu",
   "description": "尖塔求解器（STS2 Solver）：面向 SL 模式的战斗求解器。搜索整场战斗路线，可自动出牌、用药，并逐动作核对预测结果；支持导出 Mod 日志。",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "has_pck": false,
   "has_dll": true,
   "affects_gameplay": true,

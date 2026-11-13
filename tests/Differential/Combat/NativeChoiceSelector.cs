@@ -103,6 +103,22 @@ internal sealed class NativeChoiceSelector(
                 }
             }
         }
+        if (!choice.OptionsAreGenerated && !choice.Request.SourceIsNone)
+        {
+            IReadOnlyList<CardModel> source = PileCards(player.PlayerCombatState!, choice.Request.Source);
+            int[] positions = new int[count];
+            for (int option = 0; option < count; option++)
+            {
+                int index = choice.Request.Options[option] - choice.SourceStart;
+                if ((uint)index >= (uint)source.Count
+                    || Identity(source[index]) != Identity(choice.PileOptions[option]))
+                    throw Mismatch($"{owner} 计划牌堆位置 {index} 与原生状态不符。");
+                int match = live.FindIndex(card => ReferenceEquals(card, source[index]));
+                if (match < 0) throw Mismatch($"{owner} 计划牌堆位置 {index} 不在选项中。");
+                positions[option] = match;
+            }
+            return positions;
+        }
         bool[] used = new bool[count];
         int[] map = new int[count];
         for (int option = 0; option < count; option++)

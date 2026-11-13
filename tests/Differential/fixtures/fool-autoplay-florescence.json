@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "characterId": "FOOL",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "FOOL021REGRESSION",
+  "enemyCurrentHp": 999,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 150,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "THE_DEVIL",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SADNESS",
+      "pile": "Hand",
+      "count": 2
+    },
+    {
+      "cardId": "FLORESCENCE",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "FOOLISH_SHOT",
+      "pile": "Draw"
+    }
+  ],
+  "scenarioId": "fool-autoplay-florescence"
+}

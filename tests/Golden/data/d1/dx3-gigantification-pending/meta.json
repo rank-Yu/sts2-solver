@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "dx3-gigantification-pending",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-gigantification-pending.json\u0022}",
-  "rulesSha256": "701ac681e3e77d9524e53022a21a3438ea5928ea91bc100e9213964f6ca74680",
+  "rulesSha256": "4a4fc93ea33bcf9ee8082e3ee52f63103a86ef0750c018fae8a788a4ec3cd672",
   "counts": {
     "roots": 1,
     "k1": 2,

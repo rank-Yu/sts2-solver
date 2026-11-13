@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "fool-rain-shot",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-fool-rain-shot.json\u0022}",
-  "rulesSha256": "2743e91add2f3d4d8f609ee71292125e340f89fa871144bc7d22b5d3765bb8fc",
+  "rulesSha256": "cbced689a9914125cacd14b809744cc80a03fd6bb55bb3f066b99f2c660de925",
   "counts": {
     "roots": 1,
     "k1": 14,

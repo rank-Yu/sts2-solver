@@ -56,6 +56,10 @@ internal static class Program
         }
         if (args is ["--capture-version-root", var dataPath, var metadataPath, var outputPath, var rootName])
             return VersionRootCapture.Run(dataPath, metadataPath, outputPath, rootName);
+        if (args is ["--healing-bound-check", var healingRequest, var expectedHealing])
+            return HealingBoundChecks.Run(healingRequest, expectedHealing, null);
+        if (args is ["--healing-bound-check", var loadoutRequest, var loadoutHealing, var loadoutPath])
+            return HealingBoundChecks.Run(loadoutRequest, loadoutHealing, loadoutPath);
         if (args.Length >= 3 && args[0] == "--native-effect-check")
             return NativeEffectChecks.Run(args[1], args[2..]);
         if (args.Length > 0 && args[0] == "--combat-pilot-compare")
@@ -1147,6 +1151,7 @@ internal static class Program
               dotnet Differential.dll --all --jobs 1..8 --rules-compare
               dotnet Differential.dll --root <name> --config-compare
               dotnet Differential.dll --all --jobs 1..8 --config-compare
+              dotnet Differential.dll --healing-bound-check <request.json> <healing|unknown> [Loadout.dll]
               dotnet Differential.dll --native-effect-check <request.json> <command> [command...]
               dotnet Differential.dll --capture-version-root <old-data> <metadata-dir> <output> <root>
               dotnet Differential.dll --root <name> --recapture-root [--out <dir>]

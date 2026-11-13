@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "dx3-scythe-dampen",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-scythe-dampen.json\u0022}",
-  "rulesSha256": "ef9778a23d5e938d8db1be49d0800726c6f5982255f3e4351dd9ff8d90501137",
+  "rulesSha256": "483269ea14c25782952573dc6d66f27bb5bb7f5a096bfb748d6418673db3313c",
   "counts": {
     "roots": 1,
     "k1": 22,

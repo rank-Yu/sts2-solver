@@ -106,7 +106,13 @@ public sealed class Florescence : CardDef
             for (int i = 0; i < count; i++)
             {
                 if (Kernel.TryFindUniqueTransientMark(x.B, marks[i], out Pile pile, out int index))
+                {
+                    int playCount = x.B.PlayCount;
                     Kernel.Exhaust(ref x, pile, index);
+                    // Exhausting an earlier queued arrow shifts this auto-play's own slot.
+                    if (pile == Pile.Play && index < x.PlayPosition && x.B.PlayCount < playCount)
+                        x.PlayPosition--;
+                }
                 if (x.NeedsChoice) return;
             }
         }

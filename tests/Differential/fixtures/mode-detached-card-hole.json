@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-detached-card-hole",
+  "characterId": "SILENT",
+  "encounterId": "THIEVING_HOPPER_WEAK",
+  "gameModeForTest": "Blitz",
+  "ascension": 2,
+  "seed": "B2-Silent-02",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "GRAND_FINALE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "MIRAGE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SUPPRESS",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEFLECT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ACCURACY",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FAN_OF_KNIVES",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SIDESTEP",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DASH",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NIGHTMARE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ADRENALINE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FLICK_FLACK",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FINISHER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "TRACKING",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NOXIOUS_FUMES",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BURST",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "HIDDEN_DAGGERS",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STORM_OF_STEEL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SNAKEBITE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "KNIFE_TRAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "AFTERIMAGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "NIMBLE",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "STEADY",
+      "enchantmentAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "SWIFT",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "upgradeLevels": 0,
+      "enchantmentId": "VIGOROUS",
+      "enchantmentAmount": 5
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low"
+}

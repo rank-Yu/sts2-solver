@@ -34,8 +34,8 @@ internal static class FormatContract
                     $"格式魔数 {magic:X8} 按小端字节是 {actual}，不是 {expected}。");
             labels[index] = actual;
         }
-        if (Codec.FormatVersion != 9)
-            throw new InvalidOperationException($"数据格式版本应为 9，实际为 {Codec.FormatVersion}。");
+        if (Codec.FormatVersion != 10)
+            throw new InvalidOperationException($"数据格式版本应为 10，实际为 {Codec.FormatVersion}。");
         if (SearchCodec.RequestFormatVersion != 12)
             throw new InvalidOperationException(
                 $"搜索请求格式版本应为 12，实际为 {SearchCodec.RequestFormatVersion}。");

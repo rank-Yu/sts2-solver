@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p3-b-block-exhaust",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p3-b-block-exhaust.json\u0022}",
-  "rulesSha256": "a885961e7e5bf8e912b9878d71df9b437da2e31696da2ec1e2f22bbf2460c933",
+  "rulesSha256": "543e8e25a5be96f80f92fafb676d85157de4f069f1e9b53581d235c973a985cd",
   "counts": {
     "roots": 1,
     "k1": 11,

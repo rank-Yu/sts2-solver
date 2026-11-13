@@ -41,7 +41,29 @@ internal static class NativeEffectChecks
         foreach (string command in commands)
         {
             string[] fields = command.Split(':');
-            if (fields is [("generate" or "replace" or "transform"), var cardId])
+            if (fields is ["random", var seed, var steps])
+            {
+                Random random = new(int.Parse(seed, CultureInfo.InvariantCulture));
+                int limit = int.Parse(steps, CultureInfo.InvariantCulture);
+                if (limit <= 0) throw new InvalidDataException("Random walk must have positive steps.");
+                CombatActionCoverage coverage = new();
+                int executed = 0;
+                while (executed < limit && current.Outcome == Outcome.None)
+                {
+                    ReplayedAction planned = RandomCombatPolicy.Choose(current, rules, random, coverage)
+                        ?? throw new InvalidDataException("Ongoing battle has no legal action.");
+                    Console.WriteLine($"NATIVE_WALK_ACTION step={executed} action={CombatPilotAction.Describe(planned)} selections={string.Join(",", planned.Choices.Select(c => c.Selection.ToString("X", CultureInfo.InvariantCulture)))}");
+                    Execute(planned);
+                    coverage.CountAction(planned.Action.Kind);
+                    if (planned.Action.Kind == PlayerActionKind.PlayCard)
+                        coverage.CountCard(Registry.Card(planned.Before.Cards[planned.Action.HandIndex].Id).NativeId);
+                    executed++;
+                }
+                foreach (var entry in coverage.Cards)
+                    Console.WriteLine($"NATIVE_WALK_CARD {entry.Key}={entry.Count}");
+                Console.WriteLine($"NATIVE_WALK_OK scenario={request.ScenarioId} seed={seed} actions={executed} outcome={current.Outcome}");
+            }
+            else if (fields is [("generate" or "replace" or "transform"), var cardId])
             {
                 CheckArrowEntry(loop, state, player, rules, current, fields[0], cardId);
                 rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
@@ -51,26 +73,52 @@ internal static class NativeEffectChecks
             }
             else
             {
-                PlayerAction action = fields switch
+                PlayerAction action = fields[0] switch
                 {
-                    ["end"] => PlayerAction.EndTurn(),
-                    ["play", var index, var target] => PlayerAction.PlayCard(int.Parse(index), byte.Parse(target)),
-                    ["play", var index, var target, var choice] =>
-                        PlayerAction.PlayCard(int.Parse(index), byte.Parse(target))
-                            .WithChoice(ulong.Parse(choice, CultureInfo.InvariantCulture)),
+                    "end" => PlayerAction.EndTurn(),
+                    "potion" when fields.Length >= 3 =>
+                        PlayerAction.UsePotion(int.Parse(fields[1]), byte.Parse(fields[2])),
+                    "play" when fields.Length >= 3 =>
+                        PlayerAction.PlayCard(int.Parse(fields[1]), byte.Parse(fields[2])),
                     _ => throw new InvalidDataException($"Unknown effect command: {command}"),
                 };
-                ReplayedAction planned = ReplayedRoute.Build(current, rules, [action], false).Actions[0];
-                Battle actual = new NativeActionExecutor(loop, state, player, rules, tracker).Execute(planned);
-                string[] differences = CombatRouteDecision.BoundaryDiff(planned.After, actual);
-                if (differences.Length != 0)
-                    throw new InvalidDataException(command + ": " + string.Join("\n", differences));
-                current = planned.After;
-                tracker.Observe(current);
+                for (int index = fields[0] == "end" ? 1 : 3; index < fields.Length; index++)
+                    action = action.WithChoice(ulong.Parse(fields[index], CultureInfo.InvariantCulture));
+                Battle after = current;
+                if (Kernel.Step(ref after, action, rules, out _) != StepResult.Completed)
+                    throw new InvalidDataException("Effect command needs more choices: " + command);
+                ReplayedAction planned = ReplayedRoute.Build(current, rules, [action],
+                    after.Outcome == Outcome.Victory).Actions[0];
+                Execute(planned);
             }
             Console.WriteLine($"NATIVE_EFFECT_OK scenario={request.ScenarioId} command={command} arrows={current.Fool.ArrowCount}");
         }
         return 0;
+
+        void Execute(ReplayedAction planned)
+        {
+            Battle actual = new NativeActionExecutor(loop, state, player, rules, tracker).Execute(planned);
+            string? difference = planned.After.Outcome != Outcome.None
+                ? TerminalBattleCapture.Compare(planned.After, rules)
+                : CombatRouteDecision.ActionMatches(planned, actual) ? null
+                    : string.Join("\n", CombatRouteDecision.BoundaryDiff(planned.After, actual));
+            if (difference != null)
+            {
+                if (Environment.GetEnvironmentVariable("STS2_SOLVER_NATIVE_EVIDENCE") is { Length: > 0 } evidence)
+                {
+                    string directory = Path.Combine(evidence, request.ScenarioId);
+                    Directory.CreateDirectory(directory);
+                    File.WriteAllLines(Path.Combine(directory, "before.txt"), BattleDump.Lines(planned.Before));
+                    File.WriteAllLines(Path.Combine(directory, "predicted.txt"), BattleDump.Lines(planned.After));
+                    File.WriteAllLines(Path.Combine(directory, "actual.txt"), BattleDump.Lines(actual));
+                    File.WriteAllBytes(Path.Combine(directory, "before.batl"), BattleCodec.Encode(planned.Before, rules.Relics));
+                    File.WriteAllBytes(Path.Combine(directory, "rules.rule"), RulesCodec.Encode(rules));
+                }
+                throw new InvalidDataException(CombatPilotAction.Describe(planned) + ": " + difference);
+            }
+            current = planned.After;
+            tracker.Observe(current);
+        }
     }
 
     private static void CheckArrowEntry(MainLoopContext loop, CombatState state, NativePlayer player,

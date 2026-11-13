@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-wounded-healing-stop",
+  "characterId": "FOOL",
+  "encounterId": "PUNCH_CONSTRUCT_NORMAL",
+  "seed": "HEALING113",
+  "initialPlayerMaxHp": 77,
+  "initialPlayerHp": 60,
+  "enemyCurrentHp": 55,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "WAH_CHO",
+      "pile": "Hand",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "MYTHIC_FORM",
+      "pile": "Hand",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "pile": "Hand",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FOOLISH_SHOT",
+      "pile": "Hand",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEEP_STRETCH",
+      "pile": "Hand",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0,
+      "enchantmentId": "NIMBLE",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FEAR",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEEP_STRETCH",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "KNOW_THY_PLACE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "DEXTERITY_POTION"
+    },
+    {
+      "potionId": "STRENGTH_POTION"
+    },
+    {
+      "potionId": "DEXTERITY_POTION"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "KALEIDOSCOPE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PLANISPHERE",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CHANDELIER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "REGAL_PILLOW",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120
+}

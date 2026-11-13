@@ -325,6 +325,8 @@ public static partial class Kernel
         {
             if (IsOverOrEnding(x.B))
                 break;
+            if (index > 0)
+                SyncCurrentPlayCard(ref x);
             x.CardDamageTotal = 0;
             x.CardKilledTarget = false;
             x.PlayIndex = index;
@@ -364,8 +366,6 @@ public static partial class Kernel
                 x.CardPowerSourceActive = true;
             }
             Registry.Card(card.Id).OnPlay(ref x);
-            if (!x.NeedsChoice && identityScope)
-                ResolveMonologuePending(ref x, monologueBase);
             if (x.NeedsChoice)
             {
                 if (identityScope)
@@ -420,7 +420,6 @@ public static partial class Kernel
                 CompleteCardPowerSource(ref x);
                 x.CardPowerSourceSerial = outerSourceSerial;
                 x.CardPowerSourceActive = outerSourceActive;
-                x.CurrentMonologueBase = outerMonologueBase;
             }
             if (x.NeedsChoice)
             {
@@ -486,6 +485,11 @@ public static partial class Kernel
             {
                 completed = false;
                 break;
+            }
+            if (identityScope)
+            {
+                x.MonologuePendingCount = monologueBase;
+                x.CurrentMonologueBase = outerMonologueBase;
             }
             // SimulatedCombatState.CompleteCardPlayEffects resolves the remaining power amount changes
             // before recording the play and its lifecycle counters.
@@ -783,32 +787,29 @@ public static partial class Kernel
         }
     }
 
-    /// <summary>
-    /// <c>SimulatedCombatState.ResolveMonologues</c>: apply the captured Strength and accumulate the
-    /// instance's StrengthApplied. The Strength application is not gated on the power still existing
-    /// (the existing engine applies it to the captured model even after a removal).
-    /// </summary>
-    private static void ResolveMonologuePending(ref Exec x, int baseCount)
+    /// <summary>Native Monologue.AfterCardPlayed runs after card choices and attachments, in listener order.</summary>
+    public static void ResolveMonologueAfterPlay(ref Exec x, Listener self, ushort strength)
     {
-        if (x.MonologuePendingCount <= baseCount)
-            return;
-        if (!Registry.TryPower("MONOLOGUE_POWER", out ushort monologue)
-            || !Registry.TryPower("STRENGTH_POWER", out ushort strength))
+        ushort monologue = x.B.Powers[self.Index].Id;
+        int occurrence = 0;
+        for (int index = 0; index < self.Index; index++)
         {
-            throw new UnsupportedException("Monologue 结算需要 MONOLOGUE_POWER 与 STRENGTH_POWER。");
+            if (x.B.Powers[index].Id == monologue && x.B.Powers[index].Owner == self.Owner)
+                occurrence++;
         }
-        for (int entryIndex = baseCount; entryIndex < x.MonologuePendingCount; entryIndex++)
+        for (int index = x.CurrentMonologueBase; index < x.MonologuePendingCount; index++)
         {
-            MonologuePending entry = x.MonologuePending[entryIndex];
-            ApplyPower(ref x, Limits.PlayerOwner, strength, entry.Strength, Limits.PlayerOwner);
-            if (x.NeedsChoice)
-                break;
-            int row = FindPowerOccurrence(x.B, Limits.PlayerOwner, monologue, entry.Occurrence);
+            MonologuePending entry = x.MonologuePending[index];
+            if (entry.Occurrence != occurrence)
+                continue;
+            int applied = x.B.Powers[self.Index].Aux0;
+            ApplyPower(ref x, self.Owner, strength,
+                entry.Strength, self.Owner);
+            int row = FindPowerOccurrence(x.B, self.Owner, monologue, occurrence);
             if (row >= 0)
-                x.B.Powers[row].Aux1 = (int)Math.Clamp((long)x.B.Powers[row].Aux1 + entry.Strength,
-                    int.MinValue, int.MaxValue);
+                x.B.Powers[row].Aux1 += applied;
+            return;
         }
-        x.MonologuePendingCount = baseCount;
     }
 
     /// <summary>Marks the end of the current card power-application scope (UnsettlingLamp latch).</summary>

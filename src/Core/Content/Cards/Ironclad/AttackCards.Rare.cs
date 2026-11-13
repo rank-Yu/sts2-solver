@@ -130,7 +130,7 @@ public sealed class Thrash : CardDef
         if (!def.TryGetCalculatedDamage(ref x, victim, Limits.NoOwner, selfInHand: true, out decimal damage))
             damage = NamedDamage(ref x, victim, def);
         damage = HookDispatch.ModifyDamage(ref x, Limits.NoOwner, Limits.PlayerOwner, damage,
-            ValueProps.Move, hasCardSource: true, victim);
+            ValueProps.Move, hasCardSource: true, victim, sourceInPlay: false);
         CardEffects.AddCurrentCardVar(ref x, 0, damage);
         Kernel.Exhaust(ref x, Pile.Hand, selected);
     }

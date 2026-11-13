@@ -83,7 +83,7 @@ public sealed class LullabyPower : FoolBuff
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (self.Owner != Limits.PlayerOwner || x.B.Powers[self.Index].Aux0 != 0
-            || Kernel.MelodiesThisTurn(x.B) < 3 || Kernel.IsOverOrEnding(x.B)) return;
+            || Kernel.MelodiesThisTurn(x.B) < 3 || !Kernel.IsInProgress(x.B)) return;
         x.B.Powers[self.Index].Aux0 = 1;
         Kernel.GainBlock(ref x, self.Owner, x.B.Powers[self.Index].Amount, ValueProps.Unpowered, false);
     }

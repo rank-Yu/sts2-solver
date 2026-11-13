@@ -194,6 +194,28 @@ public static partial class Kernel
             x.B.AddCounter(Counter.StatusCardsDrawnThisTurn, 1);
     }
 
+    /// <summary>Auto-plays the drawn object while preserving its position for the normal draw hooks.</summary>
+    public static void AutoPlayDrawnCard(ref Exec x, int position)
+    {
+        int markBase = ReserveTransientMarks(ref x, 1, out int markStart);
+        byte outer = x.B.Cards[position].TransientMark;
+        x.B.Cards[position].TransientMark = (byte)markStart;
+        try
+        {
+            AutoPlay(ref x, Pile.Hand, position);
+            if (x.NeedsChoice || IsOverOrEnding(x.B))
+                return;
+            if (!TryFindUniqueTransientMark(x.B, (byte)markStart, out Pile pile, out int index))
+                throw new UnsupportedException("自动打出的抽牌已离开所有牌堆，无法结算后续抽牌效果。");
+            x.DrawnCardPosition = Piles.Start(x.B, pile) + index;
+        }
+        finally
+        {
+            RestoreTransientMark(ref x.B, (byte)markStart, outer);
+            ReleaseTransientMarks(ref x, markBase, markStart, 1);
+        }
+    }
+
     /// <summary>
     /// Mirrors <c>HookMirrors.AfterCardDrawn</c>: the Early and normal passes over the combat listeners (gated by
     /// combat ending), then the drawn card's own handler when its listener visit did not claim it.
@@ -208,11 +230,12 @@ public static partial class Kernel
         HookDispatch.Dispatch(ref x, ref early, gatedByEnding: true);
         if (x.NeedsChoice)
             return;
+        position = x.DrawnCardPosition;
         AfterCardDrawnHook normal = new() { DrawnPosition = position, FromHandDraw = fromHandDraw };
         HookDispatch.Dispatch(ref x, ref normal, gatedByEnding: true);
         if (x.NeedsChoice)
             return;
-        if (!x.IntrinsicDrawHandled)
+        if (!IsOverOrEnding(x.B) && !x.IntrinsicDrawHandled)
         {
             CardDef def = Registry.Card(x.B.Cards[position].Id);
             if ((def.Hooks & HookMask.AfterCardDrawn) != 0)

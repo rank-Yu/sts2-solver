@@ -2,6 +2,7 @@
 // split and the cancellation lifecycle are adapted from CombatSolver src/Runtime/SolverController.cs
 // at commit a62f1850 (MIT, Copyright (c) 2026 Torch1230 and contributors); each call runs one search member; CombatSearchRunner owns portfolio scheduling and the controller owns deployment.
 using System.Diagnostics;
+using DisplayServer = Godot.DisplayServer;
 using System.Text.Json;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
@@ -20,6 +21,7 @@ namespace Sts2Solver;
 internal static class SearchSession
 {
     private static readonly object Gate = new();
+    private static readonly SearchFrameMonitor Frames = new();
     private static readonly JsonSerializerOptions ResultJson = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -49,6 +51,10 @@ internal static class SearchSession
     }
 
     public static bool IsRunning => Volatile.Read(ref _running) != 0;
+
+    internal static void ObserveMainThreadFrame(double milliseconds)
+        => Frames.ObserveFrame(milliseconds, IsRunning,
+            DisplayServer.GetName() != "headless" && DisplayServer.WindowIsFocused());
 
     internal static bool ProgressSubscribed => Volatile.Read(ref _progressSubscribed) != 0;
 
@@ -169,7 +175,10 @@ internal static class SearchSession
 
         try
         {
-            SearchFramePressureSignal signal = new();
+            SearchFramePressureSignal signal = Frames.Signal;
+            Frames.BeginSearch(
+                recoveryEnabled: !deterministic && DisplayServer.GetName() != "headless",
+                measureFrames: !deterministic);
             SearchWorkPacer? pacer = deterministic ? null : new SearchWorkPacer(signal);
             BeamOptions solveOptions = pacer == null
                 ? searchCase.Options
@@ -191,9 +200,7 @@ internal static class SearchSession
             long allocatedBefore = GC.GetTotalAllocatedBytes(precise: false);
             // Process-wide like the allocation count: another mod's collections stop these workers too.
             GcActivity gcBefore = GcActivity.Capture();
-            int longFrames = 0;
-            double maxFrameMilliseconds = 0d;
-            long lastFrame = Stopwatch.GetTimestamp();
+
             worker = Task.Run(() =>
             {
                 solver = new BeamSolver(searchCase.Rules, solveOptions);
@@ -206,16 +213,6 @@ internal static class SearchSession
             while (!worker.IsCompleted)
             {
                 await CombatFrameWaiter.NextFrameAsync(host);
-                long now = Stopwatch.GetTimestamp();
-                if (!deterministic)
-                {
-                    double frameMilliseconds = Stopwatch.GetElapsedTime(lastFrame, now).TotalMilliseconds;
-                    signal.ObserveFrame(frameMilliseconds, searchActive: true);
-                    if (frameMilliseconds >= signal.PressureFrameGapMilliseconds)
-                        longFrames++;
-                    maxFrameMilliseconds = Math.Max(maxFrameMilliseconds, frameMilliseconds);
-                }
-                lastFrame = now;
                 SampleMemory(ref managedPeak, ref workingSetPeak);
                 if (cancelAfterMilliseconds is { } limit
                     && elapsed.ElapsedMilliseconds >= limit
@@ -232,7 +229,13 @@ internal static class SearchSession
             int frameWaits = pacer?.FrameRecoveryWaitCount ?? 0;
             long frameWaitMilliseconds = (long)(pacer?.FrameRecoveryWaitDuration.TotalMilliseconds ?? 0d);
             GcActivity gc = GcActivity.Capture().Since(gcBefore);
-            string runtime = $"gc_pause_ms={gc.PauseMilliseconds} gc_counts={gc.Gen0}/{gc.Gen1}/{gc.Gen2} "
+            int longFrames = Frames.LongFrames;
+            double maxFrameMilliseconds = Frames.MaxFrameMilliseconds;
+            string runtime = $"frame_baseline_ms={signal.BaselineFrameGapMilliseconds:0.00} "
+                + $"frame_threshold_ms={signal.PressureFrameGapMilliseconds:0.00} "
+                + $"frame_baseline_samples={signal.BaselineSampleCount} frame_recovery_enabled={signal.RecoveryEnabled} "
+                + $"frame_recovery_allowed={signal.FrameRecoveryAllowed} "
+                + $"gc_pause_ms={gc.PauseMilliseconds} gc_counts={gc.Gen0}/{gc.Gen1}/{gc.Gen2} "
                 + $"memory_load_pct={gc.MemoryLoadPercent} long_frames={longFrames} "
                 + $"max_frame_ms={maxFrameMilliseconds:0}";
 

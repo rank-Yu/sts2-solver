@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "dread-plating-doom",
+  "characterId": "NECROBINDER",
+  "encounterId": "SLIMES_NORMAL",
+  "gameModeForTest": "Dread",
+  "ascension": 0,
+  "seed": "D03-Necrobinder-00",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "REAVE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GRAVE_WARDEN",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "UNDEATH",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "UNLEASH",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "WISP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PULL_AGGRO",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NEUROSURGE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEATHBRINGER",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SPUR",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "TRANSFIGURE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FORBIDDEN_GRIMOIRE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFILE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "OBLIVION",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "MISERY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "INVOKE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PROTECTOR",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SOW",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SENTRY_MODE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "COUNTDOWN",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "RATTLE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEFY",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NEGATIVE_PULSE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "dominionForTest": "KAISER_CRAB_DOMINION"
+}

@@ -18,6 +18,7 @@ internal sealed class PlannedChoice
     internal required ulong Selection { get; init; }
     internal required bool Implicit { get; init; }
     internal required Card[] PileOptions { get; init; }
+    internal required int SourceStart { get; init; }
     internal required Card[] GeneratedOptions { get; init; }
 
     internal int OptionCount => Request.OptionCount;
@@ -176,15 +177,20 @@ internal sealed class ReplayedRoute
         // Pile options are absolute positions in the partial battle the kernel was replaying. The
         // caller captured the request before the state was discarded, so the cards must be copied
         // here; ChoiceRequest itself carries only positions.
-        Card[] pile = new Card[request.OptionCount];
-        for (int index = 0; index < request.OptionCount; index++)
-            pile[index] = partial.Cards[request.Options[index]];
+        Card[] pile = [];
+        if (!request.OptionsAreGenerated)
+        {
+            pile = new Card[request.OptionCount];
+            for (int index = 0; index < request.OptionCount; index++)
+                pile[index] = partial.Cards[request.Options[index]];
+        }
         return new PlannedChoice
         {
             Request = request,
             Selection = selection,
             Implicit = IsImplicit(request, selection),
             PileOptions = pile,
+            SourceStart = request.SourceIsNone ? 0 : Piles.Start(partial, request.Source),
             GeneratedOptions = generated,
         };
     }

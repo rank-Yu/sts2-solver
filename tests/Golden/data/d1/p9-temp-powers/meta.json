@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p9-temp-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-temp-powers.json\u0022}",
-  "rulesSha256": "097de59461518fce4e99b4f083b0eea5425da805d11202f5891d5c062e1962e2",
+  "rulesSha256": "9f7828e3d7c86453fc826fb89ae89ce11cf86a0dd0ae82d975183f8518389a19",
   "counts": {
     "roots": 1,
     "k1": 6,

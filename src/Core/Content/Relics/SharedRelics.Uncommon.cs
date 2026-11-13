@@ -567,6 +567,10 @@ public sealed class PenNib : RelicDef
         if (!damage.Props.IsPoweredAttack() || !damage.HasCardSource
             || !Kernel.IsOwnerOrOsty(self.Owner, damage.Dealer))
             return 1m;
+        // Native 0.113 PenNib previews a hand card at nine attacks, independently of the current play.
+        ref readonly RelicState relic = ref x.B.RelicState(x.R, self.Index);
+        if (!damage.SourceInPlay)
+            return relic.Aux == 0 && relic.Counter == AttacksThreshold - 1 ? 2m : 1m;
         // Native: `AttackToDouble == context.CardSource.Original`. The play identity names the
         // CardPlay that owns the latch; a nested auto-play has already replaced x.PlayIdentity.
         return x.B.RelicState(x.R, self.Index).Aux != 0 && x.PlayIdentity == x.B.RelicState(x.R, self.Index).Aux

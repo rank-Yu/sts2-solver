@@ -906,7 +906,8 @@ internal static partial class CombatSessionController
             // so there is no frame bound here: wait until Play, or until the schedule is canceled
             // by a turn change, combat end or leaving the scene.
             int frame = 0;
-            while (frame < 2 || !IsPlayable(state, turn))
+            while (frame < 2 || !IsPlayable(state, turn)
+                || RunManager.Instance.ActionExecutor.IsPaused)
             {
                 token.ThrowIfCancellationRequested();
                 if (!_combatActive
@@ -918,8 +919,8 @@ internal static partial class CombatSessionController
                 await CombatFrameWaiter.NextFrameAsync(host);
                 frame++;
             }
-            await RunManager.Instance.ActionExecutor.FinishedExecutingActions().WaitAsync(token);
-            await CombatFrameWaiter.SettleAsync(host);
+            await CombatFrameWaiter.SettleAsync(host,
+                SolverSettings.Current.Automation.DeploymentSpeed, token);
             token.ThrowIfCancellationRequested();
             if (TryActivateTurnSetup(turn))
                 return;

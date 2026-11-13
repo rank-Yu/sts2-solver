@@ -6,9 +6,8 @@ namespace Sts2Solver.Content.Powers;
 /// Native <c>MonologuePower</c> (instanced): every card the player plays while it is active adds its
 /// Strength to the owner after the play, then the applied total is removed at the owner's side turn
 /// end. Strength lives in Aux0, StrengthApplied in Aux1; the transient pending list is in
-/// <see cref="Exec.MonologuePending"/>. Existing engine:
-/// <c>CorePowerSupport.CapturePendingMonologues/ResolveMonologues</c> and
-/// <c>EndTurnPowerSupport.Batch048</c>'s Monologue case.
+/// <see cref="Exec.MonologuePending"/>. Native 0.113 <c>MonologuePower</c> captures each instance's
+/// amount before play and applies it in <c>AfterCardPlayed</c> listener order.
 /// </summary>
 [ContentId("MONOLOGUE_POWER")]
 public sealed class MonologuePower : PowerDef
@@ -20,6 +19,9 @@ public sealed class MonologuePower : PowerDef
     public override PowerStackType StackType => PowerStackType.Counter;
 
     public override bool IsInstanced => true;
+
+    public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
+        => Kernel.ResolveMonologueAfterPlay(ref x, self, Registry.PowerId<StrengthPower>());
 
     public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
     {

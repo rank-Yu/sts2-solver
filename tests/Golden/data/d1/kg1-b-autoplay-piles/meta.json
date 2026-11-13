@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "kg1-b-autoplay-piles",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg1-b-autoplay-piles.json\u0022}",
-  "rulesSha256": "d977606914ab996b61cdd9cad4a90c4cc509d16d093996a77da26c8b1c892cc8",
+  "rulesSha256": "4dcb3a78fc16dfd74fe9f92e57238899b0f378db651cab83854c54b81f72edfe",
   "counts": {
     "roots": 1,
     "k1": 8,

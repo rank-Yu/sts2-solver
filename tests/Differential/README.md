@@ -58,6 +58,16 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 
 请求使用现有 `OfflineRequest` 格式。`play:<手牌下标>:<目标owner>[:选择位集]` 执行指定出牌，首个敌人 owner 为 2，无目标为 255；`end` 结束回合。`generate:<牌id>`、`replace:<牌id>`、`transform:<牌id>` 分别对照生成、单张替换和批量变牌入口（变牌选中首张手牌），核对原生箭槽数和每个槽的状态，再导入新根继续检查后续动作。箭槽检查覆盖首次获得、已有箭槽不重复增加，以及射出或销毁的箭不被重新创建。回归输入见 [跨角色箭槽场景](fixtures/cross-character-arrow.json)。
 
+拇指夹的定点回归覆盖单段、多段、随机与群体目标、零次命中、奥斯提和箭矢。每一步核对完整原生稳定状态及随机流：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-attacks.json play:0:2 play:0:2 play:0:255 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-area-random.json play:0:255 play:0:255 end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-osty.json play:0:2 play:0:2 play:0:2 end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-arrows.json play:0:2 play:0:2 end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-x2.json play:0:255 end
+```
+
 ## 回合准备枚举
 
 ```bash
@@ -189,3 +199,62 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 - 质量语料：`tests/corpora/quality/<name>/spec.json` 与 `request.json`，根名为 `quality-<name>`。
 
 请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`ignoreGrowthRewards`、两个 Boss 策略、`theftPolicyForTest`、`potionDefaultModeForTest`、`potionDirectivesForTest`、`act3BossStrategyForTest`）。未知字段和不支持的搜索或部署取值都显式失败。
+
+## 回血上限与提前停止
+
+原版根测试覆盖回血上限、未知回调拒绝及完整胜利路线的逐动作核对：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/fool-wounded-healing-stop.json 0
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/fool-component-healing.json 0
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/corpora/fixtures/vg1-regeneration.json 21
+```
+
+第二个参数是含战后回血的剩余回血上限；传入 `unknown` 检查不可定界来源。末尾可传入当前已审计的 `Loadout.dll` 路径，测试无治疗回调正常认证、非空召唤能力配置保持未知。测试只在独立宿主内注册回调与修改临时状态。
+
+
+## 原生随机动作对照
+
+`--native-effect-check <request.json> random:<seed>:<steps>` 从原生场景开始，
+按固定种子选择合法出牌、用药、结束回合及牌内选择，逐动作检查完整稳定状态和随机流。
+终局另与原版清理前捕获的终局合同核对；到达步数上限只表示该前缀通过，不表示整场已结束。
+输出包含每一步动作、实际打出的卡牌计数、执行步数和结局，可按相同输入和种子重放。
+这项检查补充求解路线之外的动作顺序，不能替代搜索质量评估。
+
+旋律致胜回归核对“指挥棒”在战斗正式结束前的出牌后触发：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fool-melody-lethal.json play:0:2
+```
+
+
+### 新模式组合回归
+
+下列场景保留原生开局与领域效果，固定随机动作种子，覆盖附魔重复出牌、同名牌选择、
+笔尖预览、充能时能力行移动、镀层与灾厄、自动打牌后的束缚、临时牌槽身份和抽牌致胜。
+每一步均比较原生边界；临时牌槽仅统一编号，同时保留牌值与能力引用关系。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-replay-enchantment.json random:21104:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-pile-choice-identity.json random:21113:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-pen-nib-preview.json random:21177:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-lightning-rod.json random:21515:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/dread-plating-doom.json random:21684:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-hellraiser-bound.json random:21176:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-detached-card-order.json random:21854:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-detached-card-hole.json random:21206:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-draw-lethal.json random:21244:60
+```
+
+独白的监听器顺序、多个实例，以及领域限制下的自动出牌与致胜边界：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-monologue-order.json play:0:255 play:0:255 play:0:255 play:0:255 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-monologue-instances.json play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-crimson-mantle-row.json random:41175:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/mode-spinner-lethal.json random:41730:60
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/dread-eidolon-sloth.json random:41835:60
+```
+
+设置 `STS2_SOLVER_NATIVE_EVIDENCE=<目录>` 后，偏差会保存动作前状态、预测状态、
+实际状态文本及 BATL/RULE，用于复现和定位。

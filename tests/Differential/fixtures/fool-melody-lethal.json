@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-melody-lethal",
+  "characterId": "FOOL",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "UPSTREAM514",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "WAH_CHO_KI",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "relics": [
+    {
+      "relicId": "CONDUCTORS_BATON"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "LULLABY_POWER",
+      "target": "Player",
+      "amount": 4
+    }
+  ]
+}

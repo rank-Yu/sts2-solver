@@ -131,7 +131,7 @@ public static partial class HookDispatch
     /// then the minimum cap, clamped at zero. Decimal throughout, never rounded here.
     /// </summary>
     public static decimal ModifyDamage(ref Exec x, byte target, byte dealer, decimal damage, ValueProps props,
-        bool hasCardSource, in Card cardSource, bool capOnly = false)
+        bool hasCardSource, in Card cardSource, bool capOnly = false, bool sourceInPlay = true)
     {
         // HookMirrors.ModifyDamage: the source card's enchantment runs before every listener.
         if (hasCardSource && cardSource.EnchantmentId != 0)
@@ -142,7 +142,7 @@ public static partial class HookDispatch
         }
         // Run listeners put out-of-combat deck cards before the combat list; deck cards with
         // damage hooks are rejected at admission.
-        DamageContext context = new(target, dealer, props, hasCardSource, cardSource);
+        DamageContext context = new(target, dealer, props, hasCardSource, cardSource, sourceInPlay);
         Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
 
         int count;

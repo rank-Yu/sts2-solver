@@ -1,6 +1,7 @@
 // Ported from CombatSolver src/Flash/Bridge/FlashBoundBridge.cs at commit a62f1850
 // (MIT, Copyright (c) 2026 Torch1230 and contributors). Per-content classifications are frozen in
-// HealingBoundTables (the exact D1 answers); root predicates are reimplemented against the native
+// HealingBoundTables; the 0.113.0 additions and platform identities are audited in
+// HealingSourceAudit. Root predicates are reimplemented against the native
 // models and the imported Battle.
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Ai.Combat;
@@ -33,8 +34,6 @@ namespace Sts2Solver.Import;
 /// </summary>
 internal static class BoundCompiler
 {
-    private static readonly Guid ComponentAuditMvid = new("8a76776c-0ce1-4d4f-90bd-8cce653dad8e");
-
     private static readonly bool[] UnsafeCards = HealingBoundTables.ComponentUnsafeCard();
     private static readonly bool[] UnsafePowers = HealingBoundTables.ComponentUnsafePower();
     private static readonly bool[] UnsafeRelics = HealingBoundTables.ComponentUnsafeRelic();
@@ -92,7 +91,7 @@ internal static class BoundCompiler
             : knownNative
                 ? HealingCertificate.KnownNative
                 : HealingCertificate.None;
-        bool onlyPostCombat = HasOnlyPostCombatHealing(state, player);
+        bool onlyPostCombat = knownNative && HasOnlyPostCombatHealing(state, player);
         return new BoundFeatures.Config
         {
             Enabled = !regenPotion,
@@ -206,12 +205,12 @@ internal static class BoundCompiler
     /// </summary>
     private static bool ComponentCertificate(CombatState state, Player player)
     {
-        if (typeof(AbstractModel).Module.ModuleVersionId != ComponentAuditMvid)
+        if (!HealingSourceAudit.IsCurrentNativeAssembly)
             return false;
         if (state.Players.Count != 1 || state.Modifiers.Count != 0)
             return false;
         if (player.Character is not (Ironclad or Silent or Regent or Necrobinder
-            or MegaCrit.Sts2.Core.Models.Characters.Defect))
+            or MegaCrit.Sts2.Core.Models.Characters.Defect or Fool))
         {
             return false;
         }
@@ -312,6 +311,8 @@ internal static class BoundCompiler
             PotionModel potion => Registry.TryPotion(potion.Id.Entry, out ushort potionId)
                 && !UnsafePotions[potionId],
             CccComboModel or DebufferModel or MultiplayerScalingModel => true,
+            _ when HealingSourceAudit.IsNonHealingModeSource(source) => true,
+            _ when HealingSourceAudit.IsNonHealingSubscriber(source) => true,
             _ => false,
         };
         return ok;
@@ -414,7 +415,7 @@ internal static class BoundCompiler
             return false;
         foreach (AbstractModel listener in RootHookListeners(state))
         {
-            if (!NativeAccess.IsOriginal(listener))
+            if (!NativeAccess.IsOriginal(listener) && !HealingSourceAudit.IsNonHealingSubscriber(listener))
                 return false;
         }
         foreach (Creature enemy in state.Enemies)

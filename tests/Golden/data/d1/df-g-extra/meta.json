@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "df-g-extra",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-g-extra.json\u0022}",
-  "rulesSha256": "db53ed44def6cd6231e7e1fa9dc050e49aa25e98b48b2bba379f6f61e0011123",
+  "rulesSha256": "7a25256da2f8e09eb9150ca45b8d2f6bddbf054d23c17e374b1260c1c23df177",
   "counts": {
     "roots": 1,
     "k1": 9,

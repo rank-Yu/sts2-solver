@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-lightning-rod",
+  "characterId": "DEFECT",
+  "encounterId": "OVERGROWTH_CRAWLERS",
+  "gameModeForTest": "Dread",
+  "ascension": 10,
+  "seed": "D01-Defect-11",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "SYNTHESIS",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "LIGHTNING_ROD",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GENETIC_ALGORITHM",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GLACIER",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BUFFER",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "RAINBOW",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ALL_FOR_ONE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FLAK_CANNON",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GLASSWORK",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SHADOW_SHIELD",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CONSUMING_SHADOW",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FERAL",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BALL_LIGHTNING",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SYNCHRONIZE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CHILL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "HELIX_DRILL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ZAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "TRASH_TO_TREASURE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ECHO_FORM",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "LEAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BEAM_CELL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "dominionForTest": "CEREMONIAL_BEAST_DOMINION"
+}

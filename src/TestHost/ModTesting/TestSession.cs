@@ -257,7 +257,8 @@ internal static class TestSession
                     buildSelector: buildSelector);
                 ModLog.Info($"[Sts2Solver] BUILD_COMPLETED root={root}");
                 stage = "settle";
-                await CombatFrameWaiter.SettleAsync(host);
+                await CombatFrameWaiter.SettleAsync(host,
+                    SolverSettings.Current.Automation.DeploymentSpeed, CancellationToken.None);
                 // ScenarioBuilder applies the request's initial injections after the native
                 // combat has started, but the controller compiled its rules at combat start.
                 // Recompile from the injected live state before any automatic search can use a

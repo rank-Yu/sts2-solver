@@ -550,4 +550,6 @@ dotnet artifacts/bin/Differential/release/Differential.dll --capture-version-roo
 这些文件只是重录的输入，K1 与游走状态尚未生成，也不包含搜索基准及完整 manifest，不能作为通过回归的证据。
 后续必须重新录制、对照原生游戏验证，并按 AGENTS.md 取得更新冻结基准的同意。
 
-遗物存储合同由 KernelChecks 的 `RelicStorageChecks` 检查：24/25 动态容量、65,535/65,536 清单容量、固定值不占动态槽、重复实例与大下标、复制隔离、v9 往返及拒绝旧版本以及多根请求上下文。
+遗物存储合同由 KernelChecks 的 `RelicStorageChecks` 检查：24/25 动态容量、65,535/65,536 清单容量、固定值不占动态槽、重复实例与大下标、复制隔离、v10 往返及拒绝旧版本以及多根请求上下文。
+
+回血上限、未满血停搜及 Loadout 回调检查见 [回血上限与提前停止](../tests/Differential/README.md#回血上限与提前停止)。

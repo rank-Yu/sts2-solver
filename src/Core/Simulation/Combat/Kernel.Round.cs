@@ -760,27 +760,32 @@ public static partial class Kernel
             return;
 
         x.B.Phase = PlayerPhase.Start;
-        if (rootSetup)
+        // Native Hook.BeforeHandDraw starts a new listener pass after energy-reset effects.
+        // A lethal orb evoke there must not generate cards or consume generation RNG.
+        if (!IsOverOrEnding(x.B))
         {
-            // GAME Hook.BeforeHandDraw iterates powers, then relics (CombatState.IterateHookListeners).
-            PowerBeforeHandDraw(ref x);
-            if (x.NeedsChoice)
-                return;
-            RelicBeforeHandDraw(ref x);
-            if (x.NeedsChoice)
-                return;
-            ReturnCardsToHand(ref x);
-            if (x.NeedsChoice)
-                return;
+            if (rootSetup)
+            {
+                // GAME Hook.BeforeHandDraw iterates powers, then relics (CombatState.IterateHookListeners).
+                PowerBeforeHandDraw(ref x);
+                if (x.NeedsChoice)
+                    return;
+                RelicBeforeHandDraw(ref x);
+                if (x.NeedsChoice)
+                    return;
+                ReturnCardsToHand(ref x);
+                if (x.NeedsChoice)
+                    return;
+            }
+            else
+            {
+                BeforeHandDraw(ref x);
+                if (x.NeedsChoice)
+                    return;
+            }
+            DominionBeforeHandDraw(ref x);
+            if (x.NeedsChoice) return;
         }
-        else
-        {
-            BeforeHandDraw(ref x);
-            if (x.NeedsChoice)
-                return;
-        }
-        DominionBeforeHandDraw(ref x);
-        if (x.NeedsChoice) return;
         // CombatBeamSolver.TurnExecutionContinuation resolves BeforeHandDraw's power changes before
         // the pre-draw checkpoint.
         ResolvePowerAmountChanges(ref x);

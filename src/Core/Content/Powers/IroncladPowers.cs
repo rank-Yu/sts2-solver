@@ -307,7 +307,7 @@ public sealed class CrimsonMantlePower : PowerDef
 
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
-        ref Power power = ref x.B.Powers[self.Index];
+        Power power = x.B.Powers[self.Index];
         if (power.Aux0 > 0)
         {
             Span<byte> target = stackalloc byte[1];
@@ -551,7 +551,7 @@ public sealed class HellraiserPower : PowerDef
             power.Aux0 = 0;
         }
         if (autoPlay)
-            Kernel.AutoPlay(ref x, Pile.Hand, drawnPosition);
+            Kernel.AutoPlayDrawnCard(ref x, drawnPosition);
     }
 
     public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)

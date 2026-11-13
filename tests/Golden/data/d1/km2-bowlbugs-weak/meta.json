@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "km2-bowlbugs-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-bowlbugs-weak.json\u0022}",
-  "rulesSha256": "5d7da9532ed53c2e9be2e4f12f3c7a20314f68908e488e6525347f1896220c51",
+  "rulesSha256": "ecf80556f9635452c2701b56c3e14cbb2de39637683fed3837ff720b29390d6a",
   "counts": {
     "roots": 1,
     "k1": 11,

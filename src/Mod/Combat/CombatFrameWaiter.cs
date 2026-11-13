@@ -7,15 +7,19 @@ namespace Sts2Solver;
 internal static class CombatFrameWaiter
 {
     /// <summary>
-    /// 交付捕获前让回合开始的可视/计时协程（例如 FakeHappyFlower 的 1 秒激活）结束。
-    /// 这些协程会临时改变原生公开状态；离线宿主在消息泵里会立即走完，实机需要等计时器。
+    /// 调用方先确认原版进入 Play 阶段且动作队列恢复，再等队列完成与主线程提交。
+    /// 快速模式不等待遗物显示动画；导入器读取 TurnsSeen 等实际计数，而不是 DisplayAmount。
     /// </summary>
-    internal static async Task SettleAsync(NGame host)
+    internal static async Task SettleAsync(NGame host, SolverDeploymentSpeed speed,
+        CancellationToken token)
     {
-        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
-        SceneTree tree = host.GetTree();
-        await host.ToSignal(tree.CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout);
-        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions().WaitAsync(token);
+        if (speed == SolverDeploymentSpeed.Fast)
+            await NextFrameAsync(host);
+        else
+            await CombatDeploymentTiming.WaitAsync(host, 1.5, token);
+        token.ThrowIfCancellationRequested();
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions().WaitAsync(token);
     }
 
     internal static async Task NextFrameAsync(NGame host)

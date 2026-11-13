@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p3-c-self-damage",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p3-c-self-damage.json\u0022}",
-  "rulesSha256": "24b52cca5268394f4bfee99f81f48a6cc1e27ca794fcd3b3cd5a418226bb0ee3",
+  "rulesSha256": "f89aa04e9905ab116c81466c9f4e06b52c6a79bb8245523455c34ac24b82f288",
   "counts": {
     "roots": 1,
     "k1": 13,

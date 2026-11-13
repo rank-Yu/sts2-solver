@@ -50,6 +50,14 @@ public sealed class PlatingPower : PowerDef
 
     public override IReadOnlyList<string> VarNames => ["Decrement"];
 
+    // Native PlatingPower.BeforeSideTurnStart also runs on extra player turns in round one.
+    public override void BeforeSideTurnStart(ref Exec x, Listener self, bool participates)
+    {
+        if (x.B.Side == Side.Player && self.Owner != Limits.PlayerOwner && x.B.Round <= 1)
+            Kernel.GainBlock(ref x, self.Owner, x.B.Powers[self.Index].Amount,
+                ValueProps.Unpowered, fromCard: false);
+    }
+
     public override void BaseSideTurnStart(ref Exec x, Listener self, bool decrementPlating)
     {
         if (!decrementPlating)

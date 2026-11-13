@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-component-healing",
+  "characterId": "FOOL",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "HEALING113",
+  "initialPlayerMaxHp": 77,
+  "initialPlayerHp": 60,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "WAH_CHO",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEEP_STRETCH",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "FOOLISH_SHOT",
+      "pile": "Hand"
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "BOTTLED_SONG"
+    },
+    {
+      "potionId": "CRYSTALLINE_EUPHORIA"
+    },
+    {
+      "potionId": "PRECISION_POTION"
+    }
+  ],
+  "relics": [],
+  "timeoutSeconds": 120
+}

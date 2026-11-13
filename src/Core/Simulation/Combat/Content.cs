@@ -117,13 +117,14 @@ public readonly record struct Listener(ListenerKind Kind, ushort Index, byte Own
 /// <summary>Arguments of the damage modification hooks.</summary>
 public readonly struct DamageContext
 {
-    public DamageContext(byte target, byte dealer, ValueProps props, bool hasCardSource, in Card cardSource)
+    public DamageContext(byte target, byte dealer, ValueProps props, bool hasCardSource, in Card cardSource, bool sourceInPlay = true)
     {
         Target = target;
         Dealer = dealer;
         Props = props;
         HasCardSource = hasCardSource;
         CardSource = cardSource;
+        SourceInPlay = sourceInPlay;
     }
 
     /// <summary>Target owner, or <see cref="Limits.NoOwner"/>.</summary>
@@ -137,6 +138,9 @@ public readonly struct DamageContext
     public bool HasCardSource { get; }
 
     public Card CardSource { get; }
+
+    /// <summary>False for damage previews of a card outside the play pile.</summary>
+    public bool SourceInPlay { get; }
 }
 
 /// <summary>Arguments of the HP loss modification hooks (<c>ModifyHpLostMirrorContext</c>).</summary>
@@ -415,6 +419,9 @@ public enum HookMaskExt : ulong
     AfterArrowShot = 1UL << 9,
     AfterArrowImpaled = 1UL << 10,
     AfterArrowDislodged = 1UL << 11,
+
+    /// <summary>Native AttackCommand.Execute's hit-count query after BeforeAttack.</summary>
+    ModifyAttackHitCount = 1UL << 12,
 
     /// <summary>
     /// Gold hooks the native <c>PlayerCmd.GainGold</c> dispatches over run listeners, which include
@@ -1050,6 +1057,9 @@ public abstract class ListenerDef : ContentDef
     public virtual void BeforeAttack(ref Exec x, Listener self, byte attacker, ValueProps props)
     {
     }
+
+    /// <summary>Native ModifyAttackHitCount for a command sourced from the current card.</summary>
+    public virtual int ModifyAttackHitCount(ref Exec x, Listener self, int hitCount) => hitCount;
 
     public virtual void AfterAttack(ref Exec x, Listener self, byte attacker)
     {

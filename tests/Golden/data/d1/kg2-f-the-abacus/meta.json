@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "kg2-f-the-abacus",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-f-the-abacus.json\u0022}",
-  "rulesSha256": "e01783e6ffcab7d498b380372a0a70c4e7db0e1e473c65208db3e5f92f60abc7",
+  "rulesSha256": "cf79c95a3574f4769fe4ca7b9d95dc579c0778726274924864dd9f46026a472d",
   "counts": {
     "roots": 1,
     "k1": 8,

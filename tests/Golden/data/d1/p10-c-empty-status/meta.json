@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p10-c-empty-status",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-c-empty-status.json\u0022}",
-  "rulesSha256": "5f499cd5ae6df85c010e5c5ed3a5fcd51067d989883a0a05b0ac9a1fbf84d6af",
+  "rulesSha256": "d33fad44db1e6e7cb3dc02dbacf52ed908150301fb59ad4121644435b21b48a7",
   "counts": {
     "roots": 1,
     "k1": 3,

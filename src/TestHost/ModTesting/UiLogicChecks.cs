@@ -71,6 +71,7 @@ internal static class UiLogicChecks
         Check("settings_growth_switch_upgrade", () => GrowthSwitchUpgrade(directory));
         Check("potion_directive_reconcile", PotionDirectiveReconcile);
         Check("deployment_timing", DeploymentTiming);
+        Check("frame_recovery", FrameRecoveryChecks.Run);
         Check("full_auto_pause_policy", PausePolicy);
         Check("search_memory_priority", MemoryPriority);
         Check("search_memory_default", MemoryDefault);

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "thumbscrew-osty",
+  "characterId": "NECROBINDER",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "UPSTREAM514",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 999,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "RATTLE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "RATTLE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "RATTLE",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "relics": [
+    {
+      "relicId": "THUMBSCREW"
+    }
+  ]
+}

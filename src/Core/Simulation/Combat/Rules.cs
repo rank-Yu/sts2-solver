@@ -501,6 +501,9 @@ public sealed class Rules
     /// importer projects Aux as 0. Step clears it with one indexed write at every stable boundary.
     /// </summary>
     public int PenNibRelicIndex => Relics.PenNibIndex;
+
+    /// <summary>Root-cached active relic listeners; ordinary roots skip the hit-count query.</summary>
+    public bool HasAttackHitCountRelics => !Relics.Listeners(HookMaskExt.ModifyAttackHitCount).IsEmpty;
     public int TotalFloor { get; }
     public DominionRules Dominion { get; }
     public CombatMode Mode { get; }

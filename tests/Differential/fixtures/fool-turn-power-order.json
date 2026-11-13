@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "characterId": "FOOL",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "FOOL021REGRESSION",
+  "enemyCurrentHp": 999,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 150,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "FOOLISH_SHOT",
+      "pile": "Hand"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "HIDDEN_ROOTS_POWER",
+      "target": "Player",
+      "amount": 3
+    },
+    {
+      "powerId": "ARCHERY_POWER",
+      "target": "Player",
+      "amount": 5
+    }
+  ],
+  "scenarioId": "fool-turn-power-order"
+}

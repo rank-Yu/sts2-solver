@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-detached-card-order",
+  "characterId": "SILENT",
+  "encounterId": "THIEVING_HOPPER_WEAK",
+  "gameModeForTest": "Dread",
+  "ascension": 0,
+  "seed": "D05-Silent-02",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "PIERCING_WAIL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "MASTER_PLANNER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SNAKEBITE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "MEMENTO_MORI",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "HAND_TRICK",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STORM_OF_STEEL",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "WELL_LAID_PLANS",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "EXPERTISE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "AFTERIMAGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "HAZE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GRAND_FINALE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "PHANTOM_BLADES",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "MIRAGE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FINISHER",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "CALCULATED_GAMBLE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SKEWER",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NIGHTMARE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DAGGER_THROW",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FLECHETTES",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SUCKER_PUNCH",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "MURDER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "dominionForTest": "KNOWLEDGE_DEMON_DOMINION"
+}

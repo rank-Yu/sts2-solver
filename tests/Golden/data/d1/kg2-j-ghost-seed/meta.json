@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "kg2-j-ghost-seed",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-j-ghost-seed.json\u0022}",
-  "rulesSha256": "28b014842695b7c0ab64bcc6a323df9602736ebe5172b825e9d434d5441abb30",
+  "rulesSha256": "a84e4c088ba78344d4016c44cd91bcf25eaef403e7f439619d33b2c26cd5064f",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "thumbscrew-attacks",
+  "characterId": "IRONCLAD",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "UPSTREAM514",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 999,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "TWIN_STRIKE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SWORD_BOOMERANG",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "FIEND_FIRE",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "relics": [
+    {
+      "relicId": "THUMBSCREW"
+    }
+  ]
+}

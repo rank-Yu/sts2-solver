@@ -50,12 +50,14 @@ public static partial class Kernel
             return;
         x.AttackUnblockedHits = 0;
         x.AttackSuckHitLists = 0;
-        // BeginAttackContext: BeforeAttack iterates the combat listeners behind the ending gate
-        // (HookMirrors.BeforeAttack). ModifyAttackHitCount has no supported listeners yet.
+        // Native AttackCommand.Execute (0.113.0 / 16ac0fe3): BeforeAttack is ending-gated;
+        // ModifyAttackHitCount follows it before the hit loop.
         BeforeAttackHook before = new() { Attacker = attacker, Props = props };
         HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);
         if (x.NeedsChoice)
             return;
+        if (x.R.HasAttackHitCountRelics)
+            hitCount = HookDispatch.ModifyAttackHitCount(ref x, hitCount);
         BeginAttack(ref x, props, hasCardSource: true);
         Span<byte> targets = stackalloc byte[Limits.Enemies + 1];
         for (int hit = 0; hit < hitCount; hit++)

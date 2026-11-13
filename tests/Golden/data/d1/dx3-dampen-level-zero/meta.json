@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "dx3-dampen-level-zero",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-dampen-level-zero.json\u0022}",
-  "rulesSha256": "fe21f662308301ca3f4dc3d5ee5902e890d72777162b219eeb124715053d8d07",
+  "rulesSha256": "6a11128bed9e543d69cc9275aa4bf4e9f219d37f02fb99fcc044755ffa7f0f21",
   "counts": {
     "roots": 1,
     "k1": 20,

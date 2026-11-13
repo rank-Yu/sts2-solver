@@ -12,7 +12,7 @@ public static class ModEntry
     public const string ModId = "Sts2Solver";
     public const string DisplayName = "尖塔求解器";
     public const string EnglishName = "STS2 Solver";
-    public const string Version = "0.1.0";
+    public static string Version => typeof(ModEntry).Assembly.GetName().Version!.ToString(3);
 
     public static bool Enabled { get; private set; }
 

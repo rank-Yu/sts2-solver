@@ -82,7 +82,7 @@ public sealed class ConductorsBaton : RelicDef
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (x.B.RelicState(x.R, self.Index).Counter != 0 || Kernel.MelodiesThisTurn(x.B) < 3
-            || Kernel.IsOverOrEnding(x.B)) return;
+            || !Kernel.IsInProgress(x.B)) return;
         x.B.RelicState(x.R, self.Index).Counter = 1;
         Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<ConductorsBatonPower>(), 1, Limits.PlayerOwner);
     }

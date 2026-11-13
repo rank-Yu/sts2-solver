@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "ls-d-necro",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-d-necro.json\u0022}",
-  "rulesSha256": "9a0889d0b48adef31e1799d98246a373e48f91bf4961b55e5f5be6fc9951e38c",
+  "rulesSha256": "2319de691f02c6e0f831342543f93d7deb999cfaa6d357a83c6edbf71b28fd76",
   "counts": {
     "roots": 1,
     "k1": 17,

@@ -9,7 +9,7 @@ public sealed class PrecisionPotion : PotionDef
     public override IReadOnlyList<string> VarNames => ["AimPower"];
     public override IReadOnlyList<string> AppliedPowers => ["AIM_POWER"];
     public override void OnUse(ref Exec x)
-        => Kernel.ApplyPower(ref x, x.Target, Registry.PowerId<Powers.AimPower>(),
+        => Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.AimPower>(),
             (int)Kernel.PotionVar(x, this, 0), Limits.PlayerOwner);
 }
 

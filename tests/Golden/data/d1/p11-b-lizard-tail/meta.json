@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "p11-b-lizard-tail",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-b-lizard-tail.json\u0022}",
-  "rulesSha256": "e149ebf3ef055a19880733ae8a4c9ee00b21b2bbb1cdb101068df50f60a06285",
+  "rulesSha256": "c598c3d28551b199496c4b55b588b6a67eeaf13ad076c6961944b6b3688be20c",
   "counts": {
     "roots": 1,
     "k1": 3,

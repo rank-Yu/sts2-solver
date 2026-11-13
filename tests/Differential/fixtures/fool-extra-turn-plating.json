@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "characterId": "FOOL",
+  "encounterId": "SLUMBERING_BEETLE_NORMAL",
+  "seed": "FOOL021REGRESSION",
+  "enemyCurrentHp": 999,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 150,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "THE_HANGED_MAN",
+      "pile": "Hand"
+    }
+  ],
+  "initialEnemyBlocks": [
+    0,
+    0,
+    0
+  ],
+  "scenarioId": "fool-extra-turn-plating"
+}

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "dread-knowledge-demon",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dread-knowledge-demon.json\u0022}",
-  "rulesSha256": "b8040bcef1b0731e9875f4e4a39958f1c02e829bc59119ee2c54d36c01d613f3",
+  "rulesSha256": "3dec1e12f7ddc4963163442377f2b5d59237da22fe3c7782026987e86b66738b",
   "counts": {
     "roots": 1,
     "k1": 9,

@@ -128,6 +128,7 @@ CheckHandLimit(rules);
 CheckLrKernel(rules);
 CheckTsKernel(rules);
 CheckIdKernel(rules);
+CheckDetachedReconciliation(rules);
 CheckCxKernel(rules);
 CheckDecimalVars(rules);
 CheckDx3Kernel(rules);
@@ -1356,6 +1357,31 @@ static Rules SliceRules()
 
 
 
+static void CheckDetachedReconciliation(Rules rules)
+{
+    Battle original = NewBattle();
+    Check(Registry.TryCard("STRIKE_IRONCLAD", out ushort strike), "缺少 Strike");
+    Check(Registry.TryCard("DEFEND_IRONCLAD", out ushort defend), "缺少 Defend");
+    Check(Registry.TryPower("NIGHTMARE_POWER", out ushort nightmare), "缺少 Nightmare");
+    original.DetachedCards[0] = Kernel.CreateCard(rules, strike);
+    original.DetachedCards[1] = Kernel.CreateCard(rules, defend);
+    original.PowerCount = 2;
+    original.Powers[0] = new Power { Id = nightmare, Owner = Limits.PlayerOwner, Amount = 1, Aux0 = 1 };
+    original.Powers[1] = new Power { Id = nightmare, Owner = Limits.PlayerOwner, Amount = 1, Aux0 = 2 };
+    Battle reordered = original;
+    reordered.DetachedCards[0] = original.DetachedCards[1];
+    reordered.DetachedCards[1] = original.DetachedCards[0];
+    reordered.Powers[0].Aux0 = 2;
+    reordered.Powers[1].Aux0 = 1;
+    Check(BattleReconciler.Same(original, reordered), "临时牌槽重编号应保持引用图相等");
+    reordered.Powers[0].Aux0 = 1;
+    Check(!BattleReconciler.Same(original, reordered), "临时牌引用错误不能被编号归一化隐藏");
+    reordered.Powers[0].Aux0 = 2;
+    reordered.DetachedCards[0].Var0++;
+    Check(!BattleReconciler.Same(original, reordered), "临时牌数值差异必须保留");
+    Console.WriteLine("DETACHED_RECONCILIATION numbering/reference/value=pass");
+}
+
 // ID: card-instance ledgers and instance powers. Monologue's instance Strength, SwordSage's per-blade
 // applied replay bonus, Nightmare's detached selection, Orbit's energy remainder and the
 // UnsettlingLamp latch are the stable-boundary contract; Fetch's played bit and Vambrace's trigger are
@@ -1422,6 +1448,7 @@ static void CheckIdKernel(Rules rules)
     // Monologue: two instances keep separate Strength/StrengthApplied rows; a play applies both and the
     // side turn end removes each and reverts its applied Strength.
     Battle monologueBattle = NewBattle();
+    monologueBattle.Flags |= BattleFlags.PlayerHooksActive;
     Piles.Append(ref monologueBattle, Pile.Hand, Kernel.CreateCard(rules, strike));
     Exec monologueExec = new(ref monologueBattle, rules, default);
     Kernel.ApplyPowerPreservingTarget(ref monologueExec, Limits.PlayerOwner, monologue, 1,

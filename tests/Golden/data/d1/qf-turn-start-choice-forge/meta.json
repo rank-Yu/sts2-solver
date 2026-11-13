@@ -1,9 +1,9 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "battleSize": 43856,
   "root": "qf-turn-start-choice-forge",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-turn-start-choice-forge.json\u0022}",
-  "rulesSha256": "def0d7be95c0844820f7b718c180b7578694ad7f3d45784ea3172c5bfcc39333",
+  "rulesSha256": "e519ee00785816aee943aac356e18ab2dac62662caed60cf8bb78c4d292e9ebd",
   "counts": {
     "roots": 1,
     "k1": 43,

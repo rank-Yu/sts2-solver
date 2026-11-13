@@ -389,3 +389,15 @@ public sealed class BoneTea : RelicDef
         relic.Counter--;
     }
 }
+
+/// <summary>
+/// Native Thumbscrew.ModifyAttackHitCount (0.113.0 / 16ac0fe3): one extra hit for a multi-hit
+/// command sourced from an owned Attack card. The card owner, not the attacking creature, matters.
+/// </summary>
+[ContentId("THUMBSCREW")]
+public sealed class Thumbscrew : RelicDef
+{
+    public override int ModifyAttackHitCount(ref Exec x, Listener self, int hitCount)
+        => hitCount > 1 && x.R.Card(x.Card.Id, x.Card.Upgrade).Type == CardType.Attack
+            ? hitCount + 1 : hitCount;
+}

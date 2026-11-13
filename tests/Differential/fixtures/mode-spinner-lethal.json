@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-spinner-lethal",
+  "characterId": "DEFECT",
+  "encounterId": "LOUSE_PROGENITOR_NORMAL",
+  "gameModeForTest": "Dread",
+  "ascension": 0,
+  "seed": "R1-D04-Defect-10",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "ITERATION",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GLACIER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FIGHT_THROUGH",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "TURBO",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ZAP",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FERAL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "RAINBOW",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CHILL",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "COLD_SNAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SCAVENGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FUSION",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "MOMENTUM_STRIKE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BALL_LIGHTNING",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "NULL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "CREATIVE_AI",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SHATTER",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BIASED_COGNITION",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FLAK_CANNON",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "LEAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "WHITE_NOISE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "BARRAGE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "SYNTHESIS",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_DEFECT",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "dominionForTest": "KIN_DOMINION"
+}

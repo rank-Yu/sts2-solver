@@ -47,7 +47,8 @@ internal sealed class CombatTurnDeployer(
         token.ThrowIfCancellationRequested();
         CombatState live = CombatManager.Instance.DebugOnlyGetState() ?? combat;
         Player livePlayer = LocalContext.GetMe(live) ?? player;
-        _deployer = new ActionDeployer(host, live, livePlayer, rules, tracker);
+        SolverAutomationSettings automation = SolverSettings.Current.Automation;
+        _deployer = new ActionDeployer(host, live, livePlayer, rules, tracker, automation.DeploymentSpeed);
         ReplayedAction[] actions = CombatRouteDecision.CurrentTurnActions(plan.Actions, turn);
         int playableCount = actions.Count(static action =>
             action.Action.Kind != PlayerActionKind.EndTurn);
@@ -56,7 +57,6 @@ internal sealed class CombatTurnDeployer(
         CombatControllerTestHooks.DeploymentPlayableActionCount = playableCount;
 #endif
         ReplayedAction? endTurn = plan.EndTurnAction(turn);
-        SolverAutomationSettings automation = SolverSettings.Current.Automation;
         FastModeType originalFastMode = CombatDeploymentTiming.CaptureFastMode();
         CombatDeploymentTiming.ApplyFastMode(
             CombatDeploymentTiming.ResolveFastMode(automation.DeploymentSpeed));

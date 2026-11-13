@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mode-crimson-mantle-row",
+  "characterId": "IRONCLAD",
+  "encounterId": "KNIGHTS_ELITE",
+  "gameModeForTest": "Blitz",
+  "ascension": 2,
+  "seed": "R1-B2-Ironclad-07",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 160,
+    "maxHp": 200,
+    "gold": 400
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "VICIOUS",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "THUNDERCLAP",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "INFLAME",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "POMMEL_STRIKE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "CRIMSON_MANTLE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BLOODLETTING",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BATTLE_TRANCE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "HAVOC",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "TWIN_STRIKE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "COLOSSUS",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DRUM_OF_BATTLE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SPITE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "OFFERING",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FIEND_FIRE",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ARMAMENTS",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FIGHT_ME",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "NOT_YET",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "UPPERCUT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "AGGRESSION",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FORGOTTEN_RITUAL",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "INFERNO",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ONE_TWO_PUNCH",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "SHARP",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "NIMBLE",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "STEADY",
+      "enchantmentAmount": 1
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "SWIFT",
+      "enchantmentAmount": 2
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "upgradeLevels": 0,
+      "enchantmentId": "VIGOROUS",
+      "enchantmentAmount": 5
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "THUMBSCREW",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PEN_NIB",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POWER_POTION"
+    },
+    {
+      "potionId": "SKILL_POTION"
+    },
+    {
+      "potionId": "ATTACK_POTION"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "searchTier": "Low",
+  "targetRoomType": "Elite"
+}

@@ -173,7 +173,7 @@ public sealed class LightningRodPower : PowerDef
         Kernel.ChannelOrb(ref x, Kernel.OrbId("LIGHTNING_ORB"));
         if (x.NeedsChoice)
             return;
-        Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, amount - 1);
+        Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, amount - 1);
     }
 }
 

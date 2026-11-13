@@ -121,7 +121,38 @@ internal static class BattleReconciler
         for (int index = write; index < copy.PowerCount; index++)
             copy.Powers[index] = default;
         copy.PowerCount = checked((byte)write);
+        CanonicalizeDetachedCards(ref copy);
         return copy;
+    }
+
+    /// <summary>Compare detached values and their power references independently of pool allocation order.</summary>
+    private static void CanonicalizeDetachedCards(ref Battle battle)
+    {
+        Span<Card> cards = stackalloc Card[Limits.DetachedCards];
+        Span<byte> slots = stackalloc byte[Limits.DetachedCards];
+        slots.Clear();
+        int count = 0;
+        for (int index = 0; index < battle.PowerCount; index++)
+        {
+            ref Power power = ref battle.Powers[index];
+            if (!Registry.Power(power.Id).UsesDetachedCard || power.Aux0 == 0)
+                continue;
+            int old = power.Aux0 - 1;
+            if (slots[old] == 0)
+            {
+                cards[count] = battle.DetachedCards[old];
+                slots[old] = checked((byte)++count);
+            }
+            power.Aux0 = slots[old];
+        }
+        // Keep unreferenced stolen-card snapshots: their return/loss state is still observable.
+        for (int old = 0; old < Limits.DetachedCards; old++)
+        {
+            if (slots[old] == 0 && battle.DetachedCards[old].IsDetachedCardPresent)
+                cards[count++] = battle.DetachedCards[old];
+        }
+        for (int slot = 0; slot < Limits.DetachedCards; slot++)
+            battle.DetachedCards[slot] = slot < count ? cards[slot] : default;
     }
 
     private static bool IsPermanentlyDeadOwner(in Battle battle, byte owner)

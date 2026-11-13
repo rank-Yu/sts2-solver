@@ -1,7 +1,7 @@
 // Adapted from CombatSolver src/UI/SolverSettingsPanel.cs, SolverSettingsPanel.General.cs and
 // SolverSettingsPanel.Performance.cs at 5c773caa (MIT License, Copyright (c) 2026 Torch1230 and
-// contributors). The page replaces the panel body like the original, without tabs: four groups
-// (出牌, 性能, Boss 策略, 显示) with only the settings Sts2Solver wires. The thread count and
+// contributors). The page replaces the panel body like the original, without tabs: five groups
+// (出牌, 性能, Boss 策略, 显示, 反馈) with only the settings Sts2Solver wires. The thread count and
 // memory limit are free inputs prefilled with the
 // effective value; an input left as shown writes nothing,
 // and a value equal to the machine default is stored as null so it keeps following the machine. The
@@ -25,6 +25,8 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     private const double MaximumDelaySeconds = 3d;
     private const ulong OpacitySaveDelayMilliseconds = 400;
 
+    private readonly Button _exportLog;
+    private Task<DiagnosticLogExport>? _export;
     private readonly Button _reset;
     private readonly OptionButton _speed;
     private readonly LineEdit _delay;
@@ -168,6 +170,19 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         SolverSettingsControls.AddBasicRow(display, SolverText.Get("覆盖层透明度"), opacityRow);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("显示"), display);
 
+        HBoxContainer feedback = new()
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _exportLog = SolverUiTokens.CreateButton(SolverText.Get("导出Mod日志"), SolverButtonStyle.Secondary);
+        _exportLog.Name = "ExportLogs";
+        _exportLog.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        _exportLog.TooltipText = SolverText.Get("遇到问题时可导出发给作者");
+        _exportLog.Pressed += ExportLogs;
+        feedback.AddChild(_exportLog);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("反馈"), feedback);
+
         _scroll = SolverSettingsControls.CreatePageScroll(content);
         layout.AddChild(_scroll);
         _status = SolverUiTokens.CreateLabel(string.Empty, SolverUiTokens.Type.Caption,
@@ -250,10 +265,42 @@ internal sealed partial class SolverSettingsPage : PanelContainer
 
     public override void _Process(double delta)
     {
+        if (_export is { IsCompleted: true } export)
+        {
+            _export = null;
+            ShowExport(export.Result);
+        }
         if (_pendingOpacity != null && Time.GetTicksMsec() >= _opacitySaveAt)
             FlushOpacity();
-        if (_pendingOpacity == null)
+        if (_pendingOpacity == null && _export == null)
             SetProcess(false);
+    }
+
+    private void ExportLogs()
+    {
+        if (_export != null)
+            return;
+        _exportLog.Disabled = true;
+        _exportLog.Text = SolverText.Get("正在打包…");
+        SetStatus(SolverText.Get("正在打包…"), SolverUiTokens.Palette.TextSecondary);
+        _export = CombatUiCommands.Instance.ExportLogsAsync();
+        SetProcess(true);
+    }
+
+    private void ShowExport(DiagnosticLogExport result)
+    {
+        _exportLog.Disabled = false;
+        _exportLog.Text = SolverText.Get("导出Mod日志");
+        if (result.ZipPath is not { } zip)
+        {
+            ModLog.Error($"[Sts2Solver] LOG_EXPORT_FAILED reason={result.Error}");
+            SetStatus(SolverText.Format($"导出失败：{result.Error}"), SolverUiTokens.Palette.Danger);
+            return;
+        }
+        ModLog.Info($"[Sts2Solver] LOG_EXPORTED path={zip}");
+        SetStatus(SolverText.Format($"已导出 {Path.GetFileName(zip)}"), SolverUiTokens.Palette.Success);
+        if (!ModEntry.TestMode && OS.ShellShowInFileManager(zip) != Error.Ok)
+            SetStatus(SolverText.Format($"已导出，请打开：{zip}"), SolverUiTokens.Palette.TextSecondary);
     }
 
     public override void _Input(InputEvent inputEvent)
@@ -283,7 +330,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _pendingOpacity = null;
         foreach (LineEdit input in new[] { _delay, _threads, _memory })
             MarkValid(input);
-        _status.Text = string.Empty;
+        _status.Text = _export != null ? SolverText.Get("正在打包…") : string.Empty;
         _loading = false;
         ApplyEffectiveValues(CombatUiStore.Snapshot, force: true);
         ApplyBossStrategies(CombatUiStore.Snapshot.Strategy);
@@ -543,6 +590,10 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         => Math.Round(value * 100d).ToString(CultureInfo.InvariantCulture) + "%";
 
 #if STS2_SOLVER_TESTING
+    internal Button ExportButtonForTest => _exportLog;
+
+    internal bool ExportPendingForTest => _export != null;
+
     internal Button ResetButtonForTest => _reset;
 
     internal OptionButton ActBossOptionForTest => _actBoss;

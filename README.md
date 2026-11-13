@@ -72,7 +72,7 @@
 
 ## 问题反馈
 
-遇到问题请到 [GitHub Issues](https://github.com/rank-Yu/sts2-solver/issues) 反馈，并附上游戏日志。
+遇到问题请到 [GitHub Issues](https://github.com/rank-Yu/sts2-solver/issues) 反馈，在设置页点击“导出Mod日志”，并附上生成的 ZIP 文件。
 
 ## 来源与许可
 

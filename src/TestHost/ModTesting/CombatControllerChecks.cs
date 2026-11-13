@@ -2,6 +2,7 @@
 // published snapshots and write a compact assertion record for controller.json. No scenario
 // bypasses the controller's command validation.
 using System.Diagnostics;
+using System.IO.Compression;
 using Button = Godot.Button;
 using BaseButton = Godot.BaseButton;
 using Sts2Solver.Ai.Combat;
@@ -1129,6 +1130,123 @@ internal static class CombatControllerChecks
         foreach (string file in new[] { "combat.json", "events.log", "search-001.json",
                      "search-001.sreq.br", "search-001.sres.br" })
             check("file_" + file, names.Contains(file), string.Join(",", names.Order()));
+
+        // Exercise the real settings button and queue, including a log enqueued immediately before export.
+        check("settings_saved", SolverSettings.Update(static current => current));
+        string exports = Godot.ProjectSettings.GlobalizePath("user://sts2solver/exports");
+        string[] before = Directory.Exists(exports) ? Directory.GetFiles(exports, "*.zip") : [];
+        // The headless launcher redirects Godot's live log outside user://logs.
+        string existingLog = Godot.ProjectSettings.GlobalizePath("user://logs/export-test-existing.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(existingLog)!);
+        File.WriteAllText(existingLog, "existing game log");
+        SolverSettingsPage page = new();
+        host.AddChild(page);
+        page.Show();
+        page.Opened();
+        try
+        {
+            const string marker = "DIAGNOSTIC_EXPORT_QUEUE_CHECK";
+            ModLog.Info(marker);
+            page.ExportButtonForTest.EmitSignal(BaseButton.SignalName.Pressed);
+            check("export_busy", page.ExportPendingForTest && page.ExportButtonForTest.Disabled);
+            page.ExportButtonForTest.EmitSignal(BaseButton.SignalName.Pressed);
+            page.Opened();
+            check("export_reopen_busy", page.StatusTextForTest == SolverText.Get("正在打包…"));
+            for (int frame = 0; frame < 900 && page.ExportPendingForTest; frame++)
+                await Frames(host, 1);
+            check("export_finished", !page.ExportPendingForTest && !page.ExportButtonForTest.Disabled,
+                page.StatusTextForTest);
+            string[] added = Directory.GetFiles(exports, "*.zip").Except(before).ToArray();
+            check("single_export", added.Length == 1, string.Join(",", added));
+            if (added.Length == 1)
+            {
+                using ZipArchive archive = ZipFile.OpenRead(added[0]);
+                string prefix = "sts2solver/combat-logs/" + Path.GetFileName(folder) + "/";
+                foreach (string file in names)
+                    check("export_" + file, archive.GetEntry(prefix + file) != null);
+                ZipArchiveEntry? events = archive.GetEntry(prefix + "events.log");
+                using StreamReader reader = new(events!.Open());
+                check("export_queue_flushed", reader.ReadToEnd().Contains(marker, StringComparison.Ordinal));
+                check("export_settings", archive.GetEntry("sts2solver/settings.json") != null);
+                check("export_game_logs", archive.Entries.Any(static e => e.FullName.StartsWith("logs/")));
+                check("export_no_nested_zip", archive.Entries.All(static e => !e.FullName.Contains("exports/")));
+                check("export_success_status", page.StatusTextForTest ==
+                    SolverText.Format($"已导出 {Path.GetFileName(added[0])}"), page.StatusTextForTest);
+            }
+            action("export_logs");
+        }
+        finally
+        {
+            File.Delete(existingLog);
+            page.QueueFree();
+        }
+
+        CheckDiagnosticArchive(folder, check);
+    }
+
+    private static void CheckDiagnosticArchive(string folder, Check check)
+    {
+        string scratch = Path.Combine(Path.GetDirectoryName(folder)!, "export-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string combats = Path.Combine(scratch, "combats");
+            string logs = Path.Combine(scratch, "logs");
+            string settings = Path.Combine(scratch, "settings.json");
+            string output = Path.Combine(scratch, "exports");
+            Dictionary<string, string> expected = new()
+            {
+                { "sts2solver/combat-logs/oldest/search-001.sreq.br", "old request" },
+                { "sts2solver/combat-logs/middle/search-001.sres.br", "middle result" },
+                { "sts2solver/combat-logs/latest/deviation-01.actual.batl.br", "actual" },
+                { "sts2solver/combat-logs/latest/deviation-01.predicted.batl.br", "predicted" },
+                { "logs/godot.log", "open log" },
+                { "logs/old/godot.1.log", "previous log" },
+                { "sts2solver/settings.json", "{}" },
+            };
+            foreach ((string entry, string value) in expected)
+            {
+                string path = entry.StartsWith("sts2solver/combat-logs/", StringComparison.Ordinal)
+                    ? Path.Combine(combats, entry["sts2solver/combat-logs/".Length..])
+                    : entry.StartsWith("logs/", StringComparison.Ordinal)
+                        ? Path.Combine(logs, entry["logs/".Length..]) : settings;
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, value);
+            }
+            Directory.CreateDirectory(output);
+            File.WriteAllText(Path.Combine(output, "previous.zip"), "excluded");
+            using FileStream openLog = new(Path.Combine(logs, "godot.log"), FileMode.Open,
+                FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+            DiagnosticLogExport result = DiagnosticLogExporter.Write(combats, settings, logs, output);
+            check("archive_success", result.ZipPath != null, result.Error);
+            if (result.ZipPath != null)
+            {
+                using ZipArchive archive = ZipFile.OpenRead(result.ZipPath);
+                check("archive_exact_files", archive.Entries.Select(static e => e.FullName)
+                    .Order().SequenceEqual(expected.Keys.Order()));
+                foreach ((string entry, string value) in expected)
+                {
+                    ZipArchiveEntry? saved = archive.GetEntry(entry);
+                    using StreamReader? reader = saved == null ? null : new(saved.Open());
+                    check("archive_content_" + entry, reader?.ReadToEnd() == value);
+                }
+            }
+            string absent = Path.Combine(scratch, "absent");
+            DiagnosticLogExport logsOnly = DiagnosticLogExporter.Write(absent, absent, logs, output);
+            check("archive_without_combat", logsOnly.ZipPath != null, logsOnly.Error);
+            if (logsOnly.ZipPath != null)
+            {
+                using ZipArchive archive = ZipFile.OpenRead(logsOnly.ZipPath);
+                check("archive_logs_only", archive.Entries.Count == 2 &&
+                    archive.Entries.All(static e => e.FullName.StartsWith("logs/")));
+            }
+            DiagnosticLogExport failed = DiagnosticLogExporter.Write(combats, settings, logs, settings);
+            check("archive_io_error", failed.ZipPath == null && !string.IsNullOrEmpty(failed.Error));
+            check("archive_no_temporary_files", !Directory.GetFiles(output, "*.tmp").Any());
+        }
+        finally
+        {
+            Directory.Delete(scratch, recursive: true);
+        }
     }
 
     /// <summary>

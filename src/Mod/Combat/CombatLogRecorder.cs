@@ -38,6 +38,7 @@ internal static class CombatLogRecorder
     private static int _searches;
     private static int _deviations;
     private static int _writeFailureReported;
+    private static Task<DiagnosticLogExport>? _export;
 
     /// <summary>Searches whose request <see cref="BeginSearch"/> already saved, by the compiled case.</summary>
     private static readonly ConditionalWeakTable<SearchCase, BegunSearch> Begun = new();
@@ -197,6 +198,34 @@ internal static class CombatLogRecorder
             WriteCompressed(stem + ".actual.batl.br", actualBytes);
             WriteJson(stem + ".json", entry);
         });
+    }
+
+    /// <summary>Called on the UI thread; the writer packages files after earlier queued writes.</summary>
+    internal static Task<DiagnosticLogExport> ExportAsync()
+    {
+        if (_export is { IsCompleted: false })
+            return _export;
+        if (_root is not { } root)
+            return Task.FromResult(new DiagnosticLogExport(null, SolverText.Get("日志尚未初始化")));
+
+        string settings = ProjectSettings.GlobalizePath(SolverSettings.RelativePath);
+        string logs = ProjectSettings.GlobalizePath("user://logs");
+        string exports = ProjectSettings.GlobalizePath("user://sts2solver/exports");
+        TaskCompletionSource<DiagnosticLogExport> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _export = done.Task;
+        string incomplete = SolverText.Get("日志打包未完成");
+        Enqueue(() =>
+        {
+            try
+            {
+                done.SetResult(DiagnosticLogExporter.Write(root, settings, logs, exports));
+            }
+            finally
+            {
+                done.TrySetResult(new DiagnosticLogExport(null, incomplete));
+            }
+        });
+        return _export;
     }
 
 #if STS2_SOLVER_TESTING

@@ -1,4 +1,13 @@
 {
+  "日志尚未初始化": "Logging has not initialized",
+  "日志打包未完成": "Log packaging did not complete",
+  "导出Mod日志": "Export Mod logs",
+  "正在打包…": "Packing…",
+  "反馈": "Feedback",
+  "遇到问题时可导出发给作者": "If you run into a problem, export and send the file to the author.",
+  "导出失败：{0}": "Export failed: {0}",
+  "已导出 {0}": "Exported {0}",
+  "已导出，请打开：{0}": "Exported. Open: {0}",
   "尖塔求解器": "STS2 Solver",
   "设置": "Settings",
   "低档": "Low",

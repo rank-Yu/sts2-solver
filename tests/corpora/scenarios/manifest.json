@@ -278,6 +278,12 @@
       "group": "controller"
     },
     {
+      "id": "combat_log_files_en",
+      "scenario": "combat_log_files",
+      "group": "controller",
+      "english": true
+    },
+    {
       "id": "main_menu_stops_search",
       "scenario": "main_menu_stops_search",
       "group": "controller"

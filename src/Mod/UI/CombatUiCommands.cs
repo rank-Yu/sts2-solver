@@ -10,6 +10,8 @@ namespace Sts2Solver;
 /// </summary>
 internal interface ICombatUiCommands
 {
+    Task<DiagnosticLogExport> ExportLogsAsync();
+
     bool SetAutoSearch(bool enabled);
 
     bool StartSearch();
@@ -51,6 +53,8 @@ internal static class CombatUiCommands
 
     private sealed class Commands : ICombatUiCommands
     {
+        public Task<DiagnosticLogExport> ExportLogsAsync() => CombatLogRecorder.ExportAsync();
+
         public bool SetAutoSearch(bool enabled) => CombatSessionController.SetAutoSearch(enabled);
 
         public bool StartSearch() => CombatSessionController.StartSearch();

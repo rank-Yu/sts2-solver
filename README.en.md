@@ -73,7 +73,7 @@ Test conditions:
 
 ## Feedback
 
-Report problems on [GitHub Issues](https://github.com/rank-Yu/sts2-solver/issues) and attach the game log.
+Report problems on [GitHub Issues](https://github.com/rank-Yu/sts2-solver/issues). Use “Export Mod logs” in Settings and attach the generated ZIP file.
 
 ## Credits and license
 

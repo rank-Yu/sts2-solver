@@ -20,11 +20,11 @@ public static partial class HookDispatch
         {
             return amount;
         }
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.TryModifyStarCost, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.TryModifyStarCost, listeners);
         for (int index = 0; index < count; index++)
         {
-            amount = Definition(battle, listeners[index]).TryModifyStarCost(battle, rules, listeners[index],
+            amount = Definition(battle, rules, listeners[index]).TryModifyStarCost(battle, rules, listeners[index],
                 card, pile, amount);
         }
         return amount;
@@ -42,14 +42,14 @@ public static partial class HookDispatch
     {
         if (amount <= 0 || (Registry.AnyHooks & HookMask.AfterStarsSpent) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterStarsSpent, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterStarsSpent, listeners);
         RejectUnsupportedAfterStarsSpentKinds(listeners[..count]);
         for (int index = 0; index < count; index++)
         {
             if (listeners[index].Kind != ListenerKind.Relic)
                 continue;
-            Definition(x.B, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
+            Definition(x.B, x.R, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
             if (x.NeedsChoice)
                 return;
         }
@@ -57,7 +57,7 @@ public static partial class HookDispatch
         {
             if (listeners[index].Kind != ListenerKind.Power)
                 continue;
-            Definition(x.B, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
+            Definition(x.B, x.R, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
             if (x.NeedsChoice)
                 return;
         }
@@ -86,11 +86,11 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.AfterStarsGained) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterStarsGained, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterStarsGained, listeners);
         for (int index = 0; index < count; index++)
         {
-            Definition(x.B, listeners[index]).AfterStarsGained(ref x, listeners[index], amount);
+            Definition(x.B, x.R, listeners[index]).AfterStarsGained(ref x, listeners[index], amount);
             if (x.NeedsChoice)
                 return false;
         }

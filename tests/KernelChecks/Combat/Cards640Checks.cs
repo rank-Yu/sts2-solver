@@ -24,7 +24,7 @@ internal static class Cards640Checks
         for (int index = 0; index < Limits.Cards; index++)
             Piles.Append(ref state, Pile.Draw, new Card { Id = 0, Private = checked((short)(index & 0x7FFF)) });
         Assert(state.CardCount == Limits.Cards, $"640 张状态实际 {state.CardCount}");
-        Assert(Battle.PackedSize(in state) == Battle.HeaderSize + Limits.Cards * 92,
+        Assert(Battle.PackedSize(in state) == Battle.HeaderSize + Limits.Cards * System.Runtime.CompilerServices.Unsafe.SizeOf<Card>(),
             "640 张打包前缀长度");
 
         Battle copy = default;
@@ -32,10 +32,10 @@ internal static class Cards640Checks
         Assert(Fingerprint.Equal(in copy, in state), "640 张 CopyPacked 往返");
         Assert(Fingerprint.Hash(in copy) == Fingerprint.Hash(in state), "640 张指纹往返");
 
-        byte[] encoded = BattleCodec.Encode(state);
-        Assert(encoded.Length == BattleCodec.HeaderSize + Battle.PackedSize(in state),
+        byte[] encoded = BattleCodec.Encode(state, RelicRoster.Empty);
+        Assert(encoded.Length == BattleCodec.HeaderSize + sizeof(int) + BattleCodec.SerializedSize + sizeof(ushort),
             "640 张编码长度");
-        Battle decoded = BattleCodec.Decode(encoded);
+        Battle decoded = BattleCodec.Decode(encoded, out _);
         Assert(Fingerprint.Equal(in decoded, in state), "640 张解包往返");
 
         bool threw = false;
@@ -60,7 +60,7 @@ internal static class Cards640Checks
         state.Player = new Creature { CurrentHp = 50, MaxHp = 50, Flags = CreatureFlags.Present };
         for (int index = 0; index < 300; index++)
             Piles.Append(ref state, Pile.Draw, new Card { Id = 0 });
-        Assert(state.CardCount > Limits.LegacyCards, "索引选择需要总牌数超过 255");
+        Assert(state.CardCount > Limits.IndexSelectionCardThreshold, "索引选择需要总牌数超过 255");
 
         ChoiceRequest request = new()
         {

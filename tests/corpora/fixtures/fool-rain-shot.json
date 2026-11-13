@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-rain-shot",
+  "characterId": "FOOL",
+  "encounterId": "SLIMES_WEAK",
+  "seed": "CONTINUE113RAIN_SHOT1",
+  "ascension": 0,
+  "enemyCurrentHp": 120,
+  "initialPlayerEnergy": 6,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "RAIN_SHOT",
+      "upgradeLevels": 1,
+      "pile": "Hand"
+    },
+    {
+      "cardId": "FOOLISH_SHOT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_FOOL",
+      "count": 2,
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "WAH_CHO_KI",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "DEEP_STRETCH",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "QUIVER",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "NOCK",
+      "pile": "Draw"
+    }
+  ],
+  "timeoutSeconds": 120
+}

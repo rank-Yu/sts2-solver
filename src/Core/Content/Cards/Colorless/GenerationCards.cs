@@ -10,8 +10,6 @@ public sealed class BeatDown : CardDef
     public override void OnPlay(ref Exec x)
     {
         int count = (int)CardEffects.Var(x, 0);
-        if (count <= 0)
-            return;
         int pileCount = x.B.DiscardCount;
         Span<Card> candidates = stackalloc Card[pileCount];
         Span<int> origins = stackalloc int[pileCount];
@@ -27,8 +25,6 @@ public sealed class BeatDown : CardDef
                 candidateCount++;
             }
         }
-        if (candidateCount == 0)
-            return;
         candidates = candidates[..candidateCount];
         origins = origins[..candidateCount];
         BeatDownStableShuffle(candidates, origins, x.R, ref x.B);
@@ -111,8 +107,8 @@ public sealed class BeatDown : CardDef
         ref Battle battle)
     {
         // Native List<T>.StableShuffle: sort with CardModel.CompareTo, then Fisher-Yates.
-        CardSort.SortWithOrigins(cards, origins, rules);
-        ref RngState rng = ref battle.RngStream(RngStream.Shuffle);
+        CardSort.SortWithOrigins(cards, origins, rules, in battle, Pile.Draw);
+        RngState rng = battle.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         for (int n = cards.Length; n > 1;)
         {
             n--;
@@ -136,8 +132,6 @@ public sealed class Catastrophe : CardDef
         for (int item = 0; item < count; item++)
         {
             int pileCount = x.B.DrawCount;
-            if (pileCount == 0)
-                return;
             int eligibleCount = 0;
             for (int index = 0; index < pileCount; index++)
             {
@@ -152,6 +146,8 @@ public sealed class Catastrophe : CardDef
             int shuffledCount = eligibleCount;
             if (shuffledCount == 0)
             {
+                // The first empty StableShuffle still consumes a seed.
+                x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
                 for (int index = 0; index < pileCount; index++)
                 {
                     buffer[index] = x.B.Cards[x.B.HandCount + index];
@@ -160,6 +156,8 @@ public sealed class Catastrophe : CardDef
                 shuffledCount = pileCount;
             }
             StableShuffle(buffer[..shuffledCount], origins[..shuffledCount], x.R, ref x.B);
+            if (shuffledCount == 0)
+                continue;
             Card selected = buffer[0];
             int position = origins[0];
             if (position >= x.B.DrawCount
@@ -174,8 +172,8 @@ public sealed class Catastrophe : CardDef
     private static void StableShuffle(Span<Card> cards, Span<int> origins, Rules rules,
         ref Battle battle)
     {
-        CardSort.SortWithOrigins(cards, origins, rules);
-        ref RngState rng = ref battle.RngStream(RngStream.Shuffle);
+        CardSort.SortWithOrigins(cards, origins, rules, in battle, Pile.Draw);
+        RngState rng = battle.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         for (int n = cards.Length; n > 1;)
         {
             n--;
@@ -283,7 +281,7 @@ public sealed class Alchemize : CardDef
     public override void OnPlay(ref Exec x)
     {
         ushort potion = Kernel.GenerateRandomPotion(ref x.B, x.R);
-        if (Kernel.TryProcurePotion(ref x.B, potion))
+        if (Kernel.TryProcurePotion(ref x.B, x.R, potion))
         {
             // SimulatedCombatState.RecordLongTermResource(20) after a successful procure.
             x.B.AddCounter(Counter.LongTermResourceValue, 20);

@@ -67,6 +67,8 @@ public static partial class Kernel
         }
 
         // OnPlayWrapper's isAutoPlay branch moves the card to the play pile.
+        if (!skipXCapture && (card.Flags & CardFlags.CostsX) != 0)
+            Piles.At(ref x.B, pile, index).CapturedEnergy = checked((short)energyValue);
         Card moved = Piles.At(ref x.B, pile, index);
         int playPosition = Piles.MoveToEnd(ref x.B, pile, index, Pile.Play);
         x.Card = moved;
@@ -158,6 +160,8 @@ public static partial class Kernel
         // may have mutated the value in place (the one-time affliction check and normalization), so an
         // exact value lookup can fail; fall back to the slot the card was appended to.
         int index = PlayIndexOf(ref x.B, card, enteredPosition);
+        if (!skipXCapture && (card.Flags & CardFlags.CostsX) != 0)
+            Piles.At(ref x.B, Pile.Play, index).CapturedEnergy = checked((short)energyValue);
         Card moved = Piles.At(ref x.B, Pile.Play, index);
         int playPosition = Piles.MoveToEnd(ref x.B, Pile.Play, index, Pile.Play);
         x.Card = moved;
@@ -202,7 +206,7 @@ public static partial class Kernel
     /// sets its flag and plays it from where it currently is. Sts2Solver has no card object identity,
     /// so each queued occurrence is stamped with a transient mark and located again before use.
     /// </remarks>
-    public static void AutoPlayFromDrawPile(ref Exec x, int count, bool forceExhaust)
+    public static void AutoPlayFromDrawPile(ref Exec x, int count, bool forceExhaust, bool upgrade = false)
     {
         if (IsOverOrEnding(x.B) || count <= 0)
             return;
@@ -260,6 +264,7 @@ public static partial class Kernel
                 if (!TryFindUniqueTransientMark(x.B, marks[index], out Pile pile, out int position))
                     throw new UnsupportedException("自动打出的牌在结算前离开了战斗牌堆。");
                 ref Card played = ref Piles.At(ref x.B, pile, position);
+                if (upgrade) UpgradeCard(x.R, ref played);
                 if (forceExhaust)
                     played.Flags |= CardFlags.ExhaustOnNextPlay;
                 else

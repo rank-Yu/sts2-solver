@@ -20,18 +20,8 @@ public sealed class PhantomBlades : CardDef
     {
         if (!Registry.TryPower("PHANTOM_BLADES_POWER", out ushort power))
             throw new UnsupportedException("PhantomBlades 需要 PHANTOM_BLADES_POWER 定义。");
-        bool alreadyPresent = Kernel.GetAmount(x.B, Limits.PlayerOwner, power) > 0;
         Kernel.ApplyPower(ref x, Limits.PlayerOwner, power, (int)CardEffects.Var(x, 0),
             Limits.PlayerOwner);
-        if (x.NeedsChoice || alreadyPresent)
-            return;
-        for (int position = 0; position < x.B.CardCount; position++)
-        {
-            ref Card card = ref x.B.Cards[position];
-            CardStats stats = x.R.Card(card.Id, card.Upgrade);
-            if ((stats.Tags & CardTag.Shiv) != 0)
-                card.Keywords |= Keywords.Retain;
-        }
     }
 }
 

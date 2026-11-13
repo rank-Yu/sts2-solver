@@ -1,9 +1,9 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "nb-l-osty-defense",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-l-osty-defense.json\u0022}",
-  "rulesSha256": "60f2e55b89682b478233d1c390511a3332cd4c03c99e398a089b70d2100c80bb",
+  "rulesSha256": "82b6e15b0d27174e7813e4bc317dc618338f3ec28274d8a868817b59bd42e8a8",
   "counts": {
     "roots": 1,
     "k1": 5,

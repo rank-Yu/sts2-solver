@@ -13,7 +13,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 internal static class Codec
 {
-    internal const ushort FormatVersion = 5;
+    internal const ushort FormatVersion = 9;
 
     internal static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
@@ -154,10 +154,18 @@ internal static class Codec
 
     /// <summary>The truncated SHA-256 of the packed <see cref="Battle"/> prefix (64 bits).</summary>
     internal static ulong BattleHash(in Battle battle)
+        => Sha256U64(Fingerprint.Bytes(battle));
+
+    internal static void WriteCard(BinaryWriter writer, in Card card)
+        => writer.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in card, 1)));
+
+    internal static Card ReadCard(BinaryReader reader)
     {
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Fingerprint.Bytes(battle), hash);
-        return BinaryPrimitives.ReadUInt64LittleEndian(hash);
+        Span<byte> bytes = stackalloc byte[Unsafe.SizeOf<Card>()];
+        reader.BaseStream.ReadExactly(bytes);
+        Card card = MemoryMarshal.Read<Card>(bytes);
+        BattleCodec.ValidateCard(card);
+        return card;
     }
 
     internal static ulong Sha256U64(ReadOnlySpan<byte> bytes)
@@ -168,64 +176,70 @@ internal static class Codec
     }
 }
 
-/// <summary>
-/// Packed <see cref="Battle"/> file: version, the packed prefix length and the packed byte image.
-/// Only the header and the cards at <c>[0, CardCount)</c> are stored; the struct suffix is undefined.
-/// Writers and readers use the current version only.
-/// </summary>
+/// <summary>Current Battle byte prefix followed by its immutable relic roster.</summary>
 public static class BattleCodec
 {
-    internal const uint Magic = 0x4C544142; // "BATL"
-
-    /// <summary>Encoded header bytes: magic, version, size.</summary>
+    internal const uint Magic = 0x4C544142; // BATL
     public const int HeaderSize = 4 + 2 + 4;
+    public const int SerializedSize = Battle.ExpectedSize;
+    public const int MaxSerializedSize = 4 + SerializedSize + 2 + Limits.RelicRoster * 12;
 
-    public static byte[] Encode(in Battle battle)
+    public static byte[] Encode(in Battle battle, RelicRoster relics)
     {
-        int size = Unsafe.SizeOf<Battle>();
-        if (size != Battle.ExpectedSize)
-            throw new InvalidOperationException(
-                $"Battle 大小 {size} 与布局断言 {Battle.ExpectedSize} 不符。");
-        ReadOnlySpan<byte> packed = Fingerprint.Bytes(battle);
-        byte[] bytes = new byte[HeaderSize + packed.Length];
-        Span<byte> header = bytes.AsSpan(0, HeaderSize);
-        BinaryPrimitives.WriteUInt32LittleEndian(header, Magic);
-        BinaryPrimitives.WriteUInt16LittleEndian(header[4..], Codec.FormatVersion);
-        BinaryPrimitives.WriteInt32LittleEndian(header[6..], packed.Length);
-        packed.CopyTo(bytes.AsSpan(HeaderSize));
+        int packedSize = Battle.PackedSize(battle);
+        byte[] bytes = new byte[HeaderSize + 4 + packedSize + 2 + relics.Count * 12];
+        Span<byte> target = bytes;
+        BinaryPrimitives.WriteUInt32LittleEndian(target, Magic);
+        BinaryPrimitives.WriteUInt16LittleEndian(target[4..], Codec.FormatVersion);
+        BinaryPrimitives.WriteInt32LittleEndian(target[6..], bytes.Length - HeaderSize);
+        BinaryPrimitives.WriteInt32LittleEndian(target[HeaderSize..], packedSize);
+        Fingerprint.Bytes(battle).CopyTo(target[(HeaderSize + 4)..]);
+        Span<byte> roster = target[(HeaderSize + 4 + packedSize)..];
+        BinaryPrimitives.WriteUInt16LittleEndian(roster, checked((ushort)relics.Count));
+        for (int i = 0; i < relics.Count; i++)
+        {
+            Relic row = relics.Fixed(i);
+            MemoryMarshal.Write(roster.Slice(2 + i * 12, 12), in row);
+        }
         return bytes;
     }
 
-    public static Battle Decode(ReadOnlySpan<byte> bytes)
+    public static Battle Decode(ReadOnlySpan<byte> bytes, out RelicRoster relics)
     {
-        if (bytes.Length < HeaderSize)
-            throw new InvalidDataException($"Battle 数据只有 {bytes.Length} 字节，短于头部 {HeaderSize}。");
-        uint magic = BinaryPrimitives.ReadUInt32LittleEndian(bytes);
-        if (magic != Magic)
-            throw new InvalidDataException($"Battle 魔数 {magic:X8} 不符。");
-        ushort version = BinaryPrimitives.ReadUInt16LittleEndian(bytes[4..]);
-        if (version != Codec.FormatVersion)
-            throw new InvalidDataException($"Battle 格式版本 {version} 不受支持（当前 {Codec.FormatVersion}）。");
-        int declared = BinaryPrimitives.ReadInt32LittleEndian(bytes[6..]);
-        int current = Unsafe.SizeOf<Battle>();
-        if (current != Battle.ExpectedSize)
-            throw new InvalidDataException(
-                $"Battle 大小 {current} 与布局断言 {Battle.ExpectedSize} 不符。");
-        if (bytes.Length != HeaderSize + declared)
-            throw new InvalidDataException(
-                $"Battle 数据长度 {bytes.Length} 与声明 {HeaderSize + declared} 不符。");
-        if (bytes.Length <= HeaderSize)
-            throw new InvalidDataException("Battle 载荷为空。");
-        ReadOnlySpan<byte> payload = bytes[HeaderSize..];
-        if (declared < Battle.HeaderSize || declared > current)
-            throw new InvalidDataException(
-                $"Battle 打包长度 {declared} 不在 {Battle.HeaderSize}..{current} 内。");
-        Unsafe.SkipInit(out Battle battle);
-        payload.CopyTo(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref battle, 1)));
-        if (Battle.PackedSize(in battle) != declared)
-            throw new InvalidDataException(
-                $"Battle 打包长度 {declared} 与计数推出的 {Battle.PackedSize(in battle)} 不符。");
-        Validate(in battle);
+        if (bytes.Length < HeaderSize + 4 + Battle.HeaderSize + 2
+            || bytes.Length > HeaderSize + MaxSerializedSize)
+            throw new InvalidDataException("Invalid Battle file length.");
+        if (BinaryPrimitives.ReadUInt32LittleEndian(bytes) != Magic)
+            throw new InvalidDataException("Invalid Battle magic.");
+        if (BinaryPrimitives.ReadUInt16LittleEndian(bytes[4..]) != Codec.FormatVersion)
+            throw new InvalidDataException("Unsupported Battle format version.");
+        if (BinaryPrimitives.ReadInt32LittleEndian(bytes[6..]) != bytes.Length - HeaderSize)
+            throw new InvalidDataException("Battle payload length mismatch.");
+        int packedSize = BinaryPrimitives.ReadInt32LittleEndian(bytes[HeaderSize..]);
+        if (packedSize < Battle.HeaderSize || packedSize > SerializedSize
+            || bytes.Length < HeaderSize + 4 + packedSize + 2)
+            throw new InvalidDataException("Invalid packed Battle length.");
+        Battle battle = default;
+        bytes.Slice(HeaderSize + 4, packedSize)
+            .CopyTo(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref battle, 1)));
+        Validate(battle);
+        if (packedSize != Battle.PackedSize(battle))
+            throw new InvalidDataException("Battle pile counts do not match packed length.");
+        ReadOnlySpan<byte> tail = bytes[(HeaderSize + 4 + packedSize)..];
+        int count = BinaryPrimitives.ReadUInt16LittleEndian(tail);
+        if (tail.Length != 2 + count * 12)
+            throw new InvalidDataException("Relic roster length mismatch.");
+        ReadOnlySpan<Relic> rows = MemoryMarshal.Cast<byte, Relic>(tail[2..]);
+        relics = RelicRoster.Create(rows);
+        if (battle.RelicStateCount != relics.StateCount)
+            throw new InvalidDataException("Battle relic states do not match the roster.");
+        for (int i = 0; i < count; i++)
+        {
+            Relic fixedRow = relics.Fixed(i);
+            if (fixedRow.Counter != rows[i].Counter || fixedRow.Aux != rows[i].Aux
+                || fixedRow.Flags != rows[i].Flags)
+                throw new InvalidDataException("Fixed relic roster contains mutable state.");
+        }
         return battle;
     }
 
@@ -237,7 +251,7 @@ public static class BattleCodec
             throw new InvalidDataException("Battle 卡牌计数超出数组容量。");
         if (battle.EnemyCount > Limits.Enemies || battle.RosterCount > Limits.Enemies)
             throw new InvalidDataException("Battle 敌人计数超出数组容量。");
-        if (battle.PowerCount > Limits.Powers || battle.RelicCount > Limits.Relics
+        if (battle.PowerCount > Limits.Powers || battle.RelicStateCount > Limits.RelicStates
             || battle.OrbCount > Limits.Orbs)
             throw new InvalidDataException("Battle Power/遗物/球计数超出数组容量。");
         if (battle.PotionSlotCount > Limits.PotionSlots)
@@ -252,9 +266,16 @@ public static class BattleCodec
                 throw new InvalidDataException($"Battle 敌人 {index} 的规则下标越界。");
         }
         for (int index = 0; index < battle.CardCount; index++)
-        {
-            if (battle.Cards[index].Id >= Registry.CardCount)
-                throw new InvalidDataException($"Battle 卡牌 {index} 的内容下标越界。");
-        }
+            ValidateCard(battle.Cards[index]);
+        for (int index = 0; index < Limits.DetachedCards; index++)
+            ValidateCard(battle.DetachedCards[index]);
+        ValidateCard(battle.HistoryCourseCard);
+    }
+    internal static void ValidateCard(in Card card)
+    {
+        if (card.Id >= Registry.CardCount)
+            throw new InvalidDataException("Unknown card id.");
+        if (card.EnergyModifierCount > Limits.CardEnergyCostModifiers)
+            throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
     }
 }

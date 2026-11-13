@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p10-a-turn-end-status",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-a-turn-end-status.json\u0022}",
-  "rulesSha256": "c25c088d80b97f9ce4935596d904b55d4576d1439ac074ce679ee8bcbbc3ddfa",
+  "rulesSha256": "7e3af68a979d90d3e14237f849041f8905bc7741fc4042dae7c0faa1e9c45562",
   "counts": {
     "roots": 1,
     "k1": 3,
     "walks": 32,
-    "walkStates": 1914,
-    "transitions": 1911
+    "walkStates": 1921,
+    "transitions": 1920
   }
 }

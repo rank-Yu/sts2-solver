@@ -19,9 +19,9 @@ public static partial class Kernel
         decimal modified;
         // AfterModifyingBlockAmount only needs the changed-listener list when a listener can change the
         // block: Vambrace (identity content) or PaelsLegion's x2 while its cooldown is down.
-        if (x.R.HasIdentityContent || x.R.HasPaelsLegion)
+        if (x.R.HasIdentityContent || x.R.HasPaelsLegion || x.R.HasFoolMechanics)
         {
-            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
+            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R) * 2];
             modified = HookDispatch.ModifyBlock(ref x, owner, amount, props, hasCardSource, cardSource, out _,
                 changed, out int changedCount);
             modified = Math.Max(modified, 0m);

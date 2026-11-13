@@ -17,13 +17,15 @@ public sealed partial class DivineRight : RelicDef;
 [ContentId("GALACTIC_DUST")]
 public sealed class GalacticDust : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["Stars", "Block"];
 
     public override void AfterStarsSpent(ref Exec x, Listener self, int amount)
     {
         if (amount <= 0 || self.Owner != Limits.PlayerOwner)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         int threshold = (int)x.R.RelicVar(Id, 0);
         if (threshold <= 0)
             throw new UnsupportedException("银河星尘的星能阈值不是正数。");
@@ -44,13 +46,15 @@ public sealed class GalacticDust : RelicDef
 [ContentId("MINI_REGENT")]
 public sealed class MiniRegent : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["StrengthPower"];
 
     public override void AfterStarsSpent(ref Exec x, Listener self, int amount)
     {
         if (amount <= 0 || self.Owner != Limits.PlayerOwner)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter != 0)
             return;
         relic.Counter = 1;
@@ -61,7 +65,7 @@ public sealed class MiniRegent : RelicDef
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side == Side.Player)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 }
 
@@ -73,13 +77,15 @@ public sealed class MiniRegent : RelicDef
 [ContentId("REGALITE")]
 public sealed class Regalite : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["Block"];
 
     public override void AfterCardGeneratedForCombat(ref Exec x, Listener self, int position, byte creator)
     {
         if (creator != Limits.PlayerOwner || self.Owner != Limits.PlayerOwner)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter != 0)
             return;
         relic.Counter = 1;
@@ -90,7 +96,7 @@ public sealed class Regalite : RelicDef
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side == Side.Player)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 }
 
@@ -142,6 +148,8 @@ public sealed class OrangeDough : RelicDef
 [ContentId("BRILLIANT_SCARF")]
 public sealed class BrilliantScarf : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["Cards"];
 
     public override decimal TryModifyEnergyCostInCombatLate(in Battle battle, Rules rules,
@@ -156,13 +164,13 @@ public sealed class BrilliantScarf : RelicDef
     {
         if (x.CurrentPlayIsAutoPlay || self.Owner != Limits.PlayerOwner)
             return;
-        x.B.Relics[self.Index].Counter++;
+        x.B.RelicState(x.R, self.Index).Counter++;
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side == Side.Player)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 
     private bool IsFreeTurn(in Battle battle, Rules rules, int relicIndex, Pile pile)
@@ -170,6 +178,6 @@ public sealed class BrilliantScarf : RelicDef
         if (pile is not (Pile.Hand or Pile.Play))
             return false;
         int threshold = (int)rules.RelicVar(Id, 0) - 1;
-        return battle.Relics[relicIndex].Counter == threshold;
+        return battle.GetRelic(rules, relicIndex).Counter == threshold;
     }
 }

@@ -26,17 +26,23 @@ internal sealed class NativeChoiceSelector(
     string owner) : ICardSelector
 {
     private int _index;
+    internal NativeChoiceMismatchException? Failure { get; private set; }
+
+    private NativeChoiceMismatchException Mismatch(string message)
+        => Failure ??= new NativeChoiceMismatchException(message);
+
+    private Player OwnerPlayer => player;
 
     internal int PendingCount => choices.Count - _index;
 
     internal static IDisposable Activate(NativeChoiceSelector selector)
-        => CardSelectCmd.PushSelector(selector);
+        => MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.PushSelector(selector.OwnerPlayer, selector);
 
     internal void AssertConsumed()
     {
         if (_index != choices.Count)
         {
-            throw new NativeChoiceMismatchException(
+            throw Mismatch(
                 $"{owner} 仍有 {choices.Count - _index} 个计划选择没有被游戏请求。" +
                 $"下一个={Describe(choices[_index])}");
         }
@@ -48,7 +54,7 @@ internal sealed class NativeChoiceSelector(
         List<CardModel> live = options.ToList();
         if (_index >= choices.Count)
         {
-            throw new NativeChoiceMismatchException(
+            throw Mismatch(
                 $"{owner} 请求了计划外的选牌：options={live.Count} bounds={minSelect}..{maxSelect} " +
                 $"cards=[{string.Join(',', live.Select(CardName))}]");
         }
@@ -59,7 +65,7 @@ internal sealed class NativeChoiceSelector(
         int actualMax = Math.Min(maxSelect, live.Count);
         if (expected < actualMin || expected > actualMax)
         {
-            throw new NativeChoiceMismatchException(
+            throw Mismatch(
                 $"{owner} 计划选择 {expected} 张，原生界面要求 {actualMin}..{actualMax} 张。" +
                 $"choice={Describe(choice)}");
         }
@@ -71,27 +77,27 @@ internal sealed class NativeChoiceSelector(
 
     public CardRewardSelection GetSelectedCardReward(IReadOnlyList<CardCreationResult> options,
         IReadOnlyList<CardRewardAlternative> alternatives)
-        => throw new NativeChoiceMismatchException($"{owner} 请求了战斗内计划外的卡牌奖励选择。");
+        => throw Mismatch($"{owner} 请求了战斗内计划外的卡牌奖励选择。");
 
     private int[] MapOptions(PlannedChoice choice, List<CardModel> live)
     {
         int count = choice.Request.OptionCount;
         if (live.Count != count)
         {
-            throw new NativeChoiceMismatchException(
+            throw Mismatch(
                 $"{owner} 选项数 {live.Count} 与计划 {count} 不符。" +
                 $"choice={Describe(choice)} native=[{string.Join(',', live.Select(CardName))}]");
         }
         if (!choice.OptionsAreGenerated && !choice.Request.SourceIsNone)
         {
             PlayerCombatState state = player.PlayerCombatState
-                ?? throw new NativeChoiceMismatchException($"{owner} 玩家没有战斗牌堆。");
+                ?? throw Mismatch($"{owner} 玩家没有战斗牌堆。");
             IReadOnlyList<CardModel> source = PileCards(state, choice.Request.Source);
             for (int index = 0; index < live.Count; index++)
             {
                 if (!ContainsReference(source, live[index]))
                 {
-                    throw new NativeChoiceMismatchException(
+                    throw Mismatch(
                         $"{owner} 选项 {CardName(live[index])} 不在计划的牌堆 {choice.Request.Source} 中。" +
                         $"choice={Describe(choice)}");
                 }
@@ -116,7 +122,7 @@ internal sealed class NativeChoiceSelector(
             }
             if (match < 0)
             {
-                throw new NativeChoiceMismatchException(
+                throw Mismatch(
                     $"{owner} 找不到选项 {option} 对应的原生卡 {key}。" +
                     $"choice={Describe(choice)} native=[{string.Join(',', live.Select(CardName))}]");
             }
@@ -126,14 +132,14 @@ internal sealed class NativeChoiceSelector(
         return map;
     }
 
-    private static IReadOnlyList<CardModel> PileCards(PlayerCombatState state, Pile pile) => pile switch
+    private IReadOnlyList<CardModel> PileCards(PlayerCombatState state, Pile pile) => pile switch
     {
         Pile.Hand => state.Hand.Cards,
         Pile.Draw => state.DrawPile.Cards,
         Pile.Discard => state.DiscardPile.Cards,
         Pile.Exhaust => state.ExhaustPile.Cards,
         Pile.Play => state.PlayPile.Cards,
-        _ => throw new NativeChoiceMismatchException($"选择来源牌堆 {pile} 无效。"),
+        _ => throw Mismatch($"选择来源牌堆 {pile} 无效。"),
     };
 
     private static bool ContainsReference(IReadOnlyList<CardModel> cards, CardModel card)

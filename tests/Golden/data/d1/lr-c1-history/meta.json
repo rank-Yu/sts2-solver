@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "lr-c1-history",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-c1-history.json\u0022}",
-  "rulesSha256": "c26f362e725ec32e88e0967fded9105f086ef511a87620a615ca75135ef02ba7",
+  "rulesSha256": "7da422d021109becfd73ec94d79aa39e18cb710c7a435a7554ce155799aa7cde",
   "counts": {
     "roots": 1,
     "k1": 13,
     "walks": 32,
-    "walkStates": 175,
-    "transitions": 143
+    "walkStates": 174,
+    "transitions": 142
   }
 }

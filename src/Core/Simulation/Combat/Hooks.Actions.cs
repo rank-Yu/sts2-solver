@@ -79,18 +79,18 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & T.Mask) == 0 || gatedByEnding && Kernel.IsOverOrEnding(x.B))
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, T.Mask, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, T.Mask, listeners);
         if (count == 0)
             return;
         Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
         for (int index = 0; index < count; index++)
-            snapshot[index] = Snapshot(x.B, listeners[index]);
+            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
         for (int index = 0; index < count; index++)
         {
-            if (!TryResolve(x.B, snapshot[index], out Listener current))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
-            InvokeWithChoiceSource(ref x, Definition(x.B, current), current, ref hook);
+            InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
             if (x.NeedsChoice)
                 return;
         }
@@ -105,8 +105,8 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & T.Mask) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, T.Mask, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, T.Mask, listeners);
         if (count == 0)
             return;
         Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
@@ -115,15 +115,15 @@ public static partial class HookDispatch
         {
             if (listeners[index].Kind != ListenerKind.Power)
                 continue;
-            snapshot[powers++] = Snapshot(x.B, listeners[index]);
+            snapshot[powers++] = Snapshot(x.B, x.R, listeners[index]);
         }
         for (int index = 0; index < powers; index++)
         {
-            if (!TryResolve(x.B, snapshot[index], out Listener current))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
             if (current.Kind != ListenerKind.Power || x.B.Powers[current.Index].Amount <= 0)
                 continue;
-            InvokeWithChoiceSource(ref x, Definition(x.B, current), current, ref hook);
+            InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
             if (x.NeedsChoice)
                 return;
         }
@@ -137,7 +137,7 @@ public static partial class HookDispatch
         Listener self, ref T hook) where T : struct, IActionHook
     {
         ChoiceSource savedOrigin = x.ChoiceOrigin;
-        x.ChoiceOrigin = Kernel.ListenerChoiceSource(x.B, self);
+        x.ChoiceOrigin = Kernel.ListenerChoiceSource(x.B, x.R, self);
         try
         {
             hook.Invoke(ref x, definition, self);
@@ -148,9 +148,9 @@ public static partial class HookDispatch
         }
     }
 
-    private static SnapshotEntry Snapshot(in Battle battle, Listener listener)
+    private static SnapshotEntry Snapshot(in Battle battle, Rules rules, Listener listener)
     {
-        SnapshotEntry entry = new() { Listener = listener, Id = ListenerId(battle, listener), Occurrence = -1 };
+        SnapshotEntry entry = new() { Listener = listener, Id = ListenerId(battle, rules, listener), Occurrence = -1 };
         if (listener.Kind == ListenerKind.Orb)
         {
             entry.Orb = battle.Orbs[listener.Index];
@@ -199,10 +199,10 @@ public static partial class HookDispatch
         => left.Id == right.Id && left.IsClone == right.IsClone
             && (left.Flags & CardFlags.DeckCard) == (right.Flags & CardFlags.DeckCard);
 
-    private static ushort ListenerId(in Battle battle, Listener listener) => listener.Kind switch
+    private static ushort ListenerId(in Battle battle, Rules rules, Listener listener) => listener.Kind switch
     {
         ListenerKind.Power => battle.Powers[listener.Index].Id,
-        ListenerKind.Relic => battle.Relics[listener.Index].Id,
+        ListenerKind.Relic => rules.Relics.Id(listener.Index),
         ListenerKind.Potion => battle.Potions[listener.Index],
         ListenerKind.Monster => battle.Enemies[listener.Index].MonsterId,
         ListenerKind.Orb => battle.Orbs[listener.Index].Id,
@@ -212,7 +212,7 @@ public static partial class HookDispatch
         _ => throw new ArgumentOutOfRangeException(nameof(listener), listener.Kind, null),
     };
 
-    private static bool TryResolve(in Battle battle, in SnapshotEntry entry, out Listener current)
+    private static bool TryResolve(in Battle battle, Rules rules, in SnapshotEntry entry, out Listener current)
     {
         current = entry.Listener;
         // Native combat listener enumeration re-checks owner.IsActiveForHooks as each item is
@@ -263,21 +263,21 @@ public static partial class HookDispatch
                 // Other piles can move within the same callback: Right Hand Hand moves Discard to
                 // Hand, leaving later discard cards at their original absolute indices.
                 if (entry.CardPile != Pile.Play && entry.Listener.Index < battle.CardCount
-                    && ListenerId(battle, entry.Listener) == entry.Id
+                    && ListenerId(battle, rules, entry.Listener) == entry.Id
                     && SameListenerCard(battle.Cards[entry.Listener.Index], entry.Card))
                 {
                     return true;
                 }
                 int located;
-                if (TryLocateCardInPile(battle, entry, out located)
-                    || TryLocateCard(battle, entry, out located))
+                if (TryLocateCardInPile(battle, rules, entry, out located)
+                    || TryLocateCard(battle, rules, entry, out located))
                 {
                     current = new Listener(entry.Listener.Kind, (ushort)located, entry.Listener.Owner);
                     return true;
                 }
                 return false;
             default:
-                return ListenerId(battle, entry.Listener) == entry.Id;
+                return ListenerId(battle, rules, entry.Listener) == entry.Id;
         }
     }
 
@@ -295,7 +295,7 @@ public static partial class HookDispatch
     }
 
     /// <summary>Locates the snapshot card at the same pile-local index after insertions in earlier piles.</summary>
-    private static bool TryLocateCardInPile(in Battle battle, in SnapshotEntry entry, out int index)
+    private static bool TryLocateCardInPile(in Battle battle, Rules rules, in SnapshotEntry entry, out int index)
     {
         index = -1;
         if (entry.CardPileIndex < 0)
@@ -307,7 +307,7 @@ public static partial class HookDispatch
         int candidate = start + entry.CardPileIndex;
         if (!SameListenerCard(battle.Cards[candidate], entry.Card))
             return false;
-        if (ListenerId(battle, new Listener(entry.Listener.Kind, (ushort)candidate, entry.Listener.Owner))
+        if (ListenerId(battle, rules, new Listener(entry.Listener.Kind, (ushort)candidate, entry.Listener.Owner))
             != entry.Id)
         {
             return false;
@@ -317,7 +317,7 @@ public static partial class HookDispatch
     }
 
     /// <summary>Locates the snapshot card by its value and occurrence over the whole battle.</summary>
-    private static bool TryLocateCard(in Battle battle, in SnapshotEntry entry, out int index)
+    private static bool TryLocateCard(in Battle battle, Rules rules, in SnapshotEntry entry, out int index)
     {
         int occurrence = entry.Occurrence;
         for (int position = 0; position < battle.CardCount; position++)
@@ -327,7 +327,7 @@ public static partial class HookDispatch
             if (occurrence-- == 0)
             {
                 index = position;
-                return ListenerId(battle, new Listener(entry.Listener.Kind, (ushort)position, entry.Listener.Owner))
+                return ListenerId(battle, rules, new Listener(entry.Listener.Kind, (ushort)position, entry.Listener.Owner))
                     == entry.Id;
             }
         }
@@ -363,11 +363,13 @@ public struct AfterDeathHook : IActionHook
 {
     public byte Creature;
     public bool WasRemovalPrevented;
+    public bool HasCardSource;
+    public Card CardSource;
 
     public static HookMask Mask => HookMask.AfterDeath;
 
     public readonly void Invoke(ref Exec x, ListenerDef definition, Listener self)
-        => definition.AfterDeath(ref x, self, Creature, WasRemovalPrevented);
+        => definition.AfterDeath(ref x, self, Creature, WasRemovalPrevented, HasCardSource, CardSource);
 }
 
 public struct AfterBlockBrokenHook : IActionHook

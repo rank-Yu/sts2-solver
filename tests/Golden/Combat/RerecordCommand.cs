@@ -97,6 +97,18 @@ internal static class RerecordCommand
         ManifestProvenance.D1Rerecord = $"roots={rootList} "
             + (recapturePath == null ? "" : $"recaptureRoots={rootList} ")
             + $"reason={reason} sha256={hash}";
+        // Cross-version native seed captures contain D1 only. Initialize an explicitly empty
+        // search section; refreeze --add-requests fills it from current production captures.
+        string d2 = Path.Combine(target, "d2");
+        if (!Directory.Exists(d2))
+        {
+            Directory.CreateDirectory(Path.Combine(d2, "requests"));
+            Directory.CreateDirectory(Path.Combine(d2, "expected"));
+            File.WriteAllText(Path.Combine(d2, "replay-report-1-of-1.json"), JsonSerializer.Serialize(new {
+                formatVersion = Codec.FormatVersion, requestsCaptured = 0, requestsUnique = 0,
+                comparable = 0, equal = 0, mismatch = 0, timeAffected = 0
+            }));
+        }
         ManifestBuilder.Write(target);
         int changed = summaries.Count(static summary => summary.Changed);
         Console.WriteLine($"RERECORD_OK source={source} target={target} roots={roots.Length} "
@@ -157,7 +169,7 @@ internal static class RerecordCommand
             File.Copy(payloadConfig, Path.Combine(targetDirectory, "config.br"), overwrite: true);
             configDirectory = targetDirectory;
         }
-        Rules rules = SimulationVerifier.LoadRules(source, oldRecord.RulesSha256);
+        Rules rules = SimulationVerifier.LoadRules(source, oldRecord.RulesSha256).WithRelics(oldRecord.Roots[0].Relics);
         SearchCase config = SimulationVerifier.LoadConfig(configDirectory, rootName,
             oldRecord.RulesSha256);
         Scorer scorer = config.Options.Scorer
@@ -172,6 +184,7 @@ internal static class RerecordCommand
             roots.Add(new GoldenBattleRoot
             {
                 Battle = root.Battle,
+                Relics = root.Relics,
                 Choices = root.Choices,
                 ScoreHash = scoreHash,
                 BoundStatus = boundStatus,
@@ -594,8 +607,8 @@ internal static class RerecordCommand
                 || oldRoot.BoundStatus != newRoot.BoundStatus
                 || oldRoot.BoundHash != newRoot.BoundHash
                 || !string.Equals(oldRoot.Choices, newRoot.Choices, StringComparison.Ordinal)
-                || !BattleCodec.Encode(oldRoot.Battle).AsSpan()
-                    .SequenceEqual(BattleCodec.Encode(newRoot.Battle)))
+                || !BattleCodec.Encode(oldRoot.Battle, oldRoot.Relics).AsSpan()
+                    .SequenceEqual(BattleCodec.Encode(newRoot.Battle, newRoot.Relics)))
                 return false;
         }
         return true;

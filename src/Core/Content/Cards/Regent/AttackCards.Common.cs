@@ -77,7 +77,7 @@ public sealed class CrushUnder : CardDef
 [ContentId("CELESTIAL_MIGHT")]
 public sealed class CelestialMight : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
@@ -199,7 +199,7 @@ public sealed class SolarStrike : CardDef
 [ContentId("ASTRAL_PULSE")]
 public sealed class AstralPulse : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
-    public override void OnPlay(ref Exec x) => CardEffects.GeneralAttack(ref x, 0, hitCount: 2);
+    public override void OnPlay(ref Exec x) => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
 }

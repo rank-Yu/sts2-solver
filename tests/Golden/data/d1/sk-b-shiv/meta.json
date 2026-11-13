@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "sk-b-shiv",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-b-shiv.json\u0022}",
-  "rulesSha256": "a98c63bc616844cbadbf2f8fb466a0f2aac309178f77dec66c406c37fb72c22d",
+  "rulesSha256": "47b971db0f132cc0d9234cbdaca71f60b0cf7d0f1d4e868dffcf3812933eb13c",
   "counts": {
     "roots": 1,
     "k1": 12,
     "walks": 32,
-    "walkStates": 1922,
+    "walkStates": 1921,
     "transitions": 1920
   }
 }

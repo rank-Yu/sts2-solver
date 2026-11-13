@@ -25,6 +25,7 @@ internal sealed class CombatDisplayNames
     private static readonly object CacheGate = new();
     private static string? _cacheLanguage;
     private static Dictionary<(string Id, int Upgrade), string> _cardNames = [];
+    private static Dictionary<string, CardModel> _cardModels = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _potionNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _relicNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _powerNames = new(StringComparer.Ordinal);
@@ -169,9 +170,20 @@ internal sealed class CombatDisplayNames
         if (string.IsNullOrEmpty(nativeId))
             return nativeId;
         EnsureCache();
-        return _cardNames.TryGetValue((nativeId, upgrade), out string? name)
-            ? name
-            : upgrade == 0 ? nativeId : $"{nativeId}+{upgrade}";
+        if (_cardNames.TryGetValue((nativeId, upgrade), out string? name))
+            return name;
+        if (!_cardModels.TryGetValue(nativeId, out CardModel? canonical)
+            || upgrade < 0 || upgrade > canonical.MaxUpgradeLevel)
+            return upgrade == 0 ? nativeId : $"{nativeId}+{upgrade}";
+        CardModel card = canonical.ToMutable();
+        while (card.CurrentUpgradeLevel < upgrade)
+        {
+            card.UpgradeInternal();
+            card.FinalizeUpgradeInternal();
+        }
+        name = card.Title;
+        _cardNames[(nativeId, upgrade)] = name;
+        return name;
     }
 
     /// <summary>Potion title in the current language, by native id.</summary>
@@ -269,17 +281,11 @@ internal sealed class CombatDisplayNames
             if (string.Equals(_cacheLanguage, language, StringComparison.Ordinal))
                 return;
             Dictionary<(string Id, int Upgrade), string> cards = [];
+            Dictionary<string, CardModel> models = new(StringComparer.Ordinal);
             foreach (CardModel canonical in ModelDb.AllCards)
             {
-                CardModel card = canonical.ToMutable();
-                while (true)
-                {
-                    cards[(card.Id.Entry, card.CurrentUpgradeLevel)] = card.Title;
-                    if (!card.IsUpgradable)
-                        break;
-                    card.UpgradeInternal();
-                    card.FinalizeUpgradeInternal();
-                }
+                models.Add(canonical.Id.Entry, canonical);
+                cards[(canonical.Id.Entry, 0)] = canonical.ToMutable().Title;
             }
             Dictionary<string, string> potions = new(StringComparer.Ordinal);
             foreach (PotionModel potion in ModelDb.All.OfType<PotionModel>())
@@ -294,6 +300,7 @@ internal sealed class CombatDisplayNames
             foreach (MonsterModel monster in ModelDb.All.OfType<MonsterModel>())
                 monsters.TryAdd(monster.Id.Entry, monster.Title.GetFormattedText());
             _cardNames = cards;
+            _cardModels = models;
             _potionNames = potions;
             _relicNames = relics;
             _powerNames = powers;

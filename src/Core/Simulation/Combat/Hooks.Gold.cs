@@ -19,8 +19,8 @@ public static partial class HookDispatch
         changedCount = 0;
         if ((Registry.AnyHooksExt & HookMaskExt.ModifyGoldGained) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.ModifyGoldGained, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.ModifyGoldGained, listeners);
         // Native order is the run listeners (deck cards, relics, potions, ...) followed by the
         // combat listeners. Deck card listeners are rejected at admission, so the first pass is
         // relics and potions; the second keeps the kernel's combat listener order.
@@ -33,7 +33,7 @@ public static partial class HookDispatch
                 if ((pass == 0) != runListener || !PlayerListenerActive(x.B, listener))
                     continue;
                 decimal before = amount;
-                amount = Definition(x.B, listener).ModifyGoldGained(ref x, listener, amount);
+                amount = Definition(x.B, x.R, listener).ModifyGoldGained(ref x, listener, amount);
                 if ((int)before != (int)amount)
                 {
                     if (changedCount >= changed.Length)
@@ -58,9 +58,9 @@ public static partial class HookDispatch
         for (int index = 0; index < modifiers.Length; index++)
         {
             Listener listener = modifiers[index];
-            if ((Definition(x.B, listener).HooksExt & HookMaskExt.AfterModifyingGoldGained) == 0)
+            if ((Definition(x.B, x.R, listener).HooksExt & HookMaskExt.AfterModifyingGoldGained) == 0)
                 continue;
-            Definition(x.B, listener).AfterModifyingGoldGained(ref x, listener, amount);
+            Definition(x.B, x.R, listener).AfterModifyingGoldGained(ref x, listener, amount);
             ThrowOnChoice(ref x, nameof(ListenerDef.AfterModifyingGoldGained));
         }
     }
@@ -74,8 +74,8 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.AfterGoldGained) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.AfterGoldGained, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.AfterGoldGained, listeners);
         for (int index = 0; index < count; index++)
         {
             Listener listener = listeners[index];
@@ -84,7 +84,7 @@ public static partial class HookDispatch
             {
                 continue;
             }
-            Definition(x.B, listener).AfterGoldGained(ref x, listener);
+            Definition(x.B, x.R, listener).AfterGoldGained(ref x, listener);
             ThrowOnChoice(ref x, nameof(ListenerDef.AfterGoldGained));
         }
     }

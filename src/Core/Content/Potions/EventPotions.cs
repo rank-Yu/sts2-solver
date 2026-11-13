@@ -26,7 +26,7 @@ public sealed class FoulPotion : PotionDef
 }
 
 /// <summary>
-/// <c>Ambergris</c>: heal <c>MaxHp * HealPercent / 100</c>, then apply 1 <c>AmbergrisPower</c>
+/// <c>Ambergris</c>: heal <c>MaxHp * HealPercent / 100</c>, then apply 1 <c>ExtraTurnPower</c>
 /// (<c>PotionOnUseSupport.Use</c> case Ambergris; the power grants the extra turn).
 /// </summary>
 [ContentId("AMBERGRIS")]
@@ -41,7 +41,7 @@ public sealed class AmbergrisPotion : PotionDef
         if (x.NeedsChoice)
             return;
         Kernel.ApplyPower(ref x, Limits.PlayerOwner,
-            Registry.PowerId<Powers.AmbergrisPower>(), 1, Limits.PlayerOwner);
+            Registry.PowerId<Powers.ExtraTurnPower>(), 1, Limits.PlayerOwner);
     }
 }
 

@@ -72,7 +72,9 @@ internal static class TestSession
         }
         Active = true;
         ModLog.Info($"[Sts2Solver] TEST_STARTED requests={requestDirectory}");
-        _ = RunAsync(host, root, requestDirectory);
+        _ = RunAsync(host, root, requestDirectory).ContinueWith(
+            task => ModLog.Error($"[Sts2Solver] TEST_SESSION_FAILED {task.Exception}"),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public static void OnCombatEnded()
@@ -582,7 +584,7 @@ internal static class TestSession
             }
             : ImportOptions.Default;
         Battle battle = BattleImporter.Import(combat, player, rules, importOptions);
-        byte[] battleBytes = BattleCodec.Encode(battle);
+        byte[] battleBytes = BattleCodec.Encode(battle, rules.Relics);
         byte[] rulesBytes = RulesCodec.Encode(rules);
         SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
             SearchPolicyCapture.Capture(combat, player, SolverSearchPolicy.Capture(theftPolicy: null)),
@@ -706,9 +708,13 @@ internal static class TestSession
         try
         {
             SaveManager.Instance.PrefsSave.FastMode = instant;
-            for (int frame = 0; frame < 120 && !CombatSessionController.IsActiveForTest; frame++)
+            // UI checks can outlast a one-action victory. BeginCombat clears the previous
+            // summary, so this combat's completed result also proves the controller started.
+            for (int frame = 0; frame < 120 && !CombatSessionController.IsActiveForTest
+                && CombatSessionController.LastCompletedResultForTesting == null; frame++)
                 await CombatFrameWaiter.NextFrameAsync(host);
-            if (!CombatSessionController.IsActiveForTest)
+            if (!CombatSessionController.IsActiveForTest
+                && CombatSessionController.LastCompletedResultForTesting == null)
                 throw new TimeoutException("控制器没有进入战斗。");
             ModLog.Info(
                 $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +

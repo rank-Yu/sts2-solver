@@ -134,9 +134,9 @@ public static partial class Kernel
         // need the rule-table entry (K0 battles build partial tables).
         decimal heal = 0m;
         bool present = false;
-        for (int index = 0; index < x.B.RelicCount; index++)
+        for (int index = 0; index < x.R.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref x.B.Relics[index];
+            Relic relic = x.B.GetRelic(x.R, index);
             if (relic.Id != knife || (relic.Flags & RelicFlags.Melted) != 0)
                 continue;
             heal = x.R.RelicVar(knife, 0) * fatal;
@@ -145,9 +145,9 @@ public static partial class Kernel
         }
         if (!present)
             return;
-        for (int index = 0; index < x.B.RelicCount; index++)
+        for (int index = 0; index < x.R.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref x.B.Relics[index];
+            Relic relic = x.B.GetRelic(x.R, index);
             if (relic.Id != knife || (relic.Flags & RelicFlags.Melted) != 0)
                 continue;
             Heal(ref x, Limits.PlayerOwner, heal);

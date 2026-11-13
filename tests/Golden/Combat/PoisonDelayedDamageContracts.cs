@@ -21,7 +21,7 @@ internal static class PoisonDelayedDamageContracts
 
     private static SearchCase Read(string root)
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{root}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/{root}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new();
         zip.CopyTo(bytes);
@@ -38,7 +38,8 @@ internal static class PoisonDelayedDamageContracts
 
         // Isolate the delayed-damage term: no relic hooks, powers or live cards contribute.
         root.PowerCount = 0;
-        root.RelicCount = 0;
+        root.RelicStateCount = 0; root.RelicStates = default; root.RelicStateFlags = default;
+        scorer = new Scorer(scorer.RulesForCodec.WithRules(item.Rules.WithRelics(RelicRoster.Empty)), scorer.BaseOnly, scorer.Offensive, scorer.QueenPolicy, scorer.SetupPolicy);
         root.HandCount = 0;
         root.DrawCount = 0;
         root.DiscardCount = 0;

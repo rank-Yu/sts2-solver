@@ -48,7 +48,7 @@ public sealed class MinionStrike : CardDef
 [ContentId("SOVEREIGN_BLADE")]
 public sealed class SovereignBlade : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override bool UsesIdentityLedger => true;
 

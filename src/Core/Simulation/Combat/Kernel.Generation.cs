@@ -41,19 +41,20 @@ public static partial class Kernel
         bool distinct, RngStream stream, Span<Card> selected)
     {
         CardPool pool = rules.CardPool(poolKey);
-        if (pool.Cards.Length == 0)
+        if (pool.Cards.Length == 0 && !distinct)
             return 0;
         if (count > 0 && selected.Length < count)
             throw new CapacityException("GeneratedCards", selected.Length);
         ref RngState rng = ref battle.RngStream(stream);
         if (distinct)
         {
+            RngState shuffled = rng.CreateShuffleRng();
             Span<ushort> order = stackalloc ushort[pool.Cards.Length];
             pool.Cards.AsSpan().CopyTo(order);
             for (int n = order.Length; n > 1;)
             {
                 n--;
-                int k = rng.NextInt(n + 1);
+                int k = shuffled.NextInt(n + 1);
                 (order[k], order[n]) = (order[n], order[k]);
             }
             int take = Math.Min(count, order.Length);
@@ -144,6 +145,7 @@ public static partial class Kernel
             Piles.At(ref x.B, pile, index) = entered;
             int insert = index;
             x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
+            RecordSadnessGenerated(ref x.B, replacement);
             EnteredCombat(ref x, replacement, pile, insert);
             if (!x.NeedsChoice)
                 AfterGeneratedForCombat(ref x, mark, Limits.PlayerOwner);
@@ -259,6 +261,13 @@ public static partial class Kernel
     /// </summary>
     private static void EnteredCombat(ref Exec x, in Card card, Pile pile, int index)
     {
+        // Native 0.113 CardPile.AddInternal / PlayerCombatState constructor; also fixed by
+        // CombatSolver bb0544d2, CombatPredictionSimulator.CardPile.cs (MIT, Copyright (c) 2026 Torch1230 and contributors).
+        // Base slots exist before the first root, and destroyed arrows stay in the array.
+        // Thus a reachable zero-slot state belongs to a character with no base arrow slots.
+        if (IsInProgress(x.B) && x.B.Fool.ArrowCount == 0
+            && (x.R.Card(card.Id, card.Upgrade).Tags & CardTag.Shoot) != 0)
+            GainArrow(ref x.B);
         AfterCardEnteredCombatHook entered = new() { Pile = pile, Index = index, Card = card };
         HookDispatch.Dispatch(ref x, ref entered, gatedByEnding: false);
         if (x.NeedsChoice)
@@ -293,7 +302,10 @@ public static partial class Kernel
         // add, so this reports success without inserting the card: callers must not treat the value as
         // being in a pile, and no generation hook runs for it.
         if (creator == Limits.PlayerOwner)
+        {
             x.B.AddCounter(Counter.CardsGeneratedThisCombat, 1);
+            RecordSadnessGenerated(ref x.B, card);
+        }
         if (IsEnding(x.B) || x.B.Player.IsDead)
             return true;
         Pile target = pile == Pile.Hand && x.B.HandCount >= x.B.MaxHandSize ? Pile.Discard : pile;
@@ -314,6 +326,7 @@ public static partial class Kernel
         // the following listeners still receive the card's new absolute position.
         int markBase = ReserveTransientMarks(ref x, 1, out int markStart);
         byte mark = checked((byte)markStart);
+        byte outerMark = added.TransientMark;
         added.TransientMark = mark;
         try
         {
@@ -325,6 +338,9 @@ public static partial class Kernel
         }
         finally
         {
+            // A surrounding generation batch can still need this card after all entry hooks.
+            // Preserve its identity through nested generation, movement, and detached cards.
+            RestoreTransientMark(ref x.B, mark, outerMark);
             ReleaseTransientMarks(ref x, markBase, markStart, 1);
         }
     }
@@ -338,12 +354,12 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.AfterCardGeneratedForCombat) != 0)
         {
-            Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-            int listenerCount = HookDispatch.CollectListeners(x.B, HookMask.AfterCardGeneratedForCombat, listeners);
+            Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+            int listenerCount = HookDispatch.CollectListeners(x.B, x.R, HookMask.AfterCardGeneratedForCombat, listeners);
             for (int listener = 0; listener < listenerCount; listener++)
             {
                 int position = GeneratedCardPosition(ref x, mark);
-                HookDispatch.Definition(x.B, listeners[listener])
+                HookDispatch.Definition(x.B, x.R, listeners[listener])
                     .AfterCardGeneratedForCombat(ref x, listeners[listener], position, creator);
                 if (x.NeedsChoice)
                     return false;
@@ -378,6 +394,7 @@ public static partial class Kernel
         // The clone is a new native object; a BeatDown transient mark and Dampen's per-card original
         // upgrade belong to the original.
         clone.TransientMark = 0;
+        clone.FoolIdentity = 0;
         clone.HistoryCourseRole = 0;
         clone.DampenOriginalUpgrade = 0;
         // PredictedCard/CardModel clones are new objects: the existing engine's per-card dictionaries

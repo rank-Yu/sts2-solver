@@ -174,11 +174,11 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldDraw) == 0 || IsOverOrEnding(x.B))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldDraw, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMask.ShouldDraw, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!HookDispatch.Definition(x.B, listeners[index]).ShouldDraw(ref x, listeners[index], fromHandDraw))
+            if (!HookDispatch.Definition(x.B, x.R, listeners[index]).ShouldDraw(ref x, listeners[index], fromHandDraw))
                 return false;
         }
         return true;
@@ -219,7 +219,7 @@ public static partial class Kernel
             {
                 Listener self = new(ListenerKind.Card, (ushort)position, Limits.PlayerOwner);
                 ChoiceSource savedOrigin = x.ChoiceOrigin;
-                x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+                x.ChoiceOrigin = ListenerChoiceSource(x.B, x.R, self);
                 try
                 {
                     def.AfterCardDrawn(ref x, self, position, fromHandDraw);
@@ -274,8 +274,8 @@ public static partial class Kernel
         Piles.ReadCards(x.B, Pile.Draw).CopyTo(list[discardCount..]);
 
         // ListExtensions.StableShuffle: sort, then UnstableShuffle (Fisher-Yates from the end).
-        CardSort.Sort(list, x.R);
-        ref RngState rng = ref x.B.RngStream(RngStream.Shuffle);
+        CardSort.Sort(list, x.R, in x.B, Pile.Draw);
+        RngState rng = x.B.RngStream(RngStream.Shuffle).CreateShuffleRng();
         for (int n = total; n > 1;)
         {
             n--;
@@ -309,10 +309,10 @@ public static partial class Kernel
         if (!x.R.HasShuffleOrderEnchantment
             || (Registry.AnyHooksExt & HookMaskExt.ModifyShuffleOrder) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int listenersCount = HookDispatch.CollectListeners(x.B, HookMaskExt.ModifyShuffleOrder, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int listenersCount = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.ModifyShuffleOrder, listeners);
         for (int index = 0; index < listenersCount; index++)
-            HookDispatch.Definition(x.B, listeners[index]).ModifyShuffleOrder(
+            HookDispatch.Definition(x.B, x.R, listeners[index]).ModifyShuffleOrder(
                 ref x, listeners[index], cards, count, isInitialShuffle: false);
     }
 

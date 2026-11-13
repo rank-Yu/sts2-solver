@@ -2,7 +2,7 @@
 
 [返回文档索引](README.md)
 
-`tests/Golden/data` 是 Sts2Solver 的冻结证据：在固定输入上录下的标准答案，用来发现内核或搜索的行为变化。它由 CombatSolver 时期的 M0 宿主在固定输入上导出；本仓库只读取、校验和重放，不依赖游戏程序集。
+`tests/Golden/data` 是 Sts2Solver 的冻结证据：在固定输入上录下的标准答案，用来发现内核或搜索的行为变化。语料最初来自 CombatSolver，当前根状态和规则由 0.113.0 Beta 原引擎重捕获，模拟和搜索期望由本仓库重录。纯 Core 校验不依赖游戏程序集。
 
 本文说明目录、格式、来源和更新条件。怎么运行校验见 [测试与验证](testing.md#4-模拟回归与搜索回归)。数据分两部分：模拟回归（目录 `d1`）和搜索回归（目录 `d2`），术语见 [文档索引](README.md#术语)。
 
@@ -31,37 +31,41 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 11（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 使用版本 9（`Codec.FormatVersion`）；`SREQ` 使用请求版本 12，`SRES` 使用结果版本 6。读取器只接受对应的当前版本，其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
 ```text
-u32 magic="BATL" | u16 version=5 | i32 PackedSize | packed bytes
+u32 magic="BATL" | u16 version=9 | i32 payloadLength
+i32 packedSize | 当前 Battle 打包前缀
+u16 relicCount | relicCount × 12 字节固定 Relic 行
 ```
 
-魔数常量是 `0x4C544142`，按小端字节解出的 ASCII 是 `BATL`。载荷只写打包前缀：头部（`Battle.HeaderSize` = 3,860 字节）加 `CardCount × 92` 字节的牌，满牌打包前缀 62,740 字节（结构体 62,744 字节）。
+魔数常量是 `0x4C544142`（`BATL`）。打包前缀直接使用运行时布局：头部 2896 字节，加 `CardCount × 64` 字节；`BattleCodec.SerializedSize` 为最大前缀 43856 字节。状态哈希只覆盖此前缀。费用修饰容量为 10，Power 容量为 28，动态遗物容量为 24。
 
-解码要求：魔数和版本正确；声明的长度在 `HeaderSize..Unsafe.SizeOf<Battle>()` 之间；数据长度正好等于 `HeaderSize + declared`；解码后由各计数推出的 `Battle.PackedSize` 与声明一致。否则抛 `InvalidDataException`。解码先把工作区清零再写入前缀，后缀保持为零；之后校验各计数的上限（卡牌、敌人、Power、遗物、球、药水槽、小数变量）、卡牌 Id 和敌人的规则下标。
+编码必须显式提供共享清单，解码通过 `out RelicRoster` 返回清单。固定清单上限 65535 件；有动态状态的行只保存固定字段，Counter、Aux 和战斗使用标记由 Battle 动态槽保存。清单的动态槽数必须与 Battle 一致。
 
-字段布局、容量和规范化见 [状态布局](combat-state-layout.md)。
+解码检查魔数、版本、总长度、前缀大小与牌堆计数，以及内容 id 和各容量边界；固定清单不得夹带动态值。不接受旧布局。字段布局和规范化见 [状态布局](combat-state-layout.md)。
+
+RULE 是内容规则表；根清单由 BATL 携带。SREQ 解码先绑定第一根清单，检查后续根等价后再构造评分器。GOLD 每根也保留清单，D1 验证时绑定对应规则上下文。
 
 ## 4. `RULE`：Rules
 
 ```text
-u32 magic="RULE" | u16 version=5 | i32 fieldCount=30 | 30 个字段，按固定顺序
+u32 magic="RULE" | u16 version=9 | i32 fieldCount=32 | 32 个字段，按固定顺序
 ```
 
-魔数常量是 `0x454C5552`（`RULE`）。30 个字段的含义和顺序见 [原生导入](import.md#41-30-个字段)。
+魔数常量是 `0x454C5552`（`RULE`）。32 个字段的含义和顺序见 [原生导入](import.md#41-32-个字段)。
 
 - 卡牌数组按内部 Id 保存每个升级等级的 `CardStats`；Power、遗物变量按内部 Id 保存 `decimal` 数组；药水、怪物以“存在位 + 完整值”保存。
 - 生成规则与卡池按键排序。`fieldCount` 必须同时等于 `Rules.SchemaFieldCount` 与 `RulesCodec.EncodedFieldCount`。
 - `decimal` 写成 4 个 `int`（`decimal.GetBits`），保留 scale 和精确值；字符串用 UTF-8 字节长度做前缀。
-- K0 合同对 30 个字段逐个变异，任何一个字段没写进字节都会失败；`decode → encode` 必须字节相同。
+- K0 合同对 32 个字段逐个变异，任何一个字段没写进字节都会失败；`decode → encode` 必须字节相同。
 
 ## 5. `GOLD`：模拟回归文件
 
 ```text
-u32 magic="GOLD" | u16 version=5
+u32 magic="GOLD" | u16 version=9
 string inputJson | string rulesSha256
 rootCount | 每个根：i32 BATL 长度 + BATL 字节 + string choices
           + u64 scoreHash + u8 boundStatus + u64 boundHash
@@ -81,17 +85,17 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 
 - K1 对每个合法动作记录完整补全后的请求序列；K2 对每个状态记录枚举顺序的合法动作、第一次选择请求，以及随机选中动作的完整请求序列。
 - 动作编码：`Kind, HandIndex, Target, PotionSlot, ChoiceCount, ChoiceCount × u64 选择位集`（不写结构体填充）。
-- 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount(u16), MinCount, MaxCount, IndexSelection(bool), OptionCount × 选项(u16)`；生成卡选项再写 `OptionCount × Card` 的原始 92 字节。`OptionCount` 和选项位置/选项值都是 2 字节；`IndexSelection` 用于总牌数超过 255、单选选项超过 64 的请求。
+- 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount(u16), MinCount, MaxCount, IndexSelection(bool), OptionCount × 选项(u16)`；生成卡选项再写 `OptionCount × Card` 的原始 64 字节。`OptionCount` 和选项位置/选项值都是 2 字节；`IndexSelection` 用于总牌数超过 255、单选选项超过 64 的请求。
 - `immediateStatus`：0 = 动作不需要选择；1 = 需要，并行的请求有效；2 = 内核边界（`UnsupportedException` 或 `CapacityException`）。
 - K4 哈希：`scoreHash` 是 `ScoreFeatures` 全部当前字段的确定性 SHA-256 截断；`boundHash` 是 `BoundValues`；`traitHash` 是 `SearchRouteTraits + pure + declined + pocketwatch threshold/played`。模拟回归只验证内核能复现的部分（K1、K2 和这些哈希）。
-- `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 5、`battleSize` 62,744；校验只接受这一组值。
+- `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 9、`battleSize` 43,856；校验只接受这一组值。
 
 ## 6. `SREQ` / `SRES`：搜索回归的请求与结果
 
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=11 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=12 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
 魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、各类策略开关等。字段清单以代码为准。
@@ -99,7 +103,7 @@ u32 magic="SREQ" | u16 version=11 | rules 长度 + RULE | battles 数量 + 每�
 - `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数目标、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `Scorer` 的 base/offensive 评估方式作为两个显式布尔写在 `ScoreRules` 前面；setup/queen 仍是追加扩展。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
-- 可选扩展 `VGT1` 保存成员共用的胜利目标：一个是否已知的布尔，已知时再写折算战损与战略失血两个 `i32`。未知目标也保留标记，避免不用药的成员重算出更低目标；旧请求没有此扩展时按该请求计算。重复扩展显式失败。
+- 请求尾部按固定顺序保存火焰限制、搜索偏好（无／女王／准备）、胜利目标和已有胜利路线信息，各可选值都有存在位。遗物计数目标槽下标统一为 `u16`。没有扩展标记扫描或缺省旧字段。
 - 宿主回调 `Pacer`、`Trace` 不进入 SREQ。
 - 回归重解不采用请求里的墙钟截止和节点/内存预算；`SearchBudgetPolicy.ApplyRegression` 把它们覆盖成固定回归参数（见 6.3）。
 
@@ -121,7 +125,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ` v11 与 `SRES` v6 没有保留槽位。
+`SREQ` v12 与 `SRES` v6 没有保留槽位。
 
 搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
 `SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
@@ -141,11 +145,11 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 | 字段 | 内容 |
 | --- | --- |
-| `formatVersion` | 5 |
-| `battleSize` | 62,744，即 `Unsafe.SizeOf<Battle>()` |
+| `formatVersion` | 9 |
+| `battleSize` | 43,856，即 `Unsafe.SizeOf<Battle>()` |
 | `provenance.d1` / `.d2` | M0 宿主的捕获提交 `75217006903195bc94654680423bb9ca580ec48a` |
 | `provenance.d1Config` | 模拟回归配置的导出提交 `66a43838d89e7a03b05c0f04d5e4941ff555baec` |
-| `provenance.formatMigration` | 格式迁移说明：SREQ v10→v11 删除药水政策的最早喝药回合与生效模式（改读药水策略的默认模式）、选项的生效用药模式、下界配置的全部禁用药水、最多用药次数与根药水副本；D1 配置与 D2 请求机械重编码，只差这些字段的 28 个重复 D2 请求合并；SRES 仍为 v6。D1 评分哈希只写当前 `ScoreFeatures` 字段集合 |
+| `provenance.formatMigration` | 当前格式迁移的来源与转换范围；记录版本 9 的当前布局、32 字段规则和 SREQ 12 固定顺序选项。模拟动作和搜索期望保留，仅转换表示及对应哈希 |
 | `provenance.refreeze` | 由 `Golden refreeze` 写入：当前代码重算后的搜索回归结果集 SHA-256 |
 | `provenance.d1Rerecord` | 由 `Golden rerecord` 写入：重录的根、原因和新记录的内容 SHA-256 |
 | `compression` | `brotli` |
@@ -162,7 +166,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
-当前 D1 为 403 个根、4,892 个 K1、14,576 条游走、468,082 个游走状态、455,959 个转移；D2 为 1,987 个请求、1,987 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求时，原有 1,982 个请求逐字节不变。删除用药次数上限（SREQ v9）时，77 个“最多一瓶”成员请求改成不限次数的生产形态：6 个与已有请求相同而去重，其余 71 个里 27 个的结果变化；其它 1,939 个请求的期望结果逐字节不变。加入遗物计数目标（SREQ v10）时请求机械重编码，冻结请求都不带目标；带骨肉的阈值回血计入排序后，持带骨肉的 48 个请求里 4 个路线不变、展开数变少（2,425→2,240 和 3,958→3,651 各两个），期望结果重冻，其余 2,011 个逐字节不变。路线改按折算战损排序（可选药最贵一瓶原价、其余半价）、用药胜利也作现任最优后，71 个请求的期望结果重冻：14 个路线改变（新排序下 7 个更好，7 个只差平局判据：折算战损、战略失血与结束回合都相同，或少喝一瓶药正好多掉这瓶的折价），其余只是展开数变化，没有胜负翻转（`eff1:`，结果集 `f9aeda28…`）。开局药只在搜索第一个回合展开后，30 个期望结果重冻：7 个路线更好，其余只是展开数变少（`opn1:`，结果集 `be6c846a…`）。SREQ v11 删除最早喝药回合、下界的药水限制与根药水副本、生效用药模式改读药水策略后：这些字段在生产请求里一直是常量，但旧冻结请求是早先调度器抓的成员请求，1,677 个无药阶段成员写着生效模式“禁用”、1,463 个下界配置写着全部禁用药水、399 个设了最多用药次数。按新语义读出后 28 个请求只差这些字段而合并（2,015→1,987），重冻时 22 个期望结果变化（1 条路线多 1 血、提前 2 回合结束，其余只是展开数），1,965 个逐字节不变；108 根质量评测与改动前完全相同（`cln1:`，结果集 `22f8f6b4…`）。敌人死亡效果改在击杀内部结算后（`dth1:`），D1 重录 2 个根：quality-REGENT-013 的一步 Volley 先后打死 Decimillipede 的几节，先死的一节按 Reattach 转入复活招式（原版先死者立即 `SetMoveImmediate(DeadState)`）；quality-SILENT-004 的 Dagger Spray 第一波打死 Phrog Parasite，第二波打到刚生成的 4 只 Wriggler，此后的游走状态随之改变，游走状态与转移各少 11 个。D2 的 8 个期望结果重冻，全是 Phrog Parasite：7 个路线更好（其中 3 个提前一回合结束），1 个路线与分数不变、只是结果附带信息变化，没有胜负翻转；其余 1,979 个逐字节不变。当前 `provenance.refreeze` 以 `dth1:` 开头（结果集 SHA-256 为 `1825d50b1c7e2bfde5ff7ca89030c8b14e03e2fbb9bb50a6352c508111637039`），D2 的 1,987 个期望结果全部一致；`provenance.d1Rerecord` 记录 dth1 重录的这 2 个根。
+当前冻结数据覆盖标准、恐惧和极速模式，包含愚者。D1 保留原有场景和游走种子；D2 同时包含当前生产协调器成员请求，以及前缀和回合准备根的固定预算请求。当前包含 404 个场景、414 个根、5,071 个一步分支、14,928 条游走（473,886 个状态、461,403 个转移），以及 2,094 个搜索请求及对应期望结果。精确计数和内容哈希以 manifest 为准。跨版本迁移的旧新计数、实机对照和验证记录保存在本地交接文档。
 
 侧回合开始的终局门控由原版最小场景核对。对应的 D1 根 id-c-instanced-powers 使用工具重录，K1、游走状态和转移数量不变；这项修正不改变 D2 结果。
 
@@ -215,4 +219,4 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ## 12. 旧版本
 
-读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 11，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 9，`SREQ` 为 12，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

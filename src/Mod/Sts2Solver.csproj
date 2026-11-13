@@ -15,7 +15,7 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AssemblyName>Sts2Solver</AssemblyName>
     <RootNamespace>Sts2Solver</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>$(NoWarn);CS0436</NoWarn>
     <Sts2DataDir Condition="'$(Sts2DataDir)' == '' and '$(OS)' == 'Windows_NT'">$(Sts2Dir)/data_sts2_windows_x86_64</Sts2DataDir>

@@ -19,6 +19,11 @@ internal static class Program
         {
             return Task.FromResult(Run(args));
         }
+        catch (UnsupportedImportException error)
+        {
+            Console.Error.WriteLine($"UNSUPPORTED_IMPORT: {error.Message}");
+            return Task.FromResult(3);
+        }
         catch (UnsupportedException error)
         {
             Console.Error.WriteLine($"UNSUPPORTED: {error.Message}");
@@ -49,6 +54,10 @@ internal static class Program
                 Console.WriteLine(name);
             return 0;
         }
+        if (args is ["--capture-version-root", var dataPath, var metadataPath, var outputPath, var rootName])
+            return VersionRootCapture.Run(dataPath, metadataPath, outputPath, rootName);
+        if (args.Length >= 3 && args[0] == "--native-effect-check")
+            return NativeEffectChecks.Run(args[1], args[2..]);
         if (args.Length > 0 && args[0] == "--combat-pilot-compare")
             return CombatPilotCompare.Run(args[1..]);
         string data = DefaultData;
@@ -1138,6 +1147,8 @@ internal static class Program
               dotnet Differential.dll --all --jobs 1..8 --rules-compare
               dotnet Differential.dll --root <name> --config-compare
               dotnet Differential.dll --all --jobs 1..8 --config-compare
+              dotnet Differential.dll --native-effect-check <request.json> <command> [command...]
+              dotnet Differential.dll --capture-version-root <old-data> <metadata-dir> <output> <root>
               dotnet Differential.dll --root <name> --recapture-root [--out <dir>]
               dotnet Differential.dll --all --jobs 1..8 --recapture-root [--out <dir>]
               dotnet Differential.dll --setup-enumerate <root> [--setup-turn 1]

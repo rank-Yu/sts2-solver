@@ -308,15 +308,15 @@ public sealed partial class GremlinMerc : MonsterDef
         switch (Kernel.MonsterRules(ref x, owner).Nodes[moveNode].NativeId)
         {
             case "GIMME_MOVE":
-                Kernel.RecordThievery(ref x, owner);
+                if (x.R.Mode != CombatMode.Blitz) Kernel.RecordThievery(ref x, owner);
                 break;
             case "DOUBLE_SMASH_MOVE":
-                Kernel.RecordThievery(ref x, owner);
+                if (x.R.Mode != CombatMode.Blitz) Kernel.RecordThievery(ref x, owner);
                 Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
                     Registry.PowerId<Powers.WeakPower>(), 2, owner);
                 break;
             case "HEHE_MOVE":
-                Kernel.RecordThievery(ref x, owner);
+                if (x.R.Mode != CombatMode.Blitz) Kernel.RecordThievery(ref x, owner);
                 Kernel.ApplyPower(ref x, owner, Registry.PowerId<Powers.StrengthPower>(), 2, owner);
                 break;
         }

@@ -377,8 +377,8 @@ internal static class CombatPilotCompare
                         return;
                     string directory = Path.Combine(evidence, caseName);
                     Directory.CreateDirectory(directory);
-                    File.WriteAllBytes(Path.Combine(directory, "predicted.batl"), BattleCodec.Encode(predicted));
-                    File.WriteAllBytes(Path.Combine(directory, "actual.batl"), BattleCodec.Encode(live));
+                    File.WriteAllBytes(Path.Combine(directory, "predicted.batl"), BattleCodec.Encode(predicted, nativeRules.Relics));
+                    File.WriteAllBytes(Path.Combine(directory, "actual.batl"), BattleCodec.Encode(live, nativeRules.Relics));
                     File.WriteAllBytes(Path.Combine(directory, "rules.rule"), RulesCodec.Encode(nativeRules));
                     File.WriteAllLines(Path.Combine(directory, "diff.txt"),
                         BattleDump.Diff(predicted, live, "predicted", "live"));

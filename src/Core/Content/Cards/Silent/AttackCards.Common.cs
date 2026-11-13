@@ -66,7 +66,7 @@ public sealed class PoisonedStab : CardDef
 [ContentId("RICOCHET")]
 public sealed class Ricochet : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     // RandomTargetAttackCardMirrors.RicochetOnPlay: Repeat randomly aimed hits.
     public override void OnPlay(ref Exec x)
@@ -118,11 +118,11 @@ public sealed class Slice : CardDef
 [ContentId("DAGGER_SPRAY")]
 public sealed class DaggerSpray : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     // BespokeCardMirrors.DaggerSprayOnPlay: two hits to all opponents.
     public override void OnPlay(ref Exec x)
-        => CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: 2);
+        => CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: (int)CardEffects.Var(x, 1));
 }
 
 [ContentId("PREDATOR")]

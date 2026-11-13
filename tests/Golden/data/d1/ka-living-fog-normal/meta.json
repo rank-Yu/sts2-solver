@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "ka-living-fog-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ka-living-fog-normal.json\u0022}",
-  "rulesSha256": "0ab381a9bbc561f7f54068ebdd2422af08817b372f65a0b193c8a88e85cdc006",
+  "rulesSha256": "ac11db7e5ea052e57ddefde273e53a673c7f1cc3648c46497382bfd464b805f6",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1091,
-    "transitions": 1059
+    "walkStates": 1121,
+    "transitions": 1089
   }
 }

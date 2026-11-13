@@ -11,7 +11,7 @@ public sealed partial class CrackedCore : RelicDef
     {
         if (side != Side.Player || x.B.PlayerTurn > 1)
             return;
-        int count = (int)x.R.RelicVar(x.B.Relics[self.Index].Id, 0);
+        int count = (int)x.R.RelicVar(x.R.Relics.Id(self.Index), 0);
         Kernel.ChannelOrbs(ref x, Kernel.OrbId("LIGHTNING_ORB"), count);
     }
 }
@@ -25,7 +25,7 @@ public sealed class RunicCapacitor : RelicDef
     {
         if (side != Side.Player || x.B.PlayerTurn > 1)
             return;
-        Kernel.AddOrbSlots(ref x.B, (int)x.R.RelicVar(x.B.Relics[self.Index].Id, 0));
+        Kernel.AddOrbSlots(ref x.B, (int)x.R.RelicVar(x.R.Relics.Id(self.Index), 0));
     }
 }
 
@@ -38,7 +38,7 @@ public sealed class SymbioticVirus : RelicDef
     {
         if (side != Side.Player || x.B.PlayerTurn > 1)
             return;
-        Kernel.ChannelOrbs(ref x, Kernel.OrbId("DARK_ORB"), (int)x.R.RelicVar(x.B.Relics[self.Index].Id, 0));
+        Kernel.ChannelOrbs(ref x, Kernel.OrbId("DARK_ORB"), (int)x.R.RelicVar(x.R.Relics.Id(self.Index), 0));
     }
 }
 
@@ -67,7 +67,7 @@ public sealed class ReptileTrinket : RelicDef
         if (x.B.Player.IsDead)
             return;
         Kernel.ApplyTemporaryStrength(ref x, Limits.PlayerOwner,
-            Registry.PowerId<Powers.ReptileTrinketPower>(), (int)x.R.RelicVar(x.B.Relics[self.Index].Id, 0),
+            Registry.PowerId<Powers.ReptileTrinketPower>(), (int)x.R.RelicVar(x.R.Relics.Id(self.Index), 0),
             Limits.PlayerOwner, sign: 1);
     }
 }

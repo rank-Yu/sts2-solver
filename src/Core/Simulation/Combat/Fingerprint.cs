@@ -7,8 +7,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// <summary>
 /// Byte-image identity of Sts2Solver values. The packed prefix covers the header and only the cards
 /// at <c>[0, CardCount)</c>; the bytes after the last live card are undefined and never inspected.
-/// The hash covers the same logical segments in the same order as before the packed layout, so a
-/// state's hash is unchanged.
+/// Battle and card hashes follow their current runtime layouts.
 /// </summary>
 public static class Fingerprint
 {
@@ -18,7 +17,7 @@ public static class Fingerprint
 
     private static readonly int EnemiesOffset = Offset(static (ref Battle b) => ref Unsafe.As<Enemy, byte>(ref b.Enemies[0]));
     private static readonly int PowersOffset = Offset(static (ref Battle b) => ref Unsafe.As<Power, byte>(ref b.Powers[0]));
-    private static readonly int RelicsOffset = Offset(static (ref Battle b) => ref Unsafe.As<Relic, byte>(ref b.Relics[0]));
+    private static readonly int RelicsOffset = Offset(static (ref Battle b) => ref Unsafe.As<RelicState, byte>(ref b.RelicStates[0]));
     private static readonly int OrbsOffset = Offset(static (ref Battle b) => ref Unsafe.As<Orb, byte>(ref b.Orbs[0]));
     private static readonly int CardsOffset = Offset(static (ref Battle b) => ref Unsafe.As<Card, byte>(ref b.Cards[0]));
     private static readonly int HistoryCourseOffset =
@@ -46,12 +45,13 @@ public static class Fingerprint
         hash = Mix(hash, all[DecimalVarsEndOffset..EnemiesOffset]);
         hash = Mix(hash, all.Slice(EnemiesOffset, battle.EnemyCount * Unsafe.SizeOf<Enemy>()));
         hash = Mix(hash, all.Slice(PowersOffset, battle.PowerCount * Unsafe.SizeOf<Power>()));
-        hash = Mix(hash, all.Slice(RelicsOffset, battle.RelicCount * Unsafe.SizeOf<Relic>()));
+        hash = Mix(hash, all.Slice(RelicsOffset, battle.RelicStateCount * Unsafe.SizeOf<RelicState>()));
+        hash = Mix(hash, MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in battle.RelicStateFlags, 1))[..battle.RelicStateCount]);
         hash = Mix(hash, all.Slice(OrbsOffset, battle.OrbCount * Unsafe.SizeOf<Orb>()));
         hash = Mix(hash, all.Slice(CardsOffset, battle.CardCount * Unsafe.SizeOf<Card>()));
         // HistoryCourseCard now lives at the end of the header, before the cards. It was hashed
         // after the card segment before the layout change, so mix it last (and skip it in the header
-        // gap above) to keep every existing hash value identical.
+        // gap above) to retain the segment order.
         if ((battle.Flags & BattleFlags.HistoryCourseCardPresent) != 0)
             hash = Mix(hash, all.Slice(HistoryCourseOffset, Unsafe.SizeOf<Card>()));
         hash ^= hash >> 33;

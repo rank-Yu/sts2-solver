@@ -105,7 +105,7 @@ public sealed class CrashLanding : CardDef
 [ContentId("SEVEN_STARS")]
 public sealed class SevenStars : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));

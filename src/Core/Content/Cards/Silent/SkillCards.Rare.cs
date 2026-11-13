@@ -69,6 +69,7 @@ public sealed class Nightmare : CardDef
         Card snapshot = Kernel.CloneCard(Piles.At(ref x.B, Pile.Hand, selected[0]));
         snapshot.AfflictionId = 0;
         snapshot.AfflictionAmount = 0;
+        Kernel.EndOfTurnCleanup(ref snapshot);
         Kernel.ApplyPower(ref x, Limits.PlayerOwner, power, 3, Limits.PlayerOwner);
         if (x.NeedsChoice)
             return;

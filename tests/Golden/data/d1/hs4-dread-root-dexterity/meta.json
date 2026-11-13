@@ -1,9 +1,9 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "hs4-dread-root-dexterity",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs4-dread-root-dexterity.json\u0022}",
-  "rulesSha256": "f046a9865ebd2b9bb9aa2ad3bae885fdc9743df4946b2e6f9abd4385aa2ae3ce",
+  "rulesSha256": "a74ab9d1110ea4d58aaa58457aa74d20eabace04e3735f6c18f9aabe52b49338",
   "counts": {
     "roots": 1,
     "k1": 1,

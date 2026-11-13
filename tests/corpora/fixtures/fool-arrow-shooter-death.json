@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-arrow-shooter-death",
+  "characterId": "FOOL",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "CONTINUE113BLOSSOM_SHOT1",
+  "ascension": 0,
+  "enemyCurrentHp": 120,
+  "initialPlayerEnergy": 6,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "RAIN_SHOT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "count": 3,
+      "pile": "Hand"
+    },
+    {
+      "cardId": "RAIN_SHOT",
+      "pile": "Draw",
+      "count": 2
+    }
+  ],
+  "timeoutSeconds": 120,
+  "powers": [
+    {
+      "powerId": "THORNS_POWER",
+      "target": "Enemy",
+      "amount": 4
+    }
+  ]
+}

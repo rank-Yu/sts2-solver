@@ -350,7 +350,7 @@ internal static class ConfigCompare
         else
         {
             actualStatus = 1;
-            BoundValues values = bound.Evaluate(battle,
+            BoundValues values = bound.Evaluate(battle, scorer.RulesForCodec.Rules,
                 features.ExplicitPotionStrategicCost, includeSmartPotionLowerBound: true);
             actualBound = GoldenHash.Bound(values);
         }

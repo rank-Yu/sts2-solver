@@ -58,7 +58,6 @@ public static class RulesDiff
         Scalar("furCoatSpawnHpOne", expected.FurCoatSpawnHpOne, actual.FurCoatSpawnHpOne, Add);
         Scalar("rootLostHpMask", expected.RootLostHpMask, actual.RootLostHpMask, Add);
         Scalar("hasHistoryCourse", expected.HasHistoryCourse, actual.HasHistoryCourse, Add);
-        Scalar("penNibRelicIndex", expected.PenNibRelicIndex, actual.PenNibRelicIndex, Add);
         return differences;
     }
 

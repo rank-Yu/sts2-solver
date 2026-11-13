@@ -65,15 +65,24 @@ public enum CostExpiration : byte
     EndOfTurnOrWhenPlayed = EndOfTurn | WhenPlayed,
 }
 
-/// <summary>One native <c>LocalCostModifier</c> packed into four bytes.</summary>
-[StructLayout(LayoutKind.Sequential)]
+/// <summary>One native <c>LocalCostModifier</c> packed into three bytes.</summary>
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct CostModifier
 {
     public short Amount;
-    public CostType Type;
-
-    /// <summary>Low three bits: <see cref="CostExpiration"/>; bit 7: reduce-only.</summary>
+    /// <summary>Bits 0-2: expiration; bits 3-4: type; bit 7: reduce-only.</summary>
     public byte Packed;
+
+    public CostType Type
+    {
+        readonly get => (CostType)((Packed >> 3) & 3);
+        set
+        {
+            if (value is not (CostType.None or CostType.Absolute or CostType.Relative))
+                throw new UnsupportedException($"Unknown local cost type {value}.");
+            Packed = (byte)((Packed & ~0x18) | ((byte)value << 3));
+        }
+    }
 
     public readonly CostExpiration Expiration => (CostExpiration)(Packed & 0x07);
 
@@ -83,8 +92,8 @@ public struct CostModifier
         => new()
         {
             Amount = checked((short)amount),
-            Type = type,
             Packed = (byte)((byte)expiration | (reduceOnly ? 0x80 : 0)),
+            Type = type,
         };
 }
 
@@ -96,7 +105,7 @@ public struct CostModifiers
 
 /// <summary>
 /// The complete value of one card in a combat pile. Cards have no instance identity: two
-/// cards with equal bytes are interchangeable. Size is asserted to be 92 bytes.
+/// cards with equal bytes are interchangeable. Size is asserted to be 64 bytes.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct Card
@@ -150,6 +159,12 @@ public struct Card
     public short Var0;
     public short Var1;
 
+    /// <summary>Native captured X-energy, retained after play and used by card ordering.</summary>
+    public short CapturedEnergy;
+
+    /// <summary>Canonical identity only while Aim or ShowOff references this card; zero otherwise.</summary>
+    public ushort FoolIdentity;
+
     /// <summary>Card-private counter (Claw, Rampage, GeneticAlgorithm and similar).</summary>
     public short Private;
 
@@ -162,10 +177,29 @@ public struct Card
     /// <summary>
     /// One-action identity mark used by BeatDown to follow a card object after an earlier auto-play
     /// moves it out of the discard pile. 0 means unmarked. The field occupies existing tail padding;
-    /// card size stays 92 bytes. BeatDown clears every mark before its OnPlay returns, so a stable
+    /// card size stays 64 bytes. BeatDown clears every mark before its OnPlay returns, so a stable
     /// boundary never contains a nonzero value. Gameplay clones and generated cards start at 0.
     /// </summary>
     public byte TransientMark;
+
+    /// <summary>Native outside-upgrade keyword changes, retained when Dampen resets canonical keywords.</summary>
+    public Keywords KeywordsAddedFromOutside;
+    public Keywords KeywordsRemovedFromOutside;
+
+    public void AddKeyword(Keywords keywords)
+    {
+        Keywords |= keywords;
+        KeywordsAddedFromOutside |= keywords;
+        KeywordsRemovedFromOutside &= ~keywords;
+    }
+
+    public void RemoveKeyword(Keywords keywords)
+    {
+        Keywords &= ~keywords;
+        KeywordsRemovedFromOutside |= keywords;
+        KeywordsAddedFromOutside &= ~keywords;
+    }
+
 
     /// <summary>
     /// Whether this card occupies a <see cref="Battle.DetachedCards"/> slot. Card id 0 is a valid
@@ -605,10 +639,22 @@ public struct PowerArray
     private Power _first;
 }
 
-[InlineArray(Limits.Relics)]
-public struct RelicArray
+public struct RelicState
 {
-    private Relic _first;
+    public int Counter;
+    public int Aux;
+}
+
+[InlineArray(Limits.RelicStates)]
+public struct RelicStateArray
+{
+    private RelicState _first;
+}
+
+[InlineArray(Limits.RelicStates)]
+public struct RelicStateFlagsArray
+{
+    private RelicFlags _first;
 }
 
 [InlineArray(Limits.PotionSlots)]

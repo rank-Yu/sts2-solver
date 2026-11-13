@@ -13,7 +13,7 @@ internal static class TerminalBattleProjection
     /// Returns null when the contract matches, or the first diff lines.
     /// </summary>
     internal static string? Compare(in Battle predicted, in Battle native,
-        TerminalCapturePath path)
+        TerminalCapturePath path, Rules rules)
     {
         List<string> diff = [];
         if (predicted.Outcome == Outcome.EventDefeat)
@@ -41,20 +41,12 @@ internal static class TerminalBattleProjection
                     diff.Add($"potions.{slot}: predicted={predicted.Potions[slot]} native={native.Potions[slot]}");
             }
         }
-        if (predicted.RelicCount != native.RelicCount)
-            diff.Add($"relics.count: predicted={predicted.RelicCount} native={native.RelicCount}");
-        else
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            for (int index = 0; index < predicted.RelicCount; index++)
-            {
-                Relic left = predicted.Relics[index];
-                Relic right = native.Relics[index];
-                if (left.Id != right.Id || left.Flags != right.Flags
-                    || left.Counter != right.Counter || left.Aux != right.Aux)
-                {
-                    diff.Add($"relic.{index}: predicted={RelicText(in left)} native={RelicText(in right)}");
-                }
-            }
+            Relic left = predicted.GetRelic(rules, index);
+            Relic right = native.GetRelic(rules, index);
+            if (left.Flags != right.Flags || left.Counter != right.Counter || left.Aux != right.Aux)
+                diff.Add($"relic.{index}: predicted={RelicText(in left)} native={RelicText(in right)}");
         }
         for (int stream = 0; stream < Limits.RngStreams; stream++)
         {

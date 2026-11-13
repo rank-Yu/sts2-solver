@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p2-d-x-random",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p2-d-x-random.json\u0022}",
-  "rulesSha256": "9527590f4edf2a187f5e8c40a4752fe03c040eabd3b267526f98f4db0b8511a7",
+  "rulesSha256": "127b2b459ed7c5fdf6bb79018fe4393f82c317751eed69817ae662c9a8644938",
   "counts": {
     "roots": 1,
     "k1": 15,
     "walks": 32,
-    "walkStates": 476,
-    "transitions": 444
+    "walkStates": 472,
+    "transitions": 440
   }
 }

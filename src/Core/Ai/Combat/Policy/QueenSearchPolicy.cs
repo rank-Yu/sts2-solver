@@ -3,13 +3,12 @@ using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat.Policy;
 
-/// <summary>Frozen queen opening context, shared by delay-kill and kill-timing members.</summary>
+/// <summary>Frozen queen opening context for kill-timing retention.</summary>
 internal sealed record QueenSearchPolicy(byte QueenSlot, byte TorchSlot, ushort QueenId, ushort TorchId,
     ushort StrengthId, ushort DexterityId, ushort AfterimageId, ushort AccuracyId, ushort ToolsId,
     int StrengthThreshold, int InitialDexterity, int ProwessDexterity, int FootworkGain)
 {
     internal const int QueenHpThreshold = 200;
-    internal bool PreserveKillTiming { get; init; }
     private const int SetupHpValue = 10;
 
     internal static QueenSearchPolicy? Capture(in Battle root, Rules rules)

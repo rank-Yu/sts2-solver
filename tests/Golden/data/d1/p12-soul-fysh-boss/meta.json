@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p12-soul-fysh-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p12-soul-fysh-boss.json\u0022}",
-  "rulesSha256": "e5f53f3ceae91328418dfe03a6264eb08113ff554454a4ab994ebeddc2af83e5",
+  "rulesSha256": "6545901413fa2cc1d1b5801e818727e502b34d6caa83248a1a1b19a5a302356b",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1827,
-    "transitions": 1810
+    "walkStates": 1762,
+    "transitions": 1749
   }
 }

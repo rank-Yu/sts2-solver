@@ -99,14 +99,14 @@ public static partial class RulesCompiler
             hasIdentityContent |= def.IsIdentityContent;
         }
 
+        RelicRoster roster = CompileRelicRoster(player);
         ushort lampId = ushort.MaxValue;
         bool hasPaelsLegion = false;
         bool furCoatSpawnHpOne = false;
         bool hasHistoryCourse = false;
-        sbyte penNibRelicIndex = -1;
-        for (int index = 0; index < root.RelicCount; index++)
+        for (int index = 0; index < roster.Count; index++)
         {
-            ref readonly Relic relic = ref root.Relics[index];
+            Relic relic = roster.Read(root, index);
             RelicDef def = Registry.Relic(relic.Id);
             hasIdentityContent |= def.MayGenerateIdentityContent || def.IsIdentityContent;
             if (lampId == ushort.MaxValue && def.IsUnsettlingLamp)
@@ -115,8 +115,6 @@ public static partial class RulesCompiler
                 continue;
             if (def.NativeId == "HISTORY_COURSE")
                 hasHistoryCourse = true;
-            if (def.NativeId == "PEN_NIB")
-                penNibRelicIndex = checked((sbyte)index);
             if (def.IsPaelsLegion)
                 hasPaelsLegion = true;
             if (def.NativeId == "FUR_COAT"
@@ -132,7 +130,6 @@ public static partial class RulesCompiler
         builder.HasPaelsLegion = hasPaelsLegion;
         builder.FurCoatSpawnHpOne = furCoatSpawnHpOne;
         builder.HasHistoryCourse = hasHistoryCourse;
-        builder.PenNibRelicIndex = penNibRelicIndex;
         builder.HasTheftContent = HasTheftContent(root, state);
 
         foreach (string nativeId in PowerIdsWithVars())
@@ -189,7 +186,7 @@ public static partial class RulesCompiler
             builder.SetMonster(index, CompilePostPrefixMonster(state, runState, root, index));
         foreach (ushort monsterId in spawnClosure)
             CompileSpawnedMonster(builder, state, runState, monsterId);
-        return builder.Build();
+        return builder.Build().WithRelics(roster);
     }
 
     private static CardModel CanonicalCard(CardDef def)
@@ -400,8 +397,9 @@ public static partial class RulesCompiler
             if (root.Powers[index].Amount != 0)
                 Declare(Registry.Power(root.Powers[index].Id));
         }
-        for (int index = 0; index < root.RelicCount; index++)
-            Declare(Registry.Relic(root.Relics[index].Id));
+        RelicRoster roster = CompileRelicRoster(player);
+        for (int index = 0; index < roster.Count; index++)
+            Declare(Registry.Relic(roster.Fixed(index).Id));
         for (int slot = 0; slot < root.PotionSlotCount && slot < Limits.PotionSlots; slot++)
         {
             ushort stored = root.Potions[slot];

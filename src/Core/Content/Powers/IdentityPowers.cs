@@ -152,17 +152,6 @@ public sealed class PhantomBladesPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override void AfterCardEnteredCombat(ref Exec x, Listener self, Pile pile, int index,
-        in Card card)
-    {
-        if (self.Owner != Limits.PlayerOwner)
-            return;
-        CardStats stats = x.R.Card(card.Id, card.Upgrade);
-        if ((stats.Tags & CardTag.Shiv) == 0)
-            return;
-        Piles.At(ref x.B, pile, index).Keywords |= Keywords.Retain;
-    }
-
     public override decimal ModifyDamageAdditive(ref Exec x, Listener self, in DamageContext damage,
         decimal amount)
     {

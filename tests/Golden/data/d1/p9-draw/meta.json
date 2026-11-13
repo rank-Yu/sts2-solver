@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p9-draw",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-draw.json\u0022}",
-  "rulesSha256": "2968879ff485e2c272dca910b0828c0607f4536eacb68de3eb3d1c479f4e5918",
+  "rulesSha256": "8eacc8d5a274d5be8d56d819381a41221bd7c16270a8856c26f16a90715a5245",
   "counts": {
     "roots": 1,
     "k1": 6,
     "walks": 32,
-    "walkStates": 1807,
-    "transitions": 1777
+    "walkStates": 1782,
+    "transitions": 1753
   }
 }

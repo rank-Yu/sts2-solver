@@ -302,7 +302,7 @@ internal sealed partial class BeamSolver
     private bool TryBlockProgressLine(in Battle battle, out long line)
     {
         line = 0;
-        if (Kernel.IsOverOrEnding(in battle) || HasBlockRetention(in battle)
+        if (Kernel.IsOverOrEnding(in battle) || HasBlockRetention(in battle, _rules)
             || HasReactiveBlockableDamage(in battle))
         {
             return false;
@@ -316,7 +316,7 @@ internal sealed partial class BeamSolver
         return true;
     }
 
-    private static bool HasBlockRetention(in Battle battle)
+    private static bool HasBlockRetention(in Battle battle, Rules rules)
     {
         for (int index = 0; index < battle.PowerCount; index++)
         {
@@ -326,9 +326,9 @@ internal sealed partial class BeamSolver
             if (power.Id == BarricadePowerId || power.Id == BlurPowerId)
                 return true;
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) != 0)
                 continue;
             if (relic.Id == SturdyClampRelicId || relic.Id == DiamondDiademRelicId)

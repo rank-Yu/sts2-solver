@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "cx-b-melancholy",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-cx-b-melancholy.json\u0022}",
-  "rulesSha256": "9f8edc2d75c1ad799a9dabdb8a36d211f5e573a938be41b2d1eb1a3c351fe318",
+  "rulesSha256": "7cdc2ecaac36a83959989d9b68b0ed94fb8274c05ab81536d8f4e7e1b8221099",
   "counts": {
     "roots": 1,
     "k1": 3,
     "walks": 32,
-    "walkStates": 154,
-    "transitions": 122
+    "walkStates": 128,
+    "transitions": 96
   }
 }

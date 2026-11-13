@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "sk-f-xcalc",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-f-xcalc.json\u0022}",
-  "rulesSha256": "683ffdc818f474ff58b5603e0aca464d26dc5b578e4fbf40de12116b7e80b450",
+  "rulesSha256": "d3420b5e7bbf246a08d05945354e9ede55627ff81b14eae5595925514eb7aa29",
   "counts": {
     "roots": 1,
     "k1": 16,
     "walks": 32,
-    "walkStates": 1891,
-    "transitions": 1883
+    "walkStates": 1899,
+    "transitions": 1892
   }
 }

@@ -129,7 +129,7 @@ public static partial class Kernel
     /// <c>NextItem</c> draw over the candidates of that rarity in frozen pool order.
     /// </summary>
     public static ushort GenerateRandomPotion(ref Battle battle, Rules rules)
-        => GenerateRandomPotionFromPool(ref battle, rules, rules.PotionPool);
+        => GenerateRandomPotionFromPool(ref battle, rules, rules.PotionPool, RngStream.CombatPotionGeneration);
 
     /// <summary>
     /// Mirrors <c>PotionFactory.CreateRandomPotionOutOfCombat</c> (EntropicBrew): the same rarity and
@@ -137,14 +137,14 @@ public static partial class Kernel
     /// shared pool frozen at admission (potions that cannot be generated in combat are included).
     /// </summary>
     public static ushort GenerateRandomPotionOutOfCombat(ref Battle battle, Rules rules)
-        => GenerateRandomPotionFromPool(ref battle, rules, rules.OutOfCombatPotionPool);
+        => GenerateRandomPotionFromPool(ref battle, rules, rules.OutOfCombatPotionPool, RngStream.NonCombatGeneration);
 
     private static ushort GenerateRandomPotionFromPool(ref Battle battle, Rules rules,
-        IReadOnlyList<ushort> pool)
+        IReadOnlyList<ushort> pool, RngStream stream)
     {
         if (pool.Count == 0)
             throw new UnsupportedException("随机药水池为空。");
-        ref RngState rng = ref battle.RngStream(RngStream.CombatPotionGeneration);
+        ref RngState rng = ref battle.RngStream(stream);
         float roll = rng.NextFloat(1f);
         PotionRarity rarity = roll <= 0.1f
             ? PotionRarity.Rare
@@ -166,19 +166,19 @@ public static partial class Kernel
     /// receives the potion. <c>ShouldProcurePotion</c> listeners (Sozu) are consulted first;
     /// <c>AfterPotionProcured</c> reactions are outside this effect's scope.
     /// </summary>
-    public static bool TryProcurePotion(ref Battle battle, ushort potionId)
-        => TryProcurePotion(ref battle, potionId, freeFromEntropic: false);
+    public static bool TryProcurePotion(ref Battle battle, Rules rules, ushort potionId)
+        => TryProcurePotion(ref battle, rules, potionId, freeFromEntropic: false);
 
     /// <summary>
     /// <see cref="TryProcurePotion(ref Battle, ushort)"/> with the native <c>freeFromEntropic</c>
     /// flag: the slot is marked in <see cref="Counter.EntropicFreePotionMask"/> so a later use
     /// records zero strategic cost.
     /// </summary>
-    public static bool TryProcurePotion(ref Battle battle, ushort potionId, bool freeFromEntropic)
+    public static bool TryProcurePotion(ref Battle battle, Rules rules, ushort potionId, bool freeFromEntropic)
     {
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) != 0)
                 continue;
             if (!Registry.Relic(relic.Id).ShouldProcurePotion(in battle, relic.Id, potionId))

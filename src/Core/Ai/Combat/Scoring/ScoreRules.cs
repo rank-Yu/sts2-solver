@@ -256,7 +256,15 @@ internal sealed class PowerScore
 /// </summary>
 internal sealed class ScoreRules
 {
-    public required Rules Rules { get; init; }
+    private Rules _rules = null!;
+    public required Rules Rules { get => _rules; init => _rules = value; }
+
+    internal ScoreRules WithRules(Rules rules)
+    {
+        ScoreRules copy = (ScoreRules)MemberwiseClone();
+        copy._rules = rules;
+        return copy;
+    }
 
     /// <summary>Indexed by card id, then upgrade level; null when the rule table has no such level.</summary>
     public required CardScore?[][] Cards { get; init; }

@@ -28,7 +28,7 @@ internal static class ManifestVerifier
         JsonElement root = manifest.RootElement;
         if (root.GetProperty("formatVersion").GetInt32() != Codec.FormatVersion)
             throw new InvalidDataException("manifest.json 的格式版本不符。");
-        if (root.GetProperty("battleSize").GetInt32() != Unsafe.SizeOf<Battle>())
+        if (root.GetProperty("battleSize").GetInt32() != BattleCodec.SerializedSize)
             throw new InvalidDataException("manifest.json 的 Battle 大小不符。");
         if (!string.Equals(root.GetProperty("compression").GetString(), "brotli", StringComparison.Ordinal))
             throw new InvalidDataException("manifest.json 的压缩格式不是 brotli。");
@@ -83,7 +83,7 @@ internal static class ManifestVerifier
             using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(metaPath));
             JsonElement metaRoot = meta.RootElement;
             if (metaRoot.GetProperty("formatVersion").GetInt32() != Codec.FormatVersion
-                || metaRoot.GetProperty("battleSize").GetInt32() != Unsafe.SizeOf<Battle>())
+                || metaRoot.GetProperty("battleSize").GetInt32() != BattleCodec.SerializedSize)
                 throw new InvalidDataException($"D1 根 {Path.GetFileName(directory)} 的格式版本或战斗大小不符。");
             JsonElement counts = metaRoot.GetProperty("counts");
             d1Files++;

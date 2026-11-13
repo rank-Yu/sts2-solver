@@ -50,12 +50,14 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | `Rng`（9 条） | `RunState.Rng` 的 9 条流 | 直接读 |
 | `Enemies` | `CombatState.Enemies`、`MonsterModel.NextMove/StateLog`、`MoveStateMachine`、`Rules.MonsterRule` | 直接读；AI 节点映射由规则编译器冻结。Waterfall Giant 的 `ABOUT_TO_BLOW_MOVE`/`EXPLODE_MOVE` 分别投影为 `SteamPhase.AboutToBlow`/`Explode`，其余移动为 `None` |
 | `Powers` | `Creature.Powers` 的原生顺序，按 owner 分组 | 移植自原导入层 `FlashStateProjections` 的分支表；私有字段由 `NativeAccess` 集中读取 |
-| `Relics` | `Player.Relics` 顺序 | 移植自 `ProjectRelic`；`StatefulRelicState` 从原生字段或原生 History 读取 |
+| `Rules.Relics` + `Battle.RelicStates/RelicStateFlags` | `Player.Relics` 顺序 | 固定清单冻结到共享数据；`ProjectRelic` 投影完整值并验证固定字段，再写入 24 个动态槽；`StatefulRelicState` 从原生字段或原生 History 读取 |
 | `Cards` | 五个牌堆的原生顺序、`CardModel`、`Rules.Card(id, upgrade)` | 移植自 `FlashStateImporter.Card` |
 | `DetachedCards` | `NightmarePower.selectedCard`、`SwipePower.StolenCard` | 直接读 |
 | `DecimalVars` | `DynamicVars` 与规则基值的差 | `DecimalVars.TryAllocate/TryCanonicalize` |
 | `Counters` | `CombatManager.History` 的 13 类条目，加上根上为 0 的账本 | 独立实现，对照 `RootCombatHistorySnapshot`、`SimulatedCombatState` 的 getter |
 | `HistoryCourseCard` | `CombatManager.History.CardPlaysFinished` | 持有历史课时取玩家最后一次打完的非复制攻击牌，与历史课在自动出牌阶段的查找相同：出牌阶段的根取本回合，回合开始（准备）根取上一个玩家回合；槽里放这张牌在牌堆中的导入值，并给原牌标记来源。结束阶段也可读取当前记录；没有历史记录时保持空槽。牌已不在牌堆中，或根处于自动出牌阶段（历史课可能已触发）时显式拒绝 |
+
+敌人的 `PoweredAttackHitsThisTurn` 从原生 History 统计，导入和内核都接受 0–65535 次命中，超过上限明确拒绝。
 
 新根上的成长、死亡、偷窃与累计 HP 账本都从零开始，本回合计数从原生 History 现算。`VitalSparkNormalizedAmount` 在普通根是 `int.MinValue`，在回合准备根是 0（原导入层在准备阶段至少做过一次规范化）。
 
@@ -68,6 +70,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 - `SkillPlayedThisSideTurn` 从本回合已完成的技能推导；根捕获写 0。
 - 原生会在敌人死亡后把它移出 `CombatState.Enemies` 并重置行动状态机。实时导入用会话开始时冻结的已知敌人顺序保留墓碑行；预测为 `Reviving` 的行按复活行导入，行动和 AI 仍从原生 `MonsterModel` 读。没有预测边界时，仍在原生名单、且带有 `PreventsRemovalAfterDeath` Power 的死行（Test Subject 的 Adaptable、Illusion）也推断为 `Reviving`；永久死亡的行不读已经重置的状态机。
 - `Roster` 按 `CombatState.Enemies` 的当前顺序导入（原生 `AddCreature` 后按遭遇槽稳定排序）。冻结的已知顺序只决定敌人行的下标；之后出现的召唤物按 `CombatId` 升序追加，恢复内核的创建顺序，而不是原生的槽位顺序。
+- 卡牌另外读取 `_keywordsAddedFromOutside` 与 `_keywordsRemovedFromOutside`，在降级重置规范关键词时恢复外部增删记录。
 - 卡牌 `Keywords` 只读 `CardModel.GetKeywordsWithSources(KeywordSources.Local)`。`CardModel.Keywords` 还会运行 `TryModifyKeywordsInCombat`（HexPower 给 Hexed 的牌加虚无）；这个授予在内核里是惰性查询，写进卡行的话，Hex 移除后会残留并被重复计算。
 - `SOVEREIGN_BLADE` 的 `Private` 写成当前 `SWORD_SAGE_POWER` 的层数，因为原生 `BaseReplayCount` 已经包含这张牌见过的每次 SwordSage 加成；根捕获仍写 `Rules.RootSwordSageAmount`，保持冻结基线。
 
@@ -77,6 +80,8 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 ## 4. 规则编译
 
+共享遗物清单是根上下文，随 BATL 携带，不计入 RULE 内容规则表的 32 个编码字段。固定清单最大 65,535 件；动态实例最多 24 个，超限拒绝整次根导入。比较独立导入结果时同时核对清单和 Battle。
+
 `RulesCompiler` 输入原生战斗、玩家与 `RunState`，输出 `Rules`。语义以 CombatSolver `src/Flash/Bridge/FlashRulesCompiler.cs`（`a62f1850`）为准：原引擎对模拟状态的访问改成读原生模型，不复制 `src/Engine` 的状态定义。
 
 卡牌规范值不读根上的卡，因为根卡可能带 Dampen、附魔或临时修饰。编译器取 `CanonicalInstance`，按目标升级等级逐级克隆并升级；升级后的 `CurrentUpgradeLevel` 必须等于目标等级，否则以 `unsupported-card` 拒绝。卡池和药水池都使用玩家 `UnlockState` 里的同一份解锁状态。
@@ -85,9 +90,9 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 已知敌人的静态参数与初始 AI 寄存器由 `NativeAccess.MonsterInt` 读取。召唤物在一个私有的临时 `CombatState` 里通过 `ToMutable` + `SetUpForCombat` 创建，所以它的状态机、初始节点和静态值不依赖根上的同类型敌人。召唤闭包保持原生的 BFS 顺序。
 
-### 4.1 30 个字段
+### 4.1 32 个字段
 
-`Rules` 有 30 个构造字段，编码时全部写入（`RulesCodec`）：
+`Rules` 有 32 个构造字段，编码时全部写入（`RulesCodec`）：
 
 | # | 字段 | 实现 |
 | ---: | --- | --- |
@@ -120,20 +125,27 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | 27 | `FurCoatSpawnHpOne` | 未熔化 `FurCoat` 的标记坐标包含当前地图坐标 |
 | 28 | `RootLostHpMask` | 原生 History 的本回合未格挡伤害，玩家、Osty、每个敌人各一位 |
 | 29 | `HasHistoryCourse` | 未熔化的遗物中有 `HistoryCourse` |
-| 30 | `PenNibRelicIndex` | 遗物行中 `PenNib` 的下标（熔化的也计） |
+| 30 | `TotalFloor` | 根所在总楼层，用于领域数值 |
+| 31 | `Dominion` | 恐惧领域类型、能力 id 与原生数值 |
+| 32 | `Mode` | 标准、恐惧或极速模式，影响内容及怪物行为 |
+
+笔尖下标由共享遗物清单在创建时派生，取最后一个未熔化实例，不重复写入规则。
 
 ### 4.2 镜像覆盖率静态表
 
 `Card.PlaysRecordRisk` 与 `Rules.PowerDeathHistoryRisk` 不是游戏数据，而是原引擎 `CardOnPlayMirrors.ResolveDispatchKind`、`AfterDeathMirrors.ResolveDispatchKind` 的镜像覆盖率。本仓库不重写这套推断逻辑，而是把结果冻结为 `src/Import/Combat/MirrorRiskTables.cs`：
 
 - 导出源：CombatSolver `src/Flash/Bridge/FlashRulesCompiler.cs` 的同一查询，源提交 `a62f1850`；导出钩子在 CombatSolver `flash/m0` 的 `91641ff0`（环境变量 `M2A3_RULES_TABLES_DUMP`）。
-- 覆盖 `ModelDb.All` 里全部规范内容：603 个原版卡牌 id、283 个原版 Power id。
+- 当前表保存 0.113.0 的 717 个卡牌、317 个 Power 的明确风险值，覆盖求解器注册的全部 669 张卡牌和 276 种 Power。原生另有 7 张卡牌、5 种 Power 未注册且没有风险值，遇到它们仍显式拒绝。
+- 当前内核直接结算的内容也在同一张表中给出值；运行时不按游戏版本、类型命名空间或例外名单覆盖。
 - 表里没有的 id 以 `missing-mirror-risk` 显式拒绝，不默认为 false。
-- `--rules-table-check` 对照 `ModelDb.All` 检查遗漏和多余的 id，并检查注册表里每个卡牌、Power id 都有表项。
+- `--rules-table-check` 检查所有已注册内容都有值、表中所有 id 都存在于当前 `ModelDb.All`，并列出尚未映射的原生内容。
 
-游戏或 CombatSolver 更新后，要用上面的钩子重新导出，再用 `--rules-table-check` 复核；不能只手改本表。
+游戏或内核内容支持更新后，应根据经审核的明确风险值重新生成表，再用 `--rules-table-check` 和原生配置对照复核；不能用缺省 false 填补未知语义。
 
 ## 5. 评估配置编译
+
+燃烧之血、黑暗之血与带骨肉的战后回血配置必须具有所需的 `Heal` 和（带骨肉）`HpThreshold` 变量；缺失以 `unsupported-relic` 拒绝导入。
 
 评分表 `ScoreRules` 与下界配置 `BoundFeatures.Config` 也从原生模型重新编译，不读冻结的 `config.br`：
 
@@ -183,7 +195,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 | `BossHpRelief` | 原生 `Encounter.RoomType`、当前幕、`SecondBossEncounter`，再按两个 Boss 策略裁决 |
 | `InitialPlayerMaxHp`、`IsActEndingBoss`、`InitialEnemyCount` | 导入后 `Battle` 的玩家最大生命、Boss 减免、敌人数 |
 | 根药水与药水计数 | 导入后 `Battle` 的 `RootPotions`、`RootPotionSlotCount`；生产普通根的初始计数为 0，D1 前缀根保留记录值 |
-| 33 个命名 id | `ModelDb.Power<T>()`、`Card<T>()`、`Relic<T>()`、`Potion<T>()` 的原生 id 经注册表解析；未注册为 `ushort.MaxValue` |
+| 32 个命名 id | `ModelDb.Power<T>()`、`Card<T>()`、`Relic<T>()`、`Potion<T>()` 的原生 id 经注册表解析；未注册为 `ushort.MaxValue` |
 
 **四个排名基线。** `InitialPersistentBuffValue`、`InitialEnemyStrengthSuppression`、`InitialEnemyWeakTurns`、`InitialRetainedAttackValue` 的求法：先用这四项为 0 的 `ScoreRules` 构造 Core 的 `Scorer`，在根上算 `ScoreFeatures`，再把四个特征值填回最终表。这样与原引擎 `CombatBeamSolver`、`SimulationSnapshot` 冻结的值逐字段一致，又不用复制原引擎的计算。回合准备根按 `FlashScoreBridge.cs:74-80` 把四项强制为 0；前缀根按同一原导入层的请求根语义，用前缀之前的 `Battle` 和规则表计算这四项，评分表本身仍取回放后的内容。
 

@@ -37,7 +37,7 @@ internal sealed record BeamOptions(
     /// <summary>Shared optimistic victory cost, computed before restricting a portfolio member.</summary>
     public VictoryStopTarget? VictoryTarget { get; init; }
 
-    /// <summary>End-turn batch trigger and target, in states; zero preserves legacy behavior.</summary>
+    /// <summary>End-turn batch trigger and target, in states; zero disables batching.</summary>
     public int EndedBatchTrigger { get; init; }
     public int EndedBatchTarget { get; init; }
 
@@ -73,11 +73,6 @@ internal sealed record BeamOptions(
 
     /// <summary>The request's theft policy; <c>PreserveResources</c> adds the existing final ordering's recovery keys.</summary>
     public TheftPolicy? TheftPolicy { get; init; }
-
-    /// <summary>
-    /// Legacy SREQ v11 payload retained for request round-tripping; search no longer reads it.
-    /// </summary>
-    public PotionFreePolicyBaseline? PotionFreeBaseline { get; init; }
 
     /// <summary>
     /// The best selectable victory earlier members of the same request found, as a pruning bound the
@@ -2362,9 +2357,9 @@ internal sealed partial class BeamSolver
         ushort id = Registry.PocketwatchRelicId;
         if (id == 0)
             return;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if (relic.Id != id || (relic.Flags & RelicFlags.Melted) != 0)
                 continue;
             threshold = (int)rules.RelicVar(id, 0);
@@ -2376,14 +2371,14 @@ internal sealed partial class BeamSolver
 
     /// <summary><c>SimulatedCombatState.IsPaelsEyeUnused</c>: the relic exists, is not melted and its
     /// stateful counter is still zero.</summary>
-    internal static bool DeclinedExtraTurn(in Battle battle)
+    internal static bool DeclinedExtraTurn(in Battle battle, Rules rules)
     {
         ushort id = Registry.PaelsEyeRelicId;
         if (id == 0)
             return false;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if (relic.Id == id && (relic.Flags & RelicFlags.Melted) == 0 && relic.Counter == 0)
                 return true;
         }

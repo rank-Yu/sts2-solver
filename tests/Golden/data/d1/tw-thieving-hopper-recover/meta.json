@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "tw-thieving-hopper-recover",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-tw-thieving-hopper-recover.json\u0022}",
-  "rulesSha256": "fa44fac0b8aadf9b7cbc049d83d36043404e6d702aa15514ffed782b95873546",
+  "rulesSha256": "fd4412aa74c37c65b0b3bc52a4614fb434cf5bafb7f498ec422bc1a2a921331e",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 152,
-    "transitions": 120
+    "walkStates": 146,
+    "transitions": 114
   }
 }

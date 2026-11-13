@@ -144,7 +144,7 @@ internal sealed partial class BeamSolver
             }
             if (_trackPowerCommitments && _hasCommitments)
                 AdmitPowerCommitmentSeats(selected, required, width);
-            if (_scorer.QueenPolicy is { PreserveKillTiming: true } queen)
+            if (_scorer.QueenPolicy is { } queen)
                 AdmitQueenPhaseSeats(selected, width, queen);
             if (_checkPotionQuota)
                 ApplyPotionUseQuota(selected, width);

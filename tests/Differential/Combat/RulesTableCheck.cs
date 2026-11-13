@@ -1,5 +1,5 @@
-// Contract check for the frozen mirror-coverage tables: the table must contain exactly the
-// canonical native card/power ids, and every Sts2Solver registry id must be present.
+// Contract check: every supported registry id has a risk value, and every table entry
+// exists in the current native models. Unregistered native content may remain unmapped.
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
 using MegaCrit.Sts2.Core.Models;
@@ -36,21 +36,20 @@ internal static class RulesTableCheck
         Console.WriteLine(
             $"RULES-TABLES cards={tableCards.Count} powers={tablePowers.Count} "
             + $"native_cards={nativeCards.Count} native_powers={nativePowers.Count} "
-            + $"missing_cards={missingCards.Count} extra_cards={extraCards.Count} "
-            + $"missing_powers={missingPowers.Count} extra_powers={extraPowers.Count} "
+            + $"unmapped_native_cards={missingCards.Count} extra_cards={extraCards.Count} "
+            + $"unmapped_native_powers={missingPowers.Count} extra_powers={extraPowers.Count} "
             + $"registry_missing={registryMissing.Count}");
         foreach (string id in missingCards.Take(8))
-            Console.Error.WriteLine($"missing-card {id}");
+            Console.Error.WriteLine($"unmapped-native-card {id}");
         foreach (string id in extraCards.Take(8))
             Console.Error.WriteLine($"extra-card {id}");
         foreach (string id in missingPowers.Take(8))
-            Console.Error.WriteLine($"missing-power {id}");
+            Console.Error.WriteLine($"unmapped-native-power {id}");
         foreach (string id in extraPowers.Take(8))
             Console.Error.WriteLine($"extra-power {id}");
         foreach (string id in registryMissing.Take(8))
             Console.Error.WriteLine($"registry-missing {id}");
-        return missingCards.Count == 0 && extraCards.Count == 0
-            && missingPowers.Count == 0 && extraPowers.Count == 0
+        return extraCards.Count == 0 && extraPowers.Count == 0
             && registryMissing.Count == 0 ? 0 : 1;
     }
 }

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "rg-a-star",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-a-star.json\u0022}",
-  "rulesSha256": "c31270687cd9228d28c1c236f981f7a70b85f106bb398f3759e4f7da5abd8300",
+  "rulesSha256": "fde3012905c007db12771dd41277ce606529098a9ee84b8330e8330597b91138",
   "counts": {
     "roots": 1,
     "k1": 15,

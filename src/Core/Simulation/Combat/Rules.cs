@@ -51,7 +51,7 @@ public enum CardRarity : byte
 
 /// <summary>Native <c>CardTag</c> set of a card, one bit per tag.</summary>
 [Flags]
-public enum CardTag : byte
+public enum CardTag : ushort
 {
     None = 0,
     Strike = 1 << 0,
@@ -59,6 +59,10 @@ public enum CardTag : byte
     Minion = 1 << 2,
     OstyAttack = 1 << 3,
     Shiv = 1 << 4,
+    Shoot = 1 << 5,
+    Wah = 1 << 6,
+    Cho = 1 << 7,
+    Ki = 1 << 8,
 }
 
 /// <summary>Root-frozen data of one card id at one upgrade level.</summary>
@@ -90,6 +94,8 @@ public sealed class CardStats
 
     /// <summary>Native <c>Soul</c> token: the existing engine's <c>persistentBuffValue</c> counts these cards.</summary>
     public bool IsSoul { get; init; }
+
+    public bool GainsBlock { get; init; }
 
     /// <summary>
     /// Native <c>CardModel.VisualCardPool.IsColorless</c> (HeirloomHammer's hand filter). Frozen
@@ -269,11 +275,21 @@ public sealed class CardPool
 /// </summary>
 public sealed class Rules
 {
+    // Bound from the battle snapshot, not the content RULE table; shared by all nodes of a request.
+    private RelicRoster _rootRelics = RelicRoster.Empty;
+    public RelicRoster Relics => _rootRelics;
+    public Rules WithRelics(RelicRoster relics)
+    {
+        Rules copy = (Rules)MemberwiseClone();
+        copy._rootRelics = relics;
+        return copy;
+    }
+
     /// <summary>
     /// Number of constructor inputs that form the serialized schema. The K0 codec contract checks
     /// this against the writer's field count and mutates each field to prove it reaches the bytes.
     /// </summary>
-    public const int SchemaFieldCount = 30;
+    public const int SchemaFieldCount = 32;
 
     private readonly CardStats?[][] _cards;
     private readonly decimal[][] _powerVars;
@@ -318,9 +334,13 @@ public sealed class Rules
         bool furCoatSpawnHpOne,
         ushort rootLostHpMask,
         bool hasHistoryCourse,
-        sbyte penNibRelicIndex)
+        int totalFloor = 0, DominionRules dominion = default, CombatMode mode = CombatMode.Standard)
     {
         _cards = cards;
+        // Show Off can retain a card reference even in a root with no arrows or melodies.
+        HasFoolMechanics = cards.Where((levels, id) => levels.Any(card => card is not null
+            && ((card.Tags & (CardTag.Shoot | CardTag.Wah | CardTag.Cho | CardTag.Ki)) != 0
+                || Registry.Card((ushort)id).NativeId == "SHOW_OFF"))).Any();
         bool hasTurnEndInHandCards = false;
         int cardLimit = Math.Min(cards.Length, Registry.CardCount);
         for (int id = 0; id < cardLimit && !hasTurnEndInHandCards; id++)
@@ -365,7 +385,9 @@ public sealed class Rules
         FurCoatSpawnHpOne = furCoatSpawnHpOne;
         RootLostHpMask = rootLostHpMask;
         HasHistoryCourse = hasHistoryCourse;
-        PenNibRelicIndex = penNibRelicIndex;
+        TotalFloor = totalFloor;
+        Dominion = dominion;
+        Mode = mode;
     }
 
     public int BaseMaxEnergy { get; }
@@ -405,6 +427,8 @@ public sealed class Rules
     /// SwordSage root amount. Roots without it skip the identity scans entirely.
     /// </summary>
     public bool HasIdentityContent { get; }
+
+    public bool HasFoolMechanics { get; }
 
     /// <summary>
     /// The root's combat card values include an enchantment implementing <c>ModifyShuffleOrder</c>
@@ -476,7 +500,10 @@ public sealed class Rules
     /// before its AfterCardPlayed (player death) leaves a value no later settlement can read, and the
     /// importer projects Aux as 0. Step clears it with one indexed write at every stable boundary.
     /// </summary>
-    public sbyte PenNibRelicIndex { get; }
+    public int PenNibRelicIndex => Relics.PenNibIndex;
+    public int TotalFloor { get; }
+    public DominionRules Dominion { get; }
+    public CombatMode Mode { get; }
 
     /// <summary>Native <c>CharacterModel.BaseOrbSlotCount</c>: a channel adds the first slot when both are zero.</summary>
     public int BaseOrbSlotCount { get; }
@@ -633,7 +660,9 @@ public sealed class RulesDraft
 
     public bool HasHistoryCourse { get; set; }
 
-    public sbyte PenNibRelicIndex { get; set; } = -1;
+    public int TotalFloor { get; set; }
+    public DominionRules Dominion { get; set; }
+    public CombatMode Mode { get; set; }
 
     public ushort RootLostHpMask { get; set; }
 
@@ -731,7 +760,7 @@ public sealed class RulesDraft
             HasEncounter, EncounterSlots, RootEnemyCount, BaseMaxEnergy, PlayerSlotIndex, BaseOrbSlotCount,
             RootSwordSageAmount, UnsettlingLampRelicId, HasIdentityContent, HasShuffleOrderEnchantment,
             HasBeforeFlushEnchantment, HasTheftContent, HasDecimalCardVars, HasInfiniteHpDisplayMonster,
-            HasPaelsLegion, FurCoatSpawnHpOne, RootLostHpMask, HasHistoryCourse, PenNibRelicIndex);
+            HasPaelsLegion, FurCoatSpawnHpOne, RootLostHpMask, HasHistoryCourse, TotalFloor, Dominion, Mode);
     }
 
     private static bool SameStats(CardStats left, CardStats right)

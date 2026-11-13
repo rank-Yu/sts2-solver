@@ -3,9 +3,8 @@
 // 2026 Torch1230 and contributors); this version additionally binds every option to the route's
 // frozen card identities and pile before returning a selection.
 //
-// This selector runs inside the game's async selection task. It must never throw into that task: an
-// unplanned request records the mismatch, hands the request to a native surface (or a deterministic
-// fallback in headless mode), and lets the deployment task stop afterwards.
+// An unplanned request signals the deployer immediately and hands the selection to the player.
+// The selector scope is released by the deployer; the native selection completes independently.
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -19,8 +18,7 @@ namespace Sts2Solver;
 /// <summary>
 /// Answers native card-selection requests from one action's frozen choice plan. Every request is
 /// matched to the plan's next explicit choice by option count and card identity; a missing or
-/// shifted request is recorded as a deployment mismatch instead of being guessed or throwing into
-/// the native task.
+/// shifted request stops deployment and hands the pending choice to a native selection surface.
 /// </summary>
 internal sealed class PlannedNativeSelector(
     IReadOnlyList<PlannedChoice> choices,
@@ -29,14 +27,19 @@ internal sealed class PlannedNativeSelector(
 {
     private readonly IReadOnlyList<PlannedChoice> _choices = choices;
     private int _index;
-    private string? _failure;
+    private readonly TaskCompletionSource<string> _failure =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private Player OwnerPlayer => player;
 
     internal int PendingCount => _choices.Count - _index;
 
-    internal string? FailureDetail => _failure;
+    internal Task<string> Failure => _failure.Task;
+
+    internal string? FailureDetail => Failure.IsCompletedSuccessfully ? Failure.Result : null;
 
     internal static IDisposable Activate(PlannedNativeSelector selector)
-        => CardSelectCmd.PushSelector(selector);
+        => MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.PushSelector(selector.OwnerPlayer, selector);
 
     /// <summary>Returns the unused-plan diagnostic, or null when every planned choice was consumed.</summary>
     internal string? UnconsumedDetail()
@@ -51,7 +54,7 @@ internal sealed class PlannedNativeSelector(
         int minSelect, int maxSelect)
     {
         List<CardModel> live = options.ToList();
-        if (_failure != null)
+        if (FailureDetail != null)
         {
             return Fail(live, minSelect, maxSelect,
                 $"{owner} 在计划外选牌后继续请求选牌：options={live.Count} " +
@@ -93,20 +96,24 @@ internal sealed class PlannedNativeSelector(
         IReadOnlyList<CardRewardAlternative> alternatives)
     {
         RecordFailure($"{owner} 请求了战斗内计划外的卡牌奖励选择。");
-        return default;
+        throw new NativeChoicePlanMismatchException(FailureDetail!);
     }
 
     private Task<IEnumerable<CardModel>> Fail(List<CardModel> live, int minSelect, int maxSelect,
         string message)
     {
         RecordFailure(message);
-        return NativeChoiceFallback.SelectAsync(player, live, minSelect, maxSelect, owner);
+#if STS2_SOLVER_TESTING
+        if (CombatControllerTestHooks.SelectUnplannedCardsForTest is { } select)
+            return select(live, minSelect);
+#endif
+        return NativeChoiceHandoff.SelectAsync(player, live, minSelect, maxSelect, owner);
     }
 
     private void RecordFailure(string message)
     {
-        _failure ??= message;
-        ModLog.Error($"[Sts2Solver] DEPLOY_CHOICE_MISMATCH {message}");
+        if (_failure.TrySetResult(message))
+            ModLog.Error($"[Sts2Solver] DEPLOY_CHOICE_MISMATCH {message}");
     }
 
     private bool TryMapOptions(PlannedChoice choice, List<CardModel> live, out int[] map,

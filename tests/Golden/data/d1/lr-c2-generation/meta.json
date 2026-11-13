@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "lr-c2-generation",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-c2-generation.json\u0022}",
-  "rulesSha256": "83d91a440deab1a7a388c211f5e46e60ec1d6c0edb60a4a5a29337f01c0d93b6",
+  "rulesSha256": "61688ef683ebe58b2255371f4b7f09364ec404c08c518b7ff0dd3300a19c7a5d",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 399,
-    "transitions": 367
+    "walkStates": 401,
+    "transitions": 369
   }
 }

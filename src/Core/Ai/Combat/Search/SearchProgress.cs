@@ -148,18 +148,31 @@ internal sealed record SearchProgressSnapshot(
 }
 
 /// <summary>A retained candidate with the final state captured at publication time.</summary>
-internal sealed record SearchRouteCandidate(
-    int CandidateVersion,
-    int StartTurn,
-    int ThroughTurn,
-    int RootIndex,
-    PlayerAction[] Actions,
-    Battle FinalState,
-    SearchProgressTurn[] Turns,
-    double Score,
-    bool Victory,
-    bool OnlyDeathRoutes,
-    BeamSolver.RouteKey RankKey);
+internal sealed class SearchRouteCandidate(
+    int candidateVersion,
+    int startTurn,
+    int throughTurn,
+    int rootIndex,
+    PlayerAction[] actions,
+    in Battle finalState,
+    SearchProgressTurn[] turns,
+    double score,
+    bool victory,
+    bool onlyDeathRoutes,
+    BeamSolver.RouteKey rankKey)
+{
+    internal int CandidateVersion { get; } = candidateVersion;
+    internal int StartTurn { get; } = startTurn;
+    internal int ThroughTurn { get; } = throughTurn;
+    internal int RootIndex { get; } = rootIndex;
+    internal PlayerAction[] Actions { get; } = actions;
+    internal Battle FinalState { get; } = finalState;
+    internal SearchProgressTurn[] Turns { get; } = turns;
+    internal double Score { get; } = score;
+    internal bool Victory { get; } = victory;
+    internal bool OnlyDeathRoutes { get; } = onlyDeathRoutes;
+    internal BeamSolver.RouteKey RankKey { get; } = rankKey;
+}
 
 /// <summary>One pending adoption/stop request; only the channel's lock protects it.</summary>
 internal readonly record struct SearchControlRequest(int CandidateVersion, bool Stop);

@@ -7,16 +7,16 @@ namespace Sts2Solver.Simulation.Combat;
 public static class Limits
 {
     /// <summary>
-    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 62,744 bytes (packed prefix
-    /// 62,740), below the CLR's 65,535-byte array-element limit (and lets
+    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 43,856 bytes (packed prefix
+    /// 43,856), below the CLR's 65,535-byte array-element limit (and lets
     /// <c>Marshal.OffsetOf</c> keep working). A pile count and every card position are 16-bit;
     /// exceeding 640 still throws
     /// <see cref="CapacityException"/> instead of truncating.
     /// </summary>
     public const int Cards = 640;
 
-    /// <summary>The frozen snapshot's card ceiling. Index-style choices are enabled only above it.</summary>
-    public const int LegacyCards = 255;
+    /// <summary>Deck-size threshold for enabling index-style single-card choices.</summary>
+    public const int IndexSelectionCardThreshold = 255;
 
     /// <summary>
     /// Known enemies, including dead and escaped ones. The native combat state has no roster cap;
@@ -24,12 +24,13 @@ public static class Limits
     /// later summons in the same fight. Costs 2 x 64 bytes of <see cref="Battle"/>.
     /// </summary>
     public const int Enemies = 12;
-    public const int Powers = 64;
-    public const int Relics = 32;
+    public const int Powers = 28;
+    public const int RelicRoster = ushort.MaxValue;
+    public const int RelicStates = 24;
     public const int PotionSlots = 5;
     public const int Orbs = 10;
     public const int Counters = 48;
-    public const int RngStreams = 9;
+    public const int RngStreams = 10;
     public const int EnemyAiRegisters = 4;
     public const int EnemyRecentMoves = 8;
 
@@ -40,13 +41,13 @@ public static class Limits
     public const int MonsterRules = 32;
 
     /// <summary>
-    /// Local energy-cost modifiers of one card. Stomp adds one <c>EndOfTurn</c> modifier per Attack
-    /// played this turn (<c>Stomp.BeforeCardPlayed</c>) on top of the modifiers other effects write,
-    /// so the native unbounded list needs room for a full turn's plays. Overflow still throws
+    /// Local energy-cost records after merging adjacent unrestricted relative modifiers with
+    /// matching expiration. Stomp's repeated same-turn reductions share a summed record; absolute,
+    /// reduce-only and differently expiring entries still require separate slots. Overflow throws
     /// <see cref="CapacityException"/> instead of truncating; the expansion boundary drops the
     /// child, and a root-level overflow fails the whole solve.
     /// </summary>
-    public const int CardEnergyCostModifiers = 16;
+    public const int CardEnergyCostModifiers = 10;
     // One action may carry a primary choice plus nested auto-play choices. Decisions, Decisions
     // replays the chosen card up to its Repeat variable (3), and a chosen Decisions, Decisions can
     // nest again for each skill in hand; the existing engine keeps those frames unbounded. Every

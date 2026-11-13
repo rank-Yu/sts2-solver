@@ -321,10 +321,10 @@ public sealed class Tunneler : MonsterDef
 [ContentId("THE_INSATIABLE")]
 public sealed class TheInsatiable : MonsterDef
 {
-    private const int LiquifySandpit = 4;
+    private const int LiquifySandpit = 1;
     private const int LiquifyCardsPerPile = 3;
 
-    public override IReadOnlyList<string> StaticIntNames => ["SalivateStrength"];
+    public override IReadOnlyList<string> StaticIntNames => ["SalivateStrength", "SandpitAmount"];
 
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("FRANTIC_ESCAPE", 0)];
 
@@ -339,7 +339,7 @@ public sealed class TheInsatiable : MonsterDef
                 break;
             case "LIQUIFY_GROUND_MOVE":
                 Kernel.ApplyPowerTargeted(ref x, owner, Limits.PlayerOwner,
-                    Registry.PowerId<Powers.SandpitPower>(), LiquifySandpit, owner);
+                    Registry.PowerId<Powers.SandpitPower>(), rules.StaticInts[LiquifySandpit], owner);
                 for (int index = 0; index < LiquifyCardsPerPile; index++)
                 {
                     Kernel.AddGeneratedCard(ref x,
@@ -436,7 +436,7 @@ public sealed class KnowledgeDemon : MonsterDef
         if (card == Registry.CardId<Cards.Status.Disintegration>())
         {
             Kernel.ApplyPower(ref x, Limits.PlayerOwner,
-                Registry.PowerId<Powers.DisintegrationPower>(), DisintegrationBase + counter, Limits.PlayerOwner);
+                Registry.PowerId<Powers.DisintegrationPower>(), DisintegrationBase + (x.R.Mode == CombatMode.Dread ? 2 : 0) + counter, Limits.PlayerOwner);
         }
         else if (card == Registry.CardId<Cards.Status.MindRot>())
         {

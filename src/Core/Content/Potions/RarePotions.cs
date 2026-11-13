@@ -418,7 +418,7 @@ public sealed class EntropicBrew : PotionDef
             if (!open)
                 return;
             ushort potion = Kernel.GenerateRandomPotionOutOfCombat(ref x.B, x.R);
-            if (!Kernel.TryProcurePotion(ref x.B, potion, freeFromEntropic: true))
+            if (!Kernel.TryProcurePotion(ref x.B, x.R, potion, freeFromEntropic: true))
                 return;
         }
     }

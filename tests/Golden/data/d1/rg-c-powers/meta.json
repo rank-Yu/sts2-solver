@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "rg-c-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-c-powers.json\u0022}",
-  "rulesSha256": "50d1f91ad04e22cb3b2e931d1667c8faddc51517f6955a7e966142fc962f3524",
+  "rulesSha256": "e36f9f5b890a16d790c48787ae879cf1e1938634cb8fdc260227daf0d543c526",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 776,
-    "transitions": 744
+    "walkStates": 786,
+    "transitions": 754
   }
 }

@@ -51,8 +51,8 @@ internal static class IncumbentAndLoopChecks
 
         foreach (BoundFeatures bound in new[] { known, component })
         {
-            Battle fairyBattle = PruningBattle(fairyPotion: fairy);
-            BoundValues fairyK5 = bound.Evaluate(in fairyBattle, 0);
+            Battle fairyBattle = PruningBattle(ref rules, fairyPotion: fairy);
+            BoundValues fairyK5 = bound.Evaluate(in fairyBattle, rules, 0);
             Assert(fairyK5.RemainingHealingPotential == int.MaxValue,
                 "fairy K5 remaining healing must stay unknown");
             Assert(fairyK5.StrategicHpLowerBound == -20,
@@ -60,8 +60,8 @@ internal static class IncumbentAndLoopChecks
             Assert(bound.PruningStrategicHpLowerBound(in fairyBattle, rules) == 20,
                 "fairy must not block the pruning lower bound");
 
-            Battle lizardBattle = PruningBattle(lizardRelic: lizard);
-            BoundValues lizardK5 = bound.Evaluate(in lizardBattle, 0);
+            Battle lizardBattle = PruningBattle(ref rules, lizardRelic: lizard);
+            BoundValues lizardK5 = bound.Evaluate(in lizardBattle, rules, 0);
             Assert(lizardK5.RemainingHealingPotential == int.MaxValue,
                 "lizard tail K5 remaining healing must stay unknown");
             Assert(lizardK5.StrategicHpLowerBound == -20,
@@ -69,52 +69,51 @@ internal static class IncumbentAndLoopChecks
             Assert(bound.PruningStrategicHpLowerBound(in lizardBattle, rules) == 20,
                 "lizard tail must not block the pruning lower bound");
 
-            Battle exhausted = PruningBattle(cards: [(notYet, 0, Pile.Exhaust)]);
+            Battle exhausted = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Exhaust)]);
             Assert(bound.PruningStrategicHpLowerBound(in exhausted, rules) == 20,
                 "exhausted Not Yet must no longer block or count");
 
-            Battle live = PruningBattle(cards: [(notYet, 0, Pile.Hand)]);
+            Battle live = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Hand)]);
             Assert(bound.PruningStrategicHpLowerBound(in live, rules) == 10,
                 "live Not Yet must count its heal");
 
-            Battle upgraded = PruningBattle(cards: [(notYet, 1, Pile.Draw)]);
+            Battle upgraded = PruningBattle(ref rules, cards: [(notYet, 1, Pile.Draw)]);
             Assert(bound.PruningStrategicHpLowerBound(in upgraded, rules) == 7,
                 "upgraded Not Yet must count its upgraded heal");
 
-            Battle feedBattle = PruningBattle(cards: [(feed, 0, Pile.Discard)]);
+            Battle feedBattle = PruningBattle(ref rules, cards: [(feed, 0, Pile.Discard)]);
             Assert(bound.PruningStrategicHpLowerBound(in feedBattle, rules) == 17,
                 "live Feed must count one max-HP payout");
 
-            Battle replay = PruningBattle(cards: [(notYet, 0, Pile.Hand), (burst, 0, Pile.Hand)]);
+            Battle replay = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Hand), (burst, 0, Pile.Hand)]);
             Assert(bound.PruningStrategicHpLowerBound(in replay, rules) == -20,
                 "a replay source must keep Not Yet unknown");
 
-            Battle retrieved = PruningBattle(cards: [(notYet, 0, Pile.Exhaust)]);
-            retrieved.RelicCount = 1;
-            retrieved.Relics[0] = new Relic { Id = burningSticks };
+            Battle retrieved = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Exhaust)]);
+            TestRelics.Set(ref retrieved, ref rules, new Relic { Id = burningSticks });
             Assert(bound.PruningStrategicHpLowerBound(in retrieved, rules) == -20,
                 "a source that can return an exhausted Not Yet must keep it unknown");
 
-            Battle fruitBattle = PruningBattle(potions: [fruit]);
+            Battle fruitBattle = PruningBattle(ref rules, potions: [fruit]);
             Assert(bound.PruningStrategicHpLowerBound(in fruitBattle, rules) == 15,
                 "Fruit Juice must count one max-HP gain");
 
-            Battle dragonFruitBattle = PruningBattle(lizardRelic: dragonFruit);
+            Battle dragonFruitBattle = PruningBattle(ref rules, lizardRelic: dragonFruit);
             Assert(bound.PruningStrategicHpLowerBound(in dragonFruitBattle, rules) == 20,
                 "Dragon Fruit without an in-combat gold source must not block");
-            Battle goldBattle = PruningBattle(lizardRelic: dragonFruit,
+            Battle goldBattle = PruningBattle(ref rules, lizardRelic: dragonFruit,
                 cards: [(handOfGreed, 0, Pile.Hand)]);
             Assert(bound.PruningStrategicHpLowerBound(in goldBattle, rules) == 19,
                 "each live Hand of Greed pays one Dragon Fruit max-HP gain");
-            Battle goldExhausted = PruningBattle(lizardRelic: dragonFruit,
+            Battle goldExhausted = PruningBattle(ref rules, lizardRelic: dragonFruit,
                 cards: [(handOfGreed, 0, Pile.Exhaust)]);
             Assert(bound.PruningStrategicHpLowerBound(in goldExhausted, rules) == 20,
                 "an exhausted Hand of Greed pays no Dragon Fruit max-HP gain");
-            Battle twoGold = PruningBattle(lizardRelic: dragonFruit,
+            Battle twoGold = PruningBattle(ref rules, lizardRelic: dragonFruit,
                 cards: [(handOfGreed, 0, Pile.Hand), (handOfGreed, 0, Pile.Discard)]);
             Assert(bound.PruningStrategicHpLowerBound(in twoGold, rules) == 18,
                 "every live Hand of Greed copy pays once");
-            Battle luckyBattle = PruningBattle(relics: [dragonFruit, luckyFysh],
+            Battle luckyBattle = PruningBattle(ref rules, relics: [dragonFruit, luckyFysh],
                 cards: [(handOfGreed, 0, Pile.Hand)]);
             Assert(bound.PruningStrategicHpLowerBound(in luckyBattle, rules) == -20,
                 "LuckyFysh's in-combat gold gain cannot be bounded by Hand of Greed copies");
@@ -134,7 +133,7 @@ internal static class IncumbentAndLoopChecks
         BoundFeatures.Config Config() => ComponentConfig(heal, CardId("FEED"), lizard, dragon, fairy, fruit);
         Battle Root(bool withHeal)
         {
-            Battle root = SearchRoot(rules, strike, true, false, 1, false);
+            Battle root = SearchRoot(ref rules, strike, true, false, 1, false);
             root.Player.CurrentHp = 30;
             if (withHeal)
                 Piles.Append(ref root, Pile.Hand, new Card
@@ -201,8 +200,7 @@ internal static class IncumbentAndLoopChecks
         Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit == 0,
             "an already exhausted heal contributes no remaining recovery");
         Registry.TryRelic("BURNING_STICKS", out ushort sticks);
-        exhausted.Relics[0] = new Relic { Id = sticks };
-        exhausted.RelicCount = 1;
+        TestRelics.Set(ref exhausted, ref rules, new Relic { Id = sticks });
         Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit is null,
             "an exhausted healing card that can return remains unbounded");
 
@@ -366,13 +364,14 @@ internal static class IncumbentAndLoopChecks
         };
     }
 
-    private static Battle PruningBattle(
+    private static Battle PruningBattle(ref Rules rules,
         IReadOnlyList<(ushort Id, int Upgrade, Pile Pile)>? cards = null,
         IReadOnlyList<ushort>? potions = null,
         ushort? fairyPotion = null,
         ushort? lizardRelic = null,
         IReadOnlyList<ushort>? relics = null)
     {
+        rules = rules.WithRelics(RelicRoster.Empty);
         Battle battle = NewBattle(50, 50, 100, energy: 3);
         battle.SetCounter(Counter.CumulativeHpLost, 20);
         battle.Player.CurrentHp = 10;
@@ -389,14 +388,11 @@ internal static class IncumbentAndLoopChecks
         }
         if (relics is { Count: > 0 })
         {
-            battle.RelicCount = checked((byte)relics.Count);
-            for (int index = 0; index < relics.Count; index++)
-                battle.Relics[index] = new Relic { Id = relics[index] };
+            TestRelics.Set(ref battle, ref rules, relics.Select(id => new Relic { Id = id }).ToArray());
         }
         else if (lizardRelic is { } lizard)
         {
-            battle.RelicCount = 1;
-            battle.Relics[0] = new Relic { Id = lizard };
+            TestRelics.Set(ref battle, ref rules, new Relic { Id = lizard });
         }
         if (cards is not null)
         {
@@ -420,14 +416,14 @@ internal static class IncumbentAndLoopChecks
 
         // Block reaches the 12-damage threat line after three plays, then the next 256 actions are
         // no-progress and the following play child is refused. End-turn remains available.
-        Battle loopRoot = SearchRoot(blockRules, block, inHand: true, inDiscard: true,
+        Battle loopRoot = SearchRoot(ref blockRules, block, inHand: true, inDiscard: true,
             enemyHp: 100, withTop: false);
         BeamResult loop = Solve(loopRoot, blockRules, maxNodes: 1000, threads: 1);
         Assert(loop.TurnLoopGuarded > 0, "block loop should hit the no-progress guard");
         Assert(loop.ExpandedNodes < 1000, "block loop should finish before the node budget");
         Assert(loop.StopReason != "budget", "block loop must not exhaust the node budget");
 
-        Battle loopRoot4 = SearchRoot(blockRules, block, inHand: true, inDiscard: true,
+        Battle loopRoot4 = SearchRoot(ref blockRules, block, inHand: true, inDiscard: true,
             enemyHp: 100, withTop: false);
         BeamResult loop4 = Solve(loopRoot4, blockRules, maxNodes: 1000, threads: 4);
         Assert(loop.TurnLoopGuarded == loop4.TurnLoopGuarded
@@ -437,7 +433,7 @@ internal static class IncumbentAndLoopChecks
 
         // One 0-cost attack plus Unceasing Top makes every hit a new enemy HP+block low, so a
         // 300-HP enemy dies after more than 256 plays without the guard firing.
-        Battle attackRoot = SearchRoot(attackRules, strike, inHand: true, inDiscard: false,
+        Battle attackRoot = SearchRoot(ref attackRules, strike, inHand: true, inDiscard: false,
             enemyHp: 300, withTop: true);
         BeamResult attack = Solve(attackRoot, attackRules, maxNodes: 4000, threads: 1);
         Assert(attack.BestIsVictory, "the attack loop should win");
@@ -447,12 +443,12 @@ internal static class IncumbentAndLoopChecks
         // Poison and Strength each grow to a new high below their conservative line, so 300 plays
         // are not guarded. The search is allowed to stop at its node budget without a guard count.
         Rules scalingRules = BuildSearchRules(block, strike, poison, strength, attack: 0);
-        Battle poisonRoot = SearchRoot(scalingRules, poison, inHand: true, inDiscard: true,
+        Battle poisonRoot = SearchRoot(ref scalingRules, poison, inHand: true, inDiscard: true,
             enemyHp: 1000, withTop: false);
         BeamResult poisonResult = Solve(poisonRoot, scalingRules, maxNodes: 500, threads: 1);
         Assert(poisonResult.TurnLoopGuarded == 0 && poisonResult.ExpandedNodes >= 300,
             "poison growth below its line must not be loop-guarded");
-        Battle poisonRoot4 = SearchRoot(scalingRules, poison, inHand: true, inDiscard: true,
+        Battle poisonRoot4 = SearchRoot(ref scalingRules, poison, inHand: true, inDiscard: true,
             enemyHp: 1000, withTop: false);
         BeamResult poisonResult4 = Solve(poisonRoot4, scalingRules, maxNodes: 500, threads: 4);
         Assert(poisonResult.TurnLoopGuarded == poisonResult4.TurnLoopGuarded
@@ -460,7 +456,7 @@ internal static class IncumbentAndLoopChecks
             && SameRoute(poisonResult.BestRoute, poisonResult4.BestRoute),
             "per-enemy progress metadata must not depend on expansion threads");
 
-        Battle strengthRoot = SearchRoot(scalingRules, strength, inHand: true, inDiscard: true,
+        Battle strengthRoot = SearchRoot(ref scalingRules, strength, inHand: true, inDiscard: true,
             enemyHp: 1000, withTop: false);
         BeamResult strengthResult = Solve(strengthRoot, scalingRules, maxNodes: 500, threads: 1);
         Assert(strengthResult.TurnLoopGuarded == 0 && strengthResult.ExpandedNodes >= 300,
@@ -502,7 +498,7 @@ internal static class IncumbentAndLoopChecks
 
         // One 1-damage strike every turn lowers the enemy HP at each boundary, so a 40-turn fight
         // is never cut and is won.
-        Battle slowRoot = SearchRoot(rules, strike, inHand: true, inDiscard: false, enemyHp: 40,
+        Battle slowRoot = SearchRoot(ref rules, strike, inHand: true, inDiscard: false, enemyHp: 40,
             withTop: false);
         BeamResult slow = Solve(slowRoot, rules, maxNodes: 4000, threads: 1, maxTurns: int.MaxValue);
         Assert(slow.BestIsVictory, "the slow attack fight should be won");
@@ -514,7 +510,7 @@ internal static class IncumbentAndLoopChecks
         // no turn makes kill progress: the route stops at twice the limit.
         ushort growth = CardId("NP1_TEST_MAX_HP_GROWTH");
         Rules growthRules = BuildSearchRules(block, strike, poison, strength, attack: 0, growth);
-        Battle growthRoot = SearchRoot(growthRules, growth, inHand: true, inDiscard: false,
+        Battle growthRoot = SearchRoot(ref growthRules, growth, inHand: true, inDiscard: false,
             enemyHp: 40, withTop: false);
         BeamResult grown = Solve(growthRoot, growthRules, maxNodes: 4000, threads: 1,
             maxTurns: int.MaxValue);
@@ -621,10 +617,10 @@ internal static class IncumbentAndLoopChecks
         return builder.Build();
     }
 
-    private static Battle SearchRoot(Rules rules, ushort card, bool inHand, bool inDiscard,
+    private static Battle SearchRoot(ref Rules rules, ushort card, bool inHand, bool inDiscard,
         int enemyHp, bool withTop)
     {
-        _ = rules;
+        rules = rules.WithRelics(RelicRoster.Empty);
         Battle battle = NewBattle(50, 50, enemyHp, energy: 3);
         battle.PlayerTurn = 1;
         battle.Side = Side.Player;
@@ -645,8 +641,7 @@ internal static class IncumbentAndLoopChecks
         if (withTop)
         {
             Registry.TryRelic("UNCEASING_TOP", out ushort top);
-            battle.RelicCount = 1;
-            battle.Relics[0] = new Relic { Id = top };
+            TestRelics.Set(ref battle, ref rules, new Relic { Id = top });
         }
         return battle;
     }

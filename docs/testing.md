@@ -82,7 +82,7 @@ dotnet run --project tests/Golden -c Release --no-build -- k0
 - `tests/KernelChecks` 输出 `"contracts": "Passed"`。它检查 `Battle`、`Card`、`Enemy`、`Power`、`Orb`、`RngState` 的字节尺寸与牌区偏移；随机数对照原版参考向量；洗牌排序；牌堆操作与容量失败；`CostState` 各位互不干扰；选择协议、注册表与编码合同；成长计数的打包；TheGambit 让玩家死亡后不再调用后续玩家监听、LizardTail 阻止死亡后监听照常执行；回合末自伤声明与实际单步结束回合的掉血一致（`TURN_END_SELF_DAMAGE_CONTRACTS`）；战斗内金币的修正/后续 Hook 顺序与 DragonFruit 的最大生命回复（`GOLD_HOOK contracts=pass`）；以及 `Exec` 字段覆盖合同（见 4.3）。
 - `UiLogicChecks` 在无头测试启动时运行，覆盖设置默认值/往返、当前 schema 与第三方成长额度的往返、药水逐瓶策略对账、面板文案和本地化目录。
 - `JitChecks` 在同一个启动检查里对 Mod/Core 程序集的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`（含 async 状态机的 `MoveNext`；泛型方法跳过），任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让 `ui-checks.json` 失败。规则见 [Battle 状态布局](combat-state-layout.md#大结构体与-jit-限制)。
-- `Golden k0` 输出形如 `K0 Passed fields=30 battleBytes=62744 formatVersion=5 requestVersion=11 resultVersion=6 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 30 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。同一次运行还输出 `REPLAY_LOG_CONTRACT`，即 [战斗日志重放](#44-战斗日志重放) 的单线程复现合同；以及 `RELIC_COUNTER_CONTRACT`：在持有计数遗物的 D2 请求上注入目标，开心小花和钢笔尖 + 金纸在额度 0 时不多掉血就对上，摆动球只能多掉 2 血对上，额度 0 时不付血、额度 5 时付 2 血对上并只计一次额度，目标表经请求编解码不变。
+- `Golden k0` 输出形如 `K0 Passed fields=32 battleBytes=43856 formatVersion=9 requestVersion=12 resultVersion=6 magics=BATL,RULE,GOLD,SREQ,SRES`。它检查 `Rules` 的 32 个字段都进入编码、`decode(encode(x))` 字节不变、`Unsafe.SizeOf<Battle>()` 符合预期、五个魔数按小端字节解出的 ASCII 与格式标签一致。同一次运行还输出 `REPLAY_LOG_CONTRACT`，即 [战斗日志重放](#44-战斗日志重放) 的单线程复现合同；以及 `RELIC_COUNTER_CONTRACT`：从命名的原生根设置计数器初值并注入目标，开心小花和钢笔尖 + 金纸在额度 0 时不多掉血就对上，摆动球只能多掉 2 血对上，额度 0 时不付血、额度 5 时付 2 血对上并只计一次额度，目标表经请求编解码不变。
 
 K0 证明内核的布局、编码与纯函数合同在只有 BCL 的环境下成立；不证明搜索语义、冻结输入的求值路径或实机状态。
 
@@ -202,6 +202,8 @@ dotnet run --project tests/Golden -c Release --no-build -- \
 - 质量用 `BeamSolver.TryCompareResultQuality` 判断：把冻结路线和当前路线分别从同一根重放，按求解器自己的终局比较键（胜负、存活、死亡保护、战略失血、成长、回合、资源、可选药水、敌人生命、分数、动作数）分成更好、相同、更差；无法重放时计 `unknown`。
 - 不修改 `tests/Golden/data`，也不更新 manifest。
 
+候选目录的完整校验可用 `tools/testing/verify-core.sh --data-dir <候选目录> --jobs 8`；K0 和完整 verify 都读取该目录。`Golden k0 [data-dir]` 也可单独指定候选数据。
+
 ### 5.2 `refreeze`：重算搜索回归的期望结果
 
 ```bash
@@ -213,7 +215,9 @@ dotnet run --project tests/Golden -c Release --no-build -- \
 
 `refreeze` 先拒绝源和目标互相包含或目标非空，再复制整棵数据目录，用当前代码重解全部搜索回归请求，最后重写 manifest。输出 `REFREEZE_OK`（源、目标、请求数和结果哈希）与 `MANIFEST_WRITTEN`。经用户同意后，再用副本替换仓库数据。
 
-补录新的生产成员请求时，先用 [差分宿主](../tests/Differential/README.md#补录-d2-成员请求) 的 `--capture-d2` 写出请求，再给 `refreeze` 加 `--add-requests <捕获目录>`。它按 `capture.json` 累计捕获调用数，按编码后的 SHA-256 去重新请求、补 `rules-index`，其余请求和期望结果不改写。
+补录新的生产成员请求时，先用 [差分宿主](../tests/Differential/README.md#补录-d2-成员请求) 的 `--capture-d2` 写出请求，再给 `refreeze` 加 `--add-requests <捕获目录>`。它按 `capture.json` 累计捕获调用数，按编码后的 SHA-256 去重新请求、补 `rules-index`。相同的期望结果保留原字节。
+
+`refreeze --add-config-roots <根名列表>` 将指定 D1 的原生评分配置转为固定预算搜索请求（宽度 160、节点 120,000、最多 64 回合），用于前缀与多选准备根。它输出 `CONFIG_SEARCH`，按完整请求去重并更新规则索引；这类请求与生产协调器成员捕获分别记录来源。
 
 EH1 当前采用**完整版**：`CardDef` / `PowerDef.TryGetTurnEndSelfDamage` 声明的所有回合末/敌方回合内自伤都进入束内评分，投影顺序见 [评分要点](combat-ai.md#6-评分要点) 的“回合末自伤”小节；`ThreatProjection.BlockableDamage` 供 IP1 回合内循环保护读取。搜索回归的 `TURN_END_SELF_DAMAGE_CONTRACTS` 同时核对声明与真实单步结束回合的掉血。D2 的 `refreeze` 使用同一套完整版评分，WITHER 不再有独立评分路径。
 
@@ -288,9 +292,9 @@ git diff --exit-code -- tests/Golden/data/manifest.json
 | 建根（`--root`、`--all`）与 `--compare-only` | 原生 `CombatState` 的确定性转储（`NativeStateDump`）与参考转储 | 打印第一处差异 |
 | 导入对照 `--import-compare` | 导入的 `Battle` 与 `golden.br` 里的 `BATL`；加 `--compiled-rules` 时改用规则编译器的输出 | 每根 `same`、`diff`（`BattleDump.Diff` 前 24 行）或 `reject`（稳定原因码） |
 | 规则对照 `--rules-compare` | `RulesCodec.Encode` 的结果与冻结规则对象 | 每根 `same`、`diff`（`RulesDiff` 第一处表项及前 16 行）或 `reject` |
-| 镜像覆盖率表 `--rules-table-check` | 静态表与 `ModelDb.All`、注册表 | 报告遗漏和多余的 id |
+| 镜像覆盖率表 `--rules-table-check` | 静态表与 `ModelDb.All`、注册表 | 已注册内容必须有值、表项必须存在于当前原生内容；列出未映射的原生 id |
 | 评估配置对照 `--config-compare` | 重组的 `SREQ` 与 `config.br`，依次比较规则、根、评分表、下界与其余选项；并用 `GoldenHash` 检查 `scoreHash`、`boundHash` | 打印第一处差异 |
-| 负例 `--import-negative` | 在 `p8-c-rage-juggling-dark-embrace` 上制造三类问题：Power 内部数据置空、注入未认领的私有状态、挂上测试程序集里的 Power | 必须分别以 `missing-private-field`、`unclaimed-private-state`、`third-party-content` 拒绝，输出 `negative failures=0` |
+| 导入合同 `--import-negative` | 在 `p8-c-rage-juggling-dark-embrace` 上检查原生 History 的 16 位命中边界、必需回血变量，以及私有状态和第三方内容 | 0/255/256/65535 命中通过、65536 拒绝；缺失变量以 `unsupported-relic` 拒绝；私有字段、未认领状态和第三方内容分别拒绝，输出 `negative failures=0` |
 | 回合准备枚举 `--setup-enumerate <root> [--setup-turn 1\|2]` | 在 `SetupPlayerTurn` 入口导入 Start 根，用 `TurnSetupRootEnumerator` 枚举计划；对每个计划重建一次原生准备页，比较 Play 根和根集合；另比较 `golden.br` 根集合、`config.br` 的数据段、短搜与 `Battles[BestRootIndex]` 重放 | 每个计划 `PLAN status=same`、`SETUP_NATIVE status=same`；冻结 fixture 输出 `SETUP_CONFIG scope=frozen status=same`、`SETUP_GOLDEN status=same` |
 
 `--all` 汇总 `same/diff/reject`，并按首个差异字段或拒绝原因分组计数。前缀根通过“导入前缀之前的状态 + 内核回放”比较；回合准备 fixture 按原生准备选项逐个重建，比较整份请求及全部准备根（见 [原生导入](import.md#8-前缀根与回合准备根)）。
@@ -335,6 +339,8 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ts-
 每根的 `full-combat.json` 记录胜负、重搜、执行失败，以及每次搜索的完整成员明细（执行或跳过、停止原因、展开数、路线质量、内存峰值、回合循环保护截断的出牌数 `turnLoopGuarded`）；父进程的 `summary.json` 汇总档位、四种宽度、成员预算和内存预算。两个文件的 `searchBudget` 都记录本次使用的模式：可复现模式是 `mode=reproducible`、`maxExpandedNodesPerWidth=512`、`searchThreads=1`，墙钟模式是 `mode=wall-clock`、`millisecondsPerWidth=50`、`maxExpandedNodesPerWidth=512`。默认质量集合和期望见 [tests/corpora/quality](../tests/corpora/quality/README.md)。
 
 可复现模式的节点预算按 Medium 墙钟基线标定：整场的加权展开速度约为 11.3 节点/ms，50 ms/宽度约合 565 节点/宽度；取 512 后，基线上所有在墙钟截止前自然结束的成员都低于该预算。固定预算是跨机器可比较的确定性近似，不声明与任意机器上的生产计时逐局相同。
+
+定点动作可用 Differential 的 `--native-effect-check`，直接检查选定出牌、结束回合，以及生成/变牌后的跨角色箭槽状态，详见 [原生效果定点对照](../tests/Differential/README.md#原生效果定点对照)。
 
 `--requests-file <file>` 让同一个离线整场入口直接读 sts2-sim 导出的请求文件（`OfflineRequest` JSON，不经质量语料目录或 spec 查找）。列表每行是 `<request.json>` 或 `<结果目录名>=<request.json>`；名称必须唯一，默认取文件名，相对路径按列表文件目录解析。父进程为每行启动独立子进程，`--jobs` 控制并发，`--root <名称>` 可在同一列表里只选一行。列表格式和其余离线整场参数见 [差分宿主](../tests/Differential/README.md#离线整场自动战斗)。
 
@@ -477,7 +483,9 @@ Mod 在无头游戏里把 `BATL`、`RULE`、`SREQ.capture`、`native.txt` 写进
 
 每个整场请求还会检查战斗面板的结构，结果写 `ui-panel.json`（59 项）：开战后面板存在且可见；经视口输入管线注入 `F8`、`Ctrl+F9` 后面板都不隐藏也不改变状态（没有快捷键）；收起后标题栏和底栏的自动搜索开关仍然可见、可点，收起状态写入设置，收起键的字变成“展开”，再展开后变回“收起”；把自动搜索开关拨关再拨开，设置和快照随之变化，最后恢复；标题栏右侧依次是“药水”“成长”“遗物”“设置”“收起”，都没有按下；点“药水”打开策略侧栏的药水页并按下该按钮，侧栏停靠在面板旁、与面板同高、深色，药水行与快照的药栏一致（槽位、药水、模式文字、不可指定时禁用并带悬停）；点“成长”换到成长页，开关和十个额度与快照一致；点已按下的按钮、点“×”、收起面板都会关闭侧栏，收起时四个按钮隐藏，再展开时侧栏仍然关闭；点“设置”时关闭侧栏，面板主体换成设置页，按钮字变成“返回”且宽度不变，设置页深色、没有主题选择，八个控件都在，两项幕末 Boss 下拉与快照一致；“恢复默认”恢复本页各项（含两项幕末 Boss）且不改变自动搜索开关；设置页显示时面板高度等于完整内容与 540 中较小的；收起保留设置页状态，展开后回到设置页；设置页开着时点“成长”先关设置页再打开侧栏；“返回”回到路线；盗贼提示条只在快照适用时显示；侧栏开着时切换语言，重建后仍开着，英文下“设置”和“返回”宽度相同；同一进程内下一场战斗开始时侧栏和设置页都是关的（第一场跳过）；用游戏自带的英文覆盖把语言切到英文再切回，面板各重建一次；收起状态下切换语言，重建出的收起键仍是“展开”（与开游戏时读到已保存的收起状态走同一建面板路径）；中文下面板控件有游戏替代字体覆盖，英文下没有字体覆盖，英文目录不缺键；底栏按阶段规则逐帧比较：执行中（含本场执行、页面驱动和搜到就执行的重算）只有“停止执行”且搜索键变灰；普通搜索中左键是“停止搜索”、执行区为空；本回合还没搜索时左键是“开始搜索”，搜过之后是“继续搜索”加“重新搜索”；平时“执行本回合”“执行本场战斗”固定显示，没有本回合路线时变灰；自动搜索开关与快照一致；禁用状态和悬停原因来自快照的 `SearchStage`、`CanStartSearch`、`CanContinueSearch`、`SearchBlockReason`、`CurrentTurnRouteReady`、`DeployWhenReady`、`CombatRunActive`、`IsStoppingDeployment`；期望值由快照独立推导，按搜索/执行/空闲统计帧数；整场过程中逐帧比较面板已应用的快照与它的显示，路线行数、回合号和动作下标等于快照的 16 回合窗口，执行中高亮的胶囊覆盖快照的当前动作下标，已完成标记与完成数一致，阶段等于快照阶段，“未找到生还路线”与已知的本局扣血从不同时成立，路线标题行的策略结果段数等于快照结果里已卡、未达标、已获得三组中非空的组数（搜索中为 0），“已用药”和“预计未追回”只在快照结果有对应内容时显示（搜索中不显示），不能开始搜索的帧（敌方回合、动作结算中、回合开始选牌页）里路线从不标成“已保存路线（已过期）”，搜索中状态上下文带“已排队执行”当且仅当快照会在搜完后执行（`DeployWhenReady` 或本场执行未暂停）；战斗结束后面板隐藏，同一进程内下一场战斗重新出现（第一场跳过）。断言只用阶段枚举名、回合号和全局动作下标，不比较本地化文本。任何一项失败，该请求记为失败。`button_rules_frames` 要求整场中至少出现一帧搜索、一次部署和一帧空闲；控制器在第一次部署前因预测必死而暂停时没有部署帧，这一项会失败，`full-combat.json` 仍记录 `status=paused` 与 `pauseReason=death_turn=...`。测试期间测试入口把 `headlessFastModeForTest` 覆盖为 `Instant`（默认），结束后恢复。
 
-请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖自动搜索关时开始/停止、自动搜索每回合、停止搜索留下路线、停止后下一回合/重搜、搜索中不显示执行键且停止后执行保留的路线（`execute_after_stop`）、无路线时执行被拒、回合中途拨开和拨关自动搜索、自动搜索关时回合开始沿用路线、本场执行从开局和中途开启（测试入口 `ArmRunForTest`）、预计死亡暂停、未找到生还路线暂停（每场一次，恢复后不再暂停）、搜索失败累计暂停、停止执行、不能搜索的原因（敌方回合、动作结算中、回合开始结算中）、动作结果/发牌前局面/回合边界偏差立即停止且不重搜、部署失败立即停止、准备计划点完后实机戳不符、路线耗尽后重搜、搜索失败主面板（`search_failed`，重新搜索和下一回合清除）、战斗结束、多人门禁，以及策略命令：药水逐瓶/批量模式、成长额度、计数遗物额度、成长性卡牌收益开关、Boss 血量策略和本场盗贼策略。`strategy_commands-relics` 和 `panel_strategy-relics` 给默认根注入钢笔尖（已出 4 张攻击）和开心小花（已过 1 回合）：前者检查默认（开关全关）时请求没有遗物目标，打开两个遗物后请求按遗物栏顺序带上两个目标、额度写进对应目标、关掉成长性卡牌收益时目标不变、关掉一个遗物只少它那一个目标，后者检查遗物页的两行与快照一致、开关默认关且额度输入不可编辑、打开后才可编辑、关掉成长性卡牌收益时这一页照常可用；默认根没有计数遗物，遗物页显示“当前没有计数遗物”。策略场景同时断言命令不触发搜索、下一次请求带上新策略，盗贼策略在下一场战斗回到默认。`panel_strategy` 场景在手动档里只通过面板控件改策略：药水模式按钮按智能使用 → 禁用 / 保护循环、两个批量按钮，成长页的两个开关、至亮之焰上限和额度输入（非法输入时侧栏不关闭），遗物页的额度输入，设置页的两项幕末 Boss 下拉和“恢复默认”，以及有盗贼的战斗里提示条的按钮；每一步断言命令生效、快照随之变化、页面显示与快照一致、状态行写“已保存，下次搜索生效”，全程不触发搜索，结束时恢复设置。药水用 `k3-basic-potions`，盗贼和空药栏用 `tw-gremlin-merc`。搜索、停止、执行键通过面板按钮的 `Pressed` 信号触发，自动搜索开关通过面板开关触发；场景里“搜索键”按旧单键的意图映射到新底栏（搜索中按停止，本回合没搜过按开始，能继续按继续，否则按重新搜索），“执行键”映射为执行中按停止、本场执行暂停后按执行本场战斗、否则按执行本回合；另有搜索/执行/完成/等待/停止/手动等待/暂停文案和线程设置、出牌速度、牌间停顿场景。控制器场景与 `fullCombatForTest` 互斥。`manual_switch_at_turn_start` 在单搜索线程下先投递回合开始事件再立刻关掉自动搜索，断言这个回合没有自动搜索、`Searches` 不变；`auto_turn_start_once` 在第一次自动搜索失败后重复投递同一回合的回合开始事件，断言不发出第二次自动搜索、失败状态保留。停止后继续的场景用 `continue_search_middle`（停在中间成员后从下一个成员继续，断言被停成员不重跑、后续成员都处理、继续期间面板保留路线）、`continue_search_settings_changed` 和 `continue_search_state_changed`（设置或局面变化后“继续搜索”变灰，按“重新搜索”从头搜）、`continue_search_last_member`（停在最后一个成员后不提供继续）、`continue_search_twice`（继续中再停并再继续）和 `continue_search_request_mismatch`（便宜判断通过但精确请求不同，从头搜并记录请求差异）。偏差场景 `deviation_action_full_auto`、`deviation_action_auto_search`、`deviation_deployment_drift`、`deviation_boundary`、`deviation_boundary_setup` 和 `deviation_setup_stamp` 断言暂停码、不重搜、搜索键可用、执行键不可按和摘要里的具体原因；`deployment_drift_research` 断言部署失败 `deploy_failed` 停下且不重搜；`deployment_choice_mismatch` 丢弃一次 EndTurn 计划选择，断言原生选牌回退不抛异常、原生回合继续到下一回合 `Play`，控制器按 `choice_mismatch` 停下且部署失败计数为 1、偏差为 0；`plan_exhausted` 断言路线耗尽仍重搜。`combat_log_files` 在一次自动搜索后等写盘队列清空，断言本场目录里有 `combat.json`、`events.log` 和第一次搜索的 json、SREQ、SRES；再点击设置页“导出Mod日志”，检查忙碌状态、重复点击、排队日志写完后入包、设置和游戏日志齐全。另用隔离目录验证三场记录与偏差文件逐字节保留、旧游戏日志及正在打开的日志可读、旧 ZIP 不入包、无战斗时仍可导出游戏日志，以及写入失败返回错误。`main_menu_stops_search` 在自动搜索进行中返回主菜单，断言 60 帧内搜索停下、控制器回到空闲。失败原因场景 `import_capacity` 用超过 `Limits.Cards` 张的固定牌组断言“牌组共 N 张，超过求解器上限 M 张”原文，`import_failure` 断言导入失败标题和原因两行，`search_status_failures` 用测试钩子把协调器状态分别设成容量丢弃、达到内存上限和没有可执行路线并断言三条原因；中文和英文请求各跑一次。`capacity_dropped_route` 在自动搜索开着时给一次真实成功搜索加上 `Cards=1` 的容量丢弃信息，断言结果不是失败、摘要显示容量提示行，“重新搜索”和“执行本回合”都可点。没有能稳定预测本回合死亡的实机根；控制器场景用 `ForceProjectedDeathTurn` / `ForceProjectedDeathTurnSetup` 覆盖出牌和回合准备两条死亡暂停路径，纯策略由 `UiLogicChecks` 检查。
+请求带 `controllerScenarioForTest` 时，测试模式在根捕获后运行 `CombatControllerChecks`，用 `ICombatUiCommands` 驱动控制器并写 `controller.json`（断言、命令序列和快照序列）。控制器场景覆盖自动搜索关时开始/停止、自动搜索每回合、停止搜索留下路线、停止后下一回合/重搜、搜索中不显示执行键且停止后执行保留的路线（`execute_after_stop`）、无路线时执行被拒、回合中途拨开和拨关自动搜索、自动搜索关时回合开始沿用路线、本场执行从开局和中途开启（测试入口 `ArmRunForTest`）、预计死亡暂停、未找到生还路线暂停（每场一次，恢复后不再暂停）、搜索失败累计暂停、停止执行、不能搜索的原因（敌方回合、动作结算中、回合开始结算中）、动作结果/发牌前局面/回合边界偏差立即停止且不重搜、部署失败立即停止、准备计划点完后实机戳不符、路线耗尽后重搜、搜索失败主面板（`search_failed`，重新搜索和下一回合清除）、战斗结束、多人门禁，以及策略命令：药水逐瓶/批量模式、成长额度、计数遗物额度、成长性卡牌收益开关、Boss 血量策略和本场盗贼策略。`strategy_commands-relics` 和 `panel_strategy-relics` 给默认根注入钢笔尖（已出 4 张攻击）和开心小花（已过 1 回合）：前者检查默认（开关全关）时请求没有遗物目标，打开两个遗物后请求按遗物栏顺序带上两个目标、额度写进对应目标、关掉成长性卡牌收益时目标不变、关掉一个遗物只少它那一个目标，后者检查遗物页的两行与快照一致、开关默认关且额度输入不可编辑、打开后才可编辑、关掉成长性卡牌收益时这一页照常可用；默认根没有计数遗物，遗物页显示“当前没有计数遗物”。策略场景同时断言命令不触发搜索、下一次请求带上新策略，盗贼策略在下一场战斗回到默认。`panel_strategy` 场景在手动档里只通过面板控件改策略：药水模式按钮按智能使用 → 禁用 / 保护循环、两个批量按钮，成长页的两个开关、至亮之焰上限和额度输入（非法输入时侧栏不关闭），遗物页的额度输入，设置页的两项幕末 Boss 下拉和“恢复默认”，以及有盗贼的战斗里提示条的按钮；每一步断言命令生效、快照随之变化、页面显示与快照一致、状态行写“已保存，下次搜索生效”，全程不触发搜索，结束时恢复设置。药水用 `k3-basic-potions`，盗贼和空药栏用 `tw-gremlin-merc`。搜索、停止、执行键通过面板按钮的 `Pressed` 信号触发，自动搜索开关通过面板开关触发；场景里“搜索键”按旧单键的意图映射到新底栏（搜索中按停止，本回合没搜过按开始，能继续按继续，否则按重新搜索），“执行键”映射为执行中按停止、本场执行暂停后按执行本场战斗、否则按执行本回合；另有搜索/执行/完成/等待/停止/手动等待/暂停文案和线程设置、出牌速度、牌间停顿场景。控制器场景与 `fullCombatForTest` 互斥。`manual_switch_at_turn_start` 在单搜索线程下先投递回合开始事件再立刻关掉自动搜索，断言这个回合没有自动搜索、`Searches` 不变；`auto_turn_start_once` 在第一次自动搜索失败后重复投递同一回合的回合开始事件，断言不发出第二次自动搜索、失败状态保留。停止后继续的场景用 `continue_search_middle`（停在中间成员后从下一个成员继续，断言被停成员不重跑、后续成员都处理、继续期间面板保留路线）、`continue_search_settings_changed` 和 `continue_search_state_changed`（设置或局面变化后“继续搜索”变灰，按“重新搜索”从头搜）、`continue_search_last_member`（停在最后一个成员后不提供继续）、`continue_search_twice`（继续中再停并再继续）和 `continue_search_request_mismatch`（便宜判断通过但精确请求不同，从头搜并记录请求差异）。偏差场景 `deviation_action_full_auto`、`deviation_action_auto_search`、`deviation_deployment_drift`、`deviation_boundary`、`deviation_boundary_setup` 和 `deviation_setup_stamp` 断言暂停码、不重搜、搜索键可用、执行键不可按和摘要里的具体原因；`deployment_drift_research` 断言部署失败 `deploy_failed` 停下且不重搜；`deployment_choice_mismatch` 丢弃一次 EndTurn 计划选择，显式启用测试选牌钩子，断言原生回合继续到下一回合 `Play`，控制器按 `choice_mismatch` 停下且部署失败计数为 1、偏差为 0；`plan_exhausted` 断言路线耗尽仍重搜。`combat_log_files` 在一次自动搜索后等写盘队列清空，断言本场目录里有 `combat.json`、`events.log` 和第一次搜索的 json、SREQ、SRES；再点击设置页“导出Mod日志”，检查忙碌状态、重复点击、排队日志写完后入包、设置和游戏日志齐全。另用隔离目录验证三场记录与偏差文件逐字节保留、旧游戏日志及正在打开的日志可读、旧 ZIP 不入包、无战斗时仍可导出游戏日志，以及写入失败返回错误。`main_menu_stops_search` 在自动搜索进行中返回主菜单，断言 60 帧内搜索停下、控制器回到空闲。失败原因场景 `import_capacity` 用超过 `Limits.Cards` 张的固定牌组断言“牌组共 N 张，超过求解器上限 M 张”原文，`import_failure` 断言导入失败标题和原因两行，`search_status_failures` 用测试钩子把协调器状态分别设成容量丢弃、达到内存上限和没有可执行路线并断言三条原因；中文和英文请求各跑一次。`capacity_dropped_route` 在自动搜索开着时给一次真实成功搜索加上 `Cards=1` 的容量丢弃信息，断言结果不是失败、摘要显示容量提示行，“重新搜索”和“执行本回合”都可点。没有能稳定预测本回合死亡的实机根；控制器场景用 `ForceProjectedDeathTurn` / `ForceProjectedDeathTurnSetup` 覆盖出牌和回合准备两条死亡暂停路径，纯策略由 `UiLogicChecks` 检查。
+
+计划外选牌交还检查使用原生游戏界面：`deployment_choice_handoff` 和 `deployment_card_choice_handoff` 分别制造结束回合和出牌时的计划失配，断言界面仍等待选择时部署已暂停、选择器作用域已释放，随后通过界面选择末尾候选并核对原生结算；`deployment_choice_handoff_exit` 验证请求期间退出及退出后请求都会取消。`choice_handoff_hand` / `choice_handoff_grid` 验证两种页面保留人工选择；对应的 `_exit` 场景验证退出取消；`choice_handoff_combat_end` 验证原生胜负检查结束战斗时取消选择；`choice_handoff_reentry` 验证旧请求的取消不会清除新请求的取消入口。所有测试注入钩子只编入测试版 Mod。
 
 回合准备接管场景用 `turnSetupTakeoverForTest` 显式打开测试构建里的正式接管，测试模式默认关闭；打开时测试入口不再安装 `TurnSetupCardSelector`，并让建局停在可见准备页或 `Play`。场景覆盖：自动搜索搜完后按“执行本回合”驱动页面并部署；本场执行中搜完直接驱动；Toolbox 三选一；Toasty 后监听器；停止搜索有候选（保留计划）与无候选（交还页面）；强制搜索失败显示 `turn_setup_failed` 且替换任务不 fault；本场执行驱动中点“停止执行”；本场执行在驱动前命中暂停条件；页面开着退出主菜单；自动搜索关时不接管；玩家在计划就绪后改选另一张牌使计划作废；纯隐式选择（`ts-j-toasty-one-card`，没有可见页面）不启动准备搜索、`Play` 后正常搜索。每个场景断言搜索次数、复用次数、偏差、错误码、遮挡是否释放和自动搜索开关不变。现有 `turn_setup_wait` 仍作为“正式接管关闭”的回归。
 
@@ -517,9 +525,29 @@ tools/testing/run-scenario-regression.py --jobs 4
 - **覆盖范围**：每次运行只覆盖命令选定的根与配置，不能从局部样本推断全部普通根、全部质量语料或整局都已验证。
 - **界面**：无头测试只检查面板的结构和状态（见 9.3），不证明可见渲染、字体、排版、拖动与缩放手感；这些要在可见游戏里看。
 - **非选牌模态**：选择驱动只覆盖 `CardSelectCmd` 的 `ICardSelector` 路径，没有验证未来或第三方 Mod 的其它模态请求。
-- **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖。
+- **前缀根**：实机测试模式显式拒绝前缀动作，前缀根由离线宿主的 `PrefixReplay` 覆盖；跨版本根捕获会解析动作并通过原生入口逐步执行、核对每个边界。
 - **回合准备多根**：实机 Mod 在自动搜索开着或本场执行中接管第一张可见准备页及其后的 AutoPrePlay 页，不在本场执行中只显示、本场执行中驱动；两者共用同一个页面会话和计划，只搜索一次。纯隐式选择不启动准备搜索。`ts-k-two-relic-choices` 在同一准备阶段产生两段可见选择，驱动按顺序消费；`ts-j-crossbow-one-card` / `ts-j-crossbow-many` 覆盖暂停后由侧回合开始加入手牌的候选。差分宿主验证 Start 根枚举、每个计划的 Play 根和 `config.br` 数据段。`--setup-enumerate` 默认只跑第 1 回合，`--setup-turn 2` 覆盖第 2 回合、额外回合和多段选择（`ts-ex-extra-turn` 用 PaelsEye + Toasty Mittens 在第 2 个玩家回合开始触发选择）。准备暂停时侧回合开始或球的触发如果自己请求选择，当前显式不支持；原版 v0.111.0 没有这样的内容（`AfterSideTurnStart` 不接收选择上下文且没有 `CardSelectCmd` 调用，球只有 PlasmaOrb 覆写回合开始触发且只获得能量）。
 - **第三方 Mod**：没有实机 Mod 根；导入层只显式拒绝非 `sts2` 程序集的模型，没有兼容层。
 - **Windows/Steam**：当前的计时与验证都在 Linux 上，Windows 的 `.ps1` 启动脚本还没有。
 
 没覆盖的内容，不要在文档或提交说明里写成已验证。
+
+
+## 跨游戏版本捕获根
+
+旧版 Battle 布局无法由当前解码器读取时，用旧版解码器单独导出每个根的元数据：
+`InputJson`、`RulesSha256`、`Choices` 字符串数组，以及 `Walks` 中每项的
+`RootIndex`、`Seed`。保存为 `<metadata-dir>/<root>.json`，再用当前游戏重建输入：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --capture-version-root   tests/Golden/data .local/old-metadata .local/version-seeds <root>
+```
+
+命令核对元数据与旧基准的输入、规则标识，只向独立输出目录写入当前原生根、规则和搜索配置，
+保留旧游走种子。它拒绝覆盖输出根，拒绝新旧准备根数量不同的隐式映射；失效的固定前缀会明确失败。前缀成功解析后，还会通过原生卡牌、药水和结束回合入口逐步执行并核对边界。
+
+准备选项增加时，元数据可显式提供 `RootSeedSources`：每个新根对应一个旧根下标，复用该旧根的完整种子序列；数组必须覆盖全部新根。新增 fixture 使用空 `RulesSha256`，仍须提供输入映射、选择与种子。这些映射属于待审核的迁移输入，不允许据此隐式跳过根或动作。
+这些文件只是重录的输入，K1 与游走状态尚未生成，也不包含搜索基准及完整 manifest，不能作为通过回归的证据。
+后续必须重新录制、对照原生游戏验证，并按 AGENTS.md 取得更新冻结基准的同意。
+
+遗物存储合同由 KernelChecks 的 `RelicStorageChecks` 检查：24/25 动态容量、65,535/65,536 清单容量、固定值不占动态槽、重复实例与大下标、复制隔离、v9 往返及拒绝旧版本以及多根请求上下文。

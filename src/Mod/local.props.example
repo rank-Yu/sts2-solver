@@ -6,6 +6,6 @@
   <PropertyGroup>
     <Sts2Dir>/path/to/Slay the Spire 2</Sts2Dir>
     <RitsuWorkshopRoot>/path/to/steamapps/workshop/content/2868840/3747602295</RitsuWorkshopRoot>
-    <RitsuLibReferenceTarget>0.111.0</RitsuLibReferenceTarget>
+    <RitsuLibReferenceTarget>0.113.0</RitsuLibReferenceTarget>
   </PropertyGroup>
 </Project>

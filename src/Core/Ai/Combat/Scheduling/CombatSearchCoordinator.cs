@@ -38,7 +38,6 @@ internal static class CombatSearchCoordinator
             ? SetupSearchPolicy.Capture(initial.Battles[0], initial.Rules, continuous: true) : null;
         if (setup || queen is not null && plan.QueenStrategies)
             members = SupplementPortfolio.Append(members, plan, queen is not null && plan.QueenStrategies);
-        QueenSearchPolicy? timing = queen is null ? null : queen with { PreserveKillTiming = true };
         // Resolve all limits before dividing time so skipped and duplicate layers receive no share.
         PotionPolicy[] ResolvePolicies(out string?[] skips)
         {
@@ -120,7 +119,7 @@ internal static class CombatSearchCoordinator
                 Scorer = new Scorer(scorer.RulesForCodec,
                     baseOnly: member.Evaluation is SearchEvaluation.Base,
                     offensive: member.Evaluation == SearchEvaluation.Offensive,
-                    queen: member.Retention == SearchRetention.QueenKillTiming ? timing : null,
+                    queen: member.Retention == SearchRetention.QueenKillTiming ? queen : null,
                     setup: member.Evaluation == SearchEvaluation.Setup ? setupPolicy
                         : member.Evaluation == SearchEvaluation.ContinuousSetup ? continuousSetup : null),
                 SecondRankBand = member.Retention == SearchRetention.SecondBand,

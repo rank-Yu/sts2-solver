@@ -54,5 +54,5 @@ printf "VERIFY_CORE sha=%s worktree=%s sdk=%s jobs=%s data=%s\n" \
 dotnet build Sts2Solver.sln -c Release
 dotnet run --project tests/KernelChecks -c Release --no-build
 dotnet run --project tests/Architecture -c Release --no-build
-dotnet run --project tests/Golden -c Release --no-build -- k0
+dotnet run --project tests/Golden -c Release --no-build -- k0 "$data_dir"
 dotnet run --project tests/Golden -c Release --no-build -- verify "$data_dir" --jobs "$jobs"

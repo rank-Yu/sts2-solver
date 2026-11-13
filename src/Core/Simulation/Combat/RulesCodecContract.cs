@@ -11,7 +11,7 @@ public static class RulesCodecContract
 {
     public static void Run()
     {
-        if (Rules.SchemaFieldCount != 30 || RulesCodec.EncodedFieldCount != 30)
+        if (Rules.SchemaFieldCount != 32 || RulesCodec.EncodedFieldCount != 32)
             throw new InvalidOperationException(
                 $"Rules K0 字段数不一致：owner={Rules.SchemaFieldCount} codec={RulesCodec.EncodedFieldCount}。");
         Spec spec = Spec.Create();
@@ -63,7 +63,11 @@ public static class RulesCodecContract
         Field("furCoatSpawnHpOne", value => value.FurCoatSpawnHpOne = true);
         Field("rootLostHpMask", value => value.RootLostHpMask = 0x1234);
         Field("hasHistoryCourse", value => value.HasHistoryCourse = true);
-        Field("penNibRelicIndex", value => value.PenNibRelicIndex = 7);
+        Field("totalFloor", value => value.TotalFloor = 23);
+        Field("dominion.kind", value => value.Dominion = value.Dominion with { Kind = DominionKind.WaterfallGiant });
+        Field("dominion.power", value => value.Dominion = value.Dominion with { SpawnPower = 8 });
+        Field("dominion.amount", value => value.Dominion = value.Dominion with { SpawnAmount = 9 });
+        Field("mode", value => value.Mode = CombatMode.Blitz);
 
         // Bound the size of the contract artifact: every table is a handful of entries.
         if (baselineBytes.Length > 1 << 20)
@@ -78,6 +82,9 @@ public static class RulesCodecContract
             || rules.CardPool("POOL-A").Cards.Length != 2 || rules.MonsterRule(0).Nodes.Length != 1
             || rules.MonsterRule(0).Nodes[0].NativeId != "MOVE")
             throw new InvalidOperationException("Rules K0 解码后的标量或表内容不符。");
+        if (rules.TotalFloor != 17 || rules.Mode != CombatMode.Dread
+            || rules.Dominion != new DominionRules(DominionKind.TestSubject, 4, 3))
+            throw new InvalidOperationException("Rules K0 解码后的模式、领域或楼层不符。");
         CardStats card = rules.Card(0, 0);
         if (card.Type != CardType.Attack || card.EnergyCost != 1 || card.Vars[0] != 6.5m)
             throw new InvalidOperationException("Rules K0 解码后的卡牌数值不符。");
@@ -120,7 +127,9 @@ public static class RulesCodecContract
         public bool FurCoatSpawnHpOne;
         public ushort RootLostHpMask = 0x0102;
         public bool HasHistoryCourse;
-        public sbyte PenNibRelicIndex = 3;
+        public int TotalFloor = 17;
+        public DominionRules Dominion = new(DominionKind.TestSubject, 4, 3);
+        public CombatMode Mode = CombatMode.Dread;
 
         public static Spec Create() => new();
 
@@ -192,7 +201,7 @@ public static class RulesCodecContract
                 BaseOrbSlotCount, RootSwordSageAmount, UnsettlingLampRelicId, HasIdentityContent,
                 HasShuffleOrderEnchantment, HasBeforeFlushEnchantment, HasTheftContent,
                 HasDecimalCardVars, HasInfiniteHpDisplayMonster, HasPaelsLegion, FurCoatSpawnHpOne,
-                RootLostHpMask, HasHistoryCourse, PenNibRelicIndex);
+                RootLostHpMask, HasHistoryCourse, TotalFloor, Dominion, Mode);
         }
     }
 }

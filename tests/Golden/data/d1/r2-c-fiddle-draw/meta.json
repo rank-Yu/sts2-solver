@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "r2-c-fiddle-draw",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r2-c-fiddle-draw.json\u0022}",
-  "rulesSha256": "85db3a6d198e4e333bb70ecba8308897dbae486bfd246214fcfdfa646f0d04fa",
+  "rulesSha256": "9b6661c29693c6c57b5ca68ba173dcca54ef87c3b930bd2e79f5eb6bd8100fba",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 532,
-    "transitions": 500
+    "walkStates": 508,
+    "transitions": 476
   }
 }

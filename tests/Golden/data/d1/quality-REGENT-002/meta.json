@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "quality-REGENT-002",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/REGENT-002/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/REGENT-002/request.json\u0022}",
-  "rulesSha256": "9dcd9a86d1a5f351e10c171fbe36e8e0ddf2d6e6a61113171f153ae55596d525",
+  "rulesSha256": "2726a0fc9f138d133db65117dd37ef34722075d891af6fce90926078550e23bc",
   "counts": {
     "roots": 1,
-    "k1": 6,
+    "k1": 69,
     "walks": 48,
-    "walkStates": 1824,
-    "transitions": 1776
+    "walkStates": 1650,
+    "transitions": 1602
   }
 }

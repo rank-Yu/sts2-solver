@@ -78,7 +78,7 @@ public static partial class Kernel
         ApplyEnemyDeathPowers(ref x);
 
         // HookMirrors.ShouldTakeExtraTurn after the player turn-end phases, before the enemy turn.
-        bool extraTurn = ShouldTakeExtraTurnPass(ref x);
+        bool extraTurn = ShouldTakeExtraTurnPass(ref x, out Listener extraTurnSource);
         if (x.NeedsChoice)
             return false;
         if (extraTurn)
@@ -88,7 +88,7 @@ public static partial class Kernel
             AfterRelicRoundPass(ref x);
             if (x.NeedsChoice)
                 return false;
-            AfterTakingExtraTurnPass(ref x);
+            AfterTakingExtraTurnPass(ref x, extraTurnSource);
             if (x.NeedsChoice)
                 return false;
         }
@@ -317,6 +317,10 @@ public static partial class Kernel
     /// <summary><c>SimulatedCombatState.BeginSideTurn</c> for the player: resets the per-turn counters.</summary>
     private static void BeginPlayerSideTurn(ref Battle battle)
     {
+        battle.Fool.Started = default;
+        battle.Fool.Finished = default;
+        battle.Fool.FirstPlay = default;
+        battle.Fool.MelodyCount = 0;
         for (Counter counter = Counter.CardsPlayedThisTurn; counter <= Counter.EnergySpentThisTurn; counter++)
             battle.SetCounter(counter, 0);
         // BeginSideTurn's ResetTurnCounter(_starsGainedThisTurn) for the player.
@@ -604,18 +608,18 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldFlush) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldFlush, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMask.ShouldFlush, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!HookDispatch.Definition(x.B, listeners[index]).ShouldFlush(ref x, listeners[index]))
+            if (!HookDispatch.Definition(x.B, x.R, listeners[index]).ShouldFlush(ref x, listeners[index]))
                 return false;
         }
         return true;
     }
 
     /// <summary>Mirrors <c>CardModel.EndOfTurnCleanup</c>.</summary>
-    private static void EndOfTurnCleanup(ref Card card)
+    public static void EndOfTurnCleanup(ref Card card)
     {
         card.Flags &= ~(CardFlags.ExhaustOnNextPlay | CardFlags.RetainThisTurn | CardFlags.SlyThisTurn);
         int kept = 0;
@@ -629,6 +633,7 @@ public static partial class Kernel
         for (int index = kept; index < Limits.CardEnergyCostModifiers; index++)
             card.EnergyModifiers[index] = default;
         card.EnergyModifierCount = kept;
+        CardCostModifiers.Compact(ref card);
         if (card.HasTemporaryStarCost)
             card.RemoveTemporaryStarCosts(atTurnEnd: true);
     }
@@ -747,10 +752,10 @@ public static partial class Kernel
         PowersAfterEnergyReset(ref x);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player, snapshot: rootSetup);
+        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player, snapshot: rootSetup);
+        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player);
         if (x.NeedsChoice)
             return;
 
@@ -774,6 +779,8 @@ public static partial class Kernel
             if (x.NeedsChoice)
                 return;
         }
+        DominionBeforeHandDraw(ref x);
+        if (x.NeedsChoice) return;
         // CombatBeamSolver.TurnExecutionContinuation resolves BeforeHandDraw's power changes before
         // the pre-draw checkpoint.
         ResolvePowerAmountChanges(ref x);
@@ -781,7 +788,7 @@ public static partial class Kernel
             return;
         // ConsumeModifiedHandDraw: base + the not-yet-snapshotted DrawCardsNextTurn amount, then the
         // listener passes (DrawCardsNextTurnPower.ModifyHandDraw adds its snapshotted amount).
-        int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount + DrawNextTurnNotYetSnapshotted(x.B));
+        int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount);
         if (firstTurn)
         {
             // GAME CombatManager.cs:908-924: on turn 1, enchantments that start at the bottom move
@@ -794,7 +801,7 @@ public static partial class Kernel
         if (x.NeedsChoice)
             return;
         // Draw history compensation: no supported sources.
-        AfterPlayerTurnStart(ref x, snapshotRelics: rootSetup);
+        AfterPlayerTurnStart(ref x);
         if (x.NeedsChoice)
             return;
         // GAME CombatManager.cs:777-790: StartTurn runs Hook.AfterSideTurnStart after the setup
@@ -980,62 +987,60 @@ internal static void AfterFlushPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.AfterFlush) == 0)
         return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-    int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterFlush, listeners);
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+    int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.AfterFlush, listeners);
     for (int index = 0; index < count; index++)
     {
         Listener self = listeners[index];
-        HookDispatch.Definition(x.B, self).AfterFlush(ref x, self);
+        HookDispatch.Definition(x.B, x.R, self).AfterFlush(ref x, self);
         if (x.NeedsChoice)
             return;
     }
 }
 
 /// <summary><c>HookMirrors.ShouldTakeExtraTurn</c>: the first listener answering true wins.</summary>
-internal static bool ShouldTakeExtraTurnPass(ref Exec x)
+internal static bool ShouldTakeExtraTurnPass(ref Exec x, out Listener source)
 {
+    source = default;
     if ((Registry.AnyHooksExt & HookMaskExt.ShouldTakeExtraTurn) == 0)
         return false;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-    int count = HookDispatch.CollectListeners(x.B, HookMaskExt.ShouldTakeExtraTurn, listeners);
-    for (int index = 0; index < count; index++)
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+    int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.ShouldTakeExtraTurn, listeners);
+    // 0.113 checks early sources first and consumes only the source which grants the turn.
+    for (int pass = 0; pass < 2; pass++)
     {
-        Listener self = listeners[index];
-        if (HookDispatch.Definition(x.B, self).ShouldTakeExtraTurn(ref x, self))
-            return true;
-        if (x.NeedsChoice)
-            return false;
+        for (int index = 0; index < count; index++)
+        {
+            Listener self = listeners[index];
+            var definition = HookDispatch.Definition(x.B, x.R, self);
+            if (definition.ExtraTurnPriority != (pass == 0))
+                continue;
+            if (definition.ShouldTakeExtraTurn(ref x, self))
+            {
+                source = self;
+                return true;
+            }
+            if (x.NeedsChoice)
+                return false;
+        }
     }
     return false;
 }
 
-/// <summary><c>HookMirrors.AfterTakingExtraTurn</c>: a fixed listener snapshot, in dispatch order.</summary>
-internal static void AfterTakingExtraTurnPass(ref Exec x)
-{
-    if ((Registry.AnyHooksExt & HookMaskExt.AfterTakingExtraTurn) == 0)
-        return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-    int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterTakingExtraTurn, listeners);
-    for (int index = 0; index < count; index++)
-    {
-        Listener self = listeners[index];
-        HookDispatch.Definition(x.B, self).AfterTakingExtraTurn(ref x, self);
-        if (x.NeedsChoice)
-            return;
-    }
-}
+internal static void AfterTakingExtraTurnPass(ref Exec x, Listener source)
+    => HookDispatch.Definition(x.B, x.R, source).AfterTakingExtraTurn(ref x, source);
 
 /// <summary><c>SimulatedCombatState.RecordRelicRoundDamage</c>: the per-round relic bookkeeping.</summary>
 internal static void AfterRelicRoundPass(ref Exec x)
 {
     if ((Registry.AnyHooksExt & HookMaskExt.AfterRelicRound) == 0)
         return;
-    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-    int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterRelicRound, listeners);
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+    int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.AfterRelicRound, listeners);
     for (int index = 0; index < count; index++)
     {
         Listener self = listeners[index];
-        HookDispatch.Definition(x.B, self).AfterRelicRound(ref x, self);
+        HookDispatch.Definition(x.B, x.R, self).AfterRelicRound(ref x, self);
         if (x.NeedsChoice)
             return;
     }

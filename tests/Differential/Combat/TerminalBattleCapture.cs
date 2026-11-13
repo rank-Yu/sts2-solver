@@ -73,7 +73,7 @@ internal static class TerminalBattleCapture
         _capture = null;
     }
 
-    internal static string? Compare(in Battle original)
+    internal static string? Compare(in Battle original, Rules rules)
     {
         if (_failure is { } failure)
         {
@@ -88,7 +88,7 @@ internal static class TerminalBattleCapture
                 "终局清理前没有捕获到原版 Battle，无法验证终局。");
         Battle predicted = original;
         ApplyTestTamper(ref predicted);
-        return TerminalBattleProjection.Compare(in predicted, in native, _path);
+        return TerminalBattleProjection.Compare(in predicted, in native, _path, rules);
     }
 
     /// <summary>Negative-test hook: mutate only the predicted terminal copy.</summary>

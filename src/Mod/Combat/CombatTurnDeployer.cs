@@ -98,7 +98,7 @@ internal sealed class CombatTurnDeployer(
                 ModLog.Error(
                     $"[Sts2Solver] CONTROLLER_ACTION_DEVIATION turn={turn} index={action.Index} " +
                     $"action={action.Action} diff={string.Join(" | ", diff)}");
-                CombatLogRecorder.RecordDeviation("action", turn, action.Index, diff, action.After, actual);
+                CombatLogRecorder.RecordDeviation("action", turn, action.Index, diff, action.After, actual, rules);
                 return new CombatTurnDeployment(false, false, "action_deviation",
                     string.Join(" | ", diff), diff, false, null);
             }
@@ -188,7 +188,7 @@ internal sealed class CombatTurnDeployer(
             ModLog.Error(
                 $"[Sts2Solver] CONTROLLER_END_TURN_DEVIATION turn={turn} " +
                 $"diff={string.Join(" | ", diff)}");
-            CombatLogRecorder.RecordDeviation("end_turn", turn, endTurn.Index, diff, endTurn.After, ended);
+            CombatLogRecorder.RecordDeviation("end_turn", turn, endTurn.Index, diff, endTurn.After, ended, rules);
             return new CombatTurnDeployment(true, false, "action_deviation",
                 string.Join(" | ", diff), diff, false, null);
         }

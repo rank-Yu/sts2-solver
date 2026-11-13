@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "ec-c-ancient",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-c-ancient.json\u0022}",
-  "rulesSha256": "7460d492cc531f11a4ac2ef2bb58ae09fb436e9ae7ae1388709525f252d0be83",
+  "rulesSha256": "084bdd21c9d4612b5947562f9a08f1d71903d88bf7021344a39545c3aa929ffb",
   "counts": {
     "roots": 1,
     "k1": 29,
     "walks": 32,
-    "walkStates": 706,
-    "transitions": 674
+    "walkStates": 648,
+    "transitions": 616
   }
 }

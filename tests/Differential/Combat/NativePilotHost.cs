@@ -18,7 +18,7 @@ internal sealed class NativePilotHost(
     Player player,
     Rules rules,
     LiveCombatTracker tracker,
-    Battle opening,
+    in Battle opening,
     SearchPolicy policy,
     SearchPerformanceProfile profile,
     long memoryBudgetBytes,
@@ -156,7 +156,7 @@ internal sealed class NativePilotHost(
             using IDisposable? timing = measure?.Invoke("import_check");
             if (action.After.Outcome != Outcome.None)
             {
-                string? terminalDiff = TerminalBattleCapture.Compare(action.After);
+                string? terminalDiff = TerminalBattleCapture.Compare(action.After, rules);
                 if (terminalDiff != null)
                 {
                     LastDifferenceAction = CombatPilotAction.Describe(action);

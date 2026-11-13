@@ -18,6 +18,7 @@ public enum ValueProps : byte
     Unpowered = 4,
     Move = 8,
     SkipHurtAnim = 0x10,
+    FromArrow = 0x20,
 }
 
 public static class ValuePropsExtensions
@@ -386,13 +387,13 @@ public enum HookMaskExt : ulong
 
     /// <summary>
     /// Native <c>AbstractModel.ShouldTakeExtraTurn</c> (<c>HookMirrors.ShouldTakeExtraTurn</c>, after the
-    /// player turn-end phases and before the enemy turn; AmbergrisPower and PaelsEye). Uses bits 3-15.
+    /// player turn-end phases and before the enemy turn; ExtraTurnPower and PaelsEye). Uses bits 3-15.
     /// </summary>
     ShouldTakeExtraTurn = 1UL << 4,
 
     /// <summary>
     /// Native <c>AbstractModel.AfterTakingExtraTurn</c> (<c>HookMirrors.AfterTakingExtraTurn</c>, before
-    /// the extra player turn starts; AmbergrisPower decrements, PaelsEye marks itself used). Bits 3-15.
+    /// the extra player turn starts; ExtraTurnPower decrements, PaelsEye marks itself used). Bits 3-15.
     /// </summary>
     AfterTakingExtraTurn = 1UL << 5,
 
@@ -410,6 +411,11 @@ public enum HookMaskExt : ulong
     /// </summary>
     AfterCreatureAddedToCombat = 1UL << 7,
 
+    AfterModifyingHandDraw = 1UL << 8,
+    AfterArrowShot = 1UL << 9,
+    AfterArrowImpaled = 1UL << 10,
+    AfterArrowDislodged = 1UL << 11,
+
     /// <summary>
     /// Gold hooks the native <c>PlayerCmd.GainGold</c> dispatches over run listeners, which include
     /// the deck copies of cards outside the combat piles. A root whose deck holds a card implementing
@@ -425,6 +431,14 @@ public enum HookMaskExt : ulong
 /// </summary>
 public static class CardPools
 {
+    public const string Tarot = "tarot";
+    public const string OtherCharacterCards = "character.other-all";
+    public const string CharacterShots = "character.shots";
+    public const string Melodies = "all.melodies";
+    public const string Wah = "all.wah";
+    public const string Cho = "all.cho";
+    public const string Ki = "all.ki";
+
     /// <summary>Player's unlocked character cards, filtered for combat generation.</summary>
     public const string CharacterAll = "character.all";
 
@@ -468,6 +482,10 @@ public abstract class ContentDef
 
     /// <summary>Native dynamic-variable names compiled into the rule table, in order.</summary>
     public virtual IReadOnlyList<string> VarNames => [];
+
+    // Cached once by Registry. Sorting must not allocate a fresh VarNames collection per comparison.
+    internal byte MutableVarCount { get; set; }
+    internal byte FirstMutableVarInSort { get; set; }
 
     /// <summary>
     /// Native card ids (with upgrade level) this content can put into combat. The rule compiler adds
@@ -619,7 +637,8 @@ public abstract class ListenerDef : ContentDef
 
     public virtual bool ShouldDieLate(ref Exec x, Listener self, byte creature) => true;
 
-    public virtual void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public virtual void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
     }
 
@@ -731,6 +750,8 @@ public abstract class ListenerDef : ContentDef
     /// takes another turn instead of the enemy turn. Dispatched in combat listener order; the first
     /// listener answering true wins.
     /// </summary>
+    public virtual bool ExtraTurnPriority => false;
+
     public virtual bool ShouldTakeExtraTurn(ref Exec x, Listener self) => false;
 
     /// <summary>
@@ -1019,6 +1040,13 @@ public abstract class ListenerDef : ContentDef
     /// hit. Every Sts2Solver attack comes from a card or a monster move; <paramref name="props"/> are its
     /// damage props.
     /// </summary>
+    public virtual void AfterArrowShot(ref Exec x, Listener self, int arrow) { }
+
+    public virtual void AfterArrowImpaled(ref Exec x, Listener self, byte target, int arrow) { }
+
+    public virtual void AfterArrowDislodged(ref Exec x, Listener self, byte target, int arrow,
+        bool hasCardSource, in Card cardSource) { }
+
     public virtual void BeforeAttack(ref Exec x, Listener self, byte attacker, ValueProps props)
     {
     }
@@ -1045,6 +1073,8 @@ public abstract class ListenerDef : ContentDef
     public virtual decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount) => amount;
 
     public virtual decimal ModifyHandDrawLate(ref Exec x, Listener self, decimal amount) => amount;
+
+    public virtual void AfterModifyingHandDraw(ref Exec x, Listener self) { }
 }
 
 public abstract class CardDef : ListenerDef
@@ -1157,6 +1187,12 @@ public abstract class CardDef : ListenerDef
     /// returns to the hand or the top of the draw pile rewrites the discard case here. <paramref name="position"/>
     /// is the native <c>CardLocation.position</c> for the returned pile.
     /// </summary>
+    public virtual decimal ModifyOwnEnergyCost(in Battle battle, Rules rules, in Card card, decimal amount) => amount;
+
+    public virtual decimal ModifyOwnDamageMultiplier(ref Exec x, in DamageContext damage) => 1m;
+
+    public virtual void AfterPlayCompleted(ref Exec x, bool lastInSeries) { }
+
     public virtual Pile ResultLocation(in Battle battle, Rules rules, in Card card,
         Pile baseLocation, out PilePosition position)
     {
@@ -1255,7 +1291,7 @@ public abstract class PowerDef : ListenerDef
 
     /// <summary>
     /// Native <c>PowerModel.IsVisible</c>. The single-player visibility test reduces to the hidden
-    /// internal override (only <c>AmbergrisPower</c> sets <c>IsVisibleInternal=false</c>); all visible
+    /// internal override (only <c>ExtraTurnPower</c> sets <c>IsVisibleInternal=false</c>); all visible
     /// powers here return true.
     /// </summary>
     public virtual bool IsVisible => true;
@@ -1455,6 +1491,9 @@ public abstract class PowerDef : ListenerDef
 /// <summary>A relic. Turn-phase methods are its cases in the named <c>TurnStartRelicSupport</c>/<c>PersistentRelicSupport</c> batches.</summary>
 public abstract class RelicDef : ListenerDef
 {
+    /// <summary>Declares branch-mutable instance data, including values initially zero.</summary>
+    public virtual bool HasCombatState => false;
+
     /// <summary>This relic can create a card with per-object identity (Toolbox's colourless choice).</summary>
     public virtual bool MayGenerateIdentityContent => false;
 
@@ -2155,6 +2194,10 @@ public static class Registry
                 ?? throw new InvalidOperationException($"无法创建 Sts2Solver 定义 {type.FullName}。"));
             def.NativeId = nativeId;
             def.Id = (ushort)index;
+            IReadOnlyList<string> variableNames = def.VarNames;
+            def.MutableVarCount = (byte)Math.Min(2, variableNames.Count);
+            def.FirstMutableVarInSort = (byte)(variableNames.Count > 1
+                && string.CompareOrdinal(variableNames[0], variableNames[1]) > 0 ? 1 : 0);
             def.Hooks = (HookMask)ComputeHooks<HookMask>(type);
             def.HooksExt = (HookMaskExt)ComputeHooks<HookMaskExt>(type);
             if (!ids.TryAdd(nativeId, (ushort)index))

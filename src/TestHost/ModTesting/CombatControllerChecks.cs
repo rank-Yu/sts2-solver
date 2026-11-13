@@ -27,7 +27,7 @@ using MegaCrit.Sts2.Core.ValueProps;
 
 namespace Sts2Solver;
 
-internal static class CombatControllerChecks
+internal static partial class CombatControllerChecks
 {
     internal static async Task<CombatControllerScenarioResult> RunAsync(NGame host,
         TestHost.OfflineRequest request, string scenario, string root, string resultDirectory)
@@ -227,6 +227,19 @@ internal static class CombatControllerChecks
                 case "turn_setup_crossbow_many":
                     await TurnSetupCrossbowAsync(host, Check, Action, expectedOptions: 4);
                     break;
+                case "deployment_choice_handoff":
+                case "deployment_card_choice_handoff":
+                case "deployment_choice_handoff_exit":
+                    await DeploymentChoiceHandoffAsync(host, Check, Action, scenario);
+                    break;
+                case "choice_handoff_hand":
+                case "choice_handoff_grid":
+                case "choice_handoff_hand_exit":
+                case "choice_handoff_grid_exit":
+                case "choice_handoff_combat_end":
+                case "choice_handoff_reentry":
+                    await ChoiceHandoffSurfaceAsync(host, Check, Action, scenario);
+                    break;
                 case "deployment_choice_mismatch":
                     await DeploymentChoiceMismatchAsync(host, Check, Action);
                     break;
@@ -367,6 +380,10 @@ internal static class CombatControllerChecks
         }
         finally
         {
+            CombatControllerTestHooks.SelectUnplannedCardsForTest = null;
+            CombatControllerTestHooks.ChoiceHandedOffForTest = null;
+            CombatControllerTestHooks.ForceChoicePlanUnderflowOnce = false;
+            CombatControllerTestHooks.ForceCardChoicePlanUnderflowOnce = false;
             CombatControllerTestHooks.BeforeAutoSearch = null;
             CombatControllerTestHooks.ForceDeploymentFailure = null;
             CombatControllerTestHooks.ForceActionsRunningForTest = false;
@@ -2670,12 +2687,13 @@ internal static class CombatControllerChecks
     }
 
     /// <summary>
-    /// Drops the EndTurn plan's choices once. The native selection must fall back without faulting
-    /// the game's async setup task, the controller must stop with choice_mismatch, and the native
-    /// turn must still reach the next Play phase.
+    /// The test explicitly answers an unplanned selection; production handoff is exercised separately.
     /// </summary>
     private static async Task DeploymentChoiceMismatchAsync(NGame host, Check check, Action action)
     {
+        CombatControllerTestHooks.SelectUnplannedCardsForTest =
+            static (options, count) => Task.FromResult<IEnumerable<MegaCrit.Sts2.Core.Models.CardModel>>(
+                options.Take(count).ToArray());
         CombatControllerTestHooks.ForceChoicePlanUnderflowOnce = true;
         check("mode_set", CombatSessionController.ArmRunForTest(), "full auto");
         action("set_mode:full_auto");
@@ -2688,6 +2706,9 @@ internal static class CombatControllerChecks
         check("deviations_zero", paused.Deviations == 0, paused.Deviations.ToString());
         check("full_auto_off", !paused.CombatRunActive, paused.CombatRunActive.ToString());
         check("paused_this_combat", paused.CombatRunPaused);
+        await WaitAsync(host, _ => LocalContext.GetMe(CombatManager.Instance.DebugOnlyGetState())?
+            .PlayerCombatState is { Phase: PlayerTurnPhase.Play, TurnNumber: >= 2 },
+            600, "native turn after explicit test selection");
         CombatState? live = CombatManager.Instance.DebugOnlyGetState();
         check("native_in_progress", live != null && CombatManager.Instance.IsInProgress,
             $"in_progress={CombatManager.Instance.IsInProgress}");

@@ -12,11 +12,12 @@ namespace Sts2Solver.Content.Monsters.Act1;
 [ContentId("CEREMONIAL_BEAST")]
 public sealed class CeremonialBeast : MonsterDef
 {
+    public override IReadOnlyList<string> AppliedPowers => ["RITUAL_POWER"];
     private const int PlowStrength = 0;
     private const int CrushStrength = 1;
     private const int PlowAmount = 2;
 
-    public override IReadOnlyList<string> StaticIntNames => ["PlowStrength", "CrushStrength", "PlowAmount"];
+    public override IReadOnlyList<string> StaticIntNames => ["PlowStrength", "CrushStrength", "PlowAmount", "RitualAmount"];
 
     public override void ApplyMoveEffects(ref Exec x, byte owner, int moveNode)
     {
@@ -28,6 +29,8 @@ public sealed class CeremonialBeast : MonsterDef
                     rules.StaticInts[PlowAmount], owner);
                 break;
             case "PLOW_MOVE":
+                if (Kernel.GetAmount(x.B, owner, Registry.PowerId<PlowPower>()) <= 0)
+                    break;
                 Kernel.ApplyPower(ref x, owner, Registry.PowerId<StrengthPower>(),
                     rules.StaticInts[PlowStrength], owner);
                 break;
@@ -69,26 +72,19 @@ public sealed class VineShambler : MonsterDef
 [ContentId("INFESTED_PRISM")]
 public sealed partial class InfestedPrism : MonsterDef
 {
-    private const int RadiateBlock = 0;
-    private const int PulsateBlock = 1;
-    private const int VitalSparkAmount = 2;
+    private const int VitalSparkAmount = 0;
 
-    public override IReadOnlyList<string> StaticIntNames => ["RadiateBlock", "PulsateBlock", "VitalSparkAmount"];
+    public override IReadOnlyList<string> StaticIntNames => ["VitalSparkAmount"];
 
     public override void ApplyMoveEffects(ref Exec x, byte owner, int moveNode)
     {
         MonsterRules rules = Kernel.MonsterRules(ref x, owner);
-        switch (rules.Nodes[moveNode].NativeId)
-        {
-            case "RADIATE_MOVE":
-                Kernel.GainBlock(ref x, owner, rules.StaticInts[RadiateBlock], ValueProps.Move, fromCard: false);
-                break;
-            case "PULSATE_MOVE":
-                Kernel.GainBlock(ref x, owner, rules.StaticInts[PulsateBlock], ValueProps.Move, fromCard: false);
-                Kernel.ApplyPower(ref x, owner, Registry.PowerId<VitalSparkPower>(),
-                    rules.StaticInts[VitalSparkAmount], owner);
-                break;
-        }
+        if (rules.Nodes[moveNode].NativeId != "PULSATE_MOVE")
+            return;
+        Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
+            Registry.PowerId<VulnerablePower>(), 1, owner);
+        Kernel.ApplyPower(ref x, owner, Registry.PowerId<VitalSparkPower>(),
+            rules.StaticInts[VitalSparkAmount], owner);
     }
 }
 

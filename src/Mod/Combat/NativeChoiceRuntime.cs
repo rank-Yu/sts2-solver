@@ -150,7 +150,7 @@ internal static class NativeChoiceRuntime
         string sourceId,
         Func<CardModel, bool>? filter)
     {
-        if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
+        if (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) != null || MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.LocalSelector != null)
             return null;
         NativeChoiceSession? session = _session;
         if (session == null
@@ -198,6 +198,9 @@ internal static class NativeChoiceRuntime
     internal static bool IsActiveCombat(CombatState combat)
         => _session is { } session && ReferenceEquals(session.Combat, combat);
 
+    internal static void CancelHandSelectionForExit(NPlayerHand hand)
+        => CancelHandSelectionMethod.Invoke(hand, null);
+
     internal static bool CancelActiveHandSelectionForSceneExit()
     {
         if (_session is not { } session
@@ -207,7 +210,7 @@ internal static class NativeChoiceRuntime
             return false;
         }
         session.ReleaseVisibleSurface();
-        CancelHandSelectionMethod.Invoke(hand, null);
+        CancelHandSelectionForExit(hand);
         ModLog.Info("[Sts2Solver] NATIVE_CHOICE_CANCELED reason=scene_exit surface=Hand");
         return true;
     }

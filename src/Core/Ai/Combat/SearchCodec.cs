@@ -31,15 +31,12 @@ internal static class SearchCodec
 {
     internal const uint RequestMagic = 0x51455253; // "SREQ"
     internal const uint ResultMagic = 0x53455253; // "SRES"
-    internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
-    internal const uint VictoryTargetExtensionMagic = 0x31544756; // "VGT1"
-    internal const uint IncumbentSeedExtensionMagic = 0x31434E49; // "INC1"
 
     /// <summary>
     /// Search request/result layout versions. They are independent of <see cref="Codec.FormatVersion"/>:
     /// removing deleted option slots rewrites SREQ/SRES without changing BATL/RULE/GOLD.
     /// </summary>
-    internal const ushort RequestFormatVersion = 11;
+    internal const ushort RequestFormatVersion = 12;
     internal const ushort ResultFormatVersion = 6;
 
     internal static byte[] EncodeRequest(SearchCase search)
@@ -53,7 +50,7 @@ internal static class SearchCodec
             writer.Write(search.Battles.Length);
             foreach (Battle battle in search.Battles)
             {
-                byte[] bytes = BattleCodec.Encode(battle);
+                byte[] bytes = BattleCodec.Encode(battle, search.Rules.Relics);
                 writer.Write(bytes.Length);
                 writer.Write(bytes);
             }
@@ -78,11 +75,14 @@ internal static class SearchCodec
             for (int index = 0; index < battleCount; index++)
             {
                 int length = Codec.ReadCount(reader,
-                    BattleCodec.HeaderSize + Battle.ExpectedSize, "搜索根字节");
+                    BattleCodec.HeaderSize + BattleCodec.MaxSerializedSize, "搜索根字节");
                 byte[] battleBytes = reader.ReadBytes(length);
                 if (battleBytes.Length != length)
                     throw new InvalidDataException("Sts2Solver 搜索根数据被截断。");
-                battles[index] = BattleCodec.Decode(battleBytes);
+                battles[index] = BattleCodec.Decode(battleBytes, out RelicRoster relics);
+                if (index == 0) rules = rules.WithRelics(relics);
+                else if (!rules.Relics.Equivalent(relics))
+                    throw new UnsupportedException("Search roots have different relic rosters.");
             }
             BeamOptions options = DecodeOptions(reader, rules);
             return new SearchCase(rules, battles, options);
@@ -111,9 +111,6 @@ internal static class SearchCodec
         writer.Write(options.TheftPolicy != null);
         if (options.TheftPolicy is { } theft)
             writer.Write((int)theft);
-        writer.Write(options.PotionFreeBaseline != null);
-        if (options.PotionFreeBaseline is { } baseline)
-            EncodePotionFreeBaseline(writer, baseline);
         writer.Write(options.AuditPotionPolicy);
         writer.Write(options.Act3BossStrategy);
         writer.Write(options.InitialPlayerTurn);
@@ -123,33 +120,26 @@ internal static class SearchCodec
         writer.Write(options.PowerCommitments != null);
         if (options.PowerCommitments is { } commitments)
             EncodePowerCommitments(writer, commitments);
+        writer.Write(options.BrightestFlameMaxHpLossLimit.HasValue);
         if (options.BrightestFlameMaxHpLossLimit is { } flameLimit)
         {
-            if (flameLimit is < 0 or > 1000)
-                throw new InvalidDataException("至亮之焰最大生命消耗上限必须在 0..1000。");
-            if (options.InitialBrightestFlameMaxHpSpent < 0)
-                throw new InvalidDataException("根上已消耗的最大生命不能为负。");
-            writer.Write(BrightestFlameExtensionMagic);
             writer.Write(flameLimit);
             writer.Write(options.InitialBrightestFlameMaxHpSpent);
         }
-        if (options.Scorer?.QueenPolicy is { } queen)
+        Scorer? preferenceScorer = options.Scorer;
+        byte preference = preferenceScorer?.QueenPolicy != null ? (byte)1
+            : preferenceScorer?.SetupPolicy != null ? (byte)2 : (byte)0;
+        writer.Write(preference);
+        if (preference == 1)
+            preferenceScorer!.QueenPolicy!.Encode(writer);
+        else if (preference == 2)
         {
-            if (!queen.PreserveKillTiming)
-                throw new InvalidDataException("QSP1 女王能力补搜已删除。");
-            writer.Write(0x32505351u); // QSP2 retention.
-            queen.Encode(writer);
+            writer.Write(preferenceScorer!.SetupPolicy!.Continuous);
+            preferenceScorer.SetupPolicy.Encode(writer);
         }
-        if (options.Scorer?.SetupPreference == true)
-        {
-            if (options.Scorer.QueenPolicy is not null)
-                throw new InvalidDataException("Setup and queen scoring cannot be combined.");
-            writer.Write(options.Scorer.SetupPolicy!.Continuous ? 0x32505553u : 0x31505553u); // SUP2 continuous / SUP1 activation.
-            options.Scorer.SetupPolicy!.Encode(writer);
-        }
+        writer.Write(options.VictoryTarget != null);
         if (options.VictoryTarget is { } target)
         {
-            writer.Write(VictoryTargetExtensionMagic);
             writer.Write(target.EffectiveHpDeficit.HasValue);
             if (target.EffectiveHpDeficit is { } effective)
             {
@@ -157,9 +147,9 @@ internal static class SearchCodec
                 writer.Write(target.StrategicHpDeficit);
             }
         }
+        writer.Write(options.IncumbentSeed.HasValue);
         if (options.IncumbentSeed is { } seed)
         {
-            writer.Write(IncumbentSeedExtensionMagic);
             writer.Write(seed.EffectiveHpDeficit);
             writer.Write(seed.CombatEndedTurn);
             writer.Write(seed.GoalHpCredit);
@@ -192,8 +182,6 @@ internal static class SearchCodec
         BoundFeatures? bound = hasBound ? new BoundFeatures(DecodeBoundConfig(reader)) : null;
         TheftPolicy? theft = Codec.ReadBool(reader)
             ? ReadEnumInt<TheftPolicy>(reader, "窃取政策") : null;
-        bool hasBaseline = Codec.ReadBool(reader);
-        PotionFreePolicyBaseline? baseline = hasBaseline ? DecodePotionFreeBaseline(reader) : null;
         bool audit = Codec.ReadBool(reader);
         bool act3 = Codec.ReadBool(reader);
         int initialTurn = reader.ReadInt32();
@@ -204,66 +192,35 @@ internal static class SearchCodec
         PowerCommitmentCatalog? commitments = hasCommitments ? DecodePowerCommitments(reader) : null;
         int? flameLimit = null;
         int flameSpent = 0;
-        bool sawFlame = false;
-        bool sawSetup = false;
-        bool sawQueen = false;
-        SearchIncumbent? seed = null;
-        VictoryStopTarget? victoryTarget = null;
-        while (reader.BaseStream.Position < reader.BaseStream.Length)
+        if (Codec.ReadBool(reader))
         {
-            uint extension = reader.ReadUInt32();
-            if (extension == VictoryTargetExtensionMagic)
-            {
-                if (victoryTarget is not null)
-                    throw new InvalidDataException("共同胜利目标扩展重复。");
-                victoryTarget = Codec.ReadBool(reader)
-                    ? new VictoryStopTarget(reader.ReadInt32(), reader.ReadInt32())
-                    : VictoryStopTarget.Unknown;
-            }
-            else if (extension == IncumbentSeedExtensionMagic)
-            {
-                if (seed is not null)
-                    throw new InvalidDataException("初始现任最优扩展重复。");
-                seed = new SearchIncumbent(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
-                    reader.ReadInt32(), reader.ReadBoolean());
-            }
-            else if (extension == BrightestFlameExtensionMagic)
-            {
-                if (sawFlame)
-                    throw new InvalidDataException("至亮之焰扩展重复。");
-                int limit = reader.ReadInt32();
-                if (limit is < 0 or > 1000)
-                    throw new InvalidDataException($"至亮之焰最大生命消耗上限 {limit} 非法。");
-                int spent = reader.ReadInt32();
-                if (spent < 0)
-                    throw new InvalidDataException($"根上已消耗的最大生命 {spent} 非法。");
-                flameLimit = limit;
-                flameSpent = spent;
-                sawFlame = true;
-            }
-            else if (extension is 0x31505553u or 0x32505553u)
-            {
-                if (scorer is null)
-                    throw new InvalidDataException("Search extension requires a scorer.");
-                if (sawSetup || sawQueen)
-                    throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
-                SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader,
-                    continuous: extension == 0x32505553u);
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly, offensive, setup: setup);
-                sawSetup = true;
-            }
-            else if (extension == 0x32505351u)
-            {
-                if (scorer is null)
-                    throw new InvalidDataException("Search extension requires a scorer.");
-                if (sawSetup || sawQueen)
-                    throw new InvalidDataException("设置偏好与女王能力扩展不能重复或组合。");
-                QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader) with { PreserveKillTiming = true };
-                scorer = new Scorer(scorer.RulesForCodec, baseOnly, offensive, queen: queen);
-                sawQueen = true;
-            }
-            else throw new InvalidDataException("Unknown search request extension.");
+            flameLimit = reader.ReadInt32();
+            flameSpent = reader.ReadInt32();
+            if (flameLimit is < 0 or > 1000 || flameSpent < 0)
+                throw new InvalidDataException("Invalid Brightest Flame limit.");
         }
+        byte preference = reader.ReadByte();
+        if (preference > 2 || (preference != 0 && scorer is null))
+            throw new InvalidDataException("Invalid search scoring preference.");
+        if (preference == 1)
+        {
+            QueenSearchPolicy queen = QueenSearchPolicy.Decode(reader);
+            scorer = new Scorer(scorer!.RulesForCodec, baseOnly, offensive, queen: queen);
+        }
+        else if (preference == 2)
+        {
+            SetupSearchPolicy setup = SetupSearchPolicy.Decode(reader, continuous: Codec.ReadBool(reader));
+            scorer = new Scorer(scorer!.RulesForCodec, baseOnly, offensive, setup: setup);
+        }
+        VictoryStopTarget? victoryTarget = Codec.ReadBool(reader)
+            ? Codec.ReadBool(reader)
+                ? new VictoryStopTarget(reader.ReadInt32(), reader.ReadInt32())
+                : VictoryStopTarget.Unknown
+            : null;
+        SearchIncumbent? seed = Codec.ReadBool(reader)
+            ? new SearchIncumbent(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(),
+                reader.ReadInt32(), Codec.ReadBool(reader))
+            : null;
         return new BeamOptions(beamWidth, maxExpanded, maxTurns, budget)
         {
             Potions = potions,
@@ -271,7 +228,6 @@ internal static class SearchCodec
             Ordering = ordering,
             Bound = bound,
             TheftPolicy = theft,
-            PotionFreeBaseline = baseline,
             AuditPotionPolicy = audit,
             Act3BossStrategy = act3,
             InitialPlayerTurn = initialTurn,
@@ -338,28 +294,6 @@ internal static class SearchCodec
         => new(reader.ReadInt32(),
             ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免"),
             DecodePostCombatHeal(reader));
-
-    private static void EncodePotionFreeBaseline(BinaryWriter writer, PotionFreePolicyBaseline baseline)
-    {
-        writer.Write(baseline.Won);
-        writer.Write(baseline.HpDeficit);
-        writer.Write(baseline.PlayerHp);
-        writer.Write(baseline.CombatEndedTurn != null);
-        writer.Write(baseline.CombatEndedTurn ?? 0);
-        writer.Write(baseline.DeathSaveUseCount);
-    }
-
-    private static PotionFreePolicyBaseline DecodePotionFreeBaseline(BinaryReader reader)
-    {
-        bool won = Codec.ReadBool(reader);
-        int deficit = reader.ReadInt32();
-        int hp = reader.ReadInt32();
-        bool hasTurn = Codec.ReadBool(reader);
-        int turnValue = reader.ReadInt32();
-        int? turn = hasTurn ? turnValue : null;
-        int deathSaves = reader.ReadInt32();
-        return new PotionFreePolicyBaseline(won, deficit, hp, turn) { DeathSaveUseCount = deathSaves };
-    }
 
     private static void EncodePowerCommitments(BinaryWriter writer, PowerCommitmentCatalog catalog)
     {
@@ -512,6 +446,9 @@ internal static class SearchCodec
         GrowthValues growth = DecodeGrowthValues(reader);
         GrowthValues required = DecodeGrowthValues(reader);
         RelicCounterTarget[] relicTargets = DecodeRelicTargets(reader);
+        foreach (RelicCounterTarget target in relicTargets)
+            if (target.Slot >= rules.Relics.Count)
+                throw new InvalidDataException("Relic target index is outside the shared roster.");
         PostCombatRelicHealProfile heal = DecodePostCombatHeal(reader);
         BossHpRelief relief = ReadEnumInt<BossHpRelief>(reader, "Boss HP 减免");
         int initialMaxHp = reader.ReadInt32();
@@ -784,13 +721,14 @@ internal static class SearchCodec
 
     private static RelicCounterTarget[] DecodeRelicTargets(BinaryReader reader)
     {
-        int count = Codec.ReadCount(reader, Limits.Relics, "遗物计数目标");
+        int count = Codec.ReadCount(reader, Limits.RelicRoster, "遗物计数目标");
         RelicCounterTarget[] targets = new RelicCounterTarget[count];
         for (int index = 0; index < count; index++)
         {
-            RelicCounterTarget target = new(reader.ReadByte(), reader.ReadByte(), reader.ReadByte(),
+            ushort slot = reader.ReadUInt16();
+            RelicCounterTarget target = new(slot, reader.ReadByte(), reader.ReadByte(),
                 reader.ReadInt32());
-            if (target.Slot >= Limits.Relics || target.Period == 0 || target.Goal >= target.Period
+            if (target.Slot >= Limits.RelicRoster || target.Period == 0 || target.Goal >= target.Period
                 || target.HpAllowance is < 0 or > 1000)
                 throw new InvalidDataException($"遗物计数目标无效：{target}");
             targets[index] = target;

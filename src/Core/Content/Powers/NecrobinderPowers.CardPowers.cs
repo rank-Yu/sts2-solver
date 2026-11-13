@@ -63,7 +63,7 @@ public sealed class CallOfTheVoidPower : PowerDef
             if (count == 0)
                 return;
             Card card = sampled[0];
-            card.Keywords |= Keywords.Ethereal;
+            card.AddKeyword(Keywords.Ethereal);
             Kernel.AddGeneratedCard(ref x, card, Pile.Hand);
             if (x.NeedsChoice)
                 return;

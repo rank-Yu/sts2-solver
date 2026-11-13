@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "lr-b-decisions",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-b-decisions.json\u0022}",
-  "rulesSha256": "04054429fd761fec256b93d57690853f69263fd22ad118597e9f323db139da3c",
+  "rulesSha256": "717311b1cedc89107e4f04f006e38426bcc84efa74ae9b4df3ed1d279b786ab2",
   "counts": {
     "roots": 1,
     "k1": 136,
     "walks": 32,
-    "walkStates": 861,
-    "transitions": 829
+    "walkStates": 811,
+    "transitions": 779
   }
 }

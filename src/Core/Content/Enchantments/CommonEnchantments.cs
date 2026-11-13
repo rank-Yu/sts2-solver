@@ -93,7 +93,7 @@ public sealed class Goopy : EnchantmentDef
     // Goopy.cs: OnEnchant adds Exhaust; CardModel.DowngradeInternal re-runs it after resetting
     // the card's local keywords.
     public override void OnEnchant(ref Exec x, ref Card card)
-        => card.Keywords |= Keywords.Exhaust;
+        => card.AddKeyword(Keywords.Exhaust);
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
@@ -128,7 +128,7 @@ public sealed class TezcatarasEmber : EnchantmentDef
     public override void OnEnchant(ref Exec x, ref Card card)
     {
         card.BaseCost = 0;
-        card.Keywords |= Keywords.Eternal;
+        card.AddKeyword(Keywords.Eternal);
     }
 
     public override decimal EnchantDamageAdditive(in Card card, decimal damage, ValueProps props)
@@ -237,16 +237,13 @@ public sealed class Glam : EnchantmentDef
     private const int Times = 1;
 
     public override int EnchantPlayCount(in Card card, int replayCount)
-        => card.EnchantmentPrivate == 0 ? replayCount + Times : replayCount;
+        => card.EnchantmentStatus == 0 ? replayCount + Times : replayCount;
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (play.Position != self.Index)
             return;
         ref Card card = ref x.B.Cards[self.Index];
-        if (card.EnchantmentPrivate != 0)
-            return;
-        card.EnchantmentPrivate = 1;
         card.EnchantmentStatus = 1;
     }
 }
@@ -273,7 +270,7 @@ public sealed class Steady : EnchantmentDef
 {
     // Steady.cs: OnEnchant adds Retain; replayed after a downgrade resets local keywords.
     public override void OnEnchant(ref Exec x, ref Card card)
-        => card.Keywords |= Keywords.Retain;
+        => card.AddKeyword(Keywords.Retain);
 }
 
 /// <summary><c>RoyallyApproved</c>: Innate/Retain only, already in the imported card value (decompiled RoyallyApproved.cs).</summary>
@@ -283,7 +280,7 @@ public sealed class RoyallyApproved : EnchantmentDef
     // RoyallyApproved.cs: OnEnchant adds Innate and Retain; replayed after a downgrade resets
     // local keywords.
     public override void OnEnchant(ref Exec x, ref Card card)
-        => card.Keywords |= Keywords.Innate | Keywords.Retain;
+        => card.AddKeyword(Keywords.Innate | Keywords.Retain);
 }
 
 /// <summary>
@@ -293,7 +290,7 @@ public sealed class RoyallyApproved : EnchantmentDef
 [ContentId("SOULS_POWER")]
 public sealed class SoulsPower : EnchantmentDef
 {
-    public override void OnEnchant(ref Exec x, ref Card card) => card.Keywords &= ~Keywords.Exhaust;
+    public override void OnEnchant(ref Exec x, ref Card card) => card.RemoveKeyword(Keywords.Exhaust);
 }
 
 /// <summary>

@@ -86,7 +86,7 @@ public static class BattleDump
         Add(records, nameof(Battle.EnemyCount), battle.EnemyCount);
         Add(records, nameof(Battle.RosterCount), battle.RosterCount);
         Add(records, nameof(Battle.PowerCount), battle.PowerCount);
-        Add(records, nameof(Battle.RelicCount), battle.RelicCount);
+        Add(records, nameof(Battle.RelicStateCount), battle.RelicStateCount);
         Add(records, nameof(Battle.OrbCount), battle.OrbCount);
         Add(records, nameof(Battle.OrbCapacity), battle.OrbCapacity);
         Add(records, nameof(Battle.PotionSlotCount), battle.PotionSlotCount);
@@ -187,17 +187,14 @@ public static class BattleDump
             Add(records, prefix + ".Aux1", power.Aux1, offset + FieldOffset<Power>(nameof(Power.Aux1)));
         }
 
-        int relicOffset = FieldOffset(nameof(Battle.Relics));
-        int relicSize = Marshal.SizeOf<Relic>();
-        for (int index = 0; index < battle.RelicCount; index++)
+        int relicOffset = FieldOffset(nameof(Battle.RelicStates));
+        for (int index = 0; index < battle.RelicStateCount; index++)
         {
-            Relic relic = battle.Relics[index];
-            string prefix = $"Relic[{index}]";
-            int offset = relicOffset + index * relicSize;
-            Add(records, prefix + ".Id", $"{Registry.Relic(relic.Id).NativeId}({relic.Id})", offset + FieldOffset<Relic>(nameof(Relic.Id)));
-            Add(records, prefix + ".Flags", relic.Flags, offset + FieldOffset<Relic>(nameof(Relic.Flags)));
-            Add(records, prefix + ".Counter", relic.Counter, offset + FieldOffset<Relic>(nameof(Relic.Counter)));
-            Add(records, prefix + ".Aux", relic.Aux, offset + FieldOffset<Relic>(nameof(Relic.Aux)));
+            RelicState state = battle.RelicStates[index];
+            records.Add(new Record(relicOffset + index * 8, $"RelicStates[{index}].Counter", state.Counter.ToString()));
+            records.Add(new Record(relicOffset + index * 8 + 4, $"RelicStates[{index}].Aux", state.Aux.ToString()));
+            records.Add(new Record(FieldOffset(nameof(Battle.RelicStateFlags)) + index,
+                $"RelicStates[{index}].Flags", battle.RelicStateFlags[index].ToString()));
         }
 
         int orbOffset = FieldOffset(nameof(Battle.Orbs));
@@ -245,6 +242,8 @@ public static class BattleDump
         Add(records, key + ".Upgrade", card.Upgrade, offset + FieldOffset<Card>(nameof(Card.Upgrade)));
         Add(records, key + ".Flags", card.Flags, offset + FieldOffset<Card>(nameof(Card.Flags)));
         Add(records, key + ".Keywords", card.Keywords, offset + FieldOffset<Card>(nameof(Card.Keywords)));
+        Add(records, key + ".KeywordsAddedFromOutside", card.KeywordsAddedFromOutside, offset + FieldOffset<Card>(nameof(Card.KeywordsAddedFromOutside)));
+        Add(records, key + ".KeywordsRemovedFromOutside", card.KeywordsRemovedFromOutside, offset + FieldOffset<Card>(nameof(Card.KeywordsRemovedFromOutside)));
         Add(records, key + ".BaseCost", card.BaseCost, offset + FieldOffset<Card>(nameof(Card.BaseCost)));
         Add(records, key + ".BaseStarCost", card.BaseStarCost, offset + FieldOffset<Card>(nameof(Card.BaseStarCost)));
         Add(records, key + ".ReplayCount", card.ReplayCount, offset + FieldOffset<Card>(nameof(Card.ReplayCount)));
@@ -272,7 +271,7 @@ public static class BattleDump
         {
             CostModifier modifier = card.EnergyModifiers[index];
             records.Add(new(modifierOffset + index * modifierSize, $"{key}.EnergyModifiers[{index}].Amount", modifier.Amount.ToString()));
-            records.Add(new(modifierOffset + index * modifierSize + FieldOffset<CostModifier>(nameof(CostModifier.Type)),
+            records.Add(new(modifierOffset + index * modifierSize + FieldOffset<CostModifier>(nameof(CostModifier.Packed)),
                 $"{key}.EnergyModifiers[{index}].Type", modifier.Type.ToString()));
             records.Add(new(modifierOffset + index * modifierSize + FieldOffset<CostModifier>(nameof(CostModifier.Packed)),
                 $"{key}.EnergyModifiers[{index}].Packed", modifier.Packed.ToString()));

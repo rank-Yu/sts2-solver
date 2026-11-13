@@ -567,7 +567,7 @@ internal sealed class Scorer
         RelicCounterGoals relicGoals = default;
         if (_relicTargets.Length != 0)
         {
-            relicGoals = RelicCounterGoals.Evaluate(battle, _relicTargets, won);
+            relicGoals = RelicCounterGoals.Evaluate(battle, _relicTargets, won, Rules);
             score += (double)relicGoals.HpCredit * hpWeight
                 + relicGoals.Count * ScoreWeights.RelicGoalBeamValue;
         }
@@ -1094,9 +1094,9 @@ internal sealed class Scorer
         ushort artOfWarId = Registry.ArtOfWarRelicId;
         if (artOfWarId != 0)
         {
-            for (int index = 0; index < battle.RelicCount; index++)
+            for (int index = 0; index < Rules.Relics.Count; index++)
             {
-                ref readonly Relic relic = ref battle.Relics[index];
+                Relic relic = battle.GetRelic(Rules, index);
                 if (relic.Id == artOfWarId && (relic.Flags & RelicFlags.Melted) == 0
                     && relic.Counter == 0)
                 {
@@ -1193,12 +1193,13 @@ internal sealed class Scorer
 
         for (int index = 0; index < total; index++)
             origins[index] = index;
-        CardSort.SortWithOrigins(cards, origins, Rules);
+        CardSort.SortWithOrigins(cards, origins, Rules, in battle, Pile.Draw);
         for (int index = 0; index < total; index++)
             shuffledHashes[index] = hashes[origins[index]];
         ref Battle mutable = ref Unsafe.AsRef(in battle);
-        RngState shuffle = mutable.RngStream(RngStream.Shuffle);
-        int shuffleCounter = shuffle.Counter;
+        RngState parentShuffle = mutable.RngStream(RngStream.Shuffle);
+        int shuffleCounter = parentShuffle.Counter;
+        RngState shuffle = parentShuffle.CreateShuffleRng();
         for (int n = total; n > 1;)
         {
             n--;
@@ -1704,7 +1705,7 @@ internal sealed class Scorer
 
         HpLossContext loss = new(
             Limits.PlayerOwner, props, dealer, hasCardSource, in cardSource);
-        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
+        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R) * 2];
         decimal hpLoss = ProjectedModifyHpLost(
             ref x, loss, adjustedHit - blocked, afterOsty: false, changed, out _);
         // the existing search's ProjectThreatHit: Hook.ModifyUnblockedDamageTarget, then the engine's explicit
@@ -1734,7 +1735,7 @@ internal sealed class Scorer
             ostyHp -= absorbed;
             // Native redirected damage applies the original receiver's AfterOsty modifiers to the
             // overkill as a separate loss; the engine also filters Buffer there.
-            Span<Listener> overflowChanges = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
+            Span<Listener> overflowChanges = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R) * 2];
             HpLossContext overflow = new(
                 Limits.PlayerOwner, props, dealer, hasCardSource, in cardSource);
             decimal overflowLoss = ProjectedModifyHpLost(
@@ -1771,10 +1772,10 @@ internal sealed class Scorer
         HookMask lateMask = afterOsty ? HookMask.ModifyHpLostAfterOstyLate : HookMask.ModifyHpLostBeforeOstyLate;
         if ((Registry.AnyHooks & (normalMask | lateMask)) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         for (int pass = 0; pass < 2; pass++)
         {
-            int count = HookDispatch.CollectListeners(x.B, pass == 0 ? normalMask : lateMask, listeners);
+            int count = HookDispatch.CollectListeners(x.B, x.R, pass == 0 ? normalMask : lateMask, listeners);
             for (int index = 0; index < count; index++)
             {
                 Listener listener = listeners[index];
@@ -1784,7 +1785,7 @@ internal sealed class Scorer
                 {
                     continue;
                 }
-                ListenerDef def = HookDispatch.Definition(x.B, listener);
+                ListenerDef def = HookDispatch.Definition(x.B, x.R, listener);
                 decimal previous = amount;
                 amount = (afterOsty, pass) switch
                 {
@@ -1824,9 +1825,9 @@ internal sealed class Scorer
             _lizardTailHeal = 0;
             if (score.LizardTailRelicId != ushort.MaxValue)
             {
-                for (int index = 0; index < battle.RelicCount; index++)
+                for (int index = 0; index < rules.Relics.Count; index++)
                 {
-                    ref readonly Relic relic = ref battle.Relics[index];
+                    Relic relic = battle.GetRelic(rules, index);
                     if (relic.Id != score.LizardTailRelicId || relic.Counter != 0
                         || (relic.Flags & RelicFlags.Melted) != 0)
                     {
@@ -1882,7 +1883,7 @@ internal sealed class Scorer
         Exec x = new(ref state, Rules, default);
         if (ShouldClearBlock(ref x, Limits.PlayerOwner, out Listener preventer))
             return consumed;
-        int retained = HookDispatch.Definition(state, preventer)
+        int retained = HookDispatch.Definition(state, Rules, preventer)
             .BlockAfterPreventingClear(ref x, preventer, Limits.PlayerOwner, remaining);
         return consumed + Math.Min(Math.Max(0, retained), Math.Max(0, battle.Player.MaxHp));
     }
@@ -1892,11 +1893,11 @@ internal sealed class Scorer
         preventer = default;
         if ((Registry.AnyHooks & HookMask.ShouldClearBlock) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldClearBlock, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMask.ShouldClearBlock, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!HookDispatch.Definition(x.B, listeners[index]).ShouldClearBlock(ref x, listeners[index], owner))
+            if (!HookDispatch.Definition(x.B, x.R, listeners[index]).ShouldClearBlock(ref x, listeners[index], owner))
             {
                 preventer = listeners[index];
                 return false;
@@ -2407,8 +2408,8 @@ internal sealed class Scorer
     {
         if (cached >= 0)
             return cached;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
-        if (HookDispatch.CollectListeners(battle, HookMask.ModifyMaxEnergy, listeners) == 0)
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle, Rules)];
+        if (HookDispatch.CollectListeners(battle, Rules, HookMask.ModifyMaxEnergy, listeners) == 0)
             return cached = Math.Max(0, (int)(decimal)Rules.BaseMaxEnergy);
         Unsafe.SkipInit(out Battle probe);
         Battle.CopyPacked(in battle, ref probe);
@@ -2487,10 +2488,10 @@ internal sealed class Scorer
     {
         if (cached >= 0)
             return cached;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
-        int count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDraw, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle, Rules)];
+        int count = HookDispatch.CollectListeners(battle, Rules, HookMask.ModifyHandDraw, listeners);
         if (count == 0)
-            count = HookDispatch.CollectListeners(battle, HookMask.ModifyHandDrawLate, listeners);
+            count = HookDispatch.CollectListeners(battle, Rules, HookMask.ModifyHandDrawLate, listeners);
         if (count == 0)
             return cached = Math.Max(0, (int)(decimal)5);
         Unsafe.SkipInit(out Battle probe);
@@ -2726,9 +2727,9 @@ internal sealed class Scorer
     {
         if (_score.FiddleRelicId == ushort.MaxValue)
             return false;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < Rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(Rules, index);
             if (relic.Id == _score.FiddleRelicId
                 && (relic.Flags & RelicFlags.Melted) == 0)
             {

@@ -123,6 +123,8 @@ public static partial class Kernel
             return ApplyTemporaryStrength(ref x, target, powerId, amount, applier, sign, powerTarget);
         if (internalId == "DEXTERITY_POWER")
             return ApplyTemporaryDexterity(ref x, target, powerId, amount, applier, sign, powerTarget);
+        if (internalId == "THORNS_POWER")
+            return ApplyPowerInternal(ref x, target, powerId, amount, applier, powerTarget);
         throw new UnsupportedException($"Misery 克隆的临时 Power {internalId} 没有内部数值实现。");
     }
 
@@ -141,7 +143,7 @@ public static partial class Kernel
         // UnsettlingLamp is the only listener of the two lamp-specific passes.
         int cardSourceSerial = x.CardPowerSourceActive ? x.CardPowerSourceSerial : 0;
         bool lampHooks = x.R.UnsettlingLampRelicId != ushort.MaxValue
-            || (x.R.HasIdentityContent && x.B.RelicCount != 0 && HasRelic(x.B, "UNSETTLING_LAMP"));
+            || (x.R.HasIdentityContent && x.R.Relics.Count != 0 && HasRelic(x.B, x.R, "UNSETTLING_LAMP"));
         if (lampHooks)
         {
             HookDispatch.BeforePowerAmountChanged(ref x, powerId, amount, target, applier, cardSourceSerial);
@@ -154,7 +156,7 @@ public static partial class Kernel
             amount = (int)HookDispatch.ModifyPowerAmountGivenMultiplicative(ref x, powerId, applier, target,
                 amount, cardSourceSerial);
         }
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         amount = HookDispatch.ModifyPowerAmountReceived(x.B, x.R, powerId, target, amount, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -165,6 +167,15 @@ public static partial class Kernel
         }
         if (def.TypeForAmount(amount) == PowerType.Debuff && ConsumeArtifact(ref x.B, target))
             return 0;
+        if (def.InternallyAppliedPowerId == "THORNS_POWER")
+        {
+            ushort thorns = PowerIdOrMax("THORNS_POWER");
+            if (GetAmount(x.B, target, powerId) == 0)
+                ApplyPower(ref x, target, thorns, amount, applier);
+            int applied = AddPowerAmount(ref x, target, powerId, def, amount, applier, out int resulting, powerTarget);
+            if (amount != resulting) ApplyPower(ref x, target, thorns, amount, applier);
+            return applied;
+        }
         return AddPowerAmount(ref x, target, powerId, def, amount, applier, out _, powerTarget);
     }
 
@@ -218,7 +229,7 @@ public static partial class Kernel
         PowerDef def = Registry.Power(temporaryId);
         // ApplyWithBeforeApplied runs ModifyPowerAmountForRelics before the native BeforeApplied, so the
         // modified amount is what the inner Strength change uses (and what UnsettlingLamp doubles).
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -253,7 +264,7 @@ public static partial class Kernel
         if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -307,7 +318,7 @@ public static partial class Kernel
         if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(temporaryId);
-        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> received = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         amount = ApplyTemporaryPowerAmountModifiers(ref x, temporaryId, amount, target, applier, received,
             out int receivedCount);
         if (receivedCount > 0)
@@ -387,11 +398,13 @@ public static partial class Kernel
         ref Power power = ref battle.Powers[index];
         int previous = power.Amount;
         power.Amount = Clamp((long)previous + amount);
-        if (previous == 0 && power.Amount != 0 && IsPlayerSide(target) && def.UsesNativeDurationSkip)
+        if (previous == 0 && power.Amount != 0 && IsPlayerSide(target) && battle.Side == Side.Enemy
+            && def.UsesNativeDurationSkip && def.TypeForAmount(power.Amount) == PowerType.Debuff)
             power.Flags |= PowerFlags.SkipNextDurationTick;
         int applied = power.Amount - previous;
         resulting = power.Amount;
-        if (def.MarksJustAppliedByEnemy && previous <= 0 && power.Amount > 0 && IsEnemyOwner(target))
+        if (def.MarksJustAppliedByEnemy && previous <= 0 && power.Amount > 0 && IsEnemyOwner(target)
+            && x.B.Side == Side.Enemy)
             power.Flags |= PowerFlags.WasJustAppliedByEnemy;
         // SimulatedCombatState.ApplyWithBeforeApplied records every positive Doom application by the
         // player for DeathsDoor's WasDoomAppliedThisTurn.
@@ -717,13 +730,13 @@ public static partial class Kernel
         for (int index = 0; index < battle.PowerCount; index++)
             battle.Powers[index].Flags &= ~PowerFlags.PendingAmountState;
     }
-    private static bool HasRelic(in Battle battle, string nativeId)
+    private static bool HasRelic(in Battle battle, Rules rules, string nativeId)
     {
         if (!Registry.TryRelic(nativeId, out ushort id))
             return false;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if (relic.Id == id && (relic.Flags & RelicFlags.Melted) == 0)
                 return true;
         }

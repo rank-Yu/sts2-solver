@@ -51,6 +51,24 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
         bool privateStateClaimed = true;
         switch (power)
         {
+            case MythicFormPower mythic:
+                target.Aux0 = mythic.DynamicVars["Upgraded"].IntValue;
+                break;
+            case EncorePower encore:
+                var encoreData = NativeAccess.PowerData<EncorePower.Data>(encore, "numberOfCardsPlayedSinceApplied");
+                if (encoreData.cardsBeingPlayed.Count != 0)
+                    throw new UnsupportedImportException(ImportReason.Unrepresentable, "Encore 仍有未完成的出牌");
+                target.Aux0 = encoreData.numberOfCardsPlayedSinceApplied;
+                break;
+            case EnnuiPower ennui:
+                target.Aux0 = ennui.DynamicVars.Cards.IntValue;
+                break;
+            case LullabyPower lullaby:
+                target.Aux0 = lullaby._proccdThisTurn ? 1 : 0;
+                break;
+            case YahPower yah:
+                target.Aux0 = NativeAccess.PowerData<YahPower.Data>(yah, "triggeredThisTurn").triggeredThisTurn ? 1 : 0;
+                break;
             case JugglingPower juggling:
                 target.Aux0 = NativeAccess.PowerData<JugglingPower.Data>(juggling, "attacksPlayedThisTurn").attacksPlayedThisTurn;
                 break;
@@ -186,6 +204,9 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
         ledger.Claim(relic);
         switch (relic)
         {
+            case ConductorsBaton baton:
+                target.Counter = baton._triggeredThisTurn ? 1 : 0;
+                break;
             case ArtOfWar:
                 (target.Counter, target.Aux) = Stateful(relic);
                 break;
@@ -327,7 +348,7 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
                 target.Counter = club.CardsPlayed;
                 break;
             case VelvetChoker choker:
-                target.Counter = choker._cardsPlayedThisTurn;
+                target.Counter = choker.GetCardsPlayedThisTurn();
                 break;
             case PumpkinCandle candle:
                 target.Counter = candle.KindleCount;

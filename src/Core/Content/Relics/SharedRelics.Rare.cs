@@ -41,15 +41,17 @@ public sealed class Bookmark : RelicDef
 [ContentId("EMOTION_CHIP")]
 public sealed class EmotionChip : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (result.Receiver == Limits.PlayerOwner && result.UnblockedDamage > 0)
-            x.B.Relics[self.Index].Aux = 1;
+            x.B.RelicState(x.R, self.Index).Aux = 1;
     }
 
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
-        if (x.B.Relics[self.Index].Counter == 0)
+        if (x.B.RelicState(x.R, self.Index).Counter == 0)
             return;
         int count = x.B.OrbCount;
         for (int index = 0; index < count; index++)
@@ -62,7 +64,7 @@ public sealed class EmotionChip : RelicDef
 
     public override void AfterRelicRound(ref Exec x, Listener self)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter = relic.Aux;
         relic.Aux = 0;
     }
@@ -76,11 +78,13 @@ public sealed class EmotionChip : RelicDef
 [ContentId("METRONOME")]
 public sealed partial class Metronome : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["Damage", "OrbCount"];
 
     public override void AfterOrbChanneled(ref Exec x, Listener self, in Orb orb)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (relic.Counter != (int)x.R.RelicVar(Id, 1))
             return;
@@ -425,6 +429,8 @@ public sealed class IceCream : RelicDef
 [ContentId("RUINED_HELMET")]
 public sealed class RuinedHelmet : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override bool TryModifyPowerAmountReceived(in Battle battle, Rules rules, Listener self,
         ushort powerId, byte target, int amount, out int modified)
     {
@@ -433,7 +439,7 @@ public sealed class RuinedHelmet : RelicDef
             || target != self.Owner
             || !Registry.TryPower("STRENGTH_POWER", out ushort strength)
             || powerId != strength
-            || (battle.Relics[self.Index].Flags & RelicFlags.UsedThisCombat) != 0)
+            || (battle.GetRelic(rules, self.Index).Flags & RelicFlags.UsedThisCombat) != 0)
         {
             return false;
         }
@@ -443,7 +449,7 @@ public sealed class RuinedHelmet : RelicDef
 
     public override void AfterModifyingPowerAmountReceived(ref Exec x, Listener self, ushort powerId,
         byte target)
-        => x.B.Relics[self.Index].Flags |= RelicFlags.UsedThisCombat;
+        => x.B.RelicFlags(x.R, self.Index) |= RelicFlags.UsedThisCombat;
 }
 
 /// <summary>
@@ -581,27 +587,29 @@ public sealed class WhiteStar : RelicDef;
 [ContentId("ART_OF_WAR")]
 public sealed class ArtOfWar : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // ArtOfWar.cs: EnergyVar("GainEnergy", 1).
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (Kernel.ResolveCardType(x.B, x.R, play.Card) == CardType.Attack)
-            x.B.Relics[self.Index].Counter = 1;
+            x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 
     public override void AfterSideTurnEnd(ref Exec x, Listener self, Side side)
     {
         if (side != Side.Player)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Aux = relic.Counter;
         relic.Counter = 0;
     }
 
     public override void AfterEnergyReset(ref Exec x, Listener self)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (x.B.PlayerTurn > 1 && relic.Aux == 0)
             Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 0));
         relic.Counter = 0;
@@ -618,18 +626,20 @@ public sealed class ArtOfWar : RelicDef
 [ContentId("DEMON_TONGUE")]
 public sealed class DemonTongue : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (!Kernel.IsInProgress(x.B) || x.B.Side != Side.Player
             || result.Receiver != Limits.PlayerOwner || result.UnblockedDamage <= 0
-            || x.B.Relics[self.Index].Counter != 0)
+            || x.B.RelicState(x.R, self.Index).Counter != 0)
             return;
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
         Kernel.Heal(ref x, Limits.PlayerOwner, result.UnblockedDamage);
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -641,6 +651,8 @@ public sealed class DemonTongue : RelicDef
 [ContentId("KUNAI")]
 public sealed class Kunai : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Kunai.cs: CardsVar(3), PowerVar<DexterityPower>(1m).
     public override IReadOnlyList<string> VarNames => ["Cards", "DexterityPower"];
 
@@ -648,7 +660,7 @@ public sealed class Kunai : RelicDef
     {
         if (!Kernel.IsInProgress(x.B) || Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         // ApplyRelicStatPower declines while the combat is ending; the counter still increments.
         if (relic.Counter % (int)x.R.RelicVar(Id, 0) != 0 || Kernel.IsEnding(x.B))
@@ -658,7 +670,7 @@ public sealed class Kunai : RelicDef
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -672,22 +684,24 @@ public sealed class Kunai : RelicDef
 [ContentId("POCKETWATCH")]
 public sealed class Pocketwatch : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Pocketwatch.cs: DynamicVar("CardThreshold", 3m), CardsVar(3).
     public override IReadOnlyList<string> VarNames => ["CardThreshold", "Cards"];
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
-        => x.B.Relics[self.Index].Counter++;
+        => x.B.RelicState(x.R, self.Index).Counter++;
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Aux = relic.Counter;
         relic.Counter = 0;
     }
 
     public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
     {
-        if (x.B.PlayerTurn == 1 || x.B.Relics[self.Index].Aux > x.R.RelicVar(Id, 0))
+        if (x.B.PlayerTurn == 1 || x.B.RelicState(x.R, self.Index).Aux > x.R.RelicVar(Id, 0))
             return amount;
         return amount + x.R.RelicVar(Id, 1);
     }
@@ -704,24 +718,26 @@ public sealed class Pocketwatch : RelicDef
 [ContentId("RAINBOW_RING")]
 public sealed class RainbowRing : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // RainbowRing.cs: PowerVar<StrengthPower>(1m), PowerVar<DexterityPower>(1m).
     public override IReadOnlyList<string> VarNames => ["StrengthPower", "DexterityPower"];
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter = 0;
         relic.Aux = 0;
     }
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        if (!Kernel.IsInProgress(x.B) || x.B.Relics[self.Index].Counter >= 1)
+        if (!Kernel.IsInProgress(x.B) || x.B.RelicState(x.R, self.Index).Counter >= 1)
             return;
         CardType type = Kernel.ResolveCardType(x.B, x.R, play.Card);
         int attacks = x.B.Counter(Counter.AttacksPlayedThisTurn) + (type == CardType.Attack ? 1 : 0);
         int skills = x.B.Counter(Counter.SkillCardsPlayedThisTurn) + (type == CardType.Skill ? 1 : 0);
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (type == CardType.Power)
             relic.Aux++;
         if (attacks == 0 || skills == 0 || relic.Aux == 0)
@@ -745,6 +761,8 @@ public sealed class RainbowRing : RelicDef
 [ContentId("SHURIKEN")]
 public sealed class Shuriken : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Shuriken.cs: CardsVar(3), PowerVar<StrengthPower>(1m).
     public override IReadOnlyList<string> VarNames => ["Cards", "StrengthPower"];
 
@@ -752,7 +770,7 @@ public sealed class Shuriken : RelicDef
     {
         if (!Kernel.IsInProgress(x.B) || Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         // ApplyRelicStatPower declines while the combat is ending; the counter still increments.
         if (relic.Counter % (int)x.R.RelicVar(Id, 0) != 0 || Kernel.IsEnding(x.B))
@@ -762,7 +780,7 @@ public sealed class Shuriken : RelicDef
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -778,6 +796,8 @@ public sealed class Shuriken : RelicDef
 [ContentId("BEATING_REMNANT")]
 public sealed class BeatingRemnant : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // BeatingRemnant.cs: DynamicVar("MaxHpLoss", 20m).
     public override IReadOnlyList<string> VarNames => ["MaxHpLoss"];
 
@@ -786,17 +806,17 @@ public sealed class BeatingRemnant : RelicDef
     {
         if (loss.Target != self.Owner)
             return amount;
-        return Math.Min(amount, x.R.RelicVar(Id, 0) - x.B.Relics[self.Index].Counter);
+        return Math.Min(amount, x.R.RelicVar(Id, 0) - x.B.RelicState(x.R, self.Index).Counter);
     }
 
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (result.Receiver == self.Owner)
-            x.B.Relics[self.Index].Counter += result.UnblockedDamage;
+            x.B.RelicState(x.R, self.Index).Counter += result.UnblockedDamage;
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -808,15 +828,17 @@ public sealed class BeatingRemnant : RelicDef
 [ContentId("LIZARD_TAIL")]
 public sealed class LizardTail : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // LizardTail.cs: HealVar(50m).
     public override IReadOnlyList<string> VarNames => ["Heal"];
 
     public override bool ShouldDieLate(ref Exec x, Listener self, byte creature)
-        => creature != self.Owner || x.B.Relics[self.Index].Counter != 0;
+        => creature != self.Owner || x.B.RelicState(x.R, self.Index).Counter != 0;
 
     public override void AfterPreventingDeath(ref Exec x, Listener self, byte creature)
     {
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
         decimal amount = Math.Max(1m, x.B.Creature(creature).MaxHp * (x.R.RelicVar(Id, 0) / 100m));
         int hpBeforeRevive = x.B.Creature(creature).CurrentHp;
         Kernel.Heal(ref x, creature, amount);

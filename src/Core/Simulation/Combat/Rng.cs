@@ -16,6 +16,7 @@ public enum RngStream : byte
     CombatOrbGeneration,
     MonsterAi,
     Niche,
+    NonCombatGeneration,
 }
 
 /// <summary>
@@ -38,6 +39,29 @@ public struct RngState
 
     public static RngState FromSerializable(int counter, ulong s0, ulong s1, ulong s2, ulong s3)
         => new() { Counter = counter, S0 = s0, S1 = s1, S2 = s2, S3 = s3 };
+
+    /// <summary>0.113 ListExtensions.UnstableShuffle consumes one seed from its parent stream.</summary>
+    public RngState CreateShuffleRng()
+    {
+        Counter++;
+        return FromSeed(NextULongInner());
+    }
+
+    public static RngState FromSeed(ulong seed)
+        => new() { S0 = SplitMix(ref seed), S1 = SplitMix(ref seed),
+            S2 = SplitMix(ref seed), S3 = SplitMix(ref seed) };
+
+    // SplitMix64 seed expansion (public-domain algorithm), matching native MegaRandom.
+    private static ulong SplitMix(ref ulong seed)
+    {
+        unchecked
+        {
+            ulong value = seed += 0x9E3779B97F4A7C15UL;
+            value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
+            value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
+            return value ^ (value >> 31);
+        }
+    }
 
     /// <summary>Native <c>Rng.NextInt(int maxExclusive)</c>.</summary>
     public int NextInt(int maxExclusive)

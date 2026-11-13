@@ -53,11 +53,11 @@ public sealed class TeslaCoil : CardDef
 [ContentId("REFRACT")]
 public sealed class Refract : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Repeat", "Damage"];
+    public override IReadOnlyList<string> VarNames => ["Repeat", "Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
     {
-        CardEffects.Attack(ref x, CardEffects.Var(x, 1), hitCount: 2);
+        CardEffects.Attack(ref x, CardEffects.Var(x, 1), hitCount: (int)CardEffects.Var(x, 2));
         if (x.NeedsChoice)
             return;
         Kernel.ChannelOrbs(ref x, Kernel.OrbId("GLASS_ORB"), (int)CardEffects.Var(x, 0));

@@ -10,7 +10,7 @@ public static partial class Kernel
     /// </summary>
     public static int GainGold(ref Exec x, decimal amount)
     {
-        Span<Listener> modifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> modifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         amount = HookDispatch.ModifyGoldGained(ref x, amount, modifiers, out int modifierCount);
         HookDispatch.AfterModifyingGoldGained(ref x, modifiers[..modifierCount], amount);
         if (!(amount > 0m))

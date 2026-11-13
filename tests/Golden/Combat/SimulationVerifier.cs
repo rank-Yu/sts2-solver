@@ -88,11 +88,13 @@ internal static class SimulationVerifier
         JsonElement metaRoot = meta.RootElement;
         if (metaRoot.GetProperty("formatVersion").GetInt32() != Codec.FormatVersion)
             throw new InvalidDataException($"根 {rootName} 的格式版本不符。");
-        if (metaRoot.GetProperty("battleSize").GetInt32() != Unsafe.SizeOf<Battle>())
+        if (metaRoot.GetProperty("battleSize").GetInt32() != BattleCodec.SerializedSize)
             throw new InvalidDataException($"根 {rootName} 的 Battle 大小不符。");
 
         GoldenRootRecord record = GoldenData.Decode(GoldenFiles.ReadCompressed(goldenPath));
-        Rules rules = LoadRules(dataDirectory, record.RulesSha256);
+        Rules rules = LoadRules(dataDirectory, record.RulesSha256).WithRelics(record.Roots[0].Relics);
+        if (record.Roots.Any(root => !rules.Relics.Equivalent(root.Relics)))
+            throw new InvalidDataException("D1 roots have different relic rosters.");
         SearchCase config = LoadConfig(directory, rootName, record.RulesSha256);
         Scorer scorer = config.Options.Scorer
             ?? throw new InvalidDataException($"根 {rootName} 的特征配置没有 Scorer。");
@@ -326,7 +328,7 @@ internal static class SimulationVerifier
         else
         {
             boundStatus = 1;
-            BoundValues values = bound.Evaluate(battle, features.ExplicitPotionStrategicCost,
+            BoundValues values = bound.Evaluate(battle, scorer.RulesForCodec.Rules, features.ExplicitPotionStrategicCost,
                 includeSmartPotionLowerBound: true);
             boundHash = GoldenHash.Bound(values);
         }
@@ -359,7 +361,7 @@ internal static class SimulationVerifier
         Rules rules, bool historyRisk)
     {
         bool pure = BeamSolver.IsPureTransitionForTesting(beforeBattle, child, action, rules, historyRisk);
-        bool declined = BeamSolver.DeclinedExtraTurn(beforeBattle);
+        bool declined = BeamSolver.DeclinedExtraTurn(beforeBattle, rules);
         SearchRouteTraits traits = BeamSolver.ClassifyRouteTraitsForTesting(before, after, action, declined, !pure);
         BeamSolver.PocketwatchState(child, rules, out int threshold, out int played);
         return (true, GoldenHash.Trait(traits, pure, declined, threshold, played));

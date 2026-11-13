@@ -463,6 +463,7 @@ internal static partial class CombatSessionController
     internal static void BeginCombat(CombatState? state)
     {
         RequireMainThread();
+        NativeChoiceHandoff.CancelForSceneExit();
         PlayerTurnSetupRuntime.Reset("begin_combat");
         CancellationTokenSource previousCombat = _combatCancellation;
         CancelTurnSchedule();
@@ -686,6 +687,7 @@ internal static partial class CombatSessionController
             $"[Sts2Solver] CONTROLLER_COMBAT_ENDED in_progress={CombatManager.Instance.IsInProgress} " +
             $"turn={CurrentTurn()} hp={_player?.Creature.CurrentHp.ToString() ?? "-"} " +
             $"enemies={_state?.Enemies.Count.ToString() ?? "-"}");
+        NativeChoiceHandoff.CancelForSceneExit();
         PlayerTurnSetupRuntime.Reset("combat_ended");
         CancelTurnSchedule();
         CancelSearch();
@@ -788,6 +790,7 @@ internal static partial class CombatSessionController
         _combatGeneration++;
         if (_combatActive)
             CaptureCompletedSummary();
+        NativeChoiceHandoff.CancelForSceneExit();
         PlayerTurnSetupRuntime.Reset(reason);
         CancelTurnSchedule();
         CancelSearch();

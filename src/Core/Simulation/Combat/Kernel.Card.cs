@@ -55,6 +55,9 @@ public static partial class Kernel
     {
         if (card.HasKeyword(keyword))
             return true;
+        if (keyword == Keywords.Retain && Registry.Card(card.Id).NativeId == "SHIV"
+            && Registry.TryPower("PHANTOM_BLADES_POWER", out ushort phantom))
+            return GetAmount(battle, Limits.PlayerOwner, phantom) > 0;
         if (keyword != Keywords.Ethereal
             || !Registry.TryAffliction("HEXED", out ushort hexed)
             || !Registry.TryPower("HEX_POWER", out ushort hex)
@@ -70,11 +73,11 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooks & HookMask.ShouldPlay) == 0 || IsOverOrEnding(battle))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle)];
-        int count = HookDispatch.CollectListeners(battle, HookMask.ShouldPlay, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(battle, rules)];
+        int count = HookDispatch.CollectListeners(battle, rules, HookMask.ShouldPlay, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!HookDispatch.Definition(battle, listeners[index]).ShouldPlay(battle, rules, listeners[index], card))
+            if (!HookDispatch.Definition(battle, rules, listeners[index]).ShouldPlay(battle, rules, listeners[index], card))
                 return false;
         }
         return true;
@@ -173,6 +176,11 @@ public static partial class Kernel
         int energyValue = EnergyCostWithModifiers(battle, x.R, card, Pile.Hand);
         int starValue = StarCostWithModifiers(battle, x.R, card, Pile.Hand);
         x.XValue = energyValue;
+        if ((card.Flags & CardFlags.CostsX) != 0)
+        {
+            card.CapturedEnergy = checked((short)energyValue);
+            battle.Cards[handIndex].CapturedEnergy = card.CapturedEnergy;
+        }
         // LastStarsSpent: captured even when the play is free (auto-play captures it too).
         x.StarValue = starValue;
         if (energyValue > 0)
@@ -271,7 +279,7 @@ public static partial class Kernel
         }
         // HookMirrors.ModifyCardPlayResultLocation, then CardModel.OnPlayWrapper's direct after dispatch
         // over the modifiers that changed the location.
-        Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         Pile hooked = HookDispatch.ModifyCardPlayResultLocation(ref x, card, isAutoPlay, energyValue, result,
             basePosition, locationModifiers, out int locationModifierCount, out PilePosition resultPosition);
         if (x.NeedsChoice)
@@ -292,7 +300,7 @@ public static partial class Kernel
         // HookMirrors.ModifyCardPlayCount then Hook.AfterModifyingCardPlayCount. The base count is
         // CardModel.GetEnchantedReplayCount() (the enchantment modifies the replay count first).
         int basePlayCount = EnchantedReplayCount(card);
-        Span<Listener> playCountModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> playCountModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         int playCount = HookDispatch.ModifyCardPlayCount(ref x, card, target, basePlayCount + 1,
             playCountModifiers, out int playCountModifierCount);
         HookDispatch.AfterModifyingCardPlayCount(ref x, card, playCountModifiers[..playCountModifierCount]);
@@ -337,6 +345,8 @@ public static partial class Kernel
             }
             RecordCardPlayStarted(ref x.B, stats, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card),
                 index, energyValue, isAutoPlay);
+            if (x.R.HasFoolMechanics)
+                RecordMelodyStarted(ref x, stats.Tags);
             bool identityScope = x.R.HasIdentityContent;
             int monologueBase = 0;
             int outerSourceSerial = 0;
@@ -448,6 +458,8 @@ public static partial class Kernel
             // records the finished play before AfterCardPlayed, so effects triggered there (Calamity
             // generating a card, Stomp.AfterEnteredCombat counting attacks) must see this play.
             RecordCardPlayFinished(ref x, stats, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card));
+            if (x.R.HasFoolMechanics)
+                RecordMelodyFinished(ref x.B, stats.Tags);
             if (Registry.Card(card.Id).ResolveCardType(x.B, x.R, card) == CardType.Attack)
                 RecordHistoryCourseAttack(ref x, playPosition);
             // CardPlayFinishedEntry.WasEthereal is `card.Keywords.Contains(Ethereal)`, taken when the
@@ -491,6 +503,8 @@ public static partial class Kernel
             {
                 Piles.At(ref x.B, Pile.Play, playPosition).Private |= FetchPlayedBit;
             }
+            Registry.Card(card.Id).AfterPlayCompleted(ref x, index == playCount - 1);
+            if (x.NeedsChoice) { completed = false; break; }
             // The tail fails when the owner died during the completion effects.
             if (x.B.Player.IsDead)
             {
@@ -561,9 +575,9 @@ public static partial class Kernel
         if (!Registry.TryRelic("UNCEASING_TOP", out ushort top))
             return;
         bool hasTop = false;
-        for (int index = 0; index < x.B.RelicCount; index++)
+        for (int index = 0; index < x.R.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref x.B.Relics[index];
+            Relic relic = x.B.GetRelic(x.R, index);
             if (relic.Id == top && (relic.Flags & RelicFlags.Melted) == 0)
             {
                 hasTop = true;
@@ -724,10 +738,7 @@ public static partial class Kernel
         // AddThisCombat/AddUntilPlayed ignore zero.
         if (amount == 0 && type != CostType.Absolute)
             return;
-        if (card.EnergyModifierCount >= Limits.CardEnergyCostModifiers)
-            throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-        card.EnergyModifiers[card.EnergyModifierCount] = CostModifier.Create(amount, type, expiration, reduceOnly);
-        card.EnergyModifierCount++;
+        CardCostModifiers.Append(ref card, CostModifier.Create(amount, type, expiration, reduceOnly));
     }
 
     /// <summary>Mirrors <c>CardEnergyCost.AfterCardPlayedCleanup</c> and the temporary star cost cleanup.</summary>
@@ -745,6 +756,7 @@ public static partial class Kernel
         for (int index = kept; index < Limits.CardEnergyCostModifiers; index++)
             card.EnergyModifiers[index] = default;
         card.EnergyModifierCount = kept;
+        CardCostModifiers.Compact(ref card);
         if (card.HasTemporaryStarCost)
             card.RemoveTemporaryStarCosts(atTurnEnd: false);
     }
@@ -807,10 +819,10 @@ public static partial class Kernel
             return;
         if (Registry.TryRelic("UNSETTLING_LAMP", out ushort lamp))
         {
-            for (int index = 0; index < x.B.RelicCount; index++)
+            for (int index = 0; index < x.R.Relics.Count; index++)
             {
-                if (x.B.Relics[index].Id == lamp && x.B.Relics[index].Counter == 0)
-                    x.B.Relics[index].Counter = 1;
+                if (x.R.Relics.Id(index) == lamp && x.B.GetRelic(x.R, index).Counter == 0)
+                    x.B.RelicState(x.R, index).Counter = 1;
             }
         }
         x.LampTriggerSerial = 0;

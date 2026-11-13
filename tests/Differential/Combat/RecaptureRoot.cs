@@ -86,14 +86,14 @@ internal static class RecaptureRoot
         return 0;
     }
 
-    private static CombatState Build(MainLoopContext loop, OfflineRequest request, string root)
+    internal static CombatState Build(MainLoopContext loop, OfflineRequest request, string root)
     {
         Task<CombatState> build = ScenarioBuilder.BuildAsync(new OfflineCombatWaiter(loop), request);
         loop.RunUntilCompleted(build, TimeSpan.FromSeconds(600), $"重新捕获建局 {root}");
         return build.GetAwaiter().GetResult();
     }
 
-    private static (List<GoldenBattleRoot> Roots, byte[] Config) CaptureOrdinary(
+    internal static (List<GoldenBattleRoot> Roots, byte[] Config) CaptureOrdinary(
         CombatState state, OfflineRequest request)
     {
         Player player = PlayerOf(state);
@@ -113,7 +113,32 @@ internal static class RecaptureRoot
         return ([MakeRoot(battle, "", scorer, bound)], SearchCodec.EncodeRequest(actual));
     }
 
-    private static (List<GoldenBattleRoot> Roots, byte[] Config) CapturePrefix(
+    internal static void VerifyNativePrefix(MainLoopContext loop, CombatState state, OfflineRequest request)
+    {
+        Player player = PlayerOf(state);
+        Rules rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
+        LiveCombatTracker tracker = new(state);
+        Battle before = tracker.ImportRoot(state, player, rules);
+        List<PlayerAction> resolved = [];
+        PrefixReplayResult replay = PrefixReplay.Replay(before, rules, PrefixPlan.Parse(request),
+            onResolvedAction: resolved.Add);
+        ReplayedRoute route = ReplayedRoute.Build(before, rules, [.. resolved],
+            replay.Battle.Outcome == Outcome.Victory);
+        NativeActionExecutor executor = new(loop, state, player, rules, tracker);
+        foreach (ReplayedAction action in route.Actions)
+        {
+            Battle actual = executor.Execute(action);
+            string? terminal = action.After.Outcome != Outcome.None
+                ? TerminalBattleCapture.Compare(action.After, rules) : null;
+            if (terminal != null || !Sts2Solver.Autoplay.CombatRouteDecision.ActionMatches(action, actual))
+                throw new InvalidDataException("native prefix: " + (terminal ??
+                    string.Join(" | ", BattleDump.Diff(action.After, actual, "core", "native").Take(8))));
+            tracker.Observe(action.After);
+        }
+        Console.WriteLine($"NATIVE_PREFIX_OK actions={resolved.Count} turn={replay.Battle.PlayerTurn}");
+    }
+
+    internal static (List<GoldenBattleRoot> Roots, byte[] Config) CapturePrefix(
         CombatState state, OfflineRequest request)
     {
         Player player = PlayerOf(state);
@@ -193,7 +218,7 @@ internal static class RecaptureRoot
         return (roots, SearchCodec.EncodeRequest(actual));
     }
 
-    private static GoldenBattleRoot MakeRoot(in Battle battle, string choices, Scorer scorer,
+    internal static GoldenBattleRoot MakeRoot(in Battle battle, string choices, Scorer scorer,
         BoundFeatures bound)
     {
         ScoreFeatures features = scorer.Features(battle, 0);
@@ -206,13 +231,14 @@ internal static class RecaptureRoot
         else
         {
             boundStatus = 1;
-            BoundValues values = bound.Evaluate(battle, features.ExplicitPotionStrategicCost,
+            BoundValues values = bound.Evaluate(battle, scorer.RulesForCodec.Rules, features.ExplicitPotionStrategicCost,
                 includeSmartPotionLowerBound: true);
             boundHash = GoldenHash.Bound(values);
         }
         return new GoldenBattleRoot
         {
             Battle = battle,
+            Relics = scorer.RulesForCodec.Rules.Relics,
             Choices = choices,
             ScoreHash = GoldenHash.Score(features),
             BoundStatus = boundStatus,

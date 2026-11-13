@@ -14,23 +14,23 @@ public static partial class HookDispatch
     /// Upper bound of <see cref="CollectListeners"/> output for this battle: every fixed table can
     /// fill, and each of the <c>CardCount</c> cards contributes at most three listeners (card,
     /// affliction, enchantment). Callers size stack buffers with this instead of the absolute
-    /// 1023-card ceiling so a normal deck does not reserve the maximum frame.
+    /// 640-card ceiling so a normal deck does not reserve the maximum frame.
     /// </summary>
-    public static int MaxListenerCount(in Battle battle)
-        => Limits.Powers + Limits.Relics + Limits.PotionSlots
+    public static int MaxListenerCount(in Battle battle, Rules rules)
+        => Limits.Powers + rules.Relics.ListenerCapacity + Limits.PotionSlots
             + Limits.Enemies + Limits.Orbs + battle.CardCount * 3;
 
     /// <summary>Collects the listeners whose definition overrides <paramref name="hook"/>, in dispatch order.</summary>
-    public static int CollectListeners(in Battle battle, HookMask hook, Span<Listener> output)
-        => (Registry.AnyHooks & hook) == 0 ? 0 : CollectListeners(battle, new HookBits(hook, HookMaskExt.None), output);
+    public static int CollectListeners(in Battle battle, Rules rules, HookMask hook, Span<Listener> output)
+        => (Registry.AnyHooks & hook) == 0 ? 0 : CollectListeners(battle, rules, new HookBits(hook, HookMaskExt.None), output);
 
     /// <summary>The <see cref="HookMaskExt"/> counterpart of the overload above, in the same dispatch order.</summary>
-    public static int CollectListeners(in Battle battle, HookMaskExt hook, Span<Listener> output)
-        => (Registry.AnyHooksExt & hook) == 0 ? 0 : CollectListeners(battle, new HookBits(HookMask.None, hook), output);
+    public static int CollectListeners(in Battle battle, Rules rules, HookMaskExt hook, Span<Listener> output)
+        => (Registry.AnyHooksExt & hook) == 0 ? 0 : CollectListeners(battle, rules, new HookBits(HookMask.None, hook), output);
 
     private readonly record struct HookBits(HookMask Main, HookMaskExt Ext);
 
-    private static int CollectListeners(in Battle battle, HookBits hook, Span<Listener> output)
+    private static int CollectListeners(in Battle battle, Rules rules, HookBits hook, Span<Listener> output)
     {
         int count = 0;
         bool playerHooks = (battle.Flags & BattleFlags.PlayerHooksActive) != 0;
@@ -40,12 +40,10 @@ public static partial class HookDispatch
         nextPower = CollectPowers(battle, Limits.PlayerOwner, hook, nextPower, output, ref count);
         if (playerHooks)
         {
-            for (int index = 0; index < battle.RelicCount; index++)
-            {
-                ref readonly Relic relic = ref battle.Relics[index];
-                if ((relic.Flags & RelicFlags.Melted) == 0 && Has(Registry.Relic(relic.Id), hook))
-                    output[count++] = new Listener(ListenerKind.Relic, (byte)index, Limits.PlayerOwner);
-            }
+            ReadOnlySpan<ushort> relics = hook.Ext == HookMaskExt.None
+                ? rules.Relics.Listeners(hook.Main) : rules.Relics.Listeners(hook.Ext);
+            foreach (ushort index in relics)
+                output[count++] = new Listener(ListenerKind.Relic, index, Limits.PlayerOwner);
             for (int slot = 0; slot < battle.PotionSlotCount; slot++)
             {
                 ushort potion = battle.Potions[slot];
@@ -97,10 +95,10 @@ public static partial class HookDispatch
         return count;
     }
 
-    public static ListenerDef Definition(in Battle battle, Listener listener) => listener.Kind switch
+    public static ListenerDef Definition(in Battle battle, Rules rules, Listener listener) => listener.Kind switch
     {
         ListenerKind.Power => Registry.Power(battle.Powers[listener.Index].Id),
-        ListenerKind.Relic => Registry.Relic(battle.Relics[listener.Index].Id),
+        ListenerKind.Relic => Registry.Relic(rules.Relics.Fixed(listener.Index).Id),
         ListenerKind.Potion => Registry.Potion((ushort)(battle.Potions[listener.Index] - 1)),
         ListenerKind.Monster => Registry.Monster(battle.Enemies[listener.Index].MonsterId),
         ListenerKind.Orb => Registry.Orb(battle.Orbs[listener.Index].Id),
@@ -118,11 +116,11 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.AfterCreatureAddedToCombat) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.AfterCreatureAddedToCombat, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.AfterCreatureAddedToCombat, listeners);
         for (int index = 0; index < count; index++)
         {
-            Definition(x.B, listeners[index]).AfterCreatureAddedToCombat(ref x, listeners[index], creature);
+            Definition(x.B, x.R, listeners[index]).AfterCreatureAddedToCombat(ref x, listeners[index], creature);
             if (x.NeedsChoice)
                 return;
         }
@@ -133,7 +131,7 @@ public static partial class HookDispatch
     /// then the minimum cap, clamped at zero. Decimal throughout, never rounded here.
     /// </summary>
     public static decimal ModifyDamage(ref Exec x, byte target, byte dealer, decimal damage, ValueProps props,
-        bool hasCardSource, in Card cardSource)
+        bool hasCardSource, in Card cardSource, bool capOnly = false)
     {
         // HookMirrors.ModifyDamage: the source card's enchantment runs before every listener.
         if (hasCardSource && cardSource.EnchantmentId != 0)
@@ -145,20 +143,27 @@ public static partial class HookDispatch
         // Run listeners put out-of-combat deck cards before the combat list; deck cards with
         // damage hooks are rejected at admission.
         DamageContext context = new(target, dealer, props, hasCardSource, cardSource);
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
 
-        int count = CollectListeners(x.B, HookMask.ModifyDamageAdditive, listeners);
+        int count;
+        if (!capOnly)
+        {
+        count = CollectListeners(x.B, x.R, HookMask.ModifyDamageAdditive, listeners);
         for (int index = 0; index < count; index++)
-            damage += Definition(x.B, listeners[index]).ModifyDamageAdditive(ref x, listeners[index], context, damage);
+            damage += Definition(x.B, x.R, listeners[index]).ModifyDamageAdditive(ref x, listeners[index], context, damage);
 
-        count = CollectListeners(x.B, HookMask.ModifyDamageMultiplicative, listeners);
+        if (hasCardSource)
+            damage *= Registry.Card(cardSource.Id).ModifyOwnDamageMultiplier(ref x, context);
+        count = CollectListeners(x.B, x.R, HookMask.ModifyDamageMultiplicative, listeners);
         for (int index = 0; index < count; index++)
-            damage *= Definition(x.B, listeners[index]).ModifyDamageMultiplicative(ref x, listeners[index], context, damage);
+            damage *= Definition(x.B, x.R, listeners[index]).ModifyDamageMultiplicative(ref x, listeners[index], context, damage);
+
+        }
 
         decimal cap = decimal.MaxValue;
-        count = CollectListeners(x.B, HookMask.ModifyDamageCap, listeners);
+        count = CollectListeners(x.B, x.R, HookMask.ModifyDamageCap, listeners);
         for (int index = 0; index < count; index++)
-            cap = Math.Min(cap, Definition(x.B, listeners[index]).ModifyDamageCap(ref x, listeners[index], context));
+            cap = Math.Min(cap, Definition(x.B, x.R, listeners[index]).ModifyDamageCap(ref x, listeners[index], context));
 
         return Math.Max(0, Math.Min(damage, cap));
     }
@@ -172,10 +177,10 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.ModifyUnblockedDamageTarget) == 0)
             return target;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.ModifyUnblockedDamageTarget, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.ModifyUnblockedDamageTarget, listeners);
         for (int index = 0; index < count; index++)
-            target = Definition(x.B, listeners[index]).ModifyUnblockedDamageTarget(ref x, listeners[index], target, amount, props, dealer);
+            target = Definition(x.B, x.R, listeners[index]).ModifyUnblockedDamageTarget(ref x, listeners[index], target, amount, props, dealer);
         return target;
     }
 
@@ -192,13 +197,13 @@ public static partial class HookDispatch
         HookMask lateMask = afterOsty ? HookMask.ModifyHpLostAfterOstyLate : HookMask.ModifyHpLostBeforeOstyLate;
         if ((Registry.AnyHooks & (normalMask | lateMask)) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
         for (int pass = 0; pass < 2; pass++)
         {
-            int count = CollectListeners(x.B, pass == 0 ? normalMask : lateMask, listeners);
+            int count = CollectListeners(x.B, x.R, pass == 0 ? normalMask : lateMask, listeners);
             for (int index = 0; index < count; index++)
             {
-                ListenerDef def = Definition(x.B, listeners[index]);
+                ListenerDef def = Definition(x.B, x.R, listeners[index]);
                 decimal previous = amount;
                 amount = (afterOsty, pass) switch
                 {
@@ -222,13 +227,13 @@ public static partial class HookDispatch
     {
         if (changed.IsEmpty)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterModifyingHpLostAfterOsty, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterModifyingHpLostAfterOsty, listeners);
         for (int index = 0; index < count; index++)
         {
             if (changed.Contains(listeners[index]))
             {
-                Definition(x.B, listeners[index]).AfterModifyingHpLostAfterOsty(ref x, listeners[index]);
+                Definition(x.B, x.R, listeners[index]).AfterModifyingHpLostAfterOsty(ref x, listeners[index]);
                 if (x.NeedsChoice)
                     return;
             }
@@ -263,22 +268,22 @@ public static partial class HookDispatch
             anyModifier = true;
         }
         BlockContext context = new(target, props, hasCardSource, cardSource);
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
 
-        int count = CollectListeners(x.B, HookMask.ModifyBlockAdditive, listeners);
+        int count = CollectListeners(x.B, x.R, HookMask.ModifyBlockAdditive, listeners);
         for (int index = 0; index < count; index++)
         {
-            decimal additive = Definition(x.B, listeners[index]).ModifyBlockAdditive(ref x, listeners[index], context, block);
+            decimal additive = Definition(x.B, x.R, listeners[index]).ModifyBlockAdditive(ref x, listeners[index], context, block);
             block += additive;
             anyModifier |= additive != 0;
             if (additive != 0 && !changed.IsEmpty)
                 changed[changedCount++] = listeners[index];
         }
 
-        count = CollectListeners(x.B, HookMask.ModifyBlockMultiplicative, listeners);
+        count = CollectListeners(x.B, x.R, HookMask.ModifyBlockMultiplicative, listeners);
         for (int index = 0; index < count; index++)
         {
-            decimal multiplier = Definition(x.B, listeners[index]).ModifyBlockMultiplicative(ref x, listeners[index], context, block);
+            decimal multiplier = Definition(x.B, x.R, listeners[index]).ModifyBlockMultiplicative(ref x, listeners[index], context, block);
             block = MultiplyBlockWithinSettlement(block, multiplier, ref overflowed);
             anyModifier |= multiplier != 1;
             if (multiplier != 1 && !changed.IsEmpty)
@@ -296,13 +301,13 @@ public static partial class HookDispatch
         if (changed.IsEmpty)
             return;
         BlockContext context = new(target, props, hasCardSource, cardSource);
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.AfterModifyingBlockAmount, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.AfterModifyingBlockAmount, listeners);
         for (int index = 0; index < count; index++)
         {
             if (changed.Contains(listeners[index]))
             {
-                Definition(x.B, listeners[index]).AfterModifyingBlockAmount(ref x, listeners[index], modified, context);
+                Definition(x.B, x.R, listeners[index]).AfterModifyingBlockAmount(ref x, listeners[index], modified, context);
                 if (x.NeedsChoice)
                     return;
             }
@@ -337,17 +342,18 @@ public static partial class HookDispatch
         // the combat is over or ending.
         if ((Registry.AnyHooks & masks) == 0 || Kernel.IsOverOrEnding(battle))
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.TryModifyEnergyCostInCombat, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.TryModifyEnergyCostInCombat, listeners);
         for (int index = 0; index < count; index++)
         {
-                amount = Definition(battle, listeners[index]).TryModifyEnergyCostInCombat(battle, rules, listeners[index],
+                amount = Definition(battle, rules, listeners[index]).TryModifyEnergyCostInCombat(battle, rules, listeners[index],
                 card, pile, amount);
         }
-        count = CollectListeners(battle, HookMask.TryModifyEnergyCostInCombatLate, listeners);
+        amount = Registry.Card(card.Id).ModifyOwnEnergyCost(battle, rules, card, amount);
+        count = CollectListeners(battle, rules, HookMask.TryModifyEnergyCostInCombatLate, listeners);
         for (int index = 0; index < count; index++)
         {
-            amount = Definition(battle, listeners[index]).TryModifyEnergyCostInCombatLate(battle, rules, listeners[index],
+            amount = Definition(battle, rules, listeners[index]).TryModifyEnergyCostInCombatLate(battle, rules, listeners[index],
                 card, pile, amount);
         }
         return amount;
@@ -361,10 +367,10 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.ModifyOrbValue) == 0 || Kernel.IsOverOrEnding(battle))
             return value;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.ModifyOrbValue, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.ModifyOrbValue, listeners);
         for (int index = 0; index < count; index++)
-            value = Definition(battle, listeners[index]).ModifyOrbValue(battle, rules, listeners[index], orb, value);
+            value = Definition(battle, rules, listeners[index]).ModifyOrbValue(battle, rules, listeners[index], orb, value);
         return value;
     }
 
@@ -382,11 +388,11 @@ public static partial class HookDispatch
         {
             return triggerCount;
         }
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.ModifyOrbPassiveTriggerCounts, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.ModifyOrbPassiveTriggerCounts, listeners);
         for (int index = 0; index < count; index++)
         {
-            int modified = Definition(battle, listeners[index]).ModifyOrbPassiveTriggerCounts(
+            int modified = Definition(battle, rules, listeners[index]).ModifyOrbPassiveTriggerCounts(
                 battle, rules, listeners[index], orb, orbIndex, triggerCount);
             if (modified != triggerCount)
                 triggerCount = modified;
@@ -399,18 +405,18 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.AfterOrbChanneled) == 0 || Kernel.IsOverOrEnding(x.B))
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterOrbChanneled, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterOrbChanneled, listeners);
         if (count == 0)
             return;
         Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
         for (int index = 0; index < count; index++)
-            snapshot[index] = Snapshot(x.B, listeners[index]);
+            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
         for (int index = 0; index < count; index++)
         {
-            if (!TryResolve(x.B, snapshot[index], out Listener current))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
-            Definition(x.B, current).AfterOrbChanneled(ref x, current, orb);
+            Definition(x.B, x.R, current).AfterOrbChanneled(ref x, current, orb);
             if (x.NeedsChoice)
                 return;
         }
@@ -421,18 +427,18 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.AfterOrbEvoked) == 0 || Kernel.IsOverOrEnding(x.B))
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterOrbEvoked, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterOrbEvoked, listeners);
         if (count == 0)
             return;
         Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
         for (int index = 0; index < count; index++)
-            snapshot[index] = Snapshot(x.B, listeners[index]);
+            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
         for (int index = 0; index < count; index++)
         {
-            if (!TryResolve(x.B, snapshot[index], out Listener current))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
-            Definition(x.B, current).AfterOrbEvoked(ref x, current, orb, targets);
+            Definition(x.B, x.R, current).AfterOrbEvoked(ref x, current, orb, targets);
             if (x.NeedsChoice)
                 return;
         }
@@ -446,18 +452,18 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.AfterPotionUsed) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterPotionUsed, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterPotionUsed, listeners);
         if (count == 0)
             return;
         Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
         for (int index = 0; index < count; index++)
-            snapshot[index] = Snapshot(x.B, listeners[index]);
+            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
         for (int index = 0; index < count; index++)
         {
-            if (!TryResolve(x.B, snapshot[index], out Listener current))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
-            Definition(x.B, current).AfterPotionUsed(ref x, current, potionId);
+            Definition(x.B, x.R, current).AfterPotionUsed(ref x, current, potionId);
             if (x.NeedsChoice)
                 return;
         }
@@ -468,11 +474,11 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.ModifyXValue) == 0 || Kernel.IsOverOrEnding(battle))
             return value;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.ModifyXValue, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.ModifyXValue, listeners);
         for (int index = 0; index < count; index++)
         {
-            value = Definition(battle, listeners[index]).ModifyXValue(battle, rules, listeners[index], card, value);
+            value = Definition(battle, rules, listeners[index]).ModifyXValue(battle, rules, listeners[index], card, value);
         }
         return value;
     }
@@ -485,11 +491,11 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooks & HookMask.ShouldPlayerResetEnergy) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.ShouldPlayerResetEnergy, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.ShouldPlayerResetEnergy, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!Definition(battle, listeners[index]).ShouldPlayerResetEnergy(battle, rules, listeners[index], player))
+            if (!Definition(battle, rules, listeners[index]).ShouldPlayerResetEnergy(battle, rules, listeners[index], player))
                 return false;
         }
         return true;
@@ -507,13 +513,13 @@ public static partial class HookDispatch
         position = basePosition;
         if ((Registry.AnyHooks & HookMask.ModifyCardPlayResultLocation) == 0 || Kernel.IsOverOrEnding(x.B))
             return location;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.ModifyCardPlayResultLocation, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.ModifyCardPlayResultLocation, listeners);
         for (int index = 0; index < count; index++)
         {
             Pile previous = location;
             PilePosition previousPosition = position;
-            location = Definition(x.B, listeners[index]).ModifyCardPlayResultLocation(ref x, listeners[index], card,
+            location = Definition(x.B, x.R, listeners[index]).ModifyCardPlayResultLocation(ref x, listeners[index], card,
                 isAutoPlay, energyValue, location, ref position);
             if (location != previous || position != previousPosition)
                 modifiers[modifierCount++] = listeners[index];
@@ -527,7 +533,7 @@ public static partial class HookDispatch
     {
         for (int index = 0; index < modifiers.Length; index++)
         {
-            ListenerDef def = Definition(x.B, modifiers[index]);
+            ListenerDef def = Definition(x.B, x.R, modifiers[index]);
             if ((def.Hooks & HookMask.AfterModifyingCardPlayResultLocation) == 0)
                 continue;
             def.AfterModifyingCardPlayResultLocation(ref x, modifiers[index], card, location);
@@ -546,12 +552,12 @@ public static partial class HookDispatch
         modifierCount = 0;
         if ((Registry.AnyHooks & HookMask.ModifyCardPlayCount) == 0 || Kernel.IsOverOrEnding(x.B))
             return playCount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.ModifyCardPlayCount, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.ModifyCardPlayCount, listeners);
         for (int index = 0; index < count; index++)
         {
             int previous = playCount;
-            playCount = Definition(x.B, listeners[index]).ModifyCardPlayCount(ref x, listeners[index], card, target,
+            playCount = Definition(x.B, x.R, listeners[index]).ModifyCardPlayCount(ref x, listeners[index], card, target,
                 playCount);
             if (playCount != previous)
                 modifiers[modifierCount++] = listeners[index];
@@ -571,13 +577,13 @@ public static partial class HookDispatch
         {
             return;
         }
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMask.AfterModifyingCardPlayCount, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMask.AfterModifyingCardPlayCount, listeners);
         for (int index = 0; index < count; index++)
         {
             if (!Contains(modifiers, listeners[index]))
                 continue;
-            Definition(x.B, listeners[index]).AfterModifyingCardPlayCount(ref x, listeners[index], card);
+            Definition(x.B, x.R, listeners[index]).AfterModifyingCardPlayCount(ref x, listeners[index], card);
             if (x.NeedsChoice)
                 return;
         }
@@ -592,12 +598,12 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.ModifyPowerAmountGiven) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMaskExt.ModifyPowerAmountGiven, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMaskExt.ModifyPowerAmountGiven, listeners);
         for (int index = 0; index < count; index++)
         {
             Listener listener = listeners[index];
-            amount += Definition(battle, listener).ModifyPowerAmountGiven(battle, rules, listener, powerId,
+            amount += Definition(battle, rules, listener).ModifyPowerAmountGiven(battle, rules, listener, powerId,
                 giver, target, amount);
         }
         return amount;
@@ -612,12 +618,12 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.ModifyPowerAmountGivenMultiplicative) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.ModifyPowerAmountGivenMultiplicative, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.ModifyPowerAmountGivenMultiplicative, listeners);
         for (int index = 0; index < count; index++)
         {
             Listener listener = listeners[index];
-            amount *= Definition(x.B, listener).ModifyPowerAmountGivenMultiplicative(ref x, listener,
+            amount *= Definition(x.B, x.R, listener).ModifyPowerAmountGivenMultiplicative(ref x, listener,
                 powerId, giver, target, amount, cardSourceSerial);
         }
         return amount;
@@ -632,12 +638,12 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.BeforePowerAmountChanged) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.BeforePowerAmountChanged, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.BeforePowerAmountChanged, listeners);
         for (int index = 0; index < count; index++)
         {
             Listener listener = listeners[index];
-            Definition(x.B, listener).BeforePowerAmountChanged(ref x, listener, powerId, amount, target, applier,
+            Definition(x.B, x.R, listener).BeforePowerAmountChanged(ref x, listener, powerId, amount, target, applier,
                 cardSourceSerial);
             if (x.NeedsChoice)
                 return;
@@ -649,11 +655,11 @@ public static partial class HookDispatch
     {
         if ((Registry.AnyHooksExt & HookMaskExt.AfterEnergySpent) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B)];
-        int count = CollectListeners(x.B, HookMaskExt.AfterEnergySpent, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.AfterEnergySpent, listeners);
         for (int index = 0; index < count; index++)
         {
-            Definition(x.B, listeners[index]).AfterEnergySpent(ref x, listeners[index], card, amount);
+            Definition(x.B, x.R, listeners[index]).AfterEnergySpent(ref x, listeners[index], card, amount);
             if (x.NeedsChoice)
                 return;
         }
@@ -670,11 +676,11 @@ public static partial class HookDispatch
         modifierCount = 0;
         if ((Registry.AnyHooks & HookMask.TryModifyPowerAmountReceived) == 0)
             return amount;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle)];
-        int count = CollectListeners(battle, HookMask.TryModifyPowerAmountReceived, listeners);
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(battle, rules)];
+        int count = CollectListeners(battle, rules, HookMask.TryModifyPowerAmountReceived, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!Definition(battle, listeners[index]).TryModifyPowerAmountReceived(battle, rules, listeners[index],
+            if (!Definition(battle, rules, listeners[index]).TryModifyPowerAmountReceived(battle, rules, listeners[index],
                 powerId, target, amount, out int modified))
             {
                 continue;
@@ -691,7 +697,7 @@ public static partial class HookDispatch
     {
         for (int index = 0; index < modifiers.Length; index++)
         {
-            ListenerDef def = Definition(x.B, modifiers[index]);
+            ListenerDef def = Definition(x.B, x.R, modifiers[index]);
             if ((def.Hooks & HookMask.AfterModifyingPowerAmountReceived) == 0)
                 continue;
             def.AfterModifyingPowerAmountReceived(ref x, modifiers[index], powerId, target);

@@ -1,0 +1,361 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "dampen-ghost-seed",
+  "characterId": "SILENT",
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "6C90E2A83DCE4C88",
+  "ascension": 0,
+  "actIndexForTest": 2,
+  "targetRoomType": "Elite",
+  "targetMapPointType": "Elite",
+  "enemyCurrentHp": 2147483647,
+  "initialPlayerHp": 24,
+  "initialPlayerMaxHp": 70,
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NEUTRALIZE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SURVIVOR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ACCURACY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PRECISE_CUT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ABRASIVE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPOSE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "POUNCE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPERTISE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentId": "IMBUED",
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STRANGLE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FLECHETTES",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "MASTER_PLANNER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "EXPOSE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DECAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "DAGGER_SPRAY",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ACROBATICS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "SLICE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "TOOLS_OF_THE_TRADE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FLECHETTES",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ESCAPE_PLAN",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "STORM_OF_STEEL",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "AFTERIMAGE",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "APOTHEOSIS",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "FINISHER",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "ACCELERANT",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "OUTBREAK",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "BUBBLE_BUBBLE",
+      "count": 1,
+      "upgradeLevels": 1,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "PREDATOR",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    },
+    {
+      "cardId": "NOXIOUS_FUMES",
+      "count": 1,
+      "upgradeLevels": 0,
+      "enchantmentAmount": 1,
+      "afflictionAmount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "GOLDEN_PEARL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GHOST_SEED",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "VENERABLE_TEA_SET",
+      "addWithoutObtainedEffects": true,
+      "booleanMembers": {
+        "GainEnergyInNextCombat": false
+      }
+    },
+    {
+      "relicId": "ELECTRIC_SHRYMP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LOST_WISP",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "FESTIVE_POPPER",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "BAG_OF_MARBLES",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "JEWELRY_BOX",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "ROYAL_POISON",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "CANDELABRA",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "PENDULUM",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "TurnsSeen": 0
+      }
+    },
+    {
+      "relicId": "CHEMICAL_X",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "KUSARIGAMA",
+      "addWithoutObtainedEffects": true,
+      "integerMembers": {
+        "_attacksPlayedThisTurn": 0
+      }
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "WEAK_POTION"
+    },
+    {
+      "potionId": "CUNNING_POTION"
+    },
+    {
+      "potionId": "WEAK_POTION"
+    }
+  ],
+  "clearRunDeck": true,
+  "timeoutSeconds": 120,
+  "gameModeForTest": "Standard"
+}

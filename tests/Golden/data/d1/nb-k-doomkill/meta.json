@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "nb-k-doomkill",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-k-doomkill.json\u0022}",
-  "rulesSha256": "49732646758bac54c66122317fd511e637e4c313fdd7900c85ce569244e59819",
+  "rulesSha256": "b378c3cfbdfd0bd1d91b6eecc8f12ca129ac82f01d3caaec92704b6e0a015ada",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 207,
-    "transitions": 175
+    "walkStates": 213,
+    "transitions": 181
   }
 }

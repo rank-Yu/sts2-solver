@@ -129,7 +129,8 @@ public static partial class Kernel
     /// enemies, insert it into the roster in encounter-slot order, apply the compiled entrance powers
     /// and initial action, then Minion.
     /// </summary>
-    public static byte AddCreatedMonster(ref Exec x, byte source, ref Enemy pending, bool minion)
+    public static byte AddCreatedMonster(ref Exec x, byte source, ref Enemy pending, bool minion,
+        scoped ReadOnlySpan<Power> initialPowers = default)
     {
         int enemyIndex = x.B.EnemyCount;
         if (enemyIndex >= Limits.Enemies)
@@ -139,6 +140,14 @@ public static partial class Kernel
         MonsterRules rules = x.R.MonsterRule(pending.Rules);
         x.B.Enemies[enemyIndex] = pending;
         x.B.EnemyCount = checked((byte)(enemyIndex + 1));
+        foreach (Power initial in initialPowers)
+        {
+            Power power = initial;
+            power.Owner = owner;
+            if (x.B.PowerCount >= Limits.Powers)
+                throw new CapacityException("Powers", Limits.Powers);
+            x.B.Powers[x.B.PowerCount++] = power;
+        }
         InsertIntoRoster(ref x.B, enemyIndex, slotIndex);
         MonsterDef def = Registry.Monster(rules.MonsterId);
         def.ApplyEntrancePowers(ref x, owner, source);
@@ -158,6 +167,9 @@ public static partial class Kernel
         // powers and first-move preparation but before the caller applies MinionPower (Fabricator
         // applies it after Add returns). PhilosophersStone's Strength row therefore precedes MINION.
         HookDispatch.AfterCreatureAddedToCombat(ref x, owner);
+        if (x.NeedsChoice)
+            return owner;
+        DominionAfterCreatureAdded(ref x, owner);
         if (x.NeedsChoice)
             return owner;
         if (minion && Registry.TryPower("MINION_POWER", out ushort minionPower)

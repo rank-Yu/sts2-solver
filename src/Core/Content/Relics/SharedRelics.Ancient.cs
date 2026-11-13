@@ -12,12 +12,14 @@ namespace Sts2Solver.Content.Relics;
 [ContentId("IRON_CLUB")]
 public sealed class IronClub : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // IronClub.cs: CardsVar(4).
     public override IReadOnlyList<string> VarNames => ["Cards"];
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (!Kernel.IsInProgress(x.B) || relic.Counter % (int)x.R.RelicVar(Id, 0) != 0)
             return;
@@ -54,6 +56,8 @@ public sealed class Sai : RelicDef
 [ContentId("VELVET_CHOKER")]
 public sealed class VelvetChoker : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // VelvetChoker.cs: CardsVar(6), EnergyVar(1).
     public override IReadOnlyList<string> VarNames => ["Cards", "Energy"];
 
@@ -61,13 +65,13 @@ public sealed class VelvetChoker : RelicDef
         => amount + x.R.RelicVar(Id, 1);
 
     public override bool ShouldPlay(in Battle battle, Rules rules, Listener self, in Card card)
-        => battle.Relics[self.Index].Counter < (int)rules.RelicVar(Id, 0);
+        => battle.GetRelic(rules, self.Index).Counter < (int)rules.RelicVar(Id, 0);
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
-        => x.B.Relics[self.Index].Counter++;
+        => x.B.RelicState(x.R, self.Index).Counter++;
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -126,6 +130,8 @@ public sealed class PaelsFlesh : RelicDef
 [ContentId("PAELS_TEARS")]
 public sealed class PaelsTears : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // PaelsTears.cs: EnergyVar(2).
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
@@ -133,12 +139,12 @@ public sealed class PaelsTears : RelicDef
     {
         if (!Kernel.Participates(participants, self.Owner))
             return;
-        x.B.Relics[self.Index].Counter = x.B.Energy > 0 ? 1 : 0;
+        x.B.RelicState(x.R, self.Index).Counter = x.B.Energy > 0 ? 1 : 0;
     }
 
     public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
     {
-        if (side != Side.Player || x.B.Relics[self.Index].Counter == 0)
+        if (side != Side.Player || x.B.RelicState(x.R, self.Index).Counter == 0)
             return;
         Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 0));
     }
@@ -213,7 +219,7 @@ public sealed partial class PhilosophersStone : RelicDef
             return;
         // The relic's StrengthPower var is not part of the compiled `RelicVar` table (its only
         // canonical var there is Energy), so the importer freezes it in Relic.Aux.
-        int strength = x.B.Relics[self.Index].Aux;
+        int strength = x.B.GetRelic(x.R, self.Index).Aux;
         if (strength <= 0)
             return;
         Kernel.ApplyPower(ref x, creature, Registry.PowerId<Powers.StrengthPower>(),
@@ -261,7 +267,7 @@ public sealed class PumpkinCandle : RelicDef
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
     public override decimal ModifyMaxEnergy(ref Exec x, Listener self, decimal amount)
-        => x.B.Relics[self.Index].Counter > 0 ? amount + x.R.RelicVar(Id, 0) : amount;
+        => x.B.GetRelic(x.R, self.Index).Counter > 0 ? amount + x.R.RelicVar(Id, 0) : amount;
 }
 
 /// <summary>
@@ -331,7 +337,7 @@ public sealed class ChoicesParadox : RelicDef
         if (sampled == 0)
             return;
         for (int index = 0; index < sampled; index++)
-            options[index].Keywords |= Keywords.Retain;
+            options[index].AddKeyword(Keywords.Retain);
         int selected = 0;
         if (sampled > 1)
         {
@@ -388,9 +394,11 @@ public sealed partial class FurCoat : RelicDef
 [ContentId("MUSIC_BOX")]
 public sealed class MusicBox : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void BeforeCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter != 0 || x.MusicBoxPlayIdentity != 0)
             return;
         if (x.R.Card(play.Card.Id, play.Card.Upgrade).Type != CardType.Attack)
@@ -400,12 +408,12 @@ public sealed class MusicBox : RelicDef
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (x.MusicBoxPlayIdentity == 0 || x.MusicBoxPlayIdentity != x.LastPlayIdentity)
             return;
         x.MusicBoxPlayIdentity = 0;
         Card clone = Kernel.CloneCard(play.Card);
-        clone.Keywords |= Keywords.Ethereal;
+        clone.AddKeyword(Keywords.Ethereal);
         if (!Kernel.AddGeneratedCard(ref x, clone, Pile.Hand, PilePosition.Bottom))
             return;
         if (x.NeedsChoice)
@@ -416,7 +424,7 @@ public sealed class MusicBox : RelicDef
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side == Side.Player)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 }
 
@@ -429,17 +437,21 @@ public sealed class MusicBox : RelicDef
 [ContentId("PAELS_EYE")]
 public sealed class PaelsEye : RelicDef
 {
+    public override bool HasCombatState => true;
+
+    public override bool ExtraTurnPriority => true;
+
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
         // TriggerRelicsAfterPlayerTurnStart case PaelsEye: state.Previous = 1.
-        x.B.Relics[self.Index].Aux = 1;
+        x.B.RelicState(x.R, self.Index).Aux = 1;
     }
 
     public override void BeforeSideTurnEndEarly(ref Exec x, Listener self, Side side, ushort participants)
     {
         if (side != Side.Player
             || !Kernel.Participates(participants, Limits.PlayerOwner)
-            || !ShouldTrigger(x.B, x.B.Relics[self.Index]))
+            || !ShouldTrigger(x.B, x.R, x.B.GetRelic(x.R, self.Index)))
             return;
         int handCount = x.B.HandCount;
         Span<int> selected = stackalloc int[handCount];
@@ -449,31 +461,31 @@ public sealed class PaelsEye : RelicDef
     }
 
     public override bool ShouldTakeExtraTurn(ref Exec x, Listener self)
-        => ShouldTrigger(x.B, x.B.Relics[self.Index]);
+        => ShouldTrigger(x.B, x.R, x.B.GetRelic(x.R, self.Index));
 
     public override void AfterTakingExtraTurn(ref Exec x, Listener self)
     {
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 
-    private bool ShouldTrigger(in Battle battle, in Relic relic)
+    private bool ShouldTrigger(in Battle battle, Rules rules, in Relic relic)
     {
         if (relic.Counter != 0 || relic.Aux == 0)
             return false;
         if (battle.Counter(Counter.ManualCardsPlayedThisTurn) != 0)
             return false;
-        if (battle.PlayerTurn == 1 && HasRelic(battle, "WHISPERING_EARRING"))
+        if (battle.PlayerTurn == 1 && HasRelic(battle, rules, "WHISPERING_EARRING"))
             return false;
         return true;
     }
 
-    private static bool HasRelic(in Battle battle, string nativeId)
+    private static bool HasRelic(in Battle battle, Rules rules, string nativeId)
     {
         if (!Registry.TryRelic(nativeId, out ushort id))
             return false;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            if (battle.Relics[index].Id == id && (battle.Relics[index].Flags & RelicFlags.Melted) == 0)
+            if (rules.Relics.Id(index) == id && (battle.GetRelic(rules, index).Flags & RelicFlags.Melted) == 0)
                 return true;
         }
         return false;
@@ -489,6 +501,8 @@ public sealed class PaelsEye : RelicDef
 [ContentId("PAELS_LEGION")]
 public sealed class PaelsLegion : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override bool IsPaelsLegion => true;
 
     public override IReadOnlyList<string> VarNames => ["Turns"];
@@ -499,7 +513,8 @@ public sealed class PaelsLegion : RelicDef
     {
         if ((block.Props & ValueProps.Move) == 0 || !block.HasCardSource)
             return 1m;
-        return x.B.Relics[self.Index].Counter > 0 ? 1m : 2m;
+        Relic relic = x.B.GetRelic(x.R, self.Index);
+        return relic.Counter <= 0 && (relic.Aux == 0 || relic.Aux == x.PlayIdentity) ? 2m : 1m;
     }
 
     public override void AfterModifyingBlockAmount(ref Exec x, Listener self, decimal modified,
@@ -507,7 +522,7 @@ public sealed class PaelsLegion : RelicDef
     {
         if (modified <= 0m)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Aux != 0 && relic.Aux != x.PlayIdentity)
             return;
         relic.Aux = x.PlayIdentity;
@@ -515,21 +530,21 @@ public sealed class PaelsLegion : RelicDef
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Aux == 0 || relic.Aux != x.LastPlayIdentity)
             return;
         relic.Aux = 0;
         relic.Counter = (int)x.R.RelicVar(Id, 0);
-        relic.Flags |= RelicFlags.UsedThisCombat;
+        x.B.RelicFlags(x.R, self.Index) |= RelicFlags.UsedThisCombat;
     }
 
     public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
     {
         // RelicPredictionStateSupport.ResetAfterSideTurnStart case PaelsLegion runs before the case
         // switch: cooldown-- and the display latch clears, whatever the current cooldown sign is.
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter--;
-        relic.Flags &= ~RelicFlags.UsedThisCombat;
+        x.B.RelicFlags(x.R, self.Index) &= ~RelicFlags.UsedThisCombat;
     }
 }
 
@@ -558,13 +573,15 @@ public sealed class SpikedGauntlets : RelicDef
 [ContentId("THROWING_AXE")]
 public sealed partial class ThrowingAxe : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override int ModifyCardPlayCount(ref Exec x, Listener self, in Card card, byte target,
         int playCount)
-        => x.B.Relics[self.Index].Counter == 0 ? playCount + 1 : playCount;
+        => x.B.RelicState(x.R, self.Index).Counter == 0 ? playCount + 1 : playCount;
 
     public override void AfterModifyingCardPlayCount(ref Exec x, Listener self, in Card card)
     {
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 }
 
@@ -903,7 +920,7 @@ public sealed class JeweledMask : RelicDef
         int pick = x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count);
         int position = candidates[pick];
         ref Card selected = ref x.B.Cards[drawStart + position];
-        Kernel.MakeFreeThisTurn(x.R, ref selected);
+        Kernel.MakeFreeThisCombat(x.R, ref selected);
         Kernel.MoveCard(ref x.B, Pile.Draw, position, Pile.Hand, PilePosition.Bottom);
     }
 }

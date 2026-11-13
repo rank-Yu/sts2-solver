@@ -16,17 +16,19 @@ internal static class PowerEvidenceContracts
 
     internal static SearchCase ReadRoot(string directory)
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{directory}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/{directory}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return SearchCodec.DecodeRequest(bytes.ToArray());
     }
 
-    private static (Battle Parent, Battle Child, ushort CardId) Play(SearchCase item, string id, int? initialAmount = null, ushort powerId = 0, bool moveToHand = false)
+    private static (Battle Parent, Battle Child, ushort CardId) Play(SearchCase item, string id, int? initialAmount = null, ushort powerId = 0, bool moveToHand = true)
     {
         Battle parent = item.Battles[0];
         if (initialAmount is { } amount) Kernel.SetPowerAmount(ref parent, Limits.PlayerOwner, powerId, amount);
-        if (moveToHand)
+        // These contracts exercise power effects, independently of the version-specific opening shuffle.
+        if (moveToHand && !Enumerable.Range(0, parent.HandCount)
+            .Any(i => Registry.Card(parent.Cards[i].Id).NativeId == id))
         {
             for (int i = parent.HandCount; i < parent.HandCount + parent.DrawCount + parent.DiscardCount; i++)
             {
@@ -128,12 +130,12 @@ internal static class PowerEvidenceContracts
 
     private static void CheckTwoStatAndWraith()
     {
-        SearchCase item = Read("IRONCLAD-002"); var (parent, child, cardId) = Play(item, "PROWESS");
+        SearchCase item = ReadRoot("p15-f-powers-block"); var (parent, child, cardId) = Play(item, "PROWESS");
         Scorer scorer = item.Options.Scorer!; ScoreFeatures features = scorer.Features(child, 1);
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
-        Assert(view.PowerAmountGain(parent, PowerEvidenceIds.Strength) == 2
+        Assert(view.PowerAmountGain(parent, PowerEvidenceIds.Strength) == 1
             && view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity) == 1,
-            "Prowess keeps distinct strength and dexterity gains");
+            "Prowess applies the native strength and dexterity gains");
         Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, features.ProjectedPlayerHp) > 0
             && PowerEvidence.ProjectionPotential(cardId, view, child, features.ProjectedPlayerHp) == 0,
             "two-stat projection uses incremental effects");

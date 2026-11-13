@@ -66,7 +66,7 @@ public sealed class Snap : CardDef
             return;
         }
         if (chosen > 0)
-            Piles.At(ref x.B, Pile.Hand, selected[0]).Keywords |= Keywords.Retain;
+            Piles.At(ref x.B, Pile.Hand, selected[0]).AddKeyword(Keywords.Retain);
     }
 }
 
@@ -234,7 +234,7 @@ public sealed class SculptingStrike : CardDef
             return;
         }
         if (chosen > 0)
-            Piles.At(ref x.B, Pile.Hand, selected[0]).Keywords |= Keywords.Ethereal;
+            Piles.At(ref x.B, Pile.Hand, selected[0]).AddKeyword(Keywords.Ethereal);
     }
 }
 
@@ -264,9 +264,7 @@ public sealed class DrainPower : CardDef
             if (card.Upgrade < stats.MaxUpgradeLevel)
                 order[candidates++] = index;
         }
-        if (candidates == 0)
-            return;
-        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
+        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         for (int n = candidates; n > 1;)
         {
             n--;

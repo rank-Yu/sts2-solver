@@ -182,13 +182,13 @@ internal static class CombatLogRecorder
 
     /// <summary>Saves the predicted and actual states of one deployment or boundary deviation.</summary>
     internal static void RecordDeviation(string kind, int turn, int? actionIndex,
-        IReadOnlyList<string> diff, in Battle predicted, in Battle actual)
+        IReadOnlyList<string> diff, in Battle predicted, in Battle actual, Rules rules)
     {
         if (Volatile.Read(ref _current) is not { } folder)
             return;
         int index = Interlocked.Increment(ref _deviations);
-        byte[] predictedBytes = BattleCodec.Encode(predicted);
-        byte[] actualBytes = BattleCodec.Encode(actual);
+        byte[] predictedBytes = BattleCodec.Encode(predicted, rules.Relics);
+        byte[] actualBytes = BattleCodec.Encode(actual, rules.Relics);
         CombatDeviationLog entry = new(SchemaVersion, index, kind, turn, actionIndex,
             Volatile.Read(ref _searches), [.. diff]);
         string stem = Path.Combine(folder, $"deviation-{index:D2}");

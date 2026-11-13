@@ -242,8 +242,8 @@ public sealed class Omnislice : CardDef
             return;
         }
         Kernel.Damage(ref x, targets[..count], amount,
-            ValueProps.Unpowered | ValueProps.Move, Limits.PlayerOwner,
-            hasCardSource: true, x.Card);
+            ValueProps.Move, Limits.PlayerOwner,
+            hasCardSource: true, x.Card, capOnly: true);
         if (x.NeedsChoice)
             return;
         Kernel.ApplyEnemyDeathPowersInRoster(ref x);
@@ -265,7 +265,7 @@ public sealed class SeekerStrike : CardDef
     public override void OnPlay(ref Exec x)
     {
         CardEffects.GeneralAttack(ref x, 0);
-        if (x.NeedsChoice || x.B.DrawCount == 0)
+        if (x.NeedsChoice)
             return;
         int draw = x.B.DrawCount;
         Span<Card> order = stackalloc Card[draw];
@@ -273,8 +273,8 @@ public sealed class SeekerStrike : CardDef
         Piles.ReadCards(x.B, Pile.Draw).CopyTo(order);
         for (int index = 0; index < draw; index++)
             origins[index] = index;
-        CardSort.SortWithOrigins(order, origins, x.R);
-        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
+        CardSort.SortWithOrigins(order, origins, x.R, in x.B, Pile.Draw);
+        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         for (int n = draw; n > 1;)
         {
             n--;
@@ -340,5 +340,19 @@ public sealed class ThrummingHatchet : CardDef
         int playPosition = x.B.PlayCount - 1;
         if (playPosition >= 0 && x.B.Cards[Piles.Start(x.B, Pile.Play) + playPosition].Id == x.Card.Id)
             Piles.At(ref x.B, Pile.Play, playPosition).ReturnToHandNextTurn = true;
+    }
+}
+
+
+[ContentId("MY_SHINIES")]
+public sealed class MyShinies : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["Damage", "Gold", "CalculationBase", "CalculationExtra"];
+
+    public override void OnPlay(ref Exec x)
+    {
+        int hits = (int)(CardEffects.Var(x, 2)
+            + CardEffects.Var(x, 3) * x.B.Gold / CardEffects.Var(x, 1));
+        CardEffects.Attack(ref x, CardEffects.Var(x, 0), hits);
     }
 }

@@ -22,6 +22,7 @@ public sealed class MindRot : CardDef
 [ContentId("SLOTH")]
 public sealed class Sloth : CardDef
 {
+    public override IReadOnlyList<string> VarNames => ["SlothPower"];
     public override void OnPlay(ref Exec x)
         => throw new UnsupportedException("知识恶魔的诅咒卡只作为选择选项。");
 }
@@ -32,4 +33,13 @@ public sealed class WasteAway : CardDef
 {
     public override void OnPlay(ref Exec x)
         => throw new UnsupportedException("知识恶魔的诅咒卡只作为选择选项。");
+}
+
+
+// 0.113 KnowledgeDemonDominion 的领域选项，只通过 OnChosen 生效。
+[ContentId("AMNESIA")]
+public sealed class Amnesia : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["AmnesiaPower"];
+    public override void OnPlay(ref Exec x) => throw new UnsupportedException("失忆只作为领域选择选项。");
 }

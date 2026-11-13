@@ -305,7 +305,7 @@ internal static class NativeAccess
     }
 
     private static object? ReadMember(object target, string name)
-        => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(target)
+        => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(target)
             ?? target.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(target);
 
     private static FieldInfo RequiredField(Type type, string name)

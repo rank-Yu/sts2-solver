@@ -36,8 +36,7 @@ internal static class HistoryCourseChecks
             battle.Enemies[0].Creature = new Creature
             { CurrentHp = 100, MaxHp = 100, Flags = CreatureFlags.Present };
             battle.Enemies[0].Flags = EnemyFlags.InCombat;
-            battle.RelicCount = 1;
-            battle.Relics[0] = new Relic { Id = relic };
+            TestRelics.Set(ref battle, ref rules, new Relic { Id = relic });
             Card attack = Kernel.CreateCard(rules, strike);
             attack.ReplayCount = replays;
             if (permanent)
@@ -115,8 +114,7 @@ internal static class HistoryCourseChecks
         battle.Enemies[0].Creature = new Creature
         { CurrentHp = 300, MaxHp = 300, Flags = CreatureFlags.Present };
         battle.Enemies[0].Flags = EnemyFlags.InCombat;
-        battle.RelicCount = 1;
-        battle.Relics[0] = new Relic { Id = relic };
+        TestRelics.Set(ref battle, ref rules, new Relic { Id = relic });
         Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, strike));
         Kernel.Step(ref battle, PlayerAction.PlayCard(0, Limits.FirstEnemyOwner), rules, out _);
         Card sameAttack = Kernel.HistoryCourseValue(Piles.At(ref battle, Pile.Discard, 0));

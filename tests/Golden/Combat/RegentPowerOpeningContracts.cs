@@ -20,7 +20,7 @@ internal static class RegentPowerOpeningContracts
 
     private static SearchCase Read()
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/quality-{Root}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/quality-{Root}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return SearchCodec.DecodeRequest(bytes.ToArray());

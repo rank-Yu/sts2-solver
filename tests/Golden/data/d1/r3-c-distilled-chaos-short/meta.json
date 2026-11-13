@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "r3-c-distilled-chaos-short",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r3-c-distilled-chaos-short.json\u0022}",
-  "rulesSha256": "3c1b210d2c9d74076c0b4d0448b51ec6c09ecc030b029eed9f1d93dc0840c259",
+  "rulesSha256": "10b98ebcb26ae9205b49dd9c2cd84eed695dd4f199f1c3e19097d4bf5f1dd587",
   "counts": {
     "roots": 1,
     "k1": 10,
     "walks": 32,
-    "walkStates": 928,
-    "transitions": 896
+    "walkStates": 816,
+    "transitions": 784
   }
 }

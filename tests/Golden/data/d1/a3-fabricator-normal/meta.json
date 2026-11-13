@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "a3-fabricator-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-fabricator-normal.json\u0022}",
-  "rulesSha256": "ea76bc0826cd6fbcb571243984f4108fad5c2ac26e93e717a24f343354878511",
+  "rulesSha256": "80b82f94c5a45b18eb4ae3c9515c57940d1aa77bd3d2dad4375d8b76f2a41f3e",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 80,
-    "transitions": 48
+    "walkStates": 86,
+    "transitions": 54
   }
 }

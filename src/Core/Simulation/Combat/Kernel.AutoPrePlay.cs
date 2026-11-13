@@ -185,14 +185,14 @@ public static partial class Kernel
     {
         if (x.B.PlayerTurn <= 1 || !Registry.TryRelic("HISTORY_COURSE", out ushort historyCourse))
             return;
-        for (int relic = 0; relic < x.B.RelicCount; relic++)
+        for (int relic = 0; relic < x.R.Relics.Count; relic++)
         {
-            ref readonly Relic row = ref x.B.Relics[relic];
+            Relic row = x.B.GetRelic(x.R, relic);
             if (row.Id != historyCourse || (row.Flags & RelicFlags.Melted) != 0)
                 continue;
             Card copy = CloneCard(PreviousHistoryCourse(x.B, previous));
             copy.IsDupe = true;
-            copy.Keywords &= ~Keywords.Exhaust;
+            copy.RemoveKeyword(Keywords.Exhaust);
             // The clone is a new object: it is not in the existing engine's _returnToHandNextTurn set.
             copy.ReturnToHandNextTurn = false;
             AutoPlay(ref x, copy, Limits.NoOwner, skipXCapture: false, historyCourseDupe: true,

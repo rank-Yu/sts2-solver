@@ -28,6 +28,8 @@ internal sealed record OfflineRequest
     public string CharacterId { get; init; } = "IRONCLAD";
     public string EncounterId { get; init; } = "FUZZY_WURM_CRAWLER_WEAK";
     public string Seed { get; init; } = "COMBATSOLVER";
+    public MegaCrit.Sts2.Core.Runs.GameMode GameModeForTest { get; init; } = MegaCrit.Sts2.Core.Runs.GameMode.Standard;
+    public string? DominionForTest { get; init; }
     public string? GeneratedScenarioPath { get; init; }
     /// <summary>Upstream checkpoint archive path; this repository does not support checkpoint restore.</summary>
     public string? CheckpointArchivePath { get; init; }
@@ -150,8 +152,6 @@ internal sealed class UnattendedCardInjection
     public string Pile { get; init; } = "Hand";
     public int Count { get; init; } = 1;
     public int UpgradeLevels { get; init; }
-    // Legacy single-card field present in one frozen fixture. The reference harness ignores it.
-    public int UpgradeLevel { get; init; }
     public string? EnchantmentId { get; init; }
     public int EnchantmentAmount { get; init; } = 1;
     public string? AfflictionId { get; init; }

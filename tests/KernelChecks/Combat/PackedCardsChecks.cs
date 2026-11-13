@@ -31,11 +31,11 @@ internal static class PackedCardsChecks
         suffix.Fill(0xA5);
         Assert(Fingerprint.Hash(in copy) == Fingerprint.Hash(in state), "hash ignores suffix");
         Assert(Fingerprint.Equal(in copy, in state), "equality ignores suffix");
-        Assert(BattleCodec.Encode(copy).AsSpan().SequenceEqual(BattleCodec.Encode(state)),
+        Assert(BattleCodec.Encode(copy, RelicRoster.Empty).AsSpan().SequenceEqual(BattleCodec.Encode(state, RelicRoster.Empty)),
             "encoding ignores suffix");
         Assert(Battle.PackedSize(in copy) == packed, "packed size follows CardCount");
 
-        Battle decoded = BattleCodec.Decode(BattleCodec.Encode(state));
+        Battle decoded = BattleCodec.Decode(BattleCodec.Encode(state, RelicRoster.Empty), out _);
         Assert(Fingerprint.Equal(in decoded, in state), "codec round trip");
         Assert(Battle.PackedSize(in decoded) == packed, "codec round trip size");
 
@@ -43,8 +43,10 @@ internal static class PackedCardsChecks
         // reclaim the released blocks.
         SearchStorage storage = new();
         storage.BeginSolve(SearchBudgetPolicy.RegressionMemoryBudgetBytes);
-        PackedStateArena arena = new(160, storage);
-        Battle[] originals = new Battle[120];
+        int recordBytes = (Battle.HeaderSize + 200 * Unsafe.SizeOf<Card>() + 7) & ~7;
+        int recordCount = PackedStateArena.PayloadBytes / recordBytes + 2;
+        PackedStateArena arena = new(recordCount, storage);
+        Battle[] originals = new Battle[recordCount];
         for (int index = 0; index < originals.Length; index++)
         {
             Battle child = default;
@@ -57,7 +59,8 @@ internal static class PackedCardsChecks
             arena.CommitReserved();
         }
         Assert(arena.Count == originals.Length, "arena count");
-        Assert(arena.UsedBytes > PackedStateArena.PayloadBytes, "records cross a block boundary");
+        Assert(arena.OffsetOf(originals.Length - 1) >= PackedStateArena.BlockBytes,
+            "records cross a block boundary");
         for (int index = 0; index < originals.Length; index++)
             Assert(Fingerprint.Equal(in arena[index], in originals[index]), $"arena state {index}");
 

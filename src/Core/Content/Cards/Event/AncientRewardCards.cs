@@ -119,14 +119,14 @@ public sealed class ForbiddenGrimoire : CardDef
 [ContentId("MAUL")]
 public sealed class Maul : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Increase"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "Increase", "HitCount"];
 
     // BespokeCardMirrors.MaulOnPlay: two attack hits, then every Maul card in AllCards gets
     // DynamicVars.Damage += Increase and _extraDamageFromMaulPlays += Increase. Sts2Solver keeps the
     // Damage offset in Var0 and the private accumulator in Private.
     public override void OnPlay(ref Exec x)
     {
-        CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: 2);
+        CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: (int)CardEffects.Var(x, 2));
         if (x.NeedsChoice)
             return;
         int increase = (int)CardEffects.Var(x, 1);

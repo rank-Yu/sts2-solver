@@ -1,0 +1,14 @@
+{
+  "formatVersion": 9,
+  "battleSize": 43856,
+  "root": "fool-arrow-shooter-death",
+  "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-fool-arrow-shooter-death.json\u0022}",
+  "rulesSha256": "6bb0bf282ad99b63dc0ea6ca024358d08d0073b647622d8284732eb098dbbf03",
+  "counts": {
+    "roots": 1,
+    "k1": 5,
+    "walks": 32,
+    "walkStates": 1146,
+    "transitions": 1114
+  }
+}

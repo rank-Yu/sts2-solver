@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p4-a-power-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p4-a-power-cards.json\u0022}",
-  "rulesSha256": "c7b84b50e91051dcda595587aa6089f84c4d9219f5a2beb3df571ff792a0863f",
+  "rulesSha256": "aa263beff4c429a2a71b4355643133326197b3fac252b55f10962a20d4115554",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 509,
-    "transitions": 477
+    "walkStates": 527,
+    "transitions": 495
   }
 }

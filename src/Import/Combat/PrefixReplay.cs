@@ -62,7 +62,7 @@ public sealed record PrefixReplayResult(
 public static class PrefixReplay
 {
     public static PrefixReplayResult Replay(in Battle root, Rules rules,
-        IReadOnlyList<PrefixAction> actions, int initialPotionUseCount = 0)
+        IReadOnlyList<PrefixAction> actions, int initialPotionUseCount = 0, Action<PlayerAction>? onResolvedAction = null)
     {
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(actions);
@@ -91,6 +91,7 @@ public static class PrefixReplay
                             $"计划有 {choices.Count} 次。");
                     }
                     battle = trial;
+                    onResolvedAction?.Invoke(carrying);
                     break;
                 }
                 if (choiceIndex >= choices.Count)
@@ -136,8 +137,7 @@ public static class PrefixReplay
         in Battle root, in Battle end, Rules rules)
     {
         int uses = 0, cost = 0, explicitCost = 0, fairy = 0;
-        int slots = Math.Min((int)root.PotionSlotCount, Limits.PotionSlots);
-        for (int slot = 0; slot < slots; slot++)
+        for (int slot = 0; slot < root.PotionSlotCount; slot++)
         {
             ushort before = root.Potions[slot];
             if (before == 0)

@@ -1,12 +1,12 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "dx3-rampart-offroster",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-rampart-offroster.json\u0022}",
-  "rulesSha256": "9753be8719305ec6f0ef5581d5c80ae51e9bf4a6c06d61ee3313a32f7e9203b2",
+  "rulesSha256": "527be1e01b145ff1a5ea1c1aff07d93adc7476f6aa013a35d4efe823a4ef6241",
   "counts": {
     "roots": 1,
-    "k1": 15,
+    "k1": 16,
     "walks": 32,
     "walkStates": 1920,
     "transitions": 1920

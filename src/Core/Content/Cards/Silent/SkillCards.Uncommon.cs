@@ -161,42 +161,14 @@ public sealed class EscapePlan : CardDef
 public sealed class Expertise : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["Cards"];
+    public override IReadOnlyList<string> AppliedPowers => ["RETAIN_HAND_POWER"];
 
-    // CardDrawCardMirrors.ExpertiseOnPlay: draw Cards, then give every drawn card single-turn Retain.
-    // CardPileCmd.Draw returns the live CardModel objects after their draw hooks; an AfterCardDrawn
-    // hook may mutate a drawn card (ChainsOfBinding afflicts it), so the retained instance is located
-    // by its transient identity mark rather than by comparing the pre-hook value.
     public override void OnPlay(ref Exec x)
     {
-        int count = (int)CardEffects.Var(x, 0);
-        if (count <= 0)
-            return;
-        if (count > Limits.Cards)
-            throw new CapacityException("DrawnCards", Limits.Cards);
-        Span<Card> drawn = stackalloc Card[count];
-        Span<byte> outerMarks = stackalloc byte[count];
-        Span<byte> markOf = stackalloc byte[count];
-        int markBase = Kernel.ReserveTransientMarks(ref x, count, out int markStart);
-        int drawnCount = 0;
-        try
-        {
-            drawnCount = Kernel.DrawIntoMarked(ref x, count, fromHandDraw: false, drawn,
-                outerMarks, markOf, markStart);
-            if (x.NeedsChoice)
-                return;
-            for (int index = 0; index < drawnCount; index++)
-            {
-                // A card that a draw hook moved out of combat has no live state left to mark.
-                if (!Kernel.TryFindUniqueTransientMark(x.B, markOf[index], out Pile pile, out int position))
-                    continue;
-                Piles.At(ref x.B, pile, position).Flags |= CardFlags.RetainThisTurn;
-            }
-        }
-        finally
-        {
-            Kernel.RestoreDrawnTransientMarks(ref x.B, markOf[..drawnCount], outerMarks[..drawnCount]);
-            Kernel.ReleaseTransientMarks(ref x, markBase, markStart, count);
-        }
+        Kernel.Draw(ref x, CardEffects.Var(x, 0), fromHandDraw: false);
+        if (!x.NeedsChoice)
+            Kernel.ApplyPower(ref x, Limits.PlayerOwner,
+                Registry.PowerId<Powers.RetainHandPower>(), 1, Limits.PlayerOwner);
     }
 }
 

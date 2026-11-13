@@ -76,6 +76,14 @@ internal sealed class ActionDeployer(
             explicitChoices = [];
         }
 #endif
+#if STS2_SOLVER_TESTING
+        if (planned.Action.Kind == PlayerActionKind.PlayCard && explicitChoices.Length > 0
+            && CombatControllerTestHooks.ForceCardChoicePlanUnderflowOnce)
+        {
+            CombatControllerTestHooks.ForceCardChoicePlanUnderflowOnce = false;
+            explicitChoices = [];
+        }
+#endif
         PlannedNativeSelector selector = new(explicitChoices, player,
             $"turn={planned.Before.PlayerTurn}:action={planned.Index}:{planned.Action.Kind}");
         IDisposable? selectorScope = PlannedNativeSelector.Activate(selector);
@@ -86,13 +94,13 @@ internal sealed class ActionDeployer(
             switch (planned.Action.Kind)
             {
                 case PlayerActionKind.PlayCard:
-                    await PlayCardAsync(planned, token);
+                    await PlayCardAsync(planned, selector, token);
                     break;
                 case PlayerActionKind.UsePotion:
-                    await UsePotionAsync(planned, token);
+                    await UsePotionAsync(planned, selector, token);
                     break;
                 case PlayerActionKind.EndTurn:
-                    await EndTurnAsync(planned, token);
+                    await EndTurnAsync(planned, selector, token);
                     break;
                 default:
                     throw new DeploymentFailureException("action_kind",
@@ -123,7 +131,7 @@ internal sealed class ActionDeployer(
             int terminalPlayTurn = planned.Action.Kind == PlayerActionKind.EndTurn
                 ? planned.Before.PlayerTurn + 1
                 : planned.Before.PlayerTurn;
-            await WaitForBoundaryAsync(planned.After, token, () => selector.FailureDetail,
+            await WaitForBoundaryAsync(planned.After, token, selector,
                 terminalPlayTurn);
             if (selector.FailureDetail is { } mismatch)
                 throw new DeploymentFailureException("choice_mismatch", mismatch);
@@ -253,7 +261,7 @@ internal sealed class ActionDeployer(
         }
     }
 
-    private async Task PlayCardAsync(ReplayedAction planned, CancellationToken token)
+    private async Task PlayCardAsync(ReplayedAction planned, PlannedNativeSelector selector, CancellationToken token)
     {
         PlayerCombatState live = player.PlayerCombatState
             ?? throw new DeploymentFailureException("hand_drift", "玩家没有战斗牌堆。");
@@ -290,10 +298,10 @@ internal sealed class ActionDeployer(
                     throw new DeploymentFailureException("card_unplayable",
                         $"卡 {actual} 在入队时失去可用状态。");
             }, token);
-        await AwaitActionAsync(action, "play_card");
+        await AwaitActionAsync(action, "play_card", selector, token);
     }
 
-    private async Task UsePotionAsync(ReplayedAction planned, CancellationToken token)
+    private async Task UsePotionAsync(ReplayedAction planned, PlannedNativeSelector selector, CancellationToken token)
     {
         int slot = planned.Action.PotionSlot;
         if (slot >= player.PotionSlots.Count || slot >= planned.Before.PotionSlotCount)
@@ -330,10 +338,10 @@ internal sealed class ActionDeployer(
                 && ReferenceEquals(usePotion.Player, player)
                 && usePotion.PotionIndex == (uint)slot,
             () => potion.EnqueueManualUse(target), token);
-        await AwaitActionAsync(action, "use_potion");
+        await AwaitActionAsync(action, "use_potion", selector, token);
     }
 
-    private async Task EndTurnAsync(ReplayedAction planned, CancellationToken token)
+    private async Task EndTurnAsync(ReplayedAction planned, PlannedNativeSelector selector, CancellationToken token)
     {
         int turn = player.PlayerCombatState?.TurnNumber
             ?? throw new DeploymentFailureException("turn_drift", "玩家没有战斗牌堆。");
@@ -347,7 +355,7 @@ internal sealed class ActionDeployer(
                 RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(
                     new EndPlayerTurnAction(player, turn));
             }, token);
-        await AwaitActionAsync(action, "end_turn");
+        await AwaitActionAsync(action, "end_turn", selector, token);
     }
 
     /// <summary>Target owner byte to the live creature, checking its CombatId and vitals.</summary>
@@ -405,9 +413,13 @@ internal sealed class ActionDeployer(
         }
     }
 
-    private async Task AwaitActionAsync(GameAction action, string kind)
+    private async Task AwaitActionAsync(GameAction action, string kind,
+        PlannedNativeSelector selector, CancellationToken token)
     {
-        await action.CompletionTask.WaitAsync(ActionTimeout);
+        await Task.WhenAny(action.CompletionTask, selector.Failure).WaitAsync(ActionTimeout, token);
+        if (selector.FailureDetail is { } mismatch)
+            throw new DeploymentFailureException("choice_mismatch", mismatch);
+        await action.CompletionTask;
         if (action.Exception != null)
         {
             throw new DeploymentFailureException("action_failed",
@@ -420,21 +432,14 @@ internal sealed class ActionDeployer(
 
     /// <summary>Waits until the live combat reaches the predicted stable boundary.</summary>
     private async Task WaitForBoundaryAsync(Battle expected, CancellationToken token,
-        Func<string?>? choiceFailure = null, int terminalPlayTurn = int.MaxValue)
+        PlannedNativeSelector selector, int terminalPlayTurn = int.MaxValue)
     {
         Stopwatch watch = Stopwatch.StartNew();
-        Stopwatch? mismatchWatch = null;
         Stopwatch? continuedWatch = null;
         while (true)
         {
-            if (choiceFailure?.Invoke() is { } mismatch)
-            {
-                mismatchWatch ??= Stopwatch.StartNew();
-                if (mismatchWatch.Elapsed > TimeSpan.FromSeconds(30))
-                {
-                    throw new DeploymentFailureException("choice_mismatch", mismatch);
-                }
-            }
+            if (selector.FailureDetail is { } mismatch)
+                throw new DeploymentFailureException("choice_mismatch", mismatch);
             token.ThrowIfCancellationRequested();
             CombatState? live = CombatManager.Instance.DebugOnlyGetState();
             if (live == null || !CombatManager.Instance.IsInProgress)
@@ -484,8 +489,6 @@ internal sealed class ActionDeployer(
             }
             if (watch.Elapsed > BoundaryTimeout)
             {
-                if (choiceFailure?.Invoke() is { } failureDetail)
-                    throw new DeploymentFailureException("choice_mismatch", failureDetail);
                 throw new DeploymentFailureException("boundary_timeout",
                     $"等待预测边界 turn={expected.PlayerTurn} phase={expected.Phase} 超时。" +
                     $"live_side={live.CurrentSide} live_phase={current?.PlayerCombatState?.Phase} " +

@@ -1,0 +1,14 @@
+{
+  "formatVersion": 9,
+  "battleSize": 43856,
+  "root": "fool-show-off-instances",
+  "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-fool-show-off-instances.json\u0022}",
+  "rulesSha256": "a50e63e0bcf2f31c39ece9eebbeb6cd9328faf4c7feca22499028cdca6fae80a",
+  "counts": {
+    "roots": 1,
+    "k1": 4,
+    "walks": 32,
+    "walkStates": 520,
+    "transitions": 488
+  }
+}

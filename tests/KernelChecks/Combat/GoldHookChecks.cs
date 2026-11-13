@@ -37,67 +37,67 @@ internal static class GoldHookChecks
         Rules rules = GoldRules(bowlerHat, ectoplasm, dragonFruit, handOfGreed);
         CheckHandOfGreedPlay(rules, handOfGreed, bowlerHat, ectoplasm, dragonFruit);
 
-        Battle plain = BattleWith(relics: []);
+        Battle plain = BattleWith(ref rules, relics: []);
         Exec plainExec = new(ref plain, rules, default);
         Assert(Kernel.GainGold(ref plainExec, 20m) == 20 && plain.Gold == 20,
             "plain gain must add the truncated amount");
 
-        Battle dragon = BattleWith(relics: [dragonFruit]);
+        Battle dragon = BattleWith(ref rules, relics: [dragonFruit]);
         Exec dragonExec = new(ref dragon, rules, default);
         Assert(Kernel.GainGold(ref dragonExec, 20m) == 20 && dragon.Gold == 20,
             "DragonFruit must not change the gold amount");
         Assert(dragon.Player.MaxHp == 51 && dragon.Player.CurrentHp == 51,
             "DragonFruit must gain one max HP and heal the same amount");
 
-        Battle fractional = BattleWith(relics: [dragonFruit]);
+        Battle fractional = BattleWith(ref rules, relics: [dragonFruit]);
         Exec fractionalExec = new(ref fractional, rules, default);
         Assert(Kernel.GainGold(ref fractionalExec, 0.25m) == 0 && fractional.Gold == 0,
             "a positive fractional amount adds zero gold");
         Assert(fractional.Player.MaxHp == 51 && fractional.Player.CurrentHp == 51,
             "AfterGoldGained must still run for a positive fractional amount");
 
-        Battle zero = BattleWith(relics: [dragonFruit]);
+        Battle zero = BattleWith(ref rules, relics: [dragonFruit]);
         Exec zeroExec = new(ref zero, rules, default);
         Assert(Kernel.GainGold(ref zeroExec, 0m) == 0 && zero.Player.MaxHp == 50,
             "zero gain must not dispatch AfterGoldGained");
-        Battle negative = BattleWith(relics: [dragonFruit]);
+        Battle negative = BattleWith(ref rules, relics: [dragonFruit]);
         Exec negativeExec = new(ref negative, rules, default);
         Assert(Kernel.GainGold(ref negativeExec, -5m) == 0 && negative.Player.MaxHp == 50,
             "negative gain must not dispatch AfterGoldGained");
 
-        Battle bowler = BattleWith(relics: [dragonFruit, bowlerHat]);
+        Battle bowler = BattleWith(ref rules, relics: [dragonFruit, bowlerHat]);
         Exec bowlerExec = new(ref bowler, rules, default);
         Assert(Kernel.GainGold(ref bowlerExec, 20m) == 25 && bowler.Gold == 25,
             "BowlerHat must multiply the amount by GoldIncrease");
         Assert(bowler.Player.MaxHp == 51 && bowler.Player.CurrentHp == 51,
             "DragonFruit must use the amount gained after BowlerHat");
 
-        Battle ectoplasmBattle = BattleWith(relics: [dragonFruit, ectoplasm]);
+        Battle ectoplasmBattle = BattleWith(ref rules, relics: [dragonFruit, ectoplasm]);
         Exec ectoplasmExec = new(ref ectoplasmBattle, rules, default);
         Assert(Kernel.GainGold(ref ectoplasmExec, 20m) == 0 && ectoplasmBattle.Gold == 0,
             "Ectoplasm must zero the gain");
         Assert(ectoplasmBattle.Player.MaxHp == 50 && ectoplasmBattle.Player.CurrentHp == 50,
             "zero post-modifier gain must not dispatch DragonFruit");
 
-        Battle bowlerThenEctoplasm = BattleWith(relics: [dragonFruit, bowlerHat, ectoplasm]);
+        Battle bowlerThenEctoplasm = BattleWith(ref rules, relics: [dragonFruit, bowlerHat, ectoplasm]);
         Exec bowlerThenEctoplasmExec = new(ref bowlerThenEctoplasm, rules, default);
         Assert(Kernel.GainGold(ref bowlerThenEctoplasmExec, 20m) == 0
             && bowlerThenEctoplasm.Gold == 0 && bowlerThenEctoplasm.Player.MaxHp == 50,
             "BowlerHat then Ectoplasm must settle to zero");
 
-        Battle ectoplasmThenBowler = BattleWith(relics: [dragonFruit, ectoplasm, bowlerHat]);
+        Battle ectoplasmThenBowler = BattleWith(ref rules, relics: [dragonFruit, ectoplasm, bowlerHat]);
         Exec ectoplasmThenBowlerExec = new(ref ectoplasmThenBowler, rules, default);
         Assert(Kernel.GainGold(ref ectoplasmThenBowlerExec, 20m) == 0
             && ectoplasmThenBowler.Gold == 0 && ectoplasmThenBowler.Player.MaxHp == 50,
             "Ectoplasm then BowlerHat must settle to zero");
 
-        Battle melted = BattleWith(relics: [dragonFruit]);
-        melted.Relics[0].Flags |= RelicFlags.Melted;
+        Battle melted = BattleWith(ref rules, relics: [dragonFruit]);
+        TestRelics.Set(ref melted, ref rules, new Relic { Id = dragonFruit, Flags = RelicFlags.Melted });
         Exec meltedExec = new(ref melted, rules, default);
         Assert(Kernel.GainGold(ref meltedExec, 20m) == 20 && melted.Player.MaxHp == 50,
             "a melted DragonFruit must not run its after-gain hook");
 
-        Battle inactive = BattleWith(relics: [dragonFruit, bowlerHat], hooksActive: false);
+        Battle inactive = BattleWith(ref rules, relics: [dragonFruit, bowlerHat], hooksActive: false);
         Exec inactiveExec = new(ref inactive, rules, default);
         Assert(Kernel.GainGold(ref inactiveExec, 20m) == 20 && inactive.Gold == 20
             && inactive.Player.MaxHp == 50,
@@ -110,7 +110,7 @@ internal static class GoldHookChecks
     private static void CheckHandOfGreedPlay(Rules rules, ushort handOfGreed, ushort bowlerHat,
         ushort ectoplasm, ushort dragonFruit)
     {
-        Battle plain = GoldPlayBattle(handOfGreed, rules, relics: []);
+        Battle plain = GoldPlayBattle(handOfGreed, ref rules, relics: []);
         Kernel.Step(ref plain, PlayerAction.PlayCard(0, Kernel.EnemyOwner(0)), rules, out _);
         Assert(plain.Gold == 27, $"plain HandOfGreed gold should be 7 + 20, actual {plain.Gold}");
         Assert(plain.Player.MaxHp == 50, "HandOfGreed without DragonFruit must not gain max HP");
@@ -119,7 +119,7 @@ internal static class GoldHookChecks
         Assert(GrowthRewards.Get(plain, GrowthRewardSource.HandOfGreed) == 1,
             "HandOfGreed must record one growth reward");
 
-        Battle boosted = GoldPlayBattle(handOfGreed, rules, relics: [dragonFruit, bowlerHat]);
+        Battle boosted = GoldPlayBattle(handOfGreed, ref rules, relics: [dragonFruit, bowlerHat]);
         Kernel.Step(ref boosted, PlayerAction.PlayCard(0, Kernel.EnemyOwner(0)), rules, out _);
         Assert(boosted.Gold == 32, $"BowlerHat HandOfGreed gold should be 7 + 25, actual {boosted.Gold}");
         Assert(boosted.Player.MaxHp == 51 && boosted.Player.CurrentHp == 51,
@@ -129,7 +129,7 @@ internal static class GoldHookChecks
         Assert(GrowthRewards.Get(boosted, GrowthRewardSource.HandOfGreed) == 1,
             "the growth reward must be recorded after the gold hooks");
 
-        Battle blocked = GoldPlayBattle(handOfGreed, rules, relics: [dragonFruit, ectoplasm]);
+        Battle blocked = GoldPlayBattle(handOfGreed, ref rules, relics: [dragonFruit, ectoplasm]);
         Kernel.Step(ref blocked, PlayerAction.PlayCard(0, Kernel.EnemyOwner(0)), rules, out _);
         Assert(blocked.Gold == 7, $"Ectoplasm HandOfGreed gold should stay 7, actual {blocked.Gold}");
         Assert(blocked.Player.MaxHp == 50 && blocked.Player.CurrentHp == 50,
@@ -140,9 +140,9 @@ internal static class GoldHookChecks
             "the growth reward is recorded even when gold is zero");
     }
 
-    private static Battle GoldPlayBattle(ushort handOfGreed, Rules rules, IReadOnlyList<ushort> relics)
+    private static Battle GoldPlayBattle(ushort handOfGreed, ref Rules rules, IReadOnlyList<ushort> relics)
     {
-        Battle battle = BattleWith(relics);
+        Battle battle = BattleWith(ref rules, relics);
         battle.Gold = 7;
         battle.Side = Side.Player;
         battle.Phase = PlayerPhase.Play;
@@ -165,10 +165,10 @@ internal static class GoldHookChecks
         Assert(Registry.TryRelic("DF1_TEST_GOLD_DOUBLER", out ushort doubler), "missing test doubler");
         Assert(Registry.TryRelic("DF1_TEST_GOLD_OBSERVER", out ushort observer), "missing test observer");
         Assert(Registry.TryPower("DF1_TEST_GOLD_POWER", out ushort power), "missing test power");
-        Battle battle = BattleWith(relics: [doubler, observer]);
+        Rules rules = new RulesDraft { BaseMaxEnergy = 3, RootEnemyCount = 1 }.Build();
+        Battle battle = BattleWith(ref rules, relics: [doubler, observer]);
         battle.PowerCount = 1;
         battle.Powers[0] = new Power { Id = power, Owner = Limits.PlayerOwner, Amount = 1 };
-        Rules rules = new RulesDraft { BaseMaxEnergy = 3, RootEnemyCount = 1 }.Build();
         Exec exec = new(ref battle, rules, default);
         Assert(Kernel.GainGold(ref exec, 10m) == 20 && battle.Gold == 20,
             "test doubler must modify the amount before the balance");
@@ -180,7 +180,7 @@ internal static class GoldHookChecks
             $"run listeners must run before combat power listeners, and powers skip AfterGoldGained; actual={battle.Counter(Counter.EnergySpentThisTurn)}");
     }
 
-    private static Battle BattleWith(IReadOnlyList<ushort> relics, bool hooksActive = true)
+    private static Battle BattleWith(ref Rules rules, IReadOnlyList<ushort> relics, bool hooksActive = true)
     {
         Battle battle = default;
         battle.Round = 1;
@@ -194,9 +194,7 @@ internal static class GoldHookChecks
         };
         if (hooksActive)
             battle.Flags |= BattleFlags.PlayerHooksActive;
-        battle.RelicCount = checked((byte)relics.Count);
-        for (int index = 0; index < relics.Count; index++)
-            battle.Relics[index] = new Relic { Id = relics[index] };
+        TestRelics.Set(ref battle, ref rules, relics.Select(id => new Relic { Id = id }).ToArray());
         return battle;
     }
 

@@ -14,7 +14,7 @@ public static partial class Kernel
     [
         "BIASED_COGNITION_POWER", "COOLANT_POWER", "DEMON_FORM_POWER", "FERAL_POWER", "FURNACE_POWER",
         "NEUROSURGE_POWER", "NOXIOUS_FUMES_POWER", "PREP_TIME_POWER", "REFLECT_POWER", "SHADOW_STEP_POWER",
-        "WRAITH_FORM_POWER", "CLARITY_POWER",
+        "WRAITH_FORM_POWER", "CLARITY_POWER", "ARCHERY_POWER", "HIDDEN_ROOTS_POWER",
     ];
 
     // SimulatedCombatState.TriggerBaseSideTurnStart, in source order.
@@ -22,7 +22,7 @@ public static partial class Kernel
         ["BLUR_POWER", "DRAW_CARDS_NEXT_TURN_POWER", "PLATING_POWER", "SLOW_POWER"];
 
     // TurnStartPowerSupport.TriggerAfterSideTurnStart, in source order (Sandpit only on the enemy side).
-    private static readonly string[] GlobalAfterSideTurnStartOrder = ["COUNTDOWN_POWER", "SANDPIT_POWER"];
+    private static readonly string[] GlobalAfterSideTurnStartOrder = ["COUNTDOWN_POWER", "SANDPIT_POWER", "CONDUCTORS_BATON_POWER"];
 
     // CorePowerSupport.TriggerTransientSideTurnEndPowers: removals then decrements, per participant.
     private static readonly string[] TransientRemovals =
@@ -104,7 +104,7 @@ public static partial class Kernel
         PowerDef def = Registry.Power(power.Id);
         Listener self = new(ListenerKind.Power, (byte)index, power.Owner);
         ChoiceSource savedOrigin = x.ChoiceOrigin;
-        x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+        x.ChoiceOrigin = ListenerChoiceSource(x.B, x.R, self);
         try
         {
             switch (phase)
@@ -293,73 +293,24 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Relic pass in relic order over unmelted player relics (the player participates in the side).
-    /// <paramref name="snapshot"/> keeps the listener set fixed for a hook that may pause for a
-    /// choice: another listener can add or remove relics while the hook is suspended, and the
-    /// native <c>ICombatState.IterateHookListeners</c> snapshot does not call newly added models and
-    /// skips removed ones. The default live walk is unchanged for the EndTurn path.
+    /// Relic order and Melted are immutable for this root, so the shared indices also serve
+    /// as the snapshot across choices. Duplicate instances retain their own roster indices.
     /// </summary>
-    private static void RelicPass(ref Exec x, RelicPhase phase, Side side, bool snapshot = false)
+    private static void RelicPass(ref Exec x, RelicPhase phase, Side side)
     {
-        if (!snapshot)
+        foreach (ushort index in x.R.Relics.Active)
         {
-            for (int index = 0; index < x.B.RelicCount; index++)
-            {
-                ref Relic relic = ref x.B.Relics[index];
-                if ((relic.Flags & RelicFlags.Melted) != 0)
-                    continue;
-                InvokeRelicPhase(ref x, phase, index, side);
-                if (x.NeedsChoice)
-                    return;
-            }
-            return;
-        }
-        int relicCount = x.B.RelicCount;
-        Span<(ushort Id, int Occurrence)> entries = stackalloc (ushort, int)[relicCount];
-        int taken = 0;
-        for (int index = 0; index < relicCount; index++)
-        {
-            ref Relic relic = ref x.B.Relics[index];
-            if ((relic.Flags & RelicFlags.Melted) != 0)
-                continue;
-            int occurrence = 0;
-            for (int prior = 0; prior < index; prior++)
-            {
-                if (x.B.Relics[prior].Id == relic.Id)
-                    occurrence++;
-            }
-            entries[taken++] = (relic.Id, occurrence);
-        }
-        for (int entry = 0; entry < taken; entry++)
-        {
-            (ushort id, int occurrence) = entries[entry];
-            int index = FindRelicOccurrence(x.B, id, occurrence);
-            if (index < 0 || (x.B.Relics[index].Flags & RelicFlags.Melted) != 0)
-                continue;
             InvokeRelicPhase(ref x, phase, index, side);
-            if (x.NeedsChoice)
-                return;
+            if (x.NeedsChoice) return;
         }
-    }
-
-    private static int FindRelicOccurrence(in Battle battle, ushort id, int occurrence)
-    {
-        for (int index = 0; index < battle.RelicCount; index++)
-        {
-            if (battle.Relics[index].Id != id)
-                continue;
-            if (occurrence-- == 0)
-                return index;
-        }
-        return -1;
     }
 
     private static void InvokeRelicPhase(ref Exec x, RelicPhase phase, int index, Side side)
     {
-        RelicDef def = Registry.Relic(x.B.Relics[index].Id);
-        Listener self = new(ListenerKind.Relic, (byte)index, Limits.PlayerOwner);
+        RelicDef def = Registry.Relic(x.R.Relics.Id(index));
+        Listener self = new(ListenerKind.Relic, checked((ushort)index), Limits.PlayerOwner);
         ChoiceSource savedOrigin = x.ChoiceOrigin;
-        x.ChoiceOrigin = ListenerChoiceSource(x.B, self);
+        x.ChoiceOrigin = ListenerChoiceSource(x.B, x.R, self);
         try
         {
             switch (phase)
@@ -464,7 +415,7 @@ public static partial class Kernel
             {
                 // PersistentRelicSupport.TriggerAfterPreventingBlockClear.
                 int block = x.B.Creature(owner).Block;
-                int retained = HookDispatch.Definition(x.B, preventer).BlockAfterPreventingClear(ref x, preventer, owner, block);
+                int retained = HookDispatch.Definition(x.B, x.R, preventer).BlockAfterPreventingClear(ref x, preventer, owner, block);
                 if (retained < block)
                     DamageBlock(ref x.B.Creature(owner), block - retained, ValueProps.Unpowered);
             }
@@ -492,11 +443,11 @@ public static partial class Kernel
         preventer = default;
         if ((Registry.AnyHooks & HookMask.ShouldClearBlock) == 0 || IsOverOrEnding(x.B))
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ShouldClearBlock, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMask.ShouldClearBlock, listeners);
         for (int index = 0; index < count; index++)
         {
-            if (!HookDispatch.Definition(x.B, listeners[index]).ShouldClearBlock(ref x, listeners[index], owner))
+            if (!HookDispatch.Definition(x.B, x.R, listeners[index]).ShouldClearBlock(ref x, listeners[index], owner))
             {
                 preventer = listeners[index];
                 return false;
@@ -650,12 +601,12 @@ public static partial class Kernel
     {
         if ((Registry.AnyHooksExt & HookMaskExt.AfterSideTurnEndLate) == 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMaskExt.AfterSideTurnEndLate, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.AfterSideTurnEndLate, listeners);
         for (int index = 0; index < count; index++)
         {
             Listener self = listeners[index];
-            HookDispatch.Definition(x.B, self).AfterSideTurnEndLate(ref x, self, side, Contains(participants, self.Owner));
+            HookDispatch.Definition(x.B, x.R, self).AfterSideTurnEndLate(ref x, self, side, Contains(participants, self.Owner));
             if (x.NeedsChoice)
                 return;
         }
@@ -824,25 +775,25 @@ public static partial class Kernel
     /// <c>Hook.AfterPlayerTurnStart</c> on the vanilla path: powers, then relics, each in the regular
     /// and late passes (native iterates the same listener list once per pass).
     /// </summary>
-    internal static void AfterPlayerTurnStart(ref Exec x, bool snapshotRelics = false)
+    internal static void AfterPlayerTurnStart(ref Exec x)
     {
         PowerListenerPass(ref x, PowerPhase.AfterPlayerTurnStart, Side.Player, default, Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterPlayerTurnStart, Side.Player, snapshotRelics);
+        RelicPass(ref x, RelicPhase.AfterPlayerTurnStart, Side.Player);
         if (x.NeedsChoice)
             return;
-        RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player, snapshotRelics);
+        RelicPass(ref x, RelicPhase.AfterPlayerTurnStartLate, Side.Player);
     }
 
     /// <summary><c>PersistentPowerSupport.GetModifiedMaxEnergy</c>: every combat listener's modifier.</summary>
     internal static int ModifiedMaxEnergy(ref Exec x)
     {
         decimal result = x.R.BaseMaxEnergy;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ModifyMaxEnergy, listeners);
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+        int count = HookDispatch.CollectListeners(x.B, x.R, HookMask.ModifyMaxEnergy, listeners);
         for (int index = 0; index < count; index++)
-            result = HookDispatch.Definition(x.B, listeners[index]).ModifyMaxEnergy(ref x, listeners[index], result);
+            result = HookDispatch.Definition(x.B, x.R, listeners[index]).ModifyMaxEnergy(ref x, listeners[index], result);
         return Math.Max(0, (int)result);
     }
 
@@ -855,14 +806,6 @@ public static partial class Kernel
         // TurnsSeen, DrawCardsNextTurn and the other ModifyHandDraw powers/relics).
         if (IsOverOrEnding(x.B))
             return Math.Max(0, baseDraw);
-        decimal result = baseDraw;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
-        int count = HookDispatch.CollectListeners(x.B, HookMask.ModifyHandDraw, listeners);
-        for (int index = 0; index < count; index++)
-            result = HookDispatch.Definition(x.B, listeners[index]).ModifyHandDraw(ref x, listeners[index], result);
-        count = HookDispatch.CollectListeners(x.B, HookMask.ModifyHandDrawLate, listeners);
-        for (int index = 0; index < count; index++)
-            result = HookDispatch.Definition(x.B, listeners[index]).ModifyHandDrawLate(ref x, listeners[index], result);
-        return Math.Max(0, (int)result);
+        return HookDispatch.ModifiedHandDraw(ref x, baseDraw);
     }
 }

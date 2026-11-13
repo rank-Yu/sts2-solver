@@ -17,15 +17,7 @@ internal static class SearchProgressContracts
 
     internal static void Run()
     {
-        SearchCase original;
-        using (FileStream input = File.OpenRead(
-            "tests/Golden/data/d2/requests/6e0cc7806b41874f9203b30010b822a3b93c0b73fb93a7166a803bc61d271294.request.br"))
-        using (BrotliStream compressed = new(input, CompressionMode.Decompress))
-        using (MemoryStream bytes = new())
-        {
-            compressed.CopyTo(bytes);
-            original = SearchCodec.DecodeRequest(bytes.ToArray());
-        }
+        SearchCase original = GoldenFixtures.Search("quality-NECROBINDER-001");
         BeamOptions baseline = SearchBudgetPolicy.ApplyRegression(original.Options with
         {
             BeamWidth = 8,
@@ -55,8 +47,9 @@ internal static class SearchProgressContracts
     private static void CounterPublication()
     {
         SearchProgressChannel channel = new(200);
-        channel.BeginMember(0, default, null);
-        channel.Publish(new SearchProgressSnapshot(0, default, 10, 20, null, null, null, 7));
+        SearchMember member = new(1, SearchEvaluation.Standard, SearchRetention.Standard, SearchPotionLimit.None);
+        channel.BeginMember(0, member, null);
+        channel.Publish(new SearchProgressSnapshot(0, member, 10, 20, null, null, null, 7));
         SearchProgressSnapshot initial = channel.Latest!;
         channel.AddCompletedExpandedNodes(30);
         channel.PublishCounters(40, 60, 100, 120);
@@ -66,7 +59,7 @@ internal static class SearchProgressContracts
         Assert(ReferenceEquals(initial.Route, channel.Latest!.Route)
             && ReferenceEquals(initial.CurrentTurn, channel.Latest.CurrentTurn),
             "heartbeat keeps preview objects");
-        channel.BeginMember(1, default, null);
+        channel.BeginMember(1, member, null);
         SearchProgressSnapshot previous = channel.Latest;
         channel.PublishCounters(1, 2, 3, 4);
         Assert(ReferenceEquals(previous, channel.Latest),
@@ -76,15 +69,14 @@ internal static class SearchProgressContracts
     private static void FinalResultPublication(int threads)
     {
         // One-action target stop and a longer frontier exhaustion from the frozen native corpus.
-        foreach (string hash in new[]
+        foreach (string root in new[]
         {
-            "f0dd390422b700ac3dcf521532d0706045158417a30cc7beaa8c000a36b6b9fb",
-            "6e0cc7806b41874f9203b30010b822a3b93c0b73fb93a7166a803bc61d271294",
+            "quality-REGENT-000",
+            "quality-NECROBINDER-001",
         })
         foreach (bool audit in new[] { false, true })
         {
-            SearchCase search = SearchCodec.DecodeRequest(GoldenFiles.ReadCompressed(
-                $"tests/Golden/data/d2/requests/{hash}.request.br"));
+            SearchCase search = GoldenFixtures.Search(root);
             BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
             {
                 SearchThreads = threads, SoftTimeBudget = TimeSpan.MaxValue,

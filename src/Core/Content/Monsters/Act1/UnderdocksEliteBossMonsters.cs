@@ -49,6 +49,10 @@ public sealed class SoulFysh : MonsterDef
                     Kernel.AddGeneratedCard(ref x,
                         Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Beckon>()),
                         Pile.Draw, PilePosition.Random, creator: Limits.NoOwner);
+                if (x.R.Mode == CombatMode.Dread)
+                    Kernel.AddGeneratedCard(ref x,
+                        Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Beckon>()),
+                        Pile.Hand, creator: Limits.NoOwner);
                 for (int index = 0; index < BeckonDiscardAmount; index++)
                     Kernel.AddGeneratedCard(ref x,
                         Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Beckon>()), Pile.Discard, creator: Limits.NoOwner);
@@ -136,7 +140,7 @@ public sealed partial class WaterfallGiant : MonsterDef
     private const int PressureGunIncrease = 2;
 
     public override IReadOnlyList<string> StaticIntNames =>
-        ["PressurizeAmount", "SiphonHeal", "PressureGunIncrease"];
+        ["PressurizeAmount", "SiphonHeal", "PressureGunIncrease", "SteamBoostAmount"];
 
     public override IReadOnlyList<string> AiRegisterNames => ["PressureGunBonus", "SteamEruptionDamage"];
 
@@ -152,21 +156,21 @@ public sealed partial class WaterfallGiant : MonsterDef
             case "STOMP_MOVE":
                 Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
                     Registry.PowerId<Powers.WeakPower>(), 1, owner);
-                Kernel.ApplyPower(ref x, owner, steam, 3, owner);
+                Kernel.ApplyPower(ref x, owner, steam, rules.StaticInts[3], owner);
                 break;
             case "RAM_MOVE":
             case "PRESSURE_UP_MOVE":
-                Kernel.ApplyPower(ref x, owner, steam, 3, owner);
+                Kernel.ApplyPower(ref x, owner, steam, rules.StaticInts[3], owner);
                 break;
             case "SIPHON_MOVE":
                 // MonsterMoveEffects: Heal(SiphonHeal * combat.Players.Count); single-player is 1.
                 Kernel.Heal(ref x, owner, rules.StaticInts[SiphonHeal]);
-                Kernel.ApplyPower(ref x, owner, steam, 3, owner);
+                Kernel.ApplyPower(ref x, owner, steam, rules.StaticInts[3], owner);
                 break;
             case "PRESSURE_GUN_MOVE":
                 x.B.Enemy(owner).Ai[Kernel.PressureGunBonusRegister] = checked(
                     x.B.Enemy(owner).Ai[Kernel.PressureGunBonusRegister] + rules.StaticInts[PressureGunIncrease]);
-                Kernel.ApplyPower(ref x, owner, steam, 3, owner);
+                Kernel.ApplyPower(ref x, owner, steam, rules.StaticInts[3], owner);
                 break;
             case "ABOUT_TO_BLOW_MOVE":
                 // MonsterMoveEffects: combat.PrepareSteamEruption(move.Owner). The forced phase path

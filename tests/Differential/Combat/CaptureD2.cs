@@ -32,7 +32,6 @@ internal sealed record CaptureD2Member(
     bool QueenPolicy,
     bool SetupPolicy,
     bool ContinuousSetup,
-    bool PotionFreeBaseline,
     bool IncumbentSeed,
     long ElapsedMilliseconds,
     int ExpandedNodes,
@@ -138,9 +137,8 @@ internal static class CaptureD2
         Battle opening = tracker.ImportRoot(combat, player, rules);
         if (opening.Phase != PlayerPhase.Play)
             throw new InvalidDataException($"capture-d2 根 {root} 的首个搜索不是 Play 根。");
-        if (opening.PlayerTurn != 1)
-            throw new InvalidDataException(
-                $"capture-d2 根 {root} 的回合是 {opening.PlayerTurn}，不是第 1 回合。");
+        if (opening.PlayerTurn < 1)
+            throw new InvalidDataException($"capture-d2 根 {root} 不是有效的玩家回合。");
 
         SearchPolicyConfiguration configuration = new()
         {
@@ -225,7 +223,7 @@ internal static class CaptureD2
                     : member.Options.Scorer?.Offensive == true ? "Offensive" : "Standard",
                 member.Options.SecondRankBand ? "SecondBand"
                     : member.Options.AggressivePowerCommitment ? "Power"
-                    : queen is { PreserveKillTiming: true } ? "QueenKillTiming" : "Standard",
+                    : queen is { } ? "QueenKillTiming" : "Standard",
                 member.Options.Potions.ForceAllDisabled ? "None" : "Allowed",
                 member.Options.TheftPolicy?.ToString(),
                 member.Options.PreserveReplayAllocatorOpening,
@@ -234,7 +232,6 @@ internal static class CaptureD2
                 queen != null,
                 setup,
                 continuous,
-                member.Options.PotionFreeBaseline != null,
                 member.Options.IncumbentSeed != null,
                 memberWatch.ElapsedMilliseconds,
                 beam?.ExpandedNodes ?? 0,
@@ -283,7 +280,7 @@ internal static class CaptureD2
                 + $"axe={member.PreserveReplayAllocatorOpening} "
                 + $"flame={member.BrightestFlameMaxHpLossLimit?.ToString() ?? "-"} "
                 + $"queen={member.QueenPolicy} setup={member.SetupPolicy} "
-                + $"continuous={member.ContinuousSetup} baseline={member.PotionFreeBaseline} "
+                + $"continuous={member.ContinuousSetup} "
                 + $"seed={member.IncumbentSeed} "
                 + $"ms={member.ElapsedMilliseconds} expanded={member.ExpandedNodes} "
                 + $"turns={member.TurnsSearched} stop={member.StopReason} win={member.Victory}");

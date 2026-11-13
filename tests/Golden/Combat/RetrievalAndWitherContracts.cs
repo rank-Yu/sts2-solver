@@ -14,7 +14,7 @@ internal static class RetrievalAndWitherContracts
 
     private static SearchCase Read(string root)
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{root}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/{root}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return SearchCodec.DecodeRequest(bytes.ToArray());
@@ -32,7 +32,8 @@ internal static class RetrievalAndWitherContracts
         SearchCase item = Read("a3-aeonglass-boss");
         Scorer scorer = item.Options.Scorer!;
         Battle root = item.Battles[0];
-        root.PowerCount = 0; root.RelicCount = 0;
+        root.PowerCount = 0; root.RelicStateCount = 0; root.RelicStates = default; root.RelicStateFlags = default;
+        scorer = new Scorer(scorer.RulesForCodec.WithRules(item.Rules.WithRelics(RelicRoster.Empty)), scorer.BaseOnly, scorer.Offensive, scorer.QueenPolicy, scorer.SetupPolicy);
         root.Player.CurrentHp = root.Player.MaxHp = 300;
         root.Player.Block = 0;
         for (int slot = 0; slot < root.RosterCount; slot++)
@@ -77,9 +78,9 @@ internal static class RetrievalAndWitherContracts
             if (outcome == Outcome.Defeat) a.Player.CurrentHp = b.Player.CurrentHp = 0;
             Assert(Score(a) == Score(b), "no outstanding damage after terminal: " + outcome);
         }
-        byte[] before = BattleCodec.Encode(six);
+        byte[] before = BattleCodec.Encode(six, RelicRoster.Empty);
         _ = Score(six);
-        Assert(before.AsSpan().SequenceEqual(BattleCodec.Encode(six)), "scoring does not mutate battle");
+        Assert(before.AsSpan().SequenceEqual(BattleCodec.Encode(six, RelicRoster.Empty)), "scoring does not mutate battle");
     }
 
     private static void CheckRetrieval()

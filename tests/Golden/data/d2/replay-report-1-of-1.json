@@ -1,9 +1,9 @@
 {
-  "formatVersion": 5,
-  "requestsCaptured": 2841,
-  "requestsUnique": 1987,
-  "comparable": 1987,
-  "equal": 1987,
+  "formatVersion": 9,
+  "requestsCaptured": 2094,
+  "requestsUnique": 2094,
+  "comparable": 2094,
+  "equal": 2094,
   "mismatch": 0,
   "timeAffected": 0
 }

@@ -175,7 +175,7 @@ public static partial class Kernel
     /// same per-hit flag).
     /// </summary>
     public static bool Damage(ref Exec x, scoped ReadOnlySpan<byte> targets, decimal amount, ValueProps props,
-        byte dealer, bool hasCardSource, in Card cardSource)
+        byte dealer, bool hasCardSource, in Card cardSource, bool capOnly = false)
     {
         if (dealer != Limits.NoOwner && x.B.Creature(dealer).IsDead || targets.Length == 0)
             return false;
@@ -187,7 +187,7 @@ public static partial class Kernel
             x.LastDamageKills = 0;
             foreach (byte target in targets)
             {
-                if (!TryDamageTarget(ref x, target, amount, props, dealer, hasCardSource, cardSource, results, ref count))
+                if (!TryDamageTarget(ref x, target, amount, props, dealer, hasCardSource, cardSource, results, ref count, capOnly))
                     return false;
             }
             // Capture the damage before the result hooks run: a hook may deal nested damage and overwrite
@@ -195,6 +195,7 @@ public static partial class Kernel
             // amount (TotalDamage + OverkillDamage) for the copied hit.
             int total = 0;
             int overkill = 0;
+            int kills = 0;
             for (int index = 0; index < count; index++)
             {
                 // Native DamageResult.TotalDamage is BlockedDamage + UnblockedDamage; OverkillDamage is
@@ -207,13 +208,14 @@ public static partial class Kernel
                         + results[index].OverkillDamage;
                     if (results[index].WasTargetKilled)
                     {
-                        x.LastDamageKills++;
+                        kills++;
                         x.CardKilledTarget = true;
                     }
                 }
             }
             x.LastDamageTotal = total;
             x.LastDamageOverkill = overkill;
+            x.LastDamageKills = kills;
             // The outermost Damage call belongs to the current attack context. Nested damage from a
             // result hook is a separate native Damage call and must not become a hit of the attack.
             if (x.DamageCallDepth == 1)
@@ -235,6 +237,11 @@ public static partial class Kernel
                     x.AttackSuckHitLists++;
             }
             ProcessDamageResults(ref x, results[..count], dealer);
+            // Result hooks can deal damage recursively. Return this call's results to the caller
+            // (BlossomShot, RainShot, Omnislice), rather than the last retaliation's results.
+            x.LastDamageTotal = total;
+            x.LastDamageOverkill = overkill;
+            x.LastDamageKills = kills;
             for (int index = 0; index < count; index++)
             {
                 if (results[index].Receiver == Limits.PlayerOwner && results[index].UnblockedDamage > 0)
@@ -273,7 +280,7 @@ public static partial class Kernel
     }
 
     /// <summary>BeginAttackContext: the props and card-source fact every AfterAttack listener reads.</summary>
-    private static void BeginAttack(ref Exec x, ValueProps props, bool hasCardSource)
+    public static void BeginAttack(ref Exec x, ValueProps props, bool hasCardSource)
     {
         x.AttackProps = props;
         x.AttackHasCardSource = hasCardSource;
@@ -303,11 +310,11 @@ public static partial class Kernel
     /// redirect (Osty's <c>DieForYouPower</c>) and its overkill spill-over to the original receiver.
     /// </summary>
     private static bool TryDamageTarget(ref Exec x, byte target, decimal amount, ValueProps props, byte dealer,
-        bool hasCardSource, in Card cardSource, scoped Span<DamageResult> results, ref int count)
+        bool hasCardSource, in Card cardSource, scoped Span<DamageResult> results, ref int count, bool capOnly)
     {
         if (x.B.Creature(target).IsDead)
             return true;
-        decimal modified = HookDispatch.ModifyDamage(ref x, target, dealer, amount, props, hasCardSource, cardSource);
+        decimal modified = HookDispatch.ModifyDamage(ref x, target, dealer, amount, props, hasCardSource, cardSource, capOnly);
         if (x.NeedsChoice)
             return false;
         // HookMirrors.BeforeDamageReceived iterates the run listeners without the ending gate; deck cards
@@ -329,7 +336,7 @@ public static partial class Kernel
         // on that receiver. A listener that changed the truncated amount is notified afterwards. The
         // redirect query itself is dispatched even without HP-loss hooks (DieForYouPower has none).
         HpLossContext loss = new(target, props, dealer, hasCardSource, cardSource);
-        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
+        Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R) * 2];
         bool hasHpLossHooks = (Registry.AnyHooks & HpLossHooks) != 0;
         if (hasHpLossHooks)
         {
@@ -392,7 +399,7 @@ public static partial class Kernel
         decimal overflow = redirectedResult.OverkillDamage;
         if ((Registry.AnyHooks & HpLossHooks) != 0)
         {
-            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B) * 2];
+            Span<Listener> changed = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R) * 2];
             HpLossContext loss = new(originalTarget, props, dealer, hasCardSource, cardSource);
             overflow = HookDispatch.ModifyHpLost(ref x, loss, overflow, afterOsty: true, changed, out int changedCount);
             HookDispatch.AfterModifyingHpLostAfterOsty(ref x, changed[..changedCount]);
@@ -459,17 +466,18 @@ public static partial class Kernel
             }
         }
         if (killedCount > 0)
-            Kill(ref x, killed[..killedCount], force: false);
+            Kill(ref x, killed[..killedCount], force: false, results[0].HasCardSource, results[0].CardSource);
         else if (x.B.Player.IsDead)
             LoseCombat(ref x.B);
     }
 
     /// <summary>Mirrors <c>CombatPredictionSimulator.Kill(IReadOnlyList&lt;Creature&gt;, bool)</c>.</summary>
-    public static void Kill(ref Exec x, scoped ReadOnlySpan<byte> creatures, bool force)
+    public static void Kill(ref Exec x, scoped ReadOnlySpan<byte> creatures, bool force,
+        bool hasCardSource = false, Card cardSource = default)
     {
         foreach (byte creature in creatures)
         {
-            KillWithoutCheckingWinCondition(ref x, creature, force);
+            KillWithoutCheckingWinCondition(ref x, creature, force, hasCardSource, cardSource);
             if (x.NeedsChoice)
                 return;
         }
@@ -484,7 +492,8 @@ public static partial class Kernel
     /// and kills the remaining secondary teammates of a primary enemy; a prevented death runs <c>AfterDeath</c> and
     /// the preventer's <c>AfterPreventingDeath</c>, and retries while the creature is still dead.
     /// </summary>
-    private static void KillWithoutCheckingWinCondition(ref Exec x, byte owner, bool force, int recursion = 0)
+    private static void KillWithoutCheckingWinCondition(ref Exec x, byte owner, bool force,
+        bool hasCardSource, in Card cardSource, int recursion = 0)
     {
         int currentHp = x.B.Creature(owner).CurrentHp;
         if (currentHp > 0)
@@ -506,18 +515,18 @@ public static partial class Kernel
             return;
         if (!shouldDie)
         {
-            AfterDeathHook prevented = new() { Creature = owner, WasRemovalPrevented = true };
+            AfterDeathHook prevented = new() { Creature = owner, WasRemovalPrevented = true, HasCardSource = hasCardSource, CardSource = cardSource };
             HookDispatch.Dispatch(ref x, ref prevented, gatedByEnding: false);
             if (x.NeedsChoice)
                 return;
-            HookDispatch.Definition(x.B, preventer).AfterPreventingDeath(ref x, preventer, owner);
+            HookDispatch.Definition(x.B, x.R, preventer).AfterPreventingDeath(ref x, preventer, owner);
             if (x.NeedsChoice)
                 return;
             if (x.B.Creature(owner).IsDead)
             {
                 if (recursion >= 10)
                     throw new InvalidOperationException("死亡被连续阻止十次后，生物仍未复活。");
-                KillWithoutCheckingWinCondition(ref x, owner, force, recursion + 1);
+                KillWithoutCheckingWinCondition(ref x, owner, force, hasCardSource, cardSource, recursion + 1);
             }
             return;
         }
@@ -533,7 +542,7 @@ public static partial class Kernel
                 break;
             }
         }
-        AfterDeathHook after = new() { Creature = owner, WasRemovalPrevented = false };
+        AfterDeathHook after = new() { Creature = owner, WasRemovalPrevented = false, HasCardSource = hasCardSource, CardSource = cardSource };
         HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
         if (x.NeedsChoice)
             return;
@@ -594,13 +603,13 @@ public static partial class Kernel
         preventer = default;
         if ((Registry.AnyHooks & (HookMask.ShouldDie | HookMask.ShouldDieLate)) == 0)
             return true;
-        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+        Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         for (int pass = 0; pass < 2; pass++)
         {
-            int count = HookDispatch.CollectListeners(x.B, pass == 0 ? HookMask.ShouldDie : HookMask.ShouldDieLate, listeners);
+            int count = HookDispatch.CollectListeners(x.B, x.R, pass == 0 ? HookMask.ShouldDie : HookMask.ShouldDieLate, listeners);
             for (int index = 0; index < count; index++)
             {
-                ListenerDef def = HookDispatch.Definition(x.B, listeners[index]);
+                ListenerDef def = HookDispatch.Definition(x.B, x.R, listeners[index]);
                 bool dies = pass == 0 ? def.ShouldDie(ref x, listeners[index], owner) : def.ShouldDieLate(ref x, listeners[index], owner);
                 if (!dies)
                 {

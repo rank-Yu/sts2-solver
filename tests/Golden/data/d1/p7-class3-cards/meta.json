@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p7-class3-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p7-class3-cards.json\u0022}",
-  "rulesSha256": "8e8562ad2ab72d6d52299216d4b09324e5425f1b5252ac75d31a38852d839d30",
+  "rulesSha256": "aaaba209b939c98690f0a18584d704c69f62c37f010db932a8cdbdf18bb01302",
   "counts": {
     "roots": 1,
     "k1": 9,
     "walks": 32,
-    "walkStates": 491,
-    "transitions": 459
+    "walkStates": 477,
+    "transitions": 445
   }
 }

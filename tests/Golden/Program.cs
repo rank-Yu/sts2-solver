@@ -18,6 +18,8 @@ try
     switch (args[0])
     {
         case "k0":
+            if (args.Length > 2) throw new InvalidDataException("k0 [data-dir]");
+            if (args.Length == 2) GoldenFixtures.DataDirectory = args[1];
             RulesCodecContract.Run();
             SearchContracts.Run();
             BrightestFlameContracts.Run();
@@ -82,7 +84,7 @@ static void PrintUsage()
         + "[--only hash-prefix] [--verify] | refreeze <source-dir> <target-dir> [--jobs N] | "
         + "rerecord <source-dir> <target-dir> --roots <file> --reason text "
         + "[--recapture-root <dir>] [--jobs N] | "
-        + "manifest <data-dir> | replay-log <zip|folder> [--threads N] [--search NNN] | k0");
+        + "manifest <data-dir> | replay-log <zip|folder> [--threads N] [--search NNN] | k0 [data-dir]");
 
 internal static class VerifyCommand
 {

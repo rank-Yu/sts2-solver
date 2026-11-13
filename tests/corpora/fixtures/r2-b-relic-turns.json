@@ -43,9 +43,7 @@
     {
       "relicId": "VELVET_CHOKER",
       "addWithoutObtainedEffects": true,
-      "integerMembers": {
-        "_cardsPlayedThisTurn": 3
-      }
+      "integerMembers": {}
     },
     {
       "relicId": "FAKE_HAPPY_FLOWER",

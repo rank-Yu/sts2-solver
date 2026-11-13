@@ -295,8 +295,6 @@ public sealed class Anointed : CardDef
     public override void OnPlay(ref Exec x)
     {
         int space = x.B.MaxHandSize - x.B.HandCount;
-        if (space <= 0 || x.B.DrawCount == 0)
-            return;
         Span<int> rares = stackalloc int[x.B.DrawCount];
         int rareCount = 0;
         for (int index = 0; index < x.B.DrawCount; index++)
@@ -305,10 +303,8 @@ public sealed class Anointed : CardDef
             if (x.R.Card(card.Id, card.Upgrade).Rarity == CardRarity.Rare)
                 rares[rareCount++] = index;
         }
-        if (rareCount == 0)
-            return;
         rares = rares[..rareCount];
-        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
+        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         for (int n = rares.Length; n > 1;)
         {
             n--;

@@ -48,7 +48,7 @@ internal sealed class CombatSearchSession
 
     internal int Generation { get; }
     internal CombatState State { get; }
-    internal Battle Root { get; }
+    internal readonly Battle Root;
     internal CombatStateStamp Stamp { get; }
     internal int StartTurn { get; }
     internal CombatSearchReason Reason { get; }
@@ -145,7 +145,7 @@ internal sealed class CombatSearchRun
         ErrorDetail = errorDetail;
     }
 
-    internal Battle Root { get; }
+    internal readonly Battle Root;
     internal SearchCase? Case { get; }
     internal CombatSearchResult Outcome { get; }
     internal BeamResult? Beam { get; }

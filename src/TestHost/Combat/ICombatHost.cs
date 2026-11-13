@@ -10,7 +10,7 @@ namespace Sts2Solver.TestHost;
 internal interface ICombatHost
 {
     /// <summary>Creates a new single-player run, finalizes relics, launches it and enters act 0.</summary>
-    Task<RunState> StartRunAsync(CharacterModel character, int ascension, string seed);
+    Task<RunState> StartRunAsync(CharacterModel character, int ascension, string seed, MegaCrit.Sts2.Core.Runs.GameMode gameMode = MegaCrit.Sts2.Core.Runs.GameMode.Standard);
 
     /// <summary>Waits until the native combat reaches the local player's Play phase.</summary>
     Task<CombatState> WaitForPlayableCombatAsync();

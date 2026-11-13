@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p14-c-unmovable-multi-block",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p14-c-unmovable-multi-block.json\u0022}",
-  "rulesSha256": "0426b91b5791c109969c2854903c5089aa70daa75ab73e596b3df948e76aa8ab",
+  "rulesSha256": "d38f6eccee32894c4eef01aeef99bda687adc4592c6488de4a3d536e06ecd9b0",
   "counts": {
     "roots": 1,
     "k1": 9,
     "walks": 32,
-    "walkStates": 1871,
-    "transitions": 1856
+    "walkStates": 1879,
+    "transitions": 1863
   }
 }

@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "hs3-regent13-rolling",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs3-regent13-rolling.json\u0022}",
-  "rulesSha256": "0be610d407c39796aad07650b1be48f5a3baa8baeba49b63714772db47f0f705",
+  "rulesSha256": "ea5af43578720eb8868d38ea46894398610d7842057c8edc49eefc394f2b4a04",
   "counts": {
     "roots": 1,
-    "k1": 7,
+    "k1": 6,
     "walks": 32,
-    "walkStates": 1557,
-    "transitions": 1527
+    "walkStates": 1752,
+    "transitions": 1723
   }
 }

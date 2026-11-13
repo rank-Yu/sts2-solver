@@ -1,9 +1,9 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "dx5-battleworn-dummy-v3",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx5-battleworn-dummy-v3.json\u0022}",
-  "rulesSha256": "c35ac6c4c94e248506c0a1906fd6a0878db0367085b71cc43760a2a53fdb3963",
+  "rulesSha256": "bb2a37e3e99a1602b11b69b667986790a439d59a98c9b304da9395d84a20f327",
   "counts": {
     "roots": 1,
     "k1": 3,

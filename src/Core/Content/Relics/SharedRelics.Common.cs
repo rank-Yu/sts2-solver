@@ -157,15 +157,17 @@ public sealed class Whetstone : RelicDef;
 [ContentId("CENTENNIAL_PUZZLE")]
 public sealed class CentennialPuzzle : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // CentennialPuzzle.cs: CardsVar(3).
     public override IReadOnlyList<string> VarNames => ["Cards"];
 
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (!Kernel.IsInProgress(x.B) || result.Receiver != Limits.PlayerOwner
-            || result.UnblockedDamage <= 0 || x.B.Relics[self.Index].Counter != 0)
+            || result.UnblockedDamage <= 0 || x.B.RelicState(x.R, self.Index).Counter != 0)
             return;
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
         Kernel.Draw(ref x, (int)x.R.RelicVar(Id, 0), fromHandDraw: false);
     }
 }
@@ -178,6 +180,8 @@ public sealed class CentennialPuzzle : RelicDef
 [ContentId("HAPPY_FLOWER")]
 public sealed class HappyFlower : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // HappyFlower.cs: EnergyVar(1), DynamicVar("Turns", 3m).
     public override IReadOnlyList<string> VarNames => ["Energy", "Turns"];
 
@@ -185,7 +189,7 @@ public sealed class HappyFlower : RelicDef
     {
         if (side != Side.Player || Kernel.IsOverOrEnding(x.B))
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         int turns = (int)x.R.RelicVar(Id, 1);
         relic.Counter = (relic.Counter + 1) % turns;
         if (relic.Counter == 0)
@@ -202,12 +206,14 @@ public sealed class HappyFlower : RelicDef
 [ContentId("PENDULUM")]
 public sealed class Pendulum : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Pendulum.cs: CardsVar(1), DynamicVar("Turns", 3m).
     public override IReadOnlyList<string> VarNames => ["Cards", "Turns"];
 
     public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         int turns = (int)x.R.RelicVar(Id, 1);
         relic.Counter = (relic.Counter + 1) % turns;
         return relic.Counter == 0 ? amount + x.R.RelicVar(Id, 0) : amount;
@@ -221,12 +227,14 @@ public sealed class Pendulum : RelicDef
 [ContentId("VENERABLE_TEA_SET")]
 public sealed class VenerableTeaSet : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // VenerableTeaSet.cs: EnergyVar(2).
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
     public override void AfterEnergyReset(ref Exec x, Listener self)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter == 0)
             return;
         Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 0));
@@ -244,6 +252,8 @@ public sealed class VenerableTeaSet : RelicDef
 [ContentId("RED_SKULL")]
 public sealed partial class RedSkull : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // RedSkull.cs: DynamicVar("HpThreshold", 50m), PowerVar<StrengthPower>(3m).
     public override IReadOnlyList<string> VarNames => ["HpThreshold", "StrengthPower"];
 
@@ -251,7 +261,7 @@ public sealed partial class RedSkull : RelicDef
     {
         decimal threshold = x.B.Player.MaxHp * (x.R.RelicVar(Id, 0) / 100m);
         bool shouldApply = x.B.Player.CurrentHp <= threshold;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (shouldApply == (relic.Counter != 0))
             return;
         int strength = (int)x.R.RelicVar(Id, 1);

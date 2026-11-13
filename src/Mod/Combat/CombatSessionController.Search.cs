@@ -232,15 +232,12 @@ internal static partial class CombatSessionController
         _trackerSeeded = true;
     }
 
-    private static async Task RunSearchAsync(CombatSearchSession session)
+    // Pass the session by reference: Battle plus the other call arguments exceeds the CLR's
+    // argument size limit. The session owns the immutable root for the whole async search.
+    private static Task<CombatSearchRun> StartSearchRun(NGame host, CombatSearchSession session)
     {
-        NGame? host = NGame.Instance;
-        if (host == null)
-            return;
-        try
-        {
-            CombatSearchRun run = await CombatSearchRunner.RunAsync(host, _testRoot ?? "manual",
-                _rules!, _tracker!, session.State, _player!, session.Root, session.StartTurn, session.Reason,
+        return CombatSearchRunner.RunAsync(host, _testRoot ?? "manual",
+                _rules!, _tracker!, session.State, _player!, session, session.StartTurn, session.Reason,
                 _searchTier, session.PolicyConfiguration,
 #if STS2_SOLVER_TESTING
                 SearchPolicyOverrideForTest,
@@ -248,6 +245,16 @@ internal static partial class CombatSessionController
                 null,
 #endif
                 session.Cancellation.Token, session.Resume, session.ResumePlan);
+    }
+
+    private static async Task RunSearchAsync(CombatSearchSession session)
+    {
+        NGame? host = NGame.Instance;
+        if (host == null)
+            return;
+        try
+        {
+            CombatSearchRun run = await StartSearchRun(host, session);
             CombatLogRecorder.RecordSearch(run, setup: false, session.StartTurn,
                 ReasonName(session.Reason), resumed: session.Resume != null);
             if (!ReferenceEquals(_search, session))
@@ -468,7 +475,7 @@ internal static partial class CombatSessionController
         {
             string[] diff = CombatRouteDecision.BoundaryDiff(expectedAction.Before, live);
             CombatLogRecorder.RecordDeviation("boundary", turn, expectedAction.Index, diff,
-                expectedAction.Before, live);
+                expectedAction.Before, live, _rules);
             difference = string.Join(" | ", diff);
         }
         else
@@ -763,8 +770,8 @@ internal static partial class CombatSessionController
             return "roots";
         for (int index = 0; index < current.Battles.Length; index++)
         {
-            if (!BattleCodec.Encode(current.Battles[index]).AsSpan()
-                    .SequenceEqual(BattleCodec.Encode(stopped.Battles[index])))
+            if (!BattleCodec.Encode(current.Battles[index], current.Rules.Relics).AsSpan()
+                    .SequenceEqual(BattleCodec.Encode(stopped.Battles[index], stopped.Rules.Relics)))
                 return $"root[{index}]";
         }
         BeamOptions left = current.Options, right = stopped.Options;

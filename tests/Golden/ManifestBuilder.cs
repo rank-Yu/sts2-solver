@@ -12,11 +12,13 @@ internal static class ManifestProvenance
     internal const string D2 = "75217006903195bc94654680423bb9ca580ec48a";
     internal const string D1Config = "66a43838d89e7a03b05c0f04d5e4941ff555baec";
     internal const string FormatMigration =
-        "请求 v10→v11、结果仍为 v6：SREQ 删除药水政策的最早喝药回合与生效模式（改读药水策略的默认模式）、"
-        + "选项的生效用药模式（改读药水政策）、下界配置的全部禁用药水、最多用药次数与根药水副本。D1 config.br 与 "
-        + "D2 request.br 机械重编码；旧数据里只差这些字段的 28 个重复 D2 请求合并为一个（2015→1987），"
-        + "按新语义重冻后 22 个期望结果变化（1 条路线多 1 血，其余只是展开数），其余 1965 个逐字节不变。"
-        + "D1 的 score 哈希只写当前 ScoreFeatures 字段。";
+        "游戏 0.113.0 Beta (16ac0fe3)：Rules/Battle 格式 5→7，外部关键词、三字节费用修正、愚者和模式状态。"
+        + "D1 全部从新版原引擎重捕获并按旧游走种子重录；两条失效前缀改为固定输入，两个新增准备选项复用首根种子，"
+        + "新增愚者、恐惧、极速和关键词用例。D2 重新捕获当前生产协调器请求，前缀及准备根另加固定预算搜索，"
+        + "按当前求解器生成期望结果。原提交哈希保留为语料祖先；具体变更原因及内容哈希见 d1Rerecord/refreeze。"
+        + "格式 9 使用当前 64 字节卡牌与 43856 字节 Battle，固定遗物清单独立编码；RULE 删除派生笔尖下标，"
+        + "SREQ 12 删除失效基线并固定选项顺序。迁移用清理前内核回放核对旧状态哈希，仅改卡牌哈希以转换评分表示；"
+        + "全部录制动作、下界、路线特征与 SRES 6 期望保持不变。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and
@@ -94,7 +96,7 @@ internal static class ManifestBuilder
             using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(metaPath));
             JsonElement metaRoot = meta.RootElement;
             if (metaRoot.GetProperty("formatVersion").GetInt32() != Codec.FormatVersion
-                || metaRoot.GetProperty("battleSize").GetInt32() != Unsafe.SizeOf<Battle>())
+                || metaRoot.GetProperty("battleSize").GetInt32() != BattleCodec.SerializedSize)
                 throw new InvalidDataException($"D1 根 {rootName} 的格式版本或战斗大小不符。");
             string rulesHash = metaRoot.GetProperty("rulesSha256").GetString()
                 ?? throw new InvalidDataException($"D1 根 {rootName} 缺少 rulesSha256。");
@@ -227,7 +229,7 @@ internal static class ManifestBuilder
         {
             writer.WriteStartObject();
             writer.WriteNumber("formatVersion", Codec.FormatVersion);
-            writer.WriteNumber("battleSize", Unsafe.SizeOf<Battle>());
+            writer.WriteNumber("battleSize", BattleCodec.SerializedSize);
             writer.WriteStartObject("provenance");
             writer.WriteString("d1", ManifestProvenance.D1);
             writer.WriteString("d2", ManifestProvenance.D2);

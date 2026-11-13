@@ -99,7 +99,7 @@ public static partial class Kernel
             selectedPriority = priority;
             break;
         }
-        int chosen = x.B.RngStream(RngStream.CombatCardGeneration).NextInt(0, count);
+        int chosen = x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count);
         Pile pile = Pile.Draw;
         int position = -1;
         for (int absolute = x.B.HandCount; absolute < x.B.HandCount + x.B.DrawCount + x.B.DiscardCount; absolute++)

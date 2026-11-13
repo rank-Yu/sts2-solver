@@ -5,6 +5,7 @@ using Sts2Solver.Ai.Combat;
 using Sts2Solver.Simulation.Combat;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Models;
 
 namespace Sts2Solver;
 
@@ -17,6 +18,10 @@ internal static class CombatControllerTestHooks
 
     /// <summary>Drops the next EndTurn action's planned choices, forcing a native unplanned selection.</summary>
     internal static bool ForceChoicePlanUnderflowOnce { get; set; }
+    internal static bool ForceCardChoicePlanUnderflowOnce { get; set; }
+    internal static Action<NativeChoiceRequest>? ChoiceHandedOffForTest { get; set; }
+
+    internal static Func<IReadOnlyList<CardModel>, int, Task<IEnumerable<CardModel>>>? SelectUnplannedCardsForTest { get; set; }
 
     /// <summary>Search count observed when the native turn-setup selector was asked to choose.</summary>
     internal static int TurnSetupSearchCountAtSelection { get; set; } = -1;

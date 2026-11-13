@@ -166,8 +166,7 @@ public sealed class ThornsPower : PowerDef
     {
         if (target != self.Owner || dealer == Limits.NoOwner)
             return;
-        bool omnislice = hasCardSource && Registry.TryCard("OMNISLICE", out ushort omnisliceId) && cardSource.Id == omnisliceId;
-        if (!props.IsPoweredAttack() && !omnislice)
+        if (!props.IsPoweredAttack())
             return;
         Span<byte> targets = stackalloc byte[1];
         targets[0] = dealer;

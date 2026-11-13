@@ -324,7 +324,8 @@ internal static class SolverPanelText
                 enemies = true;
             else if (key is "PowerCount" || key.StartsWith("Power[", StringComparison.Ordinal))
                 powers = true;
-            else if (key is "RelicCount" || key.StartsWith("Relic[", StringComparison.Ordinal))
+            else if (key is "RelicStateCount"
+                     || key.StartsWith("RelicStates[", StringComparison.Ordinal))
                 relics = true;
             else if (key.StartsWith("Player.", StringComparison.Ordinal)
                      || key.StartsWith("Osty.", StringComparison.Ordinal))

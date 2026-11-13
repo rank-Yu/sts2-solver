@@ -35,6 +35,7 @@ internal static class ImportCompare
         Player player = LocalContext.GetMe(state)
             ?? throw new InvalidOperationException("找不到本地玩家。");
         Battle expected;
+        RelicRoster expectedRelics;
         Rules? rules = null;
         try
         {
@@ -46,8 +47,10 @@ internal static class ImportCompare
             GoldenRootRecord golden = GoldenData.Decode(ReadBrotli(Path.Combine(directory, "golden.br")));
             (Battle expectedRoot, int rootIndex) = SelectExpectedRoot(golden, setupSelections, preInjectionSetupRoot);
             expected = expectedRoot;
+            expectedRelics = golden.Roots[rootIndex].Relics;
             if (!compiledRules)
-                rules = RulesCodec.Decode(ReadBrotli(Path.Combine(data, "objects", "rules", sha + ".br")));
+                rules = RulesCodec.Decode(ReadBrotli(Path.Combine(data, "objects", "rules", sha + ".br")))
+                    .WithRelics(golden.Roots[rootIndex].Relics);
             Console.WriteLine($"IMPORT-ROOT index={rootIndex} of={golden.Roots.Count}");
         }
         catch (InvalidDataException error)
@@ -99,6 +102,8 @@ internal static class ImportCompare
             return new(ImportStatus.Rejected, ImportReason.Capacity, error.Region, error.Message);
         }
 
+        if (!expectedRelics.Equivalent(rules!.Relics))
+            return new(ImportStatus.Different, "", "relics", "共享遗物清单与冻结根不同");
         if (SameBytes(expected, actual))
             return new(ImportStatus.Same, "", "", "");
         List<string> diff = BattleDump.Diff(expected, actual, "golden", "import");
@@ -117,6 +122,7 @@ internal static class ImportCompare
         Player player = LocalContext.GetMe(state)
             ?? throw new InvalidOperationException("找不到本地玩家。");
         Battle expected;
+        RelicRoster expectedRelics;
         try
         {
             string directory = Path.Combine(data, "d1", root);
@@ -124,6 +130,7 @@ internal static class ImportCompare
             if (golden.Roots.Count != 1)
                 throw new InvalidDataException($"{root} 的前缀快照有 {golden.Roots.Count} 个根，预期 1 个。");
             expected = golden.Roots[0].Battle;
+            expectedRelics = golden.Roots[0].Relics;
         }
         catch (InvalidDataException error)
         {
@@ -139,6 +146,8 @@ internal static class ImportCompare
             Battle pre = BattleImporter.Import(state, player, rules, ImportOptions.Default);
             PrefixAction[] actions = PrefixPlan.Parse(request);
             PrefixReplayResult replay = PrefixReplay.Replay(pre, rules, actions);
+            if (!expectedRelics.Equivalent(rules.Relics))
+                return new(ImportStatus.Different, "", "relics", "共享遗物清单与冻结根不同");
             if (SameBytes(expected, replay.Battle))
                 return new(ImportStatus.Same, "", "", "");
             List<string> diff = BattleDump.Diff(expected, replay.Battle, "golden", "replay");
@@ -189,7 +198,8 @@ internal static class ImportCompare
             int match = -1;
             for (int candidate = 0; candidate < set.Roots.Count; candidate++)
             {
-                if (used[candidate] || !SameBytes(golden.Roots[index].Battle, set.Roots[candidate]))
+                if (used[candidate] || !golden.Roots[index].Relics.Equivalent(set.Rules.Relics)
+                    || !SameBytes(golden.Roots[index].Battle, set.Roots[candidate]))
                     continue;
                 match = candidate;
                 break;
@@ -208,7 +218,8 @@ internal static class ImportCompare
     }
 
     public static Rules LoadRules(string data, string root)
-        => RulesCodec.Decode(LoadRulesBytes(data, root));
+        => RulesCodec.Decode(LoadRulesBytes(data, root)).WithRelics(GoldenData.Decode(
+            ReadBrotli(Path.Combine(data, "d1", root, "golden.br"))).Roots[0].Relics);
 
     public static byte[] LoadRulesBytes(string data, string root)
     {

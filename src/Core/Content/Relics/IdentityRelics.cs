@@ -12,12 +12,14 @@ namespace Sts2Solver.Content.Relics;
 [ContentId("VAMBRACE")]
 public sealed partial class Vambrace : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override bool IsIdentityContent => true;
 
     public override decimal ModifyBlockMultiplicative(ref Exec x, Listener self, in BlockContext block,
         decimal amount)
     {
-        if (x.B.Relics[self.Index].Counter != 0
+        if (x.B.RelicState(x.R, self.Index).Counter != 0
             || (block.Props & ValueProps.Move) == 0
             || !block.HasCardSource)
         {
@@ -49,12 +51,12 @@ public sealed partial class Vambrace : RelicDef
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        if (x.B.Relics[self.Index].Counter != 0 || !x.VambraceTriggerActive)
+        if (x.B.RelicState(x.R, self.Index).Counter != 0 || !x.VambraceTriggerActive)
             return;
         int relative = play.Position - Piles.Start(x.B, Pile.Play);
         if (relative != x.VambraceTriggerPosition || x.VambraceTriggerSerial != x.LastCardPowerSourceSerial)
             return;
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 }
 
@@ -68,6 +70,8 @@ public sealed partial class Vambrace : RelicDef
 [ContentId("UNSETTLING_LAMP")]
 public sealed partial class UnsettlingLamp : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override bool IsIdentityContent => true;
 
     public override bool IsUnsettlingLamp => true;
@@ -77,7 +81,7 @@ public sealed partial class UnsettlingLamp : RelicDef
     {
         if (cardSourceSerial == 0
             || x.LampTriggerSerial != 0
-            || x.B.Relics[self.Index].Counter != 0
+            || x.B.RelicState(x.R, self.Index).Counter != 0
             || applier != self.Owner
             || Kernel.IsPlayerSide(target))
         {

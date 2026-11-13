@@ -13,7 +13,7 @@ public static class RulesCodec
     internal const uint Magic = 0x454C5552; // "RULE"
 
     /// <summary>Matches <see cref="Rules.SchemaFieldCount"/>; the K0 contract checks both.</summary>
-    internal const int EncodedFieldCount = 30;
+    internal const int EncodedFieldCount = 32;
 
     public static byte[] Encode(Rules rules)
     {
@@ -93,7 +93,7 @@ public static class RulesCodec
             for (int id = 0; id < rules.PowerDeathHistoryRiskTable.Length; id++)
                 writer.Write(rules.PowerDeathHistoryRiskTable[id]);
 
-            // 12-30: scalars
+            // 12-32: scalars
             writer.Write(rules.HasEncounter);
             Codec.WriteString(writer, string.Join("\u001f", rules.EncounterSlotTable));
             writer.Write(rules.RootEnemyCount);
@@ -112,7 +112,11 @@ public static class RulesCodec
             writer.Write(rules.FurCoatSpawnHpOne);
             writer.Write(rules.RootLostHpMask);
             writer.Write(rules.HasHistoryCourse);
-            writer.Write(rules.PenNibRelicIndex);
+            writer.Write(rules.TotalFloor);
+            writer.Write((byte)rules.Dominion.Kind);
+            writer.Write(rules.Dominion.SpawnPower);
+            writer.Write(rules.Dominion.SpawnAmount);
+            writer.Write((byte)rules.Mode);
         });
     }
 
@@ -220,7 +224,12 @@ public static class RulesCodec
             bool furCoatSpawnHpOne = Codec.ReadBool(reader);
             ushort rootLostHpMask = reader.ReadUInt16();
             bool hasHistoryCourse = Codec.ReadBool(reader);
-            sbyte penNibRelicIndex = reader.ReadSByte();
+            int totalFloor = reader.ReadInt32();
+            DominionKind dominionKind = (DominionKind)reader.ReadByte();
+            if (!Enum.IsDefined(dominionKind)) throw new InvalidDataException("未知领域类型。");
+            DominionRules dominion = new(dominionKind, reader.ReadUInt16(), reader.ReadInt32());
+            CombatMode mode = (CombatMode)reader.ReadByte();
+            if (!Enum.IsDefined(mode)) throw new InvalidDataException("未知战斗模式。");
 
             return new Rules(cards, powerVars, potions, relicVars, monsters, spawns, cardPools,
                 potionPool, outOfCombat, rootPotions, risk, hasEncounter, encounterSlots,
@@ -228,7 +237,7 @@ public static class RulesCodec
                 unsettlingLampRelicId, hasIdentityContent, hasShuffleOrderEnchantment,
                 hasBeforeFlushEnchantment, hasTheftContent, hasDecimalCardVars,
                 hasInfiniteHpDisplayMonster, hasPaelsLegion, furCoatSpawnHpOne, rootLostHpMask,
-                hasHistoryCourse, penNibRelicIndex);
+                hasHistoryCourse, totalFloor, dominion, mode);
         });
 
     private static void WriteCardStats(BinaryWriter writer, CardStats stats)
@@ -244,8 +253,9 @@ public static class RulesCodec
         writer.Write((byte)stats.Keywords);
         writer.Write(stats.HasDynamicType);
         writer.Write(stats.MaxUpgradeLevel);
-        writer.Write((byte)stats.Tags);
+        writer.Write((ushort)stats.Tags);
         writer.Write(stats.IsSoul);
+        writer.Write(stats.GainsBlock);
         writer.Write(stats.IsColorless);
         writer.Write(stats.PlaysRecordRisk);
         Codec.WriteDecimals(writer, stats.Vars);
@@ -265,8 +275,9 @@ public static class RulesCodec
             Keywords = (Keywords)ReadByteEnum(reader, "卡牌关键字"),
             HasDynamicType = Codec.ReadBool(reader),
             MaxUpgradeLevel = reader.ReadInt32(),
-            Tags = (CardTag)ReadByteEnum(reader, "卡牌标签"),
+            Tags = (CardTag)reader.ReadUInt16(),
             IsSoul = Codec.ReadBool(reader),
+            GainsBlock = Codec.ReadBool(reader),
             IsColorless = Codec.ReadBool(reader),
             PlaysRecordRisk = Codec.ReadBool(reader),
             Vars = Codec.ReadDecimals(reader),

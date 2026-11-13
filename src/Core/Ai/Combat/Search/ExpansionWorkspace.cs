@@ -689,7 +689,7 @@ internal sealed partial class BeamSolver
                 }
                 bool nonPure = !IsPureTransition(in parent, in _draft, action, _solver._rules, historyRisk);
                 SearchRouteTraits childTraits = ClassifyRouteTraits(parentFacts, features, action,
-                    DeclinedExtraTurn(in parent), nonPure);
+                    DeclinedExtraTurn(in parent, _solver._rules), nonPure);
                 _solver.PocketwatchState(in _draft, out int childPocketwatchThreshold,
                     out int childPocketwatchPlayed, out int childPocketwatchLastTurn);
 

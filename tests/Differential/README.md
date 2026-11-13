@@ -38,9 +38,25 @@ dotnet artifacts/bin/Differential/release/Differential.dll --import-negative
 
 - `--import-compare`：建原生状态、导入 `Battle`，与 `d1/<root>/golden.br` 的期望 `BATL` 逐字节比较；`--compiled-rules` 改用 `RulesCompiler.Compile` 的输出，而不是解码冻结的规则对象。
 - `--rules-compare`：比较 `RulesCodec.Encode` 的结果与冻结规则对象。
-- `--rules-table-check`：检查镜像覆盖率静态表。
+- `--rules-table-check`：检查风险表覆盖所有已注册内容，且所有表项都属于当前原生内容；单独列出未映射的原生 id。
 - `--config-compare`：比较重组的请求与 `config.br`，并检查 `scoreHash`、`boundHash`。
-- `--import-negative`：验证私有字段缺失、未认领状态、第三方内容三类拒绝。
+- `--import-negative`：验证私有字段缺失、未认领状态、第三方内容和必需回血变量缺失的拒绝；用原生 History 检查 0、255、256、65535 次命中可导入，65536 次明确拒绝。
+
+## 原生效果定点对照
+
+对非终局用例直接指定动作，逐步比较内核回放与原生动作的完整稳定状态，避免依赖搜索器是否选中待测牌：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check \
+  tests/Differential/fixtures/cross-character-arrow.json \
+  generate:HOBBLING_SHOT generate:HOBBLING_SHOT play:1:2 generate:HOBBLING_SHOT
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check \
+  tests/Differential/fixtures/cross-character-arrow.json replace:HOBBLING_SHOT play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check \
+  tests/Differential/fixtures/cross-character-arrow.json transform:HOBBLING_SHOT play:0:2
+```
+
+请求使用现有 `OfflineRequest` 格式。`play:<手牌下标>:<目标owner>[:选择位集]` 执行指定出牌，首个敌人 owner 为 2，无目标为 255；`end` 结束回合。`generate:<牌id>`、`replace:<牌id>`、`transform:<牌id>` 分别对照生成、单张替换和批量变牌入口（变牌选中首张手牌），核对原生箭槽数和每个槽的状态，再导入新根继续检查后续动作。箭槽检查覆盖首次获得、已有箭槽不重复增加，以及射出或销毁的箭不被重新创建。回归输入见 [跨角色箭槽场景](fixtures/cross-character-arrow.json)。
 
 ## 回合准备枚举
 
@@ -106,7 +122,7 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
 
 ## 补录 D2 成员请求
 
-`--capture-d2 <目录>` 在给定根上建出生产开局，只跑第 1 回合的一次生产搜索，把 `CombatSearchCoordinator` 实际发出的每个成员 `SearchCase` 按当前 `SREQ` 编码写成 `<目录>/<root>/requests/<sha256>.request.br`，同时写 `<目录>/<root>/capture.json` 和汇总 `<目录>/capture-summary.json`。成员搜索使用 D2 回归预算（去掉墙钟、固定节点/内存上限），所以同一输入重复录入得到同样的请求；协调器的组合、药水阶段、女王与准备补搜成员仍走生产计划。
+`--capture-d2 <目录>` 在给定根上建出生产开局，只跑输入稳定边界的一次生产搜索，把 `CombatSearchCoordinator` 实际发出的每个成员 `SearchCase` 按当前 `SREQ` 编码写成 `<目录>/<root>/requests/<sha256>.request.br`，同时写 `<目录>/<root>/capture.json` 和汇总 `<目录>/capture-summary.json`。成员搜索使用 D2 回归预算（去掉墙钟、固定节点/内存上限），所以同一输入重复录入得到同样的请求；协调器的组合、药水阶段、女王与准备补搜成员仍走生产计划。
 
 ```bash
 # 单个根
@@ -118,7 +134,7 @@ dotnet artifacts/bin/Differential/release/Differential.dll --offline-combat \
   --capture-d2 .local/d2-capture --roots-file .local/d2-capture-roots.txt --jobs 1
 ```
 
-不同根需要不同生产设置时分次运行，后一次不会删除前一次的根目录。入口只处理第 1 回合的普通 Play 根；开局就带回合准备选择的根会显式失败。当前补录使用的根和设置：
+不同根需要不同生产设置时分次运行，后一次不会删除前一次的根目录。入口处理普通 Play 根，包括场景明确指定的较后回合；开局就带回合准备选择的根会显式失败。当前补录使用的根和设置：
 
 | 分支 | 根 | 设置来源 |
 | --- | --- | --- |
@@ -139,7 +155,7 @@ dotnet run --project tests/Golden -c Release --no-build -- \
   --add-requests .local/d2-capture --reason "<补录原因>"
 ```
 
-`--add-requests` 会按 `capture.json` 累计捕获调用数，把新请求按编码后的 SHA-256 去重写入 `d2/requests`，补上 `rules-index`，再重算全部期望结果并重写 manifest。已存在的请求和期望结果不改写；旧请求的期望结果逐字节不变。
+`--add-requests` 会按 `capture.json` 累计捕获调用数，把新请求按编码后的 SHA-256 去重写入 `d2/requests`，补上 `rules-index`，再重算全部期望结果并重写 manifest。相同的请求去重；期望结果重新计算，只有结果字节变化时才改写。
 
 ## 原版逐动作与终局对照
 

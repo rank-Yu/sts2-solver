@@ -279,15 +279,15 @@ public struct Battle
     /// Offset of <see cref="Cards"/>: the end of the packed header. The complete header (including
     /// <see cref="HistoryCourseCard"/>) is <c>PackedSize</c> bytes for an empty state.
     /// </summary>
-    public const int HeaderSize = 3860;
+    public const int HeaderSize = 2896;
 
     /// <summary>
     /// <see cref="System.Runtime.CompilerServices.Unsafe.SizeOf{T}"/> of the complete struct. The
-    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 92 = 62740</c> bytes; the
-    /// struct itself is 62744 bytes after its 4-byte tail alignment. Both are below the CLR's
+    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 64 = 43856</c> bytes; the
+    /// struct itself is 43856 bytes with no trailing padding. Both are below the CLR's
     /// 65,535-byte array-element limit.
     /// </summary>
-    public const int ExpectedSize = 62744;
+    public const int ExpectedSize = 43856;
 
     public int Round;
     public int PlayerTurn;
@@ -317,7 +317,7 @@ public struct Battle
     public byte RosterCount;
 
     public byte PowerCount;
-    public byte RelicCount;
+    public byte RelicStateCount;
     public byte OrbCount;
     public byte OrbCapacity;
     public byte PotionSlotCount;
@@ -325,9 +325,7 @@ public struct Battle
     /// <summary>Used entries of <see cref="DecimalVars"/> (canonical: contiguous 0..count-1).</summary>
     public byte DecimalVarCount;
 
-    // Explicit padding: DetachedCards is 276 bytes and DecimalVars is 8-byte aligned, so one byte
-    // leaves the decimal array at an 8-byte offset. Written as an explicit byte so the header has no
-    // compiler-inserted padding; the decoder and projection preserve it as 0.
+    // Explicit alignment bytes keep all padding deterministic in the packed header.
     private byte _padding1;
 
     /// <summary>
@@ -336,6 +334,7 @@ public struct Battle
     /// header byte image so both the fingerprint and equality cover it.
     /// </summary>
     public DetachedCardArray DetachedCards;
+    private uint _paddingAfterDetached;
 
     /// <summary>
     /// Exact decimal card-variable deltas (Thrash). A card references a slot through
@@ -356,7 +355,8 @@ public struct Battle
     public RngStreams Rng;
     public EnemyArray Enemies;
     public PowerArray Powers;
-    public RelicArray Relics;
+    public RelicStateArray RelicStates;
+    public RelicStateFlagsArray RelicStateFlags;
     public OrbArray Orbs;
 
     /// <summary>
@@ -365,6 +365,10 @@ public struct Battle
     /// reference. Start-phase roots hold the previous turn; ContinuePlayerPlayPhase separates it into
     /// Exec before the new turn's draw/auto-play hooks. The snapshot itself has no source mark.
     /// </summary>
+    public FoolState Fool;
+    private ulong _paddingBeforeHistory;
+    private ulong _paddingBeforeHistory2;
+
     public Card HistoryCourseCard;
 
     /// <summary>
@@ -373,6 +377,16 @@ public struct Battle
     /// packed state ends with the cards actually in use.
     /// </summary>
     public CardArray Cards;
+
+    public readonly Relic GetRelic(Rules rules, int index) => rules.Relics.Read(this, index);
+
+    [System.Diagnostics.CodeAnalysis.UnscopedRef]
+    public ref RelicState RelicState(Rules rules, int index)
+        => ref RelicStates[rules.Relics.StateSlot(index)];
+
+    [System.Diagnostics.CodeAnalysis.UnscopedRef]
+    public ref RelicFlags RelicFlags(Rules rules, int index)
+        => ref RelicStateFlags[rules.Relics.StateSlot(index)];
 
     public readonly int CardCount => HandCount + DrawCount + DiscardCount + ExhaustCount + PlayCount;
 

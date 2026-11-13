@@ -287,7 +287,8 @@ public sealed class CrabRagePower : PowerDef
 
     public override IReadOnlyList<string> VarNames => ["StrengthPower", "Block"];
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (creature == self.Owner || !Kernel.IsEnemyOwner(creature))
             return;

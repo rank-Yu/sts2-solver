@@ -178,22 +178,21 @@ public sealed class SecondWind : CardDef
 [ContentId("EXPECT_A_FIGHT")]
 public sealed class ExpectAFight : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["CalculationBase", "CalculationExtra"];
+    public override IReadOnlyList<string> VarNames => ["Block", "Energy"];
 
     public override void OnPlay(ref Exec x)
     {
-        int strength = Kernel.GetAmount(x.B, Limits.PlayerOwner, Registry.PowerId<Powers.StrengthPower>());
-        decimal block = CardEffects.Var(x, 0)
-            + CardEffects.Var(x, 1) * Math.Max(0, strength);
-        Kernel.GainBlock(ref x, Limits.PlayerOwner, block, ValueProps.Move, fromCard: true);
-    }
-
-    public override bool TryGetCalculatedDamage(ref Exec x, in Card self, byte target, bool selfInHand, out decimal damage)
-    {
-        int strength = Kernel.GetAmount(x.B, Limits.PlayerOwner, Registry.PowerId<Powers.StrengthPower>());
-        damage = BodySlam.SelfVar(x, self, 0)
-            + BodySlam.SelfVar(x, self, 1) * Math.Max(0, strength);
-        return true;
+        CardEffects.GeneralBlock(ref x, 0);
+        if (x.NeedsChoice)
+            return;
+        for (int index = 0; index < x.B.HandCount; index++)
+        {
+            ref Card card = ref Piles.At(ref x.B, Pile.Hand, index);
+            if (x.R.Card(card.Id, card.Upgrade).Type == CardType.Attack
+                && (card.Flags & CardFlags.CostsX) == 0)
+                Kernel.AddEnergyCostModifier(ref card, -(int)CardEffects.Var(x, 1),
+                    CostType.Relative, CostExpiration.WhenPlayed, reduceOnly: false);
+        }
     }
 }
 
@@ -233,7 +232,10 @@ public sealed class ForgottenRitual : CardDef
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
     public override void OnPlay(ref Exec x)
-        => Kernel.GainEnergy(ref x, CardEffects.Var(x, 0));
+    {
+        if (x.B.Counter(Counter.CardsExhaustedThisTurn) > 0)
+            Kernel.GainEnergy(ref x, CardEffects.Var(x, 0));
+    }
 }
 
 [ContentId("DRUM_OF_BATTLE")]

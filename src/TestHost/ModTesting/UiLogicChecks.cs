@@ -22,6 +22,7 @@ internal static class UiLogicChecks
         int failed = 0;
         void Check(string name, Action body)
         {
+            ModLog.Info($"[Sts2Solver] UI_LOGIC_CHECK name={name}");
             try
             {
                 body();

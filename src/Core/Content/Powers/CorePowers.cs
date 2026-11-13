@@ -47,7 +47,7 @@ public sealed class VulnerablePower : PowerDef
         // ModifyDamageMirrors.HandleVulnerablePower calls PaperPhrog.ModifyVulnerableMultiplier when the
         // attacker's player owns the relic: it adds 0.25 unless the relic owner is the target.
         if (damage.Dealer == Limits.PlayerOwner && damage.Target != Limits.PlayerOwner
-            && OwnsPaperPhrog(x.B))
+            && OwnsPaperPhrog(x.B, x.R))
             multiplier += 0.25m;
         // ModifyDamageMirrors.HandleVulnerablePower adds CrueltyPower.Amount / 100m; the native
         // CrueltyPower.ModifyVulnerableMultiplier uses the same percentage divisor and reads the
@@ -72,13 +72,13 @@ public sealed class VulnerablePower : PowerDef
     }
 
     /// <summary><c>Player.GetRelic&lt;PaperPhrog&gt;()</c> for the single player.</summary>
-    private static bool OwnsPaperPhrog(in Battle battle)
+    private static bool OwnsPaperPhrog(in Battle battle, Rules rules)
     {
         if (!Registry.TryRelic("PAPER_PHROG", out ushort id))
             return false;
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if (relic.Id == id)
                 return true;
         }
@@ -114,9 +114,9 @@ public sealed class WeakPower : PowerDef
         if (damage.Target == Limits.PlayerOwner
             && Registry.TryRelic("PAPER_KRANE", out ushort paperKrane))
         {
-            for (int index = 0; index < x.B.RelicCount; index++)
+            for (int index = 0; index < x.R.Relics.Count; index++)
             {
-                ref readonly Relic relic = ref x.B.Relics[index];
+                Relic relic = x.B.GetRelic(x.R, index);
                 if (relic.Id == paperKrane && (relic.Flags & RelicFlags.Melted) == 0)
                 {
                     multiplier -= 0.15m;
@@ -282,7 +282,9 @@ public sealed class BufferPower : PowerDef
 
     public override decimal ModifyHpLostAfterOstyLate(ref Exec x, Listener self, in HpLossContext loss,
         decimal amount)
-        => loss.Target == self.Owner ? 0m : amount;
+        => loss.Target == self.Owner
+            && !(loss.HasCardSource && Registry.Card(loss.CardSource.Id).NativeId == "BRIGHTEST_FLAME")
+                ? 0m : amount;
 
     public override void AfterModifyingHpLostAfterOsty(ref Exec x, Listener self)
         => Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, x.B.Powers[self.Index].Amount - 1));

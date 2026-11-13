@@ -113,7 +113,7 @@ internal static class SetupEnumerationCheck
         CombatState combat = BuildToPlay(loop, request, turnOneSelector: 0);
         _ = combat;
         TurnSetupRootCapture.BeginBuild(captureStartBattle: true);
-        using (CardSelectCmd.PushSelector(new TurnSetupCardSelector(0), localOnly: true))
+        using (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.UseLocalSelector(new TurnSetupCardSelector(0)))
             EndTurnAndWait(loop, expectedTurn: 2);
         CombatState secondCombat = CombatManager.Instance.DebugOnlyGetState()
             ?? throw new InvalidDataException("第二回合找不到战斗状态。");
@@ -253,7 +253,7 @@ internal static class SetupEnumerationCheck
         BuildToPlay(loop, request, turnOneSelector: 0);
         TurnSetupRootCapture.BeginBuild(captureStartBattle: true);
         TurnSetupCardSelector selector = new(pages);
-        using (CardSelectCmd.PushSelector(selector, localOnly: true))
+        using (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.UseLocalSelector(selector))
             EndTurnAndWait(loop, expectedTurn: 2);
         CombatState secondCombat = CombatManager.Instance.DebugOnlyGetState()
             ?? throw new InvalidDataException("第二回合找不到战斗状态。");
@@ -268,7 +268,7 @@ internal static class SetupEnumerationCheck
         int turnOneSelector)
     {
         TurnSetupRootCapture.BeginBuild();
-        using (CardSelectCmd.PushSelector(new TurnSetupCardSelector(turnOneSelector), localOnly: true))
+        using (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.UseLocalSelector(new TurnSetupCardSelector(turnOneSelector)))
         {
             Task<CombatState> build = ScenarioBuilder.BuildAsync(new OfflineCombatWaiter(loop), request,
                 skipInitialInjection: false);

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fool-show-off-instances",
+  "characterId": "FOOL",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "CONTINUE113BLOSSOM_SHOT1",
+  "ascension": 0,
+  "enemyCurrentHp": 20,
+  "initialPlayerEnergy": 6,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "SHOW_OFF",
+      "pile": "Hand",
+      "count": 2,
+      "treatAsDeckCard": true
+    },
+    {
+      "cardId": "RAIN_SHOT",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "gameModeForTest": "Standard"
+}

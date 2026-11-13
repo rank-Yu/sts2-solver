@@ -137,7 +137,7 @@ public sealed class Entrench : CardDef
 [ContentId("EXTERMINATE")]
 public sealed class Exterminate : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.Attack(ref x, CardEffects.Var(x, 0), (int)CardEffects.Var(x, 1));
@@ -215,7 +215,7 @@ public sealed class Outmaneuver : CardDef
 [ContentId("PECK")]
 public sealed class Peck : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.Attack(ref x, CardEffects.Var(x, 0), (int)CardEffects.Var(x, 1));
@@ -242,11 +242,11 @@ public sealed class Rebound : CardDef
 [ContentId("RIP_AND_TEAR")]
 public sealed class RipAndTear : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     // RandomTargetAttackCardMirrors.RipAndTearOnPlay: two hits on random opponents (each hit rerolls).
     public override void OnPlay(ref Exec x)
-        => CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: 2);
+        => CardEffects.Attack(ref x, CardEffects.Var(x, 0), hitCount: (int)CardEffects.Var(x, 1));
 }
 
 [ContentId("SQUASH")]

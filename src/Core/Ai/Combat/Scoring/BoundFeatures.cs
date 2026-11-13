@@ -111,7 +111,7 @@ internal sealed class BoundFeatures
     /// </summary>
     public bool HasRisk(in Battle battle) => (battle.Flags & BattleFlags.HasRisk) != 0;
 
-    public BoundValues Evaluate(in Battle battle, int explicitPotionStrategicCost,
+    public BoundValues Evaluate(in Battle battle, Rules rules, int explicitPotionStrategicCost,
         bool includeSmartPotionLowerBound = false)
     {
         // the existing search's RemainingHealingPotentialCore: an unresolved risk invalidates the
@@ -120,8 +120,8 @@ internal sealed class BoundFeatures
             ? int.MaxValue
             : _config.Certificate switch
             {
-                HealingCertificate.Component => ComponentRemaining(battle),
-                HealingCertificate.KnownNative => KnownNativeRemaining(battle),
+                HealingCertificate.Component => ComponentRemaining(battle, rules),
+                HealingCertificate.KnownNative => KnownNativeRemaining(battle, rules),
                 _ => int.MaxValue,
             };
         int futureUsed = _config.RequireCertifiedHealingProof && _config.PruneEqualHp
@@ -281,8 +281,8 @@ internal sealed class BoundFeatures
         }
         // These existing pruning estimates count enemy/gold payouts only once. They are not a
         // certificate for terminating the entire portfolio when enemies or cards can recur.
-        for (int i = 0; i < battle.RelicCount; i++)
-            if (battle.Relics[i].Id == BookRepairKnifeRelicId || battle.Relics[i].Id == DragonFruitRelicId)
+        for (int i = 0; i < rules.Relics.Count; i++)
+            if (rules.Relics.Id(i) == BookRepairKnifeRelicId || rules.Relics.Id(i) == DragonFruitRelicId)
                 return false;
         bool hasFiniteHealCard = false;
         for (int i = 0; i < battle.CardCount; i++)
@@ -298,7 +298,7 @@ internal sealed class BoundFeatures
                     && Contains(NotYetLoopEnchantments, (ushort)(card.EnchantmentId - 1)))
                 return false;
         }
-        if (hasFiniteHealCard && HasNotYetLoopRisk(battle))
+        if (hasFiniteHealCard && HasNotYetLoopRisk(battle, rules))
             return false;
         PruningHealing value = _config.Certificate == HealingCertificate.Component
             ? ComponentPruningHealing(battle, rules, victoryTarget: true)
@@ -316,7 +316,7 @@ internal sealed class BoundFeatures
 
     private PruningHealing ComponentPruningHealing(in Battle battle, Rules rules, bool victoryTarget = false)
     {
-        if (HasInCombatPotionGeneration(battle))
+        if (HasInCombatPotionGeneration(battle, rules))
             return new PruningHealing(int.MaxValue, 0);
         for (int index = 0; index < battle.EnemyCount; index++)
         {
@@ -326,7 +326,7 @@ internal sealed class BoundFeatures
         long directHeal = 0;
         long maxHpGain = 0;
         bool hasNotYet = HasCard(in battle, NotYetCardId);
-        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle);
+        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle, rules);
         int cardCount = battle.CardCount;
         for (int index = 0; index < cardCount; index++)
         {
@@ -353,9 +353,9 @@ internal sealed class BoundFeatures
             }
             return new PruningHealing(int.MaxValue, 0);
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) != 0 || !_config.ComponentUnsafeRelic[relic.Id])
                 continue;
             if (relic.Id == BookRepairKnifeRelicId)
@@ -431,12 +431,12 @@ internal sealed class BoundFeatures
 
     private PruningHealing KnownNativePruningHealing(in Battle battle, Rules rules)
     {
-        if (HasInCombatPotionGeneration(battle))
+        if (HasInCombatPotionGeneration(battle, rules))
             return new PruningHealing(int.MaxValue, 0);
         long directHeal = 0;
         long maxHpGain = 0;
         bool hasNotYet = HasCard(in battle, NotYetCardId);
-        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle);
+        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle, rules);
         int cardCount = battle.CardCount;
         for (int index = 0; index < cardCount; index++)
         {
@@ -468,9 +468,9 @@ internal sealed class BoundFeatures
             if (_config.RegenPower[power.Id] && power.Owner == Limits.PlayerOwner)
                 regen += Math.Max(0, power.Amount);
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) != 0 || !_config.KnownBlockingRelic[relic.Id])
                 continue;
             if (relic.Id == BookRepairKnifeRelicId)
@@ -552,9 +552,9 @@ internal sealed class BoundFeatures
                 return false;
             }
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) == 0
                 && Registry.Relic(relic.Id).GainsGoldInCombat)
             {
@@ -619,7 +619,7 @@ internal sealed class BoundFeatures
     /// Unknown combinations stay unknown; Feed deliberately ignores these paths because its max-HP
     /// payout is only a finite approximation requested for this bound.
     /// </summary>
-    private static bool HasNotYetLoopRisk(in Battle battle)
+    private static bool HasNotYetLoopRisk(in Battle battle, Rules rules)
     {
         for (int index = 0; index < battle.CardCount; index++)
         {
@@ -637,9 +637,9 @@ internal sealed class BoundFeatures
             if (Contains(NotYetLoopPowers, battle.Powers[index].Id))
                 return true;
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            if (Contains(NotYetLoopRelics, battle.Relics[index].Id))
+            if (Contains(NotYetLoopRelics, rules.Relics.Id(index)))
                 return true;
         }
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
@@ -661,9 +661,9 @@ internal sealed class BoundFeatures
             if (ContentCanProduceReplayEffect(Registry.Power(battle.Powers[index].Id)))
                 return true;
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            if (ContentCanProduceReplayEffect(Registry.Relic(battle.Relics[index].Id)))
+            if (ContentCanProduceReplayEffect(Registry.Relic(rules.Relics.Id(index))))
                 return true;
         }
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
@@ -708,7 +708,7 @@ internal sealed class BoundFeatures
     /// potion), so the fruit-juice bound stays unknown whenever one is present. Entropic Brew is also
     /// covered because its own definition declares out-of-combat potion generation.
     /// </summary>
-    private static bool HasInCombatPotionGeneration(in Battle battle)
+    private static bool HasInCombatPotionGeneration(in Battle battle, Rules rules)
     {
         for (int index = 0; index < battle.CardCount; index++)
         {
@@ -722,9 +722,9 @@ internal sealed class BoundFeatures
             if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
                 return true;
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ContentDef def = Registry.Relic(battle.Relics[index].Id);
+            ContentDef def = Registry.Relic(rules.Relics.Id(index));
             if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
                 return true;
         }
@@ -773,16 +773,16 @@ internal sealed class BoundFeatures
             ? 0
             : left >= int.MaxValue / right ? int.MaxValue : left * right;
 
-    private int ComponentRemaining(in Battle battle)
+    private int ComponentRemaining(in Battle battle, Rules rules)
     {
         for (int index = 0; index < battle.EnemyCount; index++)
         {
             if (_config.ComponentUnsafeMonster[battle.Enemies[index].MonsterId])
                 return int.MaxValue;
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            if (_config.ComponentUnsafeRelic[battle.Relics[index].Id])
+            if (_config.ComponentUnsafeRelic[rules.Relics.Id(index)])
                 return int.MaxValue;
         }
         int cardCount = battle.CardCount;
@@ -829,7 +829,7 @@ internal sealed class BoundFeatures
             && _config.ReattachSafeMonster[battle.Enemies[enemy].MonsterId];
     }
 
-    private int KnownNativeRemaining(in Battle battle)
+    private int KnownNativeRemaining(in Battle battle, Rules rules)
     {
         int cardCount = battle.CardCount;
         for (int index = 0; index < cardCount; index++)
@@ -847,9 +847,9 @@ internal sealed class BoundFeatures
             if (_config.RegenPower[power.Id] && power.Owner == Limits.PlayerOwner)
                 regen += Math.Max(0, power.Amount);
         }
-        for (int index = 0; index < battle.RelicCount; index++)
+        for (int index = 0; index < rules.Relics.Count; index++)
         {
-            ref readonly Relic relic = ref battle.Relics[index];
+            Relic relic = battle.GetRelic(rules, index);
             if ((relic.Flags & RelicFlags.Melted) == 0 && _config.KnownBlockingRelic[relic.Id])
                 return int.MaxValue;
         }

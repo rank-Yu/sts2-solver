@@ -34,16 +34,7 @@ internal static class PotionStageContracts
             && quality.ComparePolicyResults(free, paid) > 0
             && quality.ComparePolicyResults(expensive, free) > 0,
             "potion cost chooses the winner in either discovery order");
-        foreach (int deficit in new[] { 0, 100 })
-        {
-            BeamSolver legacy = new(fixture.Rules, options with
-            {
-                PotionFreeBaseline = new(true, deficit, 75 - deficit, 1),
-            });
-            Assert(legacy.IsPolicyEligible(paid)
-                && legacy.ComparePolicyResults(paid, free) < 0,
-                "legacy serialized baselines do not influence eligibility or ordering");
-        }
+
         BeamSolver disabled = new(fixture.Rules, options with
         {
             Potions = options.Potions with { ForceAllDisabled = true },

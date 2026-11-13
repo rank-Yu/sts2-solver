@@ -101,13 +101,18 @@ internal static class TurnEndSelfDamageChecks
         // Burn's 7 is blocked first (3 block leaves 4, Tungsten Rod reduces it to 3); the enemy's
         // 10 then spends no block and Tungsten reduces it to 9. Ignoring Burn would project 6.
         Battle burning = BuildBattle(nibbit, block: 3, hand: [new Card { Id = burn }]);
-        AddRelic(ref burning, tungsten);
+        Rules plainRules = rules;
+        Scorer plainScorer = scorer;
+        TestRelics.Set(ref burning, ref rules, new Relic { Id = tungsten });
+        scorer = new Scorer(scorer.RulesForCodec.WithRules(rules));
         int projected = ProjectLoss(scorer, in burning);
         int actual = EndTurnHpLoss(rules, ref burning);
         Check(projected == 12 && actual == 12,
             $"BURN 与攻击的格挡顺序不符：projected={projected} actual={actual}");
 
         // Regret 3 is unblockable: it must not spend the 5 block that the 10 attack consumes.
+        rules = plainRules;
+        scorer = plainScorer;
         Battle regretBattle = BuildBattle(nibbit, block: 5,
             hand: [new Card { Id = regret }, Filler(filler), Filler(filler)]);
         projected = ProjectLoss(scorer, in regretBattle);
@@ -211,10 +216,6 @@ internal static class TurnEndSelfDamageChecks
         return battle;
     }
 
-    private static void AddRelic(ref Battle battle, ushort relic)
-    {
-        battle.Relics[battle.RelicCount++] = new Relic { Id = relic };
-    }
 
     private static Card Filler(ushort id) => new() { Id = id, BaseCost = 1, BaseStarCost = -1 };
 

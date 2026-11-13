@@ -17,6 +17,6 @@ public sealed class MysticLighter : RelicDef
     {
         if (!damage.Props.IsPoweredAttack() || !damage.HasCardSource || damage.CardSource.EnchantmentId == 0)
             return 0m;
-        return x.R.RelicVar(x.B.Relics[self.Index].Id, 0);
+        return x.R.RelicVar(x.R.Relics.Id(self.Index), 0);
     }
 }

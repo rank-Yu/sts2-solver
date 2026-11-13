@@ -117,9 +117,10 @@ internal static class LiveCompare
                 continue;
             }
             Battle actualBattle;
+            RelicRoster actualRelics;
             try
             {
-                actualBattle = BattleCodec.Decode(battleBytes);
+                actualBattle = BattleCodec.Decode(battleBytes, out actualRelics);
             }
             catch (InvalidDataException error)
             {
@@ -127,7 +128,7 @@ internal static class LiveCompare
                 rejected++;
                 continue;
             }
-            if (!ImportCompare.SameBytes(expectedBattle, actualBattle))
+            if (!expectedRoot.Relics.Equivalent(actualRelics) || !ImportCompare.SameBytes(expectedBattle, actualBattle))
             {
                 List<string> diff = BattleDump.Diff(expectedBattle, actualBattle, "golden", "live");
                 ok = false;

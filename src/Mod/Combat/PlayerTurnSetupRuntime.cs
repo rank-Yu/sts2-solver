@@ -118,7 +118,7 @@ internal static class PlayerTurnSetupRuntime
             return false;
         }
         ActionDeployer.ReleaseEndTurnSelectorForSetup();
-        if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
+        if (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) != null || MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.LocalSelector != null)
         {
             ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=selector_active");
             return false;
@@ -206,7 +206,7 @@ internal static class PlayerTurnSetupRuntime
                     {
                         List<string> diff = [.. BattleReconciler.Diff(predicted, liveCompared)];
                         CombatLogRecorder.RecordDeviation("turn_setup_start", setupTurn, null, diff,
-                            predicted, liveCompared);
+                            predicted, liveCompared, rules);
                         ModLog.Warn(
                             $"[Sts2Solver] TURN_SETUP_START_PREDICTION_MISMATCH " +
                             $"turn={setupTurn} " +
@@ -337,7 +337,7 @@ internal static class PlayerTurnSetupRuntime
         TestInterceptCount++;
         TestLastInterceptTurn = setupTurn;
         TestLastInterceptTakingExtraTurn = takingExtraTurn;
-        TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
+        TestSelectorNullAtLastIntercept = MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) == null;
         TestLastSetupSearchOnly = searchOnly;
 #endif
         if (searchOnly)

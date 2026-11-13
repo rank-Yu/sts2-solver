@@ -4,12 +4,12 @@ namespace Sts2Solver.Ai.Combat.Policy;
 
 /// <summary>
 /// One owned relic whose counter carries into the next combat. <see cref="Slot"/> indexes
-/// <see cref="Battle.Relics"/>; the counter is read modulo <see cref="Period"/>, and
+/// <see cref="Rules.Relics"/>; the counter is read modulo <see cref="Period"/>, and
 /// <see cref="Goal"/> is the value one short of the relic triggering, so the relic fires at the first
 /// opportunity of the next combat. A won route that ends with the counter on the goal earns
 /// <see cref="HpAllowance"/> once; an allowance of zero still prefers the goal among routes of equal HP.
 /// </summary>
-internal readonly record struct RelicCounterTarget(byte Slot, byte Period, byte Goal, int HpAllowance);
+internal readonly record struct RelicCounterTarget(ushort Slot, byte Period, byte Goal, int HpAllowance);
 
 /// <summary>
 /// What a state's relic counters earn: the credit and number of the goals a won state meets. Both are zero
@@ -17,7 +17,7 @@ internal readonly record struct RelicCounterTarget(byte Slot, byte Period, byte 
 /// </summary>
 internal readonly record struct RelicCounterGoals(int HpCredit, int Count)
 {
-    internal static RelicCounterGoals Evaluate(in Battle battle, RelicCounterTarget[] targets, bool won)
+    internal static RelicCounterGoals Evaluate(in Battle battle, RelicCounterTarget[] targets, bool won, Rules rules)
     {
         if (!won)
             return default;
@@ -25,7 +25,7 @@ internal readonly record struct RelicCounterGoals(int HpCredit, int Count)
         int count = 0;
         foreach (RelicCounterTarget target in targets)
         {
-            if (Value(in battle, target) == target.Goal)
+            if (Value(in battle, target, rules) == target.Goal)
             {
                 credit = checked(credit + target.HpAllowance);
                 count++;
@@ -35,9 +35,9 @@ internal readonly record struct RelicCounterGoals(int HpCredit, int Count)
     }
 
     /// <summary>The target relic's counter in its period, the value compared with <see cref="RelicCounterTarget.Goal"/>.</summary>
-    internal static int Value(in Battle battle, RelicCounterTarget target)
+    internal static int Value(in Battle battle, RelicCounterTarget target, Rules rules)
     {
-        int value = battle.Relics[target.Slot].Counter % target.Period;
+        int value = battle.GetRelic(rules, target.Slot).Counter % target.Period;
         return value < 0 ? value + target.Period : value;
     }
 }

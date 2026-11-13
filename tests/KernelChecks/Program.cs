@@ -15,8 +15,14 @@ using Sts2Solver.Content.Relics;
 // content assembly. Differential equivalence with the existing engine is checked separately by the
 // offline harness probe.
 Registry.RegisterTestAssembly(Assembly.GetExecutingAssembly());
+CardCostModifierChecks.Run();
+RelicStorageChecks.Run();
 
-Check(Unsafe.SizeOf<Card>() == 92, $"Card 应为 92 字节，实际 {Unsafe.SizeOf<Card>()}");
+Check(Unsafe.SizeOf<CostModifier>() == 3, "费用修饰应为 3 字节");
+Check(Unsafe.SizeOf<Card>() == 64, $"Card 应为 64 字节，实际 {Unsafe.SizeOf<Card>()}");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsAddedFromOutside)) == 62
+    && (int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsRemovedFromOutside)) == 63,
+    "外部关键词记录应占用 Card 末尾两个字节");
 Check(Unsafe.SizeOf<Enemy>() == 64, $"Enemy 应为 64 字节，实际 {Unsafe.SizeOf<Enemy>()}");
 Check(Unsafe.SizeOf<Power>() == 24, $"Power 应为 24 字节，实际 {Unsafe.SizeOf<Power>()}");
 Check(Unsafe.SizeOf<Orb>() == 8, $"Orb 应为 8 字节，实际 {Unsafe.SizeOf<Orb>()}");
@@ -32,9 +38,9 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard))
         + Unsafe.SizeOf<Card>() == Battle.HeaderSize,
     "HistoryCourseCard 应紧挨在 Cards 之前");
-Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 62740,
-    "满牌打包前缀应为 62740 字节");
-Check(Battle.ExpectedSize == 62744, $"Battle 满容量大小应为 62744，实际 {Battle.ExpectedSize}");
+Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 43856,
+    "满牌打包前缀应为 43856 字节");
+Check(Battle.ExpectedSize == 43856, $"Battle 满容量大小应为 43856，实际 {Battle.ExpectedSize}");
 Check(Battle.ExpectedSize <= 65535, "Battle 结构体应不超过 .NET 数组元素上限");
 // Header anchors: every field starts where the preceding explicit field size ends, so the widened
 // pile counts and the alignment byte introduce no compiler-inserted padding.
@@ -44,34 +50,40 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
     "MaxHandSize 偏移");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DetachedCards)) == 52,
     "DetachedCards 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 328,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 248,
     "DecimalVars 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 392,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 312,
     "Roster 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 404,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 324,
     "Potions 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 416,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 336,
     "Player 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 448,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 368,
     "Counters 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 640,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 560,
     "Rng 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 1000,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 960,
     "Enemies 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1768,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1728,
     "Powers 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Relics)) == 3304,
-    "Relics 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 3688,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStates)) == 2400,
+    "RelicStates 偏移");
+Check(Unsafe.SizeOf<RelicState>() == 8 && Unsafe.SizeOf<RelicStateArray>() == 192
+    && Unsafe.SizeOf<RelicStateFlagsArray>() == 24, "遗物动态状态大小");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStateFlags)) == 2592,
+    "RelicStateFlags 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 2616,
     "Orbs 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 3768,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2832,
     "HistoryCourseCard 偏移");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");
 
+PowerCapacityChecks.Run();
 CheckRng();
 CheckGrowthRewards();
 Rules rules = SliceRules();
+CheckVersion113State(rules);
 SearchChecks.Check();
 IncumbentAndLoopChecks.Check(rules);
 GoldHookChecks.Check();
@@ -82,6 +94,8 @@ bool lateRegistrationThrew = false;
 try
 {
     Registry.RegisterTestAssembly(Assembly.GetExecutingAssembly());
+CardCostModifierChecks.Run();
+RelicStorageChecks.Run();
 }
 catch (InvalidOperationException)
 {
@@ -149,7 +163,7 @@ static void CheckHookDeactivation(Rules rules)
     Check(Registry.TryRelic("LAVA_LAMP", out ushort lamp), "缺少 LAVA_LAMP");
     Check(Registry.TryRelic("LIZARD_TAIL", out ushort lizard), "缺少 LIZARD_TAIL");
 
-    static Battle Setup(ushort gambit, ushort lamp, ushort? lizard)
+    static Battle Setup(ref Rules rules, ushort gambit, ushort lamp, ushort? lizard)
     {
         Battle battle = NewBattle();
         battle.Flags |= BattleFlags.PlayerHooksActive;
@@ -157,16 +171,15 @@ static void CheckHookDeactivation(Rules rules)
         battle.Player.MaxHp = 50;
         battle.PowerCount = 1;
         battle.Powers[0] = new Power { Id = gambit, Owner = Limits.PlayerOwner, Amount = 1 };
-        battle.RelicCount = lizard == null ? (byte)1 : (byte)2;
-        battle.Relics[0] = new Relic { Id = lamp };
-        if (lizard is { } lizardId)
-            battle.Relics[1] = new Relic { Id = lizardId };
+        TestRelics.Set(ref battle, ref rules, lizard is { } lizardId
+            ? [new Relic { Id = lamp }, new Relic { Id = lizardId }]
+            : [new Relic { Id = lamp }]);
         return battle;
     }
 
     // TheGambitPower kills the player inside AfterDamageReceived. Native deactivates the player's
     // hooks at that point, so a later relic listener (LavaLamp) must not run.
-    Battle dead = Setup(gambit, lamp, lizard: null);
+    Battle dead = Setup(ref rules, gambit, lamp, lizard: null);
     Exec deadExec = new(ref dead, rules, default);
     AfterDamageReceivedHook deadHook = new()
     {
@@ -180,16 +193,54 @@ static void CheckHookDeactivation(Rules rules)
     };
     HookDispatch.Dispatch(ref deadExec, ref deadHook, gatedByEnding: false);
     Check(dead.Player.IsDead, "TheGambit 击杀后玩家应死亡");
-    Check(dead.Relics[0].Counter == 0, "玩家钩子失效后不应再调用 LavaLamp");
+    Check(dead.RelicState(rules, 0).Counter == 0, "玩家钩子失效后不应再调用 LavaLamp");
 
     // Death prevention keeps the player's hooks active; the later relic listener still runs.
-    Battle revived = Setup(gambit, lamp, lizard);
+    Battle revived = Setup(ref rules, gambit, lamp, lizard);
     Exec revivedExec = new(ref revived, rules, default);
     AfterDamageReceivedHook revivedHook = deadHook;
     HookDispatch.Dispatch(ref revivedExec, ref revivedHook, gatedByEnding: false);
     Check(!revived.Player.IsDead, "LizardTail 应阻止 TheGambit 的死亡");
-    Check(revived.Relics[1].Counter == 1, "LizardTail 应记录已用");
-    Check(revived.Relics[0].Counter == 1, "死亡被阻止后 LavaLamp 仍应收到后续伤害回调");
+    Check(revived.RelicState(rules, 1).Counter == 1, "LizardTail 应记录已用");
+    Check(revived.RelicState(rules, 0).Counter == 1, "死亡被阻止后 LavaLamp 仍应收到后续伤害回调");
+}
+
+static void CheckVersion113State(Rules rules)
+{
+    foreach (CostType type in new[] { CostType.None, CostType.Absolute, CostType.Relative })
+        foreach (CostExpiration expiry in new[] { CostExpiration.EndOfCombat, CostExpiration.EndOfTurn,
+                     CostExpiration.WhenPlayed, CostExpiration.EndOfTurnOrWhenPlayed })
+            foreach (bool reduce in new[] { false, true })
+            {
+                CostModifier value = CostModifier.Create(-123, type, expiry, reduce);
+                Check(value.Amount == -123 && value.Type == type && value.Expiration == expiry
+                    && value.IsReduceOnly == reduce, "费用修饰压缩丢失字段");
+            }
+
+    Registry.TryCard("THRASH", out ushort strike);
+    Battle battle = NewBattle();
+    Card card = Kernel.CreateCard(rules, strike);
+    card.AddKeyword(Keywords.Ethereal);
+    Kernel.UpgradeCard(rules, ref card);
+    Piles.Append(ref battle, Pile.Hand, card);
+    Exec x = new(ref battle, rules, default);
+    Kernel.DowngradeCard(ref x, 0);
+    Check(battle.Cards[0].HasKeyword(Keywords.Ethereal), "压制降级应保留外部虚无");
+    battle.Cards[0].RemoveKeyword(Keywords.Ethereal);
+    Kernel.RestoreDampenedCards(ref x);
+    Kernel.DowngradeCard(ref x, 0);
+    Check(!battle.Cards[0].HasKeyword(Keywords.Ethereal), "外部移除后降级不能恢复虚无");
+
+    battle = NewBattle();
+    battle.Flags |= BattleFlags.PlayerHooksActive;
+    x = new(ref battle, rules, default);
+    Kernel.ApplyPower(ref x, Limits.FirstEnemyOwner, Registry.PowerId<FlameBarrierPower>(), 4,
+        Limits.FirstEnemyOwner);
+    Span<byte> targets = stackalloc byte[] { Limits.FirstEnemyOwner };
+    Kernel.Damage(ref x, targets, 14, ValueProps.Move, Limits.PlayerOwner, true, card);
+    Check(battle.Player.CurrentHp == 46 && battle.Enemies[0].Creature.CurrentHp == 86,
+        "火焰屏障反击与原始伤害均应结算");
+    Check(x.LastDamageTotal == 14, $"返回的伤害结果不能被反击覆盖，实际 {x.LastDamageTotal}");
 }
 
 static void CheckCardPoolContracts()
@@ -199,7 +250,7 @@ static void CheckCardPoolContracts()
         .Select(static field => (string?)field.GetRawConstantValue()
             ?? throw new InvalidOperationException($"卡池常量 {field.Name} 没有值。"))
         .Order(StringComparer.Ordinal)];
-    Check(known.Length == 10, $"CardPools 常量应为 10 个，实际 {known.Length}");
+    Check(known.Length == 17, $"CardPools 常量应为 17 个，实际 {known.Length}");
     HashSet<string> knownSet = [.. known];
     HashSet<string> declared = new(StringComparer.Ordinal);
     void Declare(ContentDef def)
@@ -896,7 +947,7 @@ static void CheckDfKernel(Rules rules)
     Check(Registry.TryPower("STRENGTH_POWER", out ushort strength), "缺少 STRENGTH_POWER");
     PlayerAction action = default;
 
-    Battle OrbBattle(int enemyHp = 1000)
+    Battle OrbBattle(ref Rules rules, int enemyHp = 1000)
     {
         Battle battle = SliceBattle();
         battle.HandCount = 0;
@@ -907,7 +958,7 @@ static void CheckDfKernel(Rules rules)
         battle.OrbCount = 0;
         battle.OrbCapacity = 3;
         battle.PowerCount = 0;
-        battle.RelicCount = 0;
+        rules = rules.WithRelics(RelicRoster.Empty);
         battle.Player.Block = 0;
         battle.Enemies[0].Creature.CurrentHp = enemyHp;
         battle.Enemies[0].Creature.MaxHp = enemyHp;
@@ -922,7 +973,7 @@ static void CheckDfKernel(Rules rules)
 
     // Full queue channel: the leftmost (Dark) orb is evoked first. Dark's evoke uses the raw
     // accumulation, while its passive would have used ModifyOrbValue.
-    Battle battle = OrbBattle();
+    Battle battle = OrbBattle(ref rules);
     SetFocus(ref battle, 2);
     battle.OrbCount = 3;
     battle.Orbs[0] = new Orb { Id = checked((byte)dark), Aux = 10 };
@@ -942,8 +993,8 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Enemies[0].Creature.CurrentHp == 980, "闪电球回合末被动伤害错误");
 
     // GoldPlatedCables adds one trigger to the first orb's passive.
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = gold };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = gold });
+    x = new(ref battle, rules, action);
     Check(HookDispatch.ModifyOrbPassiveTriggerCounts(battle, rules, battle.Orbs[0], 0, 1) == 2,
         "金缆应让首个球的被动触发 +1");
     battle.Player.Block = 0;
@@ -952,7 +1003,7 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Enemies[0].Creature.CurrentHp == 970, "金缆回合末的闪电被动次数错误");
 
     // Dark accumulation and raw evoke.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     SetFocus(ref battle, 3);
     battle.OrbCount = 1;
     battle.Orbs[0] = new Orb { Id = checked((byte)dark), Aux = 10 };
@@ -963,7 +1014,7 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Enemies[0].Creature.CurrentHp == 981, "暗球激发应使用原始累积 19");
 
     // Glass decays after a positive passive; evoke doubles the modified remaining value.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     SetFocus(ref battle, 1);
     battle.OrbCount = 1;
     battle.Orbs[0] = new Orb { Id = checked((byte)glass), Aux = 4 };
@@ -975,7 +1026,7 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Enemies[0].Creature.CurrentHp == 987, "玻璃球激发应造成 (3+1)*2 = 8");
 
     // Plasma passive/evoke energy.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     battle.Energy = 0;
     battle.OrbCount = 1;
     battle.Orbs[0] = new Orb { Id = checked((byte)plasma) };
@@ -986,7 +1037,7 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Energy == 3, "等离子球激发应 +2 能量");
 
     // Dualcast semantics: two evocations of the same orb, dequeue only on the last one.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     battle.OrbCount = 2;
     battle.Orbs[0] = new Orb { Id = checked((byte)lightning) };
     battle.Orbs[1] = new Orb { Id = checked((byte)lightning) };
@@ -996,13 +1047,13 @@ static void CheckDfKernel(Rules rules)
         "双发激发应激发两次且只出队一次");
 
     // Capacity 0 refuses a channel for a character with base slots.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     battle.OrbCapacity = 0;
     x = new Exec(ref battle, rules, action);
     Check(!Kernel.ChannelOrb(ref x, lightning) && battle.OrbCount == 0, "零容量不应充能");
 
     // Slot growth/removal.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     battle.OrbCapacity = 9;
     Kernel.AddOrbSlots(ref battle, 3);
     Check(battle.OrbCapacity == 10, "球槽容量应钳制在 10");
@@ -1016,33 +1067,30 @@ static void CheckDfKernel(Rules rules)
         "移除球槽应从队尾删球");
 
     // CrackedCore channels one Lightning on the first player side turn.
-    battle = OrbBattle();
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = crackedCore };
+    battle = OrbBattle(ref rules);
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = crackedCore });
     x = new Exec(ref battle, rules, action);
     Registry.Relic(crackedCore).BeforeSideTurnStart(ref x,
         new Listener(ListenerKind.Relic, 0, Limits.PlayerOwner), Side.Player);
     Check(battle.OrbCount == 1 && battle.Orbs[0].Id == lightning, "破碎核心应在第一回合充能闪电");
 
     // RunicCapacitor and SymbioticVirus run in the AfterSideTurnStart relic batch.
-    battle = OrbBattle();
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = runic };
+    battle = OrbBattle(ref rules);
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = runic });
     x = new Exec(ref battle, rules, action);
     Registry.Relic(runic).AfterSideTurnStart(ref x,
         new Listener(ListenerKind.Relic, 0, Limits.PlayerOwner), Side.Player);
     Check(battle.OrbCapacity == 6, "符文电容器应 +3 球槽");
 
-    battle = OrbBattle();
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = symbiotic };
+    battle = OrbBattle(ref rules);
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = symbiotic });
     x = new Exec(ref battle, rules, action);
     Registry.Relic(symbiotic).AfterSideTurnStart(ref x,
         new Listener(ListenerKind.Relic, 0, Limits.PlayerOwner), Side.Player);
     Check(battle.OrbCount == 1 && battle.Orbs[0].Id == checked((byte)dark), "共生病毒应充能暗球");
 
     // AfterOrbEvoked: ThunderPower adds its amount to every living evoke target of a Lightning orb.
-    battle = OrbBattle();
+    battle = OrbBattle(ref rules);
     battle.PowerCount = 1;
     battle.Powers[0] = new Power { Id = thunder, Owner = Limits.PlayerOwner, Amount = 5 };
     battle.OrbCount = 1;
@@ -1052,9 +1100,8 @@ static void CheckDfKernel(Rules rules)
     Check(battle.Enemies[0].Creature.CurrentHp == 987, "雷霆应在闪电球激发后追加 5 伤害");
 
     // AfterPotionUsed: ReptileTrinket grants temporary and permanent Strength.
-    battle = OrbBattle();
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = reptile };
+    battle = OrbBattle(ref rules);
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = reptile });
     x = new Exec(ref battle, rules, action);
     HookDispatch.AfterPotionUsed(ref x, 0);
     Check(Kernel.GetAmount(battle, Limits.PlayerOwner, reptilePower) == 3,
@@ -1130,7 +1177,7 @@ static void CheckMbKernel(Rules battleRules)
     potionBattle.PotionSlotCount = 1;
     potionBattle.Potions[0] = (ushort)(brew + 1);
     // The pool has a single Common potion; this recorded state's first rarity roll is 0.875.
-    potionBattle.RngStream(RngStream.CombatPotionGeneration) = RngState.FromSerializable(
+    potionBattle.RngStream(RngStream.NonCombatGeneration) = RngState.FromSerializable(
         0, 0x161922C645CE50E8, 0xAD760CAFA1697B60, 0x3501FF44902CA50D, 0x417CB9A826D831DF);
     Kernel.Step(ref potionBattle, PlayerAction.UsePotion(0, Limits.NoOwner), rules, out _);
     Check(potionBattle.Potions[0] == (ushort)(fire + 1) && potionBattle.Potions[0] != brew + 1,
@@ -1467,8 +1514,7 @@ static void CheckIdKernel(Rules rules)
     // exempt; completing the card power scope latches and clears the transient trigger.
     Battle lampBattle = NewBattle();
     lampBattle.Flags |= BattleFlags.PlayerHooksActive;
-    lampBattle.RelicCount = 1;
-    lampBattle.Relics[0] = new Relic { Id = lamp };
+    TestRelics.Set(ref lampBattle, ref rules, new Relic { Id = lamp });
     Exec lampExec = new(ref lampBattle, rules, default);
     lampExec.CardPowerSourceActive = true;
     lampExec.CardPowerSourceSerial = ++lampExec.CardPowerSourceSerialCounter;
@@ -1479,7 +1525,7 @@ static void CheckIdKernel(Rules rules)
         Limits.PlayerOwner);
     Check(vulnerableApplied == 2, $"同一张牌的第二个减益也应翻倍，实际 {vulnerableApplied}");
     Kernel.CompleteCardPowerSource(ref lampExec);
-    Check(lampBattle.Relics[0].Counter == 1 && lampExec.LampTriggerSerial == 0,
+    Check(lampBattle.RelicState(rules, 0).Counter == 1 && lampExec.LampTriggerSerial == 0,
         "UnsettlingLamp 完成卡牌 Power 作用域后应锁存并清空触发");
     lampExec.CardPowerSourceSerial = ++lampExec.CardPowerSourceSerialCounter;
     int weakAgain = Kernel.ApplyPower(ref lampExec, Kernel.EnemyOwner(0), weak, 1,
@@ -1504,8 +1550,7 @@ static void CheckIdKernel(Rules rules)
     Check(Registry.TryRelic("VAMBRACE", out ushort vambrace), "缺少 VAMBRACE");
     Battle vambraceBattle = NewBattle();
     vambraceBattle.Flags |= BattleFlags.PlayerHooksActive;
-    vambraceBattle.RelicCount = 1;
-    vambraceBattle.Relics[0] = new Relic { Id = vambrace };
+    TestRelics.Set(ref vambraceBattle, ref rules, new Relic { Id = vambrace });
     Exec vambraceExec = new(ref vambraceBattle, rules, default);
     vambraceExec.Card = Kernel.CreateCard(rules, defend);
     decimal doubled = Kernel.GainBlock(ref vambraceExec, Limits.PlayerOwner, 5m, ValueProps.Move,
@@ -1537,8 +1582,7 @@ static void CheckLsKernel()
     // ModifyPowerAmountGiven: SneckoSkull adds 1 to Poison the player gives.
     Battle battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = skull };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = skull });
     Exec x = new(ref battle, rules, default);
     int applied = Kernel.ApplyPower(ref x, 2, poison, 2, Limits.PlayerOwner);
     Check(applied == 3, $"SneckoSkull 应把毒 2 变成 3，实际 {applied}");
@@ -1655,8 +1699,7 @@ static void CheckLsKernel()
     // HelicalDart: a Shiv play applies 1 temporary Dexterity.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = dart };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = dart });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, shiv));
     x = new(ref battle, rules, default);
     Kernel.Step(ref battle, PlayerAction.PlayCard(0, 2), rules, out _);
@@ -1822,8 +1865,7 @@ static void CheckNbKernel()
     {
         battle = NewBattle();
         battle.Player.CurrentHp = 30;
-        battle.RelicCount = 1;
-        battle.Relics[0] = new Relic { Id = repairKnife };
+        TestRelics.Set(ref battle, ref rules, new Relic { Id = repairKnife });
         battle.EnemyCount = 2;
         battle.RosterCount = 2;
         battle.Roster[1] = 1;
@@ -1900,8 +1942,7 @@ static void CheckNbKernel()
     battle.Phase = PlayerPhase.Play;
     battle.Side = Side.Player;
     battle.Energy = 1;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = unceasingTop };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = unceasingTop });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, defend));
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, strike));
     Kernel.Step(ref battle, PlayerAction.PlayCard(0, Limits.NoOwner), rules, out _);
@@ -2065,7 +2106,8 @@ static void CheckCxKernel(Rules rules)
         && slumberCard.EnergyModifiers[0].Amount == -1,
         "SlumberingEssence BeforeFlush 应写入 WhenPlayed -1 修饰");
     Kernel.BeforeFlush(ref slumberExec);
-    Check(slumberCard.EnergyModifierCount == 2, "每次 BeforeFlush 都应追加一条 SlumberingEssence 修饰");
+    Check(slumberCard.EnergyModifierCount == 1 && slumberCard.EnergyModifiers[0].Amount == -2,
+        "两次 BeforeFlush 的同有效期相对减费应合并为 -2");
 
     // PerfectFit: after the non-initial shuffle the enchanted card is the top of the new draw pile.
     Battle shuffleBattle = NewBattle();
@@ -2102,9 +2144,7 @@ static void CheckSkKernel()
     // Discard: the card moves, the counter grows and AfterCardDiscarded reaches the relic listener.
     Battle battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 2;
-    battle.Relics[0] = new Relic { Id = discardRelic };
-    battle.Relics[1] = new Relic { Id = slyRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = discardRelic }, new Relic { Id = slyRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, targetCard));
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, slyCard));
     Exec x = new(ref battle, rules, default);
@@ -2118,9 +2158,7 @@ static void CheckSkKernel()
     // the auto-play locates it anywhere in the battle instead of assuming the discard pile.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 2;
-    battle.Relics[0] = new Relic { Id = discardRelic };
-    battle.Relics[1] = new Relic { Id = slyRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = discardRelic }, new Relic { Id = slyRelic });
     // The draw pile starts empty, so Draw shuffles the discard (containing the Sly card) into the
     // draw pile before the auto-play locates it.
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, targetCard));
@@ -2175,8 +2213,7 @@ static void CheckSkKernel()
     // is unrepresentable and must fail explicitly instead of playing a byte-equal stranger.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = discardRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = discardRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, slyCard));
     x = new(ref battle, rules, default);
     KsTestDiscardRelic.RemoveDiscardedCard = true;
@@ -2201,8 +2238,7 @@ static void CheckSkKernel()
     // target unrepresentable: the kernel must surface a UnsupportedException, not guess a slot.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = discardRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = discardRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, slyCard));
     x = new(ref battle, rules, default);
     KsTestLog.Clear();
@@ -2305,8 +2341,7 @@ static void CheckScrapeDrawnIdentity()
     // its own draw then appends the two remaining draw-pile cards.
     Battle battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = logRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = logRelic });
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, slyId));
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, otherId));
@@ -2338,8 +2373,7 @@ static void CheckScrapeDrawnIdentity()
     // the byte-equal copy already in hand must not be discarded instead.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = drawRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = drawRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
     battle.Cards[0].TransientMark = 1;
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
@@ -2365,8 +2399,7 @@ static void CheckScrapeDrawnIdentity()
     // Both occurrences must be discarded, reusing one inner identity byte.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = drawRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = drawRelic });
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
     battle.RngStream(RngStream.Shuffle) = RngState.FromSerializable(0, 1, 2, 3, 4);
     KsScrapeDrawRelic.Set(KsScrapeDrawMode.AutoPlay, drawnId, 2);
@@ -2389,8 +2422,7 @@ static void CheckScrapeDrawnIdentity()
     // remaining copy; both are then discarded by identity, and the older hand copy stays.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = drawRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = drawRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
     battle.Cards[0].TransientMark = 1;
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
@@ -2416,8 +2448,7 @@ static void CheckScrapeDrawnIdentity()
     // sentinel must stay above it.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = drawRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = drawRelic });
     Piles.Append(ref battle, Pile.Discard, Kernel.CreateCard(rules, otherId));
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
@@ -2442,8 +2473,7 @@ static void CheckScrapeDrawnIdentity()
     // the drawn card free must exclude it from the discard even though its draw-time value had cost 1.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = drawRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = drawRelic });
     Card freeScrape = Kernel.CreateCard(rules, scrape);
     Piles.Append(ref battle, Pile.Play, freeScrape);
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
@@ -2465,8 +2495,7 @@ static void CheckScrapeDrawnIdentity()
     // restore every inner mark (including the card that triggered the choice) and its base.
     battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = choiceRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = choiceRelic });
     Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, drawnId));
     battle.Cards[0].TransientMark = 65;
     Piles.Append(ref battle, Pile.Draw, Kernel.CreateCard(rules, drawnId));
@@ -2706,7 +2735,8 @@ static void CheckGenerationAndAutoPlay()
     Battle battle = NewBattle();
     battle.RngStream(RngStream.Shuffle) = RngState.FromSerializable(1, 11, 22, 33, 44);
     Span<Card> selected = stackalloc Card[4];
-    RngState reference = battle.RngStream(RngStream.Shuffle);
+    RngState parentReference = battle.RngStream(RngStream.Shuffle);
+    RngState reference = parentReference.CreateShuffleRng();
     int distinctCount = Kernel.SampleCardPool(ref battle, rules, "test.pool", 1, distinct: true,
         RngStream.Shuffle, selected);
     Check(distinctCount == 1, "distinct 取样数量应为 1");
@@ -2720,8 +2750,8 @@ static void CheckGenerationAndAutoPlay()
         (expected[k], expected[n]) = (expected[n], expected[k]);
     }
     Check(selected[0].Id == expected[0], "distinct 取样顺序与 UnstableShuffle 不一致");
-    Check(battle.RngStream(RngStream.Shuffle).Counter == 4, "distinct 取样应消耗 3 次 Shuffle");
-    Check(battle.RngStream(RngStream.Shuffle).Counter == reference.Counter,
+    Check(battle.RngStream(RngStream.Shuffle).Counter == 2, "distinct 取样应消耗 1 次 Shuffle");
+    Check(battle.RngStream(RngStream.Shuffle).Counter == parentReference.Counter,
         "distinct 取样参考计数器不一致");
 
     Battle replacement = NewBattle();
@@ -2939,8 +2969,7 @@ static void CheckDx5Kernel(Rules rules)
     Check(Registry.TryRelic("PEN_NIB", out ushort penNib), "缺少 PEN_NIB");
     Registry.TryCard("STRIKE_IRONCLAD", out ushort strike);
     Battle nibBattle = NewBattle();
-    nibBattle.RelicCount = 1;
-    nibBattle.Relics[0] = new Relic { Id = penNib, Counter = 9 };
+    TestRelics.Set(ref nibBattle, ref rules, new Relic { Id = penNib, Counter = 9 });
     Exec nibExec = new(ref nibBattle, rules, default);
     nibExec.PlayIdentity = 7;
     Card nibCard = Kernel.CreateCard(rules, strike);
@@ -2949,7 +2978,7 @@ static void CheckDx5Kernel(Rules rules)
     PenNib nibDef = (PenNib)Registry.Relic(penNib);
     Listener nibSelf = new(ListenerKind.Relic, 0, Limits.PlayerOwner);
     nibDef.BeforeCardPlayed(ref nibExec, nibSelf, nibPlay);
-    Check(nibBattle.Relics[0].Counter == 0 && nibBattle.Relics[0].Aux == 7,
+    Check(nibBattle.RelicState(rules, 0).Counter == 0 && nibBattle.RelicState(rules, 0).Aux == 7,
         "Pen Nib 第十次攻击应锁存触发它的 CardPlay 身份");
     Check(nibDef.ModifyDamageMultiplicative(ref nibExec, nibSelf,
         new DamageContext(Limits.NoOwner, Limits.PlayerOwner, ValueProps.Move,
@@ -2964,11 +2993,11 @@ static void CheckDx5Kernel(Rules rules)
         "Pen Nib 的加倍不能泄漏到同一次选择里嵌套自动打出的牌");
     nibExec.LastPlayIdentity = 8;
     nibDef.AfterCardPlayed(ref nibExec, nibSelf, nibPlay);
-    Check(nibBattle.Relics[0].Aux == 7, "嵌套打出的 AfterCardPlayed 不应清除外层的 Pen Nib 锁存");
+    Check(nibBattle.RelicState(rules, 0).Aux == 7, "嵌套打出的 AfterCardPlayed 不应清除外层的 Pen Nib 锁存");
     nibExec.PlayIdentity = 7;
     nibExec.LastPlayIdentity = 7;
     nibDef.AfterCardPlayed(ref nibExec, nibSelf, nibPlay);
-    Check(nibBattle.Relics[0].Aux == 0, "触发卡自己的 AfterCardPlayed 应清除 Pen Nib 锁存");
+    Check(nibBattle.RelicState(rules, 0).Aux == 0, "触发卡自己的 AfterCardPlayed 应清除 Pen Nib 锁存");
 
     // HistoryCourse: the turn-start AutoPrePlay clones the previous turn's last attack, auto-plays it,
     // removes the dupe from combat and leaves the slot empty for the new turn.
@@ -2990,8 +3019,7 @@ static void CheckDx5Kernel(Rules rules)
     historyBattle.Side = Side.Player;
     historyBattle.Phase = PlayerPhase.AutoPrePlay;
     historyBattle.Flags |= BattleFlags.PlayerHooksActive;
-    historyBattle.RelicCount = 1;
-    historyBattle.Relics[0] = new Relic { Id = historyCourse };
+    TestRelics.Set(ref historyBattle, ref historyRules, new Relic { Id = historyCourse });
     Card previous = Kernel.CreateCard(historyRules, strike);
     historyBattle.HistoryCourseCard = previous;
     historyBattle.Flags |= BattleFlags.HistoryCourseCardPresent;
@@ -3062,8 +3090,7 @@ static void CheckPrKernel()
     battle.Phase = PlayerPhase.Play;
     battle.Flags |= BattleFlags.PlayerHooksActive;
     battle.MaxHandSize = 10;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = paelsEye, Aux = 1 };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = paelsEye, Aux = 1 });
     battle.Cards[0] = Kernel.CreateCard(rules, strike);
     battle.HandCount = 1;
     Exec x = new(ref battle, rules, PlayerAction.EndTurn());
@@ -3072,7 +3099,7 @@ static void CheckPrKernel()
     Check(battle.Round == 1, $"额外回合不应增加 RoundNumber（实际 {battle.Round}）");
     Check(battle.PlayerTurn == 2, $"额外回合应推进玩家回合数（实际 {battle.PlayerTurn}）");
     Check(battle.HandCount == 0, $"PaelsEye 应在回合末消耗整手牌（剩余 {battle.HandCount}）");
-    Check(battle.Relics[0].Counter == 1, "PaelsEye 的 AfterTakingExtraTurn 应置为已用");
+    Check(battle.RelicState(rules, 0).Counter == 1, "PaelsEye 的 AfterTakingExtraTurn 应置为已用");
     Check(battle.Side == Side.Player, "额外回合应直接开始新的玩家回合");
 
     // PaelsLegion doubles a card's block while the cooldown is down; the root flag replaces the
@@ -3091,13 +3118,12 @@ static void CheckPrKernel()
     blockBattle.Side = Side.Player;
     blockBattle.Phase = PlayerPhase.Play;
     blockBattle.Flags |= BattleFlags.PlayerHooksActive;
-    blockBattle.RelicCount = 1;
-    blockBattle.Relics[0] = new Relic { Id = paelsLegion };
+    TestRelics.Set(ref blockBattle, ref blockRules, new Relic { Id = paelsLegion });
     Exec blockExec = new(ref blockBattle, blockRules, PlayerAction.EndTurn());
     decimal doubled = Kernel.GainBlock(ref blockExec, Limits.PlayerOwner, 5m,
         ValueProps.Move, fromCard: true);
     Check(doubled == 10m, $"PaelsLegion 冷却结束时卡牌格挡应翻倍（实际 {doubled}）");
-    blockBattle.Relics[0].Counter = 2;
+    blockBattle.RelicState(blockRules, 0).Counter = 2;
     decimal normal = Kernel.GainBlock(ref blockExec, Limits.PlayerOwner, 5m,
         ValueProps.Move, fromCard: true);
     Check(normal == 5m, $"PaelsLegion 冷却中不应加倍卡牌格挡（实际 {normal}）");
@@ -3138,8 +3164,7 @@ static void CheckPrKernel()
     Rules bookmarkRules = bookmarkBuilder.Build();
     Battle bookmarkBattle = NewBattle();
     bookmarkBattle.Flags |= BattleFlags.PlayerHooksActive;
-    bookmarkBattle.RelicCount = 1;
-    bookmarkBattle.Relics[0] = new Relic { Id = bookmark };
+    TestRelics.Set(ref bookmarkBattle, ref bookmarkRules, new Relic { Id = bookmark });
     bookmarkBattle.Cards[0] = Kernel.CreateCard(bookmarkRules, goldAxe);
     bookmarkBattle.HandCount = 1;
     Exec bookmarkExec = new(ref bookmarkBattle, bookmarkRules, PlayerAction.EndTurn());
@@ -3469,8 +3494,7 @@ static void CheckA3Kernel(Rules rules)
     // AfterCardGeneratedForCombat receives the absolute card position.
     Battle generated = NewBattle();
     generated.Flags |= BattleFlags.PlayerHooksActive;
-    generated.RelicCount = 1;
-    generated.Relics[0] = new Relic { Id = generatedRelic };
+    TestRelics.Set(ref generated, ref rules, new Relic { Id = generatedRelic });
     Exec g = new(ref generated, rules, default);
     Piles.Append(ref generated, Pile.Hand, Kernel.CreateCard(rules,
         defend));
@@ -3528,13 +3552,7 @@ static void CheckKg2Hooks(Rules rules)
     battle.Flags |= BattleFlags.PlayerHooksActive;
     Card card = Kernel.CreateCard(rules, defend);
     Piles.Append(ref battle, Pile.Hand, card);
-    battle.RelicCount = 6;
-    battle.Relics[0] = new Relic { Id = costRelic };
-    battle.Relics[1] = new Relic { Id = xRelic };
-    battle.Relics[2] = new Relic { Id = resetRelic };
-    battle.Relics[3] = new Relic { Id = receivedRelic };
-    battle.Relics[4] = new Relic { Id = shuffleRelic };
-    battle.Relics[5] = new Relic { Id = enteredRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = costRelic }, new Relic { Id = xRelic }, new Relic { Id = resetRelic }, new Relic { Id = receivedRelic }, new Relic { Id = shuffleRelic }, new Relic { Id = enteredRelic });
     Exec x = new(ref battle, rules, default);
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, costPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
@@ -3554,7 +3572,7 @@ static void CheckKg2Hooks(Rules rules)
     Kg2TestLog.Clear();
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, locationPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
-    Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+    Span<Listener> locationModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
     Pile location = HookDispatch.ModifyCardPlayResultLocation(ref x, card, false, 0, Pile.Discard,
         PilePosition.Bottom, locationModifiers, out int locationCount, out PilePosition locationPosition);
     Check(location == Pile.Draw && locationPosition == PilePosition.Top && locationCount == 1,
@@ -3566,7 +3584,7 @@ static void CheckKg2Hooks(Rules rules)
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, countPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
     Kg2TestLog.Clear();
-    Span<Listener> countModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B)];
+    Span<Listener> countModifiers = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
     int playCount = HookDispatch.ModifyCardPlayCount(ref x, card, Limits.NoOwner, 1, countModifiers,
         out int countModifierCount);
     Check(playCount == 2 && countModifierCount == 1, "KG2 出牌次数 Hook 未生效");
@@ -3578,8 +3596,8 @@ static void CheckKg2Hooks(Rules rules)
     Kernel.ResolvePowerAmountChanges(ref x);
     // The relic hook is registered on a relic, not on a power and must not be visited by the
     // power-only AfterPowerAmountChanged dispatch.
-    battle.RelicCount++;
-    battle.Relics[battle.RelicCount - 1] = new Relic { Id = changeRelic };
+    TestRelics.Append(ref battle, ref rules, new Relic { Id = changeRelic });
+    x = new Exec(ref battle, rules, default);
     Kg2TestLog.Clear();
     Kernel.ApplyPower(ref x, Limits.FirstEnemyOwner, VulnerableId, 1,
         Limits.PlayerOwner);
@@ -3734,8 +3752,8 @@ static void CheckKaAttachments()
     decimal sharpDamage = HookDispatch.ModifyDamage(ref x, enemyOwner, Limits.PlayerOwner, 6m,
         ValueProps.Move, hasCardSource: true, enchanted);
     Check(sharpDamage == 9m, $"Sharp 应加 3 伤害，实际 {sharpDamage}");
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = lighter };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = lighter });
+    x = new(ref battle, rules, default);
     decimal lighterDamage = HookDispatch.ModifyDamage(ref x, enemyOwner, Limits.PlayerOwner, 6m,
         ValueProps.Move, hasCardSource: true, enchanted);
     Check(lighterDamage == 18m, $"MysticLighter 应给附魔攻击加 9 伤害，实际 {lighterDamage}");
@@ -3743,7 +3761,7 @@ static void CheckKaAttachments()
     Card glam = Kernel.CreateCard(rules, strike);
     glam.EnchantmentId = checked((byte)(Registry.EnchantmentId<Glam>() + 1));
     Check(Kernel.EnchantedReplayCount(glam) == 1, "Glam 首次应加 1 次重放");
-    glam.EnchantmentPrivate = 1;
+    glam.EnchantmentStatus = 1;
     Check(Kernel.EnchantedReplayCount(glam) == 0, "Glam 已用后不应再加重放");
     Card spiral = Kernel.CreateCard(rules, strike);
     spiral.EnchantmentId = checked((byte)(Registry.EnchantmentId<Spiral>() + 1));
@@ -3786,8 +3804,7 @@ static void CheckRgKernel(Rules rules)
     // dispatching the hook.
     Battle battle = NewBattle();
     battle.Flags |= BattleFlags.PlayerHooksActive;
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = starRelic };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = starRelic });
     Card card = Kernel.CreateCard(rules, starCard);
     Kg2TestLog.Clear();
     Check(Kernel.StarCostWithModifiers(battle, rules, card, Pile.Hand) == 0,
@@ -3842,6 +3859,7 @@ static void CheckRgKernel(Rules rules)
     // Star payment: ManualPlay deducts the star cost once and dispatches AfterStarsSpent with the paid
     // amount (K0 contract for the "the count changed by exactly the paid amount" assumption). No
     // cost-modifying relic here, so the base cost 2 is paid.
+    rules = rules.WithRelics(RelicRoster.Empty);
     Battle paid = NewBattle();
     paid.Flags |= BattleFlags.PlayerHooksActive;
     Piles.Append(ref paid, Pile.Hand, Kernel.CreateCard(rules, starCard));
@@ -4016,8 +4034,7 @@ static void CheckM2cSemantics(Rules rules)
 
     // BeltBuckle applies Dexterity with a null native applier.
     battle = NewBattle();
-    battle.RelicCount = 1;
-    battle.Relics[0] = new Relic { Id = beltBuckle };
+    TestRelics.Set(ref battle, ref rules, new Relic { Id = beltBuckle });
     battle.PotionSlotCount = 0;
     Exec belt = new(ref battle, rules, default);
     Registry.Relic(beltBuckle).AfterPotionUsed(ref belt,
@@ -4389,10 +4406,10 @@ static void CheckLrKernel(Rules rules)
     foregonePauseReplay.Flags |= BattleFlags.TurnStartChoicePauses;
     Check(Kernel.Step(ref foregonePauseReplay, foregoneDrawEnd.WithChoice(0b11UL), rules, out _)
         == StepResult.Completed, "LR 准备页暂停时先见之明+下回合抽牌选择后回合应完成");
-    Check(foregonePauseReplay.HandCount == 7,
-        $"LR 准备页暂停时侧回合开始应在摸牌前清掉下回合抽牌，实际手牌 {foregonePauseReplay.HandCount}");
-    Check(foregonePauseReplay.DrawCount == 8,
-        $"LR 准备页暂停时应剩 8 张抽牌堆，实际 {foregonePauseReplay.DrawCount}");
+    Check(foregonePauseReplay.HandCount == 9,
+        $"LR 准备页暂停后仍应增加下回合抽牌，实际手牌 {foregonePauseReplay.HandCount}");
+    Check(foregonePauseReplay.DrawCount == 6,
+        $"LR 准备页暂停时应剩 6 张抽牌堆，实际 {foregonePauseReplay.DrawCount}");
     Check((foregonePauseReplay.Flags & BattleFlags.TurnStartChoicePauses) != 0,
         "LR 结束回合后应保留准备页暂停标志");
 }
@@ -4414,8 +4431,7 @@ static void CheckTsKernel(Rules rules)
 
     // ToastyMittens: the request is an Exhaust choice over the hand, stamped PlayerTurnStart.
     Battle toastyBattle = SliceBattle();
-    toastyBattle.RelicCount = 1;
-    toastyBattle.Relics[0] = new Relic { Id = toasty };
+    TestRelics.Set(ref toastyBattle, ref rules, new Relic { Id = toasty });
     int toastyHand = toastyBattle.HandCount;
     Exec toastyProbe = new(ref toastyBattle, rules, default);
     toastyProbe.ChoiceTiming = ChoiceTiming.PlayerTurnStart;
@@ -4443,8 +4459,7 @@ static void CheckTsKernel(Rules rules)
     // ChoicesParadox: a generated-card option set (no pile), one selected card enters the hand and
     // carries Retain. The kernel samples CharacterAll in option order with CombatCardGeneration.
     Battle paradoxBattle = SliceBattle();
-    paradoxBattle.RelicCount = 1;
-    paradoxBattle.Relics[0] = new Relic { Id = paradox };
+    TestRelics.Set(ref paradoxBattle, ref rules, new Relic { Id = paradox });
     paradoxBattle.RngStream(RngStream.CombatCardGeneration) =
         RngState.FromSerializable(0, 1, 2, 3, 4);
     int paradoxHand = paradoxBattle.HandCount;

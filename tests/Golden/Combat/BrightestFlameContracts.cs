@@ -38,7 +38,7 @@ internal static class BrightestFlameContracts
 
     private static SearchCase Read()
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{FlameRoot}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/{FlameRoot}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return SearchCodec.DecodeRequest(bytes.ToArray());
@@ -46,7 +46,7 @@ internal static class BrightestFlameContracts
 
     private static byte[] ReadBytes()
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/{FlameRoot}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/{FlameRoot}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new(); zip.CopyTo(bytes);
         return bytes.ToArray();

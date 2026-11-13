@@ -84,16 +84,18 @@ public static partial class Kernel
         }
         if (!x.NeedsChoice)
             RefreshHistoryCourse(ref x);
+        if (!x.NeedsChoice && x.R.HasFoolMechanics)
+            NormalizeFoolState(ref x.B);
         if (!x.NeedsChoice && x.R.HasDecimalCardVars)
             DecimalVars.Canonicalize(ref x.B);
         if (!x.NeedsChoice)
             ClearPendingPowerAmountStates(ref x.B);
         if (!x.NeedsChoice && x.R.PenNibRelicIndex >= 0
-            && x.R.PenNibRelicIndex < x.B.RelicCount)
+            && x.R.PenNibRelicIndex < x.R.Relics.Count)
         {
             // Projection/normalization: a play cut short before AfterCardPlayed (player death) leaves
             // the doubled-attack latch; no later settlement can read it and the importer projects 0.
-            x.B.Relics[x.R.PenNibRelicIndex].Aux = 0;
+            x.B.RelicState(x.R, x.R.PenNibRelicIndex).Aux = 0;
         }
         historyRisk = x.HistoryRisk;
         if (x.NeedsChoice)

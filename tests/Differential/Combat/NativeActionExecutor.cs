@@ -76,7 +76,7 @@ internal sealed class NativeActionExecutor(
                     throw new OfflineDeploymentException("action_kind",
                         $"未知动作 {planned.Action.Kind}");
             }
-            WaitForBoundary(planned.After);
+            WaitForBoundary(planned.After, selector);
             if (planned.After.Outcome == Outcome.None || CombatManager.Instance.IsInProgress)
                 selector.AssertConsumed();
             else if (selector.PendingCount > 0)
@@ -317,11 +317,13 @@ internal sealed class NativeActionExecutor(
             throw new OfflineDeploymentException("action_canceled", $"{kind} 被原版取消。");
     }
 
-    private void WaitForBoundary(in Battle expected)
+    private void WaitForBoundary(in Battle expected, NativeChoiceSelector selector)
     {
         Stopwatch watch = Stopwatch.StartNew();
         while (true)
         {
+            if (selector.Failure is { } failure)
+                throw failure;
             CombatState? live = CombatManager.Instance.DebugOnlyGetState();
             bool inProgress = CombatManager.Instance.IsInProgress;
             if (live == null || !inProgress)

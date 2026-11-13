@@ -23,7 +23,7 @@ internal static class CombatSearchRunner
         LiveCombatTracker tracker,
         CombatState combat,
         Player player,
-        Battle searchRoot,
+        CombatSearchSession session,
         int turn,
         CombatSearchReason reason,
         SearchPerformanceTier tier,
@@ -37,13 +37,13 @@ internal static class CombatSearchRunner
         SearchPerformanceProfile profile = SearchPerformanceProfile.For(tier);
 #if STS2_SOLVER_TESTING
         if (CombatControllerTestHooks.ForceSearchFailure?.Invoke(turn) is { } forcedFailure)
-            return Failed(in searchRoot, turn, tier, profile, threads, forcedFailure, "forced_by_test");
+            return Failed(in session.Root, turn, tier, profile, threads, forcedFailure, "forced_by_test");
 #endif
         SearchCase searchCase;
         try
         {
             searchCase = SearchSession.CompileCase(
-                combat, player, rules, searchRoot, policyConfiguration, configurePolicy,
+                combat, player, rules, session.Root, policyConfiguration, configurePolicy,
                 deterministic: false, tier);
             searchCase = searchCase with
             {
@@ -52,26 +52,26 @@ internal static class CombatSearchRunner
         }
         catch (UnsupportedImportException error)
         {
-            return Failed(in searchRoot, turn, tier, profile, threads, "import_failed",
+            return Failed(in session.Root, turn, tier, profile, threads, "import_failed",
                 $"reason={error.Reason} {error.Detail}");
         }
         catch (UnsupportedException error)
         {
-            return Failed(in searchRoot, turn, tier, profile, threads, "import_unsupported", error.Message);
+            return Failed(in session.Root, turn, tier, profile, threads, "import_unsupported", error.Message);
         }
         catch (CapacityException error)
         {
-            return Failed(in searchRoot, turn, tier, profile, threads, "import_capacity",
+            return Failed(in session.Root, turn, tier, profile, threads, "import_capacity",
                 CombatFailureDetail.Capacity(error,
                     error.Region == "Cards" ? CountCombatCards(player) : null));
         }
         catch (InvalidDataException error)
         {
-            return Failed(in searchRoot, turn, tier, profile, threads, "request_invalid", error.Message);
+            return Failed(in session.Root, turn, tier, profile, threads, "request_invalid", error.Message);
         }
         catch (InvalidOperationException error)
         {
-            return Failed(in searchRoot, turn, tier, profile, threads, "request_invalid", error.Message);
+            return Failed(in session.Root, turn, tier, profile, threads, "request_invalid", error.Message);
         }
 
         SearchPlan plan = resumePlan
@@ -135,7 +135,7 @@ internal static class CombatSearchRunner
         {
             string status = outcome.FailureStatus.Length > 0 ? outcome.FailureStatus : "failed";
             string error = outcome.FailureError ?? "搜索没有返回路线";
-            return new CombatSearchRun(in searchRoot, searchCase, outcome, null, null, null,
+            return new CombatSearchRun(in session.Root, searchCase, outcome, null, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
                 "search_failed",
                 $"search {status}: {error}")
@@ -146,7 +146,7 @@ internal static class CombatSearchRunner
         ReplayedRoute route;
         try
         {
-            route = ReplayedRoute.Build(searchRoot, rules, beam.BestRoute, beam.BestIsVictory);
+            route = ReplayedRoute.Build(session.Root, rules, beam.BestRoute, beam.BestIsVictory);
         }
         catch (InvalidDataException error)
         {
@@ -164,7 +164,7 @@ internal static class CombatSearchRunner
         {
             return RouteFailed(CombatFailureDetail.Capacity(error), "route_capacity");
         }
-        tracker.Observe(searchRoot);
+        tracker.Observe(session.Root);
         CombatRoutePlan planResult = CombatRoutePlan.FromReplay(route, outcome.OnlyDeathRoutes,
             postCombatRelicHeal: searchCase.Options.Ordering?.PostCombatRelicHeal ?? default,
             relicTargets: searchCase.Options.Scorer?.RulesForCodec.RelicCounterTargets);
@@ -176,7 +176,7 @@ internal static class CombatSearchRunner
             $"selected_member={outcome.SelectedMember} threads={threads} " +
             $"soft_time_risk={outcome.SoftTimeRisk} skipped={outcome.MembersSkippedByTime} " +
             $"{RuntimeSummary(memberRuns)} completion={outcome.Completion}");
-        return new CombatSearchRun(in searchRoot, searchCase, outcome, beam, route, planResult,
+        return new CombatSearchRun(in session.Root, searchCase, outcome, beam, route, planResult,
             finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
             null, null)
         {
@@ -186,7 +186,7 @@ internal static class CombatSearchRunner
         CombatSearchRun RouteFailed(string detail, string code)
         {
             ModLog.Error($"[Sts2Solver] CONTROLLER_ROUTE_INVALID turn={turn} reason={reason} {detail}");
-            return new CombatSearchRun(in searchRoot, searchCase, outcome, beam, null, null,
+            return new CombatSearchRun(in session.Root, searchCase, outcome, beam, null, null,
                 finalProgress, Environment.TickCount64, tier, profile, threads, [.. memberRuns],
                 code, detail)
             {

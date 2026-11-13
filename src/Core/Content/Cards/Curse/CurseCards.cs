@@ -88,8 +88,7 @@ public sealed class Decay : CardDef
 
 /// <summary>
 /// Native <c>Doubt</c>: Unplayable; at the player's turn end it applies 1 Weak and skips that
-/// instance's first duration tick. <see cref="PowerDef.UsesNativeDurationSkip"/> on the Weak
-/// definition performs the same first-application skip as the native <c>alreadyHasWeak</c> check.
+/// instance's first duration tick when Weak was absent before the application.
 /// </summary>
 [ContentId("DOUBT")]
 public sealed class Doubt : CardDef
@@ -103,8 +102,14 @@ public sealed class Doubt : CardDef
     }
 
     public override void OnTurnEndInHand(ref Exec x)
-        => Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.WeakPower>(),
-            (int)CardEffects.Var(x, 0), Limits.NoOwner);
+    {
+        ushort powerId = Registry.PowerId<Powers.WeakPower>();
+        bool alreadyPresent = Kernel.FindPower(x.B, Limits.PlayerOwner, powerId) >= 0;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, powerId, (int)CardEffects.Var(x, 0), Limits.NoOwner);
+        int index = Kernel.FindPower(x.B, Limits.PlayerOwner, powerId);
+        if (!alreadyPresent && index >= 0)
+            x.B.Powers[index].Flags |= PowerFlags.SkipNextDurationTick;
+    }
 }
 
 /// <summary>Native <c>Folly</c>: Unplayable, Eternal, Innate, Ethereal; no combat hook is overridden.</summary>
@@ -171,8 +176,14 @@ public sealed class Shame : CardDef
     }
 
     public override void OnTurnEndInHand(ref Exec x)
-        => Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.FrailPower>(),
-            (int)CardEffects.Var(x, 0), Limits.NoOwner);
+    {
+        ushort powerId = Registry.PowerId<Powers.FrailPower>();
+        bool alreadyPresent = Kernel.FindPower(x.B, Limits.PlayerOwner, powerId) >= 0;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, powerId, (int)CardEffects.Var(x, 0), Limits.NoOwner);
+        int index = Kernel.FindPower(x.B, Limits.PlayerOwner, powerId);
+        if (!alreadyPresent && index >= 0)
+            x.B.Powers[index].Flags |= PowerFlags.SkipNextDurationTick;
+    }
 }
 
 /// <summary>Native <c>SporeMind</c>: cost 1, Exhaust; playable with no effect.</summary>

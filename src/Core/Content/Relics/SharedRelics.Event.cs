@@ -148,6 +148,8 @@ public sealed class MrStruggles : RelicDef
 [ContentId("FAKE_HAPPY_FLOWER")]
 public sealed class FakeHappyFlower : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // FakeHappyFlower.cs: EnergyVar(1), DynamicVar("Turns", 5m).
     public override IReadOnlyList<string> VarNames => ["Energy", "Turns"];
 
@@ -155,7 +157,7 @@ public sealed class FakeHappyFlower : RelicDef
     {
         if (side != Side.Player || Kernel.IsOverOrEnding(x.B))
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter = (relic.Counter + 1) % (int)x.R.RelicVar(Id, 1);
         if (relic.Counter == 0)
             Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 0));
@@ -170,12 +172,14 @@ public sealed class FakeHappyFlower : RelicDef
 [ContentId("FAKE_VENERABLE_TEA_SET")]
 public sealed class FakeVenerableTeaSet : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // FakeVenerableTeaSet.cs: EnergyVar(1).
     public override IReadOnlyList<string> VarNames => ["Energy"];
 
     public override void AfterEnergyReset(ref Exec x, Listener self)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter == 0)
             return;
         Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 0));
@@ -192,6 +196,8 @@ public sealed class FakeVenerableTeaSet : RelicDef
 [ContentId("FAKE_ORICHALCUM")]
 public sealed class FakeOrichalcum : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // FakeOrichalcum.cs: BlockVar(3m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Block"];
 
@@ -199,12 +205,12 @@ public sealed class FakeOrichalcum : RelicDef
         ushort participants)
     {
         if (Kernel.Participates(participants, self.Owner) && x.B.Creature(self.Owner).Block <= 0)
-            x.B.Relics[self.Index].Counter = 1;
+            x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 
     public override void BeforeSideTurnEnd(ref Exec x, Listener self, Side side, ushort participants)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter == 0)
             return;
         relic.Counter = 0;
@@ -212,7 +218,7 @@ public sealed class FakeOrichalcum : RelicDef
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -227,12 +233,14 @@ public sealed class FakeOrichalcum : RelicDef
 [ContentId("POLLINOUS_CORE")]
 public sealed class PollinousCore : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // PollinousCore.cs: CardsVar(2), DynamicVar("Turns", 4m).
     public override IReadOnlyList<string> VarNames => ["Cards", "Turns"];
 
     public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (relic.Counter < (int)x.R.RelicVar(Id, 1))
             return amount;
@@ -369,9 +377,11 @@ public sealed class TeaOfDiscourtesy : RelicDef
 [ContentId("BONE_TEA")]
 public sealed class BoneTea : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter <= 0 || x.B.PlayerTurn > 1)
             return;
         for (int index = 0; index < x.B.HandCount; index++)

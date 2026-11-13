@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "a3-soul-nexus-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-soul-nexus-elite.json\u0022}",
-  "rulesSha256": "75d655a47484bafa27a664b6af0837ee544d388043f50d879eb338b4c38a3c71",
+  "rulesSha256": "15ea5724cb97e212adcc9042f472628534dfc5e6cbf32d0ef8dac281a037cf78",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1884,
-    "transitions": 1873
+    "walkStates": 1916,
+    "transitions": 1913
   }
 }

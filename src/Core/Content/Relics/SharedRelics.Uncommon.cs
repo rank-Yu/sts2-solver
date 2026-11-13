@@ -215,7 +215,8 @@ public sealed class GremlinHorn : RelicDef
     // GremlinHorn.cs: EnergyVar(1), CardsVar(1).
     public override IReadOnlyList<string> VarNames => ["Energy", "Cards"];
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (!Kernel.IsEnemyOwner(creature))
             return;
@@ -331,12 +332,14 @@ public sealed class TinyMailbox : RelicDef;
 [ContentId("JOSS_PAPER")]
 public sealed class JossPaper : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // JossPaper.cs: DynamicVar("ExhaustAmount", 5m).
     public override IReadOnlyList<string> VarNames => ["ExhaustAmount"];
 
     public override void AfterCardExhausted(ref Exec x, Listener self, in Card card, bool causedByEthereal)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (causedByEthereal)
         {
             relic.Aux++;
@@ -350,13 +353,13 @@ public sealed class JossPaper : RelicDef
     {
         if (side != Side.Player)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter += relic.Aux;
         relic.Aux = 0;
         DrawIfThresholdMet(ref x, ref relic);
     }
 
-    private void DrawIfThresholdMet(ref Exec x, ref Relic relic)
+    private void DrawIfThresholdMet(ref Exec x, ref RelicState relic)
     {
         int threshold = (int)x.R.RelicVar(Id, 0);
         if (relic.Counter < threshold)
@@ -376,6 +379,8 @@ public sealed class JossPaper : RelicDef
 [ContentId("KUSARIGAMA")]
 public sealed class Kusarigama : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Kusarigama.cs: CardsVar(3), DamageVar(6m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Cards", "Damage"];
 
@@ -383,7 +388,7 @@ public sealed class Kusarigama : RelicDef
     {
         if (Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (relic.Counter % (int)x.R.RelicVar(Id, 0) != 0)
             return;
@@ -401,7 +406,7 @@ public sealed class Kusarigama : RelicDef
         // (Kernel.PlayerTurnEndPhaseTwo); once the pass runs, every listener executes even if an
         // earlier listener in the same pass killed the last enemy.
         if (side == Side.Player)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 }
 
@@ -414,6 +419,8 @@ public sealed class Kusarigama : RelicDef
 [ContentId("LETTER_OPENER")]
 public sealed class LetterOpener : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // LetterOpener.cs: CardsVar(3), DamageVar(5m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Cards", "Damage"];
 
@@ -421,7 +428,7 @@ public sealed class LetterOpener : RelicDef
     {
         if (!Kernel.IsInProgress(x.B) || Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Skill)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (relic.Counter % (int)x.R.RelicVar(Id, 0) != 0)
             return;
@@ -432,7 +439,7 @@ public sealed class LetterOpener : RelicDef
     public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side == Side.Player && x.B.PlayerTurn > 1)
-            x.B.Relics[self.Index].Counter = 0;
+            x.B.RelicState(x.R, self.Index).Counter = 0;
     }
 }
 
@@ -444,6 +451,8 @@ public sealed class LetterOpener : RelicDef
 [ContentId("NUNCHAKU")]
 public sealed class Nunchaku : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Nunchaku.cs: CardsVar(10), EnergyVar(1).
     public override IReadOnlyList<string> VarNames => ["Cards", "Energy"];
 
@@ -451,7 +460,7 @@ public sealed class Nunchaku : RelicDef
     {
         if (Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (!Kernel.IsInProgress(x.B) || relic.Counter % (int)x.R.RelicVar(Id, 0) != 0)
             return;
@@ -468,6 +477,8 @@ public sealed class Nunchaku : RelicDef
 [ContentId("ORICHALCUM")]
 public sealed class Orichalcum : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Orichalcum.cs: BlockVar(6m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Block"];
 
@@ -476,12 +487,12 @@ public sealed class Orichalcum : RelicDef
     {
         if (Kernel.Participates(participants, self.Owner)
             && x.B.Creature(self.Owner).Block <= 0)
-            x.B.Relics[self.Index].Counter = 1;
+            x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 
     public override void BeforeSideTurnEnd(ref Exec x, Listener self, Side side, ushort participants)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Counter == 0)
             return;
         relic.Counter = 0;
@@ -489,7 +500,7 @@ public sealed class Orichalcum : RelicDef
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -500,6 +511,8 @@ public sealed class Orichalcum : RelicDef
 [ContentId("ORNAMENTAL_FAN")]
 public sealed class OrnamentalFan : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // OrnamentalFan.cs: CardsVar(3), BlockVar(4m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Cards", "Block"];
 
@@ -507,7 +520,7 @@ public sealed class OrnamentalFan : RelicDef
     {
         if (!Kernel.IsInProgress(x.B) || Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         if (relic.Counter % (int)x.R.RelicVar(Id, 0) != 0)
             return;
@@ -516,7 +529,7 @@ public sealed class OrnamentalFan : RelicDef
     }
 
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
-        => x.B.Relics[self.Index].Counter = 0;
+        => x.B.RelicState(x.R, self.Index).Counter = 0;
 }
 
 /// <summary>
@@ -528,6 +541,8 @@ public sealed class OrnamentalFan : RelicDef
 [ContentId("PEN_NIB")]
 public sealed class PenNib : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // PenNib.cs: _attacksThreshold = 10 (a code constant, not a DynamicVar).
     private const int AttacksThreshold = 10;
 
@@ -539,7 +554,7 @@ public sealed class PenNib : RelicDef
     {
         if (Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Attack)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter = (relic.Counter + 1) % AttacksThreshold;
         if (relic.Counter == 0)
             relic.Aux = x.PlayIdentity;
@@ -554,14 +569,14 @@ public sealed class PenNib : RelicDef
             return 1m;
         // Native: `AttackToDouble == context.CardSource.Original`. The play identity names the
         // CardPlay that owns the latch; a nested auto-play has already replaced x.PlayIdentity.
-        return x.B.Relics[self.Index].Aux != 0 && x.PlayIdentity == x.B.Relics[self.Index].Aux
+        return x.B.RelicState(x.R, self.Index).Aux != 0 && x.PlayIdentity == x.B.RelicState(x.R, self.Index).Aux
             ? 2m
             : 1m;
     }
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         if (relic.Aux != 0 && relic.Aux == x.LastPlayIdentity)
             relic.Aux = 0;
     }
@@ -575,6 +590,8 @@ public sealed class PenNib : RelicDef
 [ContentId("PERMAFROST")]
 public sealed class Permafrost : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // Permafrost.cs: BlockVar(7m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Block"];
 
@@ -582,11 +599,11 @@ public sealed class Permafrost : RelicDef
     {
         if (!Kernel.IsInProgress(x.B)
             || Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Power
-            || x.B.Relics[self.Index].Counter != 0)
+            || x.B.RelicState(x.R, self.Index).Counter != 0)
             return;
         Kernel.GainBlock(ref x, Limits.PlayerOwner, x.R.RelicVar(Id, 0),
             ValueProps.Unpowered, fromCard: false);
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 }
 
@@ -597,6 +614,8 @@ public sealed class Permafrost : RelicDef
 [ContentId("TUNING_FORK")]
 public sealed class TuningFork : RelicDef
 {
+    public override bool HasCombatState => true;
+
     // TuningFork.cs: CardsVar(10), BlockVar(7m, ValueProp.Unpowered).
     public override IReadOnlyList<string> VarNames => ["Cards", "Block"];
 
@@ -604,7 +623,7 @@ public sealed class TuningFork : RelicDef
     {
         if (Kernel.ResolveCardType(x.B, x.R, play.Card) != CardType.Skill)
             return;
-        ref Relic relic = ref x.B.Relics[self.Index];
+        ref RelicState relic = ref x.B.RelicState(x.R, self.Index);
         relic.Counter++;
         int threshold = (int)x.R.RelicVar(Id, 0);
         if (relic.Counter < threshold)

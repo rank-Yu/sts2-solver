@@ -256,8 +256,6 @@ public static class CardEffects
         CardRarity rarity = CardRarity.None)
     {
         CardPool pool = rules.CardPool(poolKey);
-        if (pool.Cards.Length == 0)
-            return 0;
         if (count > 0 && selected.Length < count)
             throw new CapacityException("GeneratedCards", selected.Length);
         Span<ushort> order = stackalloc ushort[pool.Cards.Length];
@@ -272,10 +270,8 @@ public static class CardEffects
                 continue;
             order[eligible++] = id;
         }
-        if (eligible == 0)
-            return 0;
         order = order[..eligible];
-        ref RngState rng = ref battle.RngStream(RngStream.CombatCardGeneration);
+        RngState rng = battle.RngStream(RngStream.CombatCardGeneration).CreateShuffleRng();
         for (int n = order.Length; n > 1;)
         {
             n--;

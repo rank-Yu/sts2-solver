@@ -214,6 +214,10 @@ public sealed class Queen : MonsterDef
                 Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
                     Registry.PowerId<Powers.ChainsOfBindingPower>(), 3, owner);
                 break;
+            case "DREAD_INITIAL_MOVE":
+                Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
+                    Registry.PowerId<Powers.ChainsOfBindingPower>(), 3, owner);
+                goto case "YOU_ARE_MINE_MOVE";
             case "YOU_ARE_MINE_MOVE":
                 Kernel.ApplyPowerFromMonster(ref x, Limits.PlayerOwner,
                     Registry.PowerId<Powers.FrailPower>(), 99, owner);
@@ -227,7 +231,8 @@ public sealed class Queen : MonsterDef
                 {
                     byte other = Kernel.EnemyOwner(x.B.Roster[position]);
                     if (other != owner)
-                        Kernel.ApplyPower(ref x, other, Registry.PowerId<Powers.StrengthPower>(), 1, owner);
+                        Kernel.ApplyPower(ref x, other, Registry.PowerId<Powers.StrengthPower>(),
+                            x.R.Mode == CombatMode.Dread ? 2 : 1, owner);
                 }
                 Kernel.GainBlock(ref x, owner, 20, ValueProps.Move, fromCard: false);
                 break;
@@ -237,7 +242,8 @@ public sealed class Queen : MonsterDef
         }
     }
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (creature < Limits.FirstEnemyOwner
             || creature == self.Owner
@@ -305,7 +311,8 @@ public sealed class MagiKnight : MonsterDef
         }
     }
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (creature != self.Owner || wasRemovalPrevented)
             return;

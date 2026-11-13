@@ -22,7 +22,7 @@ internal static class RemainingTurnsContracts
 
     private static SearchCase Read(string root)
     {
-        using FileStream file = File.OpenRead($"tests/Golden/data/d1/quality-{root}/config.br");
+        using FileStream file = File.OpenRead(GoldenFixtures.PathOf($"d1/quality-{root}/config.br"));
         using BrotliStream zip = new(file, CompressionMode.Decompress);
         using MemoryStream bytes = new();
         zip.CopyTo(bytes);

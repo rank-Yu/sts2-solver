@@ -46,7 +46,11 @@ public sealed class PlowPower : PowerDef
         if (x.B.Enemies[self.Owner - Limits.FirstEnemyOwner].MonsterId
             == Registry.MonsterId<CeremonialBeast>())
         {
-            nextNode = Kernel.MonsterRules(ref x, self.Owner).NodeIndex("BEAST_CRY_MOVE");
+            MonsterRules rules = Kernel.MonsterRules(ref x, self.Owner);
+            nextNode = rules.NodeIndex("BEAST_CRY_MOVE");
+            if (rules.StaticInts[3] > 0)
+                Kernel.ApplyPowerWithoutCardSource(ref x, self.Owner,
+                    Registry.PowerId<RitualPower>(), rules.StaticInts[3], self.Owner);
         }
         Kernel.ForceStunnedMove(ref x, self.Owner, nextNode);
         Kernel.SetPowerAmount(ref x.B, self.Owner, Id, 0);

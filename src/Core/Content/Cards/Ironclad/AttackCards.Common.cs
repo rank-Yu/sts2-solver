@@ -60,7 +60,7 @@ public sealed class PerfectedStrike : CardDef
 [ContentId("SWORD_BOOMERANG")]
 public sealed class SwordBoomerang : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
@@ -156,9 +156,9 @@ public sealed class SetupStrike : CardDef
 [ContentId("TWIN_STRIKE")]
 public sealed class TwinStrike : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
-    public override void OnPlay(ref Exec x) => CardEffects.GeneralAttack(ref x, 0, hitCount: 2);
+    public override void OnPlay(ref Exec x) => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
 }
 
 [ContentId("IRON_WAVE")]

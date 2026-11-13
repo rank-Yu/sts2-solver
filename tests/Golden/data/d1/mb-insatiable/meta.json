@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "mb-insatiable",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-mb-insatiable.json\u0022}",
-  "rulesSha256": "01e37748377a7d0b3396d2c8886c9083e0a94d51c9e2e17762bdcadb4fa10a27",
+  "rulesSha256": "6fc7f361ebcc027c1d442cc3e6bfb0f93845f0d51ed385a04e67eb19e5e9ac9c",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1633,
-    "transitions": 1604
+    "walkStates": 1506,
+    "transitions": 1474
   }
 }

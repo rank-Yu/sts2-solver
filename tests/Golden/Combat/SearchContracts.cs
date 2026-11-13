@@ -14,11 +14,7 @@ internal static class SearchContracts
 
     internal static void Run()
     {
-        using FileStream input = File.OpenRead("tests/Golden/data/d2/requests/6e0cc7806b41874f9203b30010b822a3b93c0b73fb93a7166a803bc61d271294.request.br");
-        using BrotliStream compressed = new(input, CompressionMode.Decompress);
-        using MemoryStream bytes = new();
-        compressed.CopyTo(bytes);
-        SearchCase original = SearchCodec.DecodeRequest(bytes.ToArray());
+        SearchCase original = GoldenFixtures.Search("quality-NECROBINDER-001");
         SearchPlan plan = new(12, 8, 16, 5, 100_000_000) { MillisecondsPerWidth = 125 };
         Assert(SearchCodec.EncodeRequest(original).AsSpan()
             .SequenceEqual(SearchCodec.EncodeRequest(SearchCodec.DecodeRequest(SearchCodec.EncodeRequest(original)))),

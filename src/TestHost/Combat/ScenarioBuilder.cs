@@ -81,21 +81,32 @@ internal static class ScenarioBuilder
             throw new InvalidOperationException("已经有进行中的跑局。");
 
         List<IDisposable> scopes = [];
-        if (generatedSelector != null)
-            scopes.Add(CardSelectCmd.PushSelector(generatedSelector, localOnly: true));
+        TestHostLog.Trace("scenario.start_run");
+        RunState runState = await waiter.StartRunAsync(character, request.Ascension, request.Seed, request.GameModeForTest);
+        TestHostLog.Trace("scenario.run_started");
+        if (request.DominionForTest is { } dominionId)
+        {
+            if (request.GameModeForTest != GameMode.Dread)
+                throw new InvalidOperationException("领域测试必须使用恐惧模式。");
+            runState.SetDominion(NativeLookup.ResolveUnique(
+                ModelDb.All.OfType<MegaCrit.Sts2.Core.Models.Dread.DominionModel>(), dominionId, "领域"));
+        }
+
+        // 0.113 creates a per-run selector stack when the run starts.
+        ICardSelector? localSelector = generatedSelector;
         if (turnSetupSelector != null)
-            scopes.Add(CardSelectCmd.PushSelector(turnSetupSelector, localOnly: true));
+            localSelector = turnSetupSelector;
         else if (request.FlashTurnSetupRootForTest)
-            scopes.Add(CardSelectCmd.PushSelector(new FirstChoiceCardSelector(), localOnly: true));
+            localSelector = new FirstChoiceCardSelector();
         else if (buildSelector != null)
-            scopes.Add(CardSelectCmd.PushSelector(buildSelector, localOnly: true));
+            localSelector = buildSelector;
+        else if (localSelector == null && request.GameModeForTest == GameMode.Dread)
+            localSelector = new FirstChoiceCardSelector();
         if (generatedSelector == null
             && request.ScenarioId.StartsWith("FLASH-PR-", StringComparison.Ordinal))
-            scopes.Add(CardSelectCmd.PushSelector(new FirstChoiceCardSelector(), localOnly: true));
-
-        TestHostLog.Trace("scenario.start_run");
-        RunState runState = await waiter.StartRunAsync(character, request.Ascension, request.Seed);
-        TestHostLog.Trace("scenario.run_started");
+            localSelector = new FirstChoiceCardSelector();
+        if (localSelector != null)
+            scopes.Add(RunManager.Instance.CardSelectorStack.UseLocalSelector(localSelector));
 
         if (request.ActIndexForTest != 0)
         {
@@ -510,8 +521,6 @@ internal static class ScenarioBuilder
         if (injection.Count is < 1 or > MaxBulkCardInjectionCount)
             throw new InvalidOperationException(
                 $"注入卡牌数量 {injection.Count} 超出 1-{MaxBulkCardInjectionCount}。");
-        if (injection.UpgradeLevel is < 0 or > 1)
-            throw new NotSupportedException($"不支持的卡牌 upgradeLevel：{injection.UpgradeLevel}。");
 
         CardModel canonical = NativeLookup.ResolveUnique(ModelDb.AllCards, injection.CardId, "卡牌");
         List<CardModel> cards = [];
@@ -566,8 +575,6 @@ internal static class ScenarioBuilder
         if (injection.Count is < 1 or > MaxBulkCardInjectionCount)
             throw new InvalidOperationException(
                 $"注入跑局卡牌数量 {injection.Count} 超出 1-{MaxBulkCardInjectionCount}。");
-        if (injection.UpgradeLevel is < 0 or > 1)
-            throw new NotSupportedException($"不支持的卡牌 upgradeLevel：{injection.UpgradeLevel}。");
         CardModel canonical = NativeLookup.ResolveUnique(ModelDb.AllCards, injection.CardId, "卡牌");
         for (int index = 0; index < injection.Count; index++)
         {

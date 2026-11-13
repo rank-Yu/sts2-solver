@@ -233,7 +233,7 @@ internal sealed class NativeHistory
     /// <c>BeforeHandDraw</c> has not run yet, so it is a play of the last player turn.
     /// </summary>
     public bool ReturnsToHand(CardModel card, bool beforeHandDraw)
-        => card is Bolas or ThrummingHatchet
+        => card is Bolas or ThrummingHatchet or Bounce
             && _cardPlaysFinished.Any(entry => ReferenceEquals(entry.CardPlay.Card, card)
                 && (beforeHandDraw ? entry.HappenedLastPlayerTurn(card.Owner) : ThisTurn(entry)));
 

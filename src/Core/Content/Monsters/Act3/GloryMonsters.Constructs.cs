@@ -99,7 +99,9 @@ public sealed partial class Aeonglass : MonsterDef
                 for (int index = 0; index < rules.StaticInts[WitherAmountStat]; index++)
                 {
                     Kernel.AddGeneratedCard(ref x,
-                        Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Wither>()), Pile.Discard, creator: Limits.NoOwner);
+                        Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Wither>()),
+                        x.R.Mode == CombatMode.Dread ? Pile.Draw : Pile.Discard,
+                        PilePosition.Random, creator: Limits.NoOwner);
                 }
                 int strength = rules.StaticInts[IncreasingIntensityBaseStrengthStat]
                     + x.B.Enemy(owner).Ai[AdditionalStrengthRegister];
@@ -335,7 +337,8 @@ public sealed partial class Axebot : MonsterDef
         }
     }
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (wasRemovalPrevented || creature != self.Owner
             || !Registry.TryPower("STOCK_POWER", out ushort stock)

@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "k4-player-plating-thorns",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-k4-player-plating-thorns.json\u0022}",
-  "rulesSha256": "dd3bd9773ce4a33d7376a4e262141a396fa5adba55f6a87737ad7e75880b7dfb",
+  "rulesSha256": "ddb3e884051a5c9b5d275edb4d387a43020cff5c6d6be9074766053b4f18ac97",
   "counts": {
     "roots": 1,
-    "k1": 10,
+    "k1": 12,
     "walks": 32,
-    "walkStates": 790,
-    "transitions": 758
+    "walkStates": 842,
+    "transitions": 810
   }
 }

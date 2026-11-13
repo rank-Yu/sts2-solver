@@ -165,11 +165,8 @@ public static partial class RulesCompiler
         bool hasPaelsLegion = false;
         bool furCoatSpawnHpOne = false;
         bool hasHistoryCourse = false;
-        sbyte penNibRelicIndex = -1;
-        int relicIndex = 0;
         foreach (RelicModel relic in player.Relics)
         {
-            int currentRelicIndex = relicIndex++;
             if (Registry.TryRelic(relic.Id.Entry, out ushort relicId))
             {
                 RelicDef def = Registry.Relic(relicId);
@@ -181,8 +178,6 @@ public static partial class RulesCompiler
                 continue;
             if (relic is HistoryCourse)
                 hasHistoryCourse = true;
-            if (relic is PenNib)
-                penNibRelicIndex = checked((sbyte)currentRelicIndex);
             if (Registry.TryRelic(relic.Id.Entry, out ushort ruleId) && Registry.Relic(ruleId).IsPaelsLegion)
                 hasPaelsLegion = true;
             if (relic is FurCoat furCoat
@@ -197,7 +192,6 @@ public static partial class RulesCompiler
         builder.HasPaelsLegion = hasPaelsLegion;
         builder.FurCoatSpawnHpOne = furCoatSpawnHpOne;
         builder.HasHistoryCourse = hasHistoryCourse;
-        builder.PenNibRelicIndex = penNibRelicIndex;
         builder.HasTheftContent = HasTheftContent(state);
         foreach (string nativeId in PowerIdsWithVars())
             AddPowerVars(builder, nativeId);
@@ -249,9 +243,18 @@ public static partial class RulesCompiler
                 detachedCards.Add((stolen.Id.Entry, stolen.CurrentUpgradeLevel));
             }
         }
+        builder.Dominion = CompileDominion(state);
         AddGeneratedCardClosure(builder, state, player, playerState, known, spawnClosure, detachedCards);
         builder.HasInfiniteHpDisplayMonster = HasInfiniteHpDisplayMonster(known, spawnClosure);
         builder.RootEnemyCount = known.Count;
+        builder.TotalFloor = player.RunState.TotalFloor;
+        builder.Mode = player.RunState.GameMode switch
+        {
+            GameMode.Standard => CombatMode.Standard,
+            GameMode.Dread => CombatMode.Dread,
+            GameMode.Blitz => CombatMode.Blitz,
+            _ => throw new UnsupportedException($"未知游戏模式 {player.RunState.GameMode}。"),
+        };
         builder.HasEncounter = state.Encounter != null;
         builder.EncounterSlots = state.Encounter?.Slots.ToArray() ?? [];
 
@@ -265,7 +268,7 @@ public static partial class RulesCompiler
         }
         foreach (ushort monsterId in spawnClosure)
             CompileSpawnedMonster(builder, state, runState, monsterId);
-        return builder.Build();
+        return builder.Build().WithRelics(CompileRelicRoster(player));
     }
 
     private static IEnumerable<CardPile> EnumeratePiles(PlayerCombatState playerState)
@@ -476,6 +479,7 @@ public static partial class RulesCompiler
             MaxUpgradeLevel = copy.MaxUpgradeLevel,
             Tags = MapTags(copy.Tags),
             IsSoul = copy.Id.Entry == "SOUL",
+            GainsBlock = copy.GainsBlock,
             IsColorless = copy.VisualCardPool.IsColorless,
             HasDynamicType = def.HasDynamicCardType,
             PlaysRecordRisk = MirrorRiskTables.CardPlaysRecordRisk(canonical.Id.Entry),
@@ -585,6 +589,15 @@ public static partial class RulesCompiler
         foreach (ushort monsterId in spawnClosure)
             Declare(Registry.Monster(monsterId));
 
+        if (builder.Dominion.SpawnAmount != 0)
+            pendingPowers.Enqueue(Registry.Power(builder.Dominion.SpawnPower).NativeId);
+        if (builder.Dominion.Kind == DominionKind.KnowledgeDemon)
+        {
+            foreach (string card in new[] { "SLOTH", "AMNESIA" })
+                if (seenCards.Add((card, 0))) pendingCards.Enqueue((card, 0));
+            pendingPowers.Enqueue("SLOTH_POWER");
+            pendingPowers.Enqueue("AMNESIA_POWER");
+        }
         while (true)
         {
             while (pendingCards.Count > 0 || pendingPools.Count > 0 || pendingPowers.Count > 0)
@@ -684,6 +697,21 @@ public static partial class RulesCompiler
         CardMultiplayerConstraint constraint = player.RunState.CardMultiplayerConstraint;
         IEnumerable<CardModel> cards = poolKey switch
         {
+            CardPools.Tarot => TarotCards.All.Where(card => card.IsAllowedInRun(player.RunState)),
+            CardPools.OtherCharacterCards => player.UnlockState.CharacterCardPools
+                .Where(pool => player.UnlockState.CharacterCardPools.Count() <= 1 || pool != player.Character.CardPool)
+                .SelectMany(pool => pool.GetUnlockedCards(player.UnlockState, constraint)),
+            CardPools.CharacterShots => player.Character.CardPool
+                .GetUnlockedCards(player.UnlockState, constraint)
+                .Where(static card => card.Tags.Contains(MegaCrit.Sts2.Core.Entities.Cards.CardTag.Shoot)),
+            CardPools.Melodies or CardPools.Wah or CardPools.Cho or CardPools.Ki => player.UnlockState.CharacterCardPools
+                .SelectMany(pool => pool.GetUnlockedCards(player.UnlockState, constraint))
+                .Where(card => poolKey == CardPools.Melodies
+                    ? card.Tags.Any(tag => tag is MegaCrit.Sts2.Core.Entities.Cards.CardTag.Wah
+                        or MegaCrit.Sts2.Core.Entities.Cards.CardTag.Cho or MegaCrit.Sts2.Core.Entities.Cards.CardTag.Ki)
+                    : card.Tags.Contains(poolKey == CardPools.Wah ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Wah
+                        : poolKey == CardPools.Cho ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Cho
+                        : MegaCrit.Sts2.Core.Entities.Cards.CardTag.Ki)),
             CardPools.CharacterAll => player.Character.CardPool
                 .GetUnlockedCards(player.UnlockState, constraint),
             CardPools.CharacterAttacks => player.Character.CardPool
@@ -711,7 +739,8 @@ public static partial class RulesCompiler
             _ => throw new UnsupportedImportException(ImportReason.UnsupportedClosure,
                 $"未知卡池 {poolKey}"),
         };
-        List<CardModel> candidates = FilterForCombatAndPlayerCount(cards, constraint).ToList();
+        List<CardModel> candidates = (poolKey == CardPools.Tarot ? cards : FilterForCombatAndPlayerCount(cards, constraint))
+            .Where(card => card.IsAllowedInRun(player.RunState)).ToList();
         ushort[] ids = new ushort[candidates.Count];
         for (int index = 0; index < candidates.Count; index++)
         {
@@ -1152,10 +1181,33 @@ public static partial class RulesCompiler
                 NativeCardTag.Minion => EngineCardTag.Minion,
                 NativeCardTag.OstyAttack => EngineCardTag.OstyAttack,
                 NativeCardTag.Shiv => EngineCardTag.Shiv,
+                NativeCardTag.Shoot => EngineCardTag.Shoot,
+                NativeCardTag.Wah => EngineCardTag.Wah,
+                NativeCardTag.Cho => EngineCardTag.Cho,
+                NativeCardTag.Ki => EngineCardTag.Ki,
                 _ => throw new UnsupportedImportException(ImportReason.UnsupportedCard,
                     $"卡牌标签 {tag}"),
             };
         }
         return result;
     }
+    private static RelicRoster CompileRelicRoster(Player player)
+    {
+        if (player.Relics.Count > Limits.RelicRoster)
+            throw new CapacityException("RelicRoster", Limits.RelicRoster);
+        Relic[] rows = new Relic[player.Relics.Count];
+        for (int i = 0; i < rows.Length; i++)
+        {
+            RelicModel native = player.Relics[i];
+            if (!Registry.TryRelic(native.Id.Entry, out ushort id))
+                throw UnsupportedContent.Relic(native);
+            rows[i] = new Relic { Id = id, Flags = native.IsMelted ? RelicFlags.Melted : RelicFlags.None };
+            if (native is PhilosophersStone stone) rows[i].Aux = stone.DynamicVars["StrengthPower"].IntValue;
+            if (native is PumpkinCandle candle) rows[i].Counter = candle.KindleCount;
+        }
+        // Melted rows retain imported private values too. The importer supplies their full snapshot.
+        // Keep declared state slots even for melted rows so fixed metadata does not need live counters.
+        return RelicRoster.Create(rows);
+    }
+
 }

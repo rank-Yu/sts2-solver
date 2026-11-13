@@ -2,7 +2,6 @@ namespace Sts2Solver.Simulation.Combat;
 
 public static partial class Kernel
 {
-    private static readonly Lazy<ushort> DrawCardsNextTurnId = new(() => PowerIdOrMax("DRAW_CARDS_NEXT_TURN_POWER"));
     private static readonly Lazy<ushort> EnergyNextTurnId = new(() => PowerIdOrMax("ENERGY_NEXT_TURN_POWER"));
 
     /// <summary>
@@ -21,25 +20,4 @@ public static partial class Kernel
         return amount;
     }
 
-    /// <summary>
-    /// The <c>drawNotYetSnapshotted</c> term of
-    /// <c>PersistentPowerSupport.ConsumeModifiedHandDraw</c>: a DrawCardsNextTurn power whose
-    /// <c>AmountOnTurnStart</c> is still zero was applied after the last turn-start snapshot and is
-    /// not seen by its own <c>ModifyHandDraw</c>; the turn-start path adds it directly.
-    /// </summary>
-    private static int DrawNextTurnNotYetSnapshotted(in Battle battle)
-    {
-        ushort id = DrawCardsNextTurnId.Value;
-        if (id == ushort.MaxValue)
-            return 0;
-        int index = FindPower(battle, Limits.PlayerOwner, id);
-        if (index < 0)
-            return 0;
-        ref readonly Power power = ref battle.Powers[index];
-        if (power.Amount > 0 && power.AmountOnTurnStart == 0)
-        {
-            return power.Amount;
-        }
-        return 0;
-    }
 }

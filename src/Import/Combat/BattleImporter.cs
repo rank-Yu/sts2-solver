@@ -29,7 +29,7 @@ namespace Sts2Solver.Import;
 /// building the old simulacrum state. The caller supplies the frozen <see cref="Rules"/> object for
 /// this root; rule compilation is out of scope for M2a-1.
 /// </summary>
-public static class BattleImporter
+public static partial class BattleImporter
 {
     /// <summary><c>Kernel.FetchPlayedBit</c>; card-private identity bit, not a layout constant.</summary>
     private const short FetchPlayedBit = 1;
@@ -154,14 +154,16 @@ public static class BattleImporter
         }
 
         ImportCounters(ref battle, state, player, known, osty, history, options);
-        ImportRng(ref battle, state.RunState.Rng);
+        ImportRng(ref battle, state.RunState.Rng, player);
         ImportEnemies(ref battle, state, player, known, rules, history, projections, options);
         ImportPowers(ref battle, player, known, osty, rules, history, projections);
         ImportCards(ref battle, player, playerState, rules, history, options);
         RejectRunListenerDeckCards(player);
-        ImportRelics(ref battle, player, projections);
+        ImportRelics(ref battle, player, projections, rules);
         ImportPotions(ref battle, player, rules);
         ImportOrbs(ref battle, playerState);
+        if (rules.HasFoolMechanics || playerState.Arrows.Count > 0)
+            ImportFool(ref battle, state, player, known, rules);
         if (rules.HasDecimalCardVars && !DecimalVars.TryCanonicalize(ref battle, out _))
             throw new UnsupportedImportException(ImportReason.Capacity, "卡牌小数变量表");
         projections.RequireAllMonsterIntsClaimed([]);
@@ -305,7 +307,7 @@ public static class BattleImporter
         }
     }
 
-    private static void ImportRng(ref Battle battle, MegaCrit.Sts2.Core.Runs.RunRngSet rng)
+    private static void ImportRng(ref Battle battle, MegaCrit.Sts2.Core.Runs.RunRngSet rng, Player player)
     {
         Set(ref battle, RngStream.Shuffle, rng.Shuffle);
         Set(ref battle, RngStream.CombatCardGeneration, rng.CombatCardGeneration);
@@ -316,6 +318,7 @@ public static class BattleImporter
         Set(ref battle, RngStream.CombatOrbGeneration, rng.CombatOrbGeneration);
         Set(ref battle, RngStream.MonsterAi, rng.MonsterAi);
         Set(ref battle, RngStream.Niche, rng.Niche);
+        Set(ref battle, RngStream.NonCombatGeneration, player.PlayerRng.NonCombatGeneration);
 
         static void Set(ref Battle target, RngStream stream, MegaCrit.Sts2.Core.Random.Rng source)
         {
@@ -427,10 +430,10 @@ public static class BattleImporter
                 Kernel.LogMonsterMove(ref enemy, node);
             }
             int poweredHits = history.PoweredAttackHitsThisTurn(player.Creature, creature);
-            if (poweredHits > byte.MaxValue)
+            if (poweredHits > ushort.MaxValue)
                 throw new UnsupportedImportException(ImportReason.Unrepresentable,
-                    $"{monster.Id.Entry} 的本回合强化攻击命中数 {poweredHits} 超过 255");
-            enemy.PoweredAttackHitsThisTurn = checked((ushort)poweredHits);
+                    $"{monster.Id.Entry} 的本回合强化攻击命中数 {poweredHits} 超过 {ushort.MaxValue}");
+            enemy.PoweredAttackHitsThisTurn = poweredHits;
             projections.ProjectMonster(creature, Registry.Monster(monsterId), ref enemy);
         }
         int rosterCount = 0;
@@ -720,14 +723,24 @@ public static class BattleImporter
             // lazy query in Sts2Solver and must not be written into the card row, or it survives after
             // HexPower/Hexed is gone and is counted twice by Kernel.HasKeyword.
             Keywords = MapKeywords(card.GetKeywordsWithSources(KeywordSources.Local)),
+            KeywordsAddedFromOutside = MapKeywords(card._keywordsAddedFromOutside),
+            KeywordsRemovedFromOutside = MapKeywords(card._keywordsRemovedFromOutside),
             BaseCost = checked((sbyte)card.EnergyCost._base),
             BaseStarCost = checked((sbyte)card.BaseStarCost),
             ReplayCount = checked((byte)card.BaseReplayCount),
             IsClone = card.IsClone,
             IsDupe = card.IsDupe,
+            CapturedEnergy = card.EnergyCost.CostsX ? checked((short)card.EnergyCost.CapturedXValue) : (short)0,
         };
         if (def.UsesIdentityLedger)
             result.Private = Limits.UninitializedLedger;
+        if (card is MegaCrit.Sts2.Core.Models.Cards.TheShot shot)
+        {
+            decimal exhausted = shot._cardsExhaustedByFlorescence;
+            if (exhausted != decimal.Truncate(exhausted) || exhausted < 0 || exhausted > short.MaxValue)
+                throw new UnsupportedImportException(ImportReason.Unrepresentable, $"TheShot 花开计数 {exhausted}");
+            result.Private = (short)exhausted;
+        }
         if (dampenOriginalUpgrade > 3)
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 $"{card.Id.Entry} 压制前升级等级 {dampenOriginalUpgrade}");
@@ -753,9 +766,6 @@ public static class BattleImporter
             result.EnchantmentStatus = (byte)enchantment.Status;
             switch (enchantment)
             {
-                case Glam glam:
-                    result.EnchantmentPrivate = (short)(glam._usedThisCombat ? 1 : 0);
-                    break;
                 case Momentum momentum:
                     result.EnchantmentPrivate = checked((short)momentum._extraDamage);
                     break;
@@ -781,16 +791,17 @@ public static class BattleImporter
         if (card.HasStarCostX) result.Flags |= CardFlags.StarCostsX;
 
         List<LocalCostModifier> modifiers = card.EnergyCost._localModifiers;
-        if (modifiers.Count > Limits.CardEnergyCostModifiers)
-            throw new UnsupportedImportException(ImportReason.Capacity,
-                $"{card.Id.Entry} 费用修饰 {modifiers.Count}");
-        for (int index = 0; index < modifiers.Count; index++)
+        try
         {
-            LocalCostModifier modifier = modifiers[index];
-            result.EnergyModifiers[index] = CostModifier.Create(modifier.Amount, (CostType)(byte)modifier.Type,
-                (CostExpiration)(byte)modifier.Expiration, modifier.IsReduceOnly);
+            foreach (LocalCostModifier modifier in modifiers)
+                CardCostModifiers.Append(ref result, CostModifier.Create(modifier.Amount, (CostType)(byte)modifier.Type,
+                    (CostExpiration)(byte)modifier.Expiration, modifier.IsReduceOnly));
         }
-        result.EnergyModifierCount = modifiers.Count;
+        catch (CapacityException)
+        {
+            throw new UnsupportedImportException(ImportReason.Capacity,
+                $"{card.Id.Entry} 费用修饰 {modifiers.Count}，合并后仍超出容量");
+        }
         List<TemporaryCardCost> starCosts = card._temporaryStarCosts;
         if (starCosts.Count > 0)
         {
@@ -911,25 +922,26 @@ public static class BattleImporter
         }
     }
 
-    private static void ImportRelics(ref Battle battle, Player player, BattleProjections projections)
+    private static void ImportRelics(ref Battle battle, Player player, BattleProjections projections, Rules rules)
     {
         IReadOnlyList<RelicModel> relics = player.Relics;
-        if (relics.Count > Limits.Relics)
+        if (relics.Count > Limits.RelicRoster)
             throw new UnsupportedImportException(ImportReason.Capacity, $"遗物数 {relics.Count}");
-        battle.RelicCount = checked((byte)relics.Count);
+        Relic[] rows = new Relic[relics.Count];
         for (int index = 0; index < relics.Count; index++)
         {
             RelicModel relic = relics[index];
             NativeAccess.RequireOriginal(relic);
             if (!Registry.TryRelic(relic.Id.Entry, out ushort id))
                 throw UnsupportedContent.Relic(relic);
-            battle.Relics[index] = new Relic
+            rows[index] = new Relic
             {
                 Id = id,
                 Flags = relic.IsMelted ? RelicFlags.Melted : RelicFlags.None,
             };
-            projections.ProjectRelic(relic, ref battle.Relics[index]);
+            projections.ProjectRelic(relic, ref rows[index]);
         }
+        rules.Relics.Import(rows, ref battle);
     }
 
     private static void ImportPotions(ref Battle battle, Player player, Rules rules)

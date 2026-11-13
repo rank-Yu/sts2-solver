@@ -33,7 +33,7 @@ public static partial class Kernel
             EvokeNext(ref x);
             if (x.NeedsChoice)
                 return false;
-            if (battle.OrbCount >= battle.OrbCapacity)
+            if (battle.OrbCapacity > 0 && battle.OrbCount >= battle.OrbCapacity)
                 throw new UnsupportedException("满槽激发后球槽仍无空位。");
         }
         if (battle.OrbCapacity == 0 || battle.OrbCount >= battle.OrbCapacity)

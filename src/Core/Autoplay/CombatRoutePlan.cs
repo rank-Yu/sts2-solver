@@ -49,7 +49,7 @@ internal sealed class CombatRoutePlan
         PostCombatRelicHealProfile postCombatRelicHeal = default,
         RelicCounterTarget[]? relicTargets = null)
     {
-        CombatRouteOutcome outcome = CombatRouteOutcome.From(route.Actions, route.Root, route.Victory,
+        CombatRouteOutcome outcome = CombatRouteOutcome.From(route.Actions, route.Root, route.Rules, route.Victory,
             onlyDeathRoutes, postCombatRelicHeal, relicTargets);
         return new CombatRoutePlan(route.Root, route.Actions, route.Rules, route.Victory, false,
             outcome, rootSetupChoices ?? []);
@@ -156,7 +156,7 @@ internal sealed record CombatRouteOutcome(
     /// <summary>Gold a thief still holds when the route ends (<c>Counter.OutstandingStolenGold</c>).</summary>
     internal int UnrecoveredGold { get; init; }
 
-    internal static CombatRouteOutcome From(IReadOnlyList<ReplayedAction> actions, in Battle root,
+    internal static CombatRouteOutcome From(IReadOnlyList<ReplayedAction> actions, in Battle root, Rules rules,
         bool victory, bool onlyDeathRoutes, PostCombatRelicHealProfile postCombatRelicHeal = default,
         RelicCounterTarget[]? relicTargets = null)
     {
@@ -202,8 +202,8 @@ internal sealed record CombatRouteOutcome(
         {
             PostCombatRelicHeal = relicHeal,
             RelicCounters = actions.Count > 0
-                ? RelicOutcomes(actions[^1].After, relicTargets, won)
-                : RelicOutcomes(root, relicTargets, won),
+                ? RelicOutcomes(actions[^1].After, relicTargets, won, rules)
+                : RelicOutcomes(root, relicTargets, won, rules),
             GrowthGained = actions.Count > 0 ? Growth(actions[^1].After) : Growth(root),
             UnrecoveredCards = actions.Count > 0
                 ? actions[^1].After.Counter(Counter.OutstandingStolenCards)
@@ -214,7 +214,7 @@ internal sealed record CombatRouteOutcome(
         };
     }
 
-    private static RelicCounterOutcome[] RelicOutcomes(in Battle end, RelicCounterTarget[]? targets, bool won)
+    private static RelicCounterOutcome[] RelicOutcomes(in Battle end, RelicCounterTarget[]? targets, bool won, Rules rules)
     {
         if (targets is not { Length: > 0 })
             return [];
@@ -222,8 +222,8 @@ internal sealed record CombatRouteOutcome(
         for (int index = 0; index < targets.Length; index++)
         {
             RelicCounterTarget target = targets[index];
-            int value = RelicCounterGoals.Value(in end, target);
-            outcomes[index] = new RelicCounterOutcome(end.Relics[target.Slot].Id, value, target.Goal,
+            int value = RelicCounterGoals.Value(in end, target, rules);
+            outcomes[index] = new RelicCounterOutcome(rules.Relics.Id(target.Slot), value, target.Goal,
                 won && value == target.Goal);
         }
         return outcomes;

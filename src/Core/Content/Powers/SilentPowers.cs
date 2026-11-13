@@ -79,7 +79,7 @@ public sealed class DrawCardsNextTurnPower : PowerDef
         return amount;
     }
 
-    public override void BaseSideTurnStart(ref Exec x, Listener self, bool decrementPlating)
+    public override void AfterModifyingHandDraw(ref Exec x, Listener self)
     {
         ref readonly Power power = ref x.B.Powers[self.Index];
         if (power.Amount > 0)
@@ -291,7 +291,7 @@ public sealed class MasterPlannerPower : PowerDef
             return;
         if ((uint)play.Position >= (uint)x.B.CardCount)
             throw new UnsupportedException("策划大师找不到刚打出的技能牌。");
-        x.B.Cards[play.Position].Keywords |= Keywords.Sly;
+        x.B.Cards[play.Position].AddKeyword(Keywords.Sly);
     }
 }
 

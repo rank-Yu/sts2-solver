@@ -427,7 +427,7 @@ public sealed class EntropyPower : PowerDef
         }
         if (count == 0)
             throw new UnsupportedException($"随机变化没有可用的 {poolKey} 候选。");
-        ushort chosen = candidates[x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count)];
+        ushort chosen = candidates[x.B.RngStream(RngStream.CombatCardGeneration).NextInt(0, count)];
         return Kernel.CreateCard(x.R, chosen);
     }
 }

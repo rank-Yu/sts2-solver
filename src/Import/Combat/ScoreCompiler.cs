@@ -75,7 +75,7 @@ internal static class ScoreCompiler
         PostCombatRelicHealProfile postCombatHeal = CompilePostCombatRelicHeal(player);
         BossHpRelief bossHpRelief = ResolveBossHpRelief(state, policy);
         ushort[] rootPotions = RootPotions(root);
-        RelicCounterTarget[] relicTargets = CompileRelicTargets(state, player, root, policy);
+        RelicCounterTarget[] relicTargets = CompileRelicTargets(state, player, root, rules, policy);
 
         ScoreRules Build(int persistent, int suppression, int weak, int retained,
             Rules? ruleTable = null) => new()
@@ -515,6 +515,12 @@ internal static class ScoreCompiler
                 : throw new UnsupportedImportException(ImportReason.UnsupportedCard,
                     $"评分表缺少卡牌 {id}+{upgrade}");
 
+    private static int RequiredRelicInt(RelicModel relic, string name)
+        => relic.DynamicVars.TryGetValue(name, out DynamicVar? value)
+            ? value.IntValue
+            : throw new UnsupportedImportException(ImportReason.UnsupportedRelic,
+                $"遗物 {relic.Id.Entry} 没有动态变量 {name}");
+
     internal static PostCombatRelicHealProfile CompilePostCombatRelicHeal(Player player)
     {
         int unconditionalHeal = 0;
@@ -527,15 +533,12 @@ internal static class ScoreCompiler
             switch (relic)
             {
                 case BurningBlood or BlackBlood:
-                    unconditionalHeal += relic.DynamicVars.TryGetValue("Heal",
-                        out DynamicVar? heal) ? heal.IntValue : 0;
+                    unconditionalHeal += RequiredRelicInt(relic, "Heal");
                     break;
                 case MeatOnTheBone:
-                    woundedHeal += relic.DynamicVars.TryGetValue("Heal",
-                        out DynamicVar? wounded) ? wounded.IntValue : 0;
+                    woundedHeal += RequiredRelicInt(relic, "Heal");
                     woundedHpPercent = Math.Max(woundedHpPercent,
-                        relic.DynamicVars.TryGetValue("HpThreshold", out DynamicVar? threshold)
-                            ? threshold.IntValue : 0);
+                        RequiredRelicInt(relic, "HpThreshold"));
                     break;
             }
         }
@@ -548,7 +551,7 @@ internal static class ScoreCompiler
     /// no combat follows to use the counter. The growth switch (<c>IgnoreGrowthRewards</c>) does not
     /// apply: each relic has its own switch.
     /// </summary>
-    internal static RelicCounterTarget[] CompileRelicTargets(CombatState state, Player player, Battle root,
+    internal static RelicCounterTarget[] CompileRelicTargets(CombatState state, Player player, Battle root, Rules rules,
         SearchPolicy policy)
     {
         if (ResolveNativeHpRelief(state) == BossHpRelief.RunEnding)
@@ -563,13 +566,13 @@ internal static class ScoreCompiler
             {
                 continue;
             }
-            if (index >= root.RelicCount
-                || Registry.Relic(root.Relics[index].Id).NativeId != relic.Id.Entry)
+            if (index >= rules.Relics.Count
+                || Registry.Relic(rules.Relics.Fixed(index).Id).NativeId != relic.Id.Entry)
             {
                 throw new UnsupportedImportException(ImportReason.Unrepresentable,
                     $"遗物 {relic.Id.Entry} 不在战斗状态的第 {index} 格");
             }
-            targets.Add(new RelicCounterTarget(checked((byte)index), checked((byte)period),
+            targets.Add(new RelicCounterTarget(checked((ushort)index), checked((byte)period),
                 checked((byte)RelicCounterCatalog.TargetCount(period)), allowance));
         }
         return [.. targets];

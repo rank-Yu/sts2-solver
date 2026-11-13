@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "a3-queen-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-queen-boss.json\u0022}",
-  "rulesSha256": "5e28aed63f9f15bdbd799d854be9aa16f4e08130c82d7a7826e71b1cafebce42",
+  "rulesSha256": "42d1c3e3604bf76062c442cca5d8cdd8f71e37604bbe17d47abb1da65d186a1f",
   "counts": {
     "roots": 1,
-    "k1": 10,
+    "k1": 11,
     "walks": 32,
     "walkStates": 1920,
-    "transitions": 1916
+    "transitions": 1918
   }
 }

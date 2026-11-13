@@ -92,7 +92,8 @@ public sealed class IllusionPower : PowerDef
 
     public override bool KeepsOwnerBuffsAfterDeath => true;
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (wasRemovalPrevented || creature != self.Owner)
             return;
@@ -338,7 +339,8 @@ public sealed class RavenousPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (wasRemovalPrevented
             || creature == self.Owner

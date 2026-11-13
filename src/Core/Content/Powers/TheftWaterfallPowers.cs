@@ -100,18 +100,18 @@ public sealed class SurprisePower : PowerDef
         Kernel.SpawnMonster(ref x, dead, sneakyRulesId, Kernel.SlotIndex(x.R, "sneaky"), minion: false);
         if (x.NeedsChoice)
             return;
-        byte fatOwner = Kernel.AddCreatedMonster(ref x, dead, ref fat, minion: false);
-        if (x.NeedsChoice)
-            return;
-        ushort heist = Registry.PowerId<HeistPower>();
+        Span<Power> carried = stackalloc Power[transfers];
+        int carriedCount = 0;
         for (int index = 0; index < transfers; index++)
         {
-            if (gold[index] == 0)
-                continue;
-            Kernel.ApplyPowerTargeted(ref x, fatOwner, targets[index], heist, gold[index], dead);
-            if (x.NeedsChoice)
-                return;
+            if (gold[index] == 0) continue;
+            carried[carriedCount++] = new Power
+            {
+                Id = Registry.PowerId<HeistPower>(), Target = targets[index],
+                Amount = gold[index], Applier = dead,
+            };
         }
+        Kernel.AddCreatedMonster(ref x, dead, ref fat, minion: false, carried[..carriedCount]);
     }
 }
 
@@ -134,7 +134,8 @@ public sealed class SteamEruptionPower : PowerDef
 
     public override bool ShouldPowerBeRemovedAfterOwnerDeath => false;
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (wasRemovalPrevented || creature != self.Owner)
             return;

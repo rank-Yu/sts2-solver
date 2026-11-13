@@ -168,7 +168,7 @@ public sealed partial class GhostSeed : RelicDef
         }
         ref Card stored = ref Piles.At(ref x.B, pile, index);
         if ((stored.Keywords & Keywords.Ethereal) == 0)
-            stored.Keywords |= Keywords.Ethereal;
+            stored.AddKeyword(Keywords.Ethereal);
     }
 }
 
@@ -286,6 +286,8 @@ public sealed class Kifuda : RelicDef;
 [ContentId("LAVA_LAMP")]
 public sealed class LavaLamp : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (result.Receiver != Limits.PlayerOwner
@@ -294,7 +296,7 @@ public sealed class LavaLamp : RelicDef
         {
             return;
         }
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 }
 
@@ -334,13 +336,15 @@ public sealed class WingCharm : RelicDef;
 [ContentId("BURNING_STICKS")]
 public sealed partial class BurningSticks : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override void AfterCardExhausted(ref Exec x, Listener self, in Card card, bool causedByEthereal)
     {
-        if (Kernel.ResolveCardType(x.B, x.R, card) != CardType.Skill || x.B.Relics[self.Index].Counter != 0)
+        if (Kernel.ResolveCardType(x.B, x.R, card) != CardType.Skill || x.B.RelicState(x.R, self.Index).Counter != 0)
             return;
         if (!Kernel.AddGeneratedCard(ref x, Kernel.CloneCard(card), Pile.Hand))
             return;
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
     }
 }
 
@@ -353,13 +357,15 @@ public sealed partial class BurningSticks : RelicDef
 [ContentId("BELT_BUCKLE")]
 public sealed partial class BeltBuckle : RelicDef
 {
+    public override bool HasCombatState => true;
+
     public override IReadOnlyList<string> VarNames => ["DexterityPower"];
 
     public override void AfterPotionUsed(ref Exec x, Listener self, ushort potionId)
     {
-        if (x.B.Relics[self.Index].Counter != 0 || HasAvailablePotion(x.B))
+        if (x.B.RelicState(x.R, self.Index).Counter != 0 || HasAvailablePotion(x.B))
             return;
-        x.B.Relics[self.Index].Counter = 1;
+        x.B.RelicState(x.R, self.Index).Counter = 1;
         Kernel.ApplyPower(ref x, Limits.PlayerOwner,
             Registry.PowerId<Powers.DexterityPower>(), (int)x.R.RelicVar(Id, 0), Limits.NoOwner);
     }

@@ -326,7 +326,8 @@ public sealed class Melancholy : CardDef
 
     public override void OnPlay(ref Exec x) => CardEffects.GeneralBlock(ref x, 0);
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented)
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
     {
         if (wasRemovalPrevented || (uint)self.Index >= (uint)x.B.CardCount)
             return;

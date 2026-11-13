@@ -48,10 +48,12 @@ public static partial class Kernel
         BeforeHandDraw(ref x);
         if (x.NeedsChoice)
             return;
+        DominionBeforeHandDraw(ref x);
+        if (x.NeedsChoice) return;
         ResolvePowerAmountChanges(ref x);
         if (x.NeedsChoice)
             return;
-        int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount + DrawNextTurnNotYetSnapshotted(x.B));
+        int drawCount = ModifiedHandDraw(ref x, BaseHandDrawCount);
         drawCount = ApplyFirstTurnDrawOrder(ref x.B, drawCount);
         Draw(ref x, drawCount, fromHandDraw: true);
         if (x.NeedsChoice)
@@ -93,7 +95,7 @@ public static partial class Kernel
     }
 
     private static void RelicBeforeHandDraw(ref Exec x)
-        => RelicPass(ref x, RelicPhase.BeforeHandDraw, Side.Player, snapshot: true);
+        => RelicPass(ref x, RelicPhase.BeforeHandDraw, Side.Player);
 
     /// <summary>
     /// Native turn-one draw order: cards whose enchantment starts at the bottom move to the draw

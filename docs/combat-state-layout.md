@@ -2,7 +2,7 @@
 
 [返回文档索引](README.md)
 
-`Battle` 是一场战斗在某个稳定边界上的全部分支可变状态。搜索里的“一个状态”就是一个 `Battle`：复制它就是分叉，比较它的字节就能判断两个局面是否相同。所以本文关心三件事：什么值放进 `Battle`、每个值怎么编码、怎样保证同一局面只有一种字节表示。
+`Battle` 是一场战斗在某个稳定边界上的全部分支可变状态。搜索里的“一个状态”就是一个 `Battle`：复制它就是分叉，在同一份共享根数据下比较它的字节，就能判断两个局面是否相同。所以本文关心三件事：什么值放进 `Battle`、每个值怎么编码、怎样保证同一局面只有一种字节表示。
 
 `Battle` 是 `unmanaged` 结构体，没有对象引用，按值赋值就是深拷贝。牌区是最后一个字段，搜索池只保存“头部 + 前 `CardCount` 张牌”的打包前缀，这段前缀才是状态身份。下标不小于 `CardCount` 的牌格内容无定义，任何代码都不得读取；其它内联数组的未用槽位仍必须为零。
 
@@ -13,7 +13,7 @@
 | 放在哪里 | 放什么 |
 | --- | --- |
 | `Battle` | 会随分支变化、而且影响之后合法动作或结算的值。下限是原引擎状态键（`BuildStateKey`、`SimulatedCombatState.AppendFingerprint`）覆盖的内容；原引擎状态键漏掉但影响未来结算的值（例如回合数、Power 的 `AmountOnTurnStart`）也放进来。 |
-| `Rules` | 根导入时冻结、整场搜索不变的值：卡牌各升级等级的基础数值与费用、怪物行动的静态参数和编译后的状态机、可生成怪物的闭包、遭遇槽名、根监听前缀顺序、最大能量基础值、手牌上限、药水槽数、根药水（用来区分生成药水和根药水）、战斗内外的随机药水池、卡牌洗牌排序键、角色基础球槽数等。`Rules` 是不可变引用类型，所有分支共享。完整字段见 [原生导入](import.md#41-30-个字段)。 |
+| `Rules` | 根导入时冻结、整场搜索不变的值：卡牌各升级等级的基础数值与费用、怪物行动的静态参数和编译后的状态机、可生成怪物的闭包、遭遇槽名、根监听前缀顺序、最大能量基础值、手牌上限、药水槽数、根药水（用来区分生成药水和根药水）、战斗内外的随机药水池、卡牌洗牌排序键、角色基础球槽数、固定遗物清单和遗物槽位映射等。`Rules` 是不可变引用类型，所有分支共享。完整字段见 [原生导入](import.md#41-32-个字段)。 |
 | `Exec` | 一个动作执行期间的临时值，放在栈上，动作结束前排空，稳定边界上不存在（见第 4 节）。 |
 | 都不放 | 纯 UI、日志、显示名、派生启发式值。历史日志只保留会影响结算的计数器。 |
 
@@ -30,15 +30,16 @@
 | `Potions` | 各药水槽 | 5 |
 | `Player`、`Osty` | `Creature`：HP、最大 HP、格挡、标志 | 各 1 |
 | `Counters` | 整数计数器（见 3.8） | 48 |
-| `Rng` | 九条战斗随机流，每条一个计数器加四个 64 位状态字 | 9 |
+| `Rng` | 十条随机流（含角色的 NonCombatGeneration），每条一个计数器加四个 64 位状态字 | 10 |
 | `Enemies` | 已知敌人，含已死和已逃跑的（见 3.2） | 12 |
-| `Powers` | Power 表（见 3.3） | 64 |
-| `Relics` | 遗物（见 3.4） | 32 |
+| `Powers` | Power 表（见 3.3） | 28 |
+| `RelicStates`、`RelicStateFlags` | 遗物动态整数与本场标志（见 3.4） | 24 |
 | `Orbs` | 球（见 3.5） | 10 |
+| `Fool` | 箭矢状态、旋律次数、悲伤生成计数与关联卡牌身份 | 32 支箭 |
 | `HistoryCourseCard` | 上一次攻击的完整卡值（见 3.11） | 1 |
 | `Cards` | 五个牌堆的卡（见 3.6、3.7）；最后一个字段 | 640 |
 
-`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 3860` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用 1 个显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 92`。
+`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 2896` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 64`。
 
 ## 3. 各部分的含义
 
@@ -95,6 +96,8 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.3 Power
 
+全场共享 28 个实例槽位，包含玩家、奥斯蒂和所有敌人；叠加层数不额外占槽，独立实例分别占槽。第 29 个实例显式报告容量不足，不截断。文件使用同一份 28 槽运行时布局。
+
 **顺序。** `Powers` 按持有者分组，组的顺序就是 Hook 监听顺序里各生物的顺序；组内按获得顺序排列。新 Power 追加到持有者组的末尾，对应原引擎“插在持有者最后一个 Power 之后”的规则。数量归零的 Power 立即移除并压实，之后再获得时排在组末，对应原引擎退役根槽位的语义。
 
 **实例型 Power。** 原版 `PowerInstanceType.Instanced` 的 Power，每个原生实例占一行，同一 `(owner, id)` 的多行按获得顺序排列。Hook 和阶段遍历都保存出现序号（occurrence），定位到确切的那一行，而不是取 `(owner, id)` 的第一行。实例型的有 Monologue、Nightmare、Swipe、Automation、Panache、RollingBoulder、TheBomb、Gigantification、Orbit、Sandpit、ToricToughness 等。
@@ -125,7 +128,15 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.4 遗物与药水
 
-`Relic` 有 `Counter`、`Aux` 和标志（已熔化、本场已用）。各遗物借用这两个整数的方式：
+遗物分成共享清单和分支状态：
+
+- `Rules.Relics` 是不可变的 `RelicRoster`：按原生顺序保存每个实例的 Id、熔化标志、固定值和动态槽映射。重复遗物保留独立下标；输入数组会复制，外部不能修改内部数组。固定清单不占 `Battle` 空间，技术上限为 65,535 件。
+- `Battle.RelicStates` 为 24 对 `int Counter/Aux`，共 192 字节；`RelicStateFlags` 为 24 个单字节标志，共 24 字节。映射按清单顺序分配，零值实例也占槽，熔化的有状态实例仍保留其动态值。复制分支只复制这 216 字节。
+- `RelicDef.HasCombatState` 声明是否有动态状态；新增会改变私有值的遗物必须声明。PhilosophersStone 的力量值与 PumpkinCandle 的 KindleCount 在战斗中不变，留在共享清单里。
+- `Battle.GetRelic(rules, index)` 重建只读 `Relic` 值用于导入、编码和查询；写入通过 `RelicState`、`RelicFlags` 定位动态槽。遗物监听下标为 `ushort`，根处预先整理监听列表。
+- 根导入必须验证清单的数量、顺序、Id、熔化标志和固定值全部一致，然后初始化动态槽；超出 24 槽或清单技术上限时显式失败，不截断。
+
+各遗物借用两个动态整数的方式：
 
 | 遗物 | `Counter` | `Aux` |
 | --- | --- | --- |
@@ -149,10 +160,10 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.6 卡牌
 
-`Card` 是一张牌的完整值，92 字节。字段集以原引擎的卡牌状态键（`CaptureCardStateFingerprintForTesting`、`CardChoiceSupport.ChoiceCardKey`）为准：
+`Card` 是一张牌的完整值，64 字节。字段集以原引擎的卡牌状态键（`CaptureCardStateFingerprintForTesting`、`CardChoiceSupport.ChoiceCardKey`）为准：
 
-- 卡牌 Id、升级等级、本地关键字位图；
-- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 16，Stomp 每打出一张攻击追加一条本回合修饰）、星能费用；`ModifierCount` 低 5 位保存修饰数量，第 5–6 位保存 `HistoryCourseRole`，第 7 位保存 `IsDupe`；
+- 卡牌 Id、升级等级、本地关键字位图，以及外部添加/移除关键词的两组位图；
+- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 10，Stomp 每打出一张攻击累加本回合相对减费）、星能费用；`ModifierCount` 低 5 位保存修饰数量，第 5–6 位保存 `HistoryCourseRole`，第 7 位保存 `IsDupe`；
 - 临时星能费用：当前条目 `TemporaryStarCost`，加上最多两个同成本的旧条目（`TemporaryStarCostStack`：低 2 位是旧条目数，之后每个旧条目 2 位清除标志）；回合末或打出后按清除标志逐条移除，成本不同的旧条目按容量拒绝；
 - 状态标志 `CardFlags`：下次打出时消耗、本回合狡诈、本回合保留、是否牌组卡、已移出战斗、X 费、X 星费，以及 bit 7 `PowerAfflictionChecked`；
 - `ReplayCount`；
@@ -162,6 +173,8 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 - `HistoryCourseRole`：1 为本回合最后攻击的来源，2 为回合准备期间的上一回合来源，3 为两者都是；随原牌移动，克隆清零。
 - `IsDupe`：原版复制品身份，克隆保留，手动和自动打出后都移出战斗。
 - `TransientMark`：一次动作内的对象身份标记（见下）。
+
+能量费用修饰 `CostModifier` 占 3 字节：两字节数量，以及一字节标志（低 3 位有效期、bit 3–4 类型、bit 7 只降低费用）。容量为 10 项。相邻、有效期相同且不带“只降低费用”标志的相对修饰按总量合并；绝对设费、不同有效期与“只降低费用”记录保留为合并边界。总量超出 short 时按正向 32767 或负向 -32768 分段，避免截断，并确保导入和清理后的表示一致；总量为零仍保留一条，以保留“存在修饰”的区别。追加时合并尾部，过期清理后重新合并相邻段；导入与旧状态解码使用同一规则。容量按合并后的记录数计算。
 
 **`CostState` 的位。**
 
@@ -262,7 +275,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 4.1 规则表里的根级字段
 
-`Rules` 里有一些按根求值、整场不变的布尔或下标，用来让热路径在根不含相关内容时直接跳过：`HasIdentityContent`、`HasDecimalCardVars`、`HasTheftContent`、`HasHistoryCourse`、`HasPaelsLegion`（`GainBlock` 是否需要收集变化监听者列表）、`FurCoatSpawnHpOne`（命中的生成敌人当前生命设为 1）、`RootLostHpMask`（根捕获时每个 owner 的“本回合已失血”，额外回合恢复用）、`PenNibRelicIndex`、`RootSwordSageAmount` 等。怪物规则里的 `MonsterRules.InitialMoveLogged` 表示状态机构造器已经把初始行动记进日志，敌方回合内生成的召唤物要在生成时立即记录该行动。完整列表见 [原生导入](import.md#41-30-个字段)。
+`Rules` 里有一些按根求值、整场不变的布尔或下标，用来让热路径在根不含相关内容时直接跳过：`HasIdentityContent`、`HasDecimalCardVars`、`HasTheftContent`、`HasHistoryCourse`、`HasPaelsLegion`（`GainBlock` 是否需要收集变化监听者列表）、`FurCoatSpawnHpOne`（命中的生成敌人当前生命设为 1）、`RootLostHpMask`（根捕获时每个 owner 的“本回合已失血”，额外回合恢复用）、`PenNibRelicIndex`、`RootSwordSageAmount` 等。怪物规则里的 `MonsterRules.InitialMoveLogged` 表示状态机构造器已经把初始行动记进日志，敌方回合内生成的召唤物要在生成时立即记录该行动。完整列表见 [原生导入](import.md#41-32-个字段)。
 
 生成候选池、随机药水池、按原卡展开的变化池也只在 `Rules` 里。
 
@@ -322,7 +335,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 同一局面必须只有一种字节表示，否则去重失效；不同局面绝不能字节相同。
 
-- `Enemies`、`Powers`、`Relics`、`Orbs`、`DetachedCards`、`DecimalVars` 的未用槽位和填充字节全部为零。牌堆移除元素时只在前 `CardCount` 张内前移，不要求清空旧的尾格；`Cards` 下标不小于 `CardCount` 的内容不参与规范化、比较、编码或任何读取。
+- `Enemies`、`Powers`、`RelicStates`、`RelicStateFlags`、`Orbs`、`DetachedCards`、`DecimalVars` 的未用槽位和填充字节全部为零。牌堆移除元素时只在前 `CardCount` 张内前移，不要求清空旧的尾格；`Cards` 下标不小于 `CardCount` 的内容不参与规范化、比较、编码或任何读取。
 - 牌堆保持真实顺序，不排序。原引擎在部分牌堆上忽略顺序（`PileOrderInvariantMask`），Sts2Solver 目前不做这种合并：只会少合并，不会错误合并。
 - 布尔值只用 0 和 1。
 - 结构体用 `StructLayout(LayoutKind.Sequential)`，并由检查断言 `Unsafe.SizeOf<Battle>()` 等于预期，防止字段改动悄悄引入填充。
@@ -330,6 +343,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 ## 6. 指纹与相等
 
 - 指纹是 64 位哈希，只覆盖打包前缀里各区块已用的部分（头部、前 `EnemyCount` 个敌人、前 `PowerCount` 个 Power、前 `CardCount` 张牌等），四路并行混合。`HistoryCourseCard` 在内存里位于头部末尾，但最后才混入。
+- 固定清单不参与分支指纹；状态比较、去重和重放必须使用同一份或等价的共享清单。跨请求比较先比较清单，再比较动态状态。
 - 相等比较打包前缀（`Fingerprint.Bytes`），唯一入口是 `Fingerprint.Equal`。搜索去重在指纹命中后必须再比较打包前缀，不允许只凭哈希合并；后缀的垃圾字节不参与比较。
 
 和原引擎状态键相比，有几处有意的差别，都只会让合并变少，不会把不同局面误合并：
@@ -352,19 +366,38 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 | 结构 | 字节 | 说明 |
 | --- | ---: | --- |
-| `Card` | 92 | 费用修饰容量 16；`DampenOriginalUpgrade`；`TransientMark` 复用尾部填充；实例身份复用 `Private` |
+| `Card` | 64 | 费用修饰容量 10，每项 3 字节；外部关键词记录；`FoolIdentity`；`DampenOriginalUpgrade`；`TransientMark` |
 | `Enemy` | 64 | `Rules`、`PoweredAttackHitsThisTurn`、`SteamPhase` 各占原填充的一个字节，最后一个字节仍是填充 |
 | `Power` | 24 | — |
+| `RelicState` | 8 | `Counter` + `Aux`；标志另存为每槽 1 字节 |
 | `Orb` | 8 | `Id` + `Aux` |
 | `RngState` | 40 | 计数器 + 四个 64 位状态字 |
-| `Battle` | 62,744 | 头部 3,860 + 满牌 640 × 92 = 62,740（打包前缀），结构体尾部对齐到 62,744 |
+| `Battle` | 43,856 | 头部 2,896 + 满牌 640 × 64；打包前缀和满容量结构体尺寸相同 |
 
-典型的 23 张牌状态打包后约 5.9 KiB。
+典型的 23 张牌状态打包后约 4.3 KiB；30 张牌为 4,816 字节。
 
 ### 大结构体与 JIT 限制
 
-`Battle` 的 62,744 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
+`Battle` 的 43,856 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
 
-C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。`Battle` 本身刚好在安全范围内：两个 `Battle` 的元组是 125,488 字节，可以编译；三个 `Battle` 的元组是 188,232 字节，不能编译。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：62,744 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
+C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。`Battle` 本身刚好在安全范围内：两个 `Battle` 的元组是 87,712 字节，可以编译；三个 `Battle` 的元组是 131,568 字节，不能编译。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：43,856 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
 
 这类错误只看方法是否被 JIT 编译，与牌组大小无关：一条很少执行的分支第一次运行就可能让整个方法报 `InvalidProgramException`。测试版 Mod 启动时由 `JitChecks` 对 Mod/Core 程序集（测试构建里是同一个 `Sts2Solver.dll`）的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`，包括 async 状态机的 `MoveNext`；泛型方法因缺少闭合类型参数跳过。任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让启动检查失败。
+
+卡牌的 `CapturedEnergy` 保存 X 费用最近捕获的能量值，参与同名牌排序。洗牌从所用随机流取一个种子，再用临时随机流完成打乱；主流只推进一次。
+
+### 5.1 愚者状态与调用尺寸
+
+卡牌末尾两个字节记录外部添加、移除的关键词，降级时与未升级的规范关键词合成；升级本身不会改写这两组记录。
+
+`FoolState` 在 `HistoryCourseCard` 之前，占 120 字节。32 支箭各用状态位和链表下标表示；`ImpaledPower` 引用箭链，离开敌人时恢复或销毁对应箭。旋律记录分别保存开始次数和完成次数，避免一次多重旋律与重复打出混淆。`FirstPlay`、`AttackSerial`、`ActiveAttack` 只用于动作内关联，在稳定边界清零。
+
+卡牌的 `FoolIdentity` 为 16 位，用于瞄准和炫技能力保留的原牌引用。稳定边界按牌堆顺序重编号；没有能力引用的身份清零，已脱离牌堆的引用以 -1 表示。生成牌的瞬态身份属于动作内嵌套批次，与这里的跨动作身份分开。
+
+CLR 还限制单次调用的参数总尺寸。一个满容量 `Battle` 加上其它按值参数可能超过 65,535 字节，即使被调用方法本身可以 JIT，调用者仍可能抛 `InvalidProgramException`。搜索入口通过引用类型会话传递根状态；新增调用用 `in Battle` 或已有状态容器，并运行实机 JIT 检查。
+
+模式、楼层和领域规则属于根常量：`Rules.Mode` 冻结标准、恐惧或极速；`TotalFloor` 提供塔罗牌的楼层数；`Dominion` 冻结领域类型及召唤后施加的能力。它们均进入规则编码，不能从搜索线程读取原生全局游戏模式。
+
+BATL v9 直接保存当前运行时打包前缀：头部 2896 字节，加每张活动牌 64 字节；最大前缀为 43856 字节。卡牌指纹直接读取当前 Card 字节。
+
+前缀后保存 `ushort` 遗物件数和完整的固定清单，每行 12 字节；动态状态只在 Battle 的 24 槽里保存一次。清单上限为 65535 件。解码返回 Battle 和清单；SREQ 为所有根绑定同一个等价清单。RULE 只编码内容规则表，清单由 BATL 携带，不在 RULE 中重复保存。只接受当前格式，旧布局不提供兼容读取。

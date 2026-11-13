@@ -5,7 +5,7 @@ namespace Sts2Solver.Content.Cards.Ironclad;
 [ContentId("CONFLAGRATION")]
 public sealed class Conflagration : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
         => CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
@@ -101,7 +101,7 @@ public sealed class TearAsunder : CardDef
 [ContentId("THRASH")]
 public sealed class Thrash : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     // The native card adds ModifyDamage's decimal result to DynamicVars.Damage.BaseValue and to
     // the private ExtraDamage field, and AfterDowngraded re-adds ExtraDamage. Sts2Solver keeps the
@@ -114,7 +114,7 @@ public sealed class Thrash : CardDef
         // through ModifyDamage with a null target (dealer-side modifiers such as Strength and Strike
         // Dummy apply, target-side ones such as Vulnerable do not), is added to this card's Damage,
         // and the selected card is exhausted.
-        CardEffects.GeneralAttack(ref x, 0, hitCount: 2);
+        CardEffects.GeneralAttack(ref x, 0, hitCount: (int)CardEffects.Var(x, 1));
         if (x.NeedsChoice)
             return;
         // DamageCmd.Execute settles a kill (AfterDeath) inside the attack, before the hand is read:

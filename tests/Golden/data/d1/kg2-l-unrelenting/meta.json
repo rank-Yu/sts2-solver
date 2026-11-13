@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "kg2-l-unrelenting",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-l-unrelenting.json\u0022}",
-  "rulesSha256": "fbc4ea811ac2adb0dd402f1232d10eb62f347685bcb5f75ff368e366cd0e0c3b",
+  "rulesSha256": "eaa8df4b3b88a489ea656af78e3c521c21fa4c51b20eb0c53c3df4b6720d2d9b",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 545,
-    "transitions": 513
+    "walkStates": 500,
+    "transitions": 468
   }
 }

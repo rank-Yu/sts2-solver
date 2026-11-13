@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p13-the-obscura-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-the-obscura-normal.json\u0022}",
-  "rulesSha256": "2ee18de57aa03c31de4bbc4fd8657a0f7d970de624fbf57a33923b3995b3d47c",
+  "rulesSha256": "b7c9e9782d5d5678b2011c778c2103cf093a0e1b58e576a503bf95a4c35f69c5",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1817,
-    "transitions": 1805
+    "walkStates": 1832,
+    "transitions": 1815
   }
 }

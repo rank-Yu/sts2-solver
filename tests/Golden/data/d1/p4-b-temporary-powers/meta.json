@@ -1,14 +1,14 @@
 {
-  "formatVersion": 5,
-  "battleSize": 62744,
+  "formatVersion": 9,
+  "battleSize": 43856,
   "root": "p4-b-temporary-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p4-b-temporary-powers.json\u0022}",
-  "rulesSha256": "ca1148ab0d251c2e7bb194f76d27c3e5f00aaaac269fd8c1bb3827aa7004aa87",
+  "rulesSha256": "3f04302e0a868352b658e203918d7f796880ecfaa66f24be2bf75d987394370e",
   "counts": {
     "roots": 1,
     "k1": 15,
     "walks": 32,
-    "walkStates": 676,
-    "transitions": 644
+    "walkStates": 692,
+    "transitions": 660
   }
 }

@@ -11,7 +11,8 @@ namespace Sts2Solver.Content.Monsters.Act1;
 public sealed partial class Vantom : MonsterDef
 {
     private const int DismemberWounds = 3;
-    private const int PrepareStrength = 2;
+    private const int PrepareStrength = 0;
+    public override IReadOnlyList<string> StaticIntNames => ["PrepareStrength"];
 
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("WOUND", 0)];
 
@@ -26,7 +27,7 @@ public sealed partial class Vantom : MonsterDef
                 break;
             case "PREPARE_MOVE":
                 Kernel.ApplyPower(ref x, owner, Registry.PowerId<Powers.StrengthPower>(),
-                    PrepareStrength, owner);
+                    Kernel.MonsterRules(ref x, owner).StaticInts[PrepareStrength], owner);
                 break;
         }
     }
@@ -153,7 +154,7 @@ public sealed partial class LagavulinMatriarch : MonsterDef
 {
     private const int Slash2Block = 0;
 
-    public override IReadOnlyList<string> StaticIntNames => ["Slash2Block"];
+    public override IReadOnlyList<string> StaticIntNames => ["Slash2Block", "DebuffAmount"];
 
     // The existing engine's fingerprint/continuation text reads _isAwake, but no resolution path
     // does (move selection reads the AsleepPower amount, and STUNNED only clears Plating).
@@ -169,9 +170,9 @@ public sealed partial class LagavulinMatriarch : MonsterDef
                 break;
             case "SOUL_SIPHON_MOVE":
                 Kernel.ApplyPower(ref x, Limits.PlayerOwner,
-                    Registry.PowerId<Powers.StrengthPower>(), -2, owner);
+                    Registry.PowerId<Powers.StrengthPower>(), rules.StaticInts[1], owner);
                 Kernel.ApplyPower(ref x, Limits.PlayerOwner,
-                    Registry.PowerId<Powers.DexterityPower>(), -2, owner);
+                    Registry.PowerId<Powers.DexterityPower>(), rules.StaticInts[1], owner);
                 Kernel.ApplyPower(ref x, owner, Registry.PowerId<Powers.StrengthPower>(), 2, owner);
                 break;
             case "STUNNED":

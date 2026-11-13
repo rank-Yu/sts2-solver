@@ -86,14 +86,14 @@ public sealed class Bully : CardDef
 [ContentId("DISMANTLE")]
 public sealed class Dismantle : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
     {
         int vulnerable = x.Target == Limits.NoOwner
             ? 0
             : Kernel.GetAmount(x.B, x.Target, Registry.PowerId<Powers.VulnerablePower>());
-        CardEffects.GeneralAttack(ref x, 0, hitCount: vulnerable > 0 ? 2 : 1);
+        CardEffects.GeneralAttack(ref x, 0, hitCount: vulnerable > 0 ? (int)CardEffects.Var(x, 1) : 1);
     }
 }
 
@@ -116,7 +116,7 @@ public sealed class AshenStrike : CardDef
 [ContentId("FIGHT_ME")]
 public sealed class FightMe : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat", "StrengthPower", "EnemyStrength"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount", "StrengthPower", "EnemyStrength"];
 
     public override void OnPlay(ref Exec x)
     {
@@ -138,7 +138,7 @@ public sealed class FightMe : CardDef
 [ContentId("SPITE")]
 public sealed class Spite : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
 
     public override void OnPlay(ref Exec x)
     {
@@ -216,11 +216,8 @@ public sealed class Stomp : CardDef
     {
         if (amount == 0)
             return;
-        if (card.EnergyModifierCount >= Limits.CardEnergyCostModifiers)
-            throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-        card.EnergyModifiers[card.EnergyModifierCount] = CostModifier.Create(amount, CostType.Relative,
+        Kernel.AddEnergyCostModifier(ref card, amount, CostType.Relative,
             CostExpiration.EndOfTurn, reduceOnly: false);
-        card.EnergyModifierCount++;
     }
 }
 

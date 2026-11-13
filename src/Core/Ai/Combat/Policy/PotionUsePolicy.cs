@@ -52,14 +52,3 @@ internal static class PotionUsePolicy
     public static int HpEquivalentCost(int strategicHpCost, BossHpRelief bossHpRelief = BossHpRelief.None)
         => ActEndingBossPolicy.RawHpRequiredForPersistentValue(strategicHpCost, bossHpRelief);
 }
-
-/// <summary>Legacy SREQ v11 data, preserved by the codec but not used for route selection.</summary>
-internal readonly record struct PotionFreePolicyBaseline(
-    bool Won,
-    int HpDeficit,
-    int PlayerHp,
-    int? CombatEndedTurn)
-{
-    public int DeathSaveUseCount { get; init; }
-    public int OutstandingStolenResource { get; init; } = int.MaxValue;
-}

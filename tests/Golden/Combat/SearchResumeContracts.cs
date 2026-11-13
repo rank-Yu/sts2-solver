@@ -13,9 +13,6 @@ namespace Sts2Solver.Golden;
 /// </summary>
 internal static class SearchResumeContracts
 {
-    private const string PlainRoot =
-        "6e0cc7806b41874f9203b30010b822a3b93c0b73fb93a7166a803bc61d271294";
-    private const string PotionRoot = "e82585d3028e";
 
     private static readonly SearchPlan Plan =
         new(8, 8, 8, 8, 2_576_980_377) { MillisecondsPerWidth = 1000 };
@@ -25,7 +22,7 @@ internal static class SearchResumeContracts
 
     internal static void Run()
     {
-        SearchCase plain = LoadRequest(PlainRoot + ".request.br");
+        SearchCase plain = GoldenFixtures.Search("quality-NECROBINDER-001");
         ResumeKeepsStoppedResult(plain);
         ResumeAcceptsBetterRemainingMember(plain);
         ResumeAfterSecondStop(plain);
@@ -351,23 +348,10 @@ internal static class SearchResumeContracts
             new SearchStorage(), runner.Run, CancellationToken.None, static () => 0)
             .AsTask().GetAwaiter().GetResult();
 
-    private static SearchCase LoadRequest(string fileName)
-        => LoadRequestPath(Path.Combine("tests/Golden/data/d2/requests", fileName));
-
-    private static SearchCase LoadRequestPath(string path)
-    {
-        using FileStream input = File.OpenRead(path);
-        using BrotliStream compressed = new(input, CompressionMode.Decompress);
-        using MemoryStream bytes = new();
-        compressed.CopyTo(bytes);
-        return SearchCodec.DecodeRequest(bytes.ToArray());
-    }
-
     /// <summary>A root with potions the policy allows, so the potion-stage members run.</summary>
     private static SearchCase LoadPotionCase()
     {
-        SearchCase original = LoadRequestPath(Directory.GetFiles(
-            "tests/Golden/data/d2/requests", PotionRoot + "*.request.br").Single());
+        SearchCase original = GoldenFixtures.Search("quality-SILENT-021");
         PotionPolicy potions = new(new PotionStrategySnapshot(PotionUseMode.Smart, []), false);
         return original with
         {

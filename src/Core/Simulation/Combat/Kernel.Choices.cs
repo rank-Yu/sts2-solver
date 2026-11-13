@@ -32,7 +32,7 @@ public static partial class Kernel
     public static bool ChooseCardsInRange(ref Exec x, ChoiceEffect effect, Pile pile, scoped ReadOnlySpan<int> options,
         int minCount, int maxCount, scoped Span<int> selected, out int selectedCount)
     {
-        bool indexSelection = x.B.CardCount > Limits.LegacyCards
+        bool indexSelection = x.B.CardCount > Limits.IndexSelectionCardThreshold
             && options.Length > Limits.MaxBitSetChoiceOptions
             && minCount == 1 && maxCount == 1;
         int optionCapacity = indexSelection ? Limits.MaxChoiceOptions : Limits.MaxBitSetChoiceOptions;
@@ -130,11 +130,11 @@ public static partial class Kernel
     /// Host-only choice origin of a listener snapshot. Relics, powers, cards and potions map to
     /// their registry id; other listener kinds have no displayable source and stay empty.
     /// </summary>
-    internal static ChoiceSource ListenerChoiceSource(in Battle battle, in Listener listener)
+    internal static ChoiceSource ListenerChoiceSource(in Battle battle, Rules rules, in Listener listener)
         => listener.Kind switch
         {
             ListenerKind.Relic => new ChoiceSource(ChoiceSourceKind.Relic,
-                battle.Relics[listener.Index].Id),
+                rules.Relics.Id(listener.Index)),
             ListenerKind.Power => new ChoiceSource(ChoiceSourceKind.Power,
                 battle.Powers[listener.Index].Id),
             ListenerKind.Card => new ChoiceSource(ChoiceSourceKind.Card,
@@ -357,7 +357,8 @@ public static partial class Kernel
         card.Var1 = 0;
         card.BaseCost = checked((sbyte)stats.EnergyCost);
         card.BaseStarCost = checked((sbyte)stats.StarCost);
-        card.Keywords = stats.Keywords | (card.Keywords & Keywords.CreatedAfterRoot);
+        card.Keywords = ((stats.Keywords | card.KeywordsAddedFromOutside)
+            & ~card.KeywordsRemovedFromOutside) | (card.Keywords & Keywords.CreatedAfterRoot);
         // CardModel.DowngradeInternal calls Enchantment?.ModifyCard() after resetting local
         // keywords, so an enchantment that removes a keyword (SoulsPower) applies it again.
         if (card.EnchantmentId != 0)

@@ -17,7 +17,7 @@ internal static class RefreezeCommand
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("用法：Golden refreeze <source-dir> <target-dir> [--jobs N] [--reason 文本] [--add-requests <dir>]");
+            Console.Error.WriteLine("用法：Golden refreeze <source-dir> <target-dir> [--jobs N] [--reason 文本] [--add-requests <dir>] [--add-config-roots <file>]");
             return 2;
         }
         string source = Path.GetFullPath(args[0]);
@@ -25,6 +25,7 @@ internal static class RefreezeCommand
         int jobs = Environment.ProcessorCount;
         string? reason = null;
         List<string> addRequestDirectories = [];
+        List<string> configRootFiles = [];
         for (int index = 2; index < args.Length; index++)
         {
             if (args[index] == "--jobs")
@@ -37,6 +38,12 @@ internal static class RefreezeCommand
                 if (++index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
                     throw new InvalidDataException("--reason 需要非空文本。");
                 reason = args[index];
+            }
+            else if (args[index] == "--add-config-roots")
+            {
+                if (++index >= args.Length || !File.Exists(args[index]))
+                    throw new InvalidDataException("--add-config-roots 需要根名列表文件。");
+                configRootFiles.Add(args[index]);
             }
             else if (args[index] == "--add-requests")
             {
@@ -64,6 +71,8 @@ internal static class RefreezeCommand
         int captured = ReadCapturedCalls(source);
         if (addRequestDirectories.Count > 0)
             captured += MergeCaptures(target, addRequestDirectories);
+        if (configRootFiles.Count > 0)
+            captured += MergeConfigRoots(target, configRootFiles);
         string requestDirectory = Path.Combine(target, "d2", "requests");
         string expectedDirectory = Path.Combine(target, "d2", "expected");
         string[] requests = Directory.EnumerateFiles(requestDirectory, "*.request.br")
@@ -108,6 +117,30 @@ internal static class RefreezeCommand
         Console.WriteLine($"REFREEZE_OK source={source} target={target} requests={requests.Length} "
             + $"captured={captured} jobs={jobs} refreeze={ManifestProvenance.Refreeze}");
         return 0;
+    }
+
+    // Prefix and turn-setup roots also receive a deterministic search regression. Their native
+    // evaluation sidecars lack production coordinator options, so record an explicit fixed-budget
+    // request and report this source separately from production member captures.
+    private static int MergeConfigRoots(string target, IEnumerable<string> files)
+    {
+        string[] roots = files.SelectMany(File.ReadAllLines).Select(static s => s.Trim())
+            .Where(static s => s.Length > 0 && !s.StartsWith('#'))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        Dictionary<string, string> rules = new(StringComparer.Ordinal);
+        foreach (string root in roots)
+        {
+            if (Path.GetFileName(root) != root || root is "." or "..")
+                throw new InvalidDataException($"非法根名：{root}");
+            SearchCase search = GoldenFixtures.SearchConfig(Path.Combine(target, "d1", root, "config.br"));
+            byte[] bytes = SearchCodec.EncodeRequest(search);
+            string hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            GoldenFiles.WriteCompressedSmallest(Path.Combine(target, "d2", "requests", hash + ".request.br"), bytes);
+            rules[hash] = Convert.ToHexString(SHA256.HashData(RulesCodec.Encode(search.Rules))).ToLowerInvariant();
+            Console.WriteLine($"CONFIG_SEARCH root={root} battles={search.Battles.Length} request={hash}");
+        }
+        MergeRulesIndex(target, rules);
+        return roots.Length;
     }
 
     /// <summary>

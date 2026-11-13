@@ -19,6 +19,7 @@ internal static class ImportNegative
         Player player = LocalContext.GetMe(state)
             ?? throw new InvalidOperationException("找不到本地玩家。");
         Rules rules = ImportCompare.LoadRules(data, root);
+        ImportBoundaryChecks.Run(state, player, rules);
         int failures = 0;
         FieldInfo internalDataField = typeof(PowerModel).GetField("_internalData",
             BindingFlags.Instance | BindingFlags.NonPublic)

@@ -20,6 +20,7 @@ public sealed class GoldenRootRecord
 public sealed class GoldenBattleRoot
 {
     public Battle Battle { get; init; }
+    public RelicRoster Relics { get; init; } = RelicRoster.Empty;
     public string Choices { get; init; } = "";
     public ulong ScoreHash { get; init; }
     public byte BoundStatus { get; init; }
@@ -88,7 +89,7 @@ public static class GoldenData
             writer.Write(record.Roots.Count);
             foreach (GoldenBattleRoot root in record.Roots)
             {
-                byte[] bytes = BattleCodec.Encode(root.Battle);
+                byte[] bytes = BattleCodec.Encode(root.Battle, root.Relics);
                 writer.Write(bytes.Length);
                 writer.Write(bytes);
                 Codec.WriteString(writer, root.Choices);
@@ -160,14 +161,16 @@ public static class GoldenData
             List<GoldenBattleRoot> roots = new(rootCount);
             for (int index = 0; index < rootCount; index++)
             {
-                int length = Codec.ReadCount(reader, BattleCodec.HeaderSize + Battle.ExpectedSize,
+                int length = Codec.ReadCount(reader, BattleCodec.HeaderSize + BattleCodec.MaxSerializedSize,
                     "D1 根状态字节");
                 byte[] image = reader.ReadBytes(length);
                 if (image.Length != length)
                     throw new InvalidDataException("D1 根状态被截断。");
+                Battle battle = BattleCodec.Decode(image, out RelicRoster relics);
                 roots.Add(new GoldenBattleRoot
                 {
-                    Battle = BattleCodec.Decode(image),
+                    Battle = battle,
+                    Relics = relics,
                     Choices = Codec.ReadString(reader)
                         ?? throw new InvalidDataException("D1 根选择向量缺失。"),
                     ScoreHash = reader.ReadUInt64(),
@@ -310,7 +313,7 @@ public static class GoldenData
                 for (int index = 0; index < request.OptionCount; index++)
                 {
                     Card card = request.GeneratedOptions[index];
-                    writer.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in card, 1)));
+                    Codec.WriteCard(writer, card);
                 }
             }
         }
@@ -353,11 +356,7 @@ public static class GoldenData
             {
                 for (int option = 0; option < optionCount; option++)
                 {
-                    byte[] image = reader.ReadBytes(Unsafe.SizeOf<Card>());
-                    if (image.Length != Unsafe.SizeOf<Card>())
-                        throw new InvalidDataException("D1 生成选项卡牌被截断。");
-                    Card card = default;
-                    image.CopyTo(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref card, 1)));
+                    Card card = Codec.ReadCard(reader);
                     request.GeneratedOptions[option] = card;
                 }
             }

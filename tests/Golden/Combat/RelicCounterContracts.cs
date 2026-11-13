@@ -6,17 +6,16 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Golden;
 
 /// <summary>
-/// Relic counter targets on D2 requests that hold a counter relic, solved on the regression budget.
+/// Relic counter targets on named native roots with explicit cycle positions, solved on the regression budget.
 /// Happy Flower and Pen Nib + Joss Paper end on the goal at no extra HP loss when the allowance is 0;
 /// Pendulum is reached only by losing 2 more HP, so allowance 0 keeps the HP and 5 buys the goal.
 /// The request codec carries the targets.
 /// </summary>
 internal static class RelicCounterContracts
 {
-    private const string Requests = "tests/Golden/data/d2/requests/";
-    private const string HappyFlower = "294ca14288c38d8ae86d700d36c72f32dd458cb4748b5956510a30ef0189ec52";
-    private const string PenNibJossPaper = "86e7fa14365f470e5b90befa58a6d4ef92b1ed707c451aa2279e6de8350cc486";
-    private const string Pendulum = "bb32b85c6d55b5c0d381f08643fdd6aa28ed3829e7bb2a79bde5d47f71f11f72";
+    private const string HappyFlower = "quality-DEFECT-018";
+    private const string PenNibJossPaper = "quality-IRONCLAD-006";
+    private const string Pendulum = "quality-IRONCLAD-005";
 
     private static readonly Dictionary<string, int> PeriodVar = new(StringComparer.Ordinal)
     {
@@ -34,17 +33,18 @@ internal static class RelicCounterContracts
         SearchCase flower = Load(HappyFlower);
         EvaluateCounters(flower);
         CodecRoundTrip(flower);
+        WideTargetRoundTrip(flower);
         Outcome free = Solve(flower, 0);
         Assert(free.Targeted.Won && free.Plain.Won, "Happy Flower routes win");
         Assert(free.Targeted.Deficit == free.Plain.Deficit, "free goal costs no HP");
         Assert(free.Plain.Goals == 0 && free.Targeted.Goals == 1, "Happy Flower ends on its goal for free");
 
-        Outcome pair = Solve(Load(PenNibJossPaper), 0);
+        Outcome pair = Solve(WithCounter(Load(PenNibJossPaper), "PEN_NIB", 1), 0);
         Assert(pair.Targeted.Deficit == pair.Plain.Deficit && pair.Targeted.Lost <= pair.Plain.Lost,
             "Pen Nib + Joss Paper goal costs no HP");
         Assert(pair.Plain.Goals == 0 && pair.Targeted.Goals == 1, "one of two counters aligned for free");
 
-        SearchCase pendulum = Load(Pendulum);
+        SearchCase pendulum = WithCounter(Load(Pendulum), "PENDULUM", 0);
         Outcome kept = Solve(pendulum, 0);
         Assert(kept.Targeted.Lost == kept.Plain.Lost && kept.Targeted.Goals == 0,
             "allowance 0 never pays HP for the goal");
@@ -85,14 +85,14 @@ internal static class RelicCounterContracts
         RelicCounterTarget[] targets = Targets(search, 4);
         Assert(targets.Length == 1 && targets[0].Period == 3 && targets[0].Goal == 2, "Happy Flower cycle");
         Battle battle = search.Battles[0];
-        battle.Relics[targets[0].Slot].Counter = 2;
-        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true) == new RelicCounterGoals(4, 1),
+        battle.RelicState(search.Rules, targets[0].Slot).Counter = 2;
+        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true, search.Rules) == new RelicCounterGoals(4, 1),
             "goal met on a won state");
-        Assert(RelicCounterGoals.Evaluate(battle, targets, won: false) == default, "no credit before the win");
-        battle.Relics[targets[0].Slot].Counter = 5;
-        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true).Count == 1, "counter read modulo its cycle");
-        battle.Relics[targets[0].Slot].Counter = 0;
-        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true) == default, "goal missed");
+        Assert(RelicCounterGoals.Evaluate(battle, targets, won: false, search.Rules) == default, "no credit before the win");
+        battle.RelicState(search.Rules, targets[0].Slot).Counter = 5;
+        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true, search.Rules).Count == 1, "counter read modulo its cycle");
+        battle.RelicState(search.Rules, targets[0].Slot).Counter = 0;
+        Assert(RelicCounterGoals.Evaluate(battle, targets, won: true, search.Rules) == default, "goal missed");
     }
 
     private static void CodecRoundTrip(SearchCase search)
@@ -105,18 +105,43 @@ internal static class RelicCounterContracts
         Assert(SearchCodec.EncodeRequest(decoded).AsSpan().SequenceEqual(bytes), "request round trip");
     }
 
+    private static void WideTargetRoundTrip(SearchCase search)
+    {
+        Registry.TryRelic("MAW_BANK", out ushort filler);
+        Registry.TryRelic("HAPPY_FLOWER", out ushort flower);
+        Relic[] rows = Enumerable.Repeat(new Relic { Id = filler }, 301).ToArray();
+        rows[300] = new Relic { Id = flower, Counter = 2 };
+        RelicRoster roster = RelicRoster.Create(rows);
+        Battle battle = search.Battles[0];
+        roster.Import(rows, ref battle);
+        Rules rules = search.Rules.WithRelics(roster);
+        RelicCounterTarget[] targets = [new(300, 3, 2, 7)];
+        Scorer old = search.Options.Scorer!;
+        Scorer scorer = new(old.RulesForCodec.WithRules(rules).WithRelicCounterTargets(targets),
+            old.BaseOnly, old.Offensive, old.QueenPolicy, old.SetupPolicy);
+        SearchCase wide = new(rules, [battle], search.Options with { Scorer = scorer });
+        byte[] bytes = SearchCodec.EncodeRequest(wide);
+        SearchCase decoded = SearchCodec.DecodeRequest(bytes);
+        Assert(decoded.Options.Scorer!.RulesForCodec.RelicCounterTargets.SequenceEqual(targets)
+            && decoded.Rules.Relics.Count == 301
+            && RelicCounterGoals.Evaluate(decoded.Battles[0], targets, true, decoded.Rules)
+                == new RelicCounterGoals(7, 1)
+            && bytes.AsSpan().SequenceEqual(SearchCodec.EncodeRequest(decoded)),
+            "wide relic target and root context survive request codec");
+    }
+
     private static RelicCounterTarget[] Targets(SearchCase search, int allowance)
     {
         Battle root = search.Battles[0];
         List<RelicCounterTarget> targets = [];
-        for (int index = 0; index < root.RelicCount; index++)
+        for (int index = 0; index < search.Rules.Relics.Count; index++)
         {
-            ushort id = root.Relics[index].Id;
+            ushort id = root.GetRelic(search.Rules, index).Id;
             string relic = Registry.Relic(id).NativeId;
             int period = relic == "PEN_NIB" ? 10
                 : PeriodVar.TryGetValue(relic, out int var) ? (int)search.Rules.RelicVar(id, var) : 0;
             if (period != 0)
-                targets.Add(new((byte)index, (byte)period, (byte)(period - 1), allowance));
+                targets.Add(new((ushort)index, (byte)period, (byte)(period - 1), allowance));
         }
         return [.. targets];
     }
@@ -139,6 +164,20 @@ internal static class RelicCounterContracts
         SearchThreads = 1,
     });
 
-    private static SearchCase Load(string hash)
-        => SearchCodec.DecodeRequest(GoldenFiles.ReadCompressed(Requests + hash + ".request.br"));
+    // Fix the initial cycle position explicitly: native opening shuffles may change across
+    // game versions, while these contracts must retain both free and HP-costing goal routes.
+    private static SearchCase WithCounter(SearchCase search, string relic, int counter)
+    {
+        Battle root = search.Battles[0];
+        for (int slot = 0; slot < search.Rules.Relics.Count; slot++)
+        {
+            if (Registry.Relic(root.GetRelic(search.Rules, slot).Id).NativeId != relic) continue;
+            root.RelicState(search.Rules, slot).Counter = counter;
+            return search with { Battles = [root] };
+        }
+        throw new InvalidDataException($"relic-counter: missing {relic}");
+    }
+
+    private static SearchCase Load(string root)
+        => GoldenFixtures.Search(root);
 }

@@ -363,11 +363,13 @@ python3 tools/testing/compare-offline-results.py \
 - 每个**可出牌**的动作边界，都用 `LiveCombatTracker.ImportForComparison` 读回 `Battle`，与预测的 `action.After` 逐字节比较。
 - 终局另做独立取证：`TerminalBattleCapture` 在 `CombatManager.EndCombatInternal`（胜利）和 `ProcessPendingLoss`（失败）的 **prefix** 处捕获原版 `Battle`，再与预测终局比较。比较的字段是显式列出的：`Outcome`（由捕获来源的胜负路径判定，不由预测反推）、玩家 `CurrentHp`/`MaxHp`、`Gold`、药水槽、遗物的 `Id/Flags/Counter/Aux` 和 9 条战斗随机数。手牌和各牌堆、回合内计数、敌人和 Power 行在原版清理时会变化，不在合同里，所以不宣称终局 `Battle` 逐字节相同。合同内的字段都独立读取原版；导入器带的搜索专用计数不参与终局比较，也没有重新实现战后 Hook 或奖励生成。
 
-结果：`status=same` 表示所有动作边界和终局合同都相同；`status=executor-diff` 表示内核预测与原版边界不同；`status=reject` 带稳定原因码。捕获缺失和等待超时报告为 `executor-diff`，原因分别是 `terminal_missing`、`boundary_timeout`；明确不支持的导入报告 `reject`，不计为 same。`EventDefeat` 目前以 `terminal_diff` 明确报告未覆盖，退出码为 1。单根（`--pilot-root`）有差异时退出码为 1。父进程先看子进程的退出码：非零的子进程即使打印了 `same` 或 `reject` 也不计入正常结果，有明确 `executor-diff` 的计为 diff，否则计为崩溃。`actions` 是实际部署的动作数，`turns` 是回合数。
+结果：`status=same` 表示所有动作边界和终局合同都相同；`status=executor-diff` 表示内核预测与原版边界不同；`status=reject` 带稳定原因码。捕获缺失和等待超时报告为 `executor-diff`，原因分别是 `terminal_missing`、`boundary_timeout`；明确不支持的导入报告 `reject`，不计为 same。`EventDefeat` 目前以 `terminal_diff` 明确报告未覆盖，退出码为 1。单根（`--pilot-root`）有差异时退出码为 1。父进程先看子进程的退出码：非零的子进程即使打印了 `same` 或 `reject` 也不计入正常结果，有明确 `executor-diff` 的计为 diff，否则计为崩溃。`actions` 是实际部署的动作数，`turns` 是回合数；单根输出的 `hp/maxHp` 是胜负结算入口捕获的血量，尚未加战后遗物回血。
+
+回血停止目标的三个固定用例是 `vg1-finite-heal`、`vg1-regeneration`、`vg1-stacked-regeneration`，分别覆盖消耗回血牌、单瓶再生药和两瓶叠层。用 `--combat-pilot-compare --pilot-root <根名> --pilot-tier Low` 运行；同时核对出牌/用药、终局血量和原版边界。
 
 负例：设置 `STS2_SOLVER_PILOT_TAMPER=hp`、`outcome` 或 `event` 篡改预测终局，检查分别报告 `player.hp`、`outcome`、`event-defeat is not covered`，退出码都为 1。
 
-对一个目录里的请求逐个对照时用 `--pilot-dir <目录>`：目录里的每个 `*.json` 是一份 `OfflineRequest`，父进程仍为每份请求启动独立子进程，`--pilot-jobs`、`--pilot-shard i n` 和 `--pilot-results <TSV>` 的含义与按根名运行时相同。子进程入口是 `--pilot-request <文件>`。`--pilot-results` 逐用例写 `case/status/reason/outcome/actions/turns/encounter/child_exit/first_diff/action/diag`，便于汇总差异类别；没有该参数时只打印汇总。
+对一个目录里的请求逐个对照时用 `--pilot-dir <目录>`：目录里的每个 `*.json` 是一份 `OfflineRequest`，父进程仍为每份请求启动独立子进程，`--pilot-jobs`、`--pilot-shard i n` 和 `--pilot-results <TSV>` 的含义与按根名运行时相同。子进程入口是 `--pilot-request <文件>`。报告同时记录实际打出的卡牌和选择效果，专项测试可据此检查目标内容是否真正执行。汇总行分别为 `PILOT-CARD` 和 `PILOT-EFFECT`，TSV 附带 `cards/effects` 两列。`--pilot-results` 逐用例写 `case/status/reason/outcome/actions/turns/encounter/child_exit/first_diff/action/diag`，便于汇总差异类别；没有该参数时只打印汇总。
 
 内核回放评测（7.1）通过不等于这项对照通过，两类报告要分开写。
 
@@ -507,6 +509,8 @@ tools/testing/run-scenario-regression.py --jobs 4
 默认跑全部四组：`controller`、`turn-setup`、`full-combat`、`panel-stress`。`--group` 可以只跑一组，可重复；`--scenario <id>` 只跑清单里的指定条目；`--generate-only` 只生成请求。脚本把请求生成到 `.local/scenario-regression/requests/`，结果默认写到 `.local/scenario-regression/results/`。
 
 每个无头实例最多六个请求，并始终带 `--cleanup-instance-on-exit`。实例按清单声明的 `settingsThreadsForTest` 调度，同时运行实例的搜索线程总数不超过 8；`--jobs` 限制并发实例数，默认 4，`--timeout-seconds` 限制每个实例的总时长，结果写出后的退出等待为 120 秒。每次运行结束按组打印通过数和失败的场景名、第一条失败断言；每个实例的 `ui-checks.json` 也必须通过，`jit_prepare_methods` 在其中。整场组额外检查每个请求的 `ui-panel.json` 58 项。`SCENARIO_CHUNK` 和 `SCENARIO_SUMMARY` 带 `invalidTaskIds=` 与 `buildInvalidTaskIds=`（启动器从 Godot 日志统计的累计值；后者只算每个 `BUILD_STARTED` 到对应 `BUILD_COMPLETED` 之间的部分）。场景运行器把每个实例的日志放到 `.local/scenario-regression/logs/<chunk>/`；失败实例的 `HEADLESS_FAILURE_ARTIFACTS path=...` 同时写进 `SCENARIO_CHUNK failureArtifacts=...`、逐条 `SCENARIO_FAILURE_ARTIFACTS` 和最终的 `SCENARIO_SUMMARY failureArtifacts=...`。
+
+搜索进度回归还覆盖：成员结束时绕过节流发布最终路线、1/4/8 线程及用药审计两条返回路径、主线程漏读多次发布后仍取得跨成员最好胜利。测试版 Mod 的 `UiLogicChecks` 验证预览用药数量及切回无药路线归零。
 
 ## 10. 适用边界
 

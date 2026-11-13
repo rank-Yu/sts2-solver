@@ -263,7 +263,58 @@ internal sealed class BoundFeatures
     private static bool Contains(ushort[] ids, ushort id)
         => id != ushort.MaxValue && Array.IndexOf(ids, id) >= 0;
 
-    private PruningHealing ComponentPruningHealing(in Battle battle, Rules rules)
+    /// <summary>
+    /// Root-only certificate for a shared victory target. It includes regeneration potions without
+    /// changing the existing per-state pruning policy. Reusable growth sources remain unbounded.
+    /// </summary>
+    internal bool TryVictoryHealing(in Battle battle, Rules rules, out long healing, out long maxHpGain)
+    {
+        healing = maxHpGain = 0;
+        if ((!Enabled && DisabledReason != "regen_potion_policy") || HasRisk(battle))
+            return false;
+        if (_config.Certificate == HealingCertificate.None)
+        {
+            if (_config.FutureHealPotential == int.MaxValue)
+                return false;
+            healing = Math.Max(0, _config.FutureHealPotential);
+            return true;
+        }
+        // These existing pruning estimates count enemy/gold payouts only once. They are not a
+        // certificate for terminating the entire portfolio when enemies or cards can recur.
+        for (int i = 0; i < battle.RelicCount; i++)
+            if (battle.Relics[i].Id == BookRepairKnifeRelicId || battle.Relics[i].Id == DragonFruitRelicId)
+                return false;
+        bool hasFiniteHealCard = false;
+        for (int i = 0; i < battle.CardCount; i++)
+        {
+            ref readonly Card card = ref battle.Cards[i];
+            if (card.Id != NotYetCardId && card.Id != FeedCardId)
+                continue;
+            hasFiniteHealCard = true;
+            if (Piles.PileOf(battle, i, out _) is not (Pile.Hand or Pile.Draw or Pile.Discard))
+                continue;
+            if ((card.Keywords & Keywords.Exhaust) == 0
+                || card.EnchantmentId != 0
+                    && Contains(NotYetLoopEnchantments, (ushort)(card.EnchantmentId - 1)))
+                return false;
+        }
+        if (hasFiniteHealCard && HasNotYetLoopRisk(battle))
+            return false;
+        PruningHealing value = _config.Certificate == HealingCertificate.Component
+            ? ComponentPruningHealing(battle, rules, victoryTarget: true)
+            : KnownNativePruningHealing(battle, rules);
+        healing = value.RecoveredHealing;
+        maxHpGain = value.MaxHpGain;
+        if (maxHpGain > 0)
+            for (int slot = 0; slot < battle.PotionSlotCount; slot++)
+                if (battle.Potions[slot] is > 0 and var stored
+                    && _config.DirectHealPotion[stored - 1])
+                    healing += (long)Math.Ceiling(maxHpGain
+                        * _config.DirectHealPotionPercent[stored - 1] / 100m);
+        return healing < int.MaxValue && maxHpGain < int.MaxValue;
+    }
+
+    private PruningHealing ComponentPruningHealing(in Battle battle, Rules rules, bool victoryTarget = false)
     {
         if (HasInCombatPotionGeneration(battle))
             return new PruningHealing(int.MaxValue, 0);
@@ -332,6 +383,11 @@ internal sealed class BoundFeatures
         for (int index = 0; index < battle.PowerCount; index++)
         {
             ref readonly Power power = ref battle.Powers[index];
+            if (victoryTarget && power.Id == _config.RegenPowerId && power.Owner == Limits.PlayerOwner)
+            {
+                regen += Math.Max(0, power.Amount);
+                continue;
+            }
             if (_config.ComponentUnsafePower[power.Id])
                 return new PruningHealing(int.MaxValue, 0);
             if (power.Id == _config.RegenPowerId && power.Owner == Limits.PlayerOwner)
@@ -347,6 +403,17 @@ internal sealed class BoundFeatures
             int id = potion - 1;
             if (id == FairyPotionId)
                 continue;
+            if (victoryTarget && _config.RegenPotion[id])
+            {
+                regen += Math.Max(0, _config.RegenPotionAmount[id]);
+                continue;
+            }
+            if (victoryTarget && _config.DirectHealPotion[id])
+            {
+                directHeal += (long)Math.Ceiling(
+                    battle.Player.MaxHp * _config.DirectHealPotionPercent[id] / 100m);
+                continue;
+            }
             if (!_config.ComponentUnsafePotion[id] && !_config.RegenPotion[id])
                 continue;
             if (id == FruitJuicePotionId)

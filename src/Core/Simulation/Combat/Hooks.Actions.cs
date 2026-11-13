@@ -34,6 +34,18 @@ public readonly struct CardPlayInfo
 
     /// <summary>Absolute position of the played card in <see cref="Battle.Cards"/> while its tail runs.</summary>
     public int Position { get; }
+
+    /// <summary>
+    /// Earlier listeners can generate cards or change the played card. Its play-pile slot remains
+    /// stable, but its absolute position and value must be read again for each native hook listener.
+    /// </summary>
+    internal CardPlayInfo Refresh(in Battle battle, int playPosition)
+    {
+        if ((uint)playPosition >= (uint)battle.PlayCount)
+            return new(Card, Target, PlayIndex, PlayCount, ResultPile, -1);
+        int position = Piles.Start(battle, Pile.Play) + playPosition;
+        return new(battle.Cards[position], Target, PlayIndex, PlayCount, ResultPile, position);
+    }
 }
 
 public static partial class HookDispatch
@@ -179,15 +191,13 @@ public static partial class HookDispatch
         => left.Id == right.Id && left.Aux == right.Aux;
 
     /// <summary>
-    /// Identity used to relocate a captured card listener. The existing engine holds a
-    /// <c>CardModel</c> reference, so a hook that changes a card's mutable value (upgrade, cost
-    /// modifiers, dynamic-variable deltas, keywords, affliction or enchantment) must not make the
-    /// listener disappear; only an actual replacement of the card (a different native id, or a clone
-    /// versus a non-clone) does. Two copies that differ only in mutable values are interchangeable for
-    /// listener order, exactly like the native object references.
+    /// Stable identity markers used to relocate a captured card listener. Hooks can change upgrade,
+    /// cost, variables and attachments without replacing the card. Deck membership and clone identity
+    /// distinguish original and generated copies while their pile positions move.
     /// </summary>
     private static bool SameListenerCard(in Card left, in Card right)
-        => left.Id == right.Id && left.IsClone == right.IsClone;
+        => left.Id == right.Id && left.IsClone == right.IsClone
+            && (left.Flags & CardFlags.DeckCard) == (right.Flags & CardFlags.DeckCard);
 
     private static ushort ListenerId(in Battle battle, Listener listener) => listener.Kind switch
     {
@@ -248,19 +258,16 @@ public static partial class HookDispatch
             case ListenerKind.Card:
             case ListenerKind.Affliction:
             case ListenerKind.Enchantment:
-                // The position is still valid while the same card identity stays there (it may have
-                // been modified in place). Otherwise re-locate the snapshot value by its occurrence
-                // among equal cards, so a hook that inserts a clone before the old position cannot
-                // redirect the listener to the clone.
-                if (entry.Listener.Index < battle.CardCount
+                // A played card keeps its Play-local slot while generated cards shift the packed
+                // prefix. Its old absolute index can point at an identical exhausted copy.
+                // Other piles can move within the same callback: Right Hand Hand moves Discard to
+                // Hand, leaving later discard cards at their original absolute indices.
+                if (entry.CardPile != Pile.Play && entry.Listener.Index < battle.CardCount
                     && ListenerId(battle, entry.Listener) == entry.Id
                     && SameListenerCard(battle.Cards[entry.Listener.Index], entry.Card))
                 {
                     return true;
                 }
-                // A hook may insert a card into an earlier pile (Juggling's clone goes to the hand
-                // while the listener's card sits in the draw/discard pile). The card keeps its
-                // pile-local index, so try that before falling back to the equal-card occurrence.
                 int located;
                 if (TryLocateCardInPile(battle, entry, out located)
                     || TryLocateCard(battle, entry, out located))
@@ -492,7 +499,7 @@ public struct BeforeCardPlayedHook : IActionHook
     public static HookMask Mask => HookMask.BeforeCardPlayed;
 
     public readonly void Invoke(ref Exec x, ListenerDef definition, Listener self)
-        => definition.BeforeCardPlayed(ref x, self, Play);
+        => definition.BeforeCardPlayed(ref x, self, Play.Refresh(x.B, x.PlayPosition));
 }
 
 public struct AfterCardPlayedHook : IActionHook
@@ -502,7 +509,7 @@ public struct AfterCardPlayedHook : IActionHook
     public static HookMask Mask => HookMask.AfterCardPlayed;
 
     public readonly void Invoke(ref Exec x, ListenerDef definition, Listener self)
-        => definition.AfterCardPlayed(ref x, self, Play);
+        => definition.AfterCardPlayed(ref x, self, Play.Refresh(x.B, x.PlayPosition));
 }
 
 public struct AfterCardPlayedLateHook : IActionHook
@@ -512,7 +519,7 @@ public struct AfterCardPlayedLateHook : IActionHook
     public static HookMask Mask => HookMask.AfterCardPlayedLate;
 
     public readonly void Invoke(ref Exec x, ListenerDef definition, Listener self)
-        => definition.AfterCardPlayedLate(ref x, self, Play);
+        => definition.AfterCardPlayedLate(ref x, self, Play.Refresh(x.B, x.PlayPosition));
 }
 
 public struct AfterCardExhaustedHook : IActionHook

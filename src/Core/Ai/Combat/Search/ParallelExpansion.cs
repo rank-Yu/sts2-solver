@@ -336,7 +336,7 @@ internal sealed partial class BeamSolver
             {
                 for (int index = 0; index < _count; index++)
                 {
-                    if (_solver.OutOfBudget(_solver._solveWatch!))
+                    if (_solver._victoryTargetReached || _solver.OutOfBudget(_solver._solveWatch!))
                         return;
                     _solver.SearchCheckpoint();
                     _solver.CountExpanded();

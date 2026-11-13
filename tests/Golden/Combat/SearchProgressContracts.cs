@@ -45,8 +45,118 @@ internal static class SearchProgressContracts
             StopChoosesBetterCompleted(original, baseline, threads);
             TerminalVictoryPreview(original, baseline, threads);
             CompletedOnlyDeathVerdict(original, baseline, threads);
+            FinalResultPublication(threads);
         }
-        Console.WriteLine("SEARCH_PROGRESS adoption/stop/stale/terminal/verdict/threads=pass");
+        MixedMemberPreview();
+        CounterPublication();
+        Console.WriteLine("SEARCH_PROGRESS adoption/stop/stale/terminal/verdict/final/mixed/threads=pass");
+    }
+
+    private static void CounterPublication()
+    {
+        SearchProgressChannel channel = new(200);
+        channel.BeginMember(0, default, null);
+        channel.Publish(new SearchProgressSnapshot(0, default, 10, 20, null, null, null, 7));
+        SearchProgressSnapshot initial = channel.Latest!;
+        channel.AddCompletedExpandedNodes(30);
+        channel.PublishCounters(40, 60, 100, 120);
+        Assert(channel.Latest is { ExpandedNodes: 40, RequestExpandedNodes: 70,
+            ElapsedMilliseconds: 60, CandidateVersion: 7, SearchMemoryUsedBytes: 100,
+            SearchMemoryPeakBytes: 120 }, "heartbeat refreshes counters without changing candidate");
+        Assert(ReferenceEquals(initial.Route, channel.Latest!.Route)
+            && ReferenceEquals(initial.CurrentTurn, channel.Latest.CurrentTurn),
+            "heartbeat keeps preview objects");
+        channel.BeginMember(1, default, null);
+        SearchProgressSnapshot previous = channel.Latest;
+        channel.PublishCounters(1, 2, 3, 4);
+        Assert(ReferenceEquals(previous, channel.Latest),
+            "new member does not relabel the previous member preview");
+    }
+
+    private static void FinalResultPublication(int threads)
+    {
+        // One-action target stop and a longer frontier exhaustion from the frozen native corpus.
+        foreach (string hash in new[]
+        {
+            "f0dd390422b700ac3dcf521532d0706045158417a30cc7beaa8c000a36b6b9fb",
+            "6e0cc7806b41874f9203b30010b822a3b93c0b73fb93a7166a803bc61d271294",
+        })
+        foreach (bool audit in new[] { false, true })
+        {
+            SearchCase search = SearchCodec.DecodeRequest(GoldenFiles.ReadCompressed(
+                $"tests/Golden/data/d2/requests/{hash}.request.br"));
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(search.Options with
+            {
+                SearchThreads = threads, SoftTimeBudget = TimeSpan.MaxValue,
+                AuditPotionPolicy = audit, Progress = null,
+            });
+            BeamResult plain = new BeamSolver(search.Rules, options)
+                .Solve(search.Battles, CancellationToken.None);
+            // Suppress every ordinary publication after the opening snapshot.
+            SearchProgressChannel channel = new(int.MaxValue);
+            BeamResult result = new BeamSolver(search.Rules, options with { Progress = channel })
+                .Solve(search.Battles, CancellationToken.None);
+            Assert(SearchCodec.EncodeResult(plain).AsSpan()
+                .SequenceEqual(SearchCodec.EncodeResult(result)),
+                $"{threads}t final publication leaves result unchanged audit={audit}");
+            Assert(result.BestRoute.Length > 0 && channel.Latest?.Route is not null,
+                $"{threads}t final route is published despite throttle audit={audit}");
+            SearchRoutePreview route = channel.Latest!.Route!;
+            Assert(Equal(route.Actions, result.BestRoute)
+                && route.RootIndex == result.BestRootIndex && route.Victory == result.BestIsVictory,
+                $"{threads}t final preview is the returned route audit={audit}");
+            BeamSolver quality = new(search.Rules, options);
+            BeamSolver.Candidate candidate = quality.AssessResult(search.Battles, result,
+                CancellationToken.None, static () => false, out _, out _, out _);
+            Assert(BeamSolver.CompareRouteKeys(candidate.Key, route.RankKey) == 0,
+                $"{threads}t final preview uses actual result quality audit={audit}");
+            Assert(channel.FindCandidate(route.CandidateVersion) is not null
+                && channel.Latest.RequestExpandedNodes == result.ExpandedNodesTotal,
+                $"{threads}t final preview is replayable and has final counters");
+        }
+    }
+
+    private static void MixedMemberPreview()
+    {
+        SearchProgressChannel channel = new(200);
+        BeamSolver.RouteKey key = new(true, true, 0, 0, 8, 0, 0, 2, 8, 0, 0,
+            0, 0, 0, 0, 1);
+        int version = 0;
+        SearchRoutePreview Publish(int member, int damage, int potionCost, bool victory = true)
+        {
+            int currentVersion = ++version;
+            SearchRoutePreview route = new(currentVersion, 1, 2, 0, [PlayerAction.EndTurn()], [],
+                victory, false, key with
+                {
+                    Won = victory, StrategicHpDeficit = damage, PotionHpCost = potionCost,
+                });
+            SearchCurrentTurnPreview current = new(currentVersion, 1, [], damage, 0, 0, 0, victory);
+            SearchMember profile = new(200, SearchEvaluation.Standard, SearchRetention.Standard,
+                potionCost > 0 ? SearchPotionLimit.Allowed : SearchPotionLimit.None);
+            channel.BeginMember(member, profile, null);
+            channel.Publish(new SearchProgressSnapshot(member, profile, 1, 1,
+                route, current, null, currentVersion));
+            return route;
+        }
+        _ = Publish(0, 8, 0);
+        SearchRoutePreview better = Publish(1, 2, 3);
+        _ = Publish(2, 7, 0);
+        _ = Publish(3, 0, 10);
+        _ = Publish(4, 0, 0, victory: false);
+        // The main thread deliberately reads only after five members have published.
+        Assert(ReferenceEquals(channel.Latest!.BestVictoryRoute, better),
+            "missed publications retain the cheaper potion victory across members");
+        Assert(channel.Latest.BestVictoryCurrentTurn?.CandidateVersion == better.CandidateVersion
+            && channel.Latest.Route?.Victory == false && channel.Latest.MemberIndex == 4,
+            "best route and turn stay paired while running-member metadata advances");
+        SearchProgressSnapshot latest = channel.Latest;
+        channel.Publish(latest with { Route = null, CurrentTurn = null });
+        Assert(ReferenceEquals(channel.Latest!.BestVictoryRoute, better)
+            && channel.Latest.BestVictoryCurrentTurn?.CandidateVersion == better.CandidateVersion,
+            "an empty opening snapshot cannot erase the previous member's winning preview");
+        SearchRoutePreview best = Publish(5, 4, 0);
+        Assert(ReferenceEquals(channel.Latest.BestVictoryRoute, best),
+            "a later better no-potion victory replaces the potion route");
     }
 
     private static BeamOptions ForThreads(BeamOptions baseline, int threads,

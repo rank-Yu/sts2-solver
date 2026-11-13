@@ -34,6 +34,9 @@ internal sealed record BeamOptions(
     /// <summary>Unbounded growth goals preclude proving an early stop.</summary>
     public bool HasUnboundedGrowthTargets { get; init; }
 
+    /// <summary>Shared optimistic victory cost, computed before restricting a portfolio member.</summary>
+    public VictoryStopTarget? VictoryTarget { get; init; }
+
     /// <summary>End-turn batch trigger and target, in states; zero preserves legacy behavior.</summary>
     public int EndedBatchTrigger { get; init; }
     public int EndedBatchTarget { get; init; }
@@ -745,6 +748,8 @@ internal sealed partial class BeamSolver
         _memoryBudgetExceeded = false;
         _memoryBudgetExceededAtBytes = 0;
         _incumbent = _options.IncumbentSeed;
+        _victoryTarget = _options.VictoryTarget ?? CaptureVictoryTarget(roots);
+        _victoryTargetReached = false;
         _bestAudited = null;
         _openingPotionTurn = int.MinValue;
         foreach (Battle root in roots)
@@ -823,10 +828,6 @@ internal sealed partial class BeamSolver
             _bestFeatures = features;
             _bestFeaturesNode = node;
         }
-        // The zero-damage stop ends the search after the current turn once a victory lost no HP,
-        // used no explicit potion and left the player at full, undiminished HP (growth targets,
-        // which disable it there, are rejected at admission).
-        bool zeroDamageVictory = false;
         void ConsiderCandidate(in Battle state, int node, in ScoreFeatures features, in RouteKey key)
         {
             bool admissible;
@@ -846,21 +847,8 @@ internal sealed partial class BeamSolver
             int actionCount = Depth(node);
             RouteKey key = Key(state, features, actionCount);
             ConsiderCandidate(state, node, features, key);
-            if (!features.AllEnemiesDead)
-                return;
-            int explicitPotionUses = ExplicitPotionUses(node);
-            if (explicitPotionUses == 0
-                && features.CumulativePlayerHpLost == 0
-                && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
-                && features.PlayerHp >= features.PlayerMaxHp
-                && _scorer.RelicGoalsMet(features)
-                && (!_options.UnlimitedNodes || !_options.HasUnboundedGrowthTargets
-                    && _zeroGrowthBudget
-                    && _scorer.GrowthTargetsSatisfied(features)
-                    && key.OutstandingStolenResource == 0))
-            {
-                zeroDamageVictory = true;
-            }
+            if (MeetsVictoryTarget(state, features, key))
+                _victoryTargetReached = true;
         }
 
         _routingSignatureIds.Clear();
@@ -943,7 +931,7 @@ internal sealed partial class BeamSolver
                 }
                 if (_parallelExpansion is null)
                 {
-                    for (int index = 0; index < current.Count && !OutOfBudget(watch); index++)
+                    for (int index = 0; index < current.Count && !_victoryTargetReached && !OutOfBudget(watch); index++)
                     {
                         SearchCheckpoint();
                         CountExpanded();
@@ -966,6 +954,8 @@ internal sealed partial class BeamSolver
                         _layerContexts, current.Count);
                     ObserveWorkspacePeak();
                 }
+                if (_victoryTargetReached)
+                    break;
                 current.Clear();
                 _tracePhase = "next";
                 next.TracePhase = _tracePhase;
@@ -975,7 +965,7 @@ internal sealed partial class BeamSolver
                 ProgressCheckpoint(current, force: false, best is null ? -1 : bestNode,
                     best ?? default);
             }
-            if (_options.UnlimitedNodes && OutOfBudget(watch)) break;
+            if (_victoryTargetReached || _options.UnlimitedNodes && OutOfBudget(watch)) break;
             // The cross-turn cut left no next-turn state: this turn's start states are the horizon,
             // as at MaxTurns, and compete with the terminal routes in the final ordering. Clearing
             // them would end a search that cannot make progress without any route.
@@ -994,8 +984,6 @@ internal sealed partial class BeamSolver
             AssignCrossTurnProgress(turnFrontier);
             ProgressCheckpoint(turnFrontier, force: false, best is null ? -1 : bestNode,
                 best ?? default);
-            if (zeroDamageVictory)
-                break;
         }
         }
         catch (SearchDeadlineException)
@@ -1045,7 +1033,7 @@ internal sealed partial class BeamSolver
                 bestNode = auditedNode;
                 bestVictory = auditedVictory;
             }
-            _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
+            _trace?.Finish(TraceFinishReason(_victoryTargetReached, watch, turns),
                 turns, _expanded);
             BeamResult audited = new(_auditPotionPolicy && best is null ? [] : Route(bestNode),
                 bestVictory, best?.Score ?? double.NegativeInfinity,
@@ -1077,7 +1065,7 @@ internal sealed partial class BeamSolver
                 MaxObservedGcPause = _options.Pacer?.MaxObservedGcPause ?? TimeSpan.Zero,
                 Equivalence = EquivalenceDiagnostics(),
             ExpandedNodesTotal = _expandedTotal,
-            StopReason = TraceFinishReason(zeroDamageVictory, watch, turns),
+            StopReason = TraceFinishReason(_victoryTargetReached, watch, turns),
             SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
             SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
             SearchMemoryLimitBytes = _storage.Memory.LimitBytes,
@@ -1096,6 +1084,7 @@ internal sealed partial class BeamSolver
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
             };
+            PublishFinalProgress(audited);
             return audited;
         }
 
@@ -1131,7 +1120,7 @@ internal sealed partial class BeamSolver
             if (fallback >= 0)
                 bestNode = fallback;
         }
-        _trace?.Finish(TraceFinishReason(zeroDamageVictory, watch, turns),
+        _trace?.Finish(TraceFinishReason(_victoryTargetReached, watch, turns),
             turns, _expanded);
         BeamResult result = new(Route(bestNode), bestVictory,
             best?.Score ?? double.NegativeInfinity,
@@ -1162,7 +1151,7 @@ internal sealed partial class BeamSolver
             MaxObservedGcPause = _options.Pacer?.MaxObservedGcPause ?? TimeSpan.Zero,
             Equivalence = EquivalenceDiagnostics(),
             ExpandedNodesTotal = _expandedTotal,
-            StopReason = TraceFinishReason(zeroDamageVictory, watch, turns),
+            StopReason = TraceFinishReason(_victoryTargetReached, watch, turns),
             SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
             SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
             SearchMemoryLimitBytes = _storage.Memory.LimitBytes,
@@ -1181,13 +1170,14 @@ internal sealed partial class BeamSolver
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
         };
+        PublishFinalProgress(result);
         return result;
     }
 
-    private string TraceFinishReason(bool zeroDamageVictory, Stopwatch watch, int turns)
+    private string TraceFinishReason(bool targetReached, Stopwatch watch, int turns)
     {
-        if (zeroDamageVictory)
-            return "zero-damage-victory";
+        if (targetReached)
+            return _victoryTarget?.EffectiveHpDeficit is not null ? "healing-target" : "zero-damage-victory";
         if (OutOfBudget(watch))
             return _options.UnlimitedNodes && !_options.NodeBudgetActive
                 ? _memoryBudgetExceeded ? "memory" : "time" : "budget";
@@ -1463,6 +1453,7 @@ internal sealed partial class BeamSolver
     {
         if (_expanded < int.MaxValue) _expanded++;
         _expandedTotal++;
+        PublishProgressCounters();
     }
 
     /// <summary>Publishes one parent's workspace shape to the optional test observer.</summary>

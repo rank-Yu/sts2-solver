@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "tm-rolling-boulder-terminal",
+  "characterId": "REGENT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "TMBOULDER1",
+  "enemyCurrentHp": 4,
+  "initialPlayerHp": 80,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerBlock": 40,
+  "clearRunDeck": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Draw",
+      "count": 6
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "ROLLING_BOULDER_POWER",
+      "target": "Player",
+      "amount": 10
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "TOASTY_MITTENS"
+    }
+  ],
+  "combatRelics": [
+    {
+      "relicId": "LETTER_OPENER",
+      "integerMembers": {
+        "_skillsPlayedThisTurn": 2
+      }
+    }
+  ]
+}

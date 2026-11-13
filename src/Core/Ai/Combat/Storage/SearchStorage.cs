@@ -16,9 +16,17 @@ internal sealed class SearchStorage
     private readonly Dictionary<(Type Type, int Length), Stack<Array>> _freeArrays = [];
     private int[] _intScratch = [];
 
+    // Compaction often frees blocks that the next layer needs again. Keep a small reserve,
+    // charged to the same budget, and surrender it before any allocation can hit that budget.
+    private readonly byte[]?[] _packedReserve = new byte[16][];
+    private int _packedReserveCount;
+    private int _packedReserveLimit;
+
+    internal SearchStorage() => Memory.ReclaimRetainedBytes = ReclaimPackedReserve;
+
     internal SearchMemoryLedger Memory { get; } = new();
 
-    /// <summary>Total bytes allocated by this storage over its lifetime.</summary>
+    /// <summary>Bytes currently retained by this storage, including reusable blocks.</summary>
     internal long AllocatedBytes => Memory.UsedBytes;
 
     /// <summary>
@@ -47,6 +55,10 @@ internal sealed class SearchStorage
     /// </summary>
     internal void BeginSolve(long limitBytes)
     {
+        _packedReserveLimit = (int)Math.Min(_packedReserve.Length,
+            Math.Max(0, limitBytes / 32 / PackedStateArena.BlockBytes));
+        while (_packedReserveCount > _packedReserveLimit)
+            ReleasePackedBlock();
         Memory.BeginSolve(limitBytes);
         _freeChunks.Clear();
         for (int index = 0; index < _chunks.Count; index++)
@@ -75,17 +87,37 @@ internal sealed class SearchStorage
         Memory.ReleaseBlock((long)array.Length * Unsafe.SizeOf<T>(), "array");
     }
 
-    /// <summary>
-    /// Returns a chunk to the allocator after a state-arena compaction. The block is removed from the
-    /// retained set and its bytes leave the ledger, so later solves must rent a new block.
-    /// </summary>
+    /// <summary>Return compacted packed-state blocks to a bounded, budget-accounted reserve.</summary>
     internal void DiscardChunk<T>(T[] chunk)
     {
-        int index = _chunks.FindIndex(item => ReferenceEquals(item, chunk));
-        if (index < 0)
+        int index = 0;
+        while (index < _chunks.Count && !ReferenceEquals(_chunks[index], chunk))
+            index++;
+        if (index == _chunks.Count)
             throw new InvalidOperationException("搜索存储没有该区块。");
         _chunks.RemoveAt(index);
+        if (chunk is byte[] bytes && bytes.Length == PackedStateArena.BlockBytes
+            && _packedReserveCount < _packedReserveLimit)
+        {
+            _packedReserve[_packedReserveCount++] = bytes;
+            return;
+        }
         Memory.ReleaseBlock((long)chunk.Length * Unsafe.SizeOf<T>(), "chunk");
+    }
+
+    private void ReclaimPackedReserve(long neededBytes)
+    {
+        while (neededBytes > 0 && _packedReserveCount > 0)
+        {
+            ReleasePackedBlock();
+            neededBytes -= PackedStateArena.BlockBytes;
+        }
+    }
+
+    private void ReleasePackedBlock()
+    {
+        _packedReserve[--_packedReserveCount] = null;
+        Memory.ReleaseBlock(PackedStateArena.BlockBytes, "chunk");
     }
 
     /// <summary>Rents a fixed-size chunk, reusing a retained block of the same element type and length.</summary>
@@ -107,6 +139,15 @@ internal sealed class SearchStorage
             T[] reused = (T[])stack.Pop();
             Array.Clear(reused);
             return reused;
+        }
+        if (chunk && typeof(T) == typeof(byte) && length == PackedStateArena.BlockBytes
+            && _packedReserveCount > 0)
+        {
+            byte[] reused = _packedReserve[--_packedReserveCount]!;
+            _packedReserve[_packedReserveCount] = null;
+            Array.Clear(reused);
+            _chunks.Add(reused);
+            return (T[])(Array)reused;
         }
         long bytes = (long)length * Unsafe.SizeOf<T>();
         Memory.Charge(bytes, chunk ? "chunk" : "array");

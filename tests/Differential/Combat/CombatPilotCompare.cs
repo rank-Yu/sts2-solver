@@ -120,7 +120,7 @@ internal static class CombatPilotCompare
             Directory.CreateDirectory(Path.GetDirectoryName(fullResults)!);
             File.WriteAllText(fullResults,
                 "case\tstatus\treason\toutcome\tactions\tturns\tencounter\tchild_exit\t" +
-                "first_diff\taction\tdiag\n");
+                "first_diff\taction\tdiag\tcards\teffects\n");
             resultsPath = fullResults;
         }
 
@@ -131,6 +131,7 @@ internal static class CombatPilotCompare
         Dictionary<string, int> rejects = new(StringComparer.Ordinal);
         Dictionary<string, int> actionCoverage = new(StringComparer.Ordinal);
         Dictionary<string, int> effectCoverage = new(StringComparer.Ordinal);
+        Dictionary<string, int> cardCoverage = new(StringComparer.Ordinal);
         Console.WriteLine($"PILOT cases={cases.Count} jobs={jobs} shard={shard}/{shards}");
         Parallel.ForEach(cases, new ParallelOptions { MaxDegreeOfParallelism = jobs }, item =>
         {
@@ -224,6 +225,7 @@ internal static class CombatPilotCompare
                         continue;
                     Accumulate(line, "actions=", actionCoverage);
                     Accumulate(line, "effects=", effectCoverage);
+                    Accumulate(line, "cards=", cardCoverage);
                 }
                 string firstDiff = lines
                     .Select(static line => line.Trim())
@@ -239,11 +241,14 @@ internal static class CombatPilotCompare
                     .Where(static line => line.StartsWith("PILOT-DIAG ", StringComparison.Ordinal)));
                 if (diag.Length == 0)
                     diag = "-";
+                string coverage = lines.FirstOrDefault(static line =>
+                    line.StartsWith("PILOT-COVER ", StringComparison.Ordinal)) ?? "";
                 WriteResult(resultsPath, item.Name, resultStatus,
                     resultStatus == "same" ? "same" : Field(status, "reason", "-"),
                     outcome, actionCount.ToString(CultureInfo.InvariantCulture),
                     Field(status, "turns", "0"), Field(status, "encounter", "-"), code,
-                    firstDiff, differenceAction, diag);
+                    firstDiff, differenceAction, diag, Field(coverage, "cards", "-"),
+                    Field(coverage, "effects", "-"));
             }
         });
         Console.WriteLine(
@@ -254,6 +259,8 @@ internal static class CombatPilotCompare
             Console.WriteLine($"PILOT-REJECT {reason}={count}");
         foreach ((string action, int count) in actionCoverage.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
             Console.WriteLine($"PILOT-ACTION {action}={count}");
+        foreach ((string card, int count) in cardCoverage.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+            Console.WriteLine($"PILOT-CARD {card}={count}");
         foreach ((string effect, int count) in effectCoverage.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
             Console.WriteLine($"PILOT-EFFECT {effect}={count}");
         return diff == 0 && crash == 0 ? 0 : 1;
@@ -261,7 +268,8 @@ internal static class CombatPilotCompare
 
     private static void WriteResult(string? path, string name, string status, string reason,
         string outcome, string actions, string turns, string encounter, int exitCode,
-        string firstDiff, string differenceAction, string diag)
+        string firstDiff, string differenceAction, string diag, string cards = "-",
+        string effects = "-")
     {
         if (path == null)
             return;
@@ -270,7 +278,7 @@ internal static class CombatPilotCompare
             $"{Clean(name)}\t{Clean(status)}\t{Clean(reason)}\t{Clean(outcome)}\t" +
             $"{Clean(actions)}\t{Clean(turns)}\t{Clean(encounter)}\t" +
             $"{exitCode.ToString(CultureInfo.InvariantCulture)}\t{Clean(firstDiff)}\t" +
-            $"{Clean(differenceAction)}\t{Clean(diag)}\n");
+            $"{Clean(differenceAction)}\t{Clean(diag)}\t{Clean(cards)}\t{Clean(effects)}\n");
     }
 
     private static List<PilotCase> EnumeratePilotCases(string data, string corpora,
@@ -418,7 +426,10 @@ internal static class CombatPilotCompare
             Console.WriteLine(
                 $"PILOT root={caseName} status=same outcome={outcome} " +
                 $"actions={DeployedActions(host.Coverage)} turns={host.Current.PlayerTurn} " +
-                $"encounter={encounterId}");
+                $"encounter={encounterId} hp={host.Current.Player.CurrentHp} maxHp={host.Current.Player.MaxHp} " +
+                $"expanded={result.SearchLog.Sum(static search => search.ExpandedNodes)} " +
+                $"search_ms={result.SearchLog.Sum(static search => search.ElapsedMs)} " +
+                $"healing_stops={result.SearchLog.Sum(static search => search.Members.Count(static member => member.StopReason == "healing-target"))}");
             WriteCoverage(host.Coverage);
             return 0;
         }
@@ -531,7 +542,8 @@ internal static class CombatPilotCompare
     {
         Console.WriteLine(
             $"PILOT-COVER actions={string.Join(',', coverage.Actions.Select(static pair => $"{pair.Key}:{pair.Count}"))} " +
-            $"effects={string.Join(',', coverage.Effects.Select(static pair => $"{pair.Key}:{pair.Count}"))}");
+            $"effects={string.Join(',', coverage.Effects.Select(static pair => $"{pair.Key}:{pair.Count}"))} " +
+            $"cards={string.Join(',', coverage.Cards.Select(static pair => $"{pair.Key}:{pair.Count}"))}");
     }
 
     private static IEnumerable<string> EnumeratePilotRoots(string data, string corpora)

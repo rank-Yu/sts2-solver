@@ -321,7 +321,7 @@ internal static partial class CombatSessionController
         };
     }
 
-    private static SearchRoutePreviewUi RoutePreview(SearchRoutePreview preview) => new()
+    internal static SearchRoutePreviewUi RoutePreview(SearchRoutePreview preview) => new()
     {
         CandidateVersion = preview.CandidateVersion,
         StartTurn = preview.StartTurn,
@@ -330,6 +330,8 @@ internal static partial class CombatSessionController
         Victory = preview.Victory,
         OnlyDeathRoutes = preview.OnlyDeathRoutes,
         ProjectedBattleHpLost = preview.Turns.Sum(static turn => turn.HpLost),
+        ProjectedBattlePotionCount = preview.Actions.Count(
+            static action => action.Kind == Sts2Solver.Simulation.Combat.PlayerActionKind.UsePotion),
         Turns = preview.Turns.Select(static turn => new SearchTurnPreviewUi
         {
             Turn = turn.Turn,

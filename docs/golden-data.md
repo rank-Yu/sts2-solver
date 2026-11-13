@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 10（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 的格式版本是 5（`Codec.FormatVersion`）；`SREQ` 使用请求版本 11（`SearchCodec.RequestFormatVersion`），`SRES` 使用结果版本 6（`SearchCodec.ResultFormatVersion`）。读取器只接受对应的当前版本；其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -91,7 +91,7 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 ### 6.1 `SREQ`
 
 ```text
-u32 magic="SREQ" | u16 version=9 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
+u32 magic="SREQ" | u16 version=11 | rules 长度 + RULE | battles 数量 + 每个 BATL | options
 ```
 
 魔数常量是 `0x51455253`（`SREQ`）。`options` 按 `SearchCodec.EncodeRequest` 的固定顺序写入全部确定值字段：主构造参数（宽度、节点上限、回合上限、软时间、初始最大生命）、用药政策、评分与排序、下界、各类策略开关等。字段清单以代码为准。
@@ -99,6 +99,7 @@ u32 magic="SREQ" | u16 version=9 | rules 长度 + RULE | battles 数量 + 每个
 - `ScoreRules` 完整写入：每张卡每个等级的 `CardScore`、每个 Power 的 `PowerScore`、药水战略代价、成长额度与目标、遗物计数目标、战后治疗、Boss 生命减免、初始值、根计数、根药水，以及所有命名的 Power、卡牌、遗物、药水 Id。
 - `Scorer` 的 base/offensive 评估方式作为两个显式布尔写在 `ScoreRules` 前面；setup/queen 仍是追加扩展。
 - `BoundFeatures.Config` 完整写入所有开关、证书、数组和根药水。
+- 可选扩展 `VGT1` 保存成员共用的胜利目标：一个是否已知的布尔，已知时再写折算战损与战略失血两个 `i32`。未知目标也保留标记，避免不用药的成员重算出更低目标；旧请求没有此扩展时按该请求计算。重复扩展显式失败。
 - 宿主回调 `Pacer`、`Trace` 不进入 SREQ。
 - 回归重解不采用请求里的墙钟截止和节点/内存预算；`SearchBudgetPolicy.ApplyRegression` 把它们覆盖成固定回归参数（见 6.3）。
 
@@ -120,7 +121,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ### 6.3 保留槽位与搜索回归参数
 
-`SREQ` v10 与 `SRES` v6 没有保留槽位。
+`SREQ` v11 与 `SRES` v6 没有保留槽位。
 
 搜索回归不直接使用请求里的软时间和宿主回调，而是通过 Core 的
 `SearchBudgetPolicy.ApplyRegression` 注入固定的回归参数：结束回合池保留宽度 × 8、触发宽度 × 16；
@@ -162,6 +163,8 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
 当前 D1 为 403 个根、4,892 个 K1、14,576 条游走、468,082 个游走状态、455,959 个转移；D2 为 1,987 个请求、1,987 个期望结果，捕获调用 2,841。质量语料删除各角色 017、020、023 的 15 个第三幕首领根后，D1 同步删除对应的 15 个根；D2 补录 39 个生产分支成员请求时，原有 1,982 个请求逐字节不变。删除用药次数上限（SREQ v9）时，77 个“最多一瓶”成员请求改成不限次数的生产形态：6 个与已有请求相同而去重，其余 71 个里 27 个的结果变化；其它 1,939 个请求的期望结果逐字节不变。加入遗物计数目标（SREQ v10）时请求机械重编码，冻结请求都不带目标；带骨肉的阈值回血计入排序后，持带骨肉的 48 个请求里 4 个路线不变、展开数变少（2,425→2,240 和 3,958→3,651 各两个），期望结果重冻，其余 2,011 个逐字节不变。路线改按折算战损排序（可选药最贵一瓶原价、其余半价）、用药胜利也作现任最优后，71 个请求的期望结果重冻：14 个路线改变（新排序下 7 个更好，7 个只差平局判据：折算战损、战略失血与结束回合都相同，或少喝一瓶药正好多掉这瓶的折价），其余只是展开数变化，没有胜负翻转（`eff1:`，结果集 `f9aeda28…`）。开局药只在搜索第一个回合展开后，30 个期望结果重冻：7 个路线更好，其余只是展开数变少（`opn1:`，结果集 `be6c846a…`）。SREQ v11 删除最早喝药回合、下界的药水限制与根药水副本、生效用药模式改读药水策略后：这些字段在生产请求里一直是常量，但旧冻结请求是早先调度器抓的成员请求，1,677 个无药阶段成员写着生效模式“禁用”、1,463 个下界配置写着全部禁用药水、399 个设了最多用药次数。按新语义读出后 28 个请求只差这些字段而合并（2,015→1,987），重冻时 22 个期望结果变化（1 条路线多 1 血、提前 2 回合结束，其余只是展开数），1,965 个逐字节不变；108 根质量评测与改动前完全相同（`cln1:`，结果集 `22f8f6b4…`）。敌人死亡效果改在击杀内部结算后（`dth1:`），D1 重录 2 个根：quality-REGENT-013 的一步 Volley 先后打死 Decimillipede 的几节，先死的一节按 Reattach 转入复活招式（原版先死者立即 `SetMoveImmediate(DeadState)`）；quality-SILENT-004 的 Dagger Spray 第一波打死 Phrog Parasite，第二波打到刚生成的 4 只 Wriggler，此后的游走状态随之改变，游走状态与转移各少 11 个。D2 的 8 个期望结果重冻，全是 Phrog Parasite：7 个路线更好（其中 3 个提前一回合结束），1 个路线与分数不变、只是结果附带信息变化，没有胜负翻转；其余 1,979 个逐字节不变。当前 `provenance.refreeze` 以 `dth1:` 开头（结果集 SHA-256 为 `1825d50b1c7e2bfde5ff7ca89030c8b14e03e2fbb9bb50a6352c508111637039`），D2 的 1,987 个期望结果全部一致；`provenance.d1Rerecord` 记录 dth1 重录的这 2 个根。
+
+侧回合开始的终局门控由原版最小场景核对。对应的 D1 根 id-c-instanced-powers 使用工具重录，K1、游走状态和转移数量不变；这项修正不改变 D2 结果。
 
 ## 9. 重录与重冻会改什么
 
@@ -212,4 +215,4 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ## 12. 旧版本
 
-读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 9，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 5，`SREQ` 为 11，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

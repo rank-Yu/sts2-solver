@@ -87,16 +87,8 @@ internal sealed partial class BeamSolver
                 ? new SearchIncumbent(key.EffectiveHpDeficit, end.PlayerTurn, features.StrategyGoalHpCredit,
                     features.StrategyGoalCount, _scorer.RelicGoalsMet(features))
                 : null;
-        bool goalsSatisfied = _scorer.GrowthTargetsSatisfied(features) && _scorer.RelicGoalsMet(features);
-        bool safeVictory = key.Won && features.ProjectedDeathSaveUseCount == 0 && goalsSatisfied;
-        goalReached = safeVictory && !_options.HasUnboundedGrowthTargets
-            && _scorer.RulesForCodec.GrowthBudgets.Total == 0
-            && features.ExplicitPotionUseCount == 0
-            && features.CumulativePlayerHpLost == 0
-            && features.PlayerHp >= _ordering.InitialPlayerHp
-            && features.PlayerMaxHp >= _scorer.RulesForCodec.InitialPlayerMaxHp
-            && !_ordering.PostCombatRelicHeal.ThresholdHealPaysOff(features.PlayerHp, features.PlayerMaxHp)
-            && key.OutstandingStolenResource == 0;
+        PrepareVictoryTarget(roots);
+        goalReached = MeetsVictoryTarget(end, features, key);
         return new Candidate(0, key, features.ExplicitPotionUseCount,
             features.ProjectedDeathSaveUseCount);
     }

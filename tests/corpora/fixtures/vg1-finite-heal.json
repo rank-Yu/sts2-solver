@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "HEALINGTARGET",
+  "ascension": 0,
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "scenarioId": "vg1-finite-heal",
+  "cards": [
+    {
+      "cardId": "NOT_YET",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "count": 2
+    }
+  ]
+}

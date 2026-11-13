@@ -536,6 +536,10 @@ public static partial class Kernel
     internal static void TriggerSideTurnStart(ref Exec x, Side side, scoped ReadOnlySpan<byte> participants,
         bool decrementPlating, bool isExtraTurn = false)
     {
+        // This is a new Hook.AfterSideTurnStart enumeration. Native excludes combat listeners
+        // when preparation already ended combat (for example Rolling Boulder before this hook).
+        if (IsOverOrEnding(x.B))
+            return;
         foreach (byte owner in participants)
         {
             PowerTypeSequence(ref x, PowerPhase.BaseSideTurnStart, owner, BaseSideTurnStartIds.Value, side, participates: true, decrementPlating);

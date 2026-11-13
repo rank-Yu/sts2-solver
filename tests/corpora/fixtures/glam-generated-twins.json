@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "glam-generated-twins",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "GLAMSHIFT1",
+  "enemyCurrentHp": 50,
+  "initialPlayerHp": 80,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerEnergy": 1,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "enchantmentId": "GLAM"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Exhaust",
+      "enchantmentId": "GLAM"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "CALAMITY_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ]
+}

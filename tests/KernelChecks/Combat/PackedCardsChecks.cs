@@ -76,6 +76,7 @@ internal static class PackedCardsChecks
         arena.Clear();
         Assert(arena.Count == 0 && arena.UsedBytes == 0, "clear keeps reusable blocks");
 
+        CheckPackedReserve();
         CheckCompactionInvariant();
         CheckUnorderedCompaction();
 
@@ -105,6 +106,49 @@ internal static class PackedCardsChecks
         Assert(hash == Fingerprint.Hash(in large), "dedupe hash for a 200-card state");
         Assert(Fingerprint.Equal(in arena[arena.Count - 1], in large), "dedupe equality for a 200-card state");
         Console.WriteLine($"PACKED_CARDS states=200 arenaBytes={PackedStateArena.BlockBytes} pass");
+    }
+
+    private static void CheckPackedReserve()
+    {
+        int block = PackedStateArena.BlockBytes;
+        SearchStorage storage = new();
+        storage.BeginSolve(64L * block); // reserve at most two blocks
+        byte[] first = storage.RentChunk<byte>(block);
+        first[0] = 9;
+        first[^1] = 17;
+        storage.DiscardChunk(first);
+        Assert(storage.Memory.UsedBytes == block, "reserve stays on budget");
+        byte[] reused = storage.RentChunk<byte>(block);
+        Assert(ReferenceEquals(first, reused) && reused[0] == 0 && reused[^1] == 0,
+            "compacted block is reused and cleared");
+        byte[] second = storage.RentChunk<byte>(block);
+        byte[] third = storage.RentChunk<byte>(block);
+        storage.DiscardChunk(first);
+        storage.DiscardChunk(second);
+        storage.DiscardChunk(third);
+        Assert(storage.Memory.UsedBytes == 2L * block, "reserve has a fixed budget cap");
+        // Charges outside RentChunk must also reclaim unused reserve before stopping search.
+        storage.Memory.Charge(63L * block, "test");
+        Assert(!storage.Memory.Exceeded && storage.Memory.UsedBytes == 64L * block,
+            "other regions can reclaim reserve without losing budget");
+        storage.Memory.ReleaseBlock(63L * block, "test");
+        storage.BeginSolve(block);
+        Assert(storage.Memory.UsedBytes == 0 && !storage.Memory.Exceeded,
+            "smaller solve releases reserve");
+        byte[] next = storage.RentChunk<byte>(block);
+        Assert(!ReferenceEquals(next, first) && !ReferenceEquals(next, second),
+            "released blocks are no longer rented");
+        storage.DiscardChunk(next);
+        Assert(storage.Memory.UsedBytes == 0, "small budgets do not retain reserve");
+
+        storage.BeginSolve(64L * block);
+        first = storage.RentChunk<byte>(block);
+        storage.DiscardChunk(first);
+        storage.BeginSolve(64L * block);
+        reused = storage.RentChunk<byte>(block);
+        second = storage.RentChunk<byte>(block);
+        Assert(ReferenceEquals(first, reused) && !ReferenceEquals(reused, second),
+            "new solve does not double-lease reserved blocks");
     }
 
     private static void CheckCompactionInvariant()

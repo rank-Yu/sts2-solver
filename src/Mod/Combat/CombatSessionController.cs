@@ -1020,10 +1020,14 @@ internal static partial class CombatSessionController
         _lastProgress = progress;
         if (progress.Route != null && progress.CandidateVersion > search.RenderedCandidateVersion)
             search.RenderedCandidateVersion = progress.CandidateVersion;
-        if (changed && progress.Route is { } route && DisplayAccepts(route))
+        SearchRoutePreview? preview = progress.BestVictoryRoute ?? progress.Route;
+        if (changed && preview is { } route && DisplayAccepts(route))
         {
             _displayRoute = route;
-            _displayCurrentTurn = progress.CurrentTurn;
+            search.RenderedCandidateVersion = Math.Max(search.RenderedCandidateVersion,
+                route.CandidateVersion);
+            _displayCurrentTurn = progress.BestVictoryRoute is not null
+                ? progress.BestVictoryCurrentTurn : progress.CurrentTurn;
         }
         if (progress.SearchMemoryPeakBytes > _lastSearchMemoryPeakBytes)
             _lastSearchMemoryPeakBytes = progress.SearchMemoryPeakBytes;

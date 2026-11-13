@@ -579,9 +579,13 @@ public static partial class Kernel
         {
             HandlePlayerDeath(ref x);
         }
-        // Osty: DieForYouPower.ShouldCreatureBeRemovedFromCombatAfterDeath keeps the pet in combat, and
-        // the existing engine's KillWithoutCheckingWinCondition runs no player-death flow for a pet, so
-        // the dead Osty stays in place with its powers (a later summon revives it). No extra work here.
+        else if (owner == Limits.OstyOwner)
+        {
+            // Native v0.111.0 Commands/CreatureCmd.Kill and Creature.RemoveAllPowersAfterDeath:
+            // remove mortal powers from a retained dead pet too.
+            // DieForYou survives, while Strength and other temporary combat state do not.
+            RemovePowersAfterDeath(ref x, owner);
+        }
     }
 
     /// <summary>Native <c>ShouldDie</c> then <c>ShouldDieLate</c> over the run listeners; the first refusal is the preventer.</summary>
@@ -846,7 +850,9 @@ public static partial class Kernel
     /// </summary>
     private static void RemovePowersAfterDeath(ref Exec x, byte owner)
     {
-        bool ownerInRoster = InRoster(x.B, owner);
+        bool ownerInRoster = owner == Limits.OstyOwner
+            ? (x.B.Flags & BattleFlags.OstyPresent) != 0
+            : InRoster(x.B, owner);
         bool illusionHook = false;
         if (ownerInRoster)
         {

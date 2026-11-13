@@ -69,6 +69,7 @@ internal static class CombatSearchCoordinator
             throw new InvalidDataException("接续状态与当前搜索计划不一致。");
         }
         BeamSolver quality = new(initial.Rules, initial.Options with { AuditPotionPolicy = true });
+        VictoryStopTarget victoryTarget = quality.PrepareVictoryTarget(initial.Battles);
         List<SearchMemberResult> logs = resume != null ? [.. resume.Members] : new(members.Length);
         BeamSolver.Candidate? selected = resume?.Selected;
         BeamResult? best = resume?.Best;
@@ -106,6 +107,7 @@ internal static class CombatSearchCoordinator
             BeamOptions options = initial.Options with
             {
                 BeamWidth = member.Width,
+                VictoryTarget = victoryTarget,
                 MaxTurns = int.MaxValue,
                 UnlimitedNodes = true,
                 MaxExpandedNodes = plan.NodesPerWidth > 0

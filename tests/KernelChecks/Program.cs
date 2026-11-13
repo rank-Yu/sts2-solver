@@ -1740,6 +1740,16 @@ static void CheckNbKernel()
     Kernel.HealOsty(ref x, 99);
     Check(battle.Osty.CurrentHp == 4, "治疗 Osty 不得超过最大生命");
 
+    // Death keeps DieForYou but removes mortal powers; a fresh summon must not inherit them.
+    Check(Registry.TryPower("STRENGTH_POWER", out ushort ostyStrength), "缺少 Strength");
+    Kernel.ApplyPowerWithoutCardSource(ref x, Limits.OstyOwner, ostyStrength, 3, Limits.PlayerOwner);
+    Span<byte> pet = stackalloc byte[1] { Limits.OstyOwner };
+    Kernel.Kill(ref x, pet, force: true);
+    Check((battle.Flags & BattleFlags.OstyPresent) != 0, "DieForYou 应保留死亡的 Osty");
+    Check(Kernel.GetAmount(battle, Limits.OstyOwner, dieForYou) == 1, "死亡后 DieForYou 应保留");
+    Check(Kernel.GetAmount(battle, Limits.OstyOwner, ostyStrength) == 0, "死亡后力量应清除");
+    Kernel.SummonOsty(ref x, 4);
+    Check(battle.NextCombatId == 8 && battle.Osty.CurrentHp == 4, "保留的 Osty 复活不创建新个体");
     // Redirect: powered attack damage above Osty's HP spills over to the player; unpowered damage and
     // a dead pet do not redirect.
     battle = NewBattle();

@@ -36,6 +36,18 @@ internal static class SearchContracts
             && !seeded.AsSpan().SequenceEqual(SearchCodec.EncodeRequest(original)),
             "incumbent seed survives SREQ");
 
+        foreach (VictoryStopTarget target in new[] { new VictoryStopTarget(-7, -12), VictoryStopTarget.Unknown })
+        {
+            byte[] encoded = SearchCodec.EncodeRequest(original with
+            {
+                Options = original.Options with { VictoryTarget = target },
+            });
+            SearchCase decoded = SearchCodec.DecodeRequest(encoded);
+            Assert(decoded.Options.VictoryTarget == target
+                && SearchCodec.EncodeRequest(decoded).AsSpan().SequenceEqual(encoded),
+                "known and unknown shared victory targets survive SREQ");
+        }
+
         Scorer standardScorer = original.Options.Scorer ?? throw new InvalidDataException("夹具没有评分器。");
         ScoreFeatures rootFeatures = standardScorer.Features(original.Battles[0], 0);
         double standardRank = standardScorer.BeamRankScore(original.Battles[0], rootFeatures, false, false);

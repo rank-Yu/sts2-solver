@@ -144,6 +144,10 @@ internal sealed class NativePilotHost(
     {
         token.ThrowIfCancellationRequested();
         Coverage.CountAction(action.Action.Kind);
+        if (action.Action.Kind == PlayerActionKind.PlayCard)
+            Coverage.CountCard(Registry.Card(action.Before.Cards[action.Action.HandIndex].Id).NativeId);
+        foreach (PlannedChoice choice in action.Choices)
+            Coverage.CountChoice(choice.Request);
         try
         {
             Battle live;
@@ -155,6 +159,9 @@ internal sealed class NativePilotHost(
                 string? terminalDiff = TerminalBattleCapture.Compare(action.After);
                 if (terminalDiff != null)
                 {
+                    LastDifferenceAction = CombatPilotAction.Describe(action);
+                    if (TerminalBattleCapture.Value is { } terminal)
+                        onDifference?.Invoke(action.After, terminal);
                     return ValueTask.FromResult(new CombatPilotDeployment(false, false,
                         "terminal_diff", terminalDiff,
                         CombatPilotAction.Describe(action), terminalDiff.Split('\n')));

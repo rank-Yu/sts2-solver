@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "HEALINGTARGET",
+  "ascension": 0,
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 80,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "scenarioId": "vg1-regeneration",
+  "initialPlayerBlock": 150,
+  "powers": [
+    {
+      "powerId": "BARRICADE_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "REGEN_POTION"
+    }
+  ],
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "count": 2
+    }
+  ]
+}

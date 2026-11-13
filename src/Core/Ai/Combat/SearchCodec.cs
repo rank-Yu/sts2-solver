@@ -32,6 +32,7 @@ internal static class SearchCodec
     internal const uint RequestMagic = 0x51455253; // "SREQ"
     internal const uint ResultMagic = 0x53455253; // "SRES"
     internal const uint BrightestFlameExtensionMagic = 0x314D4C46; // "FLM1"
+    internal const uint VictoryTargetExtensionMagic = 0x31544756; // "VGT1"
     internal const uint IncumbentSeedExtensionMagic = 0x31434E49; // "INC1"
 
     /// <summary>
@@ -146,6 +147,16 @@ internal static class SearchCodec
             writer.Write(options.Scorer.SetupPolicy!.Continuous ? 0x32505553u : 0x31505553u); // SUP2 continuous / SUP1 activation.
             options.Scorer.SetupPolicy!.Encode(writer);
         }
+        if (options.VictoryTarget is { } target)
+        {
+            writer.Write(VictoryTargetExtensionMagic);
+            writer.Write(target.EffectiveHpDeficit.HasValue);
+            if (target.EffectiveHpDeficit is { } effective)
+            {
+                writer.Write(effective);
+                writer.Write(target.StrategicHpDeficit);
+            }
+        }
         if (options.IncumbentSeed is { } seed)
         {
             writer.Write(IncumbentSeedExtensionMagic);
@@ -197,10 +208,19 @@ internal static class SearchCodec
         bool sawSetup = false;
         bool sawQueen = false;
         SearchIncumbent? seed = null;
+        VictoryStopTarget? victoryTarget = null;
         while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
             uint extension = reader.ReadUInt32();
-            if (extension == IncumbentSeedExtensionMagic)
+            if (extension == VictoryTargetExtensionMagic)
+            {
+                if (victoryTarget is not null)
+                    throw new InvalidDataException("共同胜利目标扩展重复。");
+                victoryTarget = Codec.ReadBool(reader)
+                    ? new VictoryStopTarget(reader.ReadInt32(), reader.ReadInt32())
+                    : VictoryStopTarget.Unknown;
+            }
+            else if (extension == IncumbentSeedExtensionMagic)
             {
                 if (seed is not null)
                     throw new InvalidDataException("初始现任最优扩展重复。");
@@ -262,6 +282,7 @@ internal static class SearchCodec
             BrightestFlameMaxHpLossLimit = flameLimit,
             InitialBrightestFlameMaxHpSpent = flameSpent,
             IncumbentSeed = seed,
+            VictoryTarget = victoryTarget,
         };
     }
 

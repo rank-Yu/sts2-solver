@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "right-hand-upgrade-order",
+  "characterId": "NECROBINDER",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RIGHTHANDORDER",
+  "enemyCurrentHp": 60,
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 2,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BASH",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "pile": "Discard",
+      "treatAsDeckCard": true,
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "pile": "Discard",
+      "treatAsDeckCard": true,
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "RIGHT_HAND_HAND",
+      "pile": "Discard",
+      "treatAsDeckCard": true,
+      "upgradeLevels": 0
+    }
+  ]
+}

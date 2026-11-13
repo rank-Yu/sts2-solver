@@ -19,6 +19,7 @@ internal sealed partial class BeamSolver
 
     private IReadOnlyList<Battle> _progressRoots = Array.Empty<Battle>();
     private long _lastProgressAt = long.MinValue / 2;
+    private long _lastCounterProgressAt;
     private int _progressCandidateVersion;
     private BeamResult? _adoptedResult;
 
@@ -29,6 +30,7 @@ internal sealed partial class BeamSolver
         _lastProgressAt = long.MinValue / 2;
         _progressCandidateVersion = _options.Progress?.LatestCandidateVersion ?? 0;
         _adoptedResult = null;
+        _lastCounterProgressAt = Environment.TickCount64;
     }
 
     /// <summary>
@@ -53,6 +55,29 @@ internal sealed partial class BeamSolver
         SearchRouteCandidate? built = retained is null && terminalNode < 0
             ? null
             : BuildRouteCandidate(retained, terminalNode, terminalKey);
+        PublishProgressCandidate(built);
+    }
+
+    /// <summary>Publishes the selected member result even when the last layer bypassed a checkpoint.</summary>
+    private void PublishFinalProgress(BeamResult result)
+    {
+        if (_options.Progress is null || result.BestRoute.Length == 0 || !result.PotionPolicySatisfied)
+            return;
+        ProgressReplay replay = ReplayProgress(result.BestRoute, result.BestRootIndex);
+        ScoreFeatures features = ProgressFeatures(replay.FinalState, result.BestRoute.Length);
+        RouteKey key = Key(replay.FinalState, features, result.BestRoute.Length);
+        SearchRouteCandidate candidate = new(++_progressCandidateVersion, _initialPlayerTurn,
+            replay.ThroughTurn, result.BestRootIndex, result.BestRoute, replay.FinalState,
+            replay.Turns, key.Score, key.Won, !key.Survives, key);
+        // Result selection is complete: publish without polling control requests or charging the
+        // replay to the member's recorded search budget. The next member handles pending controls.
+        PublishProgressCandidate(candidate);
+    }
+
+    private void PublishProgressCandidate(SearchRouteCandidate? built)
+    {
+        SearchProgressChannel channel = _options.Progress!;
+        _lastCounterProgressAt = Environment.TickCount64;
         if (built is not null)
             channel.AddCandidate(built);
         SearchRoutePreview? route = built is null ? null : new SearchRoutePreview(
@@ -80,6 +105,19 @@ internal sealed partial class BeamSolver
             SearchMemoryUsedBytes = _storage.Memory.UsedBytes,
             SearchMemoryPeakBytes = _storage.Memory.PeakBytes,
         });
+    }
+
+    /// <summary>Refresh counters within a long layer without replaying or replacing its preview.</summary>
+    private void PublishProgressCounters()
+    {
+        if (_options.Progress is not { } channel)
+            return;
+        long now = Environment.TickCount64;
+        if (now - _lastCounterProgressAt < Math.Max(50, channel.ThrottleMilliseconds))
+            return;
+        _lastCounterProgressAt = now;
+        channel.PublishCounters(_expandedTotal, _solveWatch?.ElapsedMilliseconds ?? 0,
+            _storage.Memory.UsedBytes, _storage.Memory.PeakBytes);
     }
 
     /// <summary>

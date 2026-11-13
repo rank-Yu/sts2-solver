@@ -136,6 +136,10 @@ internal sealed record SearchProgressSnapshot(
     /// </summary>
     internal long RequestExpandedNodes { get; init; }
 
+    /// <summary>Best published victory across members, retained even if the UI misses a publication.</summary>
+    internal SearchRoutePreview? BestVictoryRoute { get; init; }
+    internal SearchCurrentTurnPreview? BestVictoryCurrentTurn { get; init; }
+
     /// <summary>Search-ledger bytes in use when the snapshot was published.</summary>
     internal long SearchMemoryUsedBytes { get; init; }
 
@@ -181,6 +185,8 @@ internal sealed class SearchProgressChannel
     private int _memberIndex;
     private SearchInterimResult? _bestComplete;
     private SearchProgressSnapshot? _latest;
+    private SearchRoutePreview? _bestVictoryRoute;
+    private SearchCurrentTurnPreview? _bestVictoryCurrentTurn;
     private long _completedExpandedNodes;
 
     internal SearchProgressChannel(int throttleMilliseconds, int retainedCandidates = DefaultRetainedCandidates)
@@ -224,8 +230,37 @@ internal sealed class SearchProgressChannel
     /// <summary>Stores one snapshot and invokes the publisher-side observer, outside the lock.</summary>
     internal void Publish(SearchProgressSnapshot snapshot)
     {
+        if (snapshot.Route is { Victory: true } route
+            && (_bestVictoryRoute is null
+                || BeamSolver.CompareRouteKeys(route.RankKey, _bestVictoryRoute.RankKey) <= 0))
+        {
+            _bestVictoryRoute = route;
+            _bestVictoryCurrentTurn = snapshot.CurrentTurn;
+        }
+        snapshot = snapshot with
+        {
+            BestVictoryRoute = _bestVictoryRoute,
+            BestVictoryCurrentTurn = _bestVictoryCurrentTurn,
+        };
         Volatile.Write(ref _latest, snapshot);
         Published?.Invoke(snapshot);
+    }
+
+    /// <summary>Search-thread heartbeat: keep the last preview and its candidate identity intact.</summary>
+    internal void PublishCounters(long expandedNodes, long elapsedMilliseconds,
+        long memoryUsedBytes, long memoryPeakBytes)
+    {
+        SearchProgressSnapshot? snapshot = Latest;
+        if (snapshot is null || snapshot.MemberIndex != MemberIndex || snapshot.Member != Member)
+            return;
+        Publish(snapshot with
+        {
+            ExpandedNodes = expandedNodes,
+            RequestExpandedNodes = CompletedExpandedNodes + expandedNodes,
+            ElapsedMilliseconds = elapsedMilliseconds,
+            SearchMemoryUsedBytes = memoryUsedBytes,
+            SearchMemoryPeakBytes = memoryPeakBytes,
+        });
     }
 
     /// <summary>Adds one materializable candidate, evicting the oldest beyond the retained window.</summary>

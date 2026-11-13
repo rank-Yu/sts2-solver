@@ -65,6 +65,8 @@
 
 ### 3.2 生物与敌人
 
+Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理规则移除；再次召唤时不会带回已移除的力量。
+
 `Player` 和 `Osty` 都是 `Creature`。Osty 只在 `Osty` 区块和 `OstyPresent` 标志里表示，死亡后对象仍在，`Osty.CurrentHp <= 0` 就是死亡；它的 Power 和其它生物一样占 `Powers` 的行，`Owner = Limits.OstyOwner`。`OstyEverPresent` 供“玩家回合开始时宠物计数清零”的语义使用（见 [内容专属机制](combat-content.md#4-亡灵契约师ostydoom-与灵魂)）。
 
 `Enemy` 每项 64 字节：

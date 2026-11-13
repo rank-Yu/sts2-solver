@@ -84,8 +84,7 @@ internal static class BoundCompiler
         if (disabled != null)
             return Disabled(disabled);
 
-        if (component && HasRegenPotion(player))
-            return Disabled("regen_potion_policy");
+        bool regenPotion = component && HasRegenPotion(player);
         if (HasSwipePower(state))
             return Disabled("swipe_power");
 
@@ -97,8 +96,8 @@ internal static class BoundCompiler
         bool onlyPostCombat = HasOnlyPostCombatHealing(state, player);
         return new BoundFeatures.Config
         {
-            Enabled = true,
-            DisabledReason = "",
+            Enabled = !regenPotion,
+            DisabledReason = regenPotion ? "regen_potion_policy" : "",
             FutureHealPotential = onlyPostCombat
                 ? Math.Max(0, postCombat.UnconditionalHeal)
                 : int.MaxValue,

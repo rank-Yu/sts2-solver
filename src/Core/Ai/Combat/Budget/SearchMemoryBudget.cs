@@ -31,7 +31,7 @@ internal sealed class SearchMemoryBudgetException : Exception
 /// </summary>
 internal sealed class SearchMemoryLedger
 {
-    /// <summary>Bytes retained by this storage across solves; never decreases.</summary>
+    /// <summary>Bytes currently retained by this storage.</summary>
     internal long UsedBytes { get; private set; }
 
     /// <summary>Highest usage observed during the current solve.</summary>
@@ -46,10 +46,13 @@ internal sealed class SearchMemoryLedger
     /// <summary>Usage at the first rejected allocation of the current solve.</summary>
     internal long ExceededAtBytes { get; private set; }
 
-    /// <summary>Lifetime allocated bytes by accounting region (diagnostics only).</summary>
+    /// <summary>Currently retained bytes by accounting region (diagnostics only).</summary>
     internal IReadOnlyDictionary<string, long> AllocatedByRegion => _byRegion;
 
     private readonly Dictionary<string, long> _byRegion = new(StringComparer.Ordinal);
+
+    /// <summary>Release unused, reusable blocks before rejecting an allocation.</summary>
+    internal Action<long>? ReclaimRetainedBytes { get; set; }
 
     internal void BeginSolve(long limitBytes)
     {
@@ -62,6 +65,8 @@ internal sealed class SearchMemoryLedger
             _byRegion.Remove(region);
         }
         LimitBytes = limitBytes;
+        if (UsedBytes > LimitBytes)
+            ReclaimRetainedBytes?.Invoke(UsedBytes - LimitBytes);
         PeakBytes = UsedBytes;
         Exceeded = false;
         ExceededAtBytes = 0;
@@ -82,6 +87,8 @@ internal sealed class SearchMemoryLedger
             return;
         if (Exceeded)
             throw new SearchMemoryBudgetException(region, ExceededAtBytes, LimitBytes);
+        if (UsedBytes + bytes > LimitBytes)
+            ReclaimRetainedBytes?.Invoke(UsedBytes + bytes - LimitBytes);
         if (UsedBytes + bytes > LimitBytes)
         {
             Exceeded = true;

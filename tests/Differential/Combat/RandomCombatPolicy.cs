@@ -10,9 +10,17 @@ internal sealed class CombatActionCoverage
 {
     private readonly Dictionary<string, int> _actions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _effects = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _cards = new(StringComparer.Ordinal);
 
     internal void CountAction(PlayerActionKind kind)
         => _actions[kind.ToString()] = _actions.GetValueOrDefault(kind.ToString()) + 1;
+
+    internal void CountCard(string id)
+        => _cards[id] = _cards.GetValueOrDefault(id) + 1;
+
+    internal IEnumerable<(string Key, int Count)> Cards
+        => _cards.OrderBy(static pair => pair.Key, StringComparer.Ordinal)
+            .Select(static pair => (pair.Key, pair.Value));
 
     internal void CountChoice(in ChoiceRequest request)
     {

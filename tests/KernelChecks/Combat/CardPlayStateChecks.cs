@@ -23,6 +23,8 @@ internal static class CardPlayStateChecks
         CheckFeralKeepsShiningStrikeOnDrawTop();
         CheckFeralReturnsZeroCostShiningStrike();
         CheckJugglingCloneCopiesDisabledGlam();
+        CheckGeneratedCardsKeepAttachmentIdentity();
+        CheckRightHandKeepsDeckCopyOrder();
         CheckThrashReadsStrengthReturnedByKill();
     }
 
@@ -84,6 +86,54 @@ internal static class CardPlayStateChecks
         Assert(clone.IsClone && clone.EnchantmentId == glam + 1, "the hand card must be the Glam clone");
         Assert(clone.EnchantmentPrivate == 1 && clone.EnchantmentStatus == 1,
             "the clone must copy the Glam state the first play already used and disabled");
+    }
+
+    /// <summary>Calamity inserts before the play pile; equal exhausted cards keep their own attachment.</summary>
+    private static void CheckGeneratedCardsKeepAttachmentIdentity()
+    {
+        Assert(Registry.TryCard("STRIKE_IRONCLAD", out ushort strike), "missing Strike");
+        Assert(Registry.TryPower("CALAMITY_POWER", out ushort calamity), "missing Calamity");
+        foreach (string attachment in new[] { "GLAM", "VIGOROUS" })
+        {
+            Assert(Registry.TryEnchantment(attachment, out ushort enchantment), "missing attachment");
+            Rules rules = CardRules((strike, Attack(0, 6m)));
+            Battle battle = PlayBattle(enemyHp: [100]);
+            battle.RngStream(RngStream.CombatCardGeneration) = RngState.FromSerializable(0, 1, 2, 3, 4);
+            battle.PowerCount = 1;
+            battle.Powers[0] = new Power { Id = calamity, Owner = Limits.PlayerOwner, Amount = 1 };
+            Card card = Kernel.CreateCard(rules, strike);
+            card.EnchantmentId = checked((byte)(enchantment + 1));
+            card.EnchantmentAmount = 1;
+            Piles.Append(ref battle, Pile.Hand, card);
+            Piles.Append(ref battle, Pile.Exhaust, card);
+            Kernel.Step(ref battle, PlayerAction.PlayCard(0, Kernel.EnemyOwner(0)), rules, out _);
+            Assert(battle.HandCount > 0, "Calamity must insert before the play pile");
+            Assert(Piles.At(ref battle, Pile.Discard, 0).EnchantmentStatus == 1,
+                attachment + " must disable the played copy");
+            Assert(Piles.At(ref battle, Pile.Exhaust, 0).EnchantmentStatus == 0,
+                attachment + " must leave the exhausted copy active");
+        }
+    }
+
+    private static void CheckRightHandKeepsDeckCopyOrder()
+    {
+        Assert(Registry.TryCard("BASH", out ushort bash), "missing Bash");
+        Assert(Registry.TryCard("RIGHT_HAND_HAND", out ushort rightHand), "missing Right Hand Hand");
+        Rules rules = CardRules((bash, Attack(2, 8m, 2m)), (rightHand, Attack(0, 4m, 2m)));
+        Battle battle = PlayBattle(enemyHp: [100]);
+        Piles.Append(ref battle, Pile.Hand, Kernel.CreateCard(rules, bash));
+        foreach (bool fromDeck in new[] { false, true, false })
+        {
+            Card card = Kernel.CreateCard(rules, rightHand);
+            if (fromDeck)
+                card.Flags |= CardFlags.DeckCard;
+            Piles.Append(ref battle, Pile.Discard, card);
+        }
+        Kernel.Step(ref battle, PlayerAction.PlayCard(0, Kernel.EnemyOwner(0)), rules, out _);
+        Assert(battle.HandCount == 3, "all three Right Hand Hand copies must return");
+        for (int index = 0; index < 3; index++)
+            Assert(((Piles.At(ref battle, Pile.Hand, index).Flags & CardFlags.DeckCard) != 0) == (index == 1),
+                "original and generated copies must keep native return order");
     }
 
     /// <summary>
@@ -167,6 +217,7 @@ internal static class CardPlayStateChecks
         builder.SetMonster(0, NibbitRules(Registry.MonsterId<Nibbit>()));
         foreach ((ushort id, CardStats stats) in cards)
             builder.SetCard(id, 0, stats);
+        builder.SetCardPool(CardPools.CharacterAttacks, cards.Select(card => card.Id).ToArray());
         return builder.Build();
     }
 

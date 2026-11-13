@@ -13,7 +13,7 @@ namespace Sts2Solver.Ai.Combat;
 ///
 /// Records are copied into the arena on insert. <see cref="Move"/> moves offsets only; a subsequent
 /// <see cref="Truncate"/> slides the surviving records forward in place and releases the tail blocks,
-/// which also lowers the search-memory ledger.
+/// which become reusable within the search-memory budget.
 /// </summary>
 internal sealed class PackedStateArena
 {

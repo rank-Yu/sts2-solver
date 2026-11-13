@@ -61,6 +61,8 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 
 ### 3.2 派发规则
 
+出牌钩子每次调用前都从 Play 牌堆重新读取正在打出的牌。前一个钩子生成新牌后，后续附魔仍作用于原牌。Play 中的卡牌监听优先按牌堆内位置重新定位；其它牌堆保留仍有效的绝对位置，再按牌堆定位。牌组原牌、生成牌和复制品分开识别，保证同名牌回手顺序。
+
 - 按列表顺序逐个调用；遇到待处理选择时停止（与 `M/HookMirrors.cs:1439` 一致）。
 - 多阶段 Hook 依次跑 Early、普通、Late。`AfterCardPlayed` 的 Late 阶段重新读取监听列表。
 - 修正类 Hook（`ModifyDamage*`、`ModifyHpLost*`、`ShouldClearBlock` 等）不得改写状态：预报与评估会在只读语义下调用它们。需要随攻击捕获的值在 `BeforeAttack` 中记录（例如活力，对应 `VigorPowerMirrors.BeforeAttack`）。
@@ -75,6 +77,8 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 - **`AmountOnTurnStart` 只为三个 Power 保存。** 只有 `DrawCardsNextTurnPower`、`SummonNextTurnPower`、`HelloWorldPower` 的这个值会被结算读取（`PowerLifecycleSupport.SemanticallyRelevantAmountOnTurnStart`）。其余 Power 的这个值只反映原生模型的数量，而原引擎的镜像扣层（`PowerAmountPredictionState`）要到动作边界才同步回模型；Sts2Solver 是立即扣层的，所以这些 Power 的 `AmountOnTurnStart` 在导入和回合开始快照时都归零，不去复制一个只存在于原生模型里的滞后值。
 - **批量顺序。** 只有原版监听者时，原引擎对回合阶段 Hook、Power 反应、最大能量与抽牌数、`BeforeHandDraw` 用的是“先全部 Power、再全部遗物”的批量顺序，而不是逐监听者顺序。Sts2Solver 在相同位置用相同的批量顺序；这处和原版的偏差以原引擎为准。
 
+
+新一轮侧回合开始派发在入口检查战斗是否结束；滚石等效果已击杀最后敌人时，不再清零开信刀等回合计数。
 
 **回合末监听器迭代。** `Hook.AfterSideTurnEnd` 在进入阶段二时创建一次监听器迭代；`IsOverOrEnding` 只在迭代开始时检查。阶段二的 Power 监听先运行、随后才是遗物监听，如果前一个监听在本次迭代中击杀最后一名主要敌人，剩余监听（ArtOfWar、Kusarigama 等）仍按原版快照继续执行。相反，阶段二入口已经结束或玩家已进入失败结算时整次迭代为空，遗物不得清零。回合准备的 `ModifyHandDraw` 在战斗已结束/结束中时同样为空，Pendulum 等监听不推进计数。
 

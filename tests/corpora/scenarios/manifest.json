@@ -1428,6 +1428,134 @@
       },
       "threads": 2,
       "separate": true
+    },
+    {
+      "id": "tm-rolling-boulder-terminal",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "tm-rolling-boulder-terminal",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "glam-generated-other",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "glam-generated-other",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "glam-generated-self",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "glam-generated-self",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "glam-generated-twins",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "glam-generated-twins",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "vigorous-generated-twins",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "vigorous-generated-twins",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "upstream-osty-normal",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "upstream-osty-normal",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "right-hand-generated-deck-order",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "right-hand-generated-deck-order",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
+    },
+    {
+      "id": "right-hand-upgrade-order",
+      "scenario": null,
+      "group": "full-combat",
+      "fixture": "right-hand-upgrade-order",
+      "request": {
+        "controllerScenarioForTest": null,
+        "fullCombatForTest": true,
+        "turnSetupTakeoverForTest": true,
+        "deterministicSearchForTest": false,
+        "searchTier": "Low",
+        "timeoutSeconds": 900
+      },
+      "threads": 2,
+      "separate": true
     }
   ]
 }

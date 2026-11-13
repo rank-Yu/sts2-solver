@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Sts2Solver.Ai.Combat.Policy;
+using Sts2Solver.Ai.Combat;
+using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Import;
 
@@ -74,6 +76,7 @@ internal static class UiLogicChecks
         Check("settings_untouched_null", UntouchedNull);
         Check("search_thread_count", ThreadCount);
         Check("result_summary_speed", ResultSummarySpeed);
+        Check("search_preview_potion_count", SearchPreviewPotionCount);
         Check("english_catalog_placeholders", LocaleCatalog);
         Check("panel_text_catalog", PanelTextCatalog);
         Check("failure_reason_text", FailureReasonText);
@@ -95,6 +98,24 @@ internal static class UiLogicChecks
         foreach (UiLogicCheck check in checks.Where(static check => check.Status != "ok"))
             ModLog.Error($"[Sts2Solver] UI_LOGIC_CHECK_FAILED name={check.Name} reason={check.Error}");
         return result;
+    }
+
+    private static void SearchPreviewPotionCount()
+    {
+        SearchRoutePreview preview = new(7, 1, 2, 0,
+            [PlayerAction.EndTurn(), new PlayerAction { Kind = PlayerActionKind.UsePotion },
+                new PlayerAction { Kind = PlayerActionKind.PlayCard },
+                new PlayerAction { Kind = PlayerActionKind.UsePotion }],
+            [], true, false, default);
+        SearchRoutePreviewUi projected = CombatSessionController.RoutePreview(preview);
+        if (projected.ProjectedBattlePotionCount != 2 || projected.ActionCount != 4)
+            throw new InvalidDataException("用药预览必须统计完整路线的两次用药。");
+        projected = CombatSessionController.RoutePreview(preview with
+        {
+            Actions = [PlayerAction.EndTurn()],
+        });
+        if (projected.ProjectedBattlePotionCount != 0)
+            throw new InvalidDataException("切回无药路线后，预览用药数必须归零。");
     }
 
     private static void Defaults()

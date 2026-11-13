@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "upstream-osty-normal",
+  "characterId": "NECROBINDER",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "OSTYDEATH",
+  "enemyCurrentHp": 80,
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 1,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "cards": [
+    {
+      "cardId": "BONE_SHARDS",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "STRIKE_NECROBINDER",
+      "pile": "Draw",
+      "count": 5
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "STRENGTH_POWER",
+      "target": "Osty",
+      "amount": 3
+    }
+  ]
+}

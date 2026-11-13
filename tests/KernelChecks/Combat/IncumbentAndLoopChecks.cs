@@ -25,6 +25,7 @@ internal static class IncumbentAndLoopChecks
         Assert(BeamSolver.TurnProgressStateSize <= 16,
             $"route turn-progress metadata must stay within 16 bytes, actual={BeamSolver.TurnProgressStateSize}");
         CheckPruningBounds(fixtureRules);
+        CheckVictoryTargets();
         CheckLoopGuard();
         CheckCrossTurnCut();
         Console.WriteLine("INCUMBENT_AND_LOOP contracts=pass");
@@ -120,6 +121,146 @@ internal static class IncumbentAndLoopChecks
         }
     }
 
+    private static void CheckVictoryTargets()
+    {
+        ushort strike = CardId("IP1_TEST_STRIKE"), heal = CardId("NOT_YET");
+        Rules rules = BuildSearchRules(CardId("IP1_TEST_BLOCK_LOOP"), strike,
+            CardId("IP1_TEST_POISON_LOOP"), CardId("IP1_TEST_STRENGTH_LOOP"), 0, healing: heal);
+        Registry.TryRelic("LIZARD_TAIL", out ushort lizard);
+        Registry.TryRelic("DRAGON_FRUIT", out ushort dragon);
+        Registry.TryPotion("FAIRY_IN_A_BOTTLE", out ushort fairy);
+        Registry.TryPotion("FRUIT_JUICE", out ushort fruit);
+        Registry.TryPotion("REGEN_POTION", out ushort regen);
+        BoundFeatures.Config Config() => ComponentConfig(heal, CardId("FEED"), lizard, dragon, fairy, fruit);
+        Battle Root(bool withHeal)
+        {
+            Battle root = SearchRoot(rules, strike, true, false, 1, false);
+            root.Player.CurrentHp = 30;
+            if (withHeal)
+                Piles.Append(ref root, Pile.Hand, new Card
+                    { Id = heal, BaseCost = 0, BaseStarCost = -1, Keywords = Keywords.Exhaust });
+            return root;
+        }
+        BeamOptions Options(int threads, BoundFeatures.Config? config = null, ScoreRules? score = null) => new(
+            BeamWidth: 16, MaxExpandedNodes: 1000, MaxTurns: 3, SoftTimeBudget: TimeSpan.MaxValue)
+        {
+            Scorer = new Scorer(score ?? BuildScoreRules(rules)),
+            Ordering = new RouteOrdering(30, BossHpRelief.None, PostCombatRelicHealProfile.None),
+            Bound = new BoundFeatures(config ?? Config()),
+            Potions = PotionPolicy.Disabled,
+            SearchThreads = threads,
+            SearchMemoryBudgetBytes = 512L << 20,
+            StatePoolBudgetBytes = 256L << 20,
+        };
+        foreach (int threads in new[] { 1, 4 })
+        {
+            Battle root = Root(true);
+            BeamOptions options = Options(threads);
+            BeamSolver quality = new(rules, options);
+            VictoryStopTarget target = quality.PrepareVictoryTarget([root]);
+            Assert(target.EffectiveHpDeficit == -10, "one finite heal sets a below-full-HP target");
+            BeamResult unhealed = new BeamSolver(rules, options with { MaxExpandedNodes = 1 })
+                .Solve([root], CancellationToken.None);
+            quality.AssessResult([root], unhealed, CancellationToken.None, () => false,
+                out _, out _, out bool premature);
+            Assert(!premature, "a lossless but unhealed victory must not stop the portfolio");
+            BeamResult healed = new BeamSolver(rules, options).Solve([root], CancellationToken.None);
+            ReplayedRoute replay = ReplayedRoute.Build(root, rules, healed.BestRoute, healed.BestIsVictory);
+            Assert(healed.BestIsVictory && replay.Actions[^1].After.Player.CurrentHp == 40
+                && healed.StopReason == "healing-target", "stop at 40/50 after spending the finite heal");
+            quality.AssessResult([root], healed, CancellationToken.None, () => false,
+                out _, out _, out bool reached);
+            Assert(reached, "member and portfolio agree on the healing target");
+            BeamResult direct = new BeamSolver(rules, options with { WorkspaceBufferLimitBytes = 1 })
+                .Solve([root], CancellationToken.None);
+            Assert(SameRoute(healed.BestRoute, direct.BestRoute)
+                && healed.ExpandedNodes == direct.ExpandedNodes, "buffer fallback keeps target stopping deterministic");
+
+            Battle noHeal = Root(false);
+            BeamResult wounded = new BeamSolver(rules, options).Solve([noHeal], CancellationToken.None);
+            Assert(wounded.BestIsVictory && wounded.ExpandedNodes == 1
+                && wounded.StopReason == "healing-target", "a certified 30/50 victory does not wait for full HP");
+
+            Battle repeatable = Root(true);
+            repeatable.Cards[1].Keywords = Keywords.None;
+            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([repeatable]).EffectiveHpDeficit is null,
+                "removing Exhaust invalidates a one-use healing ceiling");
+            Battle copy = Root(true);
+            Piles.Append(ref copy, Pile.Hand, new Card { Id = CardId("BURST"), BaseCost = 1, BaseStarCost = -1 });
+            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([copy]).EffectiveHpDeficit is null,
+                "replaying an Exhaust heal invalidates the one-use ceiling");
+        }
+
+        Battle capped = Root(true);
+        capped.Player.CurrentHp = 47;
+        Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([capped]).EffectiveHpDeficit == -3,
+            "unused healing above maximum HP does not raise the target");
+        Battle exhausted = Root(false);
+        Piles.Append(ref exhausted, Pile.Exhaust, new Card
+            { Id = heal, BaseCost = 0, BaseStarCost = -1, Keywords = Keywords.Exhaust });
+        Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit == 0,
+            "an already exhausted heal contributes no remaining recovery");
+        Registry.TryRelic("BURNING_STICKS", out ushort sticks);
+        exhausted.Relics[0] = new Relic { Id = sticks };
+        exhausted.RelicCount = 1;
+        Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit is null,
+            "an exhausted healing card that can return remains unbounded");
+
+        BoundFeatures.Config postConfig = BaseConfig(HealingCertificate.Component, [heal, CardId("FEED")],
+            [lizard, dragon], fairy, fruit, postCombatHeal: 6);
+        BeamOptions postOptions = Options(1, postConfig) with
+        {
+            Ordering = new RouteOrdering(30, BossHpRelief.None, new PostCombatRelicHealProfile(6, 0, 0)),
+        };
+        Battle postRoot = Root(false);
+        BeamSolver postQuality = new(rules, postOptions);
+        Assert(postQuality.PrepareVictoryTarget([postRoot]).EffectiveHpDeficit == -6,
+            "post-combat relic healing contributes to the common ceiling");
+        BeamResult postWin = new BeamSolver(rules, postOptions).Solve([postRoot], CancellationToken.None);
+        postQuality.AssessResult([postRoot], postWin, CancellationToken.None, () => false,
+            out _, out _, out bool postReached);
+        Assert(postReached, "a victory can reach the ceiling through post-combat healing");
+
+        BoundFeatures.Config potionConfig = Config();
+        potionConfig.RegenPotion[regen] = true;
+        potionConfig.RegenPotionAmount[regen] = 5;
+        potionConfig.ComponentUnsafePotion[regen] = true;
+        Battle potionRoot = Root(false);
+        potionRoot.PotionSlotCount = 1;
+        potionRoot.Potions[0] = (ushort)(regen + 1);
+        ScoreRules potionScore = BuildScoreRules(rules, [(ushort)(regen + 1)]);
+        potionScore.PotionStrategicCost[regen] = 4;
+        PotionPolicy allowed = new(new PotionStrategySnapshot(PotionUseMode.Smart, []), false);
+        BeamOptions potionOptions = Options(1, potionConfig, potionScore) with { Potions = allowed };
+        VictoryStopTarget potionTarget = new BeamSolver(rules, potionOptions).PrepareVictoryTarget([potionRoot]);
+        Assert(potionTarget.EffectiveHpDeficit == -11 && potionTarget.StrategicHpDeficit == -15,
+            "five regeneration stacks offer 15 HP, priced by the existing four-HP potion cost");
+        Assert(new BeamSolver(rules, potionOptions with { Potions = PotionPolicy.Disabled })
+            .PrepareVictoryTarget([potionRoot]).EffectiveHpDeficit == 0, "globally forbidden potions cannot raise the target");
+        Assert(new BeamSolver(rules, potionOptions with { Potions = PotionPolicy.Disabled, VictoryTarget = potionTarget })
+            .PrepareVictoryTarget([potionRoot]) == potionTarget, "a no-potion member keeps the common portfolio target");
+        potionScore.PotionStrategicCost[regen] = 20;
+        Assert(new BeamSolver(rules, potionOptions).PrepareVictoryTarget([potionRoot]).EffectiveHpDeficit == 0,
+            "an overpriced healing potion cannot beat the no-potion ceiling");
+        potionScore.PotionStrategicCost[regen] = 15;
+        VictoryStopTarget equalCost = new BeamSolver(rules, potionOptions).PrepareVictoryTarget([potionRoot]);
+        Assert(equalCost.EffectiveHpDeficit == 0 && equalCost.StrategicHpDeficit == -15,
+            "equal total value keeps the existing preference for more healed HP");
+
+        Battle two = potionRoot;
+        two.Player.CurrentHp = 10;
+        two.PotionSlotCount = 2;
+        two.Potions[1] = (ushort)(regen + 1);
+        ScoreRules twoScore = BuildScoreRules(rules, [(ushort)(regen + 1), (ushort)(regen + 1)]);
+        twoScore.PotionStrategicCost[regen] = 4;
+        VictoryStopTarget stacked = new BeamSolver(rules, Options(1, potionConfig, twoScore)
+            with { Potions = allowed }).PrepareVictoryTarget([two]);
+        Assert(stacked.EffectiveHpDeficit == -34 && stacked.StrategicHpDeficit == -40,
+            "stack regeneration before ticking, cap at full HP, and price both bottles together");
+        Assert(potionConfig.Enabled && new BoundFeatures(potionConfig).EvaluatePruning(potionRoot, rules).RemainingUnknown,
+            "adding a victory target must not change the existing regeneration pruning policy");
+    }
+
     private static Rules BuildBoundRules(Rules fixtureRules, ushort notYet, ushort feed, ushort fruit,
         ushort dragonFruit)
     {
@@ -158,7 +299,7 @@ internal static class IncumbentAndLoopChecks
 
     private static BoundFeatures.Config BaseConfig(HealingCertificate certificate,
         IReadOnlyList<ushort> knownCards, IReadOnlyList<ushort> knownRelics,
-        ushort fairyPotion, ushort fruitPotion)
+        ushort fairyPotion, ushort fruitPotion, int postCombatHeal = 0)
     {
         bool[] knownBlockingCard = new bool[Registry.CardCount];
         foreach (ushort id in knownCards)
@@ -190,7 +331,7 @@ internal static class IncumbentAndLoopChecks
             DisabledReason = "",
             FutureHealPotential = int.MaxValue,
             Certificate = certificate,
-            PostCombatHeal = 0,
+            PostCombatHeal = postCombatHeal,
             BossHpRelief = BossHpRelief.None,
             RequireCertifiedHealingProof = certificate == HealingCertificate.Component,
             PruneEqualHp = true,
@@ -432,7 +573,7 @@ internal static class IncumbentAndLoopChecks
     }
 
     private static Rules BuildSearchRules(ushort block, ushort strike, ushort poison,
-        ushort strength, int attack, ushort growth = ushort.MaxValue)
+        ushort strength, int attack, ushort growth = ushort.MaxValue, ushort healing = ushort.MaxValue)
     {
         RulesDraft builder = new()
         {
@@ -475,6 +616,8 @@ internal static class IncumbentAndLoopChecks
         builder.SetCard(strength, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
         if (growth != ushort.MaxValue)
             builder.SetCard(growth, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
+        if (healing != ushort.MaxValue)
+            builder.SetCard(healing, 0, CardStats(CardType.Skill, TargetType.Self, 0, [10m]));
         return builder.Build();
     }
 
@@ -525,7 +668,7 @@ internal static class IncumbentAndLoopChecks
         return new BeamSolver(rules, options).Solve([root], CancellationToken.None);
     }
 
-    private static ScoreRules BuildScoreRules(Rules rules)
+    private static ScoreRules BuildScoreRules(Rules rules, ushort[]? potions = null)
     {
         CardScore?[][] cards = new CardScore?[Registry.CardCount][];
         for (int id = 0; id < cards.Length; id++)
@@ -554,8 +697,8 @@ internal static class IncumbentAndLoopChecks
             InitialEnemyStrengthSuppression = 0,
             InitialEnemyWeakTurns = 0,
             InitialRetainedAttackValue = 0,
-            RootPotions = new ushort[Limits.PotionSlots],
-            RootPotionSlotCount = 0,
+            RootPotions = potions ?? new ushort[Limits.PotionSlots],
+            RootPotionSlotCount = potions?.Length ?? 0,
             StrengthPowerId = Registry.TryPower("STRENGTH_POWER", out ushort strength)
                 ? strength : ushort.MaxValue,
             PoisonPowerId = Registry.TryPower("POISON_POWER", out ushort poison)

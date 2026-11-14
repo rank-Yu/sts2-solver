@@ -176,6 +176,7 @@ internal sealed partial class BeamSolver
 
         internal void Add(in RouteNode node, int routingMetaId, int brightestFlameSpent)
         {
+            _storage.ReserveRouteDepth(node.Depth);
             _parent.Add(node.Parent);
             _depth.Add(node.Depth);
             _action.Add(node.Action);
@@ -427,6 +428,9 @@ internal sealed partial class BeamSolver
             return;
         List<int> roots = _compactRoots;
         roots.Clear();
+        int rootCapacity = (current?.Count ?? 0) + (next?.Count ?? 0) + (ended?.Count ?? 0)
+            + (turnFrontier?.Count ?? 0) + _rootNodeCount + 2 * _workspaces.Length + 4;
+        _storage.EnsureListCapacity(roots, rootCapacity, "compact-roots");
         current?.AppendNodes(roots);
         next?.AppendNodes(roots);
         ended?.AppendNodes(roots);
@@ -675,7 +679,7 @@ internal sealed partial class BeamSolver
     /// commutative hash, confirming equality by comparing the stored ids. Equal multisets therefore
     /// share one id, and different multisets never do.
     /// </summary>
-    private sealed class PotionLineageKeyStore
+    private sealed class PotionLineageKeyStore(SearchStorage storage)
     {
         private readonly List<ushort> _ids = [];
         private readonly List<int> _start = [];
@@ -700,6 +704,7 @@ internal sealed partial class BeamSolver
             _scratch.Clear();
             int start = _start[parent];
             int length = _length[parent];
+            storage.EnsureListCapacity(_scratch, length + 1, "potion-lineage");
             for (int index = 0; index < length; index++)
                 _scratch.Add(_ids[start + index]);
             int insert = 0;
@@ -734,6 +739,8 @@ internal sealed partial class BeamSolver
 
         private int AddKey(List<ushort> ids, ulong hash)
         {
+            // List capacity slack, dictionary buckets/entries and overlapping growth arrays.
+            storage.Memory.Charge(320 + ids.Count * 8L, "potion-lineage");
             int key = _start.Count;
             _start.Add(_ids.Count);
             _length.Add(ids.Count);

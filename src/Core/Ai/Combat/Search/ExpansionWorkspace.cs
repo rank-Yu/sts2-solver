@@ -207,6 +207,9 @@ internal sealed partial class BeamSolver
             ReserveInitial(ref _stateBytes, InitialStateBytes);
         }
 
+        internal static long FixedBytes => 2L * Kernel.MaxLegalActions * Unsafe.SizeOf<PlayerAction>()
+            + 3L * Unsafe.SizeOf<Battle>() + Unsafe.SizeOf<EndTurnPrefix>() + 4096;
+
         internal long GrowableBytes => _growableBytes;
         internal long ParentPeakUsedBytes => _parentPeakUsedBytes;
         internal long ParentPeakAllocatedBytes => _parentPeakAllocatedBytes;
@@ -280,7 +283,7 @@ internal sealed partial class BeamSolver
 
         /// <summary>
         /// Bytes retained by this workspace's fixed buffers and grown arrays. Diagnostic only; the
-        /// workspace memory is outside the search-memory ledger.
+        /// workspace is covered by the up-front reservation in the search-memory ledger.
         /// </summary>
         internal long RetainedBytes
         {

@@ -615,7 +615,7 @@ internal sealed partial class BeamSolver
     private void CaptureLayerContexts(Pool current)
     {
         if (_layerContexts.Length < current.Count)
-            _layerContexts = new ParentExpansionContext[current.Count];
+            _storage.ResizeArray(ref _layerContexts, current.Count);
         for (int index = 0; index < current.Count; index++)
             _layerContexts[index] = CaptureParentContext(current, index);
     }

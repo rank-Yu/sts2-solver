@@ -173,6 +173,8 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 - `deviation-NN.json` 与 `.predicted.batl.br`、`.actual.batl.br`：出牌偏差、结束回合偏差、续用边界偏差和回合准备开局预测不符时，预测与实际的 `Battle` 以及差异行。
 - `events.log`：本场开始后的 `[Sts2Solver]` 日志行，战斗结束到下一场开始之间的行也记在这里。每个搜索成员结束时的 `SEARCH_DONE`（以及取消、停止、失败行）带运行环境字段：成员运行期间的 GC 停顿总时长 `gc_pause_ms` 和 0/1/2 代回收次数 `gc_counts`、结束时的内存占用比例 `memory_load_pct`（最近一次 GC 时已用内存占 GC 可用内存的百分比）、游戏帧达到防卡顿阈值的帧数 `long_frames` 和最长一帧 `max_frame_ms`。帧基线 `frame_baseline_ms`、压力阈值 `frame_threshold_ms`、空闲样本数 `frame_baseline_samples` 及恢复开关 `frame_recovery_enabled` / 当前许可 `frame_recovery_allowed` 用于区分正常限帧和实际压力。GC 和内存是整个游戏进程的数，同时搜索的其他 Mod 也算在内。`CONTROLLER_SEARCH` 给出各成员的 GC 停顿、等帧次数、长帧数合计和最长一帧。
 
+日志写盘队列最多保留 128 项，普通待写数据合计不超过 1 MiB；较大的单份请求或结果独占队列，其空间由请求/路线额度覆盖。磁盘跟不上时生产者等待写盘，写入完成后归还额度，不无限积压或丢弃日志。
+
 只保留最新 20 场，新战斗开始时删除更早的目录。主线程只编码和入队，一个后台线程按顺序写盘。写盘失败只在游戏日志写一次 `COMBAT_LOG_WRITE_FAILED`，不影响搜索和执行；写盘线程遇到磁盘以外的异常会停止并记 `COMBAT_LOG_WRITER_STOPPED`；请求编码失败记 `COMBAT_LOG_ENCODE_FAILED`，这次搜索只写摘要。测试模式写到结果目录的 `combat-logs/`。设置页底部“反馈”中的“导出Mod日志”按钮将现有战斗记录、`sts2solver/settings.json` 和游戏的 `logs/` 打成 ZIP，保留目录结构；缺少尚未生成的文件时只打包已有内容。打包在后台写盘队列中执行，先完成此前排队的战斗日志写入。压缩包保存在 `user://sts2solver/exports/`，文件名带时间，成功后打开文件管理器定位 ZIP；已有压缩包不会再次打包。离线重放见 [测试与验证](testing.md#44-战斗日志重放)。
 
 ## 线程分工
@@ -187,7 +189,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 战斗日志由单独的后台写盘线程负责，见上一节。
 
-搜索内存预算的解析顺序见上一节；它限制的是搜索自己的逻辑存储，不是游戏进程的 RSS。展开工作区按线程单独持有，不计入这个预算。细节见 [战斗搜索](combat-ai.md#7-内存与容量)。
+搜索内存预算的解析顺序见上一节；状态池、全部展开工作区、扩容空间、线程、根与共享规则、路线输出和运行时预留共用这一上限。细节见 [战斗搜索](combat-ai.md#7-内存与容量)。
 
 ## 尚未提供
 

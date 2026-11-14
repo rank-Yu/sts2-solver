@@ -183,16 +183,15 @@ internal static class SearchSession
             BeamOptions solveOptions = pacer == null
                 ? searchCase.Options
                 : searchCase.Options with { Pacer = pacer };
-            byte[] requestBytes = SearchCodec.EncodeRequest(searchCase);
             if (resultDirectory != null && deterministic)
-                WriteBytes(Path.Combine(resultDirectory, "SREQ"), requestBytes);
+                WriteBytes(Path.Combine(resultDirectory, "SREQ"), SearchCodec.EncodeRequest(searchCase));
             ModLog.Info(
                 $"[Sts2Solver] SEARCH_STARTED root={root} tier={tier} deterministic={deterministic} "
                 + $"threads={searchCase.Options.SearchThreads} "
                 + $"beam={searchCase.Options.BeamWidth} "
                 + (searchCase.Options.UnlimitedNodes ? "nodes=unlimited " : $"nodes={searchCase.Options.MaxExpandedNodes} ")
                 + $"soft_ms={(deterministic ? -1 : (long)searchCase.Options.SoftTimeBudget.TotalMilliseconds)} "
-                + $"turn={searchCase.Options.InitialPlayerTurn} root_bytes={requestBytes.Length}");
+                + $"turn={searchCase.Options.InitialPlayerTurn}");
 
             Stopwatch elapsed = Stopwatch.StartNew();
             long managedPeak = 0;

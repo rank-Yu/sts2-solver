@@ -212,6 +212,8 @@ internal sealed class SearchProgressChannel
     /// <summary>Minimum wall-clock distance between snapshots; zero publishes every checkpoint.</summary>
     internal int ThrottleMilliseconds { get; }
 
+    internal int RetainedCandidateCapacity => _candidates.Length;
+
     /// <summary>Optional publisher-side observer, called with the snapshot after it is stored.</summary>
     internal Action<SearchProgressSnapshot>? Published { get; set; }
 

@@ -1143,6 +1143,8 @@ internal static partial class CombatControllerChecks
         for (int frame = 0; frame < 600 && !flushed.IsCompleted; frame++)
             await Frames(host, 1);
         check("writes_flushed", flushed.IsCompletedSuccessfully, flushed.Status.ToString());
+        check("queue_bounded", await CombatLogRecorder.CheckQueueBudgetForTest(),
+            "slow writer bounds queued bytes/items and preserves every write");
         HashSet<string> names = [.. Directory.EnumerateFiles(folder)
             .Select(static path => Path.GetFileName(path)!)];
         foreach (string file in new[] { "combat.json", "events.log", "search-001.json",

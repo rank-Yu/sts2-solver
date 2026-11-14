@@ -41,7 +41,7 @@ internal sealed record BeamOptions(
     public int EndedBatchTrigger { get; init; }
     public int EndedBatchTarget { get; init; }
 
-    /// <summary>Hard cap on search-owned logical bytes for this solve; must be positive.</summary>
+    /// <summary>Total budget including storage, workspaces and runtime reservations; must be positive.</summary>
     public long SearchMemoryBudgetBytes { get; init; }
 
     /// <summary>Byte budget of each growable state pool; must be positive.</summary>
@@ -447,7 +447,7 @@ internal sealed partial class BeamSolver
     private readonly int _relicCreditCeiling;
     private readonly bool _hasRelicTargets;
     private readonly RouteOrdering _ordering;
-    private readonly int _workspaceBufferLimit;
+    private int _workspaceBufferLimit;
     private RouteNodeStore _nodes = null!;
     private PotionLineageKeyStore _potionLineageKeys = null!;
     private RoutingMetaStore _routingMetas = null!;
@@ -653,8 +653,6 @@ internal sealed partial class BeamSolver
         _aggressivePowerCommitment = options.AggressivePowerCommitment;
         _preserveReplayAllocatorOpening = options.PreserveReplayAllocatorOpening;
         _trace = options.Trace;
-        _workspaceBufferLimit = options.WorkspaceBufferLimitBytes > 0
-            ? options.WorkspaceBufferLimitBytes : DefaultWorkspaceBufferLimitBytes;
     }
 
     /// <summary>
@@ -685,11 +683,36 @@ internal sealed partial class BeamSolver
         _deadlineReached = false;
         _storage = storage;
         _storage.BeginSolve(_options.SearchMemoryBudgetBytes);
+        int searchThreads = _trace != null || SearchVerificationHooks.VerifySearchEquivalence
+            ? 1 : _options.SearchThreads;
+        int workspaceCount = searchThreads > 1 ? checked(2 * searchThreads) : 1;
+        long runtimeBytes = SearchMemoryBudget.RuntimeReserve(_options.SearchMemoryBudgetBytes);
+        long requestBytes = SearchMemoryBudget.RequestReserve(_rules, roots.Count);
+        long threadBytes = (long)searchThreads * SearchMemoryBudget.ThreadStackReserveBytes;
+        _storage.Memory.Charge(runtimeBytes, "runtime");
+        _storage.Memory.Charge(requestBytes, "request");
+        _storage.Memory.Charge(threadBytes, "threads");
+        long workspaceBytes = workspaceCount * ExpansionWorkspace.FixedBytes;
+        int configuredBuffer = _options.WorkspaceBufferLimitBytes > 0
+            ? _options.WorkspaceBufferLimitBytes : DefaultWorkspaceBufferLimitBytes;
+        long bufferShare = Math.Max(0, (_options.SearchMemoryBudgetBytes - runtimeBytes
+            - requestBytes - threadBytes - workspaceBytes) / 2);
+        _workspaceBufferLimit = (int)Math.Min(configuredBuffer,
+            bufferShare / (workspaceCount + searchThreads));
+        if (searchThreads > 1)
+            workspaceBytes += (workspaceCount + (long)searchThreads) * _workspaceBufferLimit;
+        // The extra per-running-thread buffer covers old + new arrays during Array.Resize.
+        // Workers draw from this envelope without racing the ordered commit's memory decisions.
+        _storage.Memory.Charge(workspaceBytes, "workspaces");
+        _storage.ConfigureRouteReserve(_options.Progress?.RetainedCandidateCapacity ?? 0);
+        _layerContexts = [];
+        _compactRoots.Clear();
+        _compactRoots.Capacity = 0;
         _routingMetas = new RoutingMetaStore(storage);
         _routingMetas.Clear();
         _nodes = new RouteNodeStore(storage, _routingMetas,
             _options.BrightestFlameMaxHpLossLimit.HasValue);
-        _potionLineageKeys = new PotionLineageKeyStore();
+        _potionLineageKeys = new PotionLineageKeyStore(storage);
         _potionLineageKeys.Clear();
         _routingSignatures = new ChunkedList<RoutingSignature>(storage);
         _commitments = new ChunkedList<PowerCommitmentState>(storage);
@@ -704,12 +727,8 @@ internal sealed partial class BeamSolver
         _scorer.VerifyThreatProjection = _verifySearchEquivalence;
         // Trace and the equivalence probes carry mutable diagnostics (and trace state) that are not
         // shared between threads, so those modes keep the single-thread path.
-        int searchThreads = Math.Max(1, _options.SearchThreads);
-        if (_trace != null || _verifySearchEquivalence)
-            searchThreads = 1;
         _parallelSearch = searchThreads > 1;
         bool directOnly = searchThreads == 1;
-        int workspaceCount = searchThreads > 1 ? 2 * searchThreads : 1;
         _workspaces = new ExpansionWorkspace[workspaceCount];
         for (int index = 0; index < _workspaces.Length; index++)
             _workspaces[index] = new ExpansionWorkspace(this, directOnly && index == 0);

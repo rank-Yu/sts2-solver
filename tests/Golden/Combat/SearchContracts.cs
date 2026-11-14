@@ -12,6 +12,85 @@ internal static class SearchContracts
     private static void Assert(bool value, string message)
     { if (!value) throw new InvalidDataException("combat-search: " + message); }
 
+    private static void CheckUnifiedMemory(SearchCase original, BeamOptions basis)
+    {
+        foreach (long limit in new[] { 8192L, 12288L })
+        {
+            SearchStorage arrays = new();
+            arrays.BeginSolve(limit);
+            int[] values = arrays.RentArray<int>(1024);
+            values[0] = 73;
+            bool rejected = false;
+            try { arrays.ResizeArray(ref values, 2048); }
+            catch (SearchMemoryBudgetException) { rejected = true; }
+            Assert(rejected == (limit == 8192), "growth budgets old and new arrays together");
+            Assert(values[0] == 73 && values.Length == (rejected ? 1024 : 2048),
+                "rejected growth preserves the existing array");
+            Assert(arrays.Memory.UsedBytes == values.Length * sizeof(int)
+                && arrays.Memory.PeakBytes <= limit, "replaced storage is released after the copy");
+        }
+        BeamResult? single = null;
+        long requestBytes = 0;
+        foreach (int threads in new[] { 1, 8 })
+        {
+            SearchStorage storage = new();
+            BeamOptions options = basis with
+            {
+                SearchThreads = threads, MaxExpandedNodes = 64,
+                SearchMemoryBudgetBytes = 512L << 20,
+            };
+            BeamResult result = new BeamSolver(original.Rules, options)
+                .Solve(original.Battles, storage, CancellationToken.None);
+            var regions = storage.Memory.AllocatedByRegion;
+            Assert(regions.Values.Sum() == storage.Memory.UsedBytes, "all regions share one ledger");
+            Assert(regions["workspaces"] >= result.SearchWorkspacePeakBytes,
+                "workspace reservation covers all live buffers");
+            Assert(regions["threads"] == threads * (long)SearchMemoryBudget.ThreadStackReserveBytes,
+                "worker stacks come from the configured budget");
+            Assert(regions["runtime"] > 0 && regions["route-output"] > 0,
+                "runtime and route publication are reserved");
+            Assert(result.SearchMemoryPeakBytes <= options.SearchMemoryBudgetBytes,
+                "all reservations and pools stay within one ceiling");
+            if (threads == 1)
+            {
+                single = result;
+                requestBytes = regions["request"];
+            }
+            else
+            {
+                Assert(regions["request"] == requestBytes, "shared root/rules are not counted per worker");
+                Assert(regions["workspaces"] >= 16L * BeamSolver.DefaultWorkspaceBufferLimitBytes,
+                    "eight threads' sixteen buffers are inside the total");
+                Assert(single != null && SearchCodec.EncodeResult(single).AsSpan()
+                    .SequenceEqual(SearchCodec.EncodeResult(result)), "ample-memory routes are thread invariant");
+            }
+            long previous = 0;
+            for (int member = 0; member < 2; member++)
+            {
+                BeamResult repeated = new BeamSolver(original.Rules, options)
+                    .Solve(original.Battles, storage, CancellationToken.None);
+                Assert(SearchCodec.EncodeResult(result).AsSpan().SequenceEqual(SearchCodec.EncodeResult(repeated)),
+                    "storage reuse preserves the selected route");
+                if (member > 0)
+                    Assert(storage.Memory.UsedBytes == previous, "member reservations do not accumulate");
+                previous = storage.Memory.UsedBytes;
+            }
+            // A budget that could formerly fit the pools must reject before starting workers when
+            // it cannot also hold their buffers and stacks.
+            if (threads == 8)
+            {
+                bool rejected = false;
+                try
+                {
+                    _ = new BeamSolver(original.Rules, options with { SearchMemoryBudgetBytes = 64L << 20 })
+                        .Solve(original.Battles, CancellationToken.None);
+                }
+                catch (SearchMemoryBudgetException) { rejected = true; }
+                Assert(rejected, "workers cannot allocate outside an insufficient total budget");
+            }
+        }
+    }
+
     internal static void Run()
     {
         SearchCase original = GoldenFixtures.Search("quality-NECROBINDER-001");
@@ -221,6 +300,7 @@ internal static class SearchContracts
             .Solve(original.Battles, CancellationToken.None); }
         catch (InvalidDataException) { zeroBudget = true; }
         Assert(zeroBudget, "zero search-memory budget is rejected at Solve entry");
+        CheckUnifiedMemory(original, legacy);
         BeamResult largePool = new BeamSolver(original.Rules, batched with
         {
             MaxExpandedNodes = 1, StatePoolBudgetBytes = 3_000_000_000,
@@ -229,7 +309,7 @@ internal static class SearchContracts
 
         Assert(first.BestRoute.All(a => a.Kind != PlayerActionKind.UsePotion), "fixture has a potion-free route");
         bool fallback = false;
-        for (long limit = 1_000_000; limit <= 20_000_000 && !fallback; limit += 250_000)
+        for (long limit = 1_000_000; limit <= 64_000_000 && !fallback; limit += 250_000)
         {
             try
             {

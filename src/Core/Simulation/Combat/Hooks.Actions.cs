@@ -187,7 +187,7 @@ public static partial class HookDispatch
         }
         entry.Occurrence = occurrence;
         entry.CardPileIndex = -1;
-        foreach (Pile pile in Enum.GetValues<Pile>())
+        for (Pile pile = Pile.Hand; pile <= Pile.Play; pile++)
         {
             int start = Piles.Start(in battle, pile);
             int count = Piles.Count(in battle, pile);

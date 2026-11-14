@@ -2063,24 +2063,24 @@ internal sealed class Scorer
             | StrategicRequirements.DebuffApplications
             | StrategicRequirements.StatusDrawTriggers
             | StrategicRequirements.AttackHits;
-        bool needsRemainingTurns = requirements.HasFlag(StrategicRequirements.RemainingTurns)
+        bool needsRemainingTurns = (requirements & StrategicRequirements.RemainingTurns) != 0
             || (requirements & reachablePlayRequirements) != 0;
-        bool needsAllCardValues = requirements.HasFlag(StrategicRequirements.AverageCardValue)
-            || requirements.HasFlag(StrategicRequirements.BestCardValue);
+        bool needsAllCardValues = (requirements & StrategicRequirements.AverageCardValue) != 0
+            || (requirements & StrategicRequirements.BestCardValue) != 0;
         bool needsAttackValues = needsRemainingTurns
-            || requirements.HasFlag(StrategicRequirements.AverageAttackValue);
-        bool needsAttackCount = requirements.HasFlag(StrategicRequirements.AttackPlays)
-            || requirements.HasFlag(StrategicRequirements.AverageAttackValue);
-        bool needsSkillCount = requirements.HasFlag(StrategicRequirements.SkillPlays);
-        bool needsBlockSkillCount = requirements.HasFlag(StrategicRequirements.BlockSkillPlays);
-        bool needsPowerCount = requirements.HasFlag(StrategicRequirements.PowerPlays);
-        bool needsExhaustCount = requirements.HasFlag(StrategicRequirements.ExhaustPlays);
-        bool needsShivCount = requirements.HasFlag(StrategicRequirements.ShivPlays)
-            || requirements.HasFlag(StrategicRequirements.AttackHits);
-        bool needsDebuffCount = requirements.HasFlag(StrategicRequirements.DebuffApplications);
-        bool needsStatusCount = requirements.HasFlag(StrategicRequirements.StatusDrawTriggers);
-        bool needsSkillEnergy = requirements.HasFlag(StrategicRequirements.SkillEnergySpend);
-        bool needsPowerEnergy = requirements.HasFlag(StrategicRequirements.PowerEnergySpend);
+            || (requirements & StrategicRequirements.AverageAttackValue) != 0;
+        bool needsAttackCount = (requirements & StrategicRequirements.AttackPlays) != 0
+            || (requirements & StrategicRequirements.AverageAttackValue) != 0;
+        bool needsSkillCount = (requirements & StrategicRequirements.SkillPlays) != 0;
+        bool needsBlockSkillCount = (requirements & StrategicRequirements.BlockSkillPlays) != 0;
+        bool needsPowerCount = (requirements & StrategicRequirements.PowerPlays) != 0;
+        bool needsExhaustCount = (requirements & StrategicRequirements.ExhaustPlays) != 0;
+        bool needsShivCount = (requirements & StrategicRequirements.ShivPlays) != 0
+            || (requirements & StrategicRequirements.AttackHits) != 0;
+        bool needsDebuffCount = (requirements & StrategicRequirements.DebuffApplications) != 0;
+        bool needsStatusCount = (requirements & StrategicRequirements.StatusDrawTriggers) != 0;
+        bool needsSkillEnergy = (requirements & StrategicRequirements.SkillEnergySpend) != 0;
+        bool needsPowerEnergy = (requirements & StrategicRequirements.PowerEnergySpend) != 0;
 
         int attackCount = 0, attackHitCount = 0, skillCount = 0, blockSkillCount = 0;
         int powerCount = 0, exhaustCount = 0, shivCount = 0, reusableShivCount = 0;
@@ -2122,7 +2122,7 @@ internal sealed class Scorer
                     case CardType.Attack:
                         if (needsAttackCount)
                             attackCount++;
-                        if (requirements.HasFlag(StrategicRequirements.AttackHits)
+                        if ((requirements & StrategicRequirements.AttackHits) != 0
                             && !cardScore.HasOstyAttackTag && !cardScore.HasShivTag)
                         {
                             attackHitCount += AttackHits(battle, cardScore, card, stats);
@@ -2194,21 +2194,21 @@ internal sealed class Scorer
                 ? 0
                 : Math.Min(deckSize * 2, remainingTurns * cardsPerTurn);
         }
-        int attackPlays = requirements.HasFlag(StrategicRequirements.AttackPlays)
+        int attackPlays = (requirements & StrategicRequirements.AttackPlays) != 0
             ? ReachablePlays(attackCount, deckSize, reachableCards) : 0;
-        int skillPlays = requirements.HasFlag(StrategicRequirements.SkillPlays)
+        int skillPlays = (requirements & StrategicRequirements.SkillPlays) != 0
             ? ReachablePlays(skillCount, deckSize, reachableCards) : 0;
-        int blockSkillPlays = requirements.HasFlag(StrategicRequirements.BlockSkillPlays)
+        int blockSkillPlays = (requirements & StrategicRequirements.BlockSkillPlays) != 0
             ? ReachablePlays(blockSkillCount, deckSize, reachableCards) : 0;
-        int powerPlays = requirements.HasFlag(StrategicRequirements.PowerPlays)
+        int powerPlays = (requirements & StrategicRequirements.PowerPlays) != 0
             ? Math.Min(powerCount, reachableCards) : 0;
-        int exhaustPlays = requirements.HasFlag(StrategicRequirements.ExhaustPlays)
+        int exhaustPlays = (requirements & StrategicRequirements.ExhaustPlays) != 0
             ? Math.Min(exhaustCount, reachableCards) : 0;
-        int shivPlays = requirements.HasFlag(StrategicRequirements.ShivPlays)
+        int shivPlays = (requirements & StrategicRequirements.ShivPlays) != 0
             ? EstimatedShivPlays(shivCount, generatedShivCount, shivGeneratorCount, deckSize, reachableCards,
                 reusableShivCount, singleUseGeneratedShivs, singleUseShivGenerators)
             : 0;
-        int debuffApplications = requirements.HasFlag(StrategicRequirements.DebuffApplications)
+        int debuffApplications = (requirements & StrategicRequirements.DebuffApplications) != 0
             ? ReachablePlays(debuffCount, deckSize, reachableCards) : 0;
         return new StrategicEffectContext(
             Math.Max(0, enemyHp),
@@ -2225,16 +2225,16 @@ internal sealed class Scorer
             debuffApplications,
             skillEnergy,
             powerEnergy,
-            requirements.HasFlag(StrategicRequirements.AverageCardValue)
+            (requirements & StrategicRequirements.AverageCardValue) != 0
                 ? Math.Max(1, totalCardValue / deckSize) : 1,
-            requirements.HasFlag(StrategicRequirements.BestCardValue)
+            (requirements & StrategicRequirements.BestCardValue) != 0
                 ? Math.Max(1, bestCardValue) : 1,
-            requirements.HasFlag(StrategicRequirements.AverageAttackValue) && attackCount > 0
+            (requirements & StrategicRequirements.AverageAttackValue) != 0 && attackCount > 0
                 ? Math.Max(1, totalAttackValue / attackCount) : 0,
-            requirements.HasFlag(StrategicRequirements.StatusDrawTriggers)
+            (requirements & StrategicRequirements.StatusDrawTriggers) != 0
                 ? Math.Min(remainingTurns, ReachablePlays(statusCount, deckSize, reachableCards)) : 0)
         {
-            AttackHits = requirements.HasFlag(StrategicRequirements.AttackHits)
+            AttackHits = (requirements & StrategicRequirements.AttackHits) != 0
                 ? EstimatedAttackHits(attackHitCount, shivCount, generatedShivCount,
                     shivGeneratorCount, deckSize, reachableCards, reusableShivCount,
                     singleUseGeneratedShivs, singleUseShivGenerators)

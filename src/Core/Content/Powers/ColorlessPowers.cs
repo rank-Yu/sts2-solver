@@ -268,11 +268,17 @@ public sealed class TheBombPower : PowerDef
             power.Amount--;
             return;
         }
+        int occurrence = 0;
+        for (int index = 0; index < self.Index; index++)
+            if (x.B.Powers[index].Owner == self.Owner && x.B.Powers[index].Id == Id)
+                occurrence++;
         int damage = power.Aux0;
         CardEffects.DamageAllEnemies(ref x, damage, ValueProps.Unpowered, self.Owner);
         if (x.NeedsChoice)
             return;
-        Kernel.SetPowerAmount(ref x.B, self.Owner, Id, 0);
+        int row = Kernel.FindPowerOccurrence(x.B, self.Owner, Id, occurrence);
+        if (row >= 0)
+            Kernel.RemovePowerAt(ref x.B, row);
     }
 }
 

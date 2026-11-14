@@ -12,6 +12,7 @@ public static partial class HookDispatch
         for (int i = 0; i < count; i++)
         {
             if (!TryResolve(x.B, x.R, snapshot[i], out Listener current)) continue;
+            int instances = CountSnapshotPower(x.B, snapshot[i]);
             var def = Definition(x.B, x.R, current);
             switch (hook)
             {
@@ -20,6 +21,7 @@ public static partial class HookDispatch
                 case HookMaskExt.AfterArrowDislodged: def.AfterArrowDislodged(ref x, current, target, arrow, hasCardSource, cardSource); break;
                 default: throw new ArgumentOutOfRangeException(nameof(hook));
             }
+            AdvancePowerSnapshot(x.B, snapshot, i, instances);
             if (x.NeedsChoice) return;
         }
     }

@@ -61,7 +61,7 @@ public static partial class HookDispatch
         /// <summary>Orb value at snapshot time, for re-location.</summary>
         public Orb Orb;
 
-        /// <summary>Index among byte-equal cards (or orbs) at snapshot time, or -1.</summary>
+        /// <summary>Index among matching cards/orbs or same-(owner,id) power instances, or -1.</summary>
         public int Occurrence;
 
         /// <summary>Card pile and pile-local index at snapshot time (card-attached listeners).</summary>
@@ -90,7 +90,9 @@ public static partial class HookDispatch
         {
             if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
             InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }
@@ -117,13 +119,16 @@ public static partial class HookDispatch
                 continue;
             snapshot[powers++] = Snapshot(x.B, x.R, listeners[index]);
         }
+        snapshot = snapshot[..powers];
         for (int index = 0; index < powers; index++)
         {
             if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
             if (current.Kind != ListenerKind.Power || x.B.Powers[current.Index].Amount <= 0)
                 continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
             InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }
@@ -151,6 +156,14 @@ public static partial class HookDispatch
     private static SnapshotEntry Snapshot(in Battle battle, Rules rules, Listener listener)
     {
         SnapshotEntry entry = new() { Listener = listener, Id = ListenerId(battle, rules, listener), Occurrence = -1 };
+        if (listener.Kind == ListenerKind.Power && Registry.Power(entry.Id).IsInstanced)
+        {
+            entry.Occurrence = 0;
+            for (int index = 0; index < listener.Index; index++)
+                if (battle.Powers[index].Owner == listener.Owner && battle.Powers[index].Id == entry.Id)
+                    entry.Occurrence++;
+            return entry;
+        }
         if (listener.Kind == ListenerKind.Orb)
         {
             entry.Orb = battle.Orbs[listener.Index];
@@ -185,6 +198,37 @@ public static partial class HookDispatch
             break;
         }
         return entry;
+    }
+
+    // Instanced powers keep acquisition order even when other power kinds occupy intervening rows.
+    // Removing a visited instance shifts later occurrences; newly appended instances are not in this snapshot.
+    private static int CountSnapshotPower(in Battle battle, in SnapshotEntry entry)
+    {
+        if (entry.Listener.Kind != ListenerKind.Power || entry.Occurrence < 0)
+            return 0;
+        int count = 0;
+        for (int index = 0; index < battle.PowerCount; index++)
+            if (battle.Powers[index].Owner == entry.Listener.Owner && battle.Powers[index].Id == entry.Id)
+                count++;
+        return count;
+    }
+
+    private static void AdvancePowerSnapshot(in Battle battle, Span<SnapshotEntry> snapshot,
+        int visited, int before)
+    {
+        if (before == 0)
+            return;
+        SnapshotEntry entry = snapshot[visited];
+        int removed = before - CountSnapshotPower(battle, entry);
+        if (removed <= 0)
+            return;
+        for (int index = visited + 1; index < snapshot.Length; index++)
+        {
+            ref SnapshotEntry later = ref snapshot[index];
+            if (later.Listener.Kind == ListenerKind.Power && later.Listener.Owner == entry.Listener.Owner
+                && later.Id == entry.Id)
+                later.Occurrence -= removed;
+        }
     }
 
     private static bool OrbEqual(in Orb left, in Orb right)
@@ -223,6 +267,14 @@ public static partial class HookDispatch
         switch (entry.Listener.Kind)
         {
             case ListenerKind.Power:
+                if (entry.Occurrence >= 0)
+                {
+                    int row = Kernel.FindPowerOccurrence(battle, entry.Listener.Owner, entry.Id, entry.Occurrence);
+                    if (row < 0)
+                        return false;
+                    current = new Listener(ListenerKind.Power, (ushort)row, entry.Listener.Owner);
+                    return true;
+                }
                 if (entry.Listener.Index < battle.PowerCount
                     && battle.Powers[entry.Listener.Index].Id == entry.Id
                     && battle.Powers[entry.Listener.Index].Owner == entry.Listener.Owner)

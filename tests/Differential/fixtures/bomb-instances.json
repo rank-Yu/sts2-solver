@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "bomb-instances",
+  "characterId": "IRONCLAD",
+  "encounterId": "QUEEN_BOSS",
+  "seed": "BOMBINSTANCE",
+  "enemyCurrentHp": 500,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerHp": 200,
+  "initialPlayerEnergy": 10,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "powers": [
+    {
+      "powerId": "THE_BOMB_POWER",
+      "target": "Player",
+      "amount": 1,
+      "dynamicVars": {
+        "Damage": 40
+      }
+    },
+    {
+      "powerId": "THE_BOMB_POWER",
+      "target": "Player",
+      "amount": 2,
+      "dynamicVars": {
+        "Damage": 50
+      }
+    },
+    {
+      "powerId": "STRENGTH_POWER",
+      "target": "Player",
+      "amount": 1
+    },
+    {
+      "powerId": "THE_BOMB_POWER",
+      "target": "Player",
+      "amount": 3,
+      "dynamicVars": {
+        "Damage": 60
+      }
+    }
+  ],
+  "targetRoomType": "Boss",
+  "initialEnemyMaxHps": [
+    500,
+    500
+  ],
+  "initialEnemyCurrentHps": [
+    500,
+    500
+  ]
+}

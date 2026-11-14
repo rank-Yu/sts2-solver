@@ -591,6 +591,9 @@ public static partial class RulesCompiler
 
         if (builder.Dominion.SpawnAmount != 0)
             pendingPowers.Enqueue(Registry.Power(builder.Dominion.SpawnPower).NativeId);
+        // CombatStarting compiles before SoulFyshDominion.AfterPlayersEnteredCombat adds Beckon.
+        if (builder.Dominion.Kind == DominionKind.SoulFysh && seenCards.Add(("BECKON", 0)))
+            pendingCards.Enqueue(("BECKON", 0));
         if (builder.Dominion.Kind == DominionKind.KnowledgeDemon)
         {
             foreach (string card in new[] { "SLOTH", "AMNESIA" })

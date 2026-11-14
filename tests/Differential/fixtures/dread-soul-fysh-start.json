@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "dread-soul-fysh-start",
+  "characterId": "REGENT",
+  "encounterId": "SLUDGE_SPINNER_WEAK",
+  "gameModeForTest": "Dread",
+  "dominionForTest": "SOUL_FYSH_DOMINION",
+  "ascension": 10,
+  "seed": "CYG3FRUJZ06B",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 60,
+    "maxHp": 75,
+    "gold": 99
+  },
+  "runCards": [
+    {
+      "cardId": "STRIKE_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "STRIKE_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "FALLING_STAR",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "VENERATE",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "ASCENDERS_BANE",
+      "upgradeLevels": 0
+    }
+  ],
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "PRECISE_SCISSORS",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "fullCombatForTest": true,
+  "settingsTierForTest": "Low",
+  "settingsThreadsForTest": 2,
+  "timeoutSeconds": 90
+}

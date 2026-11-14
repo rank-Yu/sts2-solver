@@ -416,7 +416,9 @@ public static partial class HookDispatch
         {
             if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
             Definition(x.B, x.R, current).AfterOrbChanneled(ref x, current, orb);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }
@@ -438,7 +440,9 @@ public static partial class HookDispatch
         {
             if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
             Definition(x.B, x.R, current).AfterOrbEvoked(ref x, current, orb, targets);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }
@@ -463,7 +467,9 @@ public static partial class HookDispatch
         {
             if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
             Definition(x.B, x.R, current).AfterPotionUsed(ref x, current, potionId);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }

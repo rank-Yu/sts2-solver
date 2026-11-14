@@ -68,6 +68,24 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-x2.json play:0:255 end
 ```
 
+## 恐惧开战与多实例炸弹回归
+
+[灵魂鱼领域开局](fixtures/dread-soul-fysh-start.json)保留原版开局，并通过正式控制器执行整场战斗。必须使用游戏宿主：控制器在领域生成 Beckon 之前编译规则，离线宿主从可出牌状态编译规则不能检出此遗漏。
+
+```bash
+tools/testing/run-headless.sh --instance dread-soul-fysh-start \
+  --request tests/Differential/fixtures/dread-soul-fysh-start.json \
+  --game-root <游戏目录> --ritsu-root <RitsuLib目录> \
+  --results .local/dread-soul-fysh-start --cleanup-instance-on-exit
+```
+
+[多实例炸弹](fixtures/bomb-instances.json)在三个不同倒计时、伤害的炸弹之间插入力量，逐回合核对原版状态。验证移除前一个炸弹后，后续实例各结算一次，且只移除到期的实例。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check \
+  tests/Differential/fixtures/bomb-instances.json end end end
+```
+
 ## 回合准备枚举
 
 ```bash

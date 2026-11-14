@@ -105,6 +105,46 @@ tools/testing/run-headless.sh --instance choice-handoff-hand-peek \
   --results .local/choice-handoff-hand-peek --cleanup-instance-on-exit
 ```
 
+## 撕裂与嵌套自动出牌
+
+[撕裂嵌套出牌](fixtures/rupture-nested-autoplay.json)先打出撕裂与 Hellraiser，再由 Offering 扣血、抽牌并触发打击自动出牌。逐步核对力量结算和自动打击伤害，确保外层扣血收益保留到外层牌结束。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/rupture-nested-autoplay.json play:0:255 play:0:255 play:0:255
+```
+
+## 零充能球槽与随机流
+
+[混沌零球槽](fixtures/chaos-zero-orb-slots.json)先用 Bulk Up 移除全部球槽，打出升级混沌，再恢复球槽继续打出混沌。核对没有球槽时仍进行每次随机选球，以及恢复球槽后的种类和随机流。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/chaos-zero-orb-slots.json play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255
+```
+
+## 减费超过基础费用
+
+[忧郁负局部费用](fixtures/melancholy-negative-local-cost.json)反复召唤、献祭奥斯提，使忧郁累计减费超过基础费用，再打出 Borrowed Time 加费；最后出牌核对能量与消耗计数。局部减费与全局加费全部结算后才把最终费用截到零。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/melancholy-negative-local-cost.json play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255 play:0:255
+```
+
+## 自动出牌期间增加次数
+
+[Simpleton 增加层数](fixtures/simpleton-growing-autoplay.json)在回合末自动打出另一张 Simpleton，再继续执行新增次数，核对攻击伤害、牌堆和随机流。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/simpleton-growing-autoplay.json play:0:255 end
+```
+
+## 出牌期间恢复升级
+
+[混沌恢复升级](fixtures/chaos-dampen-restored-midplay.json)先由法师骑士降级混沌，再由第一次充能激发暗球击杀施法者。原版当场恢复升级并继续生成第二颗球；核对次数、充能球队列、格挡和随机流。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/chaos-dampen-restored-midplay.json end play:0:255
+```
+
 ## 回合准备枚举
 
 ```bash

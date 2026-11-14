@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "simpleton-growing-autoplay",
+  "characterId": "FOOL",
+  "encounterId": "SLIMES_NORMAL",
+  "seed": "SIMPLETONGROW",
+  "initialPlayerHp": 200,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerEnergy": 9,
+  "enemyCurrentHp": 999,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "SIMPLETON",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SIMPLETON",
+      "pile": "Hand",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BLUDGEON",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120
+}

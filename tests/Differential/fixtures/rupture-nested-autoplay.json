@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "rupture-nested-autoplay",
+  "characterId": "IRONCLAD",
+  "encounterId": "SLIMES_NORMAL",
+  "seed": "RUPTURENESTED",
+  "initialPlayerHp": 200,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerEnergy": 9,
+  "enemyCurrentHp": 999,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "RUPTURE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "HELLRAISER",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "OFFERING",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw"
+    }
+  ],
+  "timeoutSeconds": 120
+}

@@ -468,14 +468,9 @@ public sealed class UnmovablePower : PowerDef
 /// (<c>BeforeCardPlayedMirrors.HandleRupturePower</c>,
 /// <c>AfterDamageReceivedMirrors.HandleRupturePower</c>,
 /// <c>AfterCardPlayedMirrors.HandleRupturePower</c>).
-/// Aux0 = Strength accumulated for the current card play, Aux1 = the current play's pending entry.
-/// The card source is read directly from <see cref="DamageResult.HasCardSource"/> (the existing
-/// engine passes <c>AfterDamageReceivedMirrorContext.Source</c>), so no source marker is staged on
-/// BeforeDamageReceived. The existing engine keeps the pending information in
-/// <c>RupturePredictionState.StrengthByCard</c>, a map keyed by CardModel; only one card play can be
-/// in flight, so the map is empty or has exactly one keyed entry, and the pending Strength is its
-/// only value. The bridge claims an empty entry and rejects a non-empty one
-/// (<see cref="StateProjections"/>), so every non-terminal imported state has Aux0 = Aux1 = 0.
+/// Pending Strength lives on the transient card-play stack, so a nested auto-play cannot erase
+/// the outer card's damage. Native reference: game 0.113.0, RupturePower.playedCards.
+/// Stable Battle snapshots carry no pending Rupture state.
 /// </summary>
 [ContentId("RUPTURE_POWER")]
 public sealed class RupturePower : PowerDef
@@ -486,33 +481,32 @@ public sealed class RupturePower : PowerDef
 
     public override void BeforeCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Power power = ref x.B.Powers[self.Index];
-        power.Aux0 = 0;
-        power.Aux1 = 1;
+        if (self.Owner != Limits.PlayerOwner || x.B.Side != Side.Player)
+            return;
+        x.PushCardPlayPair(CardPlayPairKind.RuptureStrength, self.Owner, Id, 0);
     }
 
     public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
         if (result.Receiver != self.Owner || result.UnblockedDamage <= 0 || x.B.Side != Side.Player)
             return;
-        ref Power power = ref x.B.Powers[self.Index];
-        if (power.Aux1 != 0 && result.HasCardSource)
+        int amount = x.B.Powers[self.Index].Amount;
+        if (result.HasCardSource
+            && x.TryTakeCardPlayPair(CardPlayPairKind.RuptureStrength, self.Owner, Id, out int pending))
         {
-            power.Aux0 += power.Amount;
+            x.PushCardPlayPair(CardPlayPairKind.RuptureStrength, self.Owner, Id, pending + amount);
             return;
         }
-        // The existing engine applies with cardSource: null; Sts2Solver has no card source on powers.
-        Kernel.ApplyPower(ref x, self.Owner, Registry.PowerId<StrengthPower>(), power.Amount, self.Owner);
+        Kernel.ApplyPower(ref x, self.Owner, Registry.PowerId<StrengthPower>(), amount, self.Owner);
     }
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        ref Power power = ref x.B.Powers[self.Index];
-        int gained = power.Aux0;
-        power.Aux0 = 0;
-        power.Aux1 = 0;
-        if (gained != 0)
+        if (x.TryTakeCardPlayPair(CardPlayPairKind.RuptureStrength, self.Owner, Id, out int gained)
+            && gained != 0)
+        {
             Kernel.ApplyPower(ref x, self.Owner, Registry.PowerId<StrengthPower>(), gained, self.Owner);
+        }
     }
 }
 

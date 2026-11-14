@@ -91,13 +91,9 @@ public static partial class Kernel
     {
         if ((card.Flags & CardFlags.CostsX) != 0)
             return battle.Energy;
-        int cost = EnergyCostWithLocalModifiers(battle, card);
-        if (cost < 0)
-            return Math.Max(0, cost);
-        // HookMirrors.ModifyEnergyCostInCombat: normal listeners then late listeners; the existing
-        // engine truncates the decimal and clamps at zero afterwards.
-        cost = (int)HookDispatch.ModifyEnergyCost(battle, rules, pile, card, cost);
-        return Math.Max(0, cost);
+        // CardEnergyCost.GetAmountToSpend (0.113.0) clamps only after local and global
+        // modifiers. A local discount below zero must still offset a global cost increase.
+        return Math.Max(0, EnergyCostValueWithModifiers(battle, rules, card, pile));
     }
 
     /// <summary>

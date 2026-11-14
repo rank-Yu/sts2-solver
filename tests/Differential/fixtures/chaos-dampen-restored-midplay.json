@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "chaos-dampen-restored-midplay",
+  "characterId": "DEFECT",
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "CHAOSDAMPEN",
+  "ascension": 10,
+  "actIndexForTest": 2,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerHp": 500,
+  "initialPlayerEnergy": 3,
+  "initialEnemyCurrentHps": [
+    108,
+    97,
+    30
+  ],
+  "initialEnemyMoveIds": [
+    "RAM_MOVE",
+    "HEX",
+    "DAMPEN_MOVE"
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearRunDeck": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 180,
+  "cards": [
+    {
+      "cardId": "CHAOS",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    }
+  ],
+  "orbs": [
+    {
+      "orbId": "DARK_ORB",
+      "decimalMembers": {
+        "_evokeVal": 50
+      }
+    },
+    {
+      "orbId": "FROST_ORB",
+      "count": 2
+    }
+  ]
+}

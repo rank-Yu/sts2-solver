@@ -283,15 +283,19 @@ public enum CardPlayPairKind : byte
 
     /// <summary><c>CalamityPower</c>: the power amount at play start generates that many Attacks after the play.</summary>
     CalamityAttacks = 6,
+
+    /// <summary>Strength accumulated by Rupture for one active card play.</summary>
+    RuptureStrength = 7,
 }
 
 /// <summary>
-/// One <c>BeforeCardPlayed</c> amount snapshot, keyed by the play index it belongs to (the existing
-/// engine keys <c>CardPlayPairPredictionState</c> by the <c>CardPlay</c> object).
+/// One pending amount keyed by the active play identity. Nested auto-plays have distinct identities;
+/// successive repeats consume their entries before the next repeat begins.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct CardPlayPair
 {
+    public int PlayIdentity;
     public ushort PowerId;
     public byte Owner;
     public CardPlayPairKind Kind;
@@ -791,6 +795,7 @@ public ref struct Exec
             throw new CapacityException("CardPlayPairs", Limits.CardPlayPairs);
         CardPlayPairs[CardPlayPairCount++] = new CardPlayPair
         {
+            PlayIdentity = PlayIdentity,
             PowerId = powerId,
             Owner = owner,
             Kind = kind,
@@ -799,15 +804,14 @@ public ref struct Exec
     }
 
     /// <summary>
-    /// Takes the most recent matching snapshot. Entries are keyed by the play index (the nested play's
-    /// entries sit above the outer play's), and there is at most one per (kind, owner, power).
+    /// Takes the current play's matching entry without consuming a pending outer play.
     /// </summary>
     public bool TryTakeCardPlayPair(CardPlayPairKind kind, byte owner, ushort powerId, out int amount)
     {
         for (int index = CardPlayPairCount - 1; index >= 0; index--)
         {
             CardPlayPair pair = CardPlayPairs[index];
-            if (pair.Kind != kind || pair.Owner != owner || pair.PowerId != powerId)
+            if (pair.PlayIdentity != PlayIdentity || pair.Kind != kind || pair.Owner != owner || pair.PowerId != powerId)
                 continue;
             amount = pair.Amount;
             for (int move = index + 1; move < CardPlayPairCount; move++)

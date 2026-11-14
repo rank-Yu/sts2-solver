@@ -286,7 +286,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | 值 | 用途 |
 | --- | --- |
 | `PlayIdentity`、`LastPlayIdentity`、`PlayIdentityCounter`、`MusicBoxPlayIdentity` | 每次原生 `CardPlay` 一个单调编号，供 PAELS_LEGION、MUSIC_BOX、PEN_NIB 把同一次出牌的前后回调配对；嵌套自动打出保存并恢复 |
-| `CardPlayPairs`（容量 `Limits.CardPlayPairs` = 32） | 出牌期的金额快照：Afterimage、Strangle 在 `BeforeCardPlayed` 记下层数、`AfterCardPlayed` 消费（原引擎 `CardPlayPairPredictionState`）；Oblivion 的当次层数（`OblivionDoom`）。嵌套自动打出的条目压在外层之上，先被消费 |
+| `CardPlayPairs`（容量 `Limits.CardPlayPairs` = 32） | 出牌期的金额快照：Afterimage、Strangle 在 `BeforeCardPlayed` 记下层数、`AfterCardPlayed` 消费（原引擎 `CardPlayPairPredictionState`）；Oblivion 的当次层数（`OblivionDoom`）。Rupture 的当次自伤累计力量也存于此。条目按出牌身份匹配，嵌套自动出牌独立累计、消费，不覆盖外层 |
 | `MonologuePending`（容量 8） | 每次出牌开始时快照所有正层 Monologue 的 `(owner, occurrence, Strength)`，效果结束后逐条结算 |
 | Vambrace、UnsettlingLamp 的触发卡来源序号与位置 | 一次出牌内的触发卡身份；UnsettlingLamp 另存本次已翻倍的临时 Power 内部 Id 集合 |
 | `PendingPowerChanges`（容量 64） | 待派发的 Power 数量变化队列（见 [内核语义](combat-semantics.md#32-派发规则)）；原引擎同样要求分叉前 `_pendingPowerAmountChanges` 为空 |

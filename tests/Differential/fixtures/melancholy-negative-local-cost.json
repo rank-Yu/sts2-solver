@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "melancholy-negative-local-cost",
+  "characterId": "NECROBINDER",
+  "encounterId": "SLIMES_NORMAL",
+  "seed": "MELANCHOLYCOST",
+  "gameModeForTest": "Dread",
+  "dominionForTest": "WATERFALL_GIANT_DOMINION",
+  "initialPlayerHp": 200,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 999,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SACRIFICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SACRIFICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SACRIFICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SACRIFICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BORROWED_TIME",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "MELANCHOLY",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120
+}

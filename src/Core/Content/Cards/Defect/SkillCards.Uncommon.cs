@@ -96,12 +96,13 @@ public sealed class Chaos : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        int count = (int)CardEffects.Var(x, 0);
-        for (int index = 0; index < count; index++)
+        // Killing the last Dampen caster can restore this card's upgrade during a channel.
+        for (int index = 0; index < (int)CardEffects.Var(x, 0); index++)
         {
             ushort orb = Kernel.RandomOrb(ref x.B);
-            if (!Kernel.ChannelOrb(ref x, orb))
-                return;
+            // Native Chaos.OnPlay (0.113.0) draws every random orb even when OrbCmd.Channel
+            // has no slot available. Only an unresolved choice suspends the loop.
+            Kernel.ChannelOrb(ref x, orb);
             if (x.NeedsChoice)
                 return;
         }

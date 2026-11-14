@@ -53,9 +53,10 @@ public sealed class SimpletonPower : FoolBuff
     public override void AfterAutoPostPlayPhaseEntered(ref Exec x, Listener self)
     {
         if (self.Owner != Limits.PlayerOwner) return;
-        int count = x.B.Powers[self.Index].Amount;
         Span<int> options = stackalloc int[Limits.MaxHandSize];
-        for (int i = 0; i < count && !x.NeedsChoice; i++)
+        // Native SimpletonPower (0.113.0) re-reads Amount after each auto-play. Playing
+        // another Simpleton adds iterations; other hooks may also move this power's row.
+        for (int i = 0; !x.NeedsChoice && i < Kernel.GetAmount(x.B, self.Owner, Id); i++)
         {
             int choices = 0;
             decimal cheapest = decimal.MaxValue;

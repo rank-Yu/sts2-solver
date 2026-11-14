@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "chaos-zero-orb-slots",
+  "characterId": "DEFECT",
+  "encounterId": "SLIMES_NORMAL",
+  "seed": "CHAOSZEROSLOTS",
+  "initialPlayerHp": 200,
+  "initialPlayerMaxHp": 200,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 999,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "BULK_UP",
+      "pile": "Hand",
+      "count": 3
+    },
+    {
+      "cardId": "CHAOS",
+      "pile": "Hand",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "CAPACITOR",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "CHAOS",
+      "pile": "Hand",
+      "upgradeLevels": 1
+    }
+  ],
+  "timeoutSeconds": 120
+}

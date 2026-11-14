@@ -91,6 +91,82 @@ internal static class SearchContracts
         }
     }
 
+    private static void CheckChunkedExpansion()
+    {
+        int chunks = 0;
+        foreach (string root in new[] { "qf3-decisions-repeat", "qf-nightmare-detached",
+            "dx7-droplet-fetched-power", "quality-NECROBINDER-001" })
+        {
+            SearchCase fixture = GoldenFixtures.Search(root);
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(fixture.Options) with
+            {
+                MaxExpandedNodes = 256, NodeBudgetActive = true, UnlimitedNodes = true,
+                SoftTimeBudget = TimeSpan.MaxValue, SearchMemoryBudgetBytes = 512L << 20,
+                SearchThreads = 1,
+            };
+            byte[] expected = SearchCodec.EncodeResult(new BeamSolver(fixture.Rules, options)
+                .Solve(fixture.Battles, CancellationToken.None));
+            foreach (int threads in new[] { 2, 3, 8 })
+            {
+                Task<BeamResult> task = Task.Run(() => new BeamSolver(fixture.Rules,
+                    options with { SearchThreads = threads, WorkspaceBufferLimitBytes = 64 << 10 })
+                    .Solve(fixture.Battles, CancellationToken.None));
+                Assert(task.Wait(TimeSpan.FromSeconds(60)), "chunk consumer/producer must make progress");
+                BeamResult result = task.Result;
+                Assert(expected.AsSpan().SequenceEqual(SearchCodec.EncodeResult(result)),
+                    $"{root}: chunk boundaries preserve choices, fetched successors and ordered commits");
+                Assert(result.WorkspaceOverflowParents == 0, "full chunks never restart their parent");
+                Assert(result.SearchMemoryPeakBytes <= options.SearchMemoryBudgetBytes,
+                    "chunk continuation storage stays inside the shared budget");
+                chunks += result.WorkspaceChunks;
+            }
+        }
+        Assert(chunks > 0, "small buffers actually exercise continuation across chunks");
+        Console.WriteLine($"COMBAT_SEARCH chunks={chunks}");
+        SearchCase stopping = GoldenFixtures.Search("qf3-decisions-repeat");
+        foreach (string stop in new[] { "cancel", "deadline", "failure" })
+        {
+            using CancellationTokenSource cancellation = new();
+            int expired = 0, parents = 0;
+            InvalidOperationException injected = new("chunk consumer failure contract");
+            BeamOptions options = SearchBudgetPolicy.ApplyRegression(stopping.Options) with
+            {
+                SearchThreads = 3, WorkspaceBufferLimitBytes = 64 << 10,
+                SearchMemoryBudgetBytes = 512L << 20,
+                UnlimitedNodes = true, NodeBudgetActive = true, MaxExpandedNodes = 10000,
+                SoftTimeBudget = TimeSpan.MaxValue, DeadlineExpired = () => Volatile.Read(ref expired) != 0,
+            };
+            BeamSolver.ParentWorkspaceObserver = _ =>
+            {
+                if (++parents != 5) return;
+                if (stop == "cancel") cancellation.Cancel();
+                else if (stop == "deadline") Volatile.Write(ref expired, 1);
+                else throw injected;
+            };
+            try
+            {
+                Task<bool> task = Task.Run(() =>
+                {
+                    try
+                    {
+                        BeamResult result = new BeamSolver(stopping.Rules, options)
+                            .Solve(stopping.Battles, cancellation.Token);
+                        return stop == "deadline" && result.DeadlineExpiredAtPoll > 0;
+                    }
+                    catch (OperationCanceledException)
+                    { return stop == "cancel" && cancellation.IsCancellationRequested; }
+                    catch (InvalidOperationException error)
+                    { return stop == "failure" && ReferenceEquals(error, injected); }
+                });
+                Assert(task.Wait(TimeSpan.FromSeconds(60)) && task.Result && parents >= 5,
+                    $"{stop}: stopping the consumer releases and joins all paused producers");
+            }
+            finally { BeamSolver.ParentWorkspaceObserver = null; }
+        }
+        Console.WriteLine("COMBAT_SEARCH chunk_stop=cancel/deadline/failure");
+
+    }
+
     internal static void Run()
     {
         SearchCase original = GoldenFixtures.Search("quality-NECROBINDER-001");
@@ -301,6 +377,7 @@ internal static class SearchContracts
         catch (InvalidDataException) { zeroBudget = true; }
         Assert(zeroBudget, "zero search-memory budget is rejected at Solve entry");
         CheckUnifiedMemory(original, legacy);
+        CheckChunkedExpansion();
         BeamResult largePool = new BeamSolver(original.Rules, batched with
         {
             MaxExpandedNodes = 1, StatePoolBudgetBytes = 3_000_000_000,

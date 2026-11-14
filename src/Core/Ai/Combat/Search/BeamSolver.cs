@@ -330,8 +330,11 @@ internal sealed record BeamResult(
     /// <summary>Highest total growable (capped) bytes retained by all expansion workspaces.</summary>
     public long SearchWorkspaceGrowablePeakBytes { get; init; }
 
-    /// <summary>Parents whose buffered expansion exceeded the workspace limit and streamed instead.</summary>
+    /// <summary>Parents handled directly because the workspace limit cannot hold one complete record.</summary>
     public int WorkspaceOverflowParents { get; init; }
+
+    /// <summary>Non-final chunks consumed without restarting the parent.</summary>
+    public int WorkspaceChunks { get; init; }
 
     /// <summary>Total action-layer parents expanded by this solve.</summary>
     public int WorkspaceParents { get; init; }
@@ -571,6 +574,7 @@ internal sealed partial class BeamSolver
     private long _workspacePeakBytes;
     private long _workspaceGrowablePeakBytes;
     private int _workspaceOverflowParents;
+    private int _workspaceChunks;
     private int _workspaceParents;
     private long _workspaceDirectTicks;
     internal static Action<ParentWorkspaceMeasurement>? ParentWorkspaceObserver;
@@ -746,6 +750,7 @@ internal sealed partial class BeamSolver
         _workspacePeakBytes = 0;
         _workspaceGrowablePeakBytes = 0;
         _workspaceOverflowParents = 0;
+        _workspaceChunks = 0;
         _workspaceParents = 0;
         _workspaceDirectTicks = 0;
         Stopwatch watch = Stopwatch.StartNew();
@@ -1095,6 +1100,7 @@ internal sealed partial class BeamSolver
             SearchWorkspacePeakBytes = _workspacePeakBytes,
             SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
             WorkspaceOverflowParents = _workspaceOverflowParents,
+            WorkspaceChunks = _workspaceChunks,
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
             };
@@ -1181,6 +1187,7 @@ internal sealed partial class BeamSolver
             SearchWorkspacePeakBytes = _workspacePeakBytes,
             SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
             WorkspaceOverflowParents = _workspaceOverflowParents,
+            WorkspaceChunks = _workspaceChunks,
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
         };

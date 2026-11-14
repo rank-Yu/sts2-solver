@@ -144,9 +144,6 @@ internal sealed record BeamOptions(
     /// </summary>
     public int WorkspaceBufferLimitBytes { get; init; }
 
-    /// <summary>Host-only task granularity; small values exercise scheduler contracts.</summary>
-    public int ChoiceTaskMinimumChildren { get; init; } = 1024;
-
     /// <summary>
     /// Optional progress subscriber. Null is the default and keeps the search free of progress
     /// work; a channel is host-only and never enters SREQ.
@@ -338,8 +335,6 @@ internal sealed record BeamResult(
 
     /// <summary>Non-final chunks consumed without restarting the parent.</summary>
     public int WorkspaceChunks { get; init; }
-    public int WorkspaceChoiceTasks { get; init; }
-    public int WorkspaceChoiceWorkerTasks { get; init; }
 
     /// <summary>Total action-layer parents expanded by this solve.</summary>
     public int WorkspaceParents { get; init; }
@@ -580,8 +575,6 @@ internal sealed partial class BeamSolver
     private long _workspaceGrowablePeakBytes;
     private int _workspaceOverflowParents;
     private int _workspaceChunks;
-    private int _workspaceChoiceTasks;
-    private int _workspaceChoiceWorkerTasks;
     private int _workspaceParents;
     private long _workspaceDirectTicks;
     internal static Action<ParentWorkspaceMeasurement>? ParentWorkspaceObserver;
@@ -696,15 +689,14 @@ internal sealed partial class BeamSolver
         _storage.BeginSolve(_options.SearchMemoryBudgetBytes);
         int searchThreads = _trace != null || SearchVerificationHooks.VerifySearchEquivalence
             ? 1 : _options.SearchThreads;
-        int workspaceCount = searchThreads > 1 ? checked(3 * searchThreads) : 1;
+        int workspaceCount = searchThreads > 1 ? checked(2 * searchThreads) : 1;
         long runtimeBytes = SearchMemoryBudget.RuntimeReserve(_options.SearchMemoryBudgetBytes);
         long requestBytes = SearchMemoryBudget.RequestReserve(_rules, roots.Count);
         long threadBytes = (long)searchThreads * SearchMemoryBudget.ThreadStackReserveBytes;
         _storage.Memory.Charge(runtimeBytes, "runtime");
         _storage.Memory.Charge(requestBytes, "request");
         _storage.Memory.Charge(threadBytes, "threads");
-        long workspaceBytes = workspaceCount * ExpansionWorkspace.FixedBytes
-            + (searchThreads > 1 ? searchThreads * ExpansionWorkspace.ChoiceInputBytes : 0);
+        long workspaceBytes = workspaceCount * ExpansionWorkspace.FixedBytes;
         int configuredBuffer = _options.WorkspaceBufferLimitBytes > 0
             ? _options.WorkspaceBufferLimitBytes : DefaultWorkspaceBufferLimitBytes;
         long bufferShare = Math.Max(0, (_options.SearchMemoryBudgetBytes - runtimeBytes
@@ -743,8 +735,7 @@ internal sealed partial class BeamSolver
         bool directOnly = searchThreads == 1;
         _workspaces = new ExpansionWorkspace[workspaceCount];
         for (int index = 0; index < _workspaces.Length; index++)
-            _workspaces[index] = new ExpansionWorkspace(this, directOnly && index == 0,
-                choiceWorker: searchThreads > 1 && index >= 2 * searchThreads);
+            _workspaces[index] = new ExpansionWorkspace(this, directOnly && index == 0);
         _workspace = _workspaces[0];
         _workspacePrefixShared = 0;
         _workspacePrefixUnshared = 0;
@@ -760,8 +751,6 @@ internal sealed partial class BeamSolver
         _workspaceGrowablePeakBytes = 0;
         _workspaceOverflowParents = 0;
         _workspaceChunks = 0;
-        _workspaceChoiceTasks = 0;
-        _workspaceChoiceWorkerTasks = 0;
         _workspaceParents = 0;
         _workspaceDirectTicks = 0;
         Stopwatch watch = Stopwatch.StartNew();
@@ -1112,8 +1101,6 @@ internal sealed partial class BeamSolver
             SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
             WorkspaceOverflowParents = _workspaceOverflowParents,
             WorkspaceChunks = _workspaceChunks,
-            WorkspaceChoiceTasks = _workspaceChoiceTasks,
-            WorkspaceChoiceWorkerTasks = _workspaceChoiceWorkerTasks,
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
             };
@@ -1201,8 +1188,6 @@ internal sealed partial class BeamSolver
             SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
             WorkspaceOverflowParents = _workspaceOverflowParents,
             WorkspaceChunks = _workspaceChunks,
-            WorkspaceChoiceTasks = _workspaceChoiceTasks,
-            WorkspaceChoiceWorkerTasks = _workspaceChoiceWorkerTasks,
             WorkspaceParents = _workspaceParents,
             WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
         };

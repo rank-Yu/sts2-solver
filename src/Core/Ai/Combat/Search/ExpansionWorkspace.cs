@@ -112,7 +112,7 @@ internal sealed partial class BeamSolver
     /// a full chunk is committed before its arrays are reused for the next part of the parent.
     /// Choice recursion remains on the producer's stack while publishing a chunk.
     /// </summary>
-    private sealed partial class ExpansionWorkspace
+    private sealed class ExpansionWorkspace
     {
         private const int InitialEventCapacity = 1024;
         private const int InitialChildCapacity = 256;
@@ -164,7 +164,7 @@ internal sealed partial class BeamSolver
         private bool _searchThread;
         internal int PublishedChunks { get; private set; }
 
-        internal sealed class ChunkStoppedException : Exception;
+        private sealed class ChunkStoppedException : Exception;
 
         private int MinimumChunkBytes => Battle.ExpectedSize + Unsafe.SizeOf<ChildRecord>()
             + Unsafe.SizeOf<ExpansionEvent>() + Unsafe.SizeOf<RoutingEvent>()
@@ -201,12 +201,11 @@ internal sealed partial class BeamSolver
         /// <summary>The current parent's turn-start record; constant for the whole parent.</summary>
         private CrossTurnProgress _parentCrossTurn;
 
-        internal ExpansionWorkspace(BeamSolver solver, bool directOnly = false, bool choiceWorker = false)
+        internal ExpansionWorkspace(BeamSolver solver, bool directOnly = false)
         {
             _solver = solver;
             _workspaceBufferLimit = solver._workspaceBufferLimit;
             _directOnly = directOnly;
-            if (choiceWorker) _choiceInput = new ChoiceInput();
             if (directOnly || !SupportsBufferedExpansion)
                 return;
             // Keep room for one complete record in every array even under a small budget.
@@ -317,8 +316,7 @@ internal sealed partial class BeamSolver
                     + (long)_fetched.Length * Unsafe.SizeOf<FetchedRecord>()
                     + _stateBytes.Length
                     + 4L * Unsafe.SizeOf<Battle>()
-                    + Unsafe.SizeOf<EndTurnPrefix>()
-                    + (_choiceInput is null ? 0 : ChoiceInputBytes);
+                    + Unsafe.SizeOf<EndTurnPrefix>();
                 return bytes;
             }
         }
@@ -363,8 +361,6 @@ internal sealed partial class BeamSolver
             _skipChoiceDepth = 0;
             _skipSuccessors = false;
             PublishedChunks = 0;
-            ChoiceTasks = 0;
-            ChoiceWorkerTasks = 0;
             _parentPeakUsedBytes = 0;
             _parentPeakAllocatedBytes = _growableBytes;
             _parentChildren = 0;
@@ -530,16 +526,11 @@ internal sealed partial class BeamSolver
         /// </summary>
         internal void Expand(in Battle parent, in ParentExpansionContext context,
             int parentIndex, bool searchThread, Func<int, bool, bool> publishChunk,
-            IChoiceScheduler choices,
             CancellationToken cancellationToken)
         {
             BeginParent();
             _publishChunk = publishChunk;
             _parentIndex = parentIndex;
-            RootIndex = parentIndex;
-            Order = 0;
-            OrderDepth = 0;
-            _choices = choices;
             _searchThread = searchThread;
             try
             {
@@ -996,56 +987,9 @@ internal sealed partial class BeamSolver
                 EmitChoiceEnd();
                 return;
             }
-            ExpandSelections(in parent, fetchedParent, parentNodeKey, parentDepth, parentFacts,
-                parentRank, parentScore, hasParentCommitment, parentCommitment,
-                parentBrightestFlameSpent, parentProgress, parentEnemyHighs, action, primaryEffect,
-                selectedPowers, routing, allowFetchedPowerCommit, request, optionCards, selections[..count],
-                captureFetchedPowers, optionIsPower, 0, count, 0, cancellationToken);
-            EmitChoiceEnd();
-        }
-
-        private bool ExpandSelections(in Battle parent, bool fetchedParent, int parentNodeKey,
-            int parentDepth, in RetentionFacts parentFacts, int parentRank, double parentScore,
-            bool hasParentCommitment, in PowerCommitmentState parentCommitment,
-            int parentBrightestFlameSpent, in TurnProgressState parentProgress,
-            in EnemyProgressHighs parentEnemyHighs, PlayerAction action,
-            ChoiceEffect? primaryEffect, scoped ReadOnlySpan<Card> selectedPowers, in RoutingRef routing,
-            bool allowFetchedPowerCommit, in ChoiceRequest request, scoped ReadOnlySpan<Card> optionCards,
-            scoped ReadOnlySpan<ulong> selections, bool captureFetchedPowers,
-            scoped ReadOnlySpan<bool> optionIsPower, int start, int end, int estimatedChildren,
-            CancellationToken cancellationToken)
-        {
             Span<Card> capturedPowers = stackalloc Card[Limits.MaxChoiceOptions];
-            for (int index = start; index < end; index++)
+            for (int index = 0; index < count; index++)
             {
-                if (!_direct && estimatedChildren >= _solver._options.ChoiceTaskMinimumChildren && end - index >= 2
-                    && _choices!.Rent(this) is { } helper)
-                {
-                    int middle = index + (end - index) / 2;
-                    helper.PrepareChoice(this, in parent, fetchedParent, parentNodeKey, parentDepth,
-                        parentFacts, parentRank, parentScore, hasParentCommitment, parentCommitment,
-                        parentBrightestFlameSpent, parentProgress, parentEnemyHighs, action,
-                        primaryEffect, selectedPowers, routing, allowFetchedPowerCommit, request,
-                        optionCards, selections, captureFetchedPowers, optionIsPower,
-                        middle, end, estimatedChildren);
-                    ChoiceTasks++;
-                    _choices.Enqueue(helper);
-                    UInt128 savedOrder = Order;
-                    int savedDepth = OrderDepth;
-                    OrderDepth++;
-                    bool left = ExpandSelections(in parent, fetchedParent, parentNodeKey, parentDepth,
-                        parentFacts, parentRank, parentScore, hasParentCommitment, parentCommitment,
-                        parentBrightestFlameSpent, parentProgress, parentEnemyHighs, action,
-                        primaryEffect, selectedPowers, routing, allowFetchedPowerCommit, request,
-                        optionCards, selections, captureFetchedPowers, optionIsPower,
-                        index, middle, estimatedChildren, cancellationToken);
-                    Order = savedOrder | ((UInt128)1 << (127 - savedDepth));
-                    bool right = _choices.Join(this, helper, discard: !left);
-                    Order = savedOrder;
-                    OrderDepth = savedDepth;
-                    return left && right;
-                }
-                int childrenBefore = _parentChildren;
                 ChoiceEffect? effect = primaryEffect;
                 scoped ReadOnlySpan<Card> chosenPowers = selectedPowers;
                 if (captureFetchedPowers)
@@ -1070,7 +1014,8 @@ internal sealed partial class BeamSolver
                         // The capture sits before the per-selection guard in the old flow, so it
                         // aborts the remaining selections without another reserve or transition.
                         EmitBranchDrop(ex.Region);
-                        return false;
+                        EmitChoiceEnd();
+                        return;
                     }
                 }
                 RoutingRef branchRouting = routing;
@@ -1104,9 +1049,8 @@ internal sealed partial class BeamSolver
                     parentBrightestFlameSpent, in parentProgress, in parentEnemyHighs, withChoice,
                     effect, chosenPowers, in branchRouting, allowFetchedPowerCommit,
                     cancellationToken);
-                estimatedChildren = _parentChildren - childrenBefore;
             }
-            return true;
+            EmitChoiceEnd();
         }
 
         private void ExpandFetchedPowerSuccessors(in Battle state, int fetchedNode,

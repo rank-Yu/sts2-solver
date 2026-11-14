@@ -13,7 +13,7 @@ internal sealed partial class BeamSolver
     /// waiting for ordered results, so <c>threads</c> includes it. The workers live for the whole solve and block
     /// between layers; the caller disposes the object after the search loop.
     /// </summary>
-    private sealed partial class ParallelExpansion : IDisposable
+    private sealed class ParallelExpansion : IDisposable
     {
         private const int SpinsBeforeBlocking = 8;
         /// <summary>Below this many items the wake-up cost exceeds one batch's parallel gain.</summary>
@@ -89,7 +89,7 @@ internal sealed partial class BeamSolver
         internal void RunLayer(Pool current, Pool next, Pool ended, TerminalSink terminal,
             ParentExpansionContext[] contexts, int count)
         {
-            int window = Math.Min(_window * 2 / 3, count);
+            int window = Math.Min(_window, count);
             if (window <= 0)
                 return;
             Volatile.Write(ref _layerActive, 1);
@@ -282,7 +282,7 @@ internal sealed partial class BeamSolver
         }
 
         /// <summary>One action layer's parent queue, result slots and ordered commit cursor.</summary>
-        private sealed partial class LayerJob : IWorkerJob
+        private sealed class LayerJob : IWorkerJob
         {
             private const int SlotFree = 0;
             private const int SlotClaimed = 1;
@@ -306,14 +306,16 @@ internal sealed partial class BeamSolver
             private readonly int _window;
             private readonly int _count;
             private readonly object _gate = new();
-            private readonly object _commitGate = new(), _windowGate = new();
-            private int _publishVersion, _windowVersion;
+            private readonly object _commitGate = new();
+            private readonly object _windowGate = new();
             private readonly Slot[] _slots;
             private readonly Func<int, bool, bool> _publishChunk;
             private int _nextClaim;
             private int _commitCursor;
             private int _countedCursor = -1;
             private int _duplicatesBefore;
+            private int _publishVersion;
+            private int _windowVersion;
             private volatile bool _stop;
             private ExceptionDispatchInfo? _failure;
 
@@ -333,7 +335,6 @@ internal sealed partial class BeamSolver
                 _slots = new Slot[window];
                 for (int index = 0; index < _slots.Length; index++)
                     _slots[index] = new Slot();
-                InitializeChoices();
             }
 
             internal void RunSearch(SearchWorkPacer? pacer)
@@ -343,13 +344,10 @@ internal sealed partial class BeamSolver
                     int index = _commitCursor;
                     if (!BeginCommitParent(index))
                         return;
-                    if (WaitForCommit(index, out WorkClaim claim))
+                    if (WaitForCommit(index, out int claim))
                         Commit(index);
-                    else if (claim.Index >= 0)
-                    {
-                        if (claim.Choice) RunChoice(claim.Index, pacer, searchThread: true);
-                        else Expand(claim.Index, pacer, searchThread: true);
-                    }
+                    else if (claim >= 0)
+                        Expand(claim, pacer, searchThread: true);
                     else
                         return;
                 }
@@ -377,10 +375,10 @@ internal sealed partial class BeamSolver
                 {
                     while (true)
                     {
-                        WorkClaim claim = ClaimWorker();
-                        if (claim.Index < 0) return;
-                        if (claim.Choice) RunChoice(claim.Index, pacer);
-                        else Expand(claim.Index, pacer);
+                        int index = ClaimWorker();
+                        if (index < 0)
+                            return;
+                        Expand(index, pacer);
                     }
                 }
                 catch (Exception error)
@@ -416,69 +414,84 @@ internal sealed partial class BeamSolver
                 return slot.Index == index && Volatile.Read(ref slot.State) is SlotReady or SlotChunkReady;
             }
 
-            private WorkClaim ClaimWorker()
+            private int ClaimWorker()
             {
                 SpinWait spin = default;
                 for (int attempt = 0; attempt < SpinsBeforeBlocking; attempt++)
                 {
-                    if (_stop || Volatile.Read(ref _pendingChoices) > 0
-                        || (Volatile.Read(ref _nextClaim) < _count
-                            && Volatile.Read(ref _nextClaim) < Volatile.Read(ref _commitCursor) + _window)) break;
+                    if (_stop)
+                        return -1;
+                    if (Volatile.Read(ref _nextClaim) >= _count)
+                        return -1;
+                    if (Volatile.Read(ref _nextClaim) < Volatile.Read(ref _commitCursor) + _window)
+                        break;
                     spin.SpinOnce();
                 }
                 while (true)
                 {
                     int version;
-                    lock (_windowGate) version = _windowVersion;
+                    lock (_windowGate)
+                        version = Volatile.Read(ref _windowVersion);
                     lock (_gate)
                     {
-                        if (_failure != null || _stop) return new WorkClaim(-1);
-                        int choice = ClaimChoiceBefore(int.MaxValue, UInt128.MaxValue);
-                        if (choice >= 0) return new WorkClaim(choice, true);
-                        if (CanClaim()) return new WorkClaim(ClaimLocked());
+                        if (_failure != null || _stop || _nextClaim >= _count)
+                            return -1;
+                        if (CanClaim())
+                            return ClaimLocked();
                     }
                     lock (_windowGate)
-                        if (!_stop && version == _windowVersion) Monitor.Wait(_windowGate);
+                    {
+                        if (Volatile.Read(ref _windowVersion) == version && !_stop
+                            && Volatile.Read(ref _nextClaim) < _count)
+                        {
+                            Monitor.Wait(_windowGate);
+                        }
+                    }
                 }
             }
 
-            private bool WaitForCommit(int index, out WorkClaim claim, bool allowClaim = true)
+            /// <summary>
+            /// Waits until the next chunk or final result is ready. Unless already draining from a
+            /// suspended producer, the search thread can claim an unstarted parent; <paramref name="claim"/> returns -1 when the layer stopped.
+            /// </summary>
+            private bool WaitForCommit(int index, out int claim, bool allowClaim = true)
             {
-                claim = new WorkClaim(-1);
+                claim = -1;
                 SpinWait spin = default;
                 for (int attempt = 0; attempt < SpinsBeforeBlocking; attempt++)
                 {
-                    if (_stop || ReadyFast(index) || Volatile.Read(ref _pendingChoices) > 0) break;
+                    if (_stop || ReadyFast(index))
+                        break;
                     spin.SpinOnce();
                 }
                 while (true)
                 {
-                    // Capture before checking the condition; an enqueue between the check and the
-                    // wait changes this generation and cannot become a lost wakeup.
-                    int version;
-                    lock (_commitGate) version = _publishVersion;
                     lock (_gate)
                     {
-                        if (_failure != null) _failure.Throw();
-                        if (_stop) return false;
-                        if (ReadyFast(index)) return true;
-                        if (allowClaim)
+                        if (_failure != null)
+                            _failure.Throw();
+                        if (_stop)
+                            return false;
+                        if (ReadyFast(index))
+                            return true;
+                        if (allowClaim && CanClaim())
                         {
-                            int choice = ClaimChoiceBefore(index + 1, 0);
-                            if (choice >= 0)
-                            {
-                                claim = new WorkClaim(choice, true);
-                                return false;
-                            }
-                            if (CanClaim())
-                            {
-                                claim = new WorkClaim(ClaimLocked());
-                                return false;
-                            }
+                            claim = ClaimLocked();
+                            return false;
                         }
                     }
                     lock (_commitGate)
-                        if (!_stop && version == _publishVersion) Monitor.Wait(_commitGate);
+                    {
+                        int version = Volatile.Read(ref _publishVersion);
+                        if (ReadyFast(index))
+                            return true;
+                        if (_failure != null)
+                            _failure.Throw();
+                        if (_stop)
+                            return false;
+                        if (Volatile.Read(ref _publishVersion) == version)
+                            Monitor.Wait(_commitGate);
+                    }
                 }
             }
 
@@ -498,13 +511,12 @@ internal sealed partial class BeamSolver
                 {
                     _solver.WorkerCheckpoint(pacer);
                     ExpansionWorkspace workspace = _workspaces[index % _window];
-                    workspace.Pacer = pacer;
                     ref readonly Battle parent = ref _current.State(index);
                     workspace.ResetDiagnostics();
                     bool buffered = workspace.SupportsBufferedExpansion;
                     if (buffered)
                         workspace.Expand(in parent, in _contexts[index], index, searchThread,
-                            _publishChunk, this, _solver._cancellationToken);
+                            _publishChunk, _solver._cancellationToken);
                     lock (_gate)
                     {
                         if (_stop)
@@ -512,9 +524,12 @@ internal sealed partial class BeamSolver
                         Slot slot = _slots[index % _window];
                         Volatile.Write(ref slot.Overflow, !buffered);
                         Volatile.Write(ref slot.State, SlotReady);
-                        if (_activeChoices > 0) Monitor.PulseAll(_gate);
                     }
-                    SignalCommit();
+                    lock (_commitGate)
+                    {
+                        _publishVersion++;
+                        Monitor.Pulse(_commitGate);
+                    }
                 }
                 catch (Exception error)
                 {
@@ -545,22 +560,16 @@ internal sealed partial class BeamSolver
                 }
                 lock (_gate)
                 {
-                    if (_stop) return false;
+                    if (_stop)
+                        return false;
                     Volatile.Write(ref _slots[index % _window].State, SlotChunkReady);
-                    Monitor.PulseAll(_gate);
                 }
                 SignalCommit();
-                while (true)
+                lock (_gate)
                 {
-                    int choice;
-                    lock (_gate)
-                    {
-                        if (_stop) return false;
-                        if (_slots[index % _window].State != SlotChunkReady) return true;
-                        choice = ClaimChoiceBefore(index, 0);
-                        if (choice < 0) Monitor.Wait(_gate);
-                    }
-                    if (choice >= 0) RunChoice(choice, _workspaces[index % _window].Pacer);
+                    while (!_stop && _slots[index % _window].State == SlotChunkReady)
+                        Monitor.Wait(_gate);
+                    return !_stop;
                 }
             }
 
@@ -598,8 +607,6 @@ internal sealed partial class BeamSolver
                     return false;
                 }
                 _solver._workspaceChunks += workspace.PublishedChunks;
-                _solver._workspaceChoiceTasks += workspace.ChoiceTasks;
-                _solver._workspaceChoiceWorkerTasks += workspace.ChoiceWorkerTasks;
                 _solver.ObserveParent(workspace, _duplicatesBefore);
                 _solver.AccumulateWorkspaceDiagnostics(workspace);
                 lock (_gate)
@@ -608,7 +615,6 @@ internal sealed partial class BeamSolver
                     Volatile.Write(ref slot.State, SlotFree);
                     slot.Index = -1;
                     _commitCursor = index + 1;
-                    if (_activeChoices > 0) Monitor.PulseAll(_gate);
                 }
                 SignalWindow(wakeAll: false);
                 return true;
@@ -640,11 +646,12 @@ internal sealed partial class BeamSolver
                 lock (_windowGate)
                 {
                     _windowVersion++;
-                    if (wakeAll) Monitor.PulseAll(_windowGate);
-                    else Monitor.Pulse(_windowGate);
+                    if (wakeAll)
+                        Monitor.PulseAll(_windowGate);
+                    else
+                        Monitor.Pulse(_windowGate);
                 }
             }
-
         }
     }
 

@@ -1,3 +1,5 @@
+// Enemy early-phase ordering: CombatSolver/src/Prediction/CorePowerSupport.cs at bb64b33fd1
+// (MIT, Copyright (c) 2026 Torch1230 and contributors); verified against game 0.113.0.
 namespace Sts2Solver.Simulation.Combat;
 
 /// <summary>
@@ -28,8 +30,11 @@ public static partial class Kernel
     // CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects, per player, before TriggerRegular.
     private static readonly string[] PlayerSideTurnEndOrder = ["CONSTRICT_POWER", "TANGLED_POWER", "RINGING_POWER", "DOUBLE_DAMAGE_POWER"];
 
-    // CorePowerSupport.TriggerEnemySideTurnEndEffects, per enemy, before TriggerRegular.
-    private static readonly string[] EnemySideTurnEndOrder = ["REGEN_POWER", "DOUBLE_DAMAGE_POWER"];
+    // Native BeforeSideTurnEndEarly effects precede Doom's BeforeSideTurnEnd.
+    private static readonly string[] EnemyEarlySideTurnEndOrder = ["REGEN_POWER", "PLATING_POWER"];
+
+    // Remaining CorePowerSupport.TriggerEnemySideTurnEndEffects, before TriggerRegular.
+    private static readonly string[] EnemySideTurnEndOrder = ["DOUBLE_DAMAGE_POWER"];
 
     // CorePowerSupport.CompletePlayerEarlySideTurnEndEffects, per player.
     private static readonly string[] CompletePlayerEarlyOrder = ["REGEN_POWER"];
@@ -47,6 +52,7 @@ public static partial class Kernel
     private static readonly Lazy<ushort[]> TransientRemovalIds = new(() => Resolve(TransientRemovals));
     private static readonly Lazy<ushort[]> TransientDecrementIds = new(() => Resolve(TransientDecrements));
     private static readonly Lazy<ushort[]> PlayerSideTurnEndIds = new(() => Resolve(PlayerSideTurnEndOrder));
+    private static readonly Lazy<ushort[]> EnemyEarlySideTurnEndIds = new(() => Resolve(EnemyEarlySideTurnEndOrder));
     private static readonly Lazy<ushort[]> EnemySideTurnEndIds = new(() => Resolve(EnemySideTurnEndOrder));
 
     /// <summary>Registered internal ids of the listed native ids, keeping order; unregistered ones are dropped.</summary>
@@ -565,12 +571,12 @@ public static partial class Kernel
     internal static void TriggerEnemySideTurnEndEffects(ref Exec x, scoped ReadOnlySpan<byte> enemies)
     {
         x.EnemySideTurnEndReached = true;
-        // Native Plating.BeforeSideTurnEndEarly precedes Doom.BeforeSideTurnEnd.
         foreach (byte owner in enemies)
         {
-            int plating = FindPower(x.B, owner, PlatingPowerId.Value);
-            if (plating >= 0)
-                InvokePowerPhase(ref x, PowerPhase.EnemySideTurnEnd, plating, Side.Enemy, participates: true, flag: false);
+            PowerTypeSequence(ref x, PowerPhase.EnemySideTurnEnd, owner, EnemyEarlySideTurnEndIds.Value,
+                Side.Enemy, participates: true);
+            if (x.NeedsChoice)
+                return;
         }
         TriggerEnemyDoom(ref x, enemies);
         if (x.NeedsChoice)

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "enemy-regen-before-doom",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "UPSTREAM515",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 5,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "timeoutSeconds": 120,
+  "clearAllPowers": true,
+  "initialEnemyMaxHps": [
+    50,
+    50
+  ],
+  "initialEnemyCurrentHps": [
+    5,
+    50
+  ],
+  "powers": [
+    {
+      "powerId": "PLATING_POWER",
+      "amount": 2,
+      "target": "Enemy"
+    },
+    {
+      "powerId": "DOOM_POWER",
+      "amount": 5,
+      "target": "Enemy"
+    },
+    {
+      "powerId": "REGEN_POWER",
+      "amount": 2,
+      "target": "Enemy"
+    }
+  ]
+}

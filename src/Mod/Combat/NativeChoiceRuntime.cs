@@ -2,6 +2,7 @@
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors). The observation patches, request
 // queue, surface visibility/locking and native click sequence keep the original semantics; the
 // plan type is Sts2Solver's PlannedChoice and the trace/log sink is this Mod's logger.
+// Peek input recovery follows the same upstream file at bb64b33fd1 (same MIT license).
 using System.Reflection;
 using Environment = System.Environment;
 using System.Threading.Channels;
@@ -1063,6 +1064,8 @@ internal static class NativeChoiceSurface
         NativeChoiceRequest request, IReadOnlyList<CardModel> selected, CancellationToken token)
     {
         NPlayerHand hand = (NPlayerHand)surface;
+        // Native OnHolderPressed ignores selection input while the battlefield is being peeked at.
+        hand.PeekButton.SetPeeking(false);
         var highlighted = (List<CardModel>)AccessTools.Field(typeof(NPlayerHand), "_selectedCards")
             .GetValue(hand)!;
         foreach (CardModel card in highlighted.ToArray())

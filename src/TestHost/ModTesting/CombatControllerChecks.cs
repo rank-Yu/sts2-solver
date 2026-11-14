@@ -233,6 +233,7 @@ internal static partial class CombatControllerChecks
                     await DeploymentChoiceHandoffAsync(host, Check, Action, scenario);
                     break;
                 case "choice_handoff_hand":
+                case "choice_handoff_hand_peek":
                 case "choice_handoff_grid":
                 case "choice_handoff_hand_exit":
                 case "choice_handoff_grid_exit":

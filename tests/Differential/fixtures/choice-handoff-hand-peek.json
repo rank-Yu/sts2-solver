@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "choice-handoff-hand-peek",
+  "characterId": "SILENT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "SKD1",
+  "ascension": 0,
+  "initialPlayerHp": 3000,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerEnergy": 9,
+  "enemyCurrentHp": 400,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "SUCKER_PUNCH",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "LEG_SWEEP",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "ASSASSINATE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SLICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BACKSTAB",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DAGGER_SPRAY",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "PREDATOR",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "ADRENALINE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BACKFLIP",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFLECT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SUCKER_PUNCH",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "LEG_SWEEP",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ASSASSINATE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SLICE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BACKSTAB",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DAGGER_SPRAY",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PREDATOR",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ADRENALINE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BACKFLIP",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "DEFLECT",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SIDESTEP",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SIDESTEP",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "TRACKING",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "SPEEDSTER",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRANGLE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRANGLE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "PINPOINT",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "GRAND_FINALE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "ABRASIVE",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "FOOTWORK",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BLUR",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "BLUR",
+      "pile": "Draw",
+      "upgradeLevels": 1
+    },
+    {
+      "cardId": "STRIKE_SILENT",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    },
+    {
+      "cardId": "DEFEND_SILENT",
+      "pile": "Draw",
+      "upgradeLevels": 0
+    }
+  ],
+  "timeoutSeconds": 180,
+  "initialEnemyMaxHps": [
+    400,
+    400
+  ],
+  "initialEnemyCurrentHps": [
+    400,
+    400
+  ],
+  "controllerScenarioForTest": "choice_handoff_hand_peek",
+  "settingsTierForTest": "Low",
+  "settingsThreadsForTest": 2
+}

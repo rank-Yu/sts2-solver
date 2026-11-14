@@ -117,7 +117,15 @@ internal static partial class CombatControllerChecks
         else
         {
             action("select_last_card");
+            bool peek = scenario == "choice_handoff_hand_peek";
+            if (peek)
+            {
+                NPlayerHand.Instance!.PeekButton.SetPeeking(true);
+                check("peek_input_gate_enabled", NPlayerHand.Instance.PeekButton.IsPeeking);
+            }
             await SubmitHandoffAsync(host, request, check);
+            if (peek)
+                check("peek_input_gate_cleared", !NPlayerHand.Instance!.PeekButton.IsPeeking);
             // A late exit callback must preserve the completed manual selection.
             Task<IEnumerable<CardModel>> unrelated = NativeChoiceHandoff.SelectAsync(
                 player, options, 1, 1, "new_manual_choice");

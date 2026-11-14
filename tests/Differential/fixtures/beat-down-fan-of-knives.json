@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "beat-down-fan-of-knives",
+  "characterId": "SILENT",
+  "encounterId": "SLIMES_NORMAL",
+  "seed": "UPSTREAM515",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 99,
+  "enemyCurrentHp": 999,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "FAN_OF_KNIVES",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BEAT_DOWN",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SHIV",
+      "pile": "Discard"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "clearAllPowers": true,
+  "powers": []
+}

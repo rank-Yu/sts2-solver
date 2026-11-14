@@ -86,6 +86,25 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
   tests/Differential/fixtures/bomb-instances.json end end end
 ```
 
+## 动态目标、敌方再生与窥视选牌
+
+[狠揍与君王之剑](fixtures/beat-down-seeking-edge.json)及[狠揍与小刀](fixtures/beat-down-fan-of-knives.json)先打出改变目标类型的能力牌，再由狠揍自动出牌，核对完整状态和随机流；[再生与灾厄](fixtures/enemy-regen-before-doom.json)验证敌方先回血再判定灾厄击杀。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/beat-down-seeking-edge.json play:0:255 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/beat-down-fan-of-knives.json play:0:255 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/enemy-regen-before-doom.json end
+```
+
+[窥视后的手牌选择](fixtures/choice-handoff-hand-peek.json)在原生手牌选择页打开战场窥视，再走生产选牌入口，检查窥视输入门关闭、所选牌正确及后续独立选牌仍可完成。使用测试版 Mod 的游戏宿主：
+
+```bash
+tools/testing/run-headless.sh --instance choice-handoff-hand-peek \
+  --request tests/Differential/fixtures/choice-handoff-hand-peek.json \
+  --game-root <游戏目录> --ritsu-root <RitsuLib目录> \
+  --results .local/choice-handoff-hand-peek --cleanup-instance-on-exit
+```
+
 ## 回合准备枚举
 
 ```bash

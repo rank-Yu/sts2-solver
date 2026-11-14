@@ -1,3 +1,5 @@
+// Dynamic target fix: CombatSolver/src/Engine/InCombat/Mirrors/Cards/OnPlay/CardSelectionCardMirrors.cs
+// at bb64b33fd1 (MIT, Copyright (c) 2026 Torch1230 and contributors).
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Content.Cards.Colorless;
@@ -48,9 +50,9 @@ public sealed class BeatDown : CardDef
                 if (Kernel.IsOverOrEnding(x.B))
                     return;
                 Card selected = candidates[item];
-                CardStats stats = x.R.Card(selected.Id, selected.Upgrade);
+                TargetType targetType = Registry.Card(selected.Id).ResolveTargetType(x.B, x.R, selected);
                 byte target = Limits.NoOwner;
-                if (stats.Target == TargetType.AnyEnemy)
+                if (targetType == TargetType.AnyEnemy)
                 {
                     // BeatDown resolves the target before AutoPlay's playability check.
                     target = Kernel.RandomHittableEnemy(ref x.B);

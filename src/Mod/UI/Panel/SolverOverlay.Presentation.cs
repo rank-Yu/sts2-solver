@@ -31,6 +31,8 @@ internal sealed partial class SolverOverlay
     private SolverOverlaySnapshot? _deploymentOverlay;
     private int _lastResultCandidate = -1;
     private bool _routeStale;
+    private bool _routeGuided;
+    private string? _guideStatusContext;
     private bool _turnStartHighlighted;
     private long _lastProgressReviewedWorldlines;
     private long _lastProgressSampledAt;
@@ -148,12 +150,32 @@ internal sealed partial class SolverOverlay
     /// </summary>
     private void ApplyRouteFreshness(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
     {
-        bool stale = _presentation == SolverOverlayPresentation.Ready
+        bool outdated = _presentation == SolverOverlayPresentation.Ready
             && snapshot.Result != null
             && snapshot.Phase is not (CombatUiPhase.Searching or CombatUiPhase.Deploying)
             && !snapshot.CurrentTurnRouteReady
             && snapshot.CanStartSearch
             && _routeOutcomePanel is { Visible: true };
+        // The player followed the route by hand: the live state is still one of its boundaries, so
+        // the route is the guide's plan, not a reference.
+        GuideStepUi? guide = outdated && snapshot.Guide is { Advanced: true } advanced ? advanced : null;
+        bool stale = outdated && guide == null;
+        if (guide != null)
+        {
+            string status = SolverText.Get("按指引手动出牌");
+            string context = SolverText.Format(
+                $"第 {snapshot.Turn} 回合    第 {guide.TurnStep}/{guide.TurnStepCount} 步");
+            if (_summaryStateLabel?.Text != status || _guideStatusContext != context)
+            {
+                SetStatus(status, SolverUiTokens.Palette.Accent, context);
+                _guideStatusContext = context;
+            }
+            SetRouteHeading(SolverText.Get("推荐路线"));
+        }
+        else
+        {
+            _guideStatusContext = null;
+        }
         if (stale)
         {
             string status = SolverText.Get("历史路线（仅供参考）");
@@ -164,7 +186,8 @@ internal sealed partial class SolverOverlay
             }
             SetRouteHeading(SolverText.Get("已保存路线（已过期）"));
         }
-        else if (_routeStale && _presentation == SolverOverlayPresentation.Ready
+        else if ((_routeStale || _routeGuided && guide == null)
+                 && _presentation == SolverOverlayPresentation.Ready
                  && snapshot.Result is { } result)
         {
             ShowResult(overlay, snapshot, result);
@@ -172,6 +195,7 @@ internal sealed partial class SolverOverlay
         if (_routeScroll != null)
             _routeScroll.Modulate = stale ? StaleRouteModulate : Godot.Colors.White;
         _routeStale = stale;
+        _routeGuided = guide != null;
     }
 
     private static readonly Godot.Color StaleRouteModulate = new(1f, 1f, 1f, 0.5f);

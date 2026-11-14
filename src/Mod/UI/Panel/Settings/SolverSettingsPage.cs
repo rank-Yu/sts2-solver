@@ -36,6 +36,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     private readonly OptionButton _actBoss;
     private readonly OptionButton _finalBoss;
     private readonly HSlider _opacity;
+    private readonly CheckButton _guide;
     private readonly Label _opacityValue;
     private readonly VBoxContainer _content;
     private readonly ScrollContainer _scroll;
@@ -168,6 +169,10 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _opacityValue.CustomMinimumSize = new Vector2(48, 24);
         opacityRow.AddChild(_opacityValue);
         SolverSettingsControls.AddBasicRow(display, SolverText.Get("覆盖层透明度"), opacityRow);
+        _guide = SolverSettingsControls.CreateToggle();
+        _guide.Name = "GuideToggle";
+        _guide.Toggled += OnGuideToggled;
+        SolverSettingsControls.AddBasicRow(display, SolverText.Get("游戏内出牌指引"), _guide);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("显示"), display);
 
         HBoxContainer feedback = new()
@@ -327,6 +332,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _tier.Select(_tier.GetItemIndex((int)data.Search.Tier));
         _opacity.SetValueNoSignal(data.Ui.Opacity);
         _opacityValue.Text = Percent(data.Ui.Opacity);
+        _guide.SetPressedNoSignal(data.Ui.ShowGuide);
         _pendingOpacity = null;
         foreach (LineEdit input in new[] { _delay, _threads, _memory })
             MarkValid(input);
@@ -490,6 +496,14 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         SetProcess(true);
     }
 
+    private void OnGuideToggled(bool on)
+    {
+        if (_loading || SolverSettings.Current.Ui.ShowGuide == on)
+            return;
+        Save(current => current with { Ui = current.Ui with { ShowGuide = on } },
+            SolverText.Get("已保存并立即生效"));
+    }
+
     private void FlushOpacity()
     {
         if (_pendingOpacity is not { } opacity)
@@ -532,6 +546,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
                     PanelHeight = ui.PanelHeight,
                     Opacity = ui.Opacity,
                     ShowBattleDamagePerformanceHint = ui.ShowBattleDamagePerformanceHint,
+                    ShowGuide = ui.ShowGuide,
                 },
             }))
         {

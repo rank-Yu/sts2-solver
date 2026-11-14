@@ -358,5 +358,16 @@
   "{0}    已排队执行": "{0}    Execution queued",
   "第 {0} 回合    已排队执行": "Turn {0}    Execution queued",
   "历史路线（仅供参考）": "Previous route (reference only)",
-  "已保存路线（已过期）": "Saved route (outdated)"
+  "已保存路线（已过期）": "Saved route (outdated)",
+  "按指引手动出牌": "Following the guide",
+  "第 {0} 回合    第 {1}/{2} 步": "Turn {0}    Step {1}/{2}",
+  "游戏内出牌指引": "In-game play guide",
+  "不选择任何牌": "no cards",
+  "选择：{0}，然后确认": "Select: {0}, then confirm",
+  "打出 {0}": "Play {0}",
+  "打出 {0} → {1}": "Play {0} → {1}",
+  "（随后选牌）": " (then choose cards)",
+  "使用药水 {0}": "Use potion {0}",
+  "使用药水 {0} → {1}": "Use potion {0} → {1}",
+  "第 {0}/{1} 步": "Step {0}/{1}"
 }

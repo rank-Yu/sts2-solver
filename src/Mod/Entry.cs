@@ -113,6 +113,7 @@ public static class ModEntry
         {
             host.AddChild(new CombatUiMemorySampler());
             host.AddChild(new CombatSessionNode());
+            host.AddChild(new SolverGuideLayer());
             host.AddChild(new SolverOverlay());
             host.TreeExiting += NativeCallbackGuard.OnTreeExiting;
             ModLog.Info("[Sts2Solver] CONTROLLER_READY hotkey=none mode_switch=panel");

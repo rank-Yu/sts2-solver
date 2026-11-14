@@ -491,6 +491,7 @@ internal static partial class CombatSessionController
         _noSurvivalPauseUsed = false;
         _searchedTurn = null;
         _pumpObserved = false;
+        ResetGuide();
         _pendingTurnStartedState = null;
         _theftPolicy = state != null && SearchPolicyCapture.IsTheftApplicable(state)
             ? SearchTheftPolicy.PreserveResources
@@ -750,6 +751,7 @@ internal static partial class CombatSessionController
         _playerConfirmedTurn = null;
         _noSurvivalPauseUsed = false;
         _pumpObserved = false;
+        ResetGuide();
         _pendingTurnStartedState = null;
         _theftPolicy = null;
         _automaticSearchPaused = false;
@@ -1079,8 +1081,13 @@ internal static partial class CombatSessionController
         PumpObservation observation = new(playable, actionsIdle, turn, side, phase,
             PlayerTurnSetupRuntime.HasActivePage, _turnSetupResult != null,
             PlayerTurnSetupRuntime.IsDriving);
+        bool guideChanged = RefreshGuide(playable, actionsIdle, turn);
         if (_pumpObserved && observation == _pumpObservation)
+        {
+            if (guideChanged)
+                PublishSnapshot();
             return;
+        }
         _pumpObservation = observation;
         _pumpObserved = true;
         bool canStart = _search == null && _deployment == null && !SearchSession.IsRunning
@@ -1090,7 +1097,8 @@ internal static partial class CombatSessionController
             block = CanSolve(out string reason) ? "searching" : reason;
         bool routeReady = _latestResult is { } result && ResultStampMatches(result);
         CombatUiSnapshot current = CombatUiStore.Snapshot;
-        if (current.CanStartSearch == canStart
+        if (!guideChanged
+            && current.CanStartSearch == canStart
             && current.SearchBlockReason == block
             && current.CurrentTurnRouteReady == routeReady)
         {

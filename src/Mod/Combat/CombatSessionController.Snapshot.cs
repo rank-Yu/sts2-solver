@@ -122,6 +122,7 @@ internal static partial class CombatSessionController
             RejectCode = _rejectCode,
             Search = BuildSearchUi(),
             Route = BuildRouteUi(routeSource),
+            Guide = CurrentGuide(),
             Memory = current.Memory,
             Settings = CombatUiProjection.Settings(budget),
             Strategy = BuildStrategyUi(),

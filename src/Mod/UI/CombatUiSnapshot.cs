@@ -188,6 +188,12 @@ internal sealed record CombatUiSnapshot
 
     public RouteUiSnapshot? Route { get; init; }
 
+    /// <summary>
+    /// The next action of the retained route that the live state has reached by the player's own
+    /// plays; null while searching or deploying, when the guide is off or the live state left the route.
+    /// </summary>
+    public GuideStepUi? Guide { get; init; }
+
     public MemoryUiSnapshot Memory { get; init; } = new();
 
     public SettingsUiSnapshot Settings { get; init; } = new();
@@ -789,4 +795,39 @@ internal sealed record SearchCurrentTurnPreviewUi
     public bool CombatEnded { get; init; }
 
     public SearchActionPreviewUi[] Actions { get; init; } = [];
+}
+
+/// <summary>
+/// One step of the in-game guide: the route action whose predicted boundary equals the live state.
+/// Hand and potion positions are those of that boundary; the guide layer resolves them to live nodes.
+/// </summary>
+internal sealed record GuideStepUi
+{
+    /// <summary>Global route index of the action, as in <see cref="RouteActionUi.Index"/>.</summary>
+    public int ActionIndex { get; init; }
+
+    public int Turn { get; init; }
+
+    /// <summary>1-based position of the action inside its turn.</summary>
+    public int TurnStep { get; init; }
+
+    /// <summary>Number of actions in the turn, end turn included.</summary>
+    public int TurnStepCount { get; init; }
+
+    /// <summary>Hand position of the played card; -1 for potions and end turn.</summary>
+    public int HandIndex { get; init; } = -1;
+
+    /// <summary>Potion slot of the used potion; -1 for cards and end turn.</summary>
+    public int PotionSlot { get; init; } = -1;
+
+    public RouteActionUi Action { get; init; } = new();
+
+    /// <summary>
+    /// Choices the player answers on screen during this action, in order (timings Action and
+    /// PlayerTurnEnd, implicit choices left out). Each entry lists the selected card identities.
+    /// </summary>
+    public ChoiceCardUi[][] Choices { get; init; } = [];
+
+    /// <summary>The step is past the route's first action: the live state left the search root by following it.</summary>
+    public bool Advanced { get; init; }
 }

@@ -313,6 +313,7 @@ internal static class SearchSession
                         + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} "
                         + $"workspace_overflow_parents={beam.WorkspaceOverflowParents} "
                         + $"workspace_chunks={beam.WorkspaceChunks} "
+                        + $"choice_tasks={beam.WorkspaceChoiceTasks} choice_assisted={beam.WorkspaceChoiceWorkerTasks} "
                         + $"turn_loop_guarded={beam.TurnLoopGuarded} "
                         + $"cross_turn_no_progress_pruned={beam.CrossTurnNoProgressPruned} "
                         + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "

@@ -93,7 +93,10 @@ internal static class SearchContracts
 
     private static void CheckChunkedExpansion()
     {
-        int chunks = 0;
+        Assert(2 * Limits.MaxChoices
+            * System.Numerics.BitOperations.Log2((uint)(BeamSolver.MaxChoiceBranches * 2 - 1)) <= 128,
+            "two-action choice paths fit the scheduler's ordered task key");
+        int chunks = 0, choiceTasks = 0, assistedTasks = 0;
         foreach (string root in new[] { "qf3-decisions-repeat", "qf-nightmare-detached",
             "dx7-droplet-fetched-power", "quality-NECROBINDER-001" })
         {
@@ -102,7 +105,7 @@ internal static class SearchContracts
             {
                 MaxExpandedNodes = 256, NodeBudgetActive = true, UnlimitedNodes = true,
                 SoftTimeBudget = TimeSpan.MaxValue, SearchMemoryBudgetBytes = 512L << 20,
-                SearchThreads = 1,
+                SearchThreads = 1, ChoiceTaskMinimumChildren = 1,
             };
             byte[] expected = SearchCodec.EncodeResult(new BeamSolver(fixture.Rules, options)
                 .Solve(fixture.Battles, CancellationToken.None));
@@ -119,10 +122,14 @@ internal static class SearchContracts
                 Assert(result.SearchMemoryPeakBytes <= options.SearchMemoryBudgetBytes,
                     "chunk continuation storage stays inside the shared budget");
                 chunks += result.WorkspaceChunks;
+                choiceTasks += result.WorkspaceChoiceTasks;
+                assistedTasks += result.WorkspaceChoiceWorkerTasks;
             }
         }
         Assert(chunks > 0, "small buffers actually exercise continuation across chunks");
-        Console.WriteLine($"COMBAT_SEARCH chunks={chunks}");
+        Assert(choiceTasks > 0 && assistedTasks > 0,
+            "choice subtrees are dispatched and assisted by other threads inside the same ordered stream");
+        Console.WriteLine($"COMBAT_SEARCH chunks={chunks} choices={choiceTasks} assisted={assistedTasks}");
         SearchCase stopping = GoldenFixtures.Search("qf3-decisions-repeat");
         foreach (string stop in new[] { "cancel", "deadline", "failure" })
         {
@@ -131,7 +138,7 @@ internal static class SearchContracts
             InvalidOperationException injected = new("chunk consumer failure contract");
             BeamOptions options = SearchBudgetPolicy.ApplyRegression(stopping.Options) with
             {
-                SearchThreads = 3, WorkspaceBufferLimitBytes = 64 << 10,
+                SearchThreads = 3, WorkspaceBufferLimitBytes = 64 << 10, ChoiceTaskMinimumChildren = 1,
                 SearchMemoryBudgetBytes = 512L << 20,
                 UnlimitedNodes = true, NodeBudgetActive = true, MaxExpandedNodes = 10000,
                 SoftTimeBudget = TimeSpan.MaxValue, DeadlineExpired = () => Volatile.Read(ref expired) != 0,

@@ -1,8 +1,8 @@
 // First ported from CombatSolver src/UI/SolverActionBar.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
 // Owns footer layout only: the overlay keeps command bindings and the stage rules. One row holds the
-// auto-search switch, the search keys (one key, or 继续搜索 + 重新搜索) and the execute keys (执行本回合 +
-// 执行本场战斗, or 停止执行); the memory bar sits below.
+// search switch and keys as one group, and the execution switch and keys as another. Each group
+// wraps as a unit; the memory bar sits below.
 using Godot;
 
 namespace Sts2Solver;
@@ -20,7 +20,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
     private readonly Button _stop;
     private readonly Control _memory;
 
-    public SolverActionBar(Control autoSearch, Button search, Button restart, Button executeTurn,
+    public SolverActionBar(Control autoSearch, Button search, Button restart, Control autoExecute, Button executeTurn,
         Button executeCombat, Button stop, Control memory)
     {
         Name = "Footer";
@@ -34,9 +34,8 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _stop = stop;
         _memory = memory;
         HFlowContainer actions = CreateFlow("CombatActions");
-        actions.AddChild(autoSearch);
-        actions.AddChild(CreateGroup("SearchKeys", search, restart));
-        actions.AddChild(CreateGroup("ExecuteKeys", executeTurn, executeCombat, stop));
+        actions.AddChild(CreateGroup("SearchKeys", autoSearch, search, restart));
+        actions.AddChild(CreateGroup("ExecuteKeys", autoExecute, executeTurn, executeCombat, stop));
         AddChild(actions);
         _memoryRow = new HBoxContainer { Name = "MemoryRow", MouseFilter = MouseFilterEnum.Pass };
         _memoryRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);

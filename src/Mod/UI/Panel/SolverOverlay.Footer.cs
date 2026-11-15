@@ -20,6 +20,8 @@ internal sealed partial class SolverOverlay
     private SolverActionBar? _actionBar;
     private SolverMemoryBar? _memoryBar;
     private CheckButton? _autoSearchSwitch;
+    private CheckButton? _autoExecuteSwitch;
+    private Control? _autoExecuteGroup;
     private Button? _searchButton;
     private Button? _restartButton;
     private Button? _executeTurnButton;
@@ -27,6 +29,7 @@ internal sealed partial class SolverOverlay
     private Button? _stopButton;
     private readonly Dictionary<Button, (string? Text, SolverButtonStyle Style, string? Tooltip)> _rendered = [];
     private bool _syncingAutoSearchSwitch;
+    private bool _syncingAutoExecuteSwitch;
 
     private Control CreateFooter()
     {
@@ -47,6 +50,22 @@ internal sealed partial class SolverOverlay
         _autoSearchSwitch.Toggled += OnAutoSearchToggled;
         autoSearch.AddChild(_autoSearchSwitch);
 
+        HBoxContainer autoExecute = new()
+        {
+            Name = "AutoExecute",
+            MouseFilter = Control.MouseFilterEnum.Pass,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        autoExecute.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        autoExecute.AddChild(SolverUiTokens.CreateLabel(SolverText.Get("自动执行"), SolverUiTokens.Type.Body,
+            SolverUiTokens.Palette.TextPrimary));
+        _autoExecuteSwitch = SolverSettingsControls.CreateToggle();
+        _autoExecuteSwitch.Name = "AutoExecuteSwitch";
+        _autoExecuteSwitch.ButtonPressed = SolverSettings.Current.Automation.AutoExecute;
+        _autoExecuteSwitch.Toggled += OnAutoExecuteToggled;
+        autoExecute.AddChild(_autoExecuteSwitch);
+        _autoExecuteGroup = autoExecute;
+
         _searchButton = CreateFooterButton("SearchButton", "开始搜索", 112);
         _searchButton.Pressed += OnSearchPressed;
         _restartButton = CreateFooterButton("RestartSearchButton", "重新搜索", 112);
@@ -59,7 +78,7 @@ internal sealed partial class SolverOverlay
         _stopButton.Pressed += OnStopPressed;
 
         _memoryBar = new SolverMemoryBar { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _actionBar = new SolverActionBar(autoSearch, _searchButton, _restartButton, _executeTurnButton,
+        _actionBar = new SolverActionBar(autoSearch, _searchButton, _restartButton, autoExecute, _executeTurnButton,
             _executeCombatButton, _stopButton, _memoryBar);
         return _actionBar;
     }
@@ -78,6 +97,14 @@ internal sealed partial class SolverOverlay
             return;
         bool accepted = CombatUiCommands.Instance.SetAutoSearch(enabled);
         ModLog.Info($"[Sts2Solver] UI_ACTION action=auto_search enabled={enabled} accepted={accepted}");
+    }
+
+    private void OnAutoExecuteToggled(bool enabled)
+    {
+        if (_syncingAutoExecuteSwitch)
+            return;
+        bool accepted = CombatUiCommands.Instance.SetAutoExecute(enabled);
+        ModLog.Info($"[Sts2Solver] UI_ACTION action=auto_execute enabled={enabled} accepted={accepted}");
     }
 
     /// <summary>The left search key: 开始搜索, 停止搜索 or 继续搜索 depending on the stage.</summary>
@@ -120,7 +147,7 @@ internal sealed partial class SolverOverlay
     {
         if (_searchButton == null || _restartButton == null || _executeTurnButton == null
             || _executeCombatButton == null || _stopButton == null || _actionBar == null
-            || _autoSearchSwitch == null)
+            || _autoSearchSwitch == null || _autoExecuteSwitch == null || _autoExecuteGroup == null)
         {
             return;
         }
@@ -130,6 +157,14 @@ internal sealed partial class SolverOverlay
             _autoSearchSwitch.ButtonPressed = snapshot.AutoSearchEnabled;
             _syncingAutoSearchSwitch = false;
         }
+        if (_autoExecuteSwitch.ButtonPressed != snapshot.AutoExecuteEnabled)
+        {
+            _syncingAutoExecuteSwitch = true;
+            _autoExecuteSwitch.ButtonPressed = snapshot.AutoExecuteEnabled;
+            _syncingAutoExecuteSwitch = false;
+        }
+        _autoExecuteSwitch.Disabled = !snapshot.AutoSearchEnabled;
+        _autoExecuteGroup.Modulate = new Color(1f, 1f, 1f, snapshot.AutoSearchEnabled ? 1f : 0.4f);
         SolverFooterState footer = FooterFor(snapshot);
         Apply(_searchButton, footer.Search);
         Apply(_restartButton, footer.Restart);
@@ -222,7 +257,7 @@ internal sealed partial class SolverOverlay
                     ? SolverText.Get("没有可以执行的本回合路线。")
                     : SolverPanelText.SearchBlock(snapshot.SearchBlockReason);
             executeTurn = new(true, SolverText.Get("执行本回合"), SolverButtonStyle.Secondary, !ready,
-                blocked ?? SolverText.Get("只执行当前回合，下一回合等你操作。"));
+                blocked ?? SolverText.Get("执行当前回合。"));
             executeCombat = new(true, SolverText.Get("执行本场战斗"), SolverButtonStyle.Secondary, !ready,
                 blocked ?? (snapshot.CombatRunPaused && snapshot.PauseCode != null
                     ? SolverText.Get("确认这条路线并继续执行，之后每回合自动搜索和执行，直到战斗结束。")

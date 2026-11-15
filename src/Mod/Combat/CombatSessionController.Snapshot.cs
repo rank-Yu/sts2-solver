@@ -78,6 +78,7 @@ internal static partial class CombatSessionController
             Phase = _phase,
             Root = current.Root.Length == 0 ? _testRoot ?? "" : current.Root,
             AutoSearchEnabled = _autoSearch,
+            AutoExecuteEnabled = _autoExecute,
             CombatRunActive = _runCombat,
             CombatRunPaused = _runPaused,
             AutomaticCalculationEnabled = _autoSearch || _runCombat,

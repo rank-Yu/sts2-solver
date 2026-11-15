@@ -46,6 +46,7 @@ internal static partial class CombatSessionController
     private static CompleteProjectionBaseline? _pendingCompleteBaseline;
     /// <summary>The auto-search switch (persisted setting): search at each player turn start.</summary>
     private static bool _autoSearch = true;
+    private static bool _autoExecute;
 
     /// <summary>
     /// 执行本场战斗 is running: every turn is reused or searched and then executed until the combat
@@ -449,6 +450,7 @@ internal static partial class CombatSessionController
     {
         SolverSettingsData settings = SolverSettings.Current;
         _autoSearch = settings.Automation.AutoSearch;
+        _autoExecute = settings.Automation.AutoExecute;
         SearchSession.ConfigureProgress(true, 200);
         ModLog.Info(
             $"[Sts2Solver] CONTROLLER_PROGRESS_CONFIG subscribed={SearchSession.ProgressSubscribed} " +
@@ -546,6 +548,7 @@ internal static partial class CombatSessionController
         _combatStartedAt = Environment.TickCount64;
         SolverSettingsData settings = SolverSettings.Current;
         _autoSearch = settings.Automation.AutoSearch;
+        _autoExecute = settings.Automation.AutoExecute;
         _runCombat = false;
         _runPaused = false;
         _searchedTurn = null;
@@ -1106,8 +1109,9 @@ internal static partial class CombatSessionController
         SolverSettingsData settings = SolverSettings.Current;
         if (_autoSearch != settings.Automation.AutoSearch)
             SetAutoSearch(settings.Automation.AutoSearch, persist: false);
-        else
-            PublishSnapshot();
+        if (_autoExecute != settings.Automation.AutoExecute)
+            SetAutoExecute(settings.Automation.AutoExecute, persist: false);
+        PublishSnapshot();
     }
 
     private static bool IsPlayable(CombatState state, int turn)

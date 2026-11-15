@@ -64,7 +64,7 @@ Test conditions:
 ## Usage
 
 - During a fight the solver panel at the top left shows search progress, the route for the whole fight and the step being executed; you can drag, resize and collapse it.
-- The **Auto-search** switch at the left of the footer searches at the start of every turn; it is on by default and your choice is kept. With a route, press **Play turn** to play this turn only, or **Play combat** to keep searching and playing every turn until the combat ends; stop a running search before playing.
+- **Auto-search** is on by default and searches each turn. **Auto-play** is off by default; enable it to play automatically after a search finishes and continue through later turns. Both switches are saved, and Auto-play requires Auto-search. You can also press **Play turn** or **Play combat** manually. Stopping a search keeps its candidate without playing it; stopping execution switches Auto-play off.
 - If a result differs from the prediction, a death is projected or an action cannot be performed, execution stops at once; press **Search again**, or confirm and press **Play combat** to continue.
 - Unsupported content (for example cards added by other Mods) is rejected instead of being played blindly.
 - It can be installed together with CombatSolver, but let only one of them execute each turn, or they get in each other's way.

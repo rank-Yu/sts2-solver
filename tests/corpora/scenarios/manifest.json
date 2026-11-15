@@ -1640,6 +1640,144 @@
         "settingsTierForTest": "Low",
         "enemyCurrentHp": 200
       }
+    },
+    {
+      "id": "auto_execute_controls",
+      "scenario": "auto_execute_controls",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_full",
+      "scenario": "auto_execute_full",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_stop_search",
+      "scenario": "auto_execute_stop_search",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_disable",
+      "scenario": "auto_execute_disable",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_disable_search",
+      "scenario": "auto_execute_disable_search",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_stop_execution",
+      "scenario": "auto_execute_stop_execution",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "auto_execute_controls_en",
+      "scenario": "auto_execute_controls",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "english": true,
+      "request": {
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false,
+        "settingsTierForTest": "Low",
+        "initialPlayerHp": 500,
+        "initialPlayerMaxHp": 500,
+        "enemyCurrentHp": 160
+      }
+    },
+    {
+      "id": "turn_setup_auto_execute_switch",
+      "scenario": "turn_setup_auto_execute_switch",
+      "group": "turn-setup",
+      "fixture": "ts-knowledge-demon",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_auto_execute_switch_coexist",
+      "scenario": "turn_setup_auto_execute_switch_coexist",
+      "group": "turn-setup",
+      "fixture": "ts-knowledge-demon",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "enemyCurrentHp": 200
+      }
+    },
+    {
+      "id": "turn_setup_auto_execute_switch_stop",
+      "scenario": "turn_setup_auto_execute_switch_stop",
+      "group": "turn-setup",
+      "fixture": "ts-knowledge-demon",
+      "request": {
+        "turnSetupTakeoverForTest": true,
+        "settingsAutoSearchForTest": true,
+        "settingsAutoExecuteForTest": true,
+        "settingsTierForTest": "Low",
+        "enemyCurrentHp": 200
+      }
     }
   ]
 }

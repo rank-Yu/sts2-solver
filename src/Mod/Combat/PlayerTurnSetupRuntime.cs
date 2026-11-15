@@ -702,6 +702,7 @@ internal static class PlayerTurnSetupRuntime
             $"[Sts2Solver] TURN_SETUP_PLAN_READY turn={t.Turn} " +
             $"source=continuation choices={result.SetupChoices.Length} search=false " +
             $"phase={phase} visible=true driving=false");
+        CombatSessionController.ArmAutomaticExecution();
         if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {
@@ -775,6 +776,7 @@ internal static class PlayerTurnSetupRuntime
         }
         if (t.Driving)
             return;
+        CombatSessionController.ArmAutomaticExecution();
         if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {

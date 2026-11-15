@@ -463,6 +463,7 @@ internal static partial class CombatSessionController
             ModLog.Info(
                 $"[Sts2Solver] CONTROLLER_REUSE turn={turn} source_turn={source.StartTurn} " +
                 $"remaining={trimmed.Actions.Length}");
+            ArmAutomaticExecution();
             if (_runCombat)
                 StartFullAutoDeployment(reused);
             else if (deployWhenReady)
@@ -625,6 +626,7 @@ internal static partial class CombatSessionController
             $"projected_hp_lost={result.Outcome.ProjectedBattleHpLost} " +
             $"increase={result.ProjectedBattleHpLossIncrease} adopted={result.Adoption?.Kind.ToString() ?? "-"} " +
             $"resume_merge={run.Outcome.ResumeMerge?.Reason ?? "-"}");
+        ArmAutomaticExecution();
         if (session.DeployWhenReady)
             StartDeployment(result);
         else if (_runCombat)

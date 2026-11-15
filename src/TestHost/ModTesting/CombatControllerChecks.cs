@@ -53,6 +53,28 @@ internal static partial class CombatControllerChecks
             await WaitControllerBeginAsync(host);
             switch (scenario)
             {
+                case "auto_execute_controls":
+                    await AutoExecuteControlsAsync(host, Check, Action);
+                    break;
+                case "auto_execute_full":
+                    await AutoExecuteFullAsync(host, Check, Action);
+                    break;
+                case "auto_execute_stop_search":
+                case "turn_setup_auto_execute_switch_stop":
+                    await AutoExecuteStopSearchAsync(host, Check, Action,
+                        setup: scenario.StartsWith("turn_setup_", StringComparison.Ordinal));
+                    break;
+                case "auto_execute_disable":
+                case "auto_execute_disable_search":
+                case "auto_execute_stop_execution":
+                    await AutoExecuteDisableAsync(host, Check, Action, scenario);
+                    break;
+                case "turn_setup_auto_execute_switch":
+                case "turn_setup_auto_execute_switch_coexist":
+                    await WaitAsync(host, static s => s.CombatRunActive, 2400, "setup auto execution armed");
+                    await TurnSetupFullAsync(host, Check, Action);
+                    Check("auto_execute_enabled", Snapshot().AutoExecuteEnabled);
+                    break;
                 case "manual_start_stop":
                     await ManualStartStopAsync(host, Check, Action);
                     break;
@@ -4245,6 +4267,8 @@ internal static partial class CombatControllerChecks
         ExecuteCombat,
         AutoSearchOn,
         AutoSearchOff,
+        AutoExecuteOn,
+        AutoExecuteOff,
     }
 
     private sealed class SettingsOverride : IDisposable
@@ -4333,11 +4357,12 @@ internal static partial class CombatControllerChecks
                     PanelButton.Execute => ExecuteKey(panel, Snapshot()),
                     PanelButton.ExecuteCombat => panel.ExecuteCombatButtonForTest,
                     PanelButton.AutoSearchOn or PanelButton.AutoSearchOff => panel.AutoSearchSwitchForTest,
+                    PanelButton.AutoExecuteOn or PanelButton.AutoExecuteOff => panel.AutoExecuteSwitchForTest,
                     _ => throw new ArgumentOutOfRangeException(nameof(which)),
                 };
             if (button is Godot.CheckButton toggle && toggle.IsVisibleInTree() && !toggle.Disabled)
             {
-                toggle.ButtonPressed = which == PanelButton.AutoSearchOn;
+                toggle.ButtonPressed = which is PanelButton.AutoSearchOn or PanelButton.AutoExecuteOn;
                 return;
             }
             if (button != null && button.IsVisibleInTree() && !button.Disabled)

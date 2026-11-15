@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "healing-estimate-burst",
+  "characterId": "REGENT",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "HEALESTIMATE",
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 4,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "NOT_YET",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BURST",
+      "pile": "Hand"
+    }
+  ]
+}

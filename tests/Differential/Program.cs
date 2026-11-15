@@ -1151,7 +1151,7 @@ internal static class Program
               dotnet Differential.dll --all --jobs 1..8 --rules-compare
               dotnet Differential.dll --root <name> --config-compare
               dotnet Differential.dll --all --jobs 1..8 --config-compare
-              dotnet Differential.dll --healing-bound-check <request.json> <healing|unknown> [Loadout.dll]
+              dotnet Differential.dll --healing-bound-check <request.json> <healing[/maxHpGain]|estimate:healing[/maxHpGain]|unknown> [Loadout.dll]
               dotnet Differential.dll --native-effect-check <request.json> <command> [command...]
               dotnet Differential.dll --capture-version-root <old-data> <metadata-dir> <output> <root>
               dotnet Differential.dll --root <name> --recapture-root [--out <dir>]

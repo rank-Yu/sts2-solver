@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Policy;
@@ -36,8 +37,8 @@ internal readonly record struct BoundValues(
 /// <summary>
 /// Root-frozen healing-bound tables for Beam and the K5 probe. The bound compiler classifies every admitted
 /// content id with the existing engine's own predicates; evaluation reads only <see cref="Battle"/>
-/// and this table. When a bound input cannot be represented exactly the compiler disables the whole bound,
-/// so the solver never prunes with an approximation.
+/// and this table. Search pruning and victory stopping use the finite healing estimates below;
+/// unresolved replay/generation chains intentionally use a one-play approximation.
 /// </summary>
 internal sealed class BoundFeatures
 {
@@ -105,9 +106,8 @@ internal sealed class BoundFeatures
     public bool PruneEqualHp => _config.PruneEqualHp;
 
     /// <summary>
-    /// The existing engine's <c>CombatPredictionSimulator.HasRisk</c>. Risk is recorded when a generation
-    /// effect leaves the player's choice unresolved (Discovery/Splash) and stays true for the rest of the
-    /// combat, so it maps to one monotonic battle flag.
+    /// Persistent prediction risk, imported from the live tracker or set when the simulated orb
+    /// channel limit is reached. Fully enumerated card choices do not set this flag.
     /// </summary>
     public bool HasRisk(in Battle battle) => (battle.Flags & BattleFlags.HasRisk) != 0;
 
@@ -184,8 +184,7 @@ internal sealed class BoundFeatures
             ? new PruningHealing(int.MaxValue, 0)
             : _config.Certificate switch
             {
-                HealingCertificate.Component => ComponentPruningHealing(battle, rules),
-                HealingCertificate.KnownNative => KnownNativePruningHealing(battle, rules),
+                HealingCertificate.Component or HealingCertificate.KnownNative => EstimateRemainingHealing(battle, rules),
                 _ => new PruningHealing(int.MaxValue, 0),
             };
         long totalHealing = SaturatingAdd(healing.RecoveredHealing, healing.MaxHpGain);
@@ -198,7 +197,7 @@ internal sealed class BoundFeatures
             + battle.Counter(Counter.DeathSavePotionHpRestored);
         // A max-HP gain also moves current HP up by the same amount, so it enlarges the headroom
         // that the ordinary optimistic cap applies to. Keeping it in both the gain and the cap is
-        // deliberately optimistic and therefore safe for a lower bound.
+        // optimistic within the finite-use approximation; omitted future loops can still exceed it.
         long headroom = Math.Max(0, battle.Player.MaxHp - battle.Player.CurrentHp)
             + healing.MaxHpGain;
         int optimisticRecovered = recoveredHp + (int)Math.Min(headroom, futureUsed);
@@ -222,28 +221,15 @@ internal sealed class BoundFeatures
     private static readonly ushort ChosenCheeseRelicId = RelicId("CHOSEN_CHEESE");
     private static readonly ushort DemonTongueRelicId = RelicId("DEMON_TONGUE");
     private static readonly ushort LizardTailRelicId = RelicId("LIZARD_TAIL");
-    private static readonly ushort HandOfGreedCardId = CardId("HAND_OF_GREED");
     private static readonly ushort FairyPotionId = PotionId("FAIRY_IN_A_BOTTLE");
     private static readonly ushort FruitJuicePotionId = PotionId("FRUIT_JUICE");
-    private static readonly ushort[] NotYetLoopCards =
-    [
-        CardId("BURST"), CardId("ECHO_FORM"), CardId("EIDOLON"), CardId("HIDDEN_GEM"),
-        CardId("NIGHTMARE"), CardId("SCULPTING_STRIKE"), CardId("TRANSFIGURE"),
-    ];
-    private static readonly ushort[] NotYetLoopPowers =
-    [
-        PowerId("BURST_POWER"), PowerId("DUPLICATION_POWER"), PowerId("ECHO_FORM_POWER"),
-        PowerId("NIGHTMARE_POWER"),
-    ];
-    private static readonly ushort[] NotYetLoopRelics =
-    [
-        RelicId("BURNING_STICKS"), RelicId("THROWING_AXE"),
-    ];
-    private static readonly ushort[] NotYetLoopPotions = [PotionId("DUPLICATOR")];
-    private static readonly ushort[] NotYetLoopEnchantments =
-    [
-        EnchantmentId("GLAM"), EnchantmentId("SOULS_POWER"), EnchantmentId("SPIRAL"),
-    ];
+    private static readonly ushort BurstCardId = CardId("BURST");
+    private static readonly ushort EchoFormCardId = CardId("ECHO_FORM");
+    private static readonly ushort BurstPowerId = PowerId("BURST_POWER");
+    private static readonly ushort EchoFormPowerId = PowerId("ECHO_FORM_POWER");
+    private static readonly ushort DuplicationPowerId = PowerId("DUPLICATION_POWER");
+    private static readonly ushort DuplicatorPotionId = PotionId("DUPLICATOR");
+    private static readonly ushort EntropicBrewPotionId = PotionId("ENTROPIC_BREW");
 
     private static ushort CardId(string nativeId)
         => Registry.TryCard(nativeId, out ushort id) ? id : ushort.MaxValue;
@@ -257,15 +243,10 @@ internal sealed class BoundFeatures
     private static ushort PowerId(string nativeId)
         => Registry.TryPower(nativeId, out ushort id) ? id : ushort.MaxValue;
 
-    private static ushort EnchantmentId(string nativeId)
-        => Registry.TryEnchantment(nativeId, out ushort id) ? id : ushort.MaxValue;
-
-    private static bool Contains(ushort[] ids, ushort id)
-        => id != ushort.MaxValue && Array.IndexOf(ids, id) >= 0;
-
     /// <summary>
-    /// Root-only certificate for a shared victory target. It includes regeneration potions without
-    /// changing the existing per-state pruning policy. Reusable growth sources remain unbounded.
+    /// Root estimate shared by the portfolio. Finite replay sources are counted directly;
+    /// unresolved copy/generation chains use one play per currently available healing card.
+    /// This is a search-quality approximation, not a proof of the best possible final HP.
     /// </summary>
     internal bool TryVictoryHealing(in Battle battle, Rules rules, out long healing, out long maxHpGain)
     {
@@ -279,30 +260,7 @@ internal sealed class BoundFeatures
             healing = Math.Max(0, _config.FutureHealPotential);
             return true;
         }
-        // These existing pruning estimates count enemy/gold payouts only once. They are not a
-        // certificate for terminating the entire portfolio when enemies or cards can recur.
-        for (int i = 0; i < rules.Relics.Count; i++)
-            if (rules.Relics.Id(i) == BookRepairKnifeRelicId || rules.Relics.Id(i) == DragonFruitRelicId)
-                return false;
-        bool hasFiniteHealCard = false;
-        for (int i = 0; i < battle.CardCount; i++)
-        {
-            ref readonly Card card = ref battle.Cards[i];
-            if (card.Id != NotYetCardId && card.Id != FeedCardId)
-                continue;
-            hasFiniteHealCard = true;
-            if (Piles.PileOf(battle, i, out _) is not (Pile.Hand or Pile.Draw or Pile.Discard))
-                continue;
-            if ((card.Keywords & Keywords.Exhaust) == 0
-                || card.EnchantmentId != 0
-                    && Contains(NotYetLoopEnchantments, (ushort)(card.EnchantmentId - 1)))
-                return false;
-        }
-        if (hasFiniteHealCard && HasNotYetLoopRisk(battle, rules))
-            return false;
-        PruningHealing value = _config.Certificate == HealingCertificate.Component
-            ? ComponentPruningHealing(battle, rules, victoryTarget: true)
-            : KnownNativePruningHealing(battle, rules);
+        PruningHealing value = EstimateRemainingHealing(battle, rules);
         healing = value.RecoveredHealing;
         maxHpGain = value.MaxHpGain;
         if (maxHpGain > 0)
@@ -314,129 +272,12 @@ internal sealed class BoundFeatures
         return healing < int.MaxValue && maxHpGain < int.MaxValue;
     }
 
-    private PruningHealing ComponentPruningHealing(in Battle battle, Rules rules, bool victoryTarget = false)
+    private PruningHealing EstimateRemainingHealing(in Battle battle, Rules rules)
     {
-        if (HasInCombatPotionGeneration(battle, rules))
-            return new PruningHealing(int.MaxValue, 0);
-        for (int index = 0; index < battle.EnemyCount; index++)
-        {
-            if (_config.ComponentUnsafeMonster[battle.Enemies[index].MonsterId])
-                return new PruningHealing(int.MaxValue, 0);
-        }
+        // Detached stolen cards and future returns contribute only if they enter an available pile.
         long directHeal = 0;
         long maxHpGain = 0;
-        bool hasNotYet = HasCard(in battle, NotYetCardId);
-        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle, rules);
-        int cardCount = battle.CardCount;
-        for (int index = 0; index < cardCount; index++)
-        {
-            ref readonly Card card = ref battle.Cards[index];
-            if (card.EnchantmentId != 0 && !_config.SafeEnchantment[card.EnchantmentId - 1])
-                return new PruningHealing(int.MaxValue, 0);
-            if (card.AfflictionId != 0 && !_config.SafeAffliction[card.AfflictionId - 1])
-                return new PruningHealing(int.MaxValue, 0);
-            if (!_config.ComponentUnsafeCard[card.Id])
-                continue;
-            if (card.Id == NotYetCardId)
-            {
-                if (notYetLoopRisk)
-                    return new PruningHealing(int.MaxValue, 0);
-                if (Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
-                    directHeal += CardHealing(rules, in card, 0);
-                continue;
-            }
-            if (card.Id == FeedCardId)
-            {
-                if (Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
-                    maxHpGain += CardHealing(rules, in card, 1);
-                continue;
-            }
-            return new PruningHealing(int.MaxValue, 0);
-        }
-        for (int index = 0; index < rules.Relics.Count; index++)
-        {
-            Relic relic = battle.GetRelic(rules, index);
-            if ((relic.Flags & RelicFlags.Melted) != 0 || !_config.ComponentUnsafeRelic[relic.Id])
-                continue;
-            if (relic.Id == BookRepairKnifeRelicId)
-            {
-                directHeal += SaturatingMultiply(EnemyCount(battle), RelicHealing(rules, relic.Id, 0));
-                continue;
-            }
-            if (relic.Id == DragonFruitRelicId)
-            {
-                if (!TryBoundDragonFruitGain(in battle, rules, relic.Id, out long fruitGain))
-                    return new PruningHealing(int.MaxValue, 0);
-                maxHpGain = SaturatingAdd(maxHpGain, fruitGain);
-                continue;
-            }
-            if (relic.Id is var id
-                && (id == BookOfFiveRingsRelicId || id == DarkstonePeriaptRelicId
-                    || id == ChosenCheeseRelicId || id == DemonTongueRelicId
-                    || id == LizardTailRelicId))
-            {
-                continue;
-            }
-            return new PruningHealing(int.MaxValue, 0);
-        }
-        long regen = 0;
-        for (int index = 0; index < battle.PowerCount; index++)
-        {
-            ref readonly Power power = ref battle.Powers[index];
-            if (victoryTarget && power.Id == _config.RegenPowerId && power.Owner == Limits.PlayerOwner)
-            {
-                regen += Math.Max(0, power.Amount);
-                continue;
-            }
-            if (_config.ComponentUnsafePower[power.Id])
-                return new PruningHealing(int.MaxValue, 0);
-            if (power.Id == _config.RegenPowerId && power.Owner == Limits.PlayerOwner)
-                regen += Math.Max(0, power.Amount);
-            if (power.Id == _config.ReattachPowerId && !ReattachOwnerIsSafe(battle, power.Owner))
-                return new PruningHealing(int.MaxValue, 0);
-        }
-        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
-        {
-            ushort potion = battle.Potions[slot];
-            if (potion == 0)
-                continue;
-            int id = potion - 1;
-            if (id == FairyPotionId)
-                continue;
-            if (victoryTarget && _config.RegenPotion[id])
-            {
-                regen += Math.Max(0, _config.RegenPotionAmount[id]);
-                continue;
-            }
-            if (victoryTarget && _config.DirectHealPotion[id])
-            {
-                directHeal += (long)Math.Ceiling(
-                    battle.Player.MaxHp * _config.DirectHealPotionPercent[id] / 100m);
-                continue;
-            }
-            if (!_config.ComponentUnsafePotion[id] && !_config.RegenPotion[id])
-                continue;
-            if (id == FruitJuicePotionId)
-            {
-                maxHpGain += PotionHealing(rules, (ushort)id, 0);
-                continue;
-            }
-            return new PruningHealing(int.MaxValue, 0);
-        }
-        return new PruningHealing(
-            SaturatingAdd(directHeal,
-                StrategicHpRecoveryBound.RegenerationHealingUpperBound(regen, _config.PostCombatHeal)),
-            maxHpGain);
-    }
-
-    private PruningHealing KnownNativePruningHealing(in Battle battle, Rules rules)
-    {
-        if (HasInCombatPotionGeneration(battle, rules))
-            return new PruningHealing(int.MaxValue, 0);
-        long directHeal = 0;
-        long maxHpGain = 0;
-        bool hasNotYet = HasCard(in battle, NotYetCardId);
-        bool notYetLoopRisk = hasNotYet && HasNotYetLoopRisk(battle, rules);
+        int healingPlays = 0;
         int cardCount = battle.CardCount;
         for (int index = 0; index < cardCount; index++)
         {
@@ -445,10 +286,12 @@ internal sealed class BoundFeatures
                 continue;
             if (card.Id == NotYetCardId)
             {
-                if (notYetLoopRisk)
-                    return new PruningHealing(int.MaxValue, 0);
                 if (Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
-                    directHeal += CardHealing(rules, in card, 0);
+                {
+                    if (healingPlays == 0)
+                        healingPlays = EstimateHealingPlays(battle);
+                    directHeal += CardHealing(rules, in card, 0) * healingPlays;
+                }
                 continue;
             }
             if (card.Id == FeedCardId)
@@ -463,8 +306,6 @@ internal sealed class BoundFeatures
         for (int index = 0; index < battle.PowerCount; index++)
         {
             ref readonly Power power = ref battle.Powers[index];
-            if (_config.SwipePower[power.Id])
-                return new PruningHealing(int.MaxValue, 0);
             if (_config.RegenPower[power.Id] && power.Owner == Limits.PlayerOwner)
                 regen += Math.Max(0, power.Amount);
         }
@@ -480,9 +321,7 @@ internal sealed class BoundFeatures
             }
             if (relic.Id == DragonFruitRelicId)
             {
-                if (!TryBoundDragonFruitGain(in battle, rules, relic.Id, out long fruitGain))
-                    return new PruningHealing(int.MaxValue, 0);
-                maxHpGain = SaturatingAdd(maxHpGain, fruitGain);
+                maxHpGain = SaturatingAdd(maxHpGain, EstimateDragonFruitGain(in battle, rules, relic.Id));
                 continue;
             }
             if (relic.Id is var id
@@ -494,12 +333,18 @@ internal sealed class BoundFeatures
             }
             return new PruningHealing(int.MaxValue, 0);
         }
+        bool hasEntropic = false;
         for (int slot = 0; slot < battle.PotionSlotCount; slot++)
         {
             ushort potion = battle.Potions[slot];
             if (potion == 0)
                 continue;
             int id = potion - 1;
+            if (id == EntropicBrewPotionId)
+            {
+                hasEntropic = true;
+                continue;
+            }
             if (!_config.NativePotion[id])
                 return new PruningHealing(int.MaxValue, 0);
             if (id == FairyPotionId)
@@ -514,235 +359,106 @@ internal sealed class BoundFeatures
             else if (_config.FruitJuicePotion[id])
                 return new PruningHealing(int.MaxValue, 0);
         }
+        if (hasEntropic)
+            EstimateEntropicHealing(battle, rules, ref directHeal, ref maxHpGain, ref regen);
         return new PruningHealing(
             SaturatingAdd(directHeal,
                 StrategicHpRecoveryBound.RegenerationHealingUpperBound(regen, _config.PostCombatHeal)),
             maxHpGain);
     }
 
-    private static bool HasCard(in Battle battle, ushort id)
+    /// <summary>
+    /// One Dragon Fruit payout per currently available gold-generating card and per unmelted
+    /// gold-generating relic. Native sources are Hand of Greed and LuckyFysh. Future copies,
+    /// repeated kills and repeated deck additions are not expanded.
+    /// </summary>
+    private static long EstimateDragonFruitGain(in Battle battle, Rules rules, ushort relicId)
     {
-        if (id == ushort.MaxValue)
-            return false;
+        int payouts = 0;
         for (int index = 0; index < battle.CardCount; index++)
         {
-            if (battle.Cards[index].Id == id)
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// DragonFruit's in-combat MaxHp gain, bounded by the approved Feed-style approximation: every
-    /// live HandOfGreed copy pays at most once. A different content definition that also gains gold
-    /// in combat, or a non-card source such as LuckyFysh returning a stolen card, cannot be bounded
-    /// this way and keeps the whole pruning bound unknown.
-    /// </summary>
-    private static bool TryBoundDragonFruitGain(in Battle battle, Rules rules, ushort relicId,
-        out long maxHpGain)
-    {
-        maxHpGain = 0;
-        // Non-card sources first: a held LuckyFysh can gain gold when SwipePower returns a stolen
-        // card, which is not expressible as one payout per live HandOfGreed copy.
-        for (int index = 0; index < battle.PowerCount; index++)
-        {
-            if (battle.Powers[index].Amount > 0
-                && Registry.Power(battle.Powers[index].Id).GainsGoldInCombat)
-            {
-                return false;
-            }
+            ref readonly Card card = ref battle.Cards[index];
+            if (Registry.Card(card.Id).GainsGoldInCombat
+                && Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
+                payouts++;
         }
         for (int index = 0; index < rules.Relics.Count; index++)
         {
             Relic relic = battle.GetRelic(rules, index);
-            if ((relic.Flags & RelicFlags.Melted) == 0
-                && Registry.Relic(relic.Id).GainsGoldInCombat)
-            {
-                return false;
-            }
+            if ((relic.Flags & RelicFlags.Melted) == 0 && Registry.Relic(relic.Id).GainsGoldInCombat)
+                payouts++;
         }
-        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
-        {
-            ushort potion = battle.Potions[slot];
-            if (potion != 0 && Registry.Potion((ushort)(potion - 1)).GainsGoldInCombat)
-                return false;
-        }
-        for (int index = 0; index < battle.EnemyCount; index++)
-        {
-            if (Registry.Monster(battle.Enemies[index].MonsterId).GainsGoldInCombat)
-                return false;
-        }
-        for (int index = 0; index < battle.OrbCount; index++)
-        {
-            if (Registry.Orb(battle.Orbs[index].Id).GainsGoldInCombat)
-                return false;
-        }
-        int cardCount = battle.CardCount;
-        long perCard = 0;
-        bool perCardLoaded = false;
-        for (int index = 0; index < cardCount; index++)
+        return SaturatingMultiply(payouts, RelicHealing(rules, relicId, 0));
+    }
+
+    // Burst, Echo Form and Duplication each add one execution. Several stacks affect
+    // how many cards receive the replay, not the number of replays of one healing card.
+    // Nightmare, generated cards and exhausted-card retrieval are deliberately not expanded.
+    private static int EstimateHealingPlays(in Battle battle)
+    {
+        bool burst = false, echo = false, duplication = false;
+        for (int index = 0; index < battle.CardCount; index++)
         {
             ref readonly Card card = ref battle.Cards[index];
-            if (!Registry.Card(card.Id).GainsGoldInCombat)
+            if (card.Id != BurstCardId && card.Id != EchoFormCardId)
                 continue;
-            if (card.Id != HandOfGreedCardId)
-                return false;
-            if (Piles.PileOf(battle, index, out _) is Pile.Hand or Pile.Draw or Pile.Discard)
-            {
-                if (!perCardLoaded)
-                {
-                    perCard = RelicHealing(rules, relicId, 0);
-                    perCardLoaded = true;
-                }
-                maxHpGain = SaturatingAdd(maxHpGain, perCard);
-            }
-        }
-        for (int index = 0; index < cardCount; index++)
-        {
-            ref readonly Card card = ref battle.Cards[index];
-            if (card.EnchantmentId != 0
-                && Registry.Enchantment((ushort)(card.EnchantmentId - 1)).GainsGoldInCombat)
-            {
-                return false;
-            }
-            if (card.AfflictionId != 0
-                && Registry.Affliction((ushort)(card.AfflictionId - 1)).GainsGoldInCombat)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// Any effect that can replay, copy, un-exhaust, or auto-play an exhausted care with Not Yet.
-    /// Unknown combinations stay unknown; Feed deliberately ignores these paths because its max-HP
-    /// payout is only a finite approximation requested for this bound.
-    /// </summary>
-    private static bool HasNotYetLoopRisk(in Battle battle, Rules rules)
-    {
-        for (int index = 0; index < battle.CardCount; index++)
-        {
-            ref readonly Card card = ref battle.Cards[index];
-            if (Contains(NotYetLoopCards, card.Id))
-                return true;
-            if (card.Id == NotYetCardId && card.EnchantmentId != 0
-                && Contains(NotYetLoopEnchantments, (ushort)(card.EnchantmentId - 1)))
-            {
-                return true;
-            }
-        }
-        for (int index = 0; index < battle.PowerCount; index++)
-        {
-            if (Contains(NotYetLoopPowers, battle.Powers[index].Id))
-                return true;
-        }
-        for (int index = 0; index < rules.Relics.Count; index++)
-        {
-            if (Contains(NotYetLoopRelics, rules.Relics.Id(index)))
-                return true;
-        }
-        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
-        {
-            ushort potion = battle.Potions[slot];
-            if (potion != 0 && Contains(NotYetLoopPotions, (ushort)(potion - 1)))
-                return true;
-        }
-        // A card-generation source that is not itself classified above can produce one of those
-        // effects later. Random pools and fixed generated ids are both checked; an incomplete
-        // generator audit therefore stays unknown rather than silently assuming one play.
-        for (int index = 0; index < battle.CardCount; index++)
-        {
-            if (ContentCanProduceReplayEffect(Registry.Card(battle.Cards[index].Id)))
-                return true;
-        }
-        for (int index = 0; index < battle.PowerCount; index++)
-        {
-            if (ContentCanProduceReplayEffect(Registry.Power(battle.Powers[index].Id)))
-                return true;
-        }
-        for (int index = 0; index < rules.Relics.Count; index++)
-        {
-            if (ContentCanProduceReplayEffect(Registry.Relic(rules.Relics.Id(index))))
-                return true;
-        }
-        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
-        {
-            ushort potion = battle.Potions[slot];
-            if (potion != 0 && ContentCanProduceReplayEffect(
-                    Registry.Potion((ushort)(potion - 1))))
-            {
-                return true;
-            }
-        }
-        for (int index = 0; index < battle.EnemyCount; index++)
-        {
-            if (ContentCanProduceReplayEffect(Registry.Monster(battle.Enemies[index].MonsterId)))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool ContentCanProduceReplayEffect(ContentDef def)
-    {
-        if (def.GeneratedCardPools.Count > 0)
-            return true;
-        foreach ((string cardId, _) in def.GeneratedCards)
-        {
-            if (Registry.TryCard(cardId, out ushort id)
-                && (id == NotYetCardId || Contains(NotYetLoopCards, id)))
-            {
-                return true;
-            }
-        }
-        foreach (string powerId in def.AppliedPowers)
-        {
-            if (Registry.TryPower(powerId, out ushort id) && Contains(NotYetLoopPowers, id))
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// A in-combat random-potion source can materialize another Fruit Juice (or another direct heal
-    /// potion), so the fruit-juice bound stays unknown whenever one is present. Entropic Brew is also
-    /// covered because its own definition declares out-of-combat potion generation.
-    /// </summary>
-    private static bool HasInCombatPotionGeneration(in Battle battle, Rules rules)
-    {
-        for (int index = 0; index < battle.CardCount; index++)
-        {
-            ContentDef def = Registry.Card(battle.Cards[index].Id);
-            if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
-                return true;
-        }
-        for (int index = 0; index < battle.PowerCount; index++)
-        {
-            ContentDef def = Registry.Power(battle.Powers[index].Id);
-            if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
-                return true;
-        }
-        for (int index = 0; index < rules.Relics.Count; index++)
-        {
-            ContentDef def = Registry.Relic(rules.Relics.Id(index));
-            if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
-                return true;
-        }
-        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
-        {
-            ushort potion = battle.Potions[slot];
-            if (potion == 0)
+            if (Piles.PileOf(battle, index, out _) is not (Pile.Hand or Pile.Draw or Pile.Discard))
                 continue;
-            ContentDef def = Registry.Potion((ushort)(potion - 1));
-            if (def.GeneratesRandomPotion || def.GeneratesOutOfCombatPotion)
-                return true;
+            burst |= card.Id == BurstCardId;
+            echo |= card.Id == EchoFormCardId;
         }
-        return false;
+        for (int index = 0; index < battle.PowerCount; index++)
+        {
+            ref readonly Power power = ref battle.Powers[index];
+            if (power.Owner != Limits.PlayerOwner || power.Amount <= 0)
+                continue;
+            burst |= power.Id == BurstPowerId;
+            echo |= power.Id == EchoFormPowerId;
+            duplication |= power.Id == DuplicationPowerId;
+        }
+        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
+            duplication |= battle.Potions[slot] == DuplicatorPotionId + 1;
+        return 1 + (burst ? 1 : 0) + (echo ? 1 : 0) + (duplication ? 1 : 0);
+    }
+
+    // Forecast the currently held brews in slot order, with current free slots and RNG.
+    // Generated brews and future Alchemize/copy chains are not recursively expanded.
+    // The original state/RNG never changes; actual potion execution remains exact.
+    [SkipLocalsInit]
+    private void EstimateEntropicHealing(in Battle battle, Rules rules,
+        ref long directHeal, ref long maxHpGain, ref long regen)
+    {
+        Unsafe.SkipInit(out Battle preview);
+        Battle.CopyPacked(in battle, ref preview);
+        for (int slot = 0; slot < battle.PotionSlotCount; slot++)
+        {
+            if (battle.Potions[slot] != EntropicBrewPotionId + 1)
+                continue;
+            preview.Potions[slot] = 0;
+            for (int count = 0; count < battle.PotionSlotCount; count++)
+            {
+                bool open = false;
+                for (int i = 0; i < preview.PotionSlotCount; i++)
+                    open |= preview.Potions[i] == 0;
+                if (!open)
+                    break;
+                ushort id = Kernel.GenerateRandomPotionOutOfCombat(ref preview, rules);
+                if (!Kernel.TryProcurePotion(ref preview, rules, id, freeFromEntropic: true))
+                    break;
+                if (_config.RegenPotion[id])
+                    regen += Math.Max(0, _config.RegenPotionAmount[id]);
+                else if (_config.DirectHealPotion[id])
+                    directHeal += (long)Math.Ceiling(
+                        battle.Player.MaxHp * _config.DirectHealPotionPercent[id] / 100m);
+                else if (id == FruitJuicePotionId)
+                    maxHpGain += PotionHealing(rules, id, 0);
+            }
+        }
     }
 
     /// <summary>
-    /// Every currently known enemy slot, including a corpse that can still revive. Counting all slots
-    /// is an upper bound on the future Book Repair Knife payouts; each slot is still counted once.
+    /// One Book Repair Knife payout per currently known enemy slot, including revivable corpses.
+    /// Future summons and repeated revivals are outside this estimate.
     /// </summary>
     private static long EnemyCount(in Battle battle) => battle.EnemyCount;
 
@@ -837,7 +553,8 @@ internal sealed class BoundFeatures
             if (_config.KnownBlockingCard[battle.Cards[index].Id])
                 return int.MaxValue;
         }
-        // Pending returning cards are not representable; a SwipePower's stolen NotYet/Feed is unknown.
+        // K5 comparison retains the original unknown classification for SwipePower.
+        // Search pruning and victory targets use the available-pile estimate instead.
         long regen = 0;
         for (int index = 0; index < battle.PowerCount; index++)
         {

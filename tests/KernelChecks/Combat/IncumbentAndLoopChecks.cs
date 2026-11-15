@@ -26,6 +26,7 @@ internal static class IncumbentAndLoopChecks
             $"route turn-progress metadata must stay within 16 bytes, actual={BeamSolver.TurnProgressStateSize}");
         CheckPruningBounds(fixtureRules);
         CheckVictoryTargets();
+        CheckEntropicHealing();
         CheckLoopGuard();
         CheckCrossTurnCut();
         Console.WriteLine("INCUMBENT_AND_LOOP contracts=pass");
@@ -86,13 +87,29 @@ internal static class IncumbentAndLoopChecks
                 "live Feed must count one max-HP payout");
 
             Battle replay = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Hand), (burst, 0, Pile.Hand)]);
-            Assert(bound.PruningStrategicHpLowerBound(in replay, rules) == -20,
-                "a replay source must keep Not Yet unknown");
+            Assert(bound.PruningStrategicHpLowerBound(in replay, rules) == 0,
+                "Burst estimates two executions of each available Not Yet");
+
+            foreach (string source in new[] { "NIGHTMARE", "ALCHEMIZE", "DISCOVERY" })
+            {
+                Battle complex = PruningBattle(ref rules,
+                    cards: [(notYet, 0, Pile.Hand), (CardId(source), 0, Pile.Hand)]);
+                Assert(bound.PruningStrategicHpLowerBound(in complex, rules) == 10,
+                    source + " must not expand future healing copies or potions");
+            }
+            Battle echo = PruningBattle(ref rules,
+                cards: [(notYet, 0, Pile.Hand), (CardId("ECHO_FORM"), 0, Pile.Hand)]);
+            Assert(bound.PruningStrategicHpLowerBound(in echo, rules) == 0,
+                "Echo Form counts one extra execution");
+            Battle spentBurst = PruningBattle(ref rules,
+                cards: [(notYet, 0, Pile.Hand), (burst, 0, Pile.Exhaust)]);
+            Assert(bound.PruningStrategicHpLowerBound(in spentBurst, rules) == 10,
+                "a spent replay source does not increase the estimate");
 
             Battle retrieved = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Exhaust)]);
             TestRelics.Set(ref retrieved, ref rules, new Relic { Id = burningSticks });
-            Assert(bound.PruningStrategicHpLowerBound(in retrieved, rules) == -20,
-                "a source that can return an exhausted Not Yet must keep it unknown");
+            Assert(bound.PruningStrategicHpLowerBound(in retrieved, rules) == 20,
+                "future exhausted-card retrieval is outside the healing estimate");
 
             Battle fruitBattle = PruningBattle(ref rules, potions: [fruit]);
             Assert(bound.PruningStrategicHpLowerBound(in fruitBattle, rules) == 15,
@@ -115,8 +132,49 @@ internal static class IncumbentAndLoopChecks
                 "every live Hand of Greed copy pays once");
             Battle luckyBattle = PruningBattle(ref rules, relics: [dragonFruit, luckyFysh],
                 cards: [(handOfGreed, 0, Pile.Hand)]);
-            Assert(bound.PruningStrategicHpLowerBound(in luckyBattle, rules) == -20,
-                "LuckyFysh's in-combat gold gain cannot be bounded by Hand of Greed copies");
+            Assert(bound.PruningStrategicHpLowerBound(in luckyBattle, rules) == 18,
+                "Hand of Greed and LuckyFysh each budget one Dragon Fruit payout");
+            Assert(bound.TryVictoryHealing(luckyBattle, rules, out long luckyHeal, out long luckyGain)
+                && luckyHeal == 0 && luckyGain == 2,
+                "gold sources use the same finite estimate for victory stopping");
+            Battle luckyOnly = PruningBattle(ref rules, relics: [dragonFruit, luckyFysh]);
+            Assert(bound.PruningStrategicHpLowerBound(in luckyOnly, rules) == 19,
+                "LuckyFysh alone budgets one payout, not a full-HP fallback");
+            TestRelics.Set(ref luckyOnly, ref rules, new Relic { Id = dragonFruit },
+                new Relic { Id = luckyFysh, Flags = RelicFlags.Melted });
+            Assert(bound.PruningStrategicHpLowerBound(in luckyOnly, rules) == 20,
+                "a melted gold source contributes nothing");
+
+            Registry.TryPower("SWIPE_POWER", out ushort swipe);
+            bound.ConfigForCodec.SwipePower[swipe] = true;
+            Battle stolen = PruningBattle(ref rules, cards: [(notYet, 0, Pile.Draw)]);
+            stolen.Cards[0].Flags |= CardFlags.DeckCard;
+            stolen.RngStream(RngStream.CombatCardSelection) = RngState.FromSerializable(0, 1, 2, 3, 4);
+            Assert(bound.TryVictoryHealing(stolen, rules, out long beforeTheft, out _)
+                && beforeTheft == 10, "available healing counts before theft");
+            Exec theft = new(ref stolen, rules, PlayerAction.EndTurn());
+            Kernel.StealCardForThievery(ref theft, Limits.FirstEnemyOwner);
+            Assert(stolen.CardCount == 0 && stolen.Counter(Counter.OutstandingStolenCards) == 1,
+                "the real theft effect removes the heal into detached storage");
+            Assert(bound.TryVictoryHealing(stolen, rules, out long afterTheft, out _)
+                && afterTheft == 0 && !bound.EvaluatePruning(stolen, rules).RemainingUnknown,
+                "a stolen heal decreases the estimate instead of making it unknown");
+            Registry.TryPower("REGEN_POWER", out ushort regen);
+            bound.ConfigForCodec.RegenPower[regen] = true;
+            stolen.Powers[stolen.PowerCount++] = new Power
+                { Id = regen, Owner = Limits.PlayerOwner, Amount = 3 };
+            Assert(bound.TryVictoryHealing(stolen, rules, out long otherHealing, out _)
+                && otherHealing == 6, "theft does not disable other healing sources");
+            Piles.Append(ref stolen, Pile.Exhaust, new Card
+                { Id = notYet, ReturnToHandNextTurn = true });
+            Assert(bound.TryVictoryHealing(stolen, rules, out long pending, out _) && pending == 6,
+                "a future return from exhaust is not prepaid");
+            Card returned = Piles.At(ref stolen, Pile.Exhaust, 0);
+            Piles.RemoveAt(ref stolen, Pile.Exhaust, 0);
+            returned.ReturnToHandNextTurn = false;
+            Piles.Append(ref stolen, Pile.Hand, returned);
+            Assert(bound.TryVictoryHealing(stolen, rules, out long availableAgain, out _)
+                && availableAgain == 16, "a card entering an available pile contributes again");
         }
     }
 
@@ -182,12 +240,12 @@ internal static class IncumbentAndLoopChecks
 
             Battle repeatable = Root(true);
             repeatable.Cards[1].Keywords = Keywords.None;
-            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([repeatable]).EffectiveHpDeficit is null,
-                "removing Exhaust invalidates a one-use healing ceiling");
+            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([repeatable]).EffectiveHpDeficit == -10,
+                "repeatable healing uses one play per available card");
             Battle copy = Root(true);
             Piles.Append(ref copy, Pile.Hand, new Card { Id = CardId("BURST"), BaseCost = 1, BaseStarCost = -1 });
-            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([copy]).EffectiveHpDeficit is null,
-                "replaying an Exhaust heal invalidates the one-use ceiling");
+            Assert(new BeamSolver(rules, options).PrepareVictoryTarget([copy]).EffectiveHpDeficit == -20,
+                "Burst adds one finite healing execution");
         }
 
         Battle capped = Root(true);
@@ -201,8 +259,8 @@ internal static class IncumbentAndLoopChecks
             "an already exhausted heal contributes no remaining recovery");
         Registry.TryRelic("BURNING_STICKS", out ushort sticks);
         TestRelics.Set(ref exhausted, ref rules, new Relic { Id = sticks });
-        Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit is null,
-            "an exhausted healing card that can return remains unbounded");
+        Assert(new BeamSolver(rules, Options(1)).PrepareVictoryTarget([exhausted]).EffectiveHpDeficit == 0,
+            "future exhausted-card retrieval does not inflate the root target");
 
         BoundFeatures.Config postConfig = BaseConfig(HealingCertificate.Component, [heal, CardId("FEED")],
             [lizard, dragon], fairy, fruit, postCombatHeal: 6);
@@ -255,10 +313,70 @@ internal static class IncumbentAndLoopChecks
             with { Potions = allowed }).PrepareVictoryTarget([two]);
         Assert(stacked.EffectiveHpDeficit == -34 && stacked.StrategicHpDeficit == -40,
             "stack regeneration before ticking, cap at full HP, and price both bottles together");
-        Assert(potionConfig.Enabled && new BoundFeatures(potionConfig).EvaluatePruning(potionRoot, rules).RemainingUnknown,
-            "adding a victory target must not change the existing regeneration pruning policy");
+        Assert(potionConfig.Enabled && !new BoundFeatures(potionConfig).EvaluatePruning(potionRoot, rules).RemainingUnknown,
+            "regeneration has a finite estimate for both pruning and victory stopping");
     }
 
+
+    private static void CheckEntropicHealing()
+    {
+        ushort Potion(string name)
+        {
+            Assert(Registry.TryPotion(name, out ushort id), "missing " + name);
+            return id;
+        }
+        ushort brew = Potion("ENTROPIC_BREW");
+        ushort blood = Potion("BLOOD_POTION");
+        ushort amber = Potion("AMBERGRIS");
+        ushort regen = Potion("REGEN_POTION");
+        ushort fruit = Potion("FRUIT_JUICE");
+        RulesDraft draft = new() { BaseMaxEnergy = 3, HasEncounter = true };
+        foreach ((ushort id, PotionRarity rarity) in new[]
+            { (brew, PotionRarity.Rare), (blood, PotionRarity.Common),
+              (amber, PotionRarity.Rare), (regen, PotionRarity.Uncommon), (fruit, PotionRarity.Rare) })
+            draft.SetPotion(id, new PotionStats
+            {
+                Target = TargetType.Self, Rarity = rarity, StrategicCost = 0,
+                Vars = id == fruit ? [5m] : [], VarProps = id == fruit ? [ValueProps.None] : [],
+            });
+        draft.SetOutOfCombatPotionPool([blood, amber, regen, fruit]);
+        draft.SetRootPotion(0, brew);
+        Rules rules = draft.Build();
+        BoundFeatures.Config config = BaseConfig(HealingCertificate.KnownNative, [], [],
+            Potion("FAIRY_IN_A_BOTTLE"),
+            Potion("FRUIT_JUICE"));
+        config.DirectHealPotion[blood] = config.DirectHealPotion[amber] = true;
+        config.DirectHealPotionPercent[blood] = 20;
+        config.DirectHealPotionPercent[amber] = 50;
+        config.RegenPotion[regen] = true;
+        config.RegenPotionAmount[regen] = 5;
+        BoundFeatures bound = new(config);
+        for (ulong seed = 1; seed <= 32; seed++)
+        {
+            Battle root = NewBattle(10, 100, 100, 3);
+            root.PotionSlotCount = 3;
+            root.Potions[0] = (ushort)(brew + 1);
+            root.RngStream(RngStream.NonCombatGeneration) = RngState.FromSeed(seed);
+            Battle original = root;
+            Assert(bound.TryVictoryHealing(root, rules, out long predicted, out long gain), "Entropic has a finite current-RNG healing estimate");
+            Assert(BattleCodec.Encode(root, rules.Relics).AsSpan().SequenceEqual(BattleCodec.Encode(original, rules.Relics)),
+                "healing prediction must not consume RNG or modify the root");
+            Battle actual = root;
+            Kernel.Step(ref actual, PlayerAction.UsePotion(0, Limits.NoOwner), rules, out _);
+            long direct = 0, stacks = 0, maxHp = 0;
+            for (int slot = 0; slot < actual.PotionSlotCount; slot++)
+            {
+                ushort id = (ushort)(actual.Potions[slot] - 1);
+                if (id == blood) direct += 20;
+                else if (id == amber) direct += 50;
+                else if (id == regen) stacks += 5;
+                else if (id == fruit) maxHp += 5;
+                else throw new InvalidDataException("Unexpected generated potion");
+            }
+            Assert(predicted == direct + stacks * (stacks + 1) / 2 && gain == maxHp,
+                "Entropic healing preview matches actual generated potions and stacked regeneration");
+        }
+    }
     private static Rules BuildBoundRules(Rules fixtureRules, ushort notYet, ushort feed, ushort fruit,
         ushort dragonFruit)
     {

@@ -31,7 +31,7 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 使用版本 10（`Codec.FormatVersion`）；`SREQ` 使用请求版本 12，`SRES` 使用结果版本 6。遗物内部编号表包含拇指夹；新增内容导致编号变化时也必须升级格式，避免读取成另一件遗物。读取器只接受对应的当前版本，其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 使用版本 11（`Codec.FormatVersion`）；`SREQ` 使用请求版本 12，`SRES` 使用结果版本 6。遗物内部编号表包含拇指夹、讲述者和黑曜石钳子；新增内容导致编号变化时也必须升级格式，避免读取成另一件遗物。读取器只接受对应的当前版本，其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
@@ -199,7 +199,7 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 1. 有意改变内核语义或搜索行为，而不是为了让测试通过；
 2. 有实机或明确的游戏证据支持这次改变；
-3. 经用户同意，并在同一提交中更新数据文件和 `manifest.json`；
+3. 取得实机证据，并在同一提交中更新数据文件和 `manifest.json`；
 4. 提交说明写清变更原因、影响范围（哪些根变了）以及新旧计数。
 
 不允许：

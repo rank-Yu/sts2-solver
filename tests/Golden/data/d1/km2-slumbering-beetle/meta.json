@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "km2-slumbering-beetle",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-slumbering-beetle.json\u0022}",
-  "rulesSha256": "1c39eee7dd3e41527e4940989771a6fd626c8ce5fe174014890d7ea43554a683",
+  "rulesSha256": "425832c3249bfd332fe2057cedac21503f6ac1f901f2a126be80795fdc9f3cda",
   "counts": {
     "roots": 1,
     "k1": 13,

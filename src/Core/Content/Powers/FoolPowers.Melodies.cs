@@ -1,4 +1,4 @@
-// Native game 0.113.0 (16ac0fe3).
+// Native game 0.113.0 (16ac0fe3); Stretch reviewed against 0.113.1 (d09d48e5).
 using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Content.Powers;
 
@@ -13,7 +13,7 @@ public sealed class StretchPower : FoolBuff
 {
     public override void BeforeCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
-        if (self.Owner != Limits.PlayerOwner || !x.R.Card(play.Card.Id, play.Card.Upgrade).GainsBlock
+        if (self.Owner != Limits.PlayerOwner || !GainsBlock(x.R, play.Card)
             || x.B.Powers[self.Index].Aux0 != 0) return;
         ref Power power = ref x.B.Powers[self.Index];
         power.Aux0 = x.PlayIdentity;
@@ -25,17 +25,19 @@ public sealed class StretchPower : FoolBuff
     {
         if (!block.HasCardSource || self.Owner != Limits.PlayerOwner
             || !block.Props.IsPoweredAttack()) return 0;
-        ref readonly Power power = ref x.B.Powers[self.Index];
-        if (power.Aux0 == 0) return x.PlayIdentity == 0 ? power.Amount : 0;
-        return power.Aux0 == x.PlayIdentity && Math.Abs(power.AmountOnTurnStart) == x.PlayIndex + 1
-            ? power.Amount : 0;
+        ref Power power = ref x.B.Powers[self.Index];
+        if (power.Aux0 == 0)
+            return x.PlayIdentity == 0 && GainsBlock(x.R, block.CardSource) ? power.Amount : 0;
+        if (power.Aux0 != x.PlayIdentity || Math.Abs(power.AmountOnTurnStart) != x.PlayIndex + 1)
+            return 0;
+        // Native records gaveBonusBlock here, even when the final block amount becomes zero.
+        power.AmountOnTurnStart = -Math.Abs(power.AmountOnTurnStart);
+        return power.Amount;
     }
 
-    public override void AfterModifyingBlockAmount(ref Exec x, Listener self, decimal modified, in BlockContext block)
-    {
-        if (x.B.Powers[self.Index].Aux0 == x.PlayIdentity && x.PlayIdentity != 0)
-            x.B.Powers[self.Index].AmountOnTurnStart = -Math.Abs(x.B.Powers[self.Index].AmountOnTurnStart);
-    }
+    private static bool GainsBlock(Rules rules, in Card card)
+        => rules.Card(card.Id, card.Upgrade).GainsBlock
+            || card.EnchantmentId != 0 && Registry.Enchantment((ushort)(card.EnchantmentId - 1)).GainsBlock;
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {

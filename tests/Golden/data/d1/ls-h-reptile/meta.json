@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "ls-h-reptile",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-h-reptile.json\u0022}",
-  "rulesSha256": "516d9e7da681d8d767c276a5929a613beee4647b10d3bf751d8a0b07e581cd29",
+  "rulesSha256": "65f244c081f82bf472ea9b59906c36d7d6b2880c04068bee3392f0ef341c05ac",
   "counts": {
     "roots": 1,
     "k1": 3,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "p8-a-counters",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p8-a-counters.json\u0022}",
-  "rulesSha256": "a205e18cbdd25a930ef0340b8e71c993757e38882ff3de1359aa461dc54367fc",
+  "rulesSha256": "8219ef57837a34f3307f6ee9e6f7946d1af8352f941c1365bba939bc6e6589d8",
   "counts": {
     "roots": 1,
     "k1": 17,

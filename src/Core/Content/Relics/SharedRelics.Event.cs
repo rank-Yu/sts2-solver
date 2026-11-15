@@ -1,3 +1,5 @@
+// ObsidianVice adapted from sparkbarry/sts2-solver src/Core/Content/Relics/SharedRelics.Event.cs
+// at ee429581fd7ee914bccc5b0c918d5ce8c2e6de4b (MIT; Copyright (c) 2026 rank-Yu; contribution by sparkbarry).
 using Sts2Solver.Content.Powers;
 using Sts2Solver.Simulation.Combat;
 
@@ -350,6 +352,33 @@ public sealed class RoyalPoison : RelicDef
         targets[0] = Limits.PlayerOwner;
         Kernel.Damage(ref x, targets, 4m, ValueProps.Unblockable | ValueProps.Unpowered, Limits.NoOwner,
             hasCardSource: false, default);
+    }
+}
+
+/// <summary>
+/// <c>ObsidianVice</c>（对照游戏 v0.113.1 的 ObsidianVice.cs）：<c>BeforeSideTurnEnd</c> 在参与者含持有者、
+/// 手牌数 N &gt; 0 时，用 CombatTargets 流从可命中的敌人里随机选一个，由玩家造成 Damage × N 点
+/// Unpowered 伤害；没有可命中的敌人时什么也不做，也不消耗随机数。
+/// </summary>
+[ContentId("OBSIDIAN_VICE")]
+public sealed class ObsidianVice : RelicDef
+{
+    public override IReadOnlyList<string> VarNames => ["Damage"];
+
+    public override void BeforeSideTurnEnd(ref Exec x, Listener self, Side side, ushort participants)
+    {
+        if (!Kernel.Participates(participants, self.Owner))
+            return;
+        int handCount = x.B.HandCount;
+        if (handCount == 0)
+            return;
+        byte target = Kernel.RandomHittableEnemy(ref x.B);
+        if (target == Limits.NoOwner)
+            return;
+        Span<byte> targets = stackalloc byte[1];
+        targets[0] = target;
+        Kernel.Damage(ref x, targets, x.R.RelicVar(Id, 0) * handCount, ValueProps.Unpowered,
+            Limits.PlayerOwner, hasCardSource: false, default);
     }
 }
 

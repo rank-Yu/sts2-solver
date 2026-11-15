@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "healing-estimate-stolen",
+  "characterId": "REGENT",
+  "encounterId": "THIEVING_HOPPER_WEAK",
+  "seed": "HEALESTIMATE",
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 4,
+  "enemyCurrentHp": 60,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "NOT_YET",
+      "pile": "Draw",
+      "treatAsDeckCard": true
+    }
+  ],
+  "initialEnemyMoveIds": [
+    "THIEVERY_MOVE"
+  ],
+  "initialPlayerBlock": 30,
+  "theftPolicyForTest": "LetEscape",
+  "flashPrefixActions": [
+    "EndTurn"
+  ]
+}

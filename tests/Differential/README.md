@@ -68,6 +68,27 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-x2.json play:0:255 end
 ```
 
+## 伸展与遗物回归
+
+v0.113.1 的伸展同时识别牌本身与灵巧附魔提供的格挡；出牌结束时只消耗本次出牌开始前的层数。定点对照覆盖无旋律牌组、Ki Hop、牌本体和附魔各获得格挡、重放以及格挡被压到零：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-stretch-adroit.json play:0:2 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-stretch-adroit-ki-hop.json play:0:2 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-stretch-adroit-block.json play:0:255 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-stretch-adroit-replay.json play:0:255 play:0:255 play:0:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-stretch-zero-block.json play:0:255 play:0:255
+```
+
+讲述者在玩家回合末增加瞄准，开局效果由原版建立后导入；黑曜石钳子在弃牌前按手牌数对随机可命中敌人造成非强化伤害。以下用例核对开局、连续回合、目标随机流和空手牌：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-storyteller.json end end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-storyteller-opening.json end end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-obsidian-vice.json end end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-obsidian-vice-empty.json end
+```
+
 ## 恐惧开战与多实例炸弹回归
 
 [灵魂鱼领域开局](fixtures/dread-soul-fysh-start.json)保留原版开局，并通过正式控制器执行整场战斗。必须使用游戏宿主：控制器在领域生成 Beckon 之前编译规则，离线宿主从可出牌状态编译规则不能检出此遗漏。
@@ -277,17 +298,20 @@ dotnet artifacts/bin/Differential/release/Differential.dll --combat-pilot-compar
 
 请求 DTO 只覆盖冻结输入、生成场景规格与评估政策实际用到的字段，其中包括会影响政策的覆盖项（`growthBudgets`、`ignoreGrowthRewards`、两个 Boss 策略、`theftPolicyForTest`、`potionDefaultModeForTest`、`potionDirectivesForTest`、`act3BossStrategyForTest`）。未知字段和不支持的搜索或部署取值都显式失败。
 
-## 回血上限与提前停止
+## 回血估算与提前停止
 
-原版根测试覆盖回血上限、未知回调拒绝及完整胜利路线的逐动作核对：
+原版根测试覆盖有限回血估算、忽略外部回调的策略及完整胜利路线的逐动作核对：
 
 ```bash
 dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/fool-wounded-healing-stop.json 0
 dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/fool-component-healing.json 0
 dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/corpora/fixtures/vg1-regeneration.json 21
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/healing-estimate-burst.json 20
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/healing-estimate-stolen.json estimate:0
+dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check tests/Differential/fixtures/healing-estimate-dragon-fruit.json estimate:0/2
 ```
 
-第二个参数是含战后回血的剩余回血上限；传入 `unknown` 检查不可定界来源。末尾可传入当前已审计的 `Loadout.dll` 路径，测试无治疗回调正常认证、非空召唤能力配置保持未知。测试只在独立宿主内注册回调与修改临时状态。
+场景含动作前缀时，先逐动作核对原生执行，再从执行后的游戏状态导入根。第二个参数是含战后回血的剩余回血估算，可用 `回血量/最大生命增量` 同时检查最大生命收益；`estimate:数值` 只核对估算，适用于其它资源目标阻止按血量停搜的场景；传入 `unknown` 检查因成长等政策或未覆盖来源而不设置目标的情况。末尾可传入 `Loadout.dll` 路径，测试外部回调及其召唤能力配置不会改变原版回血估算。测试只在独立宿主内注册回调与修改临时状态。
 
 
 ## 原生随机动作对照

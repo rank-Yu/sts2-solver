@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "ts-a-toasty",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ts-a-toasty.json\u0022}",
-  "rulesSha256": "2c159def751fd535ed370d5e5308ea10ef988ecf5569d525158d01d8435fc879",
+  "rulesSha256": "669f0482ba11045010b18077b2b8ad8f461ca7df9537ba01ba984cd063bb7520",
   "counts": {
     "roots": 5,
     "k1": 53,

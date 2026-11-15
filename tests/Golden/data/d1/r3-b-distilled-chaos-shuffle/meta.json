@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "r3-b-distilled-chaos-shuffle",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r3-b-distilled-chaos-shuffle.json\u0022}",
-  "rulesSha256": "b05821aa55b4a8f8a0be0e488dadf62384d2c1b9fe83e18e3371a5b07eea1262",
+  "rulesSha256": "6c3ea69aa8040e535f69cf99139f7ed384429afcc015118fb2f45b3b0060dbde",
   "counts": {
     "roots": 1,
     "k1": 10,

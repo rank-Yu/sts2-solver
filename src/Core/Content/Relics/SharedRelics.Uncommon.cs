@@ -302,8 +302,8 @@ public sealed class LastingCandy : RelicDef;
 
 /// <summary>
 /// <c>LuckyFysh</c>: <c>AfterCardChangedPiles</c> gains 15 gold when a card enters the deck. The only
-/// in-combat deck addition is SwipePower returning a stolen card, which the kernel does not mirror
-/// (<c>GainsGoldInCombat</c> keeps DragonFruit's pruning gain unbounded whenever LuckyFysh is held).
+/// in-combat deck addition is SwipePower returning a stolen card, which the kernel does not mirror.
+/// The healing estimate budgets one DragonFruit payout for this relic, without expanding returns.
 /// </summary>
 [ContentId("LUCKY_FYSH")]
 public sealed class LuckyFysh : RelicDef

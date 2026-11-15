@@ -77,15 +77,12 @@ internal static class BoundCompiler
         PostCombatRelicHealProfile postCombat = ScoreCompiler.CompilePostCombatRelicHeal(player);
         bool component = ComponentCertificate(state, player);
         bool knownNative = KnownNativeCertificate(state, player);
-        bool canCertify = component || EnvironmentCertificate(state, player);
+        bool canCertify = component || !knownNative && EnvironmentCertificate(state, player);
         string? disabled = DisabledReason(policy, root, canCertify, component);
         if (disabled != null)
             return Disabled(disabled);
 
         bool regenPotion = component && HasRegenPotion(player);
-        if (HasSwipePower(state))
-            return Disabled("swipe_power");
-
         HealingCertificate certificate = component
             ? HealingCertificate.Component
             : knownNative
@@ -140,8 +137,6 @@ internal static class BoundCompiler
             return "growth_rewards";
         if ((root.Flags & BattleFlags.HasRisk) != 0)
             return "root_risk";
-        if (HasPendingReturningCards(root))
-            return "pending_returning_cards";
         if (canCertify && !component)
             return "remaining_certificate";
         return null;
@@ -180,16 +175,6 @@ internal static class BoundCompiler
         RegenPowerId = -1,
         ReattachPowerId = -1,
     };
-
-    private static bool HasPendingReturningCards(in Battle root)
-    {
-        for (int index = 0; index < root.CardCount; index++)
-        {
-            if (root.Cards[index].ReturnToHandNextTurn)
-                return true;
-        }
-        return false;
-    }
 
     private static int GrowthRewardTotal(in Battle root)
     {
@@ -312,7 +297,7 @@ internal static class BoundCompiler
                 && !UnsafePotions[potionId],
             CccComboModel or DebufferModel or MultiplayerScalingModel => true,
             _ when HealingSourceAudit.IsNonHealingModeSource(source) => true,
-            _ when HealingSourceAudit.IsNonHealingSubscriber(source) => true,
+            _ when !NativeAccess.IsOriginal(source) => true,
             _ => false,
         };
         return ok;
@@ -413,11 +398,6 @@ internal static class BoundCompiler
                 "玩家没有 PlayerCombatState");
         if (!NativeAccess.IsOriginal(player.Character))
             return false;
-        foreach (AbstractModel listener in RootHookListeners(state))
-        {
-            if (!NativeAccess.IsOriginal(listener) && !HealingSourceAudit.IsNonHealingSubscriber(listener))
-                return false;
-        }
         foreach (Creature enemy in state.Enemies)
         {
             if (enemy.Monster is not { } monster || !NativeAccess.IsOriginal(monster))
@@ -538,17 +518,6 @@ internal static class BoundCompiler
             {
                 return true;
             }
-        }
-        return false;
-    }
-
-    private static bool HasSwipePower(CombatState state)
-    {
-        bool[] swipe = SwipePowers;
-        foreach (PowerModel power in EffectivePowers(state))
-        {
-            if (Registry.TryPower(power.Id.Entry, out ushort id) && swipe[id])
-                return true;
         }
         return false;
     }

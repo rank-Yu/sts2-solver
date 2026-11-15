@@ -136,7 +136,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 `Card.PlaysRecordRisk` 与 `Rules.PowerDeathHistoryRisk` 不是游戏数据，而是原引擎 `CardOnPlayMirrors.ResolveDispatchKind`、`AfterDeathMirrors.ResolveDispatchKind` 的镜像覆盖率。本仓库不重写这套推断逻辑，而是把结果冻结为 `src/Import/Combat/MirrorRiskTables.cs`：
 
 - 导出源：CombatSolver `src/Flash/Bridge/FlashRulesCompiler.cs` 的同一查询，源提交 `a62f1850`；导出钩子在 CombatSolver `flash/m0` 的 `91641ff0`（环境变量 `M2A3_RULES_TABLES_DUMP`）。
-- 当前表保存 0.113.0 的 717 个卡牌、317 个 Power 的明确风险值，覆盖求解器注册的全部 669 张卡牌和 276 种 Power。原生另有 7 张卡牌、5 种 Power 未注册且没有风险值，遇到它们仍显式拒绝。
+- 当前表保存 0.113.1 的 717 个卡牌、317 个 Power 的明确风险值，覆盖求解器注册的全部 669 张卡牌和 276 种 Power。原生另有 7 张卡牌、5 种 Power 未注册且没有风险值，遇到它们仍显式拒绝。
 - 当前内核直接结算的内容也在同一张表中给出值；运行时不按游戏版本、类型命名空间或例外名单覆盖。
 - 表里没有的 id 以 `missing-mirror-risk` 显式拒绝，不默认为 false。
 - `--rules-table-check` 检查所有已注册内容都有值、表中所有 id 都存在于当前 `ModelDb.All`，并列出尚未映射的原生内容。
@@ -209,8 +209,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 - 失效顺序：`growth_targets` → `theft_policy` → `growth_rewards` → `root_risk` → `pending_returning_cards` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
 - `HasOnlyPostCombatHealing`：角色属于封闭集合、敌人都是原生的、没有药水、遗物只有 Burning Blood、Black Blood、Bound Phylactery、Ring of the Snake，玩家 Power 只有 Neurosurge、Doom，卡牌都在白名单里且没有附魔或苦难。
-- `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于已审计的 `ComponentInitialCard` 类型且附件安全、根监听者分类安全、上界可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
-- `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier；额外监听者仅接受已审计的非治疗 Loadout 回调。Loadout 按来源程序集与回调类型识别，召唤回调另读取当前能力配置，不绑定构建编号。
+- `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于已审计的 `ComponentInitialCard` 类型且附件安全、原版根监听者分类安全、基础回血可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
+- `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier。外部 Mod 注册的回调不参与回血估算，不读取其配置；原版内容的实际导入和结算检查保持不变。Component 同样忽略外部抽象回调。复杂重放与生成链的有限估算见 [战斗 AI](combat-ai.md)。
 - `FutureHealPotential`、`PostCombatHeal`、`RequireCertifiedHealingProof`、`PruneEqualHp` 按原导入层的根事实设置。`ForceAllPotionsDisabled = false`、`MaximumPotionUses = null`：离线求解器没有用药政策覆盖或上限。
 - 有组件证书的根上有 RegenPotion 时，以 `regen_potion_policy` 失效；根上有 SwipePower 时，以 `swipe_power` 失效。
 
@@ -298,5 +298,5 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 - 镜像覆盖率表和下界分类表是从 `a62f1850` 一次性导出的数据，不是运行时推断。
 - 下界的 environment 证书只移植了 `CanCertifyRemainingHealingEnvironment` 的 Regent、Silent 一般分支；Defect 与 Decimillipede 的特殊分支没有移植，这些根拿不到 environment 证书（证书为 false），下界更保守，但不会被拒绝。
 - `Component`、`KnownNative` 证书和 `HasOnlyPostCombatHealing` 按“没有第三方 run/combat 订阅者、BaseLib 卡牌修饰、AdaptedOnPlay”的固定口径处理；实机遇到这些内容时要另行拒绝或补证据。
-- `KnownNative` 的 K5 值仍把 Fairy in a Bottle、Lizard Tail、Dragon Fruit、Book of Five Rings、Darkstone Periapt、Chosen Cheese、Demon Tongue、Book Repair Knife、Fruit Juice、Not Yet 和 Feed 视为未知。搜索剪枝另走 `BoundFeatures.EvaluatePruning`：前两项的濒死回血按 0，Not Yet/Feed 根据当前存活拷贝给有限上界，其余按内容层现状给 0 或有限的每敌/每瓶近似；Dragon Fruit 在战斗内的最大生命收益改为按存活的 Hand of Greed 份数各计一次（手牌、抽牌堆、弃牌堆，消耗堆和打出区不计）；存在不能按这个口径界定的战斗内金币来源（LuckyFysh 的贼归还）时仍保持未知。只有证书覆盖的未知仍然让 Component 剪枝停下。请求里的下界配置和 K5 哈希不变。
+- `KnownNative` 的 K5 值仍把 Fairy in a Bottle、Lizard Tail、Dragon Fruit、Book of Five Rings、Darkstone Periapt、Chosen Cheese、Demon Tongue、Book Repair Knife、Fruit Juice、Not Yet 和 Feed 视为未知。搜索剪枝另走 `BoundFeatures.EvaluatePruning`：前两项的濒死回血按 0，Not Yet/Feed 根据当前可用拷贝给有限估计，其余按内容层现状给 0 或有限的每敌/每瓶近似；Dragon Fruit 在战斗内的最大生命收益改为按存活的 Hand of Greed 份数各计一次（手牌、抽牌堆、弃牌堆，消耗堆和打出区不计）；每件未熔毁的 LuckyFysh 也计一次，不展开重复归还。SwipePower 和待归还牌不再整体关闭估算，被偷牌和不可用牌堆中的牌不提前计入；保全被偷资源政策仍独立控制搜索。只有证书覆盖的未知仍然让 Component 剪枝停下。请求里的下界配置和 K5 哈希不变。
 - `pending-choice` 与 `unsupported-healing-certificate` 两个原因码已经定义，目前没有代码抛出。

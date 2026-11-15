@@ -1667,6 +1667,9 @@ public abstract class OrbDef : ListenerDef
 /// </summary>
 public abstract class EnchantmentDef : ListenerDef
 {
+    /// <summary>Native EnchantmentModel.GainsBlock, including block added by Adroit.</summary>
+    public virtual bool GainsBlock => false;
+
     /// <summary>Native <c>EnchantmentModel.ShouldStartAtBottomOfDrawPile</c> (Imbued).</summary>
     public virtual bool StartsAtBottomOfDrawPile => false;
 

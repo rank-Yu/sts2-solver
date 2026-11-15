@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "lr-a-choices",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-a-choices.json\u0022}",
-  "rulesSha256": "5920e86285c796c8ed1b17668be8679eba436b3722f85d0749a14df3066bfb1e",
+  "rulesSha256": "a687c0d86fdc20ea10d5e0cd565ba43ed0ed9dea055c120ba96a395bf573713b",
   "counts": {
     "roots": 1,
     "k1": 55,

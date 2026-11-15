@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "rg-d-forge-create",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-d-forge-create.json\u0022}",
-  "rulesSha256": "93ee42d343c8bab7c3b30b647814116b8e3774b1ba3048fd87b4aa89e3ef3a3a",
+  "rulesSha256": "acdb75d4e01ab6fd3c160ee0af0bf54292c92609479948ded16004a3a9f6bd7c",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "sw2-smart-bound-relic",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sw2-smart-bound-relic.json\u0022}",
-  "rulesSha256": "cdb91a83a13a6bd7441f3d1f767cea905c605bc37305c70085225896b4d6b164",
+  "rulesSha256": "49c874d476cbe49d83470cb3836257b3b1bd4d8ac968203aca6cf408bbe60a73",
   "counts": {
     "roots": 1,
     "k1": 13,

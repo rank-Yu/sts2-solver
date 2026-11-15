@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "df-f-starters",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-f-starters.json\u0022}",
-  "rulesSha256": "efd2546fa05b943d198dbd6563e6ca4846a3237a4c64733b87a1d6be11e92524",
+  "rulesSha256": "bcae2e324a50ae34f8eebcefcb60c99b65f64cbaac0bd9af42bbd5e9fe33d87f",
   "counts": {
     "roots": 1,
     "k1": 7,

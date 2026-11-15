@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 11,
   "battleSize": 43856,
   "root": "p16-d-entropy",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-d-entropy.json\u0022}",
-  "rulesSha256": "c5b34af443ea319f1967597ca05ef2f684389ddca4e3b1ec81508cdcf249d19c",
+  "rulesSha256": "3a2da708a87f39cd1c754cf5a6262ffb4f95e7b514928d19bda59bf4f758f6da",
   "counts": {
     "roots": 1,
     "k1": 11,

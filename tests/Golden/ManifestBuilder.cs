@@ -33,7 +33,9 @@ internal static class ManifestProvenance
         + "D1 文件 404→413、根 414→423、K1 5070→5110、游走 14928→15072、状态 473898→477092、转换 461415→464465。"
         + "格式 13 将每卡费用修饰容量由 10 缩为 4：Card 64→46 字节，Battle 43856→32264 字节，头部 2896→2824 字节。"
         + "按字段迁移全部根与选牌载荷，保留输入、规则数值和动作；旧槽尾部必须为空。"
-        + "D1 按原游走种子重录状态及卡牌指纹，D2 保留原搜索预算重算期望，具体验证与计数见 d1Rerecord/refreeze。";
+        + "D1 按原游走种子重录状态及卡牌指纹，D2 保留原搜索预算重算期望，具体验证与计数见 d1Rerecord/refreeze。"
+        + "格式 14 将能力容量由 28 提高到 32，Battle 32264→32360、头部2824→2920字节。"
+        + "全部根按字段迁移，仅补入空能力槽；运行时和搜索存储均保留连续的定长能力数组。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

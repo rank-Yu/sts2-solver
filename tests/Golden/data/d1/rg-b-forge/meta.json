@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "rg-b-forge",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-b-forge.json\u0022}",
-  "rulesSha256": "8507e7ac0a95b96c97d7282d5c8adfdbb9e4ce0d98ccd132f8d8f170bfeeabba",
+  "rulesSha256": "0187bb52f9b9750fb60725abb2695a6e23363945fc146f5dc2ef1552a9ddee9f",
   "counts": {
     "roots": 1,
     "k1": 11,

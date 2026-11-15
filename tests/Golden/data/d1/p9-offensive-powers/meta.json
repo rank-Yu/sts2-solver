@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "p9-offensive-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-offensive-powers.json\u0022}",
-  "rulesSha256": "71f00017e88b9c869cb598d79bb41a164d63f597b12ded8b4b37ce0fe74ce93a",
+  "rulesSha256": "995884ba296332bb47f400ab73924c1d1daac1bbb8307b4bcd807977447c9820",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "fool-mythic-form",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-fool-mythic-form.json\u0022}",
-  "rulesSha256": "ae5dda8795b5be28232dc8ee33c565f5674fd77044c17e34ba7e9b0ce1da0755",
+  "rulesSha256": "c921352aa27696afb870e6f100b26c9a428a970eb2c75ad21eb43a7524eb354c",
   "counts": {
     "roots": 1,
     "k1": 9,

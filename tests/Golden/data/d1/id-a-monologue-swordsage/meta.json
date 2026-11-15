@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "id-a-monologue-swordsage",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-a-monologue-swordsage.json\u0022}",
-  "rulesSha256": "244fbe21795ed7eb9b5467978846d8a83f8d964604ba2f34d4eeea0ecaeb461d",
+  "rulesSha256": "c26536a08b80c00bcaefb38f1aa59997fc74368d7525cc71bca77dc0a1b3bac5",
   "counts": {
     "roots": 1,
     "k1": 7,

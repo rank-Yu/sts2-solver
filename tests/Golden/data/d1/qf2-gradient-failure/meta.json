@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "qf2-gradient-failure",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf2-gradient-failure.json\u0022}",
-  "rulesSha256": "c91424edf227b63d94f6aad0a5d8deeb05095cbbc1aa79e02c803c13944557ec",
+  "rulesSha256": "02756f101449fc9a6a1f2ceefe6e24db0c13b116479f7c95a81b540799ed58cf",
   "counts": {
     "roots": 5,
     "k1": 53,

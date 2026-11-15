@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "a3-slimed-berserker-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-slimed-berserker-normal.json\u0022}",
-  "rulesSha256": "742704a771cc862c628b55b2b2691ce138427a7e270d9eaa1d9effd4f67c2cc3",
+  "rulesSha256": "8b1c1d0fb6e88c12f4d38c4747b6a8e48f2a4cbe25378b43880e1b1d7c33a66f",
   "counts": {
     "roots": 1,
     "k1": 7,

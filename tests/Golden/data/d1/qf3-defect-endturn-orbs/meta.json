@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "qf3-defect-endturn-orbs",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-defect-endturn-orbs.json\u0022}",
-  "rulesSha256": "1d48f872e90d93208802707f74481e71060b941d4b117c1dd478a5c06479f04d",
+  "rulesSha256": "7f17851857c5a1708488d95038d285fe39649247d70ff762ed292412bf02a2b8",
   "counts": {
     "roots": 1,
     "k1": 2,

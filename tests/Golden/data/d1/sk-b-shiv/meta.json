@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "sk-b-shiv",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-b-shiv.json\u0022}",
-  "rulesSha256": "df6c182f3b125044e501341b62e8eb587530731ccb4067a23e40420b3cd4a57a",
+  "rulesSha256": "858e79f7487471e8a31706e200a253dd3e6d10fab9bb1750928b53889f4c5d1f",
   "counts": {
     "roots": 1,
     "k1": 12,

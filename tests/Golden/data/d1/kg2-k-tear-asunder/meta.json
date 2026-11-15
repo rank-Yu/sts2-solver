@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "kg2-k-tear-asunder",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-k-tear-asunder.json\u0022}",
-  "rulesSha256": "13b23ad057ea1b724f560f5a14e0ee835333e93348ff924e5d9087efc368224f",
+  "rulesSha256": "c9a11416d780541ba46b70ad2d4912918f452ae75e0eac25370934ac2a9e7f8f",
   "counts": {
     "roots": 1,
     "k1": 8,

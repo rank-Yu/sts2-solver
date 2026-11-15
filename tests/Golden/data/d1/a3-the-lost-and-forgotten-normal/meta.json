@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "a3-the-lost-and-forgotten-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-the-lost-and-forgotten-normal.json\u0022}",
-  "rulesSha256": "c0527dddf5245e17f068d93c5a2248e28626172cdfe40f4450a2b104aa1aef1a",
+  "rulesSha256": "67f06f31426d461a10df95b81c11031a6a5fdfcc24ee6c664cfc9b28560c0cd2",
   "counts": {
     "roots": 1,
     "k1": 10,

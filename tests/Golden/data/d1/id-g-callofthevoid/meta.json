@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "id-g-callofthevoid",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-g-callofthevoid.json\u0022}",
-  "rulesSha256": "f69e65d34634b4693b35f7e2f0e54c0f32d970d06e06c281ad04c8ca83712ae0",
+  "rulesSha256": "750e930b735abb3f3a1d0270ff859551a0dca98972b54ca978e740e32a4a928f",
   "counts": {
     "roots": 1,
     "k1": 7,

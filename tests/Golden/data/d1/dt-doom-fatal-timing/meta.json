@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "dt-doom-fatal-timing",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dt-doom-fatal-timing.json\u0022}",
-  "rulesSha256": "a3bcf0ea9e46579e12308d39b71dcc00633baf565181bb946e5f75d881b192d9",
+  "rulesSha256": "3741ffb66f9d9db929d81959c1b2cb3446b95d0d76784d464c56d800d5618110",
   "counts": {
     "roots": 1,
     "k1": 1,

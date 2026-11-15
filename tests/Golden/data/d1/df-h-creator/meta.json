@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "df-h-creator",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-h-creator.json\u0022}",
-  "rulesSha256": "ef1aad3963ed4f94c0657363a09dc07697814274199f5aaf64ca39bebf833cbb",
+  "rulesSha256": "6bf755da9804db28cc01343fbdf6782cfca5408d2233c2d448fec7847faf7656",
   "counts": {
     "roots": 1,
     "k1": 8,

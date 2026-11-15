@@ -32,14 +32,14 @@
 | `Counters` | 整数计数器（见 3.8） | 48 |
 | `Rng` | 十条随机流（含角色的 NonCombatGeneration），每条一个计数器加四个 64 位状态字 | 10 |
 | `Enemies` | 已知敌人，含已死和已逃跑的（见 3.2） | 12 |
-| `Powers` | Power 表（见 3.3） | 28 |
+| `Powers` | Power 表（见 3.3） | 32 |
 | `RelicStates`、`RelicStateFlags` | 遗物动态整数与本场标志（见 3.4） | 24 |
 | `Orbs` | 球（见 3.5） | 10 |
 | `Fool` | 箭矢状态、旋律次数、悲伤生成计数与关联卡牌身份 | 32 支箭 |
 | `HistoryCourseCard` | 上一次攻击的完整卡值（见 3.11） | 1 |
 | `Cards` | 五个牌堆的卡（见 3.6、3.7）；最后一个字段 | 640 |
 
-`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 2824` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 46`。
+`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 2920` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 46`。搜索状态池、展开缓冲和 BATL 编码均保存这个连续前缀。
 
 ## 3. 各部分的含义
 
@@ -66,7 +66,7 @@
 
 ### 3.2 生物与敌人
 
-Wuppy 占用头部偏移 2760 的 16 字节，之后的 2 字节显式填充使 HistoryCourseCard 后的 Cards 保持 8 字节对齐；Battle 总大小为 32264 字节，头部为 2824 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
+Wuppy 占用头部偏移 2856 的 16 字节，之后的 2 字节显式填充使 HistoryCourseCard 后的 Cards 保持 8 字节对齐；Battle 总大小为 32360 字节，头部为 2920 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
 
 Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理规则移除；再次召唤时不会带回已移除的力量。
 
@@ -98,7 +98,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.3 Power
 
-全场共享 28 个实例槽位，包含玩家、奥斯蒂和所有敌人；叠加层数不额外占槽，独立实例分别占槽。第 29 个实例显式报告容量不足，不截断。文件使用同一份 28 槽运行时布局。
+全场共享 32 个实例槽位，包含玩家、奥斯蒂、Wuppy 和所有敌人；叠加层数不额外占槽，独立实例分别占槽。第 33 个实例显式报告容量不足，不截断。文件使用同一份 32 槽运行时布局。
 
 **顺序。** `Powers` 按持有者分组，组的顺序就是 Hook 监听顺序里各生物的顺序；组内按获得顺序排列。新 Power 追加到持有者组的末尾，对应原引擎“插在持有者最后一个 Power 之后”的规则。数量归零的 Power 立即移除并压实，之后再获得时排在组末，对应原引擎退役根槽位的语义。
 
@@ -374,15 +374,15 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | `RelicState` | 8 | `Counter` + `Aux`；标志另存为每槽 1 字节 |
 | `Orb` | 8 | `Id` + `Aux` |
 | `RngState` | 40 | 计数器 + 四个 64 位状态字 |
-| `Battle` | 32,264 | 头部 2,824 + 满牌 640 × 46；打包前缀和满容量结构体尺寸相同 |
+| `Battle` | 32,360 | 头部 2,920 + 满牌 640 × 46；打包前缀和满容量结构体尺寸相同 |
 
-典型的 23 张牌状态打包后约 3.8 KiB；30 张牌为 4,204 字节。
+运行时连续前缀：23 张牌约 3.9 KiB；30 张牌为 4,300 字节。
 
 ### 大结构体与 JIT 限制
 
-`Battle` 的 32,264 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
+`Battle` 的 32,360 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
 
-C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。当前四个 `Battle` 的元组共 129,056 字节，五个则达到 161,320 字节，超过上限。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：32,264 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
+C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。当前四个 `Battle` 的元组共 129,440 字节，五个则达到 161,800 字节，超过上限。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：32,360 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
 
 这类错误只看方法是否被 JIT 编译，与牌组大小无关：一条很少执行的分支第一次运行就可能让整个方法报 `InvalidProgramException`。测试版 Mod 启动时由 `JitChecks` 对 Mod/Core 程序集（测试构建里是同一个 `Sts2Solver.dll`）的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`，包括 async 状态机的 `MoveNext`；泛型方法因缺少闭合类型参数跳过。任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让启动检查失败。
 
@@ -400,6 +400,6 @@ CLR 还限制单次调用的参数总尺寸。一个满容量 `Battle` 加上其
 
 模式、楼层和领域规则属于根常量：`Rules.Mode` 冻结标准、恐惧或极速；`TotalFloor` 提供塔罗牌的楼层数；`Dominion` 冻结领域类型及召唤后施加的能力。它们均进入规则编码，不能从搜索线程读取原生全局游戏模式。
 
-BATL v13 直接保存当前运行时打包前缀：头部 2824 字节，加每张活动牌 46 字节；最大前缀为 32264 字节。卡牌指纹直接读取当前 Card 字节。
+BATL v14 直接保存当前运行时打包前缀：头部 2920 字节，加每张活动牌 46 字节；最大前缀为 32360 字节。卡牌指纹直接读取当前 Card 字节。
 
 前缀后保存 `ushort` 遗物件数和完整的固定清单，每行 12 字节；动态状态只在 Battle 的 24 槽里保存一次。清单上限为 65535 件。解码返回 Battle 和清单；SREQ 为所有根绑定同一个等价清单。RULE 只编码内容规则表，清单由 BATL 携带，不在 RULE 中重复保存。只接受当前格式，旧布局不提供兼容读取。

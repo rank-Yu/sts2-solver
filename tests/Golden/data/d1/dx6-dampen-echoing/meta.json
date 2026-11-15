@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "dx6-dampen-echoing",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx6-dampen-echoing.json\u0022}",
-  "rulesSha256": "293163b17aec6b4b05e25707126741861ecd3aeea2746dcf8ec778a3002f888c",
+  "rulesSha256": "00c876068fcefe5b96e14c15bc222bd63f61bfbb57cffbfd3f838e6f6cfb7076",
   "counts": {
     "roots": 1,
     "k1": 6,

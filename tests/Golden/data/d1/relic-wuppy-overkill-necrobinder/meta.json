@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "relic-wuppy-overkill-necrobinder",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-wuppy-overkill-necrobinder.json\u0022}",
-  "rulesSha256": "2b24c2d790191b82ae03199f0f069e3775d0feb992dc53ff4510ad4fb46aafe3",
+  "rulesSha256": "d9074ec52343dea88d616bec9924c5a811c456a491ad6172332a949e9387ca43",
   "counts": {
     "roots": 1,
     "k1": 4,

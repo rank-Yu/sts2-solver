@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "dx3-axebot-stock",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-axebot-stock.json\u0022}",
-  "rulesSha256": "eb771fe6a8a4ee86a44031f90e74adb9decc730a5e5dd8e5263940da749704b7",
+  "rulesSha256": "881561f9c3e50f2d34756f6c750ecc929d44effb00da1d6c5ae4001eb81e761d",
   "counts": {
     "roots": 1,
     "k1": 11,

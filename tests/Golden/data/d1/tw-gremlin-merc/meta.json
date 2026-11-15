@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "tw-gremlin-merc",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-tw-gremlin-merc.json\u0022}",
-  "rulesSha256": "a25453d5272c27b7e9d7393d81caaeef4b56b8619757e7e51fc3182194920094",
+  "rulesSha256": "fa618dceca11376d0e049ee5aaf6cd2d656e9ff66550243bb0a1cc1ade92fbf2",
   "counts": {
     "roots": 1,
     "k1": 7,

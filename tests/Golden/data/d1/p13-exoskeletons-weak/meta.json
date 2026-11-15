@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "p13-exoskeletons-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-exoskeletons-weak.json\u0022}",
-  "rulesSha256": "9d58fd7b85971f1b6ddf531d94907e0a1c6059abd6c66d204b9eb58043a80e68",
+  "rulesSha256": "a07eb2ac3299c6d0e7867641a53cf2404027bda80ff655904bbaa87fc57fc06a",
   "counts": {
     "roots": 1,
     "k1": 17,

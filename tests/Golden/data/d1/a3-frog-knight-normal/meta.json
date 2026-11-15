@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "a3-frog-knight-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-frog-knight-normal.json\u0022}",
-  "rulesSha256": "481c81281158b27e773ea149157d99ddd98d0d1029d320155d97d8f136253a6a",
+  "rulesSha256": "d45139593c6239f20849ff11e17c01a21ebfc047b8a02e1a1e656c73260183a8",
   "counts": {
     "roots": 1,
     "k1": 7,

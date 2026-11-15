@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "nb-j-eidolon",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-j-eidolon.json\u0022}",
-  "rulesSha256": "c9722443ab553c8283281648d6071eaaedc15207e2b2ad7612f695eb076fdd31",
+  "rulesSha256": "c3730196a05ff99df62a4247a410149db2de61ea7a7cd8befc2ee425e049362b",
   "counts": {
     "roots": 1,
     "k1": 5,

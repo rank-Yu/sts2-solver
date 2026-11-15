@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "dread-queen",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dread-queen.json\u0022}",
-  "rulesSha256": "cd6e71065cc8432f58a64bcc4a7471e4be1641563edd08e10005d40d6236cb19",
+  "rulesSha256": "3a0abe07d14b8a858a5de0985d335ff24e9bb03b26f3644dbe0ee3e674c7863f",
   "counts": {
     "roots": 1,
     "k1": 9,

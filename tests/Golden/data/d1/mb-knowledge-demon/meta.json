@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "mb-knowledge-demon",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-mb-knowledge-demon.json\u0022}",
-  "rulesSha256": "3a34c92ff42a79707fb30d429b839f7a04c7d5f5eee1d693c6551f3ca65c0632",
+  "rulesSha256": "037637cea37674b913c55e090f70de4d556a2468e4db00906df24d2fe9ca7ea0",
   "counts": {
     "roots": 1,
     "k1": 8,

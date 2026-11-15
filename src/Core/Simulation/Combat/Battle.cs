@@ -279,15 +279,15 @@ public struct Battle
     /// Offset of <see cref="Cards"/>: the end of the packed header. The complete header (including
     /// <see cref="HistoryCourseCard"/>) is <c>PackedSize</c> bytes for an empty state.
     /// </summary>
-    public const int HeaderSize = 2824;
+    public const int HeaderSize = 2920;
 
     /// <summary>
     /// <see cref="System.Runtime.CompilerServices.Unsafe.SizeOf{T}"/> of the complete struct. The
-    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 46 = 32264</c> bytes; the
-    /// struct itself is 32264 bytes with no trailing padding. Both are below the CLR's
+    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 46 = 32360</c> bytes; the
+    /// struct itself is 32360 bytes with no trailing padding. Both are below the CLR's
     /// 65,535-byte array-element limit.
     /// </summary>
-    public const int ExpectedSize = 32264;
+    public const int ExpectedSize = 32360;
 
     public int Round;
     public int PlayerTurn;

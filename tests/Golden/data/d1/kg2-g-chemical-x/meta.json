@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "kg2-g-chemical-x",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-g-chemical-x.json\u0022}",
-  "rulesSha256": "9d4d78d28483cd36311706f6e1541f415a4629ba2fd0343c7e46e8d04f35c306",
+  "rulesSha256": "503d048844514c2f0bc1dfb1839393224a88fa9353c912b1ba345db56a176a1c",
   "counts": {
     "roots": 1,
     "k1": 5,

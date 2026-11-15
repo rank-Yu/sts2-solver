@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "ka-ceremonial-beast-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ka-ceremonial-beast-boss.json\u0022}",
-  "rulesSha256": "f3d7f80314bf036f60dcb3c69f9b3760204e64ec865d5e959511ba8a58719cc1",
+  "rulesSha256": "fa7e9d097bb74851bb30cd5f95f3c38e5aa2ccef4a6774c548a0e8595fdc7b09",
   "counts": {
     "roots": 1,
     "k1": 7,

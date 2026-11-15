@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "ls-g-mirage",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-g-mirage.json\u0022}",
-  "rulesSha256": "c5e6f71a9c8eedbb91f2590ae9ddd1568d95dc7b3882d71e30c25b3d98fec993",
+  "rulesSha256": "0f72b6cc0484b6708fc36b63c6609b7945ab6bf6d6d8c3879ad299a6cef2d2f7",
   "counts": {
     "roots": 1,
     "k1": 2,

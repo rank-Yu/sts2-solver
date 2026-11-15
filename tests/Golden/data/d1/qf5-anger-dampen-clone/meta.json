@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "qf5-anger-dampen-clone",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf5-anger-dampen-clone.json\u0022}",
-  "rulesSha256": "b049bf91a6daa5745d3e4131af45da34648728c7d4c77c8fb7194fb0f7e3756e",
+  "rulesSha256": "18300dce936c67ecf0788813d455211d5597090684f1e7dc33c27d172041e05f",
   "counts": {
     "roots": 1,
     "k1": 8,

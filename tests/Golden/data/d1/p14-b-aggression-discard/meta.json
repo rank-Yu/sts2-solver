@@ -1,9 +1,9 @@
 {
-  "formatVersion": 13,
-  "battleSize": 32264,
+  "formatVersion": 14,
+  "battleSize": 32360,
   "root": "p14-b-aggression-discard",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p14-b-aggression-discard.json\u0022}",
-  "rulesSha256": "0c09a82a93451f58dc75190bff7bd27fe33673d882cbbdc81d167845cfc5c43c",
+  "rulesSha256": "cb293a7d81897983ca7f8e774cdc6aa237b117cb151c79d94745335933723a77",
   "counts": {
     "roots": 1,
     "k1": 5,

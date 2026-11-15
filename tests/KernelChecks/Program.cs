@@ -38,9 +38,9 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard))
         + Unsafe.SizeOf<Card>() == Battle.HeaderSize,
     "HistoryCourseCard 应紧挨在 Cards 之前");
-Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 32264,
-    "满牌打包前缀应为 32264 字节");
-Check(Battle.ExpectedSize == 32264, $"Battle 满容量大小应为 32264，实际 {Battle.ExpectedSize}");
+Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 32360,
+    "满牌打包前缀应为 32360 字节");
+Check(Battle.ExpectedSize == 32360, $"Battle 满容量大小应为 32360，实际 {Battle.ExpectedSize}");
 Check(Battle.ExpectedSize <= 65535, "Battle 结构体应不超过 .NET 数组元素上限");
 // Header anchors: every field starts where the preceding explicit field size ends, so the widened
 // pile counts and the alignment byte introduce no compiler-inserted padding.
@@ -66,17 +66,17 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
     "Enemies 偏移");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1672,
     "Powers 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStates)) == 2344,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStates)) == 2440,
     "RelicStates 偏移");
 Check(Unsafe.SizeOf<RelicState>() == 8 && Unsafe.SizeOf<RelicStateArray>() == 192
     && Unsafe.SizeOf<RelicStateFlagsArray>() == 24, "遗物动态状态大小");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStateFlags)) == 2536,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStateFlags)) == 2632,
     "RelicStateFlags 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 2560,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 2656,
     "Orbs 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2778,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2874,
     "HistoryCourseCard 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Wuppy)) == 2760
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Wuppy)) == 2856
     && Unsafe.SizeOf<Creature>() == 16, "Wuppy 应占用历史牌前的 16 字节");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");

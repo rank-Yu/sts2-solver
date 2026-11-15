@@ -1,3 +1,5 @@
+// Relic migration provenance adapted from sparkbarry/sts2-solver tests/Golden/ManifestBuilder.cs
+// at ee429581fd7ee914bccc5b0c918d5ce8c2e6de4b (MIT; Copyright (c) 2026 rank-Yu; contribution by sparkbarry).
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -20,7 +22,15 @@ internal static class ManifestProvenance
         + "SREQ 12 删除失效基线并固定选项顺序。迁移用清理前内核回放核对旧状态哈希，仅改卡牌哈希以转换评分表示；"
         + "全部录制动作、下界、路线特征与 SRES 6 期望保持不变。"
         + "格式 10 新增拇指夹，按遗物身份迁移共享清单、变量表和下界表中的编号；"
-        + "Battle 打包前缀、全部状态与特征哈希、动作和 SRES 6 期望逐字节不变。";
+        + "Battle 打包前缀、全部状态与特征哈希、动作和 SRES 6 期望逐字节不变。"
+        + "格式 11 同时新增讲述者（STORYTELLER）和黑曜石钳子（OBSIDIAN_VICE），"
+        + "按遗物身份统一迁移共享清单、变量表、UnsettlingLampRelicId 和下界表中的编号；"
+        + "Battle 打包前缀、全部状态与特征哈希、动作和 SRES 6 期望逐字节不变，"
+        + "SRES 只随请求哈希改名。"
+        + "格式 12 补齐 0.113.0/0.113.1 事件卡牌、能力和遗物，按原生内容名迁移所有编号引用。"
+        + "Wuppy 复用头部 16 字节填充，Battle 总大小不变；404 个原场景按旧种子重录，新增 9 个原生场景。"
+        + "原场景根状态经 0.113.1 原生导入逐一核对；2094 份搜索期望重算后路线和统计逐字节不变。"
+        + "D1 文件 404→413、根 414→423、K1 5070→5110、游走 14928→15072、状态 473898→477092、转换 461415→464465。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

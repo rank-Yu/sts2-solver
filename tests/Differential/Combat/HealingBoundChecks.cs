@@ -15,7 +15,7 @@ using Sts2Solver.TestHost;
 
 namespace Differential;
 
-/// <summary>从原版根检查回血上限、停搜目标，并逐动作核对生成的胜利路线。</summary>
+/// <summary>从原版根检查回血估算、停搜目标，并逐动作核对生成的胜利路线。</summary>
 internal static class HealingBoundChecks
 {
     internal static int Run(string requestPath, string expectedHealing, string? loadoutPath)
@@ -32,27 +32,34 @@ internal static class HealingBoundChecks
             turnSetupSelector: new TurnSetupCardSelector(0));
         loop.RunUntilCompleted(build, TimeSpan.FromSeconds(120), "healing root");
         CombatState state = build.GetAwaiter().GetResult();
+        if (PrefixPlan.Parse(request).Length != 0)
+            RecaptureRoot.VerifyNativePrefix(loop, state, request);
         var player = LocalContext.GetMe(state)!;
         Rules rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
         LiveCombatTracker tracker = new(state);
         Battle root = tracker.ImportRoot(state, player, rules);
         tracker.Observe(root);
-        SearchPolicy policy = SearchPolicyCapture.Capture(state, player);
+        SearchPolicy policy = SearchPolicyOverrides.ApplyOverrides(
+            SearchPolicyCapture.Capture(state, player), request, player);
 
         AbstractModel[] external = [];
         ModHelper.SubscribeForCombatStateHooks("Sts2Solver.HealingBoundChecks", _ => external);
         SearchCase Compile() => SearchRequestCompiler.CompileRequest(state, player, rules, root,
             policy, EvaluationRootFacts.Default, SearchPerformanceProfile.For(SearchPerformanceTier.Medium),
             deterministic: true, searchMemoryBudgetBytes: 256 * 1024 * 1024);
-        void ExpectUnknown(string label)
+        SearchCase native = Compile();
+        void ExpectNativeEstimate(string label)
         {
-            var probe = Compile();
-            if (new BeamSolver(rules, probe.Options).PrepareVictoryTarget([root]).EffectiveHpDeficit != null)
-                throw new InvalidDataException(label + " must not certify a healing target.");
+            SearchCase actual = Compile();
+            if (actual.Options.Bound!.ConfigForCodec.Certificate != native.Options.Bound!.ConfigForCodec.Certificate
+                || actual.Options.Bound.EvaluatePruning(root, rules) != native.Options.Bound.EvaluatePruning(root, rules)
+                || new BeamSolver(rules, actual.Options).PrepareVictoryTarget([root])
+                    != new BeamSolver(rules, native.Options).PrepareVictoryTarget([root]))
+                throw new InvalidDataException(label + " changed the native healing estimate.");
         }
 
         external = [new UnknownSubscriber()];
-        ExpectUnknown("unreviewed subscriber");
+        ExpectNativeEstimate("external subscriber");
         external = [];
         if (loadoutPath is not null)
         {
@@ -66,14 +73,14 @@ internal static class HealingBoundChecks
                 "Loadout.Services.PowerGiver.PowerGiverSummonHook",
             ];
             external = names.Select(name => (AbstractModel)Activator.CreateInstance(loadout.GetType(name)!)!).ToArray();
-            if (external.Any(source => !HealingSourceAudit.IsNonHealingSubscriber(source)))
-                throw new InvalidDataException("Reviewed Loadout source rejected.");
+            ExpectNativeEstimate("Loadout subscribers");
+            Console.WriteLine($"LOADOUT_SOURCE_OK mvid={loadout.ManifestModule.ModuleVersionId} callbacks={external.Length}");
             const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
             Type service = loadout.GetType("Loadout.Services.PowerGiver.PowerGiverStateService")!;
             object run = service.GetField("_run", flags)!.GetValue(null)!;
             IDictionary counters = (IDictionary)run.GetType().GetProperty("MonsterCounters")!.GetValue(run)!;
             counters.Add("REGEN_POWER", 1);
-            try { ExpectUnknown("configured summon power"); }
+            try { ExpectNativeEstimate("configured summon power"); }
             finally { counters.Remove("REGEN_POWER"); }
         }
 
@@ -84,13 +91,26 @@ internal static class HealingBoundChecks
         if (expectedHealing == "unknown")
         {
             if (known || target.EffectiveHpDeficit is not null)
-                throw new InvalidDataException("Repeatable healing must retain an unknown target.");
-            Console.WriteLine($"HEALING_BOUND_OK scenario={request.ScenarioId} mode={rules.Mode} healing=unknown");
+                throw new InvalidDataException("Expected the healing target to be unavailable.");
+            Console.WriteLine($"HEALING_BOUND_OK scenario={request.ScenarioId} mode={rules.Mode} healing=unknown reason={bound.DisabledReason}");
             return 0;
         }
-        long expected = long.Parse(expectedHealing, System.Globalization.CultureInfo.InvariantCulture);
-        if (!known || healing != expected || maxHpGain != 0 || target.EffectiveHpDeficit is null)
-            throw new InvalidDataException($"healing={known}/{healing}/{maxHpGain}, expected={expected}; target={target}");
+        bool estimateOnly = expectedHealing.StartsWith("estimate:", StringComparison.Ordinal);
+        string[] expectedParts = (estimateOnly ? expectedHealing["estimate:".Length..] : expectedHealing).Split('/');
+        if (expectedParts.Length > 2)
+            throw new InvalidDataException("Expected healing[/maxHpGain].");
+        long expected = long.Parse(expectedParts[0], System.Globalization.CultureInfo.InvariantCulture);
+        long expectedGain = expectedParts.Length == 2
+            ? long.Parse(expectedParts[1], System.Globalization.CultureInfo.InvariantCulture) : 0;
+        if (!known || healing != expected || maxHpGain != expectedGain
+            || bound.EvaluatePruning(root, rules).RemainingUnknown
+            || !estimateOnly && target.EffectiveHpDeficit is null)
+            throw new InvalidDataException($"healing={known}/{healing}/{maxHpGain}, expected={expected}/{expectedGain}; target={target}; disabled={bound.DisabledReason}");
+        if (estimateOnly)
+        {
+            Console.WriteLine($"HEALING_ESTIMATE_OK scenario={request.ScenarioId} healing={healing} maxHpGain={maxHpGain} target={target.EffectiveHpDeficit}");
+            return 0;
+        }
 
         ValueTask<SearchMemberMeasurement> RunMember(SearchCase member, SearchStorage storage, CancellationToken token)
         {

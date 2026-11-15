@@ -51,7 +51,7 @@ public sealed class DoomPower : PowerDef
         }
         bool ownerDoomed = false;
         bool ownerIsFirst = false;
-        Span<byte> doomed = stackalloc byte[Limits.Enemies + 2];
+        Span<byte> doomed = stackalloc byte[Limits.Enemies + 3];
         int doomedCount = 0;
         for (int position = 0; position < x.B.RosterCount; position++)
         {

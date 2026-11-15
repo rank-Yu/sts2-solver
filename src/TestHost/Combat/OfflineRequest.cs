@@ -106,6 +106,8 @@ internal sealed record OfflineRequest
     public int? SettingsThreadsForTest { get; init; }
     /// <summary>The auto-search switch for the request; null keeps the current setting.</summary>
     public bool? SettingsAutoSearchForTest { get; init; }
+
+    public bool? SettingsAutoExecuteForTest { get; init; }
     /// <summary>
     /// The request runs 执行本场战斗 from its first turn (armed before the held turn-start search
     /// resumes); fullCombatForTest implies it.

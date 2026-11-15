@@ -1,3 +1,5 @@
+// Storyteller adapted from sparkbarry/sts2-solver src/Core/Content/Relics/FoolRelics.cs
+// at c311a9fc9050ac2e49fc336c4868a65de9cf2a7c (MIT; Copyright (c) 2026 rank-Yu; contribution by sparkbarry).
 // 对照游戏 0.113.0 (16ac0fe3) 的同名 RelicModel；状态使用 Battle 的遗物计数器。
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Content.Powers;
@@ -7,6 +9,24 @@ namespace Sts2Solver.Content.Relics;
 // SongBow applies Aim on room entry, before the imported boundary.
 [ContentId("SONG_BOW")]
 public sealed class SongBow : RelicDef;
+
+// Storyteller（对照游戏 v0.113.1 的 Storyteller.cs）：SongBow 经 TouchOfOrobas 升级后的遗物。
+// AfterRoomEntered 的 12 Aim 同 SongBow，发生在导入边界之前；BeforeSideTurnEnd 在参与者含持有者时
+// 给持有者施加 EndOfTurnAim（3）层 Aim，没有其他条件。
+[ContentId("STORYTELLER")]
+public sealed class Storyteller : RelicDef
+{
+    public override IReadOnlyList<string> VarNames => ["EndOfTurnAim"];
+    public override IReadOnlyList<string> AppliedPowers => ["AIM_POWER"];
+
+    public override void BeforeSideTurnEnd(ref Exec x, Listener self, Side side, ushort participants)
+    {
+        if (!Kernel.Participates(participants, self.Owner))
+            return;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<AimPower>(),
+            (int)x.R.RelicVar(Id, 0), Limits.PlayerOwner);
+    }
+}
 
 [ContentId("BIZARRE_LAMP")]
 public sealed class BizarreLamp : RelicDef

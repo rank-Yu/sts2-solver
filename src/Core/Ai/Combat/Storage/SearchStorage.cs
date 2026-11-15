@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat;
 
@@ -15,6 +16,42 @@ internal sealed class SearchStorage
     private readonly Dictionary<(Type Type, int Length), Stack<Array>> _freeChunks = [];
     private readonly Dictionary<(Type Type, int Length), Stack<Array>> _freeArrays = [];
     private int[] _intScratch = [];
+    private long _routeOutputBytes;
+    private long _routeStepBytes;
+
+    internal void ConfigureRouteReserve(int candidateSlots)
+    {
+        // Published candidates, previous winners, replay/preview builders and serialization coexist.
+        // Allocate the envelope before a deeper route is admitted, including after-budget output.
+        _routeStepBytes = (candidateSlots + 8L) * (Unsafe.SizeOf<PlayerAction>() + 512
+            + Limits.Enemies * 64L);
+    }
+
+    internal void ReserveRouteDepth(int depth)
+    {
+        long required = (depth + 1L) * _routeStepBytes;
+        if (required <= _routeOutputBytes) return;
+        Memory.Charge(required - _routeOutputBytes, "route-output");
+        _routeOutputBytes = required;
+    }
+
+    internal void ResizeArray<T>(ref T[] array, int capacity)
+    {
+        T[] replacement = RentArray<T>(capacity);
+        array.CopyTo(replacement, 0);
+        if (array.Length != 0) DiscardArray(array);
+        array = replacement;
+    }
+
+    internal void EnsureListCapacity<T>(List<T> list, int required, string region)
+    {
+        if (required <= list.Capacity) return;
+        int capacity = Math.Max(required, Math.Max(4, checked(list.Capacity * 2)));
+        long previous = (long)list.Capacity * Unsafe.SizeOf<T>();
+        Memory.Charge((long)capacity * Unsafe.SizeOf<T>(), region);
+        list.Capacity = capacity;
+        Memory.ReleaseBlock(previous, region);
+    }
 
     // Compaction often frees blocks that the next layer needs again. Keep a small reserve,
     // charged to the same budget, and surrender it before any allocation can hit that budget.

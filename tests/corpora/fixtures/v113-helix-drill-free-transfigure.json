@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "v113-helix-drill-free-transfigure",
+  "characterId": "DEFECT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICAUDIT",
+  "initialPlayerHp": 60,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 20,
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "TRANSFIGURE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "HELIX_DRILL",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "pile": "Hand"
+    }
+  ],
+  "relics": [],
+  "powers": [
+    {
+      "powerId": "FREE_ATTACK_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ]
+}

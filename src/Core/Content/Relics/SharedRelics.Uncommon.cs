@@ -31,6 +31,19 @@ public sealed class BookRepairKnife : RelicDef
 [ContentId("FUNERARY_MASK")]
 public sealed partial class FuneraryMask : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Cards"];
+
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn != 1) return;
+        for (int i = 0; i < (int)x.R.RelicVar(Id, 0); i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Sts2Solver.Content.Cards.Necrobinder.Soul>());
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Draw, PilePosition.Random)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SOUL", 0)];
 
 }
@@ -302,8 +315,8 @@ public sealed class LastingCandy : RelicDef;
 
 /// <summary>
 /// <c>LuckyFysh</c>: <c>AfterCardChangedPiles</c> gains 15 gold when a card enters the deck. The only
-/// in-combat deck addition is SwipePower returning a stolen card, which the kernel does not mirror
-/// (<c>GainsGoldInCombat</c> keeps DragonFruit's pruning gain unbounded whenever LuckyFysh is held).
+/// in-combat deck addition is SwipePower returning a stolen card, which the kernel does not mirror.
+/// The healing estimate budgets one DragonFruit payout for this relic, without expanding returns.
 /// </summary>
 [ContentId("LUCKY_FYSH")]
 public sealed class LuckyFysh : RelicDef

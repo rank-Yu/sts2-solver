@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "v1131-stretch-zero-block",
+  "characterId": "FOOL",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "VERSION1131",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "initialEnemyCurrentHps": [
+    100,
+    100
+  ],
+  "initialEnemyMaxHps": [
+    100,
+    100
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Hand",
+      "enchantmentId": "ADROIT",
+      "enchantmentAmount": 3
+    },
+    {
+      "cardId": "DEFEND_FOOL",
+      "pile": "Hand"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "STRETCH_POWER",
+      "target": "Player",
+      "amount": 5
+    },
+    {
+      "powerId": "NO_BLOCK_POWER",
+      "target": "Player",
+      "amount": 2
+    }
+  ]
+}

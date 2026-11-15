@@ -1,8 +1,7 @@
 // First ported from CombatSolver src/UI/SolverActionBar.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// Owns footer layout only: the overlay keeps command bindings and the stage rules. One row holds the
-// auto-search switch, the search keys (one key, or 继续搜索 + 重新搜索) and the execute keys (执行本回合 +
-// 执行本场战斗, or 停止执行); the memory bar sits below.
+// Owns footer layout only: search and execution occupy two fixed-height rows. The grid aligns
+// their switches and button groups; the memory bar sits below.
 using Godot;
 
 namespace Sts2Solver;
@@ -20,7 +19,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
     private readonly Button _stop;
     private readonly Control _memory;
 
-    public SolverActionBar(Control autoSearch, Button search, Button restart, Button executeTurn,
+    public SolverActionBar(Control autoSearch, Button search, Button restart, Control autoExecute, Button executeTurn,
         Button executeCombat, Button stop, Control memory)
     {
         Name = "Footer";
@@ -33,9 +32,18 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _executeCombat = executeCombat;
         _stop = stop;
         _memory = memory;
-        HFlowContainer actions = CreateFlow("CombatActions");
+        GridContainer actions = new()
+        {
+            Name = "CombatActions",
+            Columns = 2,
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        actions.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Lg);
+        actions.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Sm);
         actions.AddChild(autoSearch);
         actions.AddChild(CreateGroup("SearchKeys", search, restart));
+        actions.AddChild(autoExecute);
         actions.AddChild(CreateGroup("ExecuteKeys", executeTurn, executeCombat, stop));
         AddChild(actions);
         _memoryRow = new HBoxContainer { Name = "MemoryRow", MouseFilter = MouseFilterEnum.Pass };
@@ -59,23 +67,15 @@ internal sealed partial class SolverActionBar : VBoxContainer
 
     private static HBoxContainer CreateGroup(string name, params Control[] keys)
     {
-        HBoxContainer group = new() { Name = name, MouseFilter = MouseFilterEnum.Pass };
+        HBoxContainer group = new()
+        {
+            Name = name,
+            MouseFilter = MouseFilterEnum.Pass,
+            CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ButtonHeight),
+        };
         group.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         foreach (Control key in keys)
             group.AddChild(key);
         return group;
-    }
-
-    private static HFlowContainer CreateFlow(string name)
-    {
-        HFlowContainer flow = new()
-        {
-            Name = name,
-            MouseFilter = MouseFilterEnum.Pass,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        flow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Lg);
-        flow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-        return flow;
     }
 }

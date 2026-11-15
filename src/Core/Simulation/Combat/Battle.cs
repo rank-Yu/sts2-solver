@@ -366,8 +366,8 @@ public struct Battle
     /// Exec before the new turn's draw/auto-play hooks. The snapshot itself has no source mark.
     /// </summary>
     public FoolState Fool;
-    private ulong _paddingBeforeHistory;
-    private ulong _paddingBeforeHistory2;
+    /// <summary>Wuppy is retained after death; its HP intercepts powered damage before block.</summary>
+    public Creature Wuppy;
 
     public Card HistoryCourseCard;
 
@@ -422,6 +422,8 @@ public struct Battle
             return ref Player;
         if (owner == Limits.OstyOwner)
             return ref Osty;
+        if (owner == Limits.WuppyOwner)
+            return ref Wuppy;
         int enemy = owner - Limits.FirstEnemyOwner;
         if ((uint)enemy >= EnemyCount)
             throw new ArgumentOutOfRangeException(nameof(owner), owner, "未知的生物下标。");

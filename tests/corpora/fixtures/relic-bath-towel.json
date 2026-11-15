@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "relic-bath-towel",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICAUDIT",
+  "initialPlayerHp": 60,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 20,
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "BATH_TOWEL",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

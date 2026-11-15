@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "healing-estimate-dragon-fruit",
+  "characterId": "REGENT",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "HEALESTIMATE",
+  "initialPlayerHp": 50,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 4,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "HAND_OF_GREED",
+      "pile": "Hand"
+    }
+  ],
+  "ignoreGrowthRewards": true,
+  "combatRelics": [
+    {
+      "relicId": "DRAGON_FRUIT",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "LUCKY_FYSH",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

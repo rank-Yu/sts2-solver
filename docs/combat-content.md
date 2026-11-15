@@ -315,10 +315,12 @@
 
 **ChoicesParadox、ToastyMittens 的开局选择。** 两者的原版钩子在玩家第 1 回合开始、根捕获之前，所以搜索根里已经是选好的牌和弃掉的牌。之后的回合（`AfterPlayerTurnStart`），Sts2Solver 按同一个 `TurnStartChoiceSupport` 协议发出 `GenerateToHand`、`Exhaust` 请求，选择由结束回合动作携带。
 
-**第 1 回合准备页上的“仅第 1 回合”效果。** 第 1 回合开始时如果有可见的选择页（ToastyMittens、Toolbox、GamblingChip 等），准备根在原版 `SetupPlayerTurn` 入口捕获，能量重置之后的整段回合开始流程由内核重放，因此这段流程里只在第 1 回合触发的效果必须有定义，不能当作“根之前已结算”。已实现：BagOfPreparation、BigMushroom（`ModifyHandDraw`），FestivePopper、RoyalPoison（`AfterPlayerTurnStart`），BloodVial、FakeBloodVial（`AfterPlayerTurnStartLate`，在所有 `AfterPlayerTurnStart` 监听器之后，也就是 ToastyMittens 选完牌之后），Lantern、VeryHotCocoa、Bread、Akabeko、DivineDestiny、DiamondDiadem、FencingManual、InfusedCore（`AfterSideTurnStart`），以及原有的 Bellows、JeweledMask。数值用原版基础值常量（这些遗物变量没有运行时写入方），不进规则表。尚未实现、遇到第 1 回合准备页时计划会与实机不符并按偏差停下：BoomingConch（需要精英房间信息）、NinjaScroll、RadiantPearl、FuneraryMask、BlessedAntler、OrangeDough、BigHat（要在准备阶段生成牌）和 WhisperingEarring 的第 1 回合自动打出。
+**第 1 回合准备页上的“仅第 1 回合”效果。** 第 1 回合开始时如果有可见的选择页（ToastyMittens、Toolbox、GamblingChip 等），准备根在原版 `SetupPlayerTurn` 入口捕获，能量重置之后的整段回合开始流程由内核重放，因此这段流程里只在第 1 回合触发的效果必须有定义，不能当作“根之前已结算”。已实现：BagOfPreparation、BigMushroom（`ModifyHandDraw`），FestivePopper、RoyalPoison（`AfterPlayerTurnStart`），BloodVial、FakeBloodVial（`AfterPlayerTurnStartLate`，在所有 `AfterPlayerTurnStart` 监听器之后，也就是 ToastyMittens 选完牌之后），Lantern、VeryHotCocoa、Bread、Akabeko、DivineDestiny、DiamondDiadem、FencingManual、InfusedCore（`AfterSideTurnStart`），以及原有的 Bellows、JeweledMask。数值用原版基础值常量（这些遗物变量没有运行时写入方），不进规则表。BoomingConch、TormentousCollar 使用根冻结的精英房间标志。NinjaScroll、RadiantPearl、FuneraryMask、BlessedAntler 在抽牌前生成牌；OrangeDough、BigHat 在侧回合开始时生成牌，BigHat 使用角色的虚无牌池。WhisperingEarring 在自动预打出阶段依次尝试打出最多 13 张可打出的手牌，支付资源并使用原版的首项选择策略。GamblingChip 在选择页实际打开时读取候选数量。
 
-### 7.4 没有原引擎镜像的遗物
+### 7.4 宠物与新增遗物
 
-- 有战斗内行为：`BOOK_REPAIR_KNIFE`（Doom 击杀后治疗）、`INFUSED_CORE`（闪电球值）、`LUNAR_PASTRY`（星能）、`PHYLACTERY_UNBOUND`（Osty 召唤）、`SEAL_OF_GOLD`（金币换能量）、`SNECKO_EYE`（抽牌数）、`WHISPERING_EARRING`（最大能量；也是自动预打出的计划来源，但没有战斗内效果）。
-- 只在战斗外或根捕获之前生效，定义没有战斗内钩子并注明原版 Hook：`BING_BONG`、`DARKSTONE_PERIAPT`、`DATA_DISK`、`DELICATE_FROND`、`DIAMOND_DIADEM`、`DIVINE_DESTINY`、`FAKE_SNECKO_EYE`。根捕获前生成牌的遗物在定义里声明规则闭包：`FUNERARY_MASK`（`SOUL`）、`NINJA_SCROLL`（`SHIV`）、`RADIANT_PEARL`（`LUMINESCE`）。
-- 没有定义，导入时按 `unsupported-relic` 拒绝：`BYRDPIP`（原版宠物；原引擎不模拟 Osty 以外的宠物）、`DEPRECATED_RELIC`（Rarity None，无法获得）。
+- Byrdpip 保存本场 ByrdSwoop 使用计数；Byrdine 的 GodByrd 能力在下一回合对所有敌人造成伤害。两只鸟的动画对象不占生物槽。
+- Wuppy 使用独立的友方生物状态，导入生命、格挡与能力，支持护主、死亡及伤害溢出；见 [状态布局](combat-state-layout.md#32-生物与敌人)。
+- BathRobes 的首领房间治疗在根捕获前完成；BathTowel 的首回合治疗和 TormentousCollar 的精英虚弱在准备阶段重放。
+- MightyWings 按单次强化攻击的格挡前伤害判断力量奖励，支持玩家和 Osty。
+- 原版所有非废弃遗物都有定义；Differential 的规则表检查验证定义覆盖。局外遗物不添加无效的战斗钩子。

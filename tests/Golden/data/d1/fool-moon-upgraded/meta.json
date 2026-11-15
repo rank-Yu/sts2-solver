@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "fool-moon-upgraded",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-fool-moon-upgraded.json\u0022}",
-  "rulesSha256": "1e6050e00335a5b3b4152f3a210d913bfd225770898e4cddeb63d1053edf0d2c",
+  "rulesSha256": "aa413a6ba38120530041c12e82afb0f3c8cf375f3247bd9bb4707611663ca3ca",
   "counts": {
     "roots": 1,
     "k1": 9,

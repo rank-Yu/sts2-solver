@@ -245,7 +245,7 @@ public sealed class Queen : MonsterDef
     public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
         bool hasCardSource, in Card cardSource)
     {
-        if (creature < Limits.FirstEnemyOwner
+        if (!Kernel.IsEnemyOwner(creature)
             || creature == self.Owner
             || x.B.Enemy(creature).MonsterId != Registry.MonsterId<TorchHeadAmalgam>()
             || !x.B.Creature(self.Owner).IsAlive)

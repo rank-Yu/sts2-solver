@@ -116,7 +116,7 @@ public static partial class Kernel
     /// <summary>Mirrors <c>CombatPredictionSimulator.LoseCombat</c>.</summary>
     public static void LoseCombat(ref Battle battle) => battle.Flags |= BattleFlags.PendingLoss;
 
-    public static bool IsEnemyOwner(byte owner) => owner >= Limits.FirstEnemyOwner && owner != Limits.NoOwner;
+    public static bool IsEnemyOwner(byte owner) => owner >= Limits.FirstEnemyOwner && owner < Limits.WuppyOwner;
 
     public static byte EnemyOwner(int enemyIndex) => checked((byte)(Limits.FirstEnemyOwner + enemyIndex));
 
@@ -163,6 +163,8 @@ public static partial class Kernel
             return battle.Player.IsAlive;
         if (owner == Limits.OstyOwner)
             return (battle.Flags & BattleFlags.OstyPresent) != 0 && battle.Osty.IsAlive;
+        if (owner == Limits.WuppyOwner)
+            return battle.Wuppy.IsAlive;
         ref readonly Enemy enemy = ref battle.Enemies[owner - Limits.FirstEnemyOwner];
         return enemy.Creature.IsAlive && InRoster(battle, owner);
     }

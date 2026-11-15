@@ -1,0 +1,14 @@
+{
+  "formatVersion": 12,
+  "battleSize": 43856,
+  "root": "relic-mighty-wings",
+  "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-mighty-wings.json\u0022}",
+  "rulesSha256": "de69ceb14909d5405f3c6fbf4827e3838d856d783a3588dc80b45c8468b59c4d",
+  "counts": {
+    "roots": 1,
+    "k1": 7,
+    "walks": 16,
+    "walkStates": 236,
+    "transitions": 220
+  }
+}

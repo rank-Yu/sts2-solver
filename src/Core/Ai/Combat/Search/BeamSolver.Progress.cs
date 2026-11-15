@@ -489,6 +489,7 @@ internal sealed partial class BeamSolver
         SearchWorkspacePeakBytes = _workspacePeakBytes,
         SearchWorkspaceGrowablePeakBytes = _workspaceGrowablePeakBytes,
         WorkspaceOverflowParents = _workspaceOverflowParents,
+        WorkspaceChunks = _workspaceChunks,
         WorkspaceParents = _workspaceParents,
         WorkspaceDirectDuration = Stopwatch.GetElapsedTime(0, _workspaceDirectTicks),
     };

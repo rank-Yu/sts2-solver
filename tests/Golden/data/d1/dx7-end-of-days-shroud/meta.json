@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "dx7-end-of-days-shroud",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx7-end-of-days-shroud.json\u0022}",
-  "rulesSha256": "fd47aceb65387f5a6de6954eb7aeb74859e0c02b6f4debc4eb3125f58c884511",
+  "rulesSha256": "8dca1ea5a8c75d4f750d0eab683ca986da4f10a28df4f98775105d38f8f16bb7",
   "counts": {
     "roots": 1,
     "k1": 4,

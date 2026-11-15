@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "qp1-touch-of-insanity",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qp1-touch-of-insanity.json\u0022}",
-  "rulesSha256": "921e5489eecee1c17785a90b7fd90dd8849d265f86c365b20b4f74cbc490263b",
+  "rulesSha256": "d28a8d0007ef9bcd52494be4dbafa73b2e992a200bcbdbccb17dd54735bfb4ca",
   "counts": {
     "roots": 1,
     "k1": 16,

@@ -73,11 +73,12 @@ public sealed class HelixDrill : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["Damage"];
 
-    // CalculatedVarSpecRegistry.HelixDrill: energy spent this turn minus this card's current cost.
+    // Native v0.113.1: subtract this CardPlay's actual payment; free-attack effects may
+    // already have expired before OnPlay, and unpaid auto-plays contribute no payment.
     public override void OnPlay(ref Exec x)
     {
         int hits = Math.Max(0, x.B.Counter(Counter.EnergySpentThisTurn)
-            - Kernel.EnergyCostWithModifiers(x.B, x.R, x.Card, Pile.Play));
+            - x.CurrentPlayEnergySpent);
         CardEffects.Attack(ref x, CardEffects.Var(x, 0), hits);
     }
 }

@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Dread.Dominions;
 using MegaCrit.Sts2.Core.Models.Enchantments;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Relics;
@@ -701,6 +702,7 @@ internal static class PlayerTurnSetupRuntime
             $"[Sts2Solver] TURN_SETUP_PLAN_READY turn={t.Turn} " +
             $"source=continuation choices={result.SetupChoices.Length} search=false " +
             $"phase={phase} visible=true driving=false");
+        CombatSessionController.ArmAutomaticExecution();
         if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {
@@ -774,6 +776,7 @@ internal static class PlayerTurnSetupRuntime
         }
         if (t.Driving)
             return;
+        CombatSessionController.ArmAutomaticExecution();
         if (CombatSessionController.CombatRunActive
             && !CombatSessionController.AutomaticSearchPaused)
         {
@@ -1519,9 +1522,12 @@ internal static class PlayerTurnSetupRuntime
 
     private static bool RequiresSolverChoice(Player player, int turn)
     {
+        if (turn <= 1 && player.Creature.CombatState is CombatState { Dominion: KnowledgeDemonDominion })
+            return true;
         if (player.Relics.Any(relic => !relic.IsMelted
                 && (relic is ToastyMittens
-                    || turn <= 1 && relic is Toolbox or ChoicesParadox or GamblingChip)))
+                    || turn <= 1 && relic is Toolbox or ChoicesParadox or GamblingChip
+                    || turn > 1 && relic is HistoryCourse)))
         {
             return true;
         }

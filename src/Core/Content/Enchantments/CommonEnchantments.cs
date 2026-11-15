@@ -161,6 +161,8 @@ public sealed class Vigorous : EnchantmentDef
 [ContentId("ADROIT")]
 public sealed class Adroit : EnchantmentDef
 {
+    public override bool GainsBlock => true;
+
     public override void OnPlay(ref Exec x, in Card card, byte target)
     {
         Kernel.GainBlock(ref x, Limits.PlayerOwner, card.EnchantmentAmount, ValueProps.Move, fromCard: true);

@@ -66,6 +66,8 @@ internal sealed record SolverSettingsData
 
     private void ValidateAutomation()
     {
+        if (Automation.AutoExecute && !Automation.AutoSearch)
+            throw new InvalidDataException("自动执行需要开启自动搜索。");
         if (!Enum.IsDefined(Automation.DeploymentSpeed))
             throw new InvalidDataException($"未知自动出牌速度：{Automation.DeploymentSpeed}");
         if (!double.IsFinite(Automation.InterActionDelaySeconds)
@@ -345,6 +347,8 @@ internal sealed record SolverAutomationSettings
     /// Executing the whole combat is a per-combat command, never a persisted setting.
     /// </summary>
     public bool AutoSearch { get; init; } = true;
+
+    public bool AutoExecute { get; init; }
 
     /// <summary>Battle speed override while the solver plays cards; follow the game by default.</summary>
     public SolverDeploymentSpeed DeploymentSpeed { get; init; } = SolverDeploymentSpeed.FollowGame;

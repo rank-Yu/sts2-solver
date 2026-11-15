@@ -93,6 +93,7 @@ public static class BattleDump
         Add(records, nameof(Battle.DecimalVarCount), battle.DecimalVarCount);
         AddCreature(records, nameof(Battle.Player), battle.Player);
         AddCreature(records, nameof(Battle.Osty), battle.Osty);
+        AddCreature(records, nameof(Battle.Wuppy), battle.Wuppy);
 
         int counterOffset = FieldOffset(nameof(Battle.Counters));
         for (int counter = 0; counter < Limits.Counters; counter++)

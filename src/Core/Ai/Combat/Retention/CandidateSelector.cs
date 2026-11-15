@@ -1965,7 +1965,7 @@ internal sealed partial class BeamSolver
             if (!_standPatProbeSet.Add(slot))
                 return;
             if (_standPatProbeCount == _standPatProbeValues.Length)
-                Array.Resize(ref _standPatProbeValues, _standPatProbeValues.Length * 2);
+                _storage.ResizeArray(ref _standPatProbeValues, Math.Max(16, _standPatProbeValues.Length * 2));
             _standPatProbeSlots.Add(slot);
             _standPatProbeCount++;
         }
@@ -2782,8 +2782,8 @@ internal sealed partial class BeamSolver
             if (count <= _paretoDominated.Length)
                 return;
             int capacity = Math.Max(count, _paretoDominated.Length * 2);
-            _paretoDominated = new bool[capacity];
-            _paretoCohortIndex = new int[capacity];
+            _storage.ResizeArray(ref _paretoDominated, capacity);
+            _storage.ResizeArray(ref _paretoCohortIndex, capacity);
         }
 
         /// <summary>One worker-batch item; the cohort and all compared facts are immutable here.</summary>

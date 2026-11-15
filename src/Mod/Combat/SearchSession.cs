@@ -183,16 +183,15 @@ internal static class SearchSession
             BeamOptions solveOptions = pacer == null
                 ? searchCase.Options
                 : searchCase.Options with { Pacer = pacer };
-            byte[] requestBytes = SearchCodec.EncodeRequest(searchCase);
             if (resultDirectory != null && deterministic)
-                WriteBytes(Path.Combine(resultDirectory, "SREQ"), requestBytes);
+                WriteBytes(Path.Combine(resultDirectory, "SREQ"), SearchCodec.EncodeRequest(searchCase));
             ModLog.Info(
                 $"[Sts2Solver] SEARCH_STARTED root={root} tier={tier} deterministic={deterministic} "
                 + $"threads={searchCase.Options.SearchThreads} "
                 + $"beam={searchCase.Options.BeamWidth} "
                 + (searchCase.Options.UnlimitedNodes ? "nodes=unlimited " : $"nodes={searchCase.Options.MaxExpandedNodes} ")
                 + $"soft_ms={(deterministic ? -1 : (long)searchCase.Options.SoftTimeBudget.TotalMilliseconds)} "
-                + $"turn={searchCase.Options.InitialPlayerTurn} root_bytes={requestBytes.Length}");
+                + $"turn={searchCase.Options.InitialPlayerTurn}");
 
             Stopwatch elapsed = Stopwatch.StartNew();
             long managedPeak = 0;
@@ -313,6 +312,7 @@ internal static class SearchSession
                         + $"allocated_mb={ToMegabytes(allocated):0.0} yields={pacer?.YieldCount ?? 0} "
                         + $"frame_waits={frameWaits} frame_wait_ms={frameWaitMilliseconds} "
                         + $"workspace_overflow_parents={beam.WorkspaceOverflowParents} "
+                        + $"workspace_chunks={beam.WorkspaceChunks} "
                         + $"turn_loop_guarded={beam.TurnLoopGuarded} "
                         + $"cross_turn_no_progress_pruned={beam.CrossTurnNoProgressPruned} "
                         + $"workspace_growable_peak_mb={ToMegabytes(beam.SearchWorkspaceGrowablePeakBytes):0.0} "

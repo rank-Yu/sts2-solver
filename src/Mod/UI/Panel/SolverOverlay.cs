@@ -659,6 +659,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal CheckButton? AutoSearchSwitchForTest => _autoSearchSwitch;
 
+    internal CheckButton? AutoExecuteSwitchForTest => _autoExecuteSwitch;
+
     internal Button? PotionButtonForTest => _potionButton;
 
     internal Button? GrowthButtonForTest => _growthButton;
@@ -700,6 +702,12 @@ internal sealed partial class SolverOverlay : CanvasLayer
     internal Control? MainStackForTest => _mainStack;
 
     internal PanelContainer? PanelForTest => _panel;
+
+    internal void ResizeForTest(Vector2 size)
+    {
+        _customPanelSize = size;
+        ApplyResponsiveLayout();
+    }
 
     internal SolverOverlayPresentation PresentationForTest => _presentation;
 

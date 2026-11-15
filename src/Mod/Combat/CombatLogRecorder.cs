@@ -2,7 +2,7 @@
 // user://sts2solver/combat-logs holding combat.json, every search's request (SREQ), selected result
 // (SRES) and member summary, the predicted and actual states of each deployment deviation, and the
 // [Sts2Solver] log lines. The main thread only encodes and enqueues; one background writer owns all
-// file I/O, so a slow or failing disk never stalls the game or a search. Golden replay-log reruns
+// file I/O. A bounded queue applies backpressure when the disk falls behind. Golden replay-log reruns
 // the searches from a combat folder.
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -26,7 +26,14 @@ internal static class CombatLogRecorder
     internal const int SchemaVersion = 1;
     internal const int KeptCombats = 20;
 
-    private static readonly Channel<System.Action> Queue = Channel.CreateUnbounded<System.Action>(
+    private readonly record struct PendingWrite(System.Action Write, long Bytes);
+    private const long QueueBytes = 1L << 20;
+    private const int QueueItems = 128;
+    private static readonly object QueueGate = new();
+    private static long _queuedBytes;
+    private static int _queuedItems;
+    private static bool _writerStopped;
+    private static readonly Channel<PendingWrite> Queue = Channel.CreateUnbounded<PendingWrite>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -96,7 +103,8 @@ internal static class CombatLogRecorder
         if (Volatile.Read(ref _current) is not { } folder)
             return;
         string line = $"{DateTime.UtcNow:O} {level} {message}\n";
-        Enqueue(() => File.AppendAllText(Path.Combine(folder, "events.log"), line));
+        Enqueue(() => File.AppendAllText(Path.Combine(folder, "events.log"), line),
+            512 + 2L * (line.Length + folder.Length));
     }
 
     /// <summary>
@@ -116,12 +124,13 @@ internal static class CombatLogRecorder
         CombatSearchLog entry = CombatSearchLog.Started(index, setup, turn, reason, resumed, tier, threads,
             plan, encodeError);
         string stem = Path.Combine(folder, $"search-{index:D3}");
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(entry, Json);
         Enqueue(() =>
         {
             if (request != null)
                 WriteCompressed(stem + ".sreq.br", request);
-            WriteJson(stem + ".json", entry);
-        });
+            File.WriteAllBytes(stem + ".json", json);
+        }, 512 + (request?.LongLength ?? 0) + json.LongLength);
     }
 
     private static byte[]? EncodeRequest(SearchCase searchCase, int index, out string? encodeError)
@@ -170,14 +179,15 @@ internal static class CombatLogRecorder
         byte[]? result = beam == null ? null : SearchCodec.EncodeResult(beam);
         CombatSearchLog entry = CombatSearchLog.From(run, index, setup, turn, reason, resumed, encodeError);
         string stem = Path.Combine(folder, $"search-{index:D3}");
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(entry, Json);
         Enqueue(() =>
         {
             if (request != null)
                 WriteCompressed(stem + ".sreq.br", request);
             if (result != null)
                 WriteCompressed(stem + ".sres.br", result);
-            WriteJson(stem + ".json", entry);
-        });
+            File.WriteAllBytes(stem + ".json", json);
+        }, 512 + (request?.LongLength ?? 0) + (result?.LongLength ?? 0) + json.LongLength);
     }
 
     /// <summary>Saves the predicted and actual states of one deployment or boundary deviation.</summary>
@@ -192,12 +202,13 @@ internal static class CombatLogRecorder
         CombatDeviationLog entry = new(SchemaVersion, index, kind, turn, actionIndex,
             Volatile.Read(ref _searches), [.. diff]);
         string stem = Path.Combine(folder, $"deviation-{index:D2}");
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(entry, Json);
         Enqueue(() =>
         {
             WriteCompressed(stem + ".predicted.batl.br", predictedBytes);
             WriteCompressed(stem + ".actual.batl.br", actualBytes);
-            WriteJson(stem + ".json", entry);
-        });
+            File.WriteAllBytes(stem + ".json", json);
+        }, 512 + predictedBytes.LongLength + actualBytes.LongLength + json.LongLength);
     }
 
     /// <summary>Called on the UI thread; the writer packages files after earlier queued writes.</summary>
@@ -229,6 +240,39 @@ internal static class CombatLogRecorder
     }
 
 #if STS2_SOLVER_TESTING
+    /// <summary>Hold the real writer to verify byte/count backpressure without losing writes.</summary>
+    internal static Task<bool> CheckQueueBudgetForTest() => Task.Run(async () =>
+    {
+        foreach (bool byteBound in new[] { true, false })
+        {
+            await FlushForTest().ConfigureAwait(false);
+            using ManualResetEventSlim release = new(false);
+            TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            int completed = 0;
+            Enqueue(() => { entered.SetResult(); release.Wait(); }, byteBound ? QueueBytes : 1024);
+            Task? producer = null;
+            bool bounded;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                producer = Task.Run(() =>
+                {
+                    for (int index = 0; index < QueueItems; index++)
+                        Enqueue(() => Interlocked.Increment(ref completed));
+                });
+                await Task.Delay(100).ConfigureAwait(false);
+                lock (QueueGate)
+                    bounded = !producer.IsCompleted && _queuedBytes <= QueueBytes
+                        && _queuedItems <= QueueItems;
+            }
+            finally { release.Set(); }
+            await producer!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await FlushForTest().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            if (!bounded || completed != QueueItems) return false;
+        }
+        return true;
+    });
+
     /// <summary>Completes once every write enqueued before the call has finished.</summary>
     internal static Task FlushForTest()
     {
@@ -238,27 +282,60 @@ internal static class CombatLogRecorder
     }
 
 #endif
-    private static void Enqueue(System.Action item)
+    private static void Enqueue(System.Action item, long bytes = 1024)
     {
-        if (!Queue.Writer.TryWrite(item))
-            throw new InvalidOperationException("战斗日志队列已关闭。");
+        lock (QueueGate)
+        {
+            // A large request/result is admitted alone; its payload is already covered by the
+            // request/route reservation. Ordinary queued logs use the runtime reservation.
+            while (!_writerStopped && (_queuedItems >= QueueItems
+                || _queuedItems > 0 && bytes > QueueBytes - _queuedBytes))
+                Monitor.Wait(QueueGate);
+            if (_writerStopped)
+                throw new InvalidOperationException("战斗日志写入线程已停止。");
+            _queuedBytes += bytes;
+            _queuedItems++;
+            if (!Queue.Writer.TryWrite(new PendingWrite(item, bytes)))
+                throw new InvalidOperationException("战斗日志队列已关闭。");
+        }
     }
 
     private static async Task WriteLoopAsync()
     {
-        await foreach (System.Action item in Queue.Reader.ReadAllAsync().ConfigureAwait(false))
+        try
         {
-            try
+            await foreach (PendingWrite item in Queue.Reader.ReadAllAsync().ConfigureAwait(false))
             {
-                item();
+                try
+                {
+                    item.Write();
+                }
+                catch (IOException error)
+                {
+                    ReportWriteFailure(error);
+                }
+                catch (UnauthorizedAccessException error)
+                {
+                    ReportWriteFailure(error);
+                }
+                finally
+                {
+                    lock (QueueGate)
+                    {
+                        _queuedBytes -= item.Bytes;
+                        _queuedItems--;
+                        Monitor.PulseAll(QueueGate);
+                    }
+                }
             }
-            catch (IOException error)
+        }
+        finally
+        {
+            lock (QueueGate)
             {
-                ReportWriteFailure(error);
-            }
-            catch (UnauthorizedAccessException error)
-            {
-                ReportWriteFailure(error);
+                _writerStopped = true;
+                Queue.Writer.TryComplete();
+                Monitor.PulseAll(QueueGate);
             }
         }
     }

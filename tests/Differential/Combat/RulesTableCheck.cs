@@ -1,8 +1,10 @@
-// Contract check: every supported registry id has a risk value, and every table entry
-// exists in the current native models. Unregistered native content may remain unmapped.
+// Check native single-player content against executable definitions and risk tables.
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.Import;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Models.Cards;
+using MegaCrit.Sts2.Core.Models.Relics;
 
 namespace Differential;
 
@@ -33,6 +35,20 @@ internal static class RulesTableCheck
                 registryMissing.Add("power:" + Registry.Power(id).NativeId);
         }
 
+        HashSet<string> supportedCards = [.. Enumerable.Range(0, Registry.CardCount)
+            .Select(id => Registry.Card((ushort)id).NativeId)];
+        HashSet<string> supportedRelics = [.. Enumerable.Range(0, Registry.RelicCount)
+            .Select(id => Registry.Relic((ushort)id).NativeId)];
+        List<string> unsupported = [.. ModelDb.AllCards
+            .Where(card => card is not DeprecatedCard
+                && card.MultiplayerConstraint != CardMultiplayerConstraint.MultiplayerOnly
+                && !supportedCards.Contains(card.Id.Entry))
+            .Select(card => "card:" + card.Id.Entry)
+            .Concat(ModelDb.AllRelics.Where(relic => relic is not DeprecatedRelic
+                && !supportedRelics.Contains(relic.Id.Entry)).Select(relic => "relic:" + relic.Id.Entry))
+            .Order(StringComparer.Ordinal)];
+        foreach (string id in unsupported)
+            Console.Error.WriteLine($"unsupported-native {id}");
         Console.WriteLine(
             $"RULES-TABLES cards={tableCards.Count} powers={tablePowers.Count} "
             + $"native_cards={nativeCards.Count} native_powers={nativePowers.Count} "
@@ -50,6 +66,6 @@ internal static class RulesTableCheck
         foreach (string id in registryMissing.Take(8))
             Console.Error.WriteLine($"registry-missing {id}");
         return extraCards.Count == 0 && extraPowers.Count == 0
-            && registryMissing.Count == 0 ? 0 : 1;
+            && registryMissing.Count == 0 && unsupported.Count == 0 ? 0 : 1;
     }
 }

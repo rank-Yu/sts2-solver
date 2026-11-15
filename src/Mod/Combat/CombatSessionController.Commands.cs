@@ -15,26 +15,31 @@ internal static partial class CombatSessionController
 {
     /// <summary>
     /// The auto-search switch (persisted). It only decides whether a player turn searches by itself
-    /// when it starts; it never starts or stops an execution and never replaces a route. Turning it
-    /// on in a turn that has not searched yet starts that turn's search; turning it off leaves a
-    /// running search alone (the player stops it with 停止搜索).
+    /// when it starts. Turning it on in a turn that has not searched yet starts that turn's search.
+    /// Turning it off also switches auto execution off; a plain running search keeps going.
     /// </summary>
     internal static bool SetAutoSearch(bool enabled, bool persist = true)
     {
         RequireMainThread();
         bool previous = _autoSearch;
+        bool previousExecute = _autoExecute;
         // Set first: the settings store calls back into OnSettingsChanged, which must see the new
         // value and only publish instead of switching a second time.
         _autoSearch = enabled;
+        if (!enabled)
+            _autoExecute = false;
         if (persist && SolverSettings.Current.Automation.AutoSearch != enabled
             && !SolverSettings.Update(current => current with
             {
-                Automation = current.Automation with { AutoSearch = enabled },
+                Automation = current.Automation with { AutoSearch = enabled, AutoExecute = _autoExecute },
             }))
         {
             _autoSearch = previous;
+            _autoExecute = previousExecute;
             return false;
         }
+        if (previousExecute && !enabled)
+            StopExecutionCore();
         if (previous != enabled)
         {
             ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_SEARCH_SWITCH enabled={enabled} turn={CurrentTurn()}");
@@ -43,6 +48,43 @@ internal static partial class CombatSessionController
         }
         PublishSnapshot();
         return true;
+    }
+
+    internal static bool SetAutoExecute(bool enabled, bool persist = true)
+    {
+        RequireMainThread();
+        if (enabled && !_autoSearch)
+            return false;
+        bool previous = _autoExecute;
+        _autoExecute = enabled;
+        if (persist && SolverSettings.Current.Automation.AutoExecute != enabled
+            && !SolverSettings.Update(current => current with
+            {
+                Automation = current.Automation with { AutoExecute = enabled },
+            }))
+        {
+            _autoExecute = previous;
+            return false;
+        }
+        if (previous != enabled)
+        {
+            ModLog.Info($"[Sts2Solver] CONTROLLER_AUTO_EXECUTE_SWITCH enabled={enabled}");
+            if (!enabled)
+                StopExecutionCore();
+            else if (_combatActive && _search == null && !_automaticSearchPaused && !_runPaused
+                && _latestResult != null)
+                ExecuteCombat();
+        }
+        PublishSnapshot();
+        return true;
+    }
+
+    // Arm only after a completed search or a verified continuation. A stopped search keeps its
+    // candidate for manual execution, and a paused run waits for an explicit execute command.
+    internal static void ArmAutomaticExecution()
+    {
+        if (_autoExecute && !_runPaused && !_automaticSearchPaused && CanRunCombat())
+            _runCombat = true;
     }
 
     /// <summary>
@@ -141,6 +183,11 @@ internal static partial class CombatSessionController
         RequireMainThread();
         if (IsMultiplayerSession)
             return false;
+        return _autoExecute ? SetAutoExecute(false) : StopExecutionCore();
+    }
+
+    private static bool StopExecutionCore()
+    {
         bool stopped = false;
         if (_runCombat)
         {
@@ -169,7 +216,7 @@ internal static partial class CombatSessionController
         return stopped;
     }
 
-    /// <summary>执行本回合: executes the current turn's route only; the next turn waits for the player.</summary>
+    /// <summary>执行本回合: executes this turn; the automatic switches govern later turns.</summary>
     internal static bool ExecuteCurrentTurn() => Execute(runCombat: false);
 
     /// <summary>

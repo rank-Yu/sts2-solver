@@ -153,6 +153,9 @@ public static partial class BattleImporter
             battle.Flags |= BattleFlags.OstyEverPresent;
         }
 
+        Creature? wuppy = playerState.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy);
+        if (wuppy != null)
+            battle.Wuppy = Vitals(wuppy, history.HasLostHpThisTurn(wuppy));
         ImportCounters(ref battle, state, player, known, osty, history, options);
         ImportRng(ref battle, state.RunState.Rng, player);
         ImportEnemies(ref battle, state, player, known, rules, history, projections, options);
@@ -519,6 +522,8 @@ public static partial class BattleImporter
         AddPowers(ordered, player.Creature, Limits.PlayerOwner);
         if (osty != null)
             AddPowers(ordered, osty, Limits.OstyOwner);
+        Creature? wuppy = player.PlayerCombatState!.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy);
+        if (wuppy != null) AddPowers(ordered, wuppy, Limits.WuppyOwner);
         for (int index = 0; index < known.Count; index++)
             AddPowers(ordered, known[index], checked((byte)(Limits.FirstEnemyOwner + index)));
         ordered.Sort((left, right) => left.Owner != right.Owner
@@ -704,6 +709,8 @@ public static partial class BattleImporter
         NativeAccess.RequireOriginal(card);
         ushort id = CardId(card);
         int upgrade = card.CurrentUpgradeLevel;
+        if ((uint)upgrade > byte.MaxValue)
+            throw new UnsupportedImportException(ImportReason.Capacity, $"{card.Id.Entry} 升级等级 {upgrade}");
         CardStats stats;
         try
         {
@@ -741,7 +748,7 @@ public static partial class BattleImporter
                 throw new UnsupportedImportException(ImportReason.Unrepresentable, $"TheShot 花开计数 {exhausted}");
             result.Private = (short)exhausted;
         }
-        if (dampenOriginalUpgrade > 3)
+        if (dampenOriginalUpgrade >= byte.MaxValue)
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 $"{card.Id.Entry} 压制前升级等级 {dampenOriginalUpgrade}");
         if (dampenOriginalUpgrade >= 0)
@@ -1019,6 +1026,8 @@ public static partial class BattleImporter
             return Limits.PlayerOwner;
         if (osty != null && ReferenceEquals(creature, osty))
             return Limits.OstyOwner;
+        if (creature.PetOwner == player && creature.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy)
+            return Limits.WuppyOwner;
         int index = IndexOf(known, creature);
         return index >= 0
             ? checked((byte)(Limits.FirstEnemyOwner + index))

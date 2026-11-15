@@ -527,13 +527,6 @@ public abstract class ContentDef
     /// </summary>
     public virtual bool GeneratesOutOfCombatPotion => false;
 
-    /// <summary>
-    /// Card stats and pools used only while the opening battle is built. They are frozen into the
-    /// provisional rules so first-turn generation can sample them, but not into the play-phase
-    /// rules (the generated cards themselves are part of the battle and keep their stats there).
-    /// </summary>
-    public virtual IReadOnlyList<string> SetupOnlyCardPools => [];
-
     public virtual bool SetupOnlyOutOfCombatPotionPool => false;
 
     /// <summary>
@@ -1667,6 +1660,9 @@ public abstract class OrbDef : ListenerDef
 /// </summary>
 public abstract class EnchantmentDef : ListenerDef
 {
+    /// <summary>Native EnchantmentModel.GainsBlock, including block added by Adroit.</summary>
+    public virtual bool GainsBlock => false;
+
     /// <summary>Native <c>EnchantmentModel.ShouldStartAtBottomOfDrawPile</c> (Imbued).</summary>
     public virtual bool StartsAtBottomOfDrawPile => false;
 

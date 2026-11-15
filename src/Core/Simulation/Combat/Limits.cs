@@ -122,6 +122,8 @@ public static class Limits
 
     public const byte FirstEnemyOwner = 2;
 
+    public const byte WuppyOwner = FirstEnemyOwner + Enemies;
+
     /// <summary>Marker for "no creature" in applier/target fields.</summary>
     public const byte NoOwner = byte.MaxValue;
 

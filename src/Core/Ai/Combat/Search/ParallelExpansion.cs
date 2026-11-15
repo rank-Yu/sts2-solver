@@ -9,8 +9,8 @@ namespace Sts2Solver.Ai.Combat;
 internal sealed partial class BeamSolver
 {
     /// <summary>
-    /// Total threads assigned to one solve. The search thread also claims parents while it waits for
-    /// the next commit, so <c>threads</c> includes it. The workers live for the whole solve and block
+    /// Total threads assigned to one solve. The search thread also calculates future parents while
+    /// waiting for ordered results, so <c>threads</c> includes it. The workers live for the whole solve and block
     /// between layers; the caller disposes the object after the search loop.
     /// </summary>
     private sealed class ParallelExpansion : IDisposable
@@ -84,7 +84,7 @@ internal sealed partial class BeamSolver
 
         /// <summary>
         /// Runs one action layer. The search thread commits parents in their original order and also
-        /// claims work while the next slot is not ready. On return no worker is inspecting the layer.
+        /// also claims unstarted parents while waiting. On return no worker is inspecting the layer.
         /// </summary>
         internal void RunLayer(Pool current, Pool next, Pool ended, TerminalSink terminal,
             ParentExpansionContext[] contexts, int count)
@@ -287,6 +287,7 @@ internal sealed partial class BeamSolver
             private const int SlotFree = 0;
             private const int SlotClaimed = 1;
             private const int SlotReady = 2;
+            private const int SlotChunkReady = 3;
 
             private sealed class Slot
             {
@@ -308,8 +309,11 @@ internal sealed partial class BeamSolver
             private readonly object _commitGate = new();
             private readonly object _windowGate = new();
             private readonly Slot[] _slots;
+            private readonly Func<int, bool, bool> _publishChunk;
             private int _nextClaim;
             private int _commitCursor;
+            private int _countedCursor = -1;
+            private int _duplicatesBefore;
             private int _publishVersion;
             private int _windowVersion;
             private volatile bool _stop;
@@ -319,6 +323,7 @@ internal sealed partial class BeamSolver
                 TerminalSink terminal, ParentExpansionContext[] contexts, int window, int count)
             {
                 _solver = owner._solver;
+                _publishChunk = PublishChunk;
                 _current = current;
                 _next = next;
                 _ended = ended;
@@ -334,22 +339,34 @@ internal sealed partial class BeamSolver
 
             internal void RunSearch(SearchWorkPacer? pacer)
             {
-                for (int index = 0; index < _count; index++)
+                while (_commitCursor < _count && !_stop)
                 {
-                    if (_solver._victoryTargetReached || _solver.OutOfBudget(_solver._solveWatch!))
+                    int index = _commitCursor;
+                    if (!BeginCommitParent(index))
                         return;
-                    _solver.SearchCheckpoint();
-                    _solver.CountExpanded();
-                    while (true)
-                    {
-                        if (WaitForCommit(index, out int claim))
-                            break;
-                        if (claim < 0)
-                            return;
-                        Expand(claim, pacer);
-                    }
-                    Commit(index);
+                    if (WaitForCommit(index, out int claim))
+                        Commit(index);
+                    else if (claim >= 0)
+                        Expand(claim, pacer, searchThread: true);
+                    else
+                        return;
                 }
+            }
+
+            private bool BeginCommitParent(int index)
+            {
+                if (_countedCursor == index)
+                    return true;
+                if (_solver._victoryTargetReached || _solver.OutOfBudget(_solver._solveWatch!))
+                {
+                    Stop();
+                    return false;
+                }
+                _solver.SearchCheckpoint();
+                _solver.CountExpanded();
+                _duplicatesBefore = _solver._duplicates;
+                _countedCursor = index;
+                return true;
             }
 
             public void RunWorker(SearchWorkPacer? pacer)
@@ -373,7 +390,10 @@ internal sealed partial class BeamSolver
             internal void Stop()
             {
                 lock (_gate)
+                {
                     _stop = true;
+                    Monitor.PulseAll(_gate);
+                }
                 SignalCommit();
                 SignalWindow(wakeAll: true);
             }
@@ -391,7 +411,7 @@ internal sealed partial class BeamSolver
             private bool ReadyFast(int index)
             {
                 Slot slot = _slots[index % _window];
-                return slot.Index == index && Volatile.Read(ref slot.State) == SlotReady;
+                return slot.Index == index && Volatile.Read(ref slot.State) is SlotReady or SlotChunkReady;
             }
 
             private int ClaimWorker()
@@ -431,10 +451,10 @@ internal sealed partial class BeamSolver
             }
 
             /// <summary>
-            /// Waits until the commit slot is ready. While waiting, the search thread claims the next
-            /// unstarted parent itself; <paramref name="claim"/> returns -1 when the layer stopped.
+            /// Waits until the next chunk or final result is ready. Unless already draining from a
+            /// suspended producer, the search thread can claim an unstarted parent; <paramref name="claim"/> returns -1 when the layer stopped.
             /// </summary>
-            private bool WaitForCommit(int index, out int claim)
+            private bool WaitForCommit(int index, out int claim, bool allowClaim = true)
             {
                 claim = -1;
                 SpinWait spin = default;
@@ -454,7 +474,7 @@ internal sealed partial class BeamSolver
                             return false;
                         if (ReadyFast(index))
                             return true;
-                        if (CanClaim())
+                        if (allowClaim && CanClaim())
                         {
                             claim = ClaimLocked();
                             return false;
@@ -485,7 +505,7 @@ internal sealed partial class BeamSolver
                 return index;
             }
 
-            private void Expand(int index, SearchWorkPacer? pacer)
+            private void Expand(int index, SearchWorkPacer? pacer, bool searchThread = false)
             {
                 try
                 {
@@ -493,10 +513,14 @@ internal sealed partial class BeamSolver
                     ExpansionWorkspace workspace = _workspaces[index % _window];
                     ref readonly Battle parent = ref _current.State(index);
                     workspace.ResetDiagnostics();
-                    bool buffered = workspace.SupportsBufferedExpansion
-                        && workspace.Expand(in parent, in _contexts[index], _solver._cancellationToken);
+                    bool buffered = workspace.SupportsBufferedExpansion;
+                    if (buffered)
+                        workspace.Expand(in parent, in _contexts[index], index, searchThread,
+                            _publishChunk, _solver._cancellationToken);
                     lock (_gate)
                     {
+                        if (_stop)
+                            return;
                         Slot slot = _slots[index % _window];
                         Volatile.Write(ref slot.Overflow, !buffered);
                         Volatile.Write(ref slot.State, SlotReady);
@@ -513,14 +537,52 @@ internal sealed partial class BeamSolver
                 }
             }
 
-            private void Commit(int index)
+            private bool PublishChunk(int index, bool searchThread)
+            {
+                if (searchThread)
+                {
+                    // This producer may be ahead of the ordered cursor. Drain preceding parents
+                    // before its own chunk; do not recursively claim more speculative work here.
+                    while (_commitCursor < index && !_stop)
+                    {
+                        int preceding = _commitCursor;
+                        if (!BeginCommitParent(preceding)
+                            || !WaitForCommit(preceding, out _, allowClaim: false))
+                            return false;
+                        Commit(preceding);
+                    }
+                    if (_stop || !BeginCommitParent(index))
+                        return false;
+                    if (!_workspaces[index % _window].Commit(in _current.State(index),
+                            in _contexts[index], _next, _ended, _terminal))
+                        Stop();
+                    return !_stop;
+                }
+                lock (_gate)
+                {
+                    if (_stop)
+                        return false;
+                    Volatile.Write(ref _slots[index % _window].State, SlotChunkReady);
+                }
+                SignalCommit();
+                lock (_gate)
+                {
+                    while (!_stop && _slots[index % _window].State == SlotChunkReady)
+                        Monitor.Wait(_gate);
+                    return !_stop;
+                }
+            }
+
+            private bool Commit(int index)
             {
                 ExpansionWorkspace workspace = _workspaces[index % _window];
                 ref readonly Battle parent = ref _current.State(index);
-                bool overflow;
+                bool overflow, chunk;
                 lock (_gate)
-                    overflow = Volatile.Read(ref _slots[index % _window].Overflow);
-                int duplicatesBefore = _solver._duplicates;
+                {
+                    overflow = _slots[index % _window].Overflow;
+                    chunk = _slots[index % _window].State == SlotChunkReady;
+                }
                 if (overflow)
                 {
                     _solver._workspaceOverflowParents++;
@@ -530,11 +592,22 @@ internal sealed partial class BeamSolver
                         _terminal, _solver._cancellationToken);
                     _solver._workspaceDirectTicks += Stopwatch.GetTimestamp() - directStarted;
                 }
-                else
+                else if (!workspace.Commit(in parent, in _contexts[index], _next, _ended, _terminal))
                 {
-                    workspace.Commit(in parent, in _contexts[index], _next, _ended, _terminal);
+                    Stop();
+                    return false;
                 }
-                _solver.ObserveParent(workspace, duplicatesBefore);
+                if (chunk)
+                {
+                    lock (_gate)
+                    {
+                        Volatile.Write(ref _slots[index % _window].State, SlotClaimed);
+                        Monitor.PulseAll(_gate);
+                    }
+                    return false;
+                }
+                _solver._workspaceChunks += workspace.PublishedChunks;
+                _solver.ObserveParent(workspace, _duplicatesBefore);
                 _solver.AccumulateWorkspaceDiagnostics(workspace);
                 lock (_gate)
                 {
@@ -544,6 +617,7 @@ internal sealed partial class BeamSolver
                     _commitCursor = index + 1;
                 }
                 SignalWindow(wakeAll: false);
+                return true;
             }
 
             private void Fail(Exception error)
@@ -552,6 +626,7 @@ internal sealed partial class BeamSolver
                 {
                     _failure ??= ExceptionDispatchInfo.Capture(error);
                     _stop = true;
+                    Monitor.PulseAll(_gate);
                 }
                 SignalCommit();
                 SignalWindow(wakeAll: true);
@@ -615,7 +690,7 @@ internal sealed partial class BeamSolver
     private void CaptureLayerContexts(Pool current)
     {
         if (_layerContexts.Length < current.Count)
-            _layerContexts = new ParentExpansionContext[current.Count];
+            _storage.ResizeArray(ref _layerContexts, current.Count);
         for (int index = 0; index < current.Count; index++)
             _layerContexts[index] = CaptureParentContext(current, index);
     }

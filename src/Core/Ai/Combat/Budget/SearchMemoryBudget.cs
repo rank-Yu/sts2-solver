@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat;
 
@@ -59,7 +60,8 @@ internal sealed class SearchMemoryLedger
         if (limitBytes <= 0)
             throw new InvalidDataException("搜索内存预算必须为正。");
         // Per-solve structures are no longer reachable after the previous solve.
-        foreach (string region in new[] { "pool-aux", "candidate-routes", "pool-labels", "routing-signature" })
+        foreach (string region in new[] { "pool-aux", "pool-labels", "routing-signature",
+            "runtime", "request", "workspaces", "threads", "potion-lineage", "compact-roots" })
         {
             UsedBytes -= _byRegion.GetValueOrDefault(region);
             _byRegion.Remove(region);
@@ -126,6 +128,48 @@ internal static class SearchMemoryBudget
 {
     // A power-of-two deduplication table needs two slots per state and uses signed int indexes.
     internal const int MaximumPoolStates = 1 << 29;
+
+    // Shared headroom for object headers, GC turnover, bounded diagnostic writes, import/score
+    // temporaries and UI/session objects. This is part of the configured ceiling, never added to it.
+    internal static long RuntimeReserve(long limitBytes) => Math.Max(4L << 20, limitBytes / 10);
+    internal const int ThreadStackReserveBytes = 8 << 20;
+
+    /// <summary>Root-owned tables counted once, independent of worker count.</summary>
+    internal static long RequestReserve(Rules rules, int rootCount)
+    {
+        long bytes = 4096;
+        foreach (CardStats?[] levels in rules.CardTable)
+        {
+            bytes += 32 + levels.Length * 8L;
+            foreach (CardStats? card in levels)
+                if (card != null) bytes += 160 + card.Vars.Length * 16L;
+        }
+        foreach (decimal[]? vars in rules.PowerVarTable)
+            bytes += 32 + (vars?.Length ?? 0) * 16L;
+        foreach (decimal[]? vars in rules.RelicVarTable)
+            bytes += 32 + (vars?.Length ?? 0) * 16L;
+        foreach (PotionStats? potion in rules.PotionTable)
+            if (potion != null) bytes += 128 + potion.Vars.Length * 16L + potion.VarProps.Length * 8L;
+        foreach (MonsterRules? monster in rules.MonsterTable)
+        {
+            if (monster == null) continue;
+            bytes += 256 + 4L * (monster.StaticInts.Length + monster.RootPowerAmounts.Length
+                + monster.InitialAiRegisters.Length);
+            foreach (MonsterNode node in monster.Nodes)
+                bytes += 160 + node.NativeId.Length * 2L + node.Attacks.Length * 8L
+                    + node.Options.Length * 32L;
+        }
+        foreach ((string key, CardPool pool) in rules.CardPoolTable)
+            bytes += 128 + key.Length * 2L + pool.Cards.Length * 2L;
+        foreach (string slot in rules.EncounterSlotTable) bytes += 32 + slot.Length * 2L;
+        bytes += rules.SpawnRuleTable.Count * 64L
+            + 2L * (rules.PotionPoolTable.Length + rules.OutOfCombatPotionPoolTable.Length
+                + rules.RootPotionTable.Length)
+            + rules.PowerDeathHistoryRiskTable.Length;
+        bytes += 4096 + rules.Relics.Count * 320L; // fixed roster and its hook indexes
+        // Original/imported roots, setup branches, encoded request and score-table construction.
+        return 4L * Battle.ExpectedSize * rootCount + 3 * bytes;
+    }
 
     /// <summary>
     /// Pre-packed seat geometry: the old 64-state block of 12,696-byte states. The seat bound only

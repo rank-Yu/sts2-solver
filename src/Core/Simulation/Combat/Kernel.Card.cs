@@ -163,6 +163,9 @@ public static partial class Kernel
     /// The caller has already checked playability and the target.
     /// </summary>
     public static void ManualPlay(ref Exec x, int handIndex, byte target)
+        => PlayPaidCard(ref x, handIndex, target, isAutoPlay: false);
+
+    private static void PlayPaidCard(ref Exec x, int handIndex, byte target, bool isAutoPlay)
     {
         ref Battle battle = ref x.B;
         Card card = battle.Cards[handIndex];
@@ -209,13 +212,14 @@ public static partial class Kernel
         x.Stats = stats;
         x.Target = target;
         x.CurrentPlayEnergyValue = energyValue;
-        x.CurrentPlayIsAutoPlay = false;
+        x.CurrentPlayEnergySpent = energyValue;
+        x.CurrentPlayIsAutoPlay = isAutoPlay;
         x.CurrentPlayIsHistoryCourseDupe = card.IsDupe;
         ChoiceSource savedOrigin = x.ChoiceOrigin;
         x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, card.Id, card.Upgrade);
         try
         {
-            PlayFromPlay(ref x, card, target, energyValue, playPosition, isAutoPlay: false);
+            PlayFromPlay(ref x, card, target, energyValue, playPosition, isAutoPlay: isAutoPlay);
         }
         finally
         {

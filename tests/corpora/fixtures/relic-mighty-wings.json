@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "relic-mighty-wings",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICAUDIT",
+  "initialPlayerHp": 60,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 20,
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "BLUDGEON",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "TWIN_STRIKE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "MIGHTY_WINGS",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

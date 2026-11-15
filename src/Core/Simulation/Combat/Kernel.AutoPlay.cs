@@ -46,6 +46,7 @@ public static partial class Kernel
         int callerXValue = x.XValue;
         int callerStarValue = x.StarValue;
         int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
+        int callerPlayEnergySpent = x.CurrentPlayEnergySpent;
         x.CurrentPlayIsHistoryCourseDupe = card.IsDupe;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
@@ -75,6 +76,7 @@ public static partial class Kernel
         x.Stats = stats;
         x.Target = target;
         x.CurrentPlayIsAutoPlay = true;
+        x.CurrentPlayEnergySpent = 0;
         ChoiceSource savedOrigin = x.ChoiceOrigin;
         x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, moved.Id, moved.Upgrade);
         try
@@ -101,6 +103,7 @@ public static partial class Kernel
             x.XValue = callerXValue;
             x.StarValue = callerStarValue;
             x.CurrentPlayEnergyValue = callerPlayEnergyValue;
+            x.CurrentPlayEnergySpent = callerPlayEnergySpent;
         }
         return completed;
     }
@@ -135,6 +138,7 @@ public static partial class Kernel
         int callerXValue = x.XValue;
         int callerStarValue = x.StarValue;
         int callerPlayEnergyValue = x.CurrentPlayEnergyValue;
+        int callerPlayEnergySpent = x.CurrentPlayEnergySpent;
         x.CurrentPlayIsHistoryCourseDupe = historyCourseDupe || card.IsDupe;
         if (HasKeyword(x.B, card, Keywords.Unplayable)
             || !ShouldPlay(x.B, x.R, card)
@@ -168,6 +172,7 @@ public static partial class Kernel
         x.Stats = stats;
         x.Target = target;
         x.CurrentPlayIsAutoPlay = true;
+        x.CurrentPlayEnergySpent = 0;
         ChoiceSource savedOrigin = x.ChoiceOrigin;
         x.ChoiceOrigin = new ChoiceSource(ChoiceSourceKind.Card, moved.Id, moved.Upgrade);
         try
@@ -191,6 +196,7 @@ public static partial class Kernel
             x.XValue = callerXValue;
             x.StarValue = callerStarValue;
             x.CurrentPlayEnergyValue = callerPlayEnergyValue;
+            x.CurrentPlayEnergySpent = callerPlayEnergySpent;
         }
         return completed;
     }

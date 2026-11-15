@@ -28,7 +28,7 @@
 | `DecimalVars` | 精确的 `decimal` 卡牌变量偏移（见 3.10） | 4 |
 | `Roster` | 名单：在场敌人在 `Enemies` 里的下标，按原生名单顺序 | 12 |
 | `Potions` | 各药水槽 | 5 |
-| `Player`、`Osty` | `Creature`：HP、最大 HP、格挡、标志 | 各 1 |
+| `Player`、`Osty`、`Wuppy` | `Creature`：HP、最大 HP、格挡、标志 | 各 1 |
 | `Counters` | 整数计数器（见 3.8） | 48 |
 | `Rng` | 十条随机流（含角色的 NonCombatGeneration），每条一个计数器加四个 64 位状态字 | 10 |
 | `Enemies` | 已知敌人，含已死和已逃跑的（见 3.2） | 12 |
@@ -65,6 +65,8 @@
 **其它头部值。** `NextCombatId` 是原引擎的 `_nextCreatureId`，生成敌人时先取当前值再加一。`MaxHandSize` 来自游戏的 `CardPile.MaxCardsInHand`（当前 10）。
 
 ### 3.2 生物与敌人
+
+Wuppy 占用头部偏移 2816 的 16 字节，紧邻 HistoryCourseCard；Battle 总大小仍为 43856 字节，头部仍为 2896 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
 
 Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理规则移除；再次召唤时不会带回已移除的力量。
 

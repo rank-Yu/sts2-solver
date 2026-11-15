@@ -47,10 +47,7 @@ internal sealed partial class BeamSolver
     {
         public ExpansionEventKind Kind;
         public int ChildIndex;
-        public int EndEvent;
         public int RoutingIndex;
-        public int ResolvedRoutingId;
-        public int NodeId;
         public string? DropRegion;
     }
 
@@ -72,10 +69,10 @@ internal sealed partial class BeamSolver
     }
 
     /// <summary>
-    /// One child's routing context. Buffered expansion carries the event index; straight-through
-    /// expansion resolves it before the child is emitted, so no routing buffer is needed.
+    /// One child's routing context. Buffered records carry the value across chunk boundaries;
+    /// straight-through expansion resolves it before the child is emitted.
     /// </summary>
-    private readonly record struct RoutingRef(int EventIndex, int ResolvedId, RoutingMeta Meta,
+    private readonly record struct RoutingRef(RoutingEvent Value, int ResolvedId, RoutingMeta Meta,
         bool HasRouting);
 
     private struct ChildRecord
@@ -101,21 +98,19 @@ internal sealed partial class BeamSolver
         public bool ToEnded;
         public bool FetchedCandidate;
         public int FetchedIndex;
-        public int SuccessorEnd;
         public bool HasCommitment;
         public PowerCommitmentState Commitment;
-        public int RoutingEvent;
-        public int ParentRecord;
+        public RoutingRef Routing;
+        public bool FetchedParent;
         public TurnProgressState Progress;
         public EnemyProgressHighs ProgressEnemyHighs;
         public bool ProgressEnemyHighsChanged;
     }
 
     /// <summary>
-    /// Reusable fan-out buffer for one parent. A solve owns one workspace today; the buffers are
-    /// sized for reuse across parents and never allocated per child. Event/child arrays and the
-    /// packed-state byte buffer grow by doubling, and the end-turn prefix is a single
-    /// <see cref="Battle"/> snapshot.
+    /// Reusable, bounded chunk buffer. Arrays grow by doubling within the workspace limit;
+    /// a full chunk is committed before its arrays are reused for the next part of the parent.
+    /// Choice recursion remains on the producer's stack while publishing a chunk.
     /// </summary>
     private sealed class ExpansionWorkspace
     {
@@ -159,6 +154,21 @@ internal sealed partial class BeamSolver
         private Battle _draft;
         private Battle _scratch;
         private Battle _fetchedState;
+        private Battle _committedFetchedState;
+        private RetentionFacts _committedFetchedFacts;
+        private int _committedFetchedNode;
+        private int _skipChoiceDepth;
+        private bool _skipSuccessors;
+        private Func<int, bool, bool>? _publishChunk;
+        private int _parentIndex;
+        private bool _searchThread;
+        internal int PublishedChunks { get; private set; }
+
+        private sealed class ChunkStoppedException : Exception;
+
+        private int MinimumChunkBytes => Battle.ExpectedSize + Unsafe.SizeOf<ChildRecord>()
+            + Unsafe.SizeOf<ExpansionEvent>() + Unsafe.SizeOf<RoutingEvent>()
+            + Unsafe.SizeOf<FetchedRecord>() + (_solver.TracksBrightestFlameSpent ? sizeof(int) : 0);
 
         private EndTurnPrefix _endTurnPrefix;
         private int _generation;
@@ -196,8 +206,16 @@ internal sealed partial class BeamSolver
             _solver = solver;
             _workspaceBufferLimit = solver._workspaceBufferLimit;
             _directOnly = directOnly;
-            if (directOnly)
+            if (directOnly || !SupportsBufferedExpansion)
                 return;
+            // Keep room for one complete record in every array even under a small budget.
+            ReserveInitial(ref _events, 1);
+            ReserveInitial(ref _children, 1);
+            if (solver.TracksBrightestFlameSpent)
+                ReserveInitial(ref _brightestFlameSpent, 1);
+            ReserveInitial(ref _routings, 1);
+            ReserveInitial(ref _fetched, 1);
+            ReserveInitial(ref _stateBytes, Battle.ExpectedSize);
             ReserveInitial(ref _events, InitialEventCapacity);
             ReserveInitial(ref _children, InitialChildCapacity);
             if (solver.TracksBrightestFlameSpent)
@@ -207,6 +225,9 @@ internal sealed partial class BeamSolver
             ReserveInitial(ref _stateBytes, InitialStateBytes);
         }
 
+        internal static long FixedBytes => 2L * Kernel.MaxLegalActions * Unsafe.SizeOf<PlayerAction>()
+            + 4L * Unsafe.SizeOf<Battle>() + Unsafe.SizeOf<EndTurnPrefix>() + 4096;
+
         internal long GrowableBytes => _growableBytes;
         internal long ParentPeakUsedBytes => _parentPeakUsedBytes;
         internal long ParentPeakAllocatedBytes => _parentPeakAllocatedBytes;
@@ -214,8 +235,6 @@ internal sealed partial class BeamSolver
         internal int ParentTerminals => _parentTerminals;
         internal int ParentChoices => _parentChoices;
         internal bool ParentDirect => _parentDirect;
-
-        private sealed class WorkspaceLimitException : Exception;
 
         private void ReserveInitial<T>(ref T[] array, int target)
         {
@@ -229,36 +248,38 @@ internal sealed partial class BeamSolver
             array = new T[capacity];
         }
 
-        private void GrowArray<T>(ref T[] array, int requiredLength)
+        private bool TryGrowArray<T>(ref T[] array, int requiredLength)
         {
             if (requiredLength <= array.Length)
-                return;
+                return true;
             int elementBytes = Unsafe.SizeOf<T>();
             long other = _growableBytes - (long)array.Length * elementBytes;
             long maxLength = Math.Max(0, (_workspaceBufferLimit - other) / elementBytes);
             if (maxLength < requiredLength)
-                throw new WorkspaceLimitException();
+                return false;
             long target = Math.Max(requiredLength,
                 Math.Min((long)array.Length * 2, maxLength));
             int capacity = (int)target;
             _growableBytes += (capacity - array.Length) * elementBytes;
             Array.Resize(ref array, capacity);
             NoteGrowableUse();
+            return true;
         }
 
-        private void GrowBytes(ref byte[] array, int requiredLength)
+        private bool TryGrowBytes(ref byte[] array, int requiredLength)
         {
             if (requiredLength <= array.Length)
-                return;
+                return true;
             long other = _growableBytes - array.Length;
             long maxLength = Math.Max(0, (long)_workspaceBufferLimit - other);
             if (maxLength < requiredLength)
-                throw new WorkspaceLimitException();
+                return false;
             long target = Math.Max(requiredLength, Math.Min((long)array.Length * 2, maxLength));
             int capacity = (int)target;
             _growableBytes += capacity - array.Length;
             Array.Resize(ref array, capacity);
             NoteGrowableUse();
+            return true;
         }
 
         private void NoteGrowableUse()
@@ -280,7 +301,7 @@ internal sealed partial class BeamSolver
 
         /// <summary>
         /// Bytes retained by this workspace's fixed buffers and grown arrays. Diagnostic only; the
-        /// workspace memory is outside the search-memory ledger.
+        /// workspace is covered by the up-front reservation in the search-memory ledger.
         /// </summary>
         internal long RetainedBytes
         {
@@ -294,7 +315,7 @@ internal sealed partial class BeamSolver
                     + (long)_routings.Length * Unsafe.SizeOf<RoutingEvent>()
                     + (long)_fetched.Length * Unsafe.SizeOf<FetchedRecord>()
                     + _stateBytes.Length
-                    + 3L * Unsafe.SizeOf<Battle>()
+                    + 4L * Unsafe.SizeOf<Battle>()
                     + Unsafe.SizeOf<EndTurnPrefix>();
                 return bytes;
             }
@@ -337,6 +358,9 @@ internal sealed partial class BeamSolver
             _routingCount = 0;
             _fetchedCount = 0;
             _stateBytesUsed = 0;
+            _skipChoiceDepth = 0;
+            _skipSuccessors = false;
+            PublishedChunks = 0;
             _parentPeakUsedBytes = 0;
             _parentPeakAllocatedBytes = _growableBytes;
             _parentChildren = 0;
@@ -358,18 +382,17 @@ internal sealed partial class BeamSolver
                 && _solver._solveWatch is { } watch && _solver.OutOfBudget(watch));
         }
 
-        private bool EmitChoiceHeader(out int headerEvent)
+        private bool EmitChoiceHeader()
         {
             _parentChoices++;
             if (!_direct)
             {
-                headerEvent = AddEvent(new ExpansionEvent
+                AddEvent(new ExpansionEvent
                 {
                     Kind = ExpansionEventKind.ChoiceHeader,
                 });
                 return true;
             }
-            headerEvent = -1;
             try
             {
                 _directNext.Reserve();
@@ -383,29 +406,20 @@ internal sealed partial class BeamSolver
             return true;
         }
 
-        private void EmitChoiceEnd(int headerEvent)
+        private void EmitChoiceEnd()
         {
-            if (_direct)
-                return;
-            int endEvent = AddEvent(new ExpansionEvent { Kind = ExpansionEventKind.ChoiceEnd });
-            if (headerEvent >= 0)
-                _events[headerEvent].EndEvent = endEvent;
+            if (!_direct)
+                AddEvent(new ExpansionEvent { Kind = ExpansionEventKind.ChoiceEnd });
         }
 
         private RoutingRef EmitRouting(in RoutingEvent value)
         {
             if (!_direct)
-                return new RoutingRef(AddRoutingEvent(value), 0, default, false);
-            if (!_solver._routingSignatureIds.TryGetValue(value.Signature, out int id))
             {
-                _solver._routingSignatures.Add(value.Signature);
-                id = _solver._routingSignatures.Count;
-                _solver._routingSignatureIds.Add(value.Signature, id);
-                _solver._storage.Memory.Charge(RoutingSignatureDictionaryBytes, "routing-signature");
+                AddRoutingEvent(value);
+                return new RoutingRef(value, 0, default, true);
             }
-            return new RoutingRef(-1, id,
-                new RoutingMeta(id, value.Turn, value.ChoiceDepth, value.ParentRank,
-                    value.ParentScore, value.ParentEnergy), true);
+            return ResolveRouting(in value);
         }
 
         private void EmitExecutionDrop(string region)
@@ -486,46 +500,82 @@ internal sealed partial class BeamSolver
             {
                 if (_solver.TracksBrightestFlameSpent)
                     _brightestFlameSpent[childIndex] = brightestFlameSpentDelta;
-                int eventIndex = AddEvent(new ExpansionEvent
+                AddEvent(new ExpansionEvent
                 {
                     Kind = ExpansionEventKind.Child,
                     ChildIndex = childIndex,
-                    NodeId = -1,
                 });
-                return new ChildEmitResult(eventIndex, -1, false, child.Progress);
+                return new ChildEmitResult(-1, false, child.Progress);
             }
             ChildCommitResult result = CommitChildCore(in child, in directState, in routing,
                 parentNode, in parentState, parentFacts, in fetched, brightestFlameSpentDelta,
                 _directNext, _directEnded, _directTerminal);
-            return new ChildEmitResult(-1, result.NodeId, result.ExpandSuccessors, result.Progress);
+            return new ChildEmitResult(result.NodeId, result.ExpandSuccessors, result.Progress);
         }
 
-        private readonly record struct ChildEmitResult(int EventIndex, int NodeId,
+        private readonly record struct ChildEmitResult(int NodeId,
             bool ExpandSuccessors, TurnProgressState Progress);
 
-        /// <summary>False when the configured limit cannot hold even one event; the parent must stream.</summary>
+        /// <summary>Whether the limit holds one complete record, including a maximum-size state.</summary>
         internal bool SupportsBufferedExpansion
-            => _workspaceBufferLimit >= Unsafe.SizeOf<ExpansionEvent>();
+            => _workspaceBufferLimit >= MinimumChunkBytes;
 
         /// <summary>
-        /// Buffered calculation half. Returns false and discards the partial result when the parent
-        /// would grow the workspace buffers past the configured limit.
+        /// Produces ordered chunks. Publishing pauses this producer until the search thread has
+        /// consumed the chunk; the recursive choice cursor stays on this worker's bounded stack.
         /// </summary>
-        internal bool Expand(in Battle parent, in ParentExpansionContext context,
+        internal void Expand(in Battle parent, in ParentExpansionContext context,
+            int parentIndex, bool searchThread, Func<int, bool, bool> publishChunk,
             CancellationToken cancellationToken)
         {
             BeginParent();
-            _direct = false;
+            _publishChunk = publishChunk;
+            _parentIndex = parentIndex;
+            _searchThread = searchThread;
             try
             {
                 ExpandBody(in parent, in context, cancellationToken);
-                return true;
             }
-            catch (WorkspaceLimitException)
+            catch (ChunkStoppedException)
             {
-                return false;
+                // The ordered consumer stopped at its normal search budget boundary.
+            }
+            finally
+            {
+                _publishChunk = null;
             }
         }
+
+        private void FlushChunk()
+        {
+            PublishedChunks++;
+            if (!_publishChunk!(_parentIndex, _searchThread))
+                throw new ChunkStoppedException();
+            _eventCount = 0;
+            _childCount = 0;
+            _routingCount = 0;
+            _fetchedCount = 0;
+            _stateBytesUsed = 0;
+        }
+
+        // Reserve an entire output record before writing any of it. Flushing halfway through
+        // AppendState/PrepareChild would leave a child referring to a previous chunk's bytes.
+        private void ReserveRecord(int stateBytes = 0, int children = 0, int fetched = 0,
+            int routings = 0)
+        {
+            if (!TryGrowRecord(stateBytes, children, fetched, routings))
+                FlushChunk();
+            // Every empty chunk already owns space for one maximum-size atomic record.
+        }
+
+        private bool TryGrowRecord(int stateBytes, int children, int fetched, int routings)
+            => TryGrowArray(ref _events, _eventCount + 1)
+                && TryGrowArray(ref _children, _childCount + children)
+                && (!_solver.TracksBrightestFlameSpent
+                    || TryGrowArray(ref _brightestFlameSpent, _childCount + children))
+                && TryGrowArray(ref _fetched, _fetchedCount + fetched)
+                && TryGrowArray(ref _routings, _routingCount + routings)
+                && TryGrowBytes(ref _stateBytes, _stateBytesUsed + stateBytes);
 
         /// <summary>
         /// Straight-through half. The same expansion code emits each step to the shared commit logic
@@ -582,7 +632,7 @@ internal sealed partial class BeamSolver
                     }
                     continue;
                 }
-                ExpandAction(in parent, -1, context.Node, context.Depth, context.Facts,
+                ExpandAction(in parent, false, context.Node, context.Depth, context.Facts,
                     context.Rank, context.Score, context.HasCommitment, context.Commitment,
                     context.BrightestFlameSpent, context.Progress, context.EnemyHighs,
                     action, null, default, default,
@@ -594,7 +644,7 @@ internal sealed partial class BeamSolver
         /// One action invocation. Choice recursion re-executes the same action from the same parent
         /// with more selections, exactly like the previous one-child-at-a-time expansion.
         /// </summary>
-        private void ExpandAction(in Battle parent, int parentRecord, int parentNodeKey,
+        private void ExpandAction(in Battle parent, bool fetchedParent, int parentNodeKey,
             int parentDepth, in RetentionFacts parentFacts, int parentRank, double parentScore,
             bool hasParentCommitment, in PowerCommitmentState parentCommitment,
             int parentBrightestFlameSpent, in TurnProgressState parentProgress,
@@ -645,7 +695,7 @@ internal sealed partial class BeamSolver
                 }
                 if (stepResult == StepResult.NeedsChoice)
                 {
-                    ExpandChoice(in parent, parentRecord, parentNodeKey, parentDepth, parentFacts,
+                    ExpandChoice(in parent, fetchedParent, parentNodeKey, parentDepth, parentFacts,
                         parentRank, parentScore, hasParentCommitment, parentCommitment,
                         parentBrightestFlameSpent, parentProgress, parentEnemyHighs, action,
                         primaryEffect, selectedPowers, in routing, allowFetchedPowerCommit,
@@ -746,6 +796,7 @@ internal sealed partial class BeamSolver
                     int fetchedLength = 0;
                     if (!_direct)
                     {
+                        ReserveRecord(Battle.PackedSize(in _fetchedState), children: 1, fetched: 1);
                         fetchedIndex = AddFetched(fetched);
                         fetchedOffset = AppendState(in _fetchedState, out fetchedLength);
                     }
@@ -775,11 +826,10 @@ internal sealed partial class BeamSolver
                     fetchedChild.ToEnded = toEnded;
                     fetchedChild.FetchedCandidate = true;
                     fetchedChild.FetchedIndex = fetchedIndex;
-                    fetchedChild.SuccessorEnd = -1;
                     fetchedChild.HasCommitment = hasCommitment;
                     fetchedChild.Commitment = commitment;
-                    fetchedChild.RoutingEvent = routing.EventIndex;
-                    fetchedChild.ParentRecord = parentRecord;
+                    fetchedChild.Routing = routing;
+                    fetchedChild.FetchedParent = fetchedParent;
                     fetchedChild.Progress = progress.State;
                     fetchedChild.ProgressEnemyHighs = progress.EnemyHighs;
                     fetchedChild.ProgressEnemyHighsChanged = progress.EnemyHighsChanged;
@@ -793,7 +843,7 @@ internal sealed partial class BeamSolver
                             TurnProgressState emittedProgress = emitted.Progress;
                             EnemyProgressHighs emittedHighs = progress.EnemyHighs;
                             ExpandFetchedPowerSuccessors(in _fetchedState, emitted.NodeId,
-                                emitted.NodeId, depth, fetchedParentFacts, parentRank, parentScore,
+                                depth, fetchedParentFacts, parentRank, parentScore,
                                 hasCommitment, commitment, in emittedProgress,
                                 in emittedHighs, selectedPowers, spentAfterAction,
                                 cancellationToken);
@@ -803,12 +853,10 @@ internal sealed partial class BeamSolver
                     {
                         TurnProgressState bufferedProgress = progress.State;
                         EnemyProgressHighs bufferedHighs = progress.EnemyHighs;
-                        ExpandFetchedPowerSuccessors(in _fetchedState, emitted.EventIndex, -1,
+                        ExpandFetchedPowerSuccessors(in _fetchedState, -1,
                             depth, fetchedParentFacts, parentRank, parentScore, hasCommitment,
                             commitment, in bufferedProgress, in bufferedHighs, selectedPowers,
                             spentAfterAction, cancellationToken);
-                        _children[fetchedChildIndex].SuccessorEnd = _eventCount - 1;
-                        _events[emitted.EventIndex].EndEvent = _eventCount - 1;
                     }
                     return;
                 }
@@ -816,7 +864,10 @@ internal sealed partial class BeamSolver
                 int stateOffset = 0;
                 int stateLength = 0;
                 if (!_direct)
+                {
+                    ReserveRecord(Battle.PackedSize(in _draft), children: 1);
                     stateOffset = AppendState(in _draft, out stateLength);
+                }
                 ref ChildRecord child = ref PrepareChild(out int childIndex);
                 child.Action = action;
                 child.StateOffset = stateOffset;
@@ -843,11 +894,10 @@ internal sealed partial class BeamSolver
                 child.ToEnded = toEnded;
                 child.FetchedCandidate = false;
                 child.FetchedIndex = -1;
-                child.SuccessorEnd = -1;
                 child.HasCommitment = hasCommitment;
                 child.Commitment = commitment;
-                child.RoutingEvent = routing.EventIndex;
-                child.ParentRecord = parentRecord;
+                child.Routing = routing;
+                child.FetchedParent = fetchedParent;
                 child.Progress = progress.State;
                 child.ProgressEnemyHighs = progress.EnemyHighs;
                 child.ProgressEnemyHighsChanged = progress.EnemyHighsChanged;
@@ -860,7 +910,7 @@ internal sealed partial class BeamSolver
             }
         }
 
-        private void ExpandChoice(in Battle parent, int parentRecord, int parentNodeKey,
+        private void ExpandChoice(in Battle parent, bool fetchedParent, int parentNodeKey,
             int parentDepth, in RetentionFacts parentFacts, int parentRank, double parentScore,
             bool hasParentCommitment, in PowerCommitmentState parentCommitment,
             int parentBrightestFlameSpent, in TurnProgressState parentProgress,
@@ -932,9 +982,9 @@ internal sealed partial class BeamSolver
                 optionIsPower[option] =
                     Kernel.ResolveCardType(in _draft, _solver._rules, optionCards[option]) == CardType.Power;
             }
-            if (!EmitChoiceHeader(out int headerEvent))
+            if (!EmitChoiceHeader())
             {
-                EmitChoiceEnd(headerEvent);
+                EmitChoiceEnd();
                 return;
             }
             Span<Card> capturedPowers = stackalloc Card[Limits.MaxChoiceOptions];
@@ -964,7 +1014,7 @@ internal sealed partial class BeamSolver
                         // The capture sits before the per-selection guard in the old flow, so it
                         // aborts the remaining selections without another reserve or transition.
                         EmitBranchDrop(ex.Region);
-                        EmitChoiceEnd(headerEvent);
+                        EmitChoiceEnd();
                         return;
                     }
                 }
@@ -994,17 +1044,17 @@ internal sealed partial class BeamSolver
                     EmitBranchDrop(ex.Region);
                     continue;
                 }
-                ExpandAction(in parent, parentRecord, parentNodeKey, parentDepth, parentFacts,
+                ExpandAction(in parent, fetchedParent, parentNodeKey, parentDepth, parentFacts,
                     parentRank, parentScore, hasParentCommitment, parentCommitment,
                     parentBrightestFlameSpent, in parentProgress, in parentEnemyHighs, withChoice,
                     effect, chosenPowers, in branchRouting, allowFetchedPowerCommit,
                     cancellationToken);
             }
-            EmitChoiceEnd(headerEvent);
+            EmitChoiceEnd();
         }
 
-        private void ExpandFetchedPowerSuccessors(in Battle state, int fetchedEvent,
-            int fetchedNode, int depth, in RetentionFacts fetchedFacts, int parentRank,
+        private void ExpandFetchedPowerSuccessors(in Battle state, int fetchedNode,
+            int depth, in RetentionFacts fetchedFacts, int parentRank,
             double parentScore, bool hasCommitment, in PowerCommitmentState commitment,
             in TurnProgressState fetchedProgress, in EnemyProgressHighs fetchedEnemyHighs,
             scoped ReadOnlySpan<Card> selectedPowers, int fetchedBrightestFlameSpent,
@@ -1021,7 +1071,7 @@ internal sealed partial class BeamSolver
                 {
                     continue;
                 }
-                ExpandAction(in state, fetchedEvent, fetchedNode, depth, fetchedFacts,
+                ExpandAction(in state, true, fetchedNode, depth, fetchedFacts,
                     parentRank, parentScore, hasCommitment, in commitment,
                     fetchedBrightestFlameSpent, in fetchedProgress, in fetchedEnemyHighs,
                     action, null, default, default, allowFetchedPowerCommit: false,
@@ -1046,147 +1096,98 @@ internal sealed partial class BeamSolver
         }
 
         /// <summary>
-        /// Commit half. Replays the recorded steps in order on the search thread; every live store,
-        /// counter and trace write happens here.
+        /// Consumes one chunk in order. Choice rejection and fetched-power continuation state
+        /// survive chunk boundaries; neither requires a future event offset in the same array.
         /// </summary>
-        internal void Commit(in Battle parent, in ParentExpansionContext context, Pool next,
+        internal bool Commit(in Battle parent, in ParentExpansionContext context, Pool next,
             Pool ended, TerminalSink terminal)
         {
-            int index = 0;
-            while (index < _eventCount)
+            for (int index = 0; index < _eventCount; index++)
             {
-                if (!CommitOne(ref index, _eventCount, in parent, in context, next, ended, terminal))
-                    return;
+                ExpansionEvent record = _events[index];
+                if (_skipChoiceDepth > 0)
+                {
+                    if (record.Kind == ExpansionEventKind.ChoiceHeader) _skipChoiceDepth++;
+                    if (record.Kind == ExpansionEventKind.ChoiceEnd) _skipChoiceDepth--;
+                    continue;
+                }
+                if (_skipSuccessors)
+                {
+                    if (record.Kind == ExpansionEventKind.SuccessorEnd) _skipSuccessors = false;
+                    continue;
+                }
+                switch (record.Kind)
+                {
+                    case ExpansionEventKind.BeginAction:
+                        if (_solver._options.UnlimitedNodes && _solver._solveWatch is { } watch
+                            && _solver.OutOfBudget(watch))
+                            return false;
+                        break;
+                    case ExpansionEventKind.ChoiceHeader:
+                        try { next.Reserve(); }
+                        catch (CapacityException ex)
+                        {
+                            _solver.RecordCapacityDrop(ex);
+                            _skipChoiceDepth = 1;
+                            break;
+                        }
+                        _solver._transitions++;
+                        break;
+                    case ExpansionEventKind.Routing:
+                        ResolveRouting(in _routings[record.RoutingIndex]);
+                        break;
+                    case ExpansionEventKind.ExecutionDrop:
+                        try { next.Reserve(); }
+                        catch (CapacityException ex)
+                        {
+                            _solver.RecordCapacityDrop(ex);
+                            break;
+                        }
+                        _solver._transitions++;
+                        _solver.RecordCapacityDrop(record.DropRegion!);
+                        break;
+                    case ExpansionEventKind.BranchDrop:
+                        _solver.RecordCapacityDrop(record.DropRegion!);
+                        break;
+                    case ExpansionEventKind.SuccessorActionEnd:
+                        _skipSuccessors = !_solver.CommitmentBudgetAvailable();
+                        break;
+                    case ExpansionEventKind.Child:
+                        CommitChild(record.ChildIndex, in parent, in context, next, ended, terminal);
+                        break;
+                    case ExpansionEventKind.ChoiceEnd:
+                    case ExpansionEventKind.SuccessorEnd:
+                        break;
+                    default:
+                        throw new InvalidOperationException($"未知的展开记录类型 {record.Kind}。");
+                }
             }
+            return true;
         }
 
-        private bool CommitOne(ref int index, int limit, in Battle parent,
+        private void CommitChild(int childIndex, in Battle parent,
             in ParentExpansionContext context, Pool next, Pool ended, TerminalSink terminal)
         {
-            ExpansionEvent record = _events[index];
-            switch (record.Kind)
-            {
-                case ExpansionEventKind.BeginAction:
-                    if (_solver._options.UnlimitedNodes && _solver._solveWatch is { } watch
-                        && _solver.OutOfBudget(watch))
-                        return false;
-                    index++;
-                    return true;
-                case ExpansionEventKind.ChoiceHeader:
-                {
-                    try
-                    {
-                        next.Reserve();
-                    }
-                    catch (CapacityException ex)
-                    {
-                        _solver.RecordCapacityDrop(ex);
-                        index = record.EndEvent + 1;
-                        return true;
-                    }
-                    _solver._transitions++;
-                    index++;
-                    return true;
-                }
-                case ExpansionEventKind.ChoiceEnd:
-                    index++;
-                    return true;
-                case ExpansionEventKind.Routing:
-                    ResolveRouting(index);
-                    index++;
-                    return true;
-                case ExpansionEventKind.ExecutionDrop:
-                {
-                    try
-                    {
-                        next.Reserve();
-                    }
-                    catch (CapacityException ex)
-                    {
-                        _solver.RecordCapacityDrop(ex);
-                        index++;
-                        return true;
-                    }
-                    _solver._transitions++;
-                    _solver.RecordCapacityDrop(record.DropRegion!);
-                    index++;
-                    return true;
-                }
-                case ExpansionEventKind.BranchDrop:
-                    _solver.RecordCapacityDrop(record.DropRegion!);
-                    index++;
-                    return true;
-                case ExpansionEventKind.SuccessorActionEnd:
-                    if (!_solver.CommitmentBudgetAvailable())
-                        index = limit;
-                    else
-                        index++;
-                    return true;
-                case ExpansionEventKind.SuccessorEnd:
-                    index++;
-                    return true;
-                case ExpansionEventKind.Child:
-                    return CommitChild(ref index, in parent, in context, next, ended, terminal);
-                default:
-                    throw new InvalidOperationException($"未知的展开记录类型 {record.Kind}。");
-            }
-        }
-
-        private bool CommitChild(ref int index, in Battle parent, in ParentExpansionContext context,
-            Pool next, Pool ended, TerminalSink terminal)
-        {
-            int eventIndex = index;
-            ExpansionEvent childEvent = _events[eventIndex];
-            ref readonly ChildRecord child = ref _children[childEvent.ChildIndex];
-            int brightestFlameSpentDelta = _solver.TracksBrightestFlameSpent
-                ? _brightestFlameSpent[childEvent.ChildIndex] : 0;
-            int parentNode = child.ParentRecord < 0
-                ? context.Node
-                : _events[child.ParentRecord].NodeId;
-            if (parentNode < 0)
-                throw new InvalidOperationException("展开记录的父路线节点尚未提交。");
-            ref readonly Battle parentState = ref ParentState(child.ParentRecord, in parent);
-            RetentionFacts parentFacts = child.ParentRecord < 0
-                ? context.Facts
-                : _fetched[_children[_events[child.ParentRecord].ChildIndex].FetchedIndex].ParentFacts;
-            RoutingRef routing = default;
-            if (child.RoutingEvent >= 0)
-            {
-                ExpansionEvent routingRecord = _events[child.RoutingEvent];
-                RoutingEvent route = _routings[routingRecord.RoutingIndex];
-                routing = new RoutingRef(child.RoutingEvent, routingRecord.ResolvedRoutingId,
-                    new RoutingMeta(routingRecord.ResolvedRoutingId, route.Turn, route.ChoiceDepth,
-                        route.ParentRank, route.ParentScore, route.ParentEnergy), true);
-            }
-            ChildCommitResult result;
+            ref readonly ChildRecord child = ref _children[childIndex];
+            int parentNode = child.FetchedParent ? _committedFetchedNode : context.Node;
+            ref readonly Battle parentState = ref child.FetchedParent
+                ? ref _committedFetchedState : ref parent;
+            RetentionFacts parentFacts = child.FetchedParent ? _committedFetchedFacts : context.Facts;
+            RoutingRef routing = child.Routing.HasRouting ? ResolveRouting(child.Routing.Value) : default;
+            int spent = _solver.TracksBrightestFlameSpent ? _brightestFlameSpent[childIndex] : 0;
+            ref readonly FetchedRecord fetched = ref child.FetchedCandidate
+                ? ref _fetched[child.FetchedIndex] : ref EmptyFetched;
+            ChildCommitResult result = CommitChildCore(in child, in EmptyBattle, in routing,
+                parentNode, in parentState, parentFacts, in fetched, spent, next, ended, terminal);
             if (child.FetchedCandidate)
             {
-                result = CommitChildCore(in child, in EmptyBattle, in routing, parentNode,
-                    in parentState, parentFacts, in _fetched[child.FetchedIndex],
-                    brightestFlameSpentDelta, next, ended, terminal);
-            }
-            else
-            {
-                result = CommitChildCore(in child, in EmptyBattle, in routing, parentNode,
-                    in parentState, parentFacts, in EmptyFetched, brightestFlameSpentDelta,
-                    next, ended, terminal);
-            }
-            if (result.NodeId >= 0)
-                _events[eventIndex].NodeId = result.NodeId;
-            if (result.ExpandSuccessors)
-            {
-                int successor = eventIndex + 1;
-                while (successor < child.SuccessorEnd)
+                _skipSuccessors = !result.ExpandSuccessors;
+                if (result.ExpandSuccessors)
                 {
-                    if (!CommitOne(ref successor, child.SuccessorEnd, in parent, in context, next,
-                            ended, terminal))
-                    {
-                        break;
-                    }
+                    _committedFetchedNode = result.NodeId;
+                    _committedFetchedFacts = fetched.ParentFacts;
                 }
             }
-            index = child.FetchedCandidate ? child.SuccessorEnd + 1 : eventIndex + 1;
-            return true;
         }
 
         /// <summary>
@@ -1278,7 +1279,7 @@ internal sealed partial class BeamSolver
             if (child.FetchedCandidate && _solver.CommitmentBudgetAvailable())
             {
                 if (!_direct)
-                    CopyRecordState(in child, ref _fetchedState);
+                    CopyRecordState(in child, ref _committedFetchedState);
                 CopyChildState(in child, in directState, ref next.ReservedState);
                 bool added;
                 try
@@ -1365,17 +1366,8 @@ internal sealed partial class BeamSolver
         private readonly record struct ChildCommitResult(int NodeId, bool ExpandSuccessors,
             TurnProgressState Progress);
 
-        private ref readonly Battle ParentState(int parentRecord, in Battle parent)
+        private RoutingRef ResolveRouting(in RoutingEvent routing)
         {
-            if (parentRecord < 0)
-                return ref Unsafe.AsRef(in parent);
-            return ref _fetchedState;
-        }
-
-        private void ResolveRouting(int eventIndex)
-        {
-            ExpansionEvent record = _events[eventIndex];
-            RoutingEvent routing = _routings[record.RoutingIndex];
             if (!_solver._routingSignatureIds.TryGetValue(routing.Signature, out int id))
             {
                 _solver._routingSignatures.Add(routing.Signature);
@@ -1383,7 +1375,8 @@ internal sealed partial class BeamSolver
                 _solver._routingSignatureIds.Add(routing.Signature, id);
                 _solver._storage.Memory.Charge(RoutingSignatureDictionaryBytes, "routing-signature");
             }
-            _events[eventIndex].ResolvedRoutingId = id;
+            return new RoutingRef(routing, id, new RoutingMeta(id, routing.Turn, routing.ChoiceDepth,
+                routing.ParentRank, routing.ParentScore, routing.ParentEnergy), true);
         }
 
         private bool IsFirstEndTurnLeaf(int parentNodeKey)
@@ -1431,7 +1424,6 @@ internal sealed partial class BeamSolver
         {
             length = Battle.PackedSize(in state);
             int offset = _stateBytesUsed;
-            EnsureStateBytes(offset + length);
             ref byte source = ref MemoryMarshal.GetReference(
                 MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in state, 1)));
             Unsafe.CopyBlockUnaligned(ref _stateBytes[offset], ref source, (uint)length);
@@ -1447,24 +1439,18 @@ internal sealed partial class BeamSolver
             Unsafe.CopyBlockUnaligned(ref target, ref source, (uint)record.StateLength);
         }
 
-        private void EnsureStateBytes(int required)
-            => GrowBytes(ref _stateBytes, required);
-
-        private int AddEvent(ExpansionEvent value)
+        private void AddEvent(ExpansionEvent value)
         {
-            GrowArray(ref _events, _eventCount + 1);
+            if (!TryGrowArray(ref _events, _eventCount + 1))
+                FlushChunk();
             _events[_eventCount] = value;
-            int index = _eventCount++;
+            _eventCount++;
             NoteGrowableUse();
-            return index;
         }
 
         /// <summary>Returns the next child slot so the caller writes the record in place.</summary>
         private ref ChildRecord AddChild()
         {
-            GrowArray(ref _children, _childCount + 1);
-            if (_solver.TracksBrightestFlameSpent)
-                GrowArray(ref _brightestFlameSpent, _childCount + 1);
             ref ChildRecord child = ref _children[_childCount++];
             NoteGrowableUse();
             return ref child;
@@ -1472,19 +1458,18 @@ internal sealed partial class BeamSolver
 
         private int AddFetched(FetchedRecord value)
         {
-            GrowArray(ref _fetched, _fetchedCount + 1);
             _fetched[_fetchedCount] = value;
             int index = _fetchedCount++;
             NoteGrowableUse();
             return index;
         }
 
-        private int AddRoutingEvent(RoutingEvent value)
+        private void AddRoutingEvent(RoutingEvent value)
         {
-            GrowArray(ref _routings, _routingCount + 1);
+            ReserveRecord(routings: 1);
             int routingIndex = _routingCount;
             _routings[_routingCount++] = value;
-            return AddEvent(new ExpansionEvent
+            AddEvent(new ExpansionEvent
             {
                 Kind = ExpansionEventKind.Routing,
                 RoutingIndex = routingIndex,

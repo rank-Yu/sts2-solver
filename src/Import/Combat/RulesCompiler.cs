@@ -223,6 +223,9 @@ public static partial class RulesCompiler
             if (history.HasLostHpThisTurn(known[index]))
                 rootLostHpMask |= (ushort)(1 << (Limits.FirstEnemyOwner + index));
         }
+        if (player.PlayerCombatState!.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy) is { } wuppy
+            && history.HasLostHpThisTurn(wuppy))
+            rootLostHpMask |= 1 << Limits.WuppyOwner;
         builder.RootLostHpMask = rootLostHpMask;
 
         List<ushort> spawnClosure = SpawnClosure(known);
@@ -438,6 +441,15 @@ public static partial class RulesCompiler
         CardModel canonical, Player player)
     {
         builder.HasDecimalCardVars |= Registry.Card(id).UsesDecimalDamageVar;
+        // Dingy Dagger can be upgraded repeatedly in combat. Freeze every representable level,
+        // only for roots whose content closure includes it.
+        if (canonical is DingyDagger)
+        {
+            for (int level = 0; level <= byte.MaxValue; level++)
+                if (!builder.HasCard(id, level))
+                    builder.SetCard(id, level, CanonicalStats(canonical, level, player));
+            return;
+        }
         if (upgrade > 0 && !builder.HasCard(id, 0))
             builder.SetCard(id, 0, CanonicalStats(canonical, 0, player));
         if (!builder.HasCard(id, upgrade))

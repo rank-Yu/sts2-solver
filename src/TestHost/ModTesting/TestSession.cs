@@ -149,7 +149,7 @@ internal static class TestSession
                 string? scenarioName = request.ControllerScenarioForTest;
                 bool turnSetupWait = scenarioName == "turn_setup_wait";
                 // As if CombatSolver were loaded: auto search only searches the setup page.
-                if (scenarioName is "turn_setup_search_only" or "turn_setup_search_only_execute"
+                if (scenarioName is "turn_setup_auto_execute_switch_coexist" or "turn_setup_search_only" or "turn_setup_search_only_execute"
                     or "turn_setup_search_only_execute_combat")
                     ModEntry.SetCombatSolverLoadedForTest();
                 // These scenarios deliver the held turn-start event themselves: the manual switch
@@ -220,7 +220,7 @@ internal static class TestSession
                 }
                 if (scenarioName == "turn_setup_stop_drop")
                     CombatControllerTestHooks.StopTurnSetupSearchOnStart = true;
-                if (scenarioName == "turn_setup_stop_keep")
+                if (scenarioName is "turn_setup_stop_keep" or "turn_setup_auto_execute_switch_stop")
                     CombatControllerTestHooks.AutoStopOnCandidate = true;
                 if (scenarioName == "turn_setup_stop_drive")
                     CombatControllerTestHooks.HoldTurnSetupDriverForTest = true;
@@ -629,6 +629,8 @@ internal static class TestSession
 
     private static bool IsTurnSetupScenario(string scenario) => scenario is
         "turn_setup_auto_execute" or "turn_setup_auto_manual" or "turn_setup_full"
+        or "turn_setup_auto_execute_switch" or "turn_setup_auto_execute_switch_coexist"
+        or "turn_setup_auto_execute_switch_stop"
         or "turn_setup_stop_keep" or "turn_setup_stop_drop" or "turn_setup_stop_drive"
         or "turn_setup_fail" or "turn_setup_scene_exit" or "turn_setup_search_only"
         or "turn_setup_search_only_execute" or "turn_setup_search_only_execute_combat"
@@ -636,7 +638,7 @@ internal static class TestSession
         or "turn_setup_turn2" or "turn_setup_extra_turn" or "turn_setup_extra_turn_search"
         or "turn_setup_autopreplay"
         or "turn_setup_plasma"
-        or "turn_setup_manual_end" or "turn_setup_multi" or "turn_setup_crossbow"
+        or "turn_setup_history_course" or "turn_setup_manual_end" or "turn_setup_multi" or "turn_setup_crossbow"
         or "turn_setup_crossbow_many" or "turn_setup_carry"
         or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
         or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
@@ -649,7 +651,7 @@ internal static class TestSession
         "turn_setup_turn2" or "turn_setup_extra_turn" or "turn_setup_extra_turn_search"
         or "turn_setup_autopreplay"
         or "turn_setup_plasma"
-        or "turn_setup_manual_end" or "turn_setup_carry"
+        or "turn_setup_history_course" or "turn_setup_manual_end" or "turn_setup_carry"
         or "turn_setup_continuation_auto" or "turn_setup_continuation_player"
         or "turn_setup_continuation_mismatch" or "turn_setup_continuation_pause"
         or "turn_setup_continuation_full" or "turn_setup_capsule_source_turn2"
@@ -664,6 +666,7 @@ internal static class TestSession
                 (policy, player) => SearchPolicyOverrides.ApplyOverrides(policy, request, player);
         }
         if (request.SettingsTierForTest is null && request.SettingsAutoSearchForTest is null
+            && request.SettingsAutoExecuteForTest is null
             && !request.RunCombatForTest && request.SettingsThreadsForTest is null
             && request.SearchThreadsForTest is null && !request.FullCombatForTest)
         {
@@ -691,7 +694,11 @@ internal static class TestSession
         SolverSettingsData next = current with
         {
             Search = search,
-            Automation = current.Automation with { AutoSearch = autoSearch },
+            Automation = current.Automation with
+            {
+                AutoSearch = autoSearch,
+                AutoExecute = request.SettingsAutoExecuteForTest ?? false,
+            },
         };
         if (next == current)
             return false;

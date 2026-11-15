@@ -58,6 +58,7 @@ internal static class ExecCoverage
         nameof(Exec.PreviousHistoryCourseCard),
         nameof(Exec.HasPreviousHistoryCourseCard),
         nameof(Exec.CurrentPlayEnergyValue),
+        nameof(Exec.CurrentPlayEnergySpent),
         nameof(Exec.BrightestFlameMaxHpSpent),
     ];
 
@@ -71,6 +72,7 @@ internal static class ExecCoverage
         nameof(Exec.TakingExtraTurn),
         nameof(Exec.SetupPause),
         nameof(Exec.SetupPreamble),
+        nameof(Exec.SelectFirstOptions),
         nameof(Exec.ChoiceOrigin),
     ];
 

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "opening-power-cell",
+  "characterId": "DEFECT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICOPEN",
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "preserveNativeCombatStateForTest": true,
+  "clearAllPowers": false,
+  "clearPlayerHand": false,
+  "clearPlayerPiles": false,
+  "relics": [
+    {
+      "relicId": "POWER_CELL",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GAMBLING_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120,
+  "clearRunDeck": true,
+  "runCards": [
+    {
+      "cardId": "BOOT_SEQUENCE",
+      "count": 3
+    },
+    {
+      "cardId": "ZAP",
+      "count": 2
+    },
+    {
+      "cardId": "DUALCAST",
+      "count": 1
+    },
+    {
+      "cardId": "CLAW",
+      "count": 4
+    },
+    {
+      "cardId": "STRIKE_DEFECT",
+      "count": 2
+    }
+  ]
+}

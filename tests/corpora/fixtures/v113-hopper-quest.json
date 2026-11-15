@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "v113-hopper-quest",
+  "characterId": "IRONCLAD",
+  "encounterId": "THIEVING_HOPPER_WEAK",
+  "seed": "HOPPERQUEST",
+  "initialPlayerHp": 300,
+  "initialPlayerMaxHp": 300,
+  "initialEnemyCurrentHps": [
+    100
+  ],
+  "initialEnemyMaxHps": [
+    100
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "DOWSING",
+      "pile": "Draw",
+      "treatAsDeckCard": true
+    }
+  ]
+}

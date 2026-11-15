@@ -14,6 +14,8 @@ internal interface ICombatUiCommands
 
     bool SetAutoSearch(bool enabled);
 
+    bool SetAutoExecute(bool enabled);
+
     bool StartSearch();
 
     bool ContinueSearch();
@@ -56,6 +58,8 @@ internal static class CombatUiCommands
         public Task<DiagnosticLogExport> ExportLogsAsync() => CombatLogRecorder.ExportAsync();
 
         public bool SetAutoSearch(bool enabled) => CombatSessionController.SetAutoSearch(enabled);
+
+        public bool SetAutoExecute(bool enabled) => CombatSessionController.SetAutoExecute(enabled);
 
         public bool StartSearch() => CombatSessionController.StartSearch();
 

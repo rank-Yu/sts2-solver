@@ -377,10 +377,10 @@ internal static class SolverPanelText
     internal static string SearchBlock(string? code) => code switch
     {
         "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
-        "actions_running" => SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
+        "actions_running" => SolverText.Get("请等当前动作完成。"),
         "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
         "turn_setup" => SolverText.Get("等待回合开始选择"),
-        "executing" => SolverText.Get("正在执行本回合；要重新搜索请先停止执行。"),
+        "executing" => SolverText.Get("请先停止自动出牌。"),
         "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
         "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),
         "not_playable" => SolverText.Get("当前战斗状态不能搜索。"),

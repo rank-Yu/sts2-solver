@@ -158,8 +158,19 @@ public sealed class PaelsTears : RelicDef
 [ContentId("BLESSED_ANTLER")]
 public sealed class BlessedAntler : RelicDef
 {
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn != 1) return;
+        for (int i = 0; i < (int)x.R.RelicVar(Id, 1); i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Sts2Solver.Content.Cards.Status.Dazed>());
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Draw, PilePosition.Random)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     // BlessedAntler.cs: EnergyVar(1), CardsVar(3).
-    public override IReadOnlyList<string> VarNames => ["Energy"];
+    public override IReadOnlyList<string> VarNames => ["Energy", "Cards"];
 
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
 
@@ -676,7 +687,7 @@ public sealed partial class SneckoEye : RelicDef
 
 /// <summary>
 /// <c>WhisperingEarring</c>: +Energy maximum energy. Its first-turn auto-play
-/// (<c>AfterAutoPrePlayPhaseEnteredLate</c>) runs before the captured root, like Imbued; the relic's
+/// (<c>AfterAutoPrePlayPhaseEnteredLate</c>) is simulated by Kernel.AutoPrePlay after Imbued; its
 /// presence is also read by PaelsEye's first-turn gate.
 /// </summary>
 [ContentId("WHISPERING_EARRING")]
@@ -735,6 +746,19 @@ public sealed class DiamondDiadem : RelicDef
 [ContentId("RADIANT_PEARL")]
 public sealed class RadiantPearl : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Cards"];
+
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn != 1) return;
+        for (int i = 0; i < (int)x.R.RelicVar(Id, 0); i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Sts2Solver.Content.Cards.Colorless.Luminesce>());
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Hand, PilePosition.Top)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("LUMINESCE", 0), ("LUMINESCE", 1)];
 
 }
@@ -880,12 +904,22 @@ public sealed class RadiantPearl : RelicDef
 [ContentId("BOOMING_CONCH")]
 public sealed class BoomingConch : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Cards", "Energy"];
+    public override decimal ModifyHandDraw(ref Exec x, Listener self, decimal amount)
+        => x.B.PlayerTurn <= 1 && x.R.Relics.Fixed(self.Index).Aux != 0
+            ? amount + x.R.RelicVar(Id, 0) : amount;
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side == Side.Player && x.B.PlayerTurn <= 1 && x.R.Relics.Fixed(self.Index).Aux != 0)
+            Kernel.GainEnergy(ref x, x.R.RelicVar(Id, 1));
+    }
+
 
 }
 
 /// <summary>
 /// <c>JeweledMask</c>: on turn 1, before the hand draw, move one random Power card from the draw pile
-/// to the hand, preferring Power cards without Innate, and make it free this turn.
+/// to the hand, preferring Power cards without Innate, and make it free this combat.
 /// </summary>
 [ContentId("JEWELED_MASK")]
 public sealed class JeweledMask : RelicDef

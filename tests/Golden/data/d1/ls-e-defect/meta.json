@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "ls-e-defect",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-e-defect.json\u0022}",
-  "rulesSha256": "9a19a390a105002d3b393156e1d73ff4dc731d1062e671a6d9e5dee80311dddf",
+  "rulesSha256": "3c15ac2c1710e2a58bdfba4f2f3177f6aa9d6525ebdd1e2bb0b492da9f4f4498",
   "counts": {
     "roots": 1,
     "k1": 9,

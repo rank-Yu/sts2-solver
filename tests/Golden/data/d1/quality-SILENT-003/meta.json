@@ -1,9 +1,9 @@
 {
-  "formatVersion": 10,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "quality-SILENT-003",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/SILENT-003/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/SILENT-003/request.json\u0022}",
-  "rulesSha256": "8086c88ffb8327d142262808f2c57e9a59cf1ef43058ae55dc848cb9abff4f8c",
+  "rulesSha256": "ad93ee9a21dc85a1f340f2eaf08ec12369f5649dff76e9d455937e8453cf33a0",
   "counts": {
     "roots": 1,
     "k1": 15,

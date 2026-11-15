@@ -204,6 +204,14 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
         ledger.Claim(relic);
         switch (relic)
         {
+            case Byrdpip byrdpip:
+                target.Counter = byrdpip.SwoopsPlayed;
+                break;
+            case BoomingConch or TormentousCollar:
+                target.Aux = relic.Owner.RunState.CurrentRoom?.RoomType
+                    == MegaCrit.Sts2.Core.Rooms.RoomType.Elite ? 1 : 0;
+                break;
+
             case ConductorsBaton baton:
                 target.Counter = baton._triggeredThisTurn ? 1 : 0;
                 break;

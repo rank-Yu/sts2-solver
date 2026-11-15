@@ -467,6 +467,7 @@ public ref struct Exec
         PreviousHistoryCourseCard = default;
         HasPreviousHistoryCourseCard = false;
         CurrentPlayEnergyValue = 0;
+        CurrentPlayEnergySpent = 0;
         CardDamageTotal = 0;
         CardKilledTarget = false;
         LastDamageTotal = 0;
@@ -497,7 +498,7 @@ public ref struct Exec
             LampInternalTypes, VambraceTriggerActive, VambraceTriggerPosition,
             VambraceTriggerSerial, LastCardPowerSourceSerial, PlayIdentity, LastPlayIdentity,
             PlayIdentityCounter, MusicBoxPlayIdentity, CurrentPlayIsAutoPlay,
-            CurrentPlayIsHistoryCourseDupe, CurrentPlayEnergyValue, BrightestFlameMaxHpSpent,
+            CurrentPlayIsHistoryCourseDupe, CurrentPlayEnergyValue, CurrentPlayEnergySpent, BrightestFlameMaxHpSpent,
             PreviousHistoryCourseCard, HasPreviousHistoryCourseCard);
     }
 
@@ -549,6 +550,7 @@ public ref struct Exec
         PreviousHistoryCourseCard = continuation.PreviousHistoryCourseCard;
         HasPreviousHistoryCourseCard = continuation.HasPreviousHistoryCourseCard;
         CurrentPlayEnergyValue = continuation.CurrentPlayEnergyValue;
+        CurrentPlayEnergySpent = continuation.CurrentPlayEnergySpent;
         BrightestFlameMaxHpSpent = continuation.BrightestFlameMaxHpSpent;
     }
 
@@ -573,6 +575,8 @@ public ref struct Exec
             throw new InvalidOperationException("EndTurn 前缀处于额外回合。");
         if (SetupPause != null)
             throw new InvalidOperationException("EndTurn 前缀带有回合准备暂停回调。");
+        if (SelectFirstOptions)
+            throw new InvalidOperationException("EndTurn 前缀仍处于瓦库选牌上下文。");
         if (SetupPreamble)
             throw new InvalidOperationException("EndTurn 前缀处于回合准备前奏。");
         if (!ChoiceOrigin.IsNone)
@@ -788,6 +792,9 @@ public ref struct Exec
     /// </summary>
     public int CurrentPlayEnergyValue;
 
+    /// <summary>Actual energy paid for this CardPlay, zero for unpaid auto-plays.</summary>
+    public int CurrentPlayEnergySpent;
+
     /// <summary>Records one <c>BeforeCardPlayed</c> amount for its <c>AfterCardPlayed</c> consumer.</summary>
     public void PushCardPlayPair(CardPlayPairKind kind, byte owner, ushort powerId, int amount)
     {
@@ -874,8 +881,16 @@ public ref struct Exec
     /// Takes the next carried choice. When none is left, records <paramref name="request"/>, sets
     /// <see cref="NeedsChoice"/> and returns false; the caller must return without further effects.
     /// </summary>
+    // Vakuu selects the first options itself, including choices nested in its auto-plays.
+    internal bool SelectFirstOptions;
     public bool TryTakeChoice(in ChoiceRequest request, out ulong selection)
     {
+        if (SelectFirstOptions)
+        {
+            selection = request.UsesIndexSelection ? 0
+                : request.MaxCount >= 64 ? ulong.MaxValue : (1UL << request.MaxCount) - 1;
+            return true;
+        }
         if (_choicesTaken < _choiceCount)
         {
             selection = _choices[_choicesTaken++];

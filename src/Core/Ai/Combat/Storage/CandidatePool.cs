@@ -58,10 +58,10 @@ internal sealed partial class BeamSolver
         private readonly List<int> _standPatProbeSlots = new();
         private readonly HashSet<int> _standPatProbeSet = new();
         private readonly List<int> _freshProbeScratch = new();
-        private StandPatEvaluation[] _standPatProbeValues = new StandPatEvaluation[16];
+        private StandPatEvaluation[] _standPatProbeValues = [];
         private int _standPatProbeCount;
         // Pareto dominance is a per-candidate read-only check; the serial pass keeps insertion order.
-        private bool[] _paretoDominated = new bool[16];
+        private bool[] _paretoDominated = [];
         private int _paretoPreparedCount = -1;
         private int _batchParetoCount;
         private readonly Action<int> _evaluateSelectionBatch;
@@ -128,7 +128,7 @@ internal sealed partial class BeamSolver
             ulong UnorderedPileFirst, ulong UnorderedPileSecond);
         private readonly Dictionary<ParetoCohortKey, int> _paretoCohortLookup = new();
         private readonly List<List<int>> _paretoCohortLists = new();
-        private int[] _paretoCohortIndex = new int[16];
+        private int[] _paretoCohortIndex = [];
         private readonly List<int> _pareto = new(3);
         private readonly List<int> _standPatGroup = new();
         private readonly Dictionary<int, List<int>> _standPatGroups = new();

@@ -134,6 +134,20 @@ public sealed partial class FencingManual : RelicDef;
 [ContentId("ORANGE_DOUGH")]
 public sealed class OrangeDough : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Cards"];
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side != Side.Player || x.B.PlayerTurn > 1) return;
+        Span<Card> cards = stackalloc Card[Limits.Cards];
+        int count = Kernel.SampleCardPool(ref x.B, x.R, CardPools.ColorlessAll,
+            (int)x.R.RelicVar(Id, 0), distinct: true, RngStream.CombatCardGeneration, cards);
+        for (int i = 0; i < count; i++)
+        {
+            if (!Kernel.AddGeneratedCard(ref x, cards[i], Pile.Hand)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     public override IReadOnlyList<string> GeneratedCardPools => [CardPools.ColorlessAll];
 
 }

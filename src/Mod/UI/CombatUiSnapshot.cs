@@ -53,6 +53,8 @@ internal sealed record CombatUiSnapshot
     /// <summary>The auto-search switch (persisted setting).</summary>
     public bool AutoSearchEnabled { get; init; } = true;
 
+    public bool AutoExecuteEnabled { get; init; }
+
     /// <summary>执行本场战斗 is running in this combat.</summary>
     public bool CombatRunActive { get; init; }
 

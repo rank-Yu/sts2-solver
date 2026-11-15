@@ -53,6 +53,28 @@ internal static partial class CombatControllerChecks
             await WaitControllerBeginAsync(host);
             switch (scenario)
             {
+                case "auto_execute_controls":
+                    await AutoExecuteControlsAsync(host, Check, Action);
+                    break;
+                case "auto_execute_full":
+                    await AutoExecuteFullAsync(host, Check, Action);
+                    break;
+                case "auto_execute_stop_search":
+                case "turn_setup_auto_execute_switch_stop":
+                    await AutoExecuteStopSearchAsync(host, Check, Action,
+                        setup: scenario.StartsWith("turn_setup_", StringComparison.Ordinal));
+                    break;
+                case "auto_execute_disable":
+                case "auto_execute_disable_search":
+                case "auto_execute_stop_execution":
+                    await AutoExecuteDisableAsync(host, Check, Action, scenario);
+                    break;
+                case "turn_setup_auto_execute_switch":
+                case "turn_setup_auto_execute_switch_coexist":
+                    await WaitAsync(host, static s => s.CombatRunActive, 2400, "setup auto execution armed");
+                    await TurnSetupFullAsync(host, Check, Action);
+                    Check("auto_execute_enabled", Snapshot().AutoExecuteEnabled);
+                    break;
                 case "manual_start_stop":
                     await ManualStartStopAsync(host, Check, Action);
                     break;
@@ -214,6 +236,9 @@ internal static partial class CombatControllerChecks
                     break;
                 case "turn_setup_continuation_gap":
                     await TurnSetupContinuationGapAsync(host, Check, Action);
+                    break;
+                case "turn_setup_history_course":
+                    await TurnSetupHistoryCourseAsync(host, Check, Action);
                     break;
                 case "turn_setup_manual_end":
                     await TurnSetupManualEndAsync(host, Check, Action);
@@ -1143,6 +1168,8 @@ internal static partial class CombatControllerChecks
         for (int frame = 0; frame < 600 && !flushed.IsCompleted; frame++)
             await Frames(host, 1);
         check("writes_flushed", flushed.IsCompletedSuccessfully, flushed.Status.ToString());
+        check("queue_bounded", await CombatLogRecorder.CheckQueueBudgetForTest(),
+            "slow writer bounds queued bytes/items and preserves every write");
         HashSet<string> names = [.. Directory.EnumerateFiles(folder)
             .Select(static path => Path.GetFileName(path)!)];
         foreach (string file in new[] { "combat.json", "events.log", "search-001.json",
@@ -2540,6 +2567,22 @@ internal static partial class CombatControllerChecks
         check("no_error", Snapshot().ErrorCode == null, Snapshot().ErrorCode);
     }
 
+    /// <summary>History Course alone must open a setup search when its replay asks for a card.</summary>
+    private static async Task TurnSetupHistoryCourseAsync(NGame host, Check check, Action action)
+    {
+        CombatState combat = CombatManager.Instance.DebugOnlyGetState()
+            ?? throw new InvalidOperationException("历史课测试没有战斗。");
+        Player player = LocalContext.GetMe(combat)
+            ?? throw new InvalidOperationException("历史课测试没有玩家。");
+        var headbutt = player.PlayerCombatState!.Hand.Cards
+            .Single(static card => card is MegaCrit.Sts2.Core.Models.Cards.Headbutt);
+        await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), headbutt,
+            combat.HittableEnemies.First());
+        action("play_headbutt");
+        await TurnSetupManualEndAsync(host, check, action);
+        check("auto_pre_play_search", PlayerTurnSetupRuntime.TestLastSearchStartedInAutoPrePlay);
+    }
+
     /// <summary>
     /// Auto-search mode, player ends turn one with the native end-turn action, turn two's setup
     /// page is searched and then driven by the panel's execute command.
@@ -2593,6 +2636,8 @@ internal static partial class CombatControllerChecks
         check("plan_ready", plan.TurnSetupPlanReady);
         check("two_choices", plan.TurnSetupChoiceCount == 2,
             plan.TurnSetupChoiceCount.ToString());
+        check("two_visible_choices", plan.Route?.Turns.Length > 0
+            && plan.Route.Turns[0].TurnStartChoices.Length == 2);
         check("one_search", plan.Searches == 1, plan.Searches.ToString());
         int searches = plan.Searches;
         int reused = plan.ReusedTurns;
@@ -4222,6 +4267,8 @@ internal static partial class CombatControllerChecks
         ExecuteCombat,
         AutoSearchOn,
         AutoSearchOff,
+        AutoExecuteOn,
+        AutoExecuteOff,
     }
 
     private sealed class SettingsOverride : IDisposable
@@ -4310,11 +4357,12 @@ internal static partial class CombatControllerChecks
                     PanelButton.Execute => ExecuteKey(panel, Snapshot()),
                     PanelButton.ExecuteCombat => panel.ExecuteCombatButtonForTest,
                     PanelButton.AutoSearchOn or PanelButton.AutoSearchOff => panel.AutoSearchSwitchForTest,
+                    PanelButton.AutoExecuteOn or PanelButton.AutoExecuteOff => panel.AutoExecuteSwitchForTest,
                     _ => throw new ArgumentOutOfRangeException(nameof(which)),
                 };
             if (button is Godot.CheckButton toggle && toggle.IsVisibleInTree() && !toggle.Disabled)
             {
-                toggle.ButtonPressed = which == PanelButton.AutoSearchOn;
+                toggle.ButtonPressed = which is PanelButton.AutoSearchOn or PanelButton.AutoExecuteOn;
                 return;
             }
             if (button != null && button.IsVisibleInTree() && !button.Disabled)

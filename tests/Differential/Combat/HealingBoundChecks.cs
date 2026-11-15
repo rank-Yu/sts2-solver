@@ -51,6 +51,7 @@ internal static class HealingBoundChecks
                 throw new InvalidDataException(label + " must not certify a healing target.");
         }
 
+        SearchCase native = Compile();
         external = [new UnknownSubscriber()];
         ExpectUnknown("unreviewed subscriber");
         external = [];
@@ -68,6 +69,13 @@ internal static class HealingBoundChecks
             external = names.Select(name => (AbstractModel)Activator.CreateInstance(loadout.GetType(name)!)!).ToArray();
             if (external.Any(source => !HealingSourceAudit.IsNonHealingSubscriber(source)))
                 throw new InvalidDataException("Reviewed Loadout source rejected.");
+            SearchCase reviewed = Compile();
+            if (reviewed.Options.Bound!.ConfigForCodec.Certificate != native.Options.Bound!.ConfigForCodec.Certificate
+                || reviewed.Options.Bound.EvaluatePruning(root, rules) != native.Options.Bound.EvaluatePruning(root, rules)
+                || new BeamSolver(rules, reviewed.Options).PrepareVictoryTarget([root])
+                    != new BeamSolver(rules, native.Options).PrepareVictoryTarget([root]))
+                throw new InvalidDataException("Non-healing subscribers changed the native healing bound.");
+            Console.WriteLine($"LOADOUT_SOURCE_OK mvid={loadout.ManifestModule.ModuleVersionId} callbacks={external.Length}");
             const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
             Type service = loadout.GetType("Loadout.Services.PowerGiver.PowerGiverStateService")!;
             object run = service.GetField("_run", flags)!.GetValue(null)!;

@@ -209,8 +209,8 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 - 失效顺序：`growth_targets` → `theft_policy` → `growth_rewards` → `root_risk` → `pending_returning_cards` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
 - `HasOnlyPostCombatHealing`：角色属于封闭集合、敌人都是原生的、没有药水、遗物只有 Burning Blood、Black Blood、Bound Phylactery、Ring of the Snake，玩家 Power 只有 Neurosurge、Doom，卡牌都在白名单里且没有附魔或苦难。
-- `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于 109 个 `ComponentInitialCard` 类型且附件安全、根监听者分类安全、上界可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
-- `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier 或第三方监听。
+- `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于已审计的 `ComponentInitialCard` 类型且附件安全、根监听者分类安全、上界可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
+- `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier；额外监听者仅接受已审计的非治疗 Loadout 回调。Loadout 按来源程序集与回调类型识别，召唤回调另读取当前能力配置，不绑定构建编号。
 - `FutureHealPotential`、`PostCombatHeal`、`RequireCertifiedHealingProof`、`PruneEqualHp` 按原导入层的根事实设置。`ForceAllPotionsDisabled = false`、`MaximumPotionUses = null`：离线求解器没有用药政策覆盖或上限。
 - 有组件证书的根上有 RegenPotion 时，以 `regen_potion_policy` 失效；根上有 SwipePower 时，以 `swipe_power` 失效。
 

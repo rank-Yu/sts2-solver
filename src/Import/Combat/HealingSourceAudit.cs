@@ -22,8 +22,6 @@ internal static class HealingSourceAudit
         new("ad562b4e-7352-4ca2-ae45-0ff44cd284bc"), // Windows, upstream audit
     ];
 
-    private static readonly Guid LoadoutModule = new("40fc7a62-b154-4b6f-8684-b2e73ad046c7");
-
     internal static bool IsCurrentNativeAssembly
         => NativeModules.Contains(typeof(AbstractModel).Module.ModuleVersionId);
 
@@ -37,7 +35,9 @@ internal static class HealingSourceAudit
     internal static bool IsNonHealingSubscriber(AbstractModel source)
     {
         Type type = source.GetType();
-        if (type.Module.ModuleVersionId != LoadoutModule)
+        // Identify reviewed Loadout callbacks by their source assembly and type, not the build ID.
+        // The summon hook also reads its live configuration below.
+        if (type.Assembly.GetName().Name != "Loadout")
             return false;
         return type.FullName switch
         {

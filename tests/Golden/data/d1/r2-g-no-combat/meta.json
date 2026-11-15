@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "r2-g-no-combat",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r2-g-no-combat.json\u0022}",
-  "rulesSha256": "59f738545d9bdc8967b3839331e0ace8e55db6aa66793821649c396729f095c2",
+  "rulesSha256": "e40c066c05e02f1a926411ea83a874b5bac3a3db5b906945967cc26a20a2e2a9",
   "counts": {
     "roots": 1,
     "k1": 13,

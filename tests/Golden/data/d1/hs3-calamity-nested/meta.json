@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "hs3-calamity-nested",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs3-calamity-nested.json\u0022}",
-  "rulesSha256": "5a80a68309899dc822072df15455d302b1eecb5796643cf7e3642f2e75ef2a09",
+  "rulesSha256": "7681768ec0419a742b0ff4ba66a5872fe31a81af73d087ee23272d1278b03ba8",
   "counts": {
     "roots": 1,
     "k1": 2,

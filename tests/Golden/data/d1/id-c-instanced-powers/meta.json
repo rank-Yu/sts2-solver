@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "id-c-instanced-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-c-instanced-powers.json\u0022}",
-  "rulesSha256": "cc8d5c15c641d489d5c5240e79246f40fbce5c23be0f29273a218755f7c9d47b",
+  "rulesSha256": "5889b27e135d9d33abba4fbb5e06055c3fd184c2754af78da4797c9cd40b982f",
   "counts": {
     "roots": 1,
     "k1": 8,

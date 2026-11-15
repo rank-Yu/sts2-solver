@@ -30,7 +30,10 @@ internal static class ManifestProvenance
         + "格式 12 补齐 0.113.0/0.113.1 事件卡牌、能力和遗物，按原生内容名迁移所有编号引用。"
         + "Wuppy 复用头部 16 字节填充，Battle 总大小不变；404 个原场景按旧种子重录，新增 9 个原生场景。"
         + "原场景根状态经 0.113.1 原生导入逐一核对；2094 份搜索期望重算后路线和统计逐字节不变。"
-        + "D1 文件 404→413、根 414→423、K1 5070→5110、游走 14928→15072、状态 473898→477092、转换 461415→464465。";
+        + "D1 文件 404→413、根 414→423、K1 5070→5110、游走 14928→15072、状态 473898→477092、转换 461415→464465。"
+        + "格式 13 将每卡费用修饰容量由 10 缩为 4：Card 64→46 字节，Battle 43856→32264 字节，头部 2896→2824 字节。"
+        + "按字段迁移全部根与选牌载荷，保留输入、规则数值和动作；旧槽尾部必须为空。"
+        + "D1 按原游走种子重录状态及卡牌指纹，D2 保留原搜索预算重算期望，具体验证与计数见 d1Rerecord/refreeze。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

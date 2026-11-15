@@ -7,8 +7,8 @@ namespace Sts2Solver.Simulation.Combat;
 public static class Limits
 {
     /// <summary>
-    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 43,856 bytes (packed prefix
-    /// 43,856), below the CLR's 65,535-byte array-element limit (and lets
+    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 32,264 bytes (packed prefix
+    /// 32,264), below the CLR's 65,535-byte array-element limit (and lets
     /// <c>Marshal.OffsetOf</c> keep working). A pile count and every card position are 16-bit;
     /// exceeding 640 still throws
     /// <see cref="CapacityException"/> instead of truncating.
@@ -41,13 +41,13 @@ public static class Limits
     public const int MonsterRules = 32;
 
     /// <summary>
-    /// Local energy-cost records after merging adjacent unrestricted relative modifiers with
-    /// matching expiration. Stomp's repeated same-turn reductions share a summed record; absolute,
-    /// reduce-only and differently expiring entries still require separate slots. Overflow throws
+    /// Local energy-cost records after merging adjacent unrestricted modifiers with matching
+    /// type and expiration: relative amounts are summed, absolute values keep the last entry.
+    /// Reduce-only and differently expiring entries retain separate slots. Overflow throws
     /// <see cref="CapacityException"/> instead of truncating; the expansion boundary drops the
     /// child, and a root-level overflow fails the whole solve.
     /// </summary>
-    public const int CardEnergyCostModifiers = 10;
+    public const int CardEnergyCostModifiers = 4;
     // One action may carry a primary choice plus nested auto-play choices. Decisions, Decisions
     // replays the chosen card up to its Repeat variable (3), and a chosen Decisions, Decisions can
     // nest again for each skill in hand; the existing engine keeps those frames unbounded. Every

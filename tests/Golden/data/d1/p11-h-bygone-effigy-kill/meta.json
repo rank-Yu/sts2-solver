@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p11-h-bygone-effigy-kill",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-h-bygone-effigy-kill.json\u0022}",
-  "rulesSha256": "99cfba74bb7a831035c8277e326bfda5ce56548a035b71e334f3dce170896af1",
+  "rulesSha256": "3a6c9621088be2b6d867ba3730248c84b8075cd1a169f3c91228bd47c3fa2e88",
   "counts": {
     "roots": 1,
     "k1": 7,

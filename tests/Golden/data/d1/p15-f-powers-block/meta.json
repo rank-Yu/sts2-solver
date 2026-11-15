@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p15-f-powers-block",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-f-powers-block.json\u0022}",
-  "rulesSha256": "35ac3748b6612f377be1c13471e9e91fc83d73f8e760d6343c17adc0501dc75a",
+  "rulesSha256": "51993dce7b6db6691c0e5a3a80595d79034c1f68698db902566a1f8342683d06",
   "counts": {
     "roots": 1,
     "k1": 13,

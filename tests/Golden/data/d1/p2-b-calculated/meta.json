@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p2-b-calculated",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p2-b-calculated.json\u0022}",
-  "rulesSha256": "c7af3f8af2ada9a2965180c8e9a455917216a2532882a02ff2fa15c00c5f695e",
+  "rulesSha256": "d026dc724f18b061f89b0c64dad8e76fda4087856f5afc0b416b78ed16cea683",
   "counts": {
     "roots": 1,
     "k1": 11,

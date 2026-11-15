@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "qf-nightmare-detached",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-nightmare-detached.json\u0022}",
-  "rulesSha256": "21966535a1b5a26b20382e81e066a31d3096e9a2b591ae229206a84421ce1781",
+  "rulesSha256": "e85c0ea1e9867e2a909bd718acfc6f8c0299887cd8236a7881f5ceaa6b81ae44",
   "counts": {
     "roots": 1,
     "k1": 1,

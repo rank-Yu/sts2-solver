@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "nb-g-utility2",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-g-utility2.json\u0022}",
-  "rulesSha256": "a5dcc8f22989d3f6bb9591899cb46969b14ab13cb1bf63311b1cad90675f01f9",
+  "rulesSha256": "cf736bd04d8d27c633add84add13e3a157a100d9cd16d2a3efb45eed39f60ec0",
   "counts": {
     "roots": 1,
     "k1": 10,

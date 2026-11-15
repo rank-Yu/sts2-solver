@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p15-h-restlessness",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-h-restlessness.json\u0022}",
-  "rulesSha256": "b882bd2ae159b810d37a486e8054064306c85d022b48b17dcf5c6f4b3eab5eed",
+  "rulesSha256": "28866912f65a83aa6cfa9ef9ddcdbcc2801fdba9aac493473d3d2b82f415be35",
   "counts": {
     "roots": 1,
     "k1": 3,

@@ -153,7 +153,7 @@ internal static class CardCostModifierChecks
             using MemoryStream stream = new();
             using BinaryWriter writer = new(stream, System.Text.Encoding.UTF8, leaveOpen: true);
             Codec.WriteCard(writer, card);
-            Require(stream.Length == 64, "current card encoding has no expansion");
+            Require(stream.Length == 46, "current card encoding has no expansion");
             stream.Position = 0;
             using BinaryReader reader = new(stream);
             Card decoded = Codec.ReadCard(reader);
@@ -175,12 +175,12 @@ internal static class CardCostModifierChecks
         state.DecimalVarCount = 1;
         state.DecimalVars[0] = 3.125m;
         byte[] encoded = BattleCodec.Encode(state, RelicRoster.Empty);
-        Require(encoded.Length == BattleCodec.HeaderSize + 4 + Battle.HeaderSize + 64 + 2,
+        Require(encoded.Length == BattleCodec.HeaderSize + 4 + Battle.HeaderSize + 46 + 2,
             "current battle size");
         Battle copy = BattleCodec.Decode(encoded, out _);
         Require(Fingerprint.Equal(state, copy), "battle header/detached/history/card wire mapping");
         Require(encoded.AsSpan().SequenceEqual(BattleCodec.Encode(copy, RelicRoster.Empty)), "stable wire bytes");
-        Console.WriteLine("CAPACITY10 current-wire/hash/header=pass");
+        Console.WriteLine("CAPACITY4 current-wire/hash/header=pass");
     }
 
     private static Card Filter(Card card,int mask)

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p11-g-normality",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-g-normality.json\u0022}",
-  "rulesSha256": "940dbbeac249c2309542af85a13b9f7257ea80288156a085775ce5002542f0f4",
+  "rulesSha256": "2367b6920041393827f5f7e705a8dd56ad4ebfaf40cbfeb0f5a9e939a6622b15",
   "counts": {
     "roots": 1,
     "k1": 13,

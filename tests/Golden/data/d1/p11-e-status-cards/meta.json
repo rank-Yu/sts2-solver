@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "p11-e-status-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-e-status-cards.json\u0022}",
-  "rulesSha256": "ee2557101066ea8295827b14c469160ef6dc0389353f0483b58dd9e78af3dd5d",
+  "rulesSha256": "39612d9b29a0044ed062f35ad47ffc36e4d455676376e7dcac9c78b1622312f2",
   "counts": {
     "roots": 1,
     "k1": 5,

@@ -279,15 +279,15 @@ public struct Battle
     /// Offset of <see cref="Cards"/>: the end of the packed header. The complete header (including
     /// <see cref="HistoryCourseCard"/>) is <c>PackedSize</c> bytes for an empty state.
     /// </summary>
-    public const int HeaderSize = 2896;
+    public const int HeaderSize = 2824;
 
     /// <summary>
     /// <see cref="System.Runtime.CompilerServices.Unsafe.SizeOf{T}"/> of the complete struct. The
-    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 64 = 43856</c> bytes; the
-    /// struct itself is 43856 bytes with no trailing padding. Both are below the CLR's
+    /// packed prefix of a full deck is <c>HeaderSize + Limits.Cards * 46 = 32264</c> bytes; the
+    /// struct itself is 32264 bytes with no trailing padding. Both are below the CLR's
     /// 65,535-byte array-element limit.
     /// </summary>
-    public const int ExpectedSize = 43856;
+    public const int ExpectedSize = 32264;
 
     public int Round;
     public int PlayerTurn;
@@ -302,7 +302,7 @@ public struct Battle
     public Outcome Outcome;
     public BattleFlags Flags;
 
-    /// <summary>Pile sizes. A single pile is bounded by <see cref="Limits.Cards"/> (1023).</summary>
+    /// <summary>Pile sizes. A single pile is bounded by <see cref="Limits.Cards"/> (640).</summary>
     public ushort HandCount;
     public ushort DrawCount;
     public ushort DiscardCount;
@@ -334,7 +334,7 @@ public struct Battle
     /// header byte image so both the fingerprint and equality cover it.
     /// </summary>
     public DetachedCardArray DetachedCards;
-    private uint _paddingAfterDetached;
+    private ushort _paddingAfterDetached;
 
     /// <summary>
     /// Exact decimal card-variable deltas (Thrash). A card references a slot through
@@ -369,6 +369,8 @@ public struct Battle
     /// <summary>Wuppy is retained after death; its HP intercepts powered damage before block.</summary>
     public Creature Wuppy;
 
+    // Keep the card array aligned to 8 bytes after the final inline card.
+    private ushort _paddingBeforeHistoryCard;
     public Card HistoryCourseCard;
 
     /// <summary>

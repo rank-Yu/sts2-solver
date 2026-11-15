@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 13,
+  "battleSize": 32264,
   "root": "relic-wuppy-overkill-ironclad",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-wuppy-overkill-ironclad.json\u0022}",
-  "rulesSha256": "393018b3f31cf0d09f28bef6121844979037b13e5eb78db66607193e77373963",
+  "rulesSha256": "9335867a8cd041c8da79c593ac1f04a67777e9940c83e0c410c18b96d11f7815",
   "counts": {
     "roots": 1,
     "k1": 3,

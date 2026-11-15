@@ -105,7 +105,7 @@ public struct CostModifiers
 
 /// <summary>
 /// The complete value of one card in a combat pile. Cards have no instance identity: two
-/// cards with equal bytes are interchangeable. Size is asserted to be 64 bytes.
+/// cards with equal bytes are interchangeable. Size is asserted to be 46 bytes.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct Card
@@ -129,8 +129,7 @@ public struct Card
     /// <summary>
     /// Bit 0: temporary star cost present; bit 1: it clears at turn end; bit 2: it clears when
     /// played; bit 3: <see cref="IsClone"/>; bit 4: <see cref="ReturnToHandNextTurn"/>; bits 5-7:
-    /// native enchantment status. The energy modifier count has its own byte so the capacity is not
-    /// limited to the two bits the packed state used to have.
+    /// native enchantment status. Energy modifier count is stored in ModifierCount.
     /// </summary>
     public byte CostState;
 
@@ -176,8 +175,8 @@ public struct Card
 
     /// <summary>
     /// One-action identity mark used by BeatDown to follow a card object after an earlier auto-play
-    /// moves it out of the discard pile. 0 means unmarked. The field occupies existing tail padding;
-    /// card size stays 64 bytes. BeatDown clears every mark before its OnPlay returns, so a stable
+    /// moves it out of the discard pile. 0 means unmarked.
+    /// BeatDown clears every mark before its OnPlay returns, so a stable
     /// boundary never contains a nonzero value. Gameplay clones and generated cards start at 0.
     /// </summary>
     public byte TransientMark;

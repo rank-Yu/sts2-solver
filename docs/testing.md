@@ -178,7 +178,7 @@ dotnet run --project tests/Golden -c Release --no-build -- replay-log <zip 或�
 
 每条 `search-NNN` 的 SREQ 和搜索计划交给同一个 `CombatSearchCoordinator`，协调器时钟不前进。搜索器给成员的每次截止检查编号，日志记下第一次发现到期的序号；重放时成员从同一次检查起视为到期，也就是实机截止发生的那次检查。序号为 0 的成员实机没有到期，照常按节点上限或自然结束。线程数默认取记录值。每条搜索输出 `REPLAY ... verdict=same|different result=same|different selected=<录制>-><重放> members_expanded_same=N`，最后一行是 `REPLAY_LOG searches= same= different= unfinished= skipped=`；有 different 时退出码为 1。
 
-单线程搜索逐字节复现：`Golden k0` 的 `REPLAY_LOG_CONTRACT` 用真实时钟、每宽度 1 ms 跑一次协调器，再按记录重放，要求每个成员的展开数、选中成员和结果编码都相同。多线程时各线程的截止检查交错进行，序号不能对应到同一时刻，重放可能选出另一条路线（4 线程、每宽度 1 ms 的 30 个 D2 请求里有 2 个），这时报告 different 并给出 `first_difference`；请求本身仍可加大预算或改参数离线研究。续搜（`resumed=true`）从头重跑，不还原停止时的成员状态，比较结果只作参考。没有请求的记录报告 skipped。状态停在 `Running` 的记录（开始时写下、没等到结束就被取消）没有结果可比，每个成员跑到节点上限或自然结束，报告 `verdict=unfinished` 和重放出的胜负、路线长度，不计入 different；最后一行另有 `unfinished=`。
+单线程搜索逐字节复现：`Golden k0` 的 `REPLAY_LOG_CONTRACT` 用受控时钟在指定的截止检查序号到期，再按记录重放；分别覆盖首次检查就到期、尚无候选，以及展开后到期、已有候选两种情况。要求每个成员的展开数、选中成员、完成状态和结果编码都相同，测试不依赖机器速度。多线程时各线程的截止检查交错进行，序号不能对应到同一时刻，重放可能选出另一条路线（4 线程、每宽度 1 ms 的 30 个 D2 请求里有 2 个），这时报告 different 并给出 `first_difference`；请求本身仍可加大预算或改参数离线研究。续搜（`resumed=true`）从头重跑，不还原停止时的成员状态，比较结果只作参考。没有请求的记录报告 skipped。状态停在 `Running` 的记录（开始时写下、没等到结束就被取消）没有结果可比，每个成员跑到节点上限或自然结束，报告 `verdict=unfinished` 和重放出的胜负、路线长度，不计入 different；最后一行另有 `unfinished=`。
 
 ## 5. 更新快照
 

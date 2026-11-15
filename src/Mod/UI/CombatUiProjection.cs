@@ -306,8 +306,6 @@ internal static class CombatUiProjection
         List<TurnStartChoiceUi> mapped = [];
         foreach (PlannedChoice choice in choices)
         {
-            if (choice.Request.Effect == ChoiceEffect.ApplyKnowledgeCurse)
-                continue;
             Card[] options = choice.OptionsAreGenerated ? choice.GeneratedOptions : choice.PileOptions;
             List<ChoiceCardUi> cards = [];
             foreach (int index in choice.SelectedIndexes())

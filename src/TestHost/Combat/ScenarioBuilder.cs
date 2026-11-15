@@ -63,8 +63,8 @@ internal static class ScenarioBuilder
     }
 
     internal static async Task<PreparedRun> PrepareRunAsync(ICombatHost waiter, OfflineRequest request,
-        TurnSetupCardSelector? turnSetupSelector = null, GeneratedScenarioSetup? preparedSetup = null,
-        ICardSelector? buildSelector = null)
+        bool waitForTurnSetupPage, TurnSetupCardSelector? turnSetupSelector = null,
+        GeneratedScenarioSetup? preparedSetup = null, ICardSelector? buildSelector = null)
     {
         GeneratedScenarioSetup setup = preparedSetup ?? GeneratedScenarioSetup.Prepare(request);
         request = setup.Request;
@@ -100,7 +100,8 @@ internal static class ScenarioBuilder
             localSelector = new FirstChoiceCardSelector();
         else if (buildSelector != null)
             localSelector = buildSelector;
-        else if (localSelector == null && request.GameModeForTest == GameMode.Dread)
+        else if (localSelector == null && !waitForTurnSetupPage
+            && request.GameModeForTest == GameMode.Dread)
             localSelector = new FirstChoiceCardSelector();
         if (generatedSelector == null
             && request.ScenarioId.StartsWith("FLASH-PR-", StringComparison.Ordinal))
@@ -153,8 +154,8 @@ internal static class ScenarioBuilder
         bool skipInitialInjection = false, TurnSetupCardSelector? turnSetupSelector = null,
         bool waitForTurnSetupPage = false, ICardSelector? buildSelector = null)
     {
-        using PreparedRun prepared = await PrepareRunAsync(waiter, request, turnSetupSelector,
-            preparedSetup: null, buildSelector);
+        using PreparedRun prepared = await PrepareRunAsync(waiter, request, waitForTurnSetupPage,
+            turnSetupSelector, preparedSetup: null, buildSelector);
         request = prepared.Request;
         ResolvedGeneratedCombatScenario? generated = prepared.Setup.Resolved;
         GeneratedScenarioCardSelector? generatedSelector = prepared.Setup.Selector;

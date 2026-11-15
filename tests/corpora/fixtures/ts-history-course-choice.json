@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-HISTORY-COURSE-CHOICE",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "TSHISTORY",
+  "ascension": 0,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "clearRunDeck": true,
+  "initialPlayerHp": 200,
+  "initialPlayerMaxHp": 200,
+  "relics": [
+    {
+      "relicId": "HISTORY_COURSE",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "cards": [
+    {
+      "cardId": "HEADBUTT",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand",
+      "count": 3
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw",
+      "count": 5
+    }
+  ]
+}

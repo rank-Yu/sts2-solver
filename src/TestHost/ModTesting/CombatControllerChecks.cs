@@ -215,6 +215,9 @@ internal static partial class CombatControllerChecks
                 case "turn_setup_continuation_gap":
                     await TurnSetupContinuationGapAsync(host, Check, Action);
                     break;
+                case "turn_setup_history_course":
+                    await TurnSetupHistoryCourseAsync(host, Check, Action);
+                    break;
                 case "turn_setup_manual_end":
                     await TurnSetupManualEndAsync(host, Check, Action);
                     break;
@@ -2542,6 +2545,22 @@ internal static partial class CombatControllerChecks
         check("no_error", Snapshot().ErrorCode == null, Snapshot().ErrorCode);
     }
 
+    /// <summary>History Course alone must open a setup search when its replay asks for a card.</summary>
+    private static async Task TurnSetupHistoryCourseAsync(NGame host, Check check, Action action)
+    {
+        CombatState combat = CombatManager.Instance.DebugOnlyGetState()
+            ?? throw new InvalidOperationException("历史课测试没有战斗。");
+        Player player = LocalContext.GetMe(combat)
+            ?? throw new InvalidOperationException("历史课测试没有玩家。");
+        var headbutt = player.PlayerCombatState!.Hand.Cards
+            .Single(static card => card is MegaCrit.Sts2.Core.Models.Cards.Headbutt);
+        await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), headbutt,
+            combat.HittableEnemies.First());
+        action("play_headbutt");
+        await TurnSetupManualEndAsync(host, check, action);
+        check("auto_pre_play_search", PlayerTurnSetupRuntime.TestLastSearchStartedInAutoPrePlay);
+    }
+
     /// <summary>
     /// Auto-search mode, player ends turn one with the native end-turn action, turn two's setup
     /// page is searched and then driven by the panel's execute command.
@@ -2595,6 +2614,8 @@ internal static partial class CombatControllerChecks
         check("plan_ready", plan.TurnSetupPlanReady);
         check("two_choices", plan.TurnSetupChoiceCount == 2,
             plan.TurnSetupChoiceCount.ToString());
+        check("two_visible_choices", plan.Route?.Turns.Length > 0
+            && plan.Route.Turns[0].TurnStartChoices.Length == 2);
         check("one_search", plan.Searches == 1, plan.Searches.ToString());
         int searches = plan.Searches;
         int reused = plan.ReusedTurns;

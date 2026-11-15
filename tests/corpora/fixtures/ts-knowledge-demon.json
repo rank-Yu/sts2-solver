@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TS-KNOWLEDGE-DEMON",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "TSKNOWLEDGE",
+  "ascension": 0,
+  "gameModeForTest": "Dread",
+  "dominionForTest": "KNOWLEDGE_DEMON_DOMINION",
+  "flashTurnSetupRootForTest": true
+}

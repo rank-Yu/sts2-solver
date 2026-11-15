@@ -77,11 +77,8 @@ public static partial class Kernel
         // canonical cost is >= 0, so X-cost cards (canonical 0) still receive it.
         if (stats.EnergyCost >= 0)
         {
-            if (card.EnergyModifierCount >= Limits.CardEnergyCostModifiers)
-                throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-            card.EnergyModifiers[card.EnergyModifierCount] = CostModifier.Create(
-                0, CostType.Absolute, CostExpiration.EndOfTurnOrWhenPlayed, reduceOnly: false);
-            card.EnergyModifierCount++;
+            CardCostModifiers.Append(ref card, CostModifier.Create(
+                0, CostType.Absolute, CostExpiration.EndOfTurnOrWhenPlayed, reduceOnly: false));
         }
         card.SetTemporaryStarCost(0, clearsAtTurnEnd: true, clearsWhenPlayed: true);
     }
@@ -96,11 +93,8 @@ public static partial class Kernel
         CardStats stats = rules.Card(card.Id, card.Upgrade);
         if (stats.EnergyCost >= 0)
         {
-            if (card.EnergyModifierCount >= Limits.CardEnergyCostModifiers)
-                throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-            card.EnergyModifiers[card.EnergyModifierCount] = CostModifier.Create(
-                0, CostType.Absolute, CostExpiration.EndOfCombat, reduceOnly: false);
-            card.EnergyModifierCount++;
+            CardCostModifiers.Append(ref card, CostModifier.Create(
+                0, CostType.Absolute, CostExpiration.EndOfCombat, reduceOnly: false));
         }
         card.SetTemporaryStarCost(0, clearsAtTurnEnd: false, clearsWhenPlayed: false);
     }

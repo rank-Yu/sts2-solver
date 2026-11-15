@@ -380,12 +380,9 @@ public sealed class SneckoOil : PotionDef
             if ((card.Flags & CardFlags.CostsX) != 0 || card.BaseCost < 0)
                 continue;
             int cost = x.B.RngStream(RngStream.CombatEnergyCosts).NextInt(4);
-            if (card.EnergyModifierCount >= Limits.CardEnergyCostModifiers)
-                throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
-            card.EnergyModifiers[card.EnergyModifierCount] = CostModifier.Create(cost,
+            CardCostModifiers.Append(ref card, CostModifier.Create(cost,
                 CostType.Absolute,
-                CostExpiration.EndOfTurn | CostExpiration.WhenPlayed, reduceOnly: false);
-            card.EnergyModifierCount++;
+                CostExpiration.EndOfTurn | CostExpiration.WhenPlayed, reduceOnly: false));
         }
     }
 }

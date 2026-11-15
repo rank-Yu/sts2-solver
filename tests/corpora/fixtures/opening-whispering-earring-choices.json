@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "opening-whispering-earring-choices",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICOPEN",
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "preserveNativeCombatStateForTest": true,
+  "clearAllPowers": false,
+  "clearPlayerHand": false,
+  "clearPlayerPiles": false,
+  "relics": [
+    {
+      "relicId": "WHISPERING_EARRING",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120,
+  "clearRunDeck": true,
+  "runCards": [
+    {
+      "cardId": "BURNING_PACT",
+      "upgradeLevels": 0,
+      "count": 2
+    },
+    {
+      "cardId": "TRUE_GRIT",
+      "upgradeLevels": 1,
+      "count": 2
+    },
+    {
+      "cardId": "DISCOVERY",
+      "upgradeLevels": 0,
+      "count": 2
+    },
+    {
+      "cardId": "ANGER",
+      "upgradeLevels": 0,
+      "count": 4
+    },
+    {
+      "cardId": "HAVOC",
+      "upgradeLevels": 1,
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "upgradeLevels": 0,
+      "count": 2
+    }
+  ]
+}

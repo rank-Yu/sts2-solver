@@ -451,3 +451,58 @@ public sealed class MadScience : CardDef
         }
     }
 }
+
+
+// Native v0.113.1 GodByrd.OnPlay; Byrdine's pet supplies animation only.
+[ContentId("GOD_BYRD")]
+public sealed class GodByrd : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override IReadOnlyList<string> AppliedPowers => ["GOD_BYRD_POWER"];
+    public override void OnPlay(ref Exec x)
+        => Kernel.ApplyPower(ref x, Limits.PlayerOwner, Registry.PowerId<Powers.GodByrdPower>(),
+            (int)CardEffects.Var(x, 0), Limits.PlayerOwner);
+}
+
+// Native v0.113.1 event cards: damage/block and generated Dazed cards use captured Rules values.
+[ContentId("DINGY_DAGGER")]
+public sealed class DingyDagger : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["Damage"];
+    public override void OnPlay(ref Exec x) => CardEffects.Attack(ref x, CardEffects.Var(x, 0), 1);
+}
+
+[ContentId("MIGHTY_WEAPON")]
+public sealed class MightyWeapon : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["Damage", "Cards"];
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
+    public override void OnPlay(ref Exec x)
+    {
+        CardEffects.Attack(ref x, CardEffects.Var(x, 0), 1);
+        if (x.NeedsChoice) return;
+        MightyShield.AddDazed(ref x, (int)CardEffects.Var(x, 1));
+    }
+}
+
+[ContentId("MIGHTY_SHIELD")]
+public sealed class MightyShield : CardDef
+{
+    public override IReadOnlyList<string> VarNames => ["Block", "Cards"];
+    public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("DAZED", 0)];
+    public override void OnPlay(ref Exec x)
+    {
+        CardEffects.GeneralBlock(ref x, 0);
+        if (x.NeedsChoice) return;
+        AddDazed(ref x, (int)CardEffects.Var(x, 1));
+    }
+
+    internal static void AddDazed(ref Exec x, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Status.Dazed>(), 0);
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Draw, PilePosition.Random)) return;
+        }
+    }
+}

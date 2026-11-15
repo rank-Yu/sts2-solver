@@ -137,7 +137,7 @@ public static class RulesCodec
             CardStats?[][] cards = new CardStats?[cardCount][];
             for (int id = 0; id < cardCount; id++)
             {
-                int levels = Codec.ReadCount(reader, 64, "卡牌升级表");
+                int levels = Codec.ReadCount(reader, byte.MaxValue + 1, "卡牌升级表");
                 cards[id] = new CardStats?[levels];
                 for (int upgrade = 0; upgrade < levels; upgrade++)
                 {

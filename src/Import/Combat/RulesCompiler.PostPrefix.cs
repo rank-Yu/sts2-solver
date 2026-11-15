@@ -162,6 +162,8 @@ public static partial class RulesCompiler
             if ((root.Enemies[index].Creature.Flags & CreatureFlags.LostHpThisTurn) != 0)
                 rootLostHpMask |= (ushort)(1 << (Limits.FirstEnemyOwner + index));
         }
+        if ((root.Wuppy.Flags & CreatureFlags.LostHpThisTurn) != 0)
+            rootLostHpMask |= 1 << Limits.WuppyOwner;
         builder.RootLostHpMask = rootLostHpMask;
 
         List<ushort> spawnClosure = SpawnClosure(root);

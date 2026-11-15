@@ -9,7 +9,7 @@ namespace Sts2Solver.Golden;
 /// <summary>
 /// Recomputes every D2 expected result with the current solver on a copy of the data directory and
 /// rewrites the manifest. The command never touches the source directory; the coordinator decides
-/// whether a refrozen copy replaces tests/Golden/data after user approval.
+/// whether a refrozen copy replaces tests/Golden/data after native verification.
 /// </summary>
 internal static class RefreezeCommand
 {

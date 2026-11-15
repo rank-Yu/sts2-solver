@@ -76,6 +76,8 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
     "Orbs 偏移");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2832,
     "HistoryCourseCard 偏移");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Wuppy)) == 2816
+    && Unsafe.SizeOf<Creature>() == 16, "Wuppy 应复用历史牌前的 16 字节填充");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");
 
@@ -256,7 +258,7 @@ static void CheckCardPoolContracts()
     HashSet<string> declared = new(StringComparer.Ordinal);
     void Declare(ContentDef def)
     {
-        foreach (string pool in def.GeneratedCardPools.Concat(def.SetupOnlyCardPools))
+        foreach (string pool in def.GeneratedCardPools)
         {
             Check(knownSet.Contains(pool), $"{def.NativeId} 声明了未知卡池 {pool}");
             declared.Add(pool);
@@ -421,7 +423,7 @@ static void CheckPrerootGeneratedCardContracts()
     RequirePool("TOOLBOX", CardPools.ColorlessAll);
     RequirePool("CHOICES_PARADOX", CardPools.CharacterAll);
     RequirePool("CROSSBOW", CardPools.CharacterAttacks);
-    RequirePool("BIG_HAT", CardPools.CharacterAll);
+    RequirePool("BIG_HAT", CardPools.CharacterEthereal);
     RequirePool("VEXING_PUZZLEBOX", CardPools.CharacterAll);
     Console.WriteLine("PREROOT_GENERATED_CARD_CONTRACTS relics=11");
 }

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "relic-wuppy",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICAUDIT",
+  "initialPlayerHp": 60,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 20,
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BASH",
+      "pile": "Hand"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "WUPPY",
+      "addWithoutObtainedEffects": false
+    }
+  ]
+}

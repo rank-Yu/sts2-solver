@@ -54,6 +54,8 @@ public static class Fingerprint
         // gap above) to retain the segment order.
         if ((battle.Flags & BattleFlags.HistoryCourseCardPresent) != 0)
             hash = Mix(hash, all.Slice(HistoryCourseOffset, Unsafe.SizeOf<Card>()));
+        if ((battle.Wuppy.Flags & CreatureFlags.Present) != 0)
+            hash = Mix(hash, MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in battle.Wuppy, 1)));
         hash ^= hash >> 33;
         hash *= Prime2;
         hash ^= hash >> 29;

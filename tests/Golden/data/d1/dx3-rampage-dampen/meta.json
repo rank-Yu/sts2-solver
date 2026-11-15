@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "dx3-rampage-dampen",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-rampage-dampen.json\u0022}",
-  "rulesSha256": "858e7c60a794250b1435d67aab4711bcf242a59e79f54d0dac2b7d14826b222b",
+  "rulesSha256": "6855b070425178c41fbe34b3d72374956fd24778616e10a652edd2c12340c32a",
   "counts": {
     "roots": 1,
     "k1": 18,

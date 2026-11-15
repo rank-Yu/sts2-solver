@@ -554,7 +554,8 @@ public static partial class Kernel
         // DieForYouPower.ShouldAllowHitting returns creature.IsAlive for every creature while Osty
         // exists; PowerCmd.Apply therefore refuses powers on a dead target even before the death
         // pass (ReaperFormPower's lethal AfterDamageGiven is the observable case).
-        if ((battle.Flags & BattleFlags.OstyEverPresent) != 0 && battle.Creature(owner).IsDead)
+        if (((battle.Flags & BattleFlags.OstyEverPresent) != 0 || (battle.Wuppy.Flags & CreatureFlags.Present) != 0)
+            && battle.Creature(owner).IsDead)
             return false;
         if (!IsEnemyOwner(owner))
             return true;
@@ -562,7 +563,7 @@ public static partial class Kernel
         return enemy.DeathPhase == DeathPhase.None && (enemy.Flags & EnemyFlags.InCombat) != 0;
     }
 
-    public static bool IsPlayerSide(byte owner) => owner == Limits.PlayerOwner || owner == Limits.OstyOwner;
+    public static bool IsPlayerSide(byte owner) => owner == Limits.PlayerOwner || owner == Limits.OstyOwner || owner == Limits.WuppyOwner;
 
     /// <summary>
     /// Native <c>dealer == Owner.Creature || dealer == Owner.Osty</c>: the owner's creature or its

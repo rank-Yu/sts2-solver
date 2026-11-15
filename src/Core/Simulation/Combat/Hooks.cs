@@ -56,6 +56,9 @@ public static partial class HookDispatch
         if ((battle.Flags & BattleFlags.OstyPresent) != 0)
             nextPower = CollectPowers(battle, Limits.OstyOwner, hook, nextPower, output, ref count);
 
+        if ((battle.Wuppy.Flags & CreatureFlags.Present) != 0)
+            CollectPowers(battle, Limits.WuppyOwner, hook, 0, output, ref count);
+
         // Enemies in roster order: powers, then the monster itself.
         for (int position = 0; position < battle.RosterCount; position++)
         {

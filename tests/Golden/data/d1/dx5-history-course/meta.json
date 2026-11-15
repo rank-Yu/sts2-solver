@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "dx5-history-course",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx5-history-course.json\u0022}",
-  "rulesSha256": "f2c520da9a23c0ec89f84513450e7b1197b2d26370e1ff2a669250e84b69e641",
+  "rulesSha256": "c24ca310ab127d8239c1f2d51e142680c5d6300b93a88f87a548b608e616186d",
   "counts": {
     "roots": 1,
     "k1": 6,

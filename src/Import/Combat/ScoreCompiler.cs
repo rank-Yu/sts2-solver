@@ -68,7 +68,7 @@ internal static class ScoreCompiler
         ArgumentNullException.ThrowIfNull(policy);
         ValidatePolicy(policy);
 
-        CardScore?[][] cards = CompileCards(player);
+        CardScore?[][] cards = CompileCards(player, rules);
         PowerScore[] powers = CompilePowers(policy.Act3BossStrategy);
         int[] potionCosts = CompilePotionCosts(player);
         ValidateAdmittedCards(root, cards);
@@ -182,7 +182,7 @@ internal static class ScoreCompiler
         }
     }
 
-    private static CardScore?[][] CompileCards(Player player)
+    private static CardScore?[][] CompileCards(Player player, Rules rules)
     {
         CardScore?[][] result = new CardScore?[Registry.CardCount][];
         for (ushort id = 0; id < Registry.CardCount; id++)
@@ -190,7 +190,9 @@ internal static class ScoreCompiler
             CardDef def = Registry.Card(id);
             if (!RulesCompiler.CanonicalCardModels.TryGetValue(def.NativeId, out CardModel? canonical))
                 continue;
-            int maxUpgrade = canonical.MaxUpgradeLevel;
+            int maxUpgrade = canonical is DingyDagger
+                ? Math.Max(0, rules.CardTable[id].Length - 1)
+                : canonical.MaxUpgradeLevel;
             CardScore?[] levels = new CardScore?[maxUpgrade + 1];
             for (int upgrade = 0; upgrade <= maxUpgrade; upgrade++)
             {

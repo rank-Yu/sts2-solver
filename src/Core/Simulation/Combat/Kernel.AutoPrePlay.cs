@@ -5,8 +5,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// <c>SimulatedCombatState.TriggerAutoPrePlayEarly</c> / <c>ContinueAutoPrePlay</c>: the exhaust pile's
 /// Bombardment cards first, then the scheduled auto-plays (Mayhem's amount of draw-pile top cards moved
 /// to the play pile, then HistoryCourse's clone of the previous player turn's last attack), then the
-/// Imbued enchantment's auto-plays. WhisperingEarring remains a scheduled source with no combat effect
-/// (its only first-turn auto-play is a relic trigger with no state in either engine).
+/// Imbued enchantment's auto-plays, then WhisperingEarring's first-turn paid auto-plays.
 /// </summary>
 public static partial class Kernel
 {
@@ -35,6 +34,41 @@ public static partial class Kernel
             for (int i = 0; i < x.B.CardCount; i++)
                 x.B.Cards[i].HistoryCourseRole &= 1;
         AutoPlayImbued(ref x);
+        if (x.NeedsChoice) return;
+        AutoPlayWhisperingEarring(ref x);
+    }
+
+    // Native v0.113.1 WhisperingEarring: pay resources, then auto-play up to thirteen
+    // playable cards in hand order, targeting the leftmost enemy. Vakuu owns all nested choices.
+    private static void AutoPlayWhisperingEarring(ref Exec x)
+    {
+        if (x.B.PlayerTurn > 1 || !x.R.HasWhisperingEarring) return;
+        bool previous = x.SelectFirstOptions;
+        x.SelectFirstOptions = true;
+        try
+        {
+            for (int n = 0; n < 13; n++)
+            {
+                if (IsOverOrEnding(x.B) || (x.B.Flags & BattleFlags.PlayerTurnEndRequested) != 0) break;
+                int hand = 0;
+                while (hand < x.B.HandCount && !CanPlayCard(x.B, x.R, hand)) hand++;
+                if (hand == x.B.HandCount) break;
+                Card card = x.B.Cards[hand];
+                byte target = Limits.NoOwner;
+                TargetType type = Registry.Card(card.Id).ResolveTargetType(x.B, x.R, card);
+                if (type == TargetType.AnyEnemy)
+                {
+                    for (int i = 0; i < x.B.RosterCount; i++)
+                    {
+                        byte enemy = EnemyOwner(x.B.Roster[i]);
+                        if (IsHittable(x.B, enemy)) { target = enemy; break; }
+                    }
+                }
+                else if (type == TargetType.AnyPlayer) target = Limits.PlayerOwner;
+                PlayPaidCard(ref x, hand, target, isAutoPlay: true);
+            }
+        }
+        finally { x.SelectFirstOptions = previous; }
     }
 
     /// <summary>

@@ -291,6 +291,7 @@ public static partial class Kernel
     {
         SetLostHpFlag(ref battle.Player, (mask & (1 << Limits.PlayerOwner)) != 0);
         SetLostHpFlag(ref battle.Osty, (mask & (1 << Limits.OstyOwner)) != 0);
+        SetLostHpFlag(ref battle.Wuppy, (mask & (1 << Limits.WuppyOwner)) != 0);
         for (int index = 0; index < battle.EnemyCount; index++)
         {
             SetLostHpFlag(ref battle.Enemies[index].Creature,
@@ -310,6 +311,7 @@ public static partial class Kernel
     {
         battle.Player.Flags &= ~CreatureFlags.LostHpThisTurn;
         battle.Osty.Flags &= ~CreatureFlags.LostHpThisTurn;
+        battle.Wuppy.Flags &= ~CreatureFlags.LostHpThisTurn;
         for (int index = 0; index < battle.EnemyCount; index++)
             battle.Enemies[index].Creature.Flags &= ~CreatureFlags.LostHpThisTurn;
     }
@@ -358,11 +360,13 @@ public static partial class Kernel
     /// </summary>
     private static void TickDurations(ref Battle battle)
     {
-        Span<byte> creatures = stackalloc byte[Limits.Enemies + 2];
+        Span<byte> creatures = stackalloc byte[Limits.Enemies + 3];
         int count = 0;
         creatures[count++] = Limits.PlayerOwner;
         if ((battle.Flags & BattleFlags.OstyPresent) != 0)
             creatures[count++] = Limits.OstyOwner;
+        if ((battle.Wuppy.Flags & CreatureFlags.Present) != 0)
+            creatures[count++] = Limits.WuppyOwner;
         for (int position = 0; position < battle.RosterCount; position++)
             creatures[count++] = EnemyOwner(battle.Roster[position]);
 

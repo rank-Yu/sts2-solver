@@ -359,3 +359,20 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 
 设置 `STS2_SOLVER_NATIVE_EVIDENCE=<目录>` 后，偏差会保存动作前状态、预测状态、
 实际状态文本及 BATL/RULE，用于复现和定位。
+
+
+## 事件遗物与开局准备
+
+规则表检查同时验证原版非废弃遗物和单人卡牌的定义覆盖。宠物、重复升级及新版偷牌限制的定向原版对照：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/corpora/fixtures/relic-wuppy-overkill-necrobinder.json end end end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/corpora/fixtures/event-dagger-repeat-upgrade.json play:1:255 play:1:255 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/corpora/fixtures/v113-helix-drill-free-transfigure.json play:0:255:1 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/corpora/fixtures/v113-hopper-quest.json end end
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate opening-big-hat
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate opening-power-cell
+dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate opening-whispering-earring-choices
+```
+
+开局对照覆盖遗物造牌、抽牌优先级、赌博筹码候选变化和低语耳环的自动选择；每条准备计划均与原版比较完整状态。

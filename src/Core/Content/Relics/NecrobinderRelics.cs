@@ -9,10 +9,19 @@ namespace Sts2Solver.Content.Relics;
 [ContentId("BIG_HAT")]
 public sealed class BigHat : RelicDef
 {
-    // The old play-phase closure froze the whole character pool; keep it for rule parity.
-    public override IReadOnlyList<string> GeneratedCardPools => [CardPools.CharacterAll];
+    public override IReadOnlyList<string> VarNames => ["Cards"];
+    public override void AfterSideTurnStart(ref Exec x, Listener self, Side side)
+    {
+        if (side != Side.Player || x.B.PlayerTurn > 1) return;
+        Span<Card> cards = stackalloc Card[Limits.Cards];
+        int count = Kernel.SampleCardPool(ref x.B, x.R, CardPools.CharacterEthereal,
+            (int)x.R.RelicVar(Id, 0), distinct: true, RngStream.CombatCardGeneration, cards);
+        for (int i = 0; i < count; i++)
+        {
+            if (!Kernel.AddGeneratedCard(ref x, cards[i], Pile.Hand)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
 
-    // Only the Ethereal subset participates while the opening battle is built.
-    public override IReadOnlyList<string> SetupOnlyCardPools => [CardPools.CharacterEthereal];
-
+    public override IReadOnlyList<string> GeneratedCardPools => [CardPools.CharacterEthereal];
 }

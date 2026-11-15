@@ -227,7 +227,8 @@ public static partial class Kernel
                 for (int index = 0; index < count; index++)
                 {
                     if ((results[index].Receiver == Limits.PlayerOwner
-                         || results[index].Receiver == Limits.OstyOwner)
+                         || results[index].Receiver == Limits.OstyOwner
+                         || results[index].Receiver == Limits.WuppyOwner)
                         && results[index].UnblockedDamage > 0)
                         playerSideUnblocked = true;
                 }
@@ -330,7 +331,20 @@ public static partial class Kernel
             return false;
         // The block holder is the pet owner (CreatureCmd.UseBlockTarget): Osty's incoming damage spends
         // the player's block.
-        byte blockTarget = target == Limits.OstyOwner ? Limits.PlayerOwner : target;
+        // Native v0.113.1 WuppysLoyalty redirects before block. BeforeWuppy is an empty
+        // HP-loss phase; only overkill proceeds through the player block and Osty pipeline.
+        if (target == Limits.PlayerOwner && props.IsPoweredAttack() && x.B.Wuppy.IsAlive
+            && Registry.TryPower("WUPPYS_LOYALTY_POWER", out ushort loyalty)
+            && GetAmount(x.B, Limits.WuppyOwner, loyalty) != 0)
+        {
+            DamageResult pet = LoseHp(ref x.B.Wuppy, Limits.WuppyOwner, modified, props);
+            pet.HasCardSource = hasCardSource;
+            pet.CardSource = cardSource;
+            RecordDamageReceived(ref x.B, Limits.WuppyOwner, dealer, pet);
+            results[count++] = pet;
+            modified = pet.OverkillDamage;
+        }
+        byte blockTarget = target is Limits.OstyOwner or Limits.WuppyOwner ? Limits.PlayerOwner : target;
         decimal blocked = DamageBlock(ref x.B.Creature(blockTarget), modified, props);
         decimal unblocked = Math.Max(modified - blocked, 0m);
         // ModifyHpLost's before-Osty phase is evaluated on the original target, then
@@ -590,7 +604,7 @@ public static partial class Kernel
         {
             HandlePlayerDeath(ref x);
         }
-        else if (owner == Limits.OstyOwner)
+        else if (owner is Limits.OstyOwner or Limits.WuppyOwner)
         {
             // Native v0.111.0 Commands/CreatureCmd.Kill and Creature.RemoveAllPowersAfterDeath:
             // remove mortal powers from a retained dead pet too.
@@ -660,6 +674,12 @@ public static partial class Kernel
             Kill(ref x, osty, force: true);
             if (x.NeedsChoice)
                 return;
+        }
+        if (x.B.Wuppy.IsAlive)
+        {
+            ReadOnlySpan<byte> wuppy = [Limits.WuppyOwner];
+            Kill(ref x, wuppy, force: true);
+            if (x.NeedsChoice) return;
         }
         x.B.Flags &= ~BattleFlags.PlayerHooksActive;
         // With every player dead the native flow does not remove the cards from combat.
@@ -863,6 +883,7 @@ public static partial class Kernel
     {
         bool ownerInRoster = owner == Limits.OstyOwner
             ? (x.B.Flags & BattleFlags.OstyPresent) != 0
+            : owner == Limits.WuppyOwner ? (x.B.Wuppy.Flags & CreatureFlags.Present) != 0
             : InRoster(x.B, owner);
         bool illusionHook = false;
         if (ownerInRoster)

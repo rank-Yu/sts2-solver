@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "pr-g-orbs",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-g-orbs.json\u0022}",
-  "rulesSha256": "8354be2655cccb45980bbd4bc6bea0e7ee6651a5792a06eb27e34b50af6b7a62",
+  "rulesSha256": "5112166eaea60ac37018b758d41bee08b42dde4f5e2d63a7831275d562d37fc5",
   "counts": {
     "roots": 1,
     "k1": 11,

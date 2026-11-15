@@ -88,7 +88,7 @@ public static partial class Kernel
         for (int index = 0; index < x.B.PowerCount; index++)
         {
             ref readonly Power power = ref x.B.Powers[index];
-            if (power.Id != plating || power.Amount <= 0 || power.Owner < Limits.FirstEnemyOwner)
+            if (power.Id != plating || power.Amount <= 0 || !IsEnemyOwner(power.Owner))
                 continue;
             Kernel.GainBlock(ref x, power.Owner, power.Amount, ValueProps.Unpowered, fromCard: false);
         }

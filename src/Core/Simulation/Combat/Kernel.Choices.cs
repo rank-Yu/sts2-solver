@@ -306,6 +306,8 @@ public static partial class Kernel
         CardStats before = rules.Card(card.Id, card.Upgrade);
         if (card.Upgrade >= before.MaxUpgradeLevel)
             return;
+        if (card.Upgrade == byte.MaxValue)
+            throw new CapacityException("Card.Upgrade", byte.MaxValue);
         CardStats after = rules.Card(card.Id, card.Upgrade + 1);
         if (before.CostsX != after.CostsX || before.StarCostsX != after.StarCostsX)
             throw new UnsupportedException("升级改变 X 费用的卡尚未支持。");
@@ -349,6 +351,8 @@ public static partial class Kernel
         ref Card card = ref x.B.Cards[position];
         if (card.Upgrade == 0)
             return;
+        if (card.Upgrade == byte.MaxValue)
+            throw new CapacityException("Card.DampenOriginalUpgrade", byte.MaxValue);
         card.DampenOriginalUpgrade = checked((byte)(card.Upgrade + 1));
         CardStats stats = x.R.Card(card.Id, 0);
         short previousVar0 = card.Var0;

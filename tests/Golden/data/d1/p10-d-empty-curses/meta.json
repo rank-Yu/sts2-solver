@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "p10-d-empty-curses",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-d-empty-curses.json\u0022}",
-  "rulesSha256": "c94550c17696795113749fdf050a49841b30e7fcb338e95da9f3ef0c53a3a5f8",
+  "rulesSha256": "27cfb79f14fadd0f4dda8fbe94a46f88cfb9c563c0076fc746def6d8ac0479db",
   "counts": {
     "roots": 1,
     "k1": 2,

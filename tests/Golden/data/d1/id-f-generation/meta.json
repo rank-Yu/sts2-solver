@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "id-f-generation",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-f-generation.json\u0022}",
-  "rulesSha256": "a447c89a83dd598405bb3704494b5c4fa95fbe499f98e334b94893bb7e74a46d",
+  "rulesSha256": "2934b0d92d77816194dea92fca463d3193de22d1ab6d81c9c07eb19926b6d3a9",
   "counts": {
     "roots": 1,
     "k1": 14,

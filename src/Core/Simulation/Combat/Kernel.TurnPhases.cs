@@ -140,7 +140,7 @@ public static partial class Kernel
             return;
         Span<(byte Owner, ushort Id, int Occurrence)> snapshot =
             stackalloc (byte, ushort, int)[count];
-        Span<byte> owners = stackalloc byte[Limits.Enemies + 2];
+        Span<byte> owners = stackalloc byte[Limits.Enemies + 3];
         int ownerCount = ListenerCreatureOrder(x.B, owners);
         int taken = 0;
         // Listener order: creature order (player, Osty, roster enemies), then table order within an owner.
@@ -260,6 +260,8 @@ public static partial class Kernel
         owners[count++] = Limits.PlayerOwner;
         if ((battle.Flags & BattleFlags.OstyPresent) != 0)
             owners[count++] = Limits.OstyOwner;
+        if ((battle.Wuppy.Flags & CreatureFlags.Present) != 0)
+            owners[count++] = Limits.WuppyOwner;
         for (int position = 0; position < battle.RosterCount; position++)
             owners[count++] = EnemyOwner(battle.Roster[position]);
         return count;
@@ -352,7 +354,7 @@ public static partial class Kernel
             return;
         Span<byte> owners = stackalloc byte[Limits.Powers];
         int count = 0;
-        Span<byte> creatures = stackalloc byte[Limits.Enemies + 2];
+        Span<byte> creatures = stackalloc byte[Limits.Enemies + 3];
         int creatureCount = ListenerCreatureOrder(x.B, creatures);
         for (int creature = 0; creature < creatureCount; creature++)
         {
@@ -659,7 +661,7 @@ public static partial class Kernel
     /// <summary><c>CorePowerSupport.TriggerTransientSideTurnEndPowers</c>.</summary>
     private static void TriggerTransientSideTurnEndPowers(ref Exec x, Side side, scoped ReadOnlySpan<byte> participants)
     {
-        Span<byte> creatures = stackalloc byte[Limits.Enemies + 2];
+        Span<byte> creatures = stackalloc byte[Limits.Enemies + 3];
         int count = ListenerCreatureOrder(x.B, creatures);
         ushort flameBarrier = FlameBarrierPowerId.Value;
         for (int index = 0; index < count; index++)

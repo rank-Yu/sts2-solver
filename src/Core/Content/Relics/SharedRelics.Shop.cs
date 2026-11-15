@@ -34,6 +34,19 @@ public sealed class UndyingSigil : RelicDef
 [ContentId("NINJA_SCROLL")]
 public sealed class NinjaScroll : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Shivs"];
+
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn > 1) return;
+        for (int i = 0; i < (int)x.R.RelicVar(Id, 0); i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Sts2Solver.Content.Cards.Silent.Shiv>());
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Hand, PilePosition.Top)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SHIV", 0)];
 
 }
@@ -101,14 +114,10 @@ public sealed class Brimstone : RelicDef
 }
 
 /// <summary>
-/// <c>RingingTriangle</c>: <c>ShouldFlush</c> declines the owner's hand flush on player turn 1 only
-/// (<c>PersistentRelicSupport.ShouldFlush</c> uses the simulated turn number).
+/// Native v0.113.1 applies RetainHandPower when entering the room, before the captured root.
 /// </summary>
 [ContentId("RINGING_TRIANGLE")]
-public sealed class RingingTriangle : RelicDef
-{
-    public override bool ShouldFlush(ref Exec x, Listener self) => x.B.PlayerTurn > 1;
-}
+public sealed class RingingTriangle : RelicDef;
 
 /// <summary>
 /// <c>TheAbacus</c>: <c>AfterShuffle</c> gains its unpowered block when the shuffling player is its

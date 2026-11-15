@@ -278,10 +278,19 @@ public sealed class Rules
     // Bound from the battle snapshot, not the content RULE table; shared by all nodes of a request.
     private RelicRoster _rootRelics = RelicRoster.Empty;
     public RelicRoster Relics => _rootRelics;
+    public bool HasWhisperingEarring { get; private set; }
+
     public Rules WithRelics(RelicRoster relics)
     {
         Rules copy = (Rules)MemberwiseClone();
         copy._rootRelics = relics;
+        copy.HasWhisperingEarring = false;
+        foreach (ushort index in relics.Active)
+            if (Registry.Relic(relics.Id(index)).NativeId == "WHISPERING_EARRING")
+            {
+                copy.HasWhisperingEarring = true;
+                break;
+            }
         return copy;
     }
 

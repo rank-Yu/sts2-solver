@@ -31,6 +31,19 @@ public sealed class BookRepairKnife : RelicDef
 [ContentId("FUNERARY_MASK")]
 public sealed partial class FuneraryMask : RelicDef
 {
+    public override IReadOnlyList<string> VarNames => ["Cards"];
+
+    public override void BeforeHandDraw(ref Exec x, Listener self)
+    {
+        if (x.B.PlayerTurn != 1) return;
+        for (int i = 0; i < (int)x.R.RelicVar(Id, 0); i++)
+        {
+            Card card = Kernel.CreateCard(x.R, Registry.CardId<Sts2Solver.Content.Cards.Necrobinder.Soul>());
+            if (!Kernel.AddGeneratedCard(ref x, card, Pile.Draw, PilePosition.Random)) return;
+            if (x.NeedsChoice) return;
+        }
+    }
+
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SOUL", 0)];
 
 }

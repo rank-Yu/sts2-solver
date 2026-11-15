@@ -427,7 +427,7 @@ internal static class SearchCodec
         {
             if (!Codec.ReadBool(reader))
                 continue;
-            int levels = Codec.ReadCount(reader, 64, "评分卡牌升级表");
+            int levels = Codec.ReadCount(reader, byte.MaxValue + 1, "评分卡牌升级表");
             cards[id] = new CardScore?[levels];
             for (int upgrade = 0; upgrade < levels; upgrade++)
             {

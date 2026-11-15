@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "p12-soul-fysh-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p12-soul-fysh-boss.json\u0022}",
-  "rulesSha256": "5d175d7ab905b36cd5f165783eccc1ff0da4f5725db42489566719ff96f17ce6",
+  "rulesSha256": "146d948353853f5d3404e421f45b9873cfc2989c800b1f8af29ca68f80291ce5",
   "counts": {
     "roots": 1,
     "k1": 7,

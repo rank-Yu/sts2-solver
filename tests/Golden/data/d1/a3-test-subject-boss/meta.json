@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "a3-test-subject-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-test-subject-boss.json\u0022}",
-  "rulesSha256": "cafada24967f6594f3e1c2dc2a49bbd625cee4c9c0e338ae56cefce15311deb7",
+  "rulesSha256": "c02bd474338a2a80755174971bd298307461b57c464e9e4bbfa6e3e7c50c14fd",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 11,
+  "formatVersion": 12,
   "battleSize": 43856,
   "root": "nb-i-sacrifice",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-i-sacrifice.json\u0022}",
-  "rulesSha256": "9261970e75d9abd003d405482b5feef2a577eb366438600e59c84088187cc915",
+  "rulesSha256": "f2db069bb84168e240a08f4ec63fe5563abbd0ca5714c52e66a96d6fa2270037",
   "counts": {
     "roots": 1,
     "k1": 4,

@@ -292,6 +292,7 @@ internal static class MirrorRiskTables
         ["GLOW"] = true,
         ["GOLD_AXE"] = false,
         ["GO_FOR_THE_EYES"] = true,
+        ["GOD_BYRD"] = false,
         ["GRAND_FINALE"] = true,
         ["GRAVEBLAST"] = true,
         ["GRAVE_WARDEN"] = true,
@@ -735,6 +736,8 @@ internal static class MirrorRiskTables
 
     private static readonly Dictionary<string, bool> PowerTable = new(StringComparer.Ordinal)
     {
+        ["GOD_BYRD_POWER"] = false,
+        ["WUPPYS_LOYALTY_POWER"] = false,
         ["ACCELERANT_POWER"] = false,
         ["ACCURACY_POWER"] = false,
         ["ADAPTABLE_POWER"] = true,

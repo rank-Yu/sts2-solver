@@ -65,9 +65,9 @@ public sealed class VineShambler : MonsterDef
 }
 
 /// <summary>
-/// Infested Prism (INFESTED_PRISMS_ELITE): RADIATE gains <c>RadiateBlock</c>, PULSATE gains
-/// <c>PulsateBlock</c> and applies VitalSparkPower <c>VitalSparkAmount</c> to itself. Its entrance
-/// VitalSpark is already in the root; JAB_MOVE and WHIRLWIND_MOVE are attacks only.
+/// Infested Prism (INFESTED_PRISMS_ELITE): PULSATE applies Vulnerable to the player and
+/// VitalSparkPower to itself. Its entrance VitalSpark is already in the root;
+/// JAB_MOVE and WHIRLWIND_MOVE are attacks only.
 /// </summary>
 [ContentId("INFESTED_PRISM")]
 public sealed partial class InfestedPrism : MonsterDef

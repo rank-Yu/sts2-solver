@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "opening-tormentous-collar",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "RELICOPEN",
+  "initialEnemyCurrentHps": [
+    1000,
+    1000
+  ],
+  "initialEnemyMaxHps": [
+    1000,
+    1000
+  ],
+  "preserveNativeCombatStateForTest": true,
+  "clearAllPowers": false,
+  "clearPlayerHand": false,
+  "clearPlayerPiles": false,
+  "relics": [
+    {
+      "relicId": "TORMENTOUS_COLLAR",
+      "addWithoutObtainedEffects": true
+    },
+    {
+      "relicId": "GAMBLING_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "timeoutSeconds": 120,
+  "targetRoomType": "Elite"
+}

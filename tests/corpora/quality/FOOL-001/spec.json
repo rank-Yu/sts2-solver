@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "seed": "FLASH-QUALITY-FOOL-001",
+  "characterId": "FOOL",
+  "ascension": 10,
+  "actIndex": 0,
+  "encounterKind": "Elite",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "includeAscendersBane": true,
+  "characterCards": {
+    "count": 7,
+    "upgradeLevels": 1
+  },
+  "colorlessCards": {
+    "count": 1
+  },
+  "relics": {
+    "count": 3
+  },
+  "potions": {
+    "count": 0
+  },
+  "mode": "Setup"
+}

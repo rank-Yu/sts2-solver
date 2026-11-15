@@ -1,7 +1,7 @@
 // Footer and command bindings, first ported from CombatSolver src/UI/SolverOverlay.cs (CreateFooter,
 // RefreshControls and the button handlers) at 5c773caa (MIT License, Copyright (c) 2026 Torch1230
-// and contributors). The layout is the user's design (2026-11-07): the auto-search switch first, then
-// the search keys, then the execute keys. Which keys show follows how far the current turn's search
+// and contributors). Search and execution each occupy a fixed row with their own switch.
+// Which keys show follows how far the current turn's search
 // and execution have gone, never whether the search found a route.
 using Godot;
 
@@ -38,7 +38,7 @@ internal sealed partial class SolverOverlay
             Name = "AutoSearch",
             MouseFilter = Control.MouseFilterEnum.Pass,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-            TooltipText = SolverText.Get("每个玩家回合开始时自动搜索；执行本场战斗时每回合总会搜索。"),
+            TooltipText = SolverText.Get("进入战斗后，自动搜索出牌路线。"),
         };
         autoSearch.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         autoSearch.AddChild(SolverUiTokens.CreateLabel(SolverText.Get("自动搜索"), SolverUiTokens.Type.Body,
@@ -53,6 +53,7 @@ internal sealed partial class SolverOverlay
         HBoxContainer autoExecute = new()
         {
             Name = "AutoExecute",
+            TooltipText = SolverText.Get("搜索完成后，自动按路线出牌。"),
             MouseFilter = Control.MouseFilterEnum.Pass,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
@@ -61,6 +62,7 @@ internal sealed partial class SolverOverlay
             SolverUiTokens.Palette.TextPrimary));
         _autoExecuteSwitch = SolverSettingsControls.CreateToggle();
         _autoExecuteSwitch.Name = "AutoExecuteSwitch";
+        _autoExecuteSwitch.TooltipText = autoExecute.TooltipText;
         _autoExecuteSwitch.ButtonPressed = SolverSettings.Current.Automation.AutoExecute;
         _autoExecuteSwitch.Toggled += OnAutoExecuteToggled;
         autoExecute.AddChild(_autoExecuteSwitch);
@@ -193,7 +195,7 @@ internal sealed partial class SolverOverlay
         SolverFooterKey restart;
         if (executing)
         {
-            string blocked = SolverText.Get("正在执行；要搜索请先停止执行。");
+            string blocked = SolverText.Get("请先停止自动出牌。");
             search = new(true, SolverText.Get(notStarted ? "开始搜索" : "继续搜索"),
                 SolverButtonStyle.Secondary, true, blocked);
             restart = notStarted ? hidden
@@ -203,7 +205,7 @@ internal sealed partial class SolverOverlay
         {
             bool stopping = snapshot.Search?.Phase == SearchUiPhase.Stopping;
             search = new(true, SolverText.Get("停止搜索"), SolverButtonStyle.Danger, stopping,
-                stopping ? SolverText.Get("正在停止搜索…") : null);
+                stopping ? SolverText.Get("正在停止搜索…") : SolverText.Get("停止搜索，保留已找到的路线。"));
             restart = hidden;
         }
         else
@@ -212,19 +214,19 @@ internal sealed partial class SolverOverlay
             if (notStarted)
             {
                 search = new(true, SolverText.Get("开始搜索"), SolverButtonStyle.Secondary,
-                    !snapshot.CanStartSearch, block);
+                    !snapshot.CanStartSearch, block ?? SolverText.Get("从当前局面搜索出牌路线。"));
                 restart = hidden;
             }
             else
             {
                 string? continueBlock = snapshot.CanContinueSearch ? null
                     : block ?? (snapshot.ContinuationAvailable
-                        ? SolverText.Get("局面或搜索设置变了，只能重新搜索。")
-                        : SolverText.Get("这次搜索已经跑完，没有可以继续的部分。"));
+                        ? SolverText.Get("局面或设置已改变，请重新搜索。")
+                        : SolverText.Get("搜索已完成，无需继续。"));
                 search = new(true, SolverText.Get("继续搜索"), SolverButtonStyle.Secondary,
-                    !snapshot.CanContinueSearch, continueBlock);
+                    !snapshot.CanContinueSearch, continueBlock ?? SolverText.Get("接着上次停止的位置继续搜索。"));
                 restart = new(true, SolverText.Get("重新搜索"), SolverButtonStyle.Secondary,
-                    !snapshot.CanStartSearch, block);
+                    !snapshot.CanStartSearch, block ?? SolverText.Get("从当前局面重新开始搜索。"));
             }
         }
 
@@ -238,9 +240,7 @@ internal sealed partial class SolverOverlay
             stop = new(true, SolverText.Get("停止执行"), SolverButtonStyle.Danger,
                 snapshot.IsStoppingDeployment,
                 snapshot.IsStoppingDeployment ? SolverText.Get("当前动作完成后停止。")
-                    : snapshot.CombatRunActive
-                        ? SolverText.Get("停止执行本场战斗；正在结算的动作会走完。")
-                        : SolverText.Get("停止执行当前回合；已发出的动作会结算完。"));
+                    : SolverText.Get("当前动作完成后，停止自动出牌。"));
         }
         else if (snapshot.IsSearching)
         {
@@ -252,16 +252,16 @@ internal sealed partial class SolverOverlay
         {
             bool ready = snapshot.CurrentTurnRouteReady;
             string? blocked = ready ? null
-                : notStarted ? SolverText.Get("还没有搜索。")
+                : notStarted ? SolverText.Get("请先搜索出牌路线。")
                 : snapshot.CanStartSearch || snapshot.SearchBlockReason == null
-                    ? SolverText.Get("没有可以执行的本回合路线。")
+                    ? SolverText.Get("没有可执行的路线，请重新搜索。")
                     : SolverPanelText.SearchBlock(snapshot.SearchBlockReason);
             executeTurn = new(true, SolverText.Get("执行本回合"), SolverButtonStyle.Secondary, !ready,
-                blocked ?? SolverText.Get("执行当前回合。"));
+                blocked ?? SolverText.Get("按路线打完这一回合。"));
             executeCombat = new(true, SolverText.Get("执行本场战斗"), SolverButtonStyle.Secondary, !ready,
                 blocked ?? (snapshot.CombatRunPaused && snapshot.PauseCode != null
-                    ? SolverText.Get("确认这条路线并继续执行，之后每回合自动搜索和执行，直到战斗结束。")
-                    : SolverText.Get("执行当前回合，之后每回合自动搜索和执行，直到战斗结束。")));
+                    ? SolverText.Get("继续按这条路线自动出牌。")
+                    : SolverText.Get("按路线自动出牌，直到战斗结束。")));
             stop = hidden;
         }
         return new SolverFooterState(search, restart, executeTurn, executeCombat, stop);

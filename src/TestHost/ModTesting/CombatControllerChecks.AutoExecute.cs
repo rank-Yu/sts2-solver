@@ -13,7 +13,8 @@ internal static partial class CombatControllerChecks
         SolverOverlay panel = SolverOverlay.Instance!;
         check("disabled_without_search", panel.AutoExecuteSwitchForTest is { Disabled: true, ButtonPressed: false });
         check("reject_without_search", !CombatUiCommands.Instance.SetAutoExecute(true));
-        check("no_extra_copy", panel.AutoExecuteSwitchForTest!.TooltipText.Length == 0);
+        check("auto_execute_tooltip", panel.AutoExecuteSwitchForTest!.TooltipText
+            == SolverText.Get("搜索完成后，自动按路线出牌。"));
 
         foreach (float width in new[] { 560f, 820f })
         {
@@ -21,28 +22,50 @@ internal static partial class CombatControllerChecks
             await Frames(host, 12);
             Control searchGroup = panel.SearchButtonForTest!.GetParent<Control>();
             Control executeGroup = panel.ExecuteTurnButtonForTest!.GetParent<Control>();
-            check($"search_group_{width}", panel.AutoSearchSwitchForTest!.GetParent().GetParent() == searchGroup);
-            check($"execute_group_{width}", panel.AutoExecuteSwitchForTest!.GetParent().GetParent() == executeGroup);
+            Control searchSwitch = panel.AutoSearchSwitchForTest!.GetParent<Control>();
+            Control executeSwitch = panel.AutoExecuteSwitchForTest!.GetParent<Control>();
+            check($"switch_alignment_{width}", Math.Abs(searchSwitch.GlobalPosition.X
+                - executeSwitch.GlobalPosition.X) < 1);
+            check($"button_alignment_{width}", Math.Abs(searchGroup.GlobalPosition.X
+                - executeGroup.GlobalPosition.X) < 1);
             check($"execute_same_row_{width}",
                 Math.Abs(panel.ExecuteTurnButtonForTest.GlobalPosition.Y
                     - panel.ExecuteCombatButtonForTest!.GlobalPosition.Y) < 1);
             check($"groups_within_panel_{width}",
                 executeGroup.GetGlobalRect().End.X <= panel.PanelForTest.GetGlobalRect().End.X);
-            check($"group_wrap_{width}", width == 560
-                ? executeGroup.GlobalPosition.Y > searchGroup.GlobalPosition.Y
-                : Math.Abs(executeGroup.GlobalPosition.Y - searchGroup.GlobalPosition.Y) < 1,
+            check($"fixed_rows_{width}", executeGroup.GlobalPosition.Y >= searchGroup.GetGlobalRect().End.Y,
                 $"panel={panel.PanelForTest.Size} search={searchGroup.GetGlobalRect()} execute={executeGroup.GetGlobalRect()}");
         }
 
+        Control searchRow = panel.SearchButtonForTest!.GetParent<Control>();
+        Control executeRow = panel.ExecuteTurnButtonForTest!.GetParent<Control>();
+        Vector2 searchPosition = searchRow.Position;
+        Vector2 executePosition = executeRow.Position;
+        float rowsHeight = searchRow.GetParent<Control>().Size.Y;
+        void CheckRows(string stage)
+        {
+            check($"stable_rows_{stage}", searchRow.Position == searchPosition
+                && executeRow.Position == executePosition
+                && searchRow.GetParent<Control>().Size.Y == rowsHeight);
+        }
+
         await PressPanelButtonAsync(host, PanelButton.AutoSearchOn, "enable_search");
+        await Frames(host, 6);
+        CheckRows("search");
         await WaitIdleAsync(host, "search complete before enabling execution");
+        await Frames(host, 6);
+        CheckRows("result");
         check("no_automatic_execution", !Snapshot().CombatRunActive && !Snapshot().IsDeploying);
         await PressPanelButtonAsync(host, PanelButton.AutoExecuteOn, "enable_execution");
         await WaitAsync(host, static s => s.IsDeploying, 600, "execute existing result");
+        await Frames(host, 6);
+        CheckRows("execution");
         check("persisted_on", SolverSettingsStore.Load(SolverSettings.FilePath!,
             static _ => { }, static _ => { }).Current.Automation.AutoExecute);
         await PressPanelButtonAsync(host, PanelButton.AutoExecuteOff, "disable_execution");
         await WaitAsync(host, static s => !s.IsDeploying && !s.CombatRunActive, 600, "execution stopped");
+        await Frames(host, 6);
+        CheckRows("stopped");
         check("persisted_off", !SolverSettings.Current.Automation.AutoExecute);
         action("controls_and_layout_verified");
     }

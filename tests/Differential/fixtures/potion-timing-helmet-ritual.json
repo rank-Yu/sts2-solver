@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "potion-timing-helmet-ritual",
+  "characterId": "IRONCLAD",
+  "encounterId": "GLOBE_HEAD_NORMAL",
+  "seed": "POTIONTIMING",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 3,
+  "enemyCurrentHp": 100,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "INFLAME",
+      "upgradeLevels": 1,
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw"
+    }
+  ],
+  "combatRelics": [
+    {
+      "relicId": "RUINED_HELMET",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "MAZALETHS_GIFT"
+    }
+  ]
+}

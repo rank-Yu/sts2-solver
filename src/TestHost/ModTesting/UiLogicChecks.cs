@@ -586,14 +586,6 @@ internal static class UiLogicChecks
             Actual = cardLimit + 1,
         }) == SolverText.Format("ui.the_deck_has_cards_the_solver_limit_is", cardLimit + 1, cardLimit),
             "deck_capacity");
-        Require(SolverPanelText.CapacityDropHint(
-                new Dictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 })
-            == "部分打法因牌数超出求解器容量被跳过，可能还有更好的路线",
-            "capacity_drop_hint_cards");
-        Require(SolverPanelText.CapacityDropHint(
-                new Dictionary<string, int>(StringComparer.Ordinal) { ["Powers"] = 1 })
-            .Contains("能力", StringComparison.Ordinal),
-            "capacity_drop_hint_region");
         Require(SolverPanelText.ErrorReason(new CombatFailureReason
         {
             Kind = CombatReasonKind.SearchCapacityBounded,

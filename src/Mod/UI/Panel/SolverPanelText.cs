@@ -196,29 +196,6 @@ internal static class SolverPanelText
             : SolverText.Format("ui.error", code);
 
     /// <summary>
-    /// Warning under a route summary when at least one member dropped children at a Battle
-    /// capacity. The route remains valid; only the explored set was incomplete.
-    /// </summary>
-    internal static string CapacityDropHint(IReadOnlyDictionary<string, int>? regions)
-    {
-        if (regions is not { Count: > 0 })
-            return string.Empty;
-        List<string> names = [];
-        foreach (string region in regions.Keys)
-        {
-            string name = region == "Cards"
-                ? SolverText.Get("ui.card_count")
-                : CapacityRegionNames.TryGetValue(region, out string? translated)
-                    ? SolverText.Get(translated)
-                    : SolverText.Get("ui.combat_state");
-            if (!names.Contains(name, StringComparer.Ordinal))
-                names.Add(name);
-        }
-        string joined = string.Join(SolverText.Get("text.list_separator"), names);
-        return SolverText.Format("ui.some_routes_were_skipped_because_the_exceeded_the_solver_capacity", joined);
-    }
-
-    /// <summary>
     /// One concrete line below a failed search or stopped turn. Structured details are mapped to
     /// player language; anything without a mapping points at the full log entry instead.
     /// </summary>

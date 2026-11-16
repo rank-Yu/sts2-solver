@@ -3144,16 +3144,17 @@ internal static partial class CombatControllerChecks
         await WaitStatusAsync(host, SolverText.Get("ui.executing"));
         check("deploying_status", Status() == SolverText.Get("ui.executing"), Status());
         check("deploying_summary", Summary().Contains("按推荐顺序执行", StringComparison.Ordinal)
-            || Summary().Contains("正在执行", StringComparison.Ordinal), Summary());
+            || Summary().Contains(" 步", StringComparison.Ordinal)
+            || Summary().Contains("结束回合", StringComparison.Ordinal), Summary());
         await WaitAsync(host, static s => !s.IsDeploying, 1800, "deployment done");
         await WaitStatusAsync(host,
-            SolverText.Get("ui.execution_complete"), SolverText.Get("ui.waiting_for_next_turn_s_plan"));
+            SolverText.Get("ui.execution_complete"), SolverText.Get("ui.waiting"));
         check("complete_status", Status() == SolverText.Get("ui.execution_complete")
-            || Status() == SolverText.Get("ui.waiting_for_next_turn_s_plan"), Status());
-        await WaitStatusAsync(host, SolverText.Get("ui.waiting_for_next_turn_s_plan"));
-        check("waiting_status", Status() == SolverText.Get("ui.waiting_for_next_turn_s_plan"), Status());
+            || Status() == SolverText.Get("ui.waiting"), Status());
+        await WaitStatusAsync(host, SolverText.Get("ui.waiting"));
+        check("waiting_status", Status() == SolverText.Get("ui.waiting"), Status());
         check("waiting_context", Context().Contains("回合已执行", StringComparison.Ordinal), Context());
-        check("waiting_summary", Summary().Contains("等待下一回合方案就绪", StringComparison.Ordinal), Summary());
+        check("waiting_summary", Summary().Contains("当前路线已经执行；等待下一步操作。", StringComparison.Ordinal), Summary());
 
         await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search for stop");
@@ -3420,9 +3421,6 @@ internal static partial class CombatControllerChecks
                 : "-");
         await WaitStatusAsync(host, SolverText.Get("ui.plan_ready"), SolverText.Get("ui.plan_reused"));
         await Frames(host, 4);
-        string hint = SolverPanelText.CapacityDropHint(
-            new SortedDictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 });
-        check("summary_hint", Summary().Contains(hint, StringComparison.Ordinal), Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
         check("left_text", SearchAvailable(panel), FooterText(panel));
         check("left_enabled", SearchAvailable(panel), FooterText(panel));

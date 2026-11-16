@@ -384,7 +384,7 @@ internal sealed partial class SolverOverlay
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = AppendCapacityDropHint(summary, result);
+            _summaryText.Text = summary;
         }
         string review = FormatSearchReview(
             overlay.ReviewedWorldlines, result.SearchExpandedNodes,
@@ -469,8 +469,7 @@ internal sealed partial class SolverOverlay
                     if (_summaryText != null)
                     {
                         _summaryText.Text =
-                            SolverText.Format("ui.executing_colored", SolverUiTokens.Palette.TextSecondaryHex)
-                            + SolverText.Format("ui.end_turn_colored", SolverUiTokens.Palette.WarningHex);
+                            SolverText.Format("ui.end_turn_colored", SolverUiTokens.Palette.WarningHex);
                     }
                     if (RouteRows[0] != null)
                         RouteRows[0].SetEndTurnDeploymentState(active: true, completed: false);
@@ -514,13 +513,13 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.ExecutedHistory;
         _waitingForNextTurnPlan = true;
-        SetStatus(SolverText.Get("ui.waiting_for_next_turn_s_plan"), SolverUiTokens.Palette.TextMuted,
+        SetStatus(SolverText.Get("ui.waiting"), SolverUiTokens.Palette.TextMuted,
             SolverText.Format("ui.turn_executed", _lastDeploymentTurn));
         SetReviewText(null);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = SolverText.Format("ui.route_executed_waiting_for_the_next_turn_s_plan", SolverUiTokens.Palette.TextSecondaryHex);
+            _summaryText.Text = SolverText.Format("ui.route_executed_waiting_for_next_action", SolverUiTokens.Palette.TextSecondaryHex);
         }
         SolverOverlaySnapshot display = overlay.Turns.Count > 0
             ? overlay
@@ -607,9 +606,7 @@ internal sealed partial class SolverOverlay
         }
         else if (snapshot.CurrentTurnRouteReady)
         {
-            SetSummary(AppendCapacityDropHint(
-                SolverText.Format("ui.search_stopped_the_current_candidate_route_is_retained_below", SolverUiTokens.Palette.WarningHex),
-                snapshot.Result));
+            SetSummary(SolverText.Format("ui.search_stopped_the_current_candidate_route_is_retained_below", SolverUiTokens.Palette.WarningHex));
         }
         else
         {
@@ -618,16 +615,6 @@ internal sealed partial class SolverOverlay
             ApplyContentVisibility();
         }
         RefreshControls(snapshot);
-    }
-
-    private static string AppendCapacityDropHint(string text, CombatResultUiSnapshot? result)
-    {
-        if (result?.CapacityDroppedRegions is not { Count: > 0 } regions)
-            return text;
-        string hint = SolverPanelText.CapacityDropHint(regions);
-        return hint.Length == 0
-            ? text
-            : text + "\n" + $"[color={SolverUiTokens.Palette.WarningHex}]{hint}[/color]";
     }
 
     private void ShowManualCalculationReady(CombatUiSnapshot snapshot)

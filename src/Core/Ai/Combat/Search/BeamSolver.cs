@@ -803,31 +803,31 @@ internal sealed partial class BeamSolver
         _capacityDropped.Clear();
         bool preserveTheft = _theftPolicy == TheftPolicy.PreserveResources;
         int bandWidth = width;
-        bool checkPotionQuota = _effectivePotionPolicy != PotionUseMode.Disabled;
+        bool preservePotionLineages = _effectivePotionPolicy != PotionUseMode.Disabled;
         Pool current = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool next = new(initialChildren, poolLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool ended = new(Math.Min(initialChildren, endedLimit), endedLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool turnFrontier = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,

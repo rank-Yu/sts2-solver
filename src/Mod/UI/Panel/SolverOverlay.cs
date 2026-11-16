@@ -606,7 +606,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
         _reviewText = null;
         _routeScroll = null;
         _routeOutcomePanel = null;
-        _routeHeadingLabel = null;
         _deathOutcomeLabel = null;
         _strategyOutcomeRow = null;
         _strategyOutcomeKey = null;
@@ -719,7 +718,6 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     internal int FontOverrideCountForTest => _panel != null ? SolverUiTokens.FontOverrideCount(_panel) : 0;
 
-    internal string? RouteHeadingForTest => _routeHeadingLabel?.Text;
 
     internal SolverMemoryBar? MemoryBarForTest => _memoryBar;
 

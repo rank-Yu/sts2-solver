@@ -12,7 +12,6 @@ internal sealed partial class SolverOverlay
     private readonly SolverRouteRow[] RouteRows = new SolverRouteRow[TurnRows];
     private ScrollContainer? _routeScroll;
     private PanelContainer? _routeOutcomePanel;
-    private Label? _routeHeadingLabel;
     private Label? _deathOutcomeLabel;
     private HFlowContainer? _strategyOutcomeRow;
     private Label? _usedPotionOutcomeLabel;
@@ -40,10 +39,6 @@ internal sealed partial class SolverOverlay
         };
         headingRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
         headingRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-        _routeHeadingLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.recommended_route"),
-            SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
-        _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        headingRow.AddChild(_routeHeadingLabel);
         _deathOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.no_surviving_route_found"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Danger);
         _deathOutcomeLabel.Visible = false;

@@ -521,7 +521,7 @@ internal static partial class CombatControllerChecks
         await Frames(host, 4);
         SolverOverlay? panel = SolverOverlay.Instance;
         check("fresh_route_not_stale", ready.CurrentTurnRouteReady && panel?.RouteStaleForTest == false,
-            $"ready={ready.CurrentTurnRouteReady} heading={panel?.RouteHeadingForTest}");
+            $"ready={ready.CurrentTurnRouteReady}");
         int before = Snapshot().Searches;
         await ForceEndTurnAsync(host);
         action("force_end_turn");
@@ -533,9 +533,8 @@ internal static partial class CombatControllerChecks
         check("stale_route_kept", after.Result != null && !after.CurrentTurnRouteReady,
             $"result={after.Result != null} ready={after.CurrentTurnRouteReady}");
         check("stale_route_marked", panel?.RouteStaleForTest == true
-            && panel.StatusTextForTest == SolverText.Get("ui.previous_route_reference_only")
-            && panel.RouteHeadingForTest == SolverText.Get("ui.saved_route_outdated"),
-            $"status={panel?.StatusTextForTest} heading={panel?.RouteHeadingForTest}");
+            && panel.StatusTextForTest == SolverText.Get("ui.previous_route_reference_only"),
+            $"status={panel?.StatusTextForTest}");
         // The turn ended without a card played, so the enemies hit; a new search shows that loss as the
         // battle's loss so far, and its projection adds the route's own.
         int lost = NativeHistory.HpLostSoFar(LocalContext.GetMe(CombatManager.Instance.DebugOnlyGetState())!.Creature);
@@ -3121,7 +3120,6 @@ internal static partial class CombatControllerChecks
 
     private static string Context() => SolverOverlay.Instance?.ContextTextForTest ?? "";
     private static string Summary() => SolverOverlay.Instance?.SummaryTextForTest ?? "";
-    private static string Heading() => SolverOverlay.Instance?.RouteHeadingForTest ?? "";
 
     private static async Task PanelTextsAsync(NGame host, Check check, Action action)
     {
@@ -3136,18 +3134,15 @@ internal static partial class CombatControllerChecks
         await WaitAsync(host, static s => s.IsSearching, 240, "search started");
         await WaitStatusAsync(host, SolverText.Get("ui.searching"));
         check("searching_status", Status() == SolverText.Get("ui.searching"), Status());
-        check("searching_heading", Heading() == SolverText.Get("ui.current_candidate_unverified"), Heading());
         check("searching_summary", Summary().Contains("正在搜索当前回合", StringComparison.Ordinal)
             || Summary().Contains("已查阅", StringComparison.Ordinal), Summary());
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching, 900, "result ready");
         await WaitStatusAsync(host, SolverText.Get("ui.plan_ready"), SolverText.Get("ui.plan_reused"));
         check("ready_status", Status() is "方案就绪" or "方案已复用", Status());
-        check("ready_heading", Heading() == SolverText.Get("ui.recommended_route"), Heading());
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
         await WaitAsync(host, static s => s.IsDeploying, 240, "deploying");
         await WaitStatusAsync(host, SolverText.Get("ui.executing"));
         check("deploying_status", Status() == SolverText.Get("ui.executing"), Status());
-        check("deploying_heading", Heading() == SolverText.Get("ui.executing_route"), Heading());
         check("deploying_summary", Summary().Contains("按推荐顺序执行", StringComparison.Ordinal)
             || Summary().Contains("正在执行", StringComparison.Ordinal), Summary());
         await WaitAsync(host, static s => !s.IsDeploying, 1800, "deployment done");

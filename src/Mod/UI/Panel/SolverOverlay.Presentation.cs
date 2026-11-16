@@ -145,8 +145,8 @@ internal sealed partial class SolverOverlay
     /// enemy turn, action resolution or a turn-start page the route is waiting for the next turn, not out
     /// of date (<see cref="CombatUiSnapshot.CanStartSearch"/> is false there). It is marked the way
     /// CombatSolver marks a retained route
-    /// that can no longer run (<c>ShowRetainedRoute</c> at 5c773caa): status 历史路线（仅供参考）, heading
-    /// 已保存路线（已过期）, rows dimmed. When it matches again the result is shown as usual.
+    /// that can no longer run (<c>ShowRetainedRoute</c> at 5c773caa): status 历史路线（仅供参考）,
+    /// rows dimmed. When it matches again the result is shown as usual.
     /// </summary>
     private void ApplyRouteFreshness(SolverOverlaySnapshot overlay, CombatUiSnapshot snapshot)
     {
@@ -169,7 +169,6 @@ internal sealed partial class SolverOverlay
                 SetStatus(status, SolverUiTokens.Palette.Accent, context);
                 _guideStatusContext = context;
             }
-            SetRouteHeading(SolverText.Get("ui.recommended_route"));
         }
         else
         {
@@ -183,7 +182,6 @@ internal sealed partial class SolverOverlay
                 SetStatus(status, SolverUiTokens.Palette.TextMuted,
                     SolverText.Format("ui.turn", snapshot.Turn));
             }
-            SetRouteHeading(SolverText.Get("ui.saved_route_outdated"));
         }
         else if ((_routeStale || _routeGuided && guide == null)
                  && _presentation == SolverOverlayPresentation.Ready
@@ -260,7 +258,6 @@ internal sealed partial class SolverOverlay
             _statusQueued
                 ? SolverText.Format("ui.turn_execution_queued", search.Turn)
                 : SolverText.Format("ui.turn", search.Turn));
-        SetRouteHeading(SolverText.Get("ui.current_candidate_unverified"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
@@ -303,7 +300,6 @@ internal sealed partial class SolverOverlay
         _statusQueued = ExecutionQueued(snapshot);
         SetStatus(SolverText.Get("ui.searching"), SolverUiTokens.Palette.Accent,
             _statusQueued ? SolverText.Format("ui.execution_queued", routeContext) : routeContext);
-        SetRouteHeading(SolverText.Get("ui.current_candidate_unverified"));
         // ExpandedNodes counts the whole request (finished members plus the running one), so the
         // total only grows; the rate is measured on the main thread's clock between samples, since
         // the snapshot's elapsed time restarts with every member.
@@ -380,7 +376,6 @@ internal sealed partial class SolverOverlay
             ? SolverOverlayTone.Danger
             : result.WasReused ? SolverOverlayTone.Success : SolverOverlayTone.Accent;
         SetStatus(status, ToneColor(tone));
-        SetRouteHeading(SolverText.Get("ui.recommended_route"));
         string summary = result.DeathTurn is { } deathTurn
             ? FormatDeathSummary(deathTurn, result.StartTurn)
             : FormatResultSummary(overlay.Turns.Count, result.CombatEndedTurn == result.StartTurn);
@@ -439,7 +434,6 @@ internal sealed partial class SolverOverlay
         _lastDeploymentEndedTurn = false;
         SetStatus(SolverText.Get("ui.executing"), SolverUiTokens.Palette.Warning,
             SolverText.Format("ui.turn", snapshot.Turn));
-        SetRouteHeading(SolverText.Get("ui.executing_route"));
         SetReviewText(null);
         if (_summaryText != null)
         {
@@ -499,7 +493,6 @@ internal sealed partial class SolverOverlay
         int actions = _lastDeploymentActionCount;
         SetStatus(SolverText.Get("ui.execution_complete"), SolverUiTokens.Palette.Accent,
             SolverText.Format("ui.turn", turn));
-        SetRouteHeading(SolverText.Get("ui.executed_route_later_turns_pending_validation"));
         SetReviewText(null);
         if (_summaryText != null)
         {
@@ -523,7 +516,6 @@ internal sealed partial class SolverOverlay
         _waitingForNextTurnPlan = true;
         SetStatus(SolverText.Get("ui.waiting_for_next_turn_s_plan"), SolverUiTokens.Palette.TextMuted,
             SolverText.Format("ui.turn_executed", _lastDeploymentTurn));
-        SetRouteHeading(SolverText.Get("ui.executed_route_later_turns_pending_validation"));
         SetReviewText(null);
         if (_summaryText != null)
         {
@@ -588,7 +580,6 @@ internal sealed partial class SolverOverlay
                 SolverPanelText.Pause(code, snapshot.Turn),
                 SolverPanelText.ErrorReason(snapshot.PauseDetailReason));
         }
-        SetRouteHeading(SolverText.Get("ui.recommended_route"));
         PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
@@ -611,7 +602,6 @@ internal sealed partial class SolverOverlay
         if (executionStopped)
         {
             SetSummary(string.Empty);
-            SetRouteHeading(SolverText.Get("ui.recommended_route"));
             SetRouteVisibility(snapshot.Route != null);
             ApplyContentVisibility();
         }
@@ -719,12 +709,6 @@ internal sealed partial class SolverOverlay
         _summaryText.Text = text;
         if (_progressText != null)
             _progressText.Visible = false;
-    }
-
-    private void SetRouteHeading(string heading)
-    {
-        if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = heading;
     }
 
     /// <summary>

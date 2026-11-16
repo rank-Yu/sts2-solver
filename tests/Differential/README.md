@@ -387,3 +387,16 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ope
 ```
 
 开局对照覆盖遗物造牌、抽牌优先级、赌博筹码候选变化和低语耳环的自动选择；每条准备计划均与原版比较完整状态。
+
+
+## 药水槽容量
+
+以下场景实际执行扩槽遗物的获得效果：恐惧模式故障机器人获得 Alchemical Coffer 后为 7 槽，叠加 Phial Holster 和 Potion Belt 后为 10 槽。极速场景在 Potion Belt 和 Alchemical Coffer 的 9 槽基础上，将槽数设为三次商店扩槽后的 12，逐步对照第 6～12 槽用药。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-coffer.json potion:5:255 potion:6:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-stacked.json potion:5:255 potion:6:255 potion:7:255 potion:8:255 potion:9:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-blitz.json potion:5:255 potion:6:255 potion:7:255 potion:8:255 potion:9:255 potion:10:255 potion:11:255
+```
+
+--import-negative 同时检查 7、10、12 槽和最高槽位的药水均能导入，13 槽明确拒绝。KernelChecks 覆盖高槽位搜索、免费生成药水标记、打包复制与编码往返。

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "kg2-c-one-two-punch",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-c-one-two-punch.json\u0022}",
-  "rulesSha256": "bcff3aea22d5395dde24473824a2f02b57d386fde528130c245e098c6526e50b",
+  "rulesSha256": "dc941bd3601cad4304363accc7f36945f6fc72768e93a728f9346b3ff50a858e",
   "counts": {
     "roots": 1,
     "k1": 11,

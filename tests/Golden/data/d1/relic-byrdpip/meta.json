@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "relic-byrdpip",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-byrdpip.json\u0022}",
-  "rulesSha256": "3de32bf54556c379318518e31f1615e68a60f225a48ee36de737eab16d08869f",
+  "rulesSha256": "8910cff9532ef813418f45b67422581f7768e14159ba02b7e43e25068405ab23",
   "counts": {
     "roots": 1,
     "k1": 6,

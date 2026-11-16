@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p9-draw",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-draw.json\u0022}",
-  "rulesSha256": "91ab0c7f2112a6ffc9aa461055fb8a23fd233db5869259d25845f82b5f253d56",
+  "rulesSha256": "85714740bc2a92af53835d37a4e3fbdb7da551faee02abd41d6e509c6191bee0",
   "counts": {
     "roots": 1,
     "k1": 6,

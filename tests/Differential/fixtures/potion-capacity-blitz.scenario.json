@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "seed": "POTION-CAPACITY",
+  "characterId": "DEFECT",
+  "ascension": 0,
+  "actIndex": 0,
+  "encounterId": "NIBBITS_NORMAL",
+  "encounterKind": "Monster",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "includeAscendersBane": false,
+  "applyRelicObtainEffects": true,
+  "characterCards": {
+    "count": 0
+  },
+  "colorlessCards": {
+    "count": 0
+  },
+  "mode": "Deploy",
+  "fixedSearchBudget": false,
+  "relics": {
+    "ids": [
+      "POTION_BELT",
+      "ALCHEMICAL_COFFER"
+    ]
+  },
+  "potions": {
+    "ids": [
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION",
+      "BLOCK_POTION"
+    ]
+  },
+  "potionSlotCount": 12
+}

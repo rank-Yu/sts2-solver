@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p12-the-kin-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p12-the-kin-boss.json\u0022}",
-  "rulesSha256": "f047b51b91bc08d2908732560c12c122b62e9e7505ae43372ac36b5944f3c92e",
+  "rulesSha256": "c8a29caae65bcc754d6aaec68337159caed405b7dffd7189847d0068a7f4d458",
   "counts": {
     "roots": 1,
     "k1": 17,

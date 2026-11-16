@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qp1-gamblers-brew",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qp1-gamblers-brew.json\u0022}",
-  "rulesSha256": "0658870c78de6cb8af4ae89b4ed0b80aac7663fcb108d69b56f77233d8c3258b",
+  "rulesSha256": "1fc3cdca4791f455b624114d5da965f6af94a9094a98581cfb7810ec87a0bf48",
   "counts": {
     "roots": 1,
     "k1": 40,

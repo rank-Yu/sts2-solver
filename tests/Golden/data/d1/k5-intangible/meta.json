@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "k5-intangible",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-k5-intangible.json\u0022}",
-  "rulesSha256": "02756f101449fc9a6a1f2ceefe6e24db0c13b116479f7c95a81b540799ed58cf",
+  "rulesSha256": "1a10e78414d54f75ba4bf0d54f5bf01a95b35612012b8894bf57f160efde4aeb",
   "counts": {
     "roots": 1,
     "k1": 10,

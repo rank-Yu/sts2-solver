@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "kb-c-beatdown-relocate",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kb-c-beatdown-relocate.json\u0022}",
-  "rulesSha256": "41ffd8e8dd32ee871a68f870641652f385e1adedcd4d3b54e8cb3eb6ae772d5d",
+  "rulesSha256": "6e66a23d943bb6eab89ebd73c6b3985850a2a4d65115df19dcb952091d8bc7e1",
   "counts": {
     "roots": 1,
     "k1": 2,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p13-chompers-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-chompers-normal.json\u0022}",
-  "rulesSha256": "d719823419197dede844635d680af4d0dfde1fd9e52d2769a4ab42df00c2a416",
+  "rulesSha256": "1b372286fc4bda7a077177e597caeb470e6af5334f3ce69f967bed287fe4477c",
   "counts": {
     "roots": 1,
     "k1": 11,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "ec-b-event-skills",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-b-event-skills.json\u0022}",
-  "rulesSha256": "545a52288987dabdec2f1b0a0fcafd7652f6dd5f04f08093931b45a2cafea25f",
+  "rulesSha256": "5a2958235d0d17e2aff87b481591d5e7825377fde61b23de8baa91097e2d5ba7",
   "counts": {
     "roots": 1,
     "k1": 12,

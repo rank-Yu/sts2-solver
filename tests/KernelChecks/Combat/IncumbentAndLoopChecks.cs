@@ -595,9 +595,12 @@ internal static class IncumbentAndLoopChecks
             CheckDelayed(potionName, helmet, RelicFlags.None, helmetSetup: true, shouldWin: true);
         CheckDelayed("FOCUS_POTION", reptile, RelicFlags.Melted, helmetSetup: false, shouldWin: false);
         CheckDelayed("FOCUS_POTION", buckle, RelicFlags.None, helmetSetup: false, shouldWin: false);
-        Console.WriteLine("POTION_TIMING late_reptile=6 late_helmet=3 melted/unrelated=pass");
+        for (int slot = 5; slot < Limits.PotionSlots; slot++)
+            CheckDelayed("FOCUS_POTION", reptile, RelicFlags.None, helmetSetup: false,
+                shouldWin: true, slot: slot);
+        Console.WriteLine("POTION_TIMING late_reptile=6 late_helmet=3 high_slots=7 melted/unrelated=pass");
 
-        void CheckDelayed(string potionName, ushort relic, RelicFlags flags, bool helmetSetup, bool shouldWin)
+        void CheckDelayed(string potionName, ushort relic, RelicFlags flags, bool helmetSetup, bool shouldWin, int slot = 0)
         {
             Registry.TryPotion(potionName, out ushort potion);
             ushort strike = CardId("STRIKE_IRONCLAD");
@@ -608,15 +611,17 @@ internal static class IncumbentAndLoopChecks
             bool ritualHelmet = helmetSetup && potionName == "MAZALETHS_GIFT";
             Battle root = EmptyHandRoot(enemyHp: ritualHelmet ? 28 : helmetSetup ? 15 : strengthPotion ? 6 : 4);
             TestRelics.Set(ref root, ref rules, new Relic { Id = relic, Flags = flags });
-            root.PotionSlotCount = 1;
-            root.Potions[0] = checked((ushort)(potion + 1));
+            root.PotionSlotCount = checked((byte)(slot + 1));
+            root.Potions[slot] = checked((ushort)(potion + 1));
             // No turn-one card can attack or grant Strength. Both arrive on turn two.
             if (helmetSetup)
                 Piles.Append(ref root, Pile.Draw,
                     new Card { Id = CardId("INFLAME"), BaseCost = 1, BaseStarCost = -1 });
             Piles.Append(ref root, Pile.Draw,
                 new Card { Id = strike, BaseCost = 0, BaseStarCost = -1 });
-            ScoreRules score = BuildScoreRules(rules, [root.Potions[0]]);
+            ushort[] rootPotions = new ushort[root.PotionSlotCount];
+            rootPotions[slot] = root.Potions[slot];
+            ScoreRules score = BuildScoreRules(rules, rootPotions);
             BeamOptions options = new(32, 2000, ritualHelmet ? 3 : 2, TimeSpan.MaxValue)
             {
                 Scorer = new Scorer(score),
@@ -632,6 +637,7 @@ internal static class IncumbentAndLoopChecks
             {
                 ReplayedAction used = replay.Actions.Single(a => a.Action.Kind == PlayerActionKind.UsePotion);
                 Assert(used.Before.PlayerTurn == 2, potionName + " must wait for turn two");
+                Assert(used.Action.PotionSlot == slot, "must use the selected high potion slot");
                 if (helmetSetup)
                     Assert(Kernel.GetAmount(used.Before, Limits.PlayerOwner, score.StrengthPowerId) == 12,
                         "Inflame must consume the helmet before the smaller potion");

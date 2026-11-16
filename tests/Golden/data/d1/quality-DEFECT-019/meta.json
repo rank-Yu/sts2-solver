@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "quality-DEFECT-019",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/DEFECT-019/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/DEFECT-019/request.json\u0022}",
-  "rulesSha256": "5906880e453a5a7f5d91b552e15e3d381218ca2dbb62eae1d73c30fdbd2537ba",
+  "rulesSha256": "f52da2230ec7d92d9e139b1ccc23027c05811b5d95da2f50ec67cff1ca7a1028",
   "counts": {
     "roots": 1,
     "k1": 6,

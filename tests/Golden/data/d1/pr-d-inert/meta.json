@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "pr-d-inert",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-d-inert.json\u0022}",
-  "rulesSha256": "b7dae3788cfa04aafdc93d4c64ebaa35de9b2c336dd287d3ec1e1ab5ecfede7b",
+  "rulesSha256": "80270913014f8f4f693a9901c24fa348e63d1d35bbe534b8fcdc7eae0d8008dd",
   "counts": {
     "roots": 1,
     "k1": 13,

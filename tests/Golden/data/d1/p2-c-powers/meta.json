@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p2-c-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p2-c-powers.json\u0022}",
-  "rulesSha256": "302b9311e02b64444b97163fb1d3175f002ec8dbfdb46b9e887164d3641ebcec",
+  "rulesSha256": "46e540c03d7c791cce7003a93a8a8071b36be7ed882887183c1ba7ce88c983f1",
   "counts": {
     "roots": 1,
     "k1": 19,

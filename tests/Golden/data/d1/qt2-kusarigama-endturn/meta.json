@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qt2-kusarigama-endturn",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qt2-kusarigama-endturn.json\u0022}",
-  "rulesSha256": "5b887c7ce97c487e86a5ccd7d5730a13e0896b099d816778404cbb708e0beb31",
+  "rulesSha256": "e16a8837b2781e6cfa2e164b4be0c7256c937dfe2b2afe3917e3d9aa5701e5d7",
   "counts": {
     "roots": 1,
     "k1": 2,

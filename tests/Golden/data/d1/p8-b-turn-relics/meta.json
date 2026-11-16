@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p8-b-turn-relics",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p8-b-turn-relics.json\u0022}",
-  "rulesSha256": "9ea8e2f2ab2e4d58e2a58e937fd6fc4be76c9e0c809aa24b707eecaef97edf96",
+  "rulesSha256": "dbcf5e42dc87ab9465fde410f325ead6e23e563b03304113f6dbb72165f3204c",
   "counts": {
     "roots": 1,
     "k1": 7,

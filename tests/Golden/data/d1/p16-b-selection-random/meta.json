@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p16-b-selection-random",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-b-selection-random.json\u0022}",
-  "rulesSha256": "f45ac14c38ce3b3db98b7c0867d3b0c9c00c39adedb5f3d1dbd6607c3b92fbb6",
+  "rulesSha256": "10709763ee4daf3d891d4452ca173cdd0a7ab321015e8c84cff9e9b9309389de",
   "counts": {
     "roots": 1,
     "k1": 25,

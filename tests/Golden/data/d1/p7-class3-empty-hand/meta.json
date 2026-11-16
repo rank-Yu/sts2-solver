@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p7-class3-empty-hand",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p7-class3-empty-hand.json\u0022}",
-  "rulesSha256": "9b01e89b69778fcc41725669dd4174df40fe29a6e03ca2273e481c0d05a295c3",
+  "rulesSha256": "7423bf43a6df47a6af695cb7def67d026f564b0b3c8e1528e6b8624b1c9282b0",
   "counts": {
     "roots": 1,
     "k1": 3,

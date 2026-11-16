@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "quality-REGENT-012",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/REGENT-012/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/REGENT-012/request.json\u0022}",
-  "rulesSha256": "5b37a69aaa16b75aaf06587b908003cc609badd2962e5350677735e384ae2974",
+  "rulesSha256": "50eb6054a23cea53157ccf79747eb446c53b66da2ab55a781722984be96e31c0",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "kg2-b-stomp",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-b-stomp.json\u0022}",
-  "rulesSha256": "f48cd8a5e081a9007f2cd0674441d88a9abf592aa4918392babc1e7dea426384",
+  "rulesSha256": "53e09effdea3c2d2d839ce01ac83465108208182cb387a5f098f1599365ac45e",
   "counts": {
     "roots": 1,
     "k1": 13,

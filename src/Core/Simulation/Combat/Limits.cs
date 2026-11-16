@@ -7,8 +7,8 @@ namespace Sts2Solver.Simulation.Combat;
 public static class Limits
 {
     /// <summary>
-    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 32,360 bytes (packed prefix
-    /// 32,360), below the CLR's 65,535-byte array-element limit (and lets
+    /// Cards across every pile. 640 keeps <see cref="Battle"/> at 32,376 bytes (packed prefix
+    /// 32,376), below the CLR's 65,535-byte array-element limit (and lets
     /// <c>Marshal.OffsetOf</c> keep working). A pile count and every card position are 16-bit;
     /// exceeding 640 still throws
     /// <see cref="CapacityException"/> instead of truncating.
@@ -27,7 +27,8 @@ public static class Limits
     public const int Powers = 32;
     public const int RelicRoster = ushort.MaxValue;
     public const int RelicStates = 24;
-    public const int PotionSlots = 5;
+    // Three base slots + PotionBelt (2) + AlchemicalCoffer (4) + three Blitz shops.
+    public const int PotionSlots = 12;
     public const int Orbs = 10;
     public const int Counters = 48;
     public const int RngStreams = 10;

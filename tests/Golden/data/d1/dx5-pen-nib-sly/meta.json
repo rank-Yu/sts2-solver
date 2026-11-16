@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "dx5-pen-nib-sly",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx5-pen-nib-sly.json\u0022}",
-  "rulesSha256": "53a983664c400db7d7b9aefae84e44adc1dfa714b73bc6dcc04869ea289b7afa",
+  "rulesSha256": "6b8835f10751b05e5119918503bf92004be2658c17bfd8b7662ee86b98c75d75",
   "counts": {
     "roots": 1,
     "k1": 2,

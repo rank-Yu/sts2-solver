@@ -38,6 +38,7 @@ internal static class NativeEffectChecks
         LiveCombatTracker tracker = new(state);
         Battle current = tracker.ImportRoot(state, player, rules);
         tracker.Observe(current);
+        Console.WriteLine($"NATIVE_EFFECT_ROOT scenario={request.ScenarioId} potion_slots={current.PotionSlotCount}");
         foreach (string command in commands)
         {
             string[] fields = command.Split(':');

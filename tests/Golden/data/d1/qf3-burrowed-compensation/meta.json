@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qf3-burrowed-compensation",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-burrowed-compensation.json\u0022}",
-  "rulesSha256": "96efd42f251f6fc3b6764cd9d2a8fa1e799f7fedf48d277647ba07200649193e",
+  "rulesSha256": "f966bcdf4aa896a81d1f43e088b08670ebb376614c535c6d4dae37809c70145f",
   "counts": {
     "roots": 1,
     "k1": 2,

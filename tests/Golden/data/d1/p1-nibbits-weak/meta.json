@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p1-nibbits-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p1-nibbits-weak.json\u0022}",
-  "rulesSha256": "10c8dff6ff0987b5384849f2dc2eb909737b9b317de33eb416956813baa74389",
+  "rulesSha256": "c605acda4096b8a79af0db13e145a10d4db18f6b27bf824bc8a3db555e8f7a43",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "potion-capacity-blitz",
+  "gameModeForTest": "Blitz",
+  "generatedScenarioPath": "tests/Differential/fixtures/potion-capacity-blitz.scenario.json",
+  "cards": [],
+  "fullCombatForTest": true,
+  "searchThreadsForTest": 4,
+  "timeoutSeconds": 180,
+  "potionDefaultModeForTest": "Smart"
+}

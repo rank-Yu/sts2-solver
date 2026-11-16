@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qf3-mangle-plow",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-mangle-plow.json\u0022}",
-  "rulesSha256": "85c27ef2ee29fb213ede2da3d092b4c7cfe948f942cc65b5843655e835b842ae",
+  "rulesSha256": "64dd721951878e395b2fba95d9dfd0ef02777f1ddba000e1383961c418c6e379",
   "counts": {
     "roots": 1,
     "k1": 2,

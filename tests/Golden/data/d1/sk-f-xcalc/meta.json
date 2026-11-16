@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "sk-f-xcalc",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-f-xcalc.json\u0022}",
-  "rulesSha256": "e1c4ab33ea3d3755408c239013af8c69cdabe84596bf835d96cefc8c0b7f9927",
+  "rulesSha256": "f91c31bbe71bed2851b2cef1c76283a0ea3321cd7f19bf26bb727299aadb0fa5",
   "counts": {
     "roots": 1,
     "k1": 16,

@@ -35,7 +35,8 @@ internal static class ManifestProvenance
         + "按字段迁移全部根与选牌载荷，保留输入、规则数值和动作；旧槽尾部必须为空。"
         + "D1 按原游走种子重录状态及卡牌指纹，D2 保留原搜索预算重算期望，具体验证与计数见 d1Rerecord/refreeze。"
         + "格式 14 将能力容量由 28 提高到 32，Battle 32264→32360、头部2824→2920字节。"
-        + "全部根按字段迁移，仅补入空能力槽；运行时和搜索存储均保留连续的定长能力数组。";
+        + "全部根按字段迁移，仅补入空能力槽；运行时和搜索存储均保留连续的定长能力数组。"
+        + "格式 15 将药水槽由 5 提高到 12，Battle 32360→32376、头部2920→2936字节；新增槽清零，保留原动作和搜索预算。";
     /// <summary>
     /// Set only by the refreeze command for the manifest it writes: a content hash of the newly
     /// generated D2 expected results. The original capture hashes stay in <see cref="D1"/> and

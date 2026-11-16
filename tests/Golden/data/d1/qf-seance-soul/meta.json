@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qf-seance-soul",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-seance-soul.json\u0022}",
-  "rulesSha256": "e67f9917f3b6eeda88fcea2e06e1e5c986c236eb551ec1aeb33f78c391c00835",
+  "rulesSha256": "6ce2bce082831f0de6bbfee72654b541d06fc6569ace55a54eb3d4e60490862d",
   "counts": {
     "roots": 1,
     "k1": 3,

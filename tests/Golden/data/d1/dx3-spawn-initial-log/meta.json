@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "dx3-spawn-initial-log",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-spawn-initial-log.json\u0022}",
-  "rulesSha256": "d320444fa186a71e9a27a00fc2ddecb2b8470477faf58118584d3c3f2af6ce3a",
+  "rulesSha256": "9e0b88a18bc67edb225b83a3a4505b1edc25db192fa5bb5c987107b2319c35f8",
   "counts": {
     "roots": 1,
     "k1": 1,

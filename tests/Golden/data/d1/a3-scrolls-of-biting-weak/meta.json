@@ -1,9 +1,9 @@
 {
-  "formatVersion": 14,
-  "battleSize": 32360,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "a3-scrolls-of-biting-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-scrolls-of-biting-weak.json\u0022}",
-  "rulesSha256": "06a488cb6a97dc136a40b9b48abe0bc2cebbba6d2f7133b1c4e8f015a2d80725",
+  "rulesSha256": "831ca756ca1fd0f827e0f33f38bc29fa43480966df01354f3bb96cb2c409ff87",
   "counts": {
     "roots": 1,
     "k1": 15,

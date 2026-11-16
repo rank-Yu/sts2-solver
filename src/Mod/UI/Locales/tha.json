@@ -361,7 +361,7 @@
   "text.counted_name": "{0} ({1})",
   "ui.guide_setting": "คำแนะนำการเล่นระหว่างต่อสู้",
   "ui.guide_following": "กำลังเล่นตามคำแนะนำ",
-  "ui.guide_turn_step": "เทิร์น {0} · ขั้นตอน {1}/{2}",
+  "ui.guide_turn_step": "เทิร์น {0} - ขั้นตอน {1}/{2}",
   "ui.guide_step": "ขั้นตอน {0}/{1}",
   "ui.guide_play_card": "เล่น {0}",
   "ui.guide_use_potion": "ใช้ {0}",

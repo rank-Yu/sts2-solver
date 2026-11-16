@@ -100,6 +100,10 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _content = content;
 
         GridContainer play = SolverSettingsControls.CreateSettingsGrid();
+        _guide = SolverSettingsControls.CreateToggle();
+        _guide.Name = "GuideToggle";
+        _guide.Toggled += OnGuideToggled;
+        SolverSettingsControls.AddBasicRow(play, SolverText.Get("ui.guide_setting"), _guide);
         _speed = SolverSettingsControls.CreateOptionInput();
         _speed.Name = "DeploymentSpeedOption";
         _speed.AddItem(SolverText.Get("ui.follow_game_default"), (int)SolverDeploymentSpeed.FollowGame);
@@ -169,10 +173,6 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _opacityValue.CustomMinimumSize = new Vector2(48, 24);
         opacityRow.AddChild(_opacityValue);
         SolverSettingsControls.AddBasicRow(display, SolverText.Get("ui.overlay_opacity"), opacityRow);
-        _guide = SolverSettingsControls.CreateToggle();
-        _guide.Name = "GuideToggle";
-        _guide.Toggled += OnGuideToggled;
-        SolverSettingsControls.AddBasicRow(display, SolverText.Get("ui.guide_setting"), _guide);
         SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.display"), display);
 
         HBoxContainer feedback = new()

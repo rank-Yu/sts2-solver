@@ -129,7 +129,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 ### 游戏内指引
 
-在「设置 → 显示」开启游戏内出牌指引后，手动出牌时可以在战斗画面上看到路线的下一步。指引默认关闭。开启自动执行、正在搜索或执行时会隐藏。
+在「设置 → 出牌」开启游戏内出牌指引后，手动出牌时可以在战斗画面上看到路线的下一步。指引默认关闭。开启自动执行、正在搜索或执行时会隐藏。
 
 - **打牌与用药**：细描边标出牌或药水槽，箭头指向目标。无目标的牌指向出牌区。原版开始瞄准时，指引只保留目标标记。结束回合时标出按钮。
 - **选牌**：打开路线对应的选牌页时，指引标出要选的卡牌实例。选牌和确认由玩家操作。
@@ -155,6 +155,7 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 
 | 组 | 设置 | 字段 | 何时生效 |
 | --- | --- | --- | --- |
+| 出牌 | 游戏内出牌指引：开 / 关 | `ui.showGuide` | 立即 |
 | 出牌 | 自动出牌速度：跟随游戏 / 正常 / 快速 | `automation.deploymentSpeed` | 下一次执行 |
 | 出牌 | 牌间额外停顿（秒）：0–3，留空为 0 | `automation.interActionDelaySeconds` | 下一次执行 |
 | 性能 | 性能预设：低档 / 中档 / 高档 / 极高 | `search.tier` | 下一次搜索开始时 |
@@ -163,7 +164,6 @@ dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod a
 | Boss 策略 | 第一、二幕血量取舍：通关优先（默认）/ 最低战损 | `search.actTransitionBossHpStrategy` | 下一次搜索开始时 |
 | Boss 策略 | 最终 Boss 血量取舍：通关优先（默认）/ 最低战损 | `search.finalBossHpStrategy` | 下一次搜索开始时 |
 | 显示 | 覆盖层透明度：25%–100% | `ui.opacity` | 立即预览；停止拖动 0.4 秒后保存；作用于整块面板 |
-| 显示 | 游戏内出牌指引：开 / 关 | `ui.showGuide` | 立即 |
 
 “快速”使用游戏的快速动画，并在原版动作完成、进入可执行阶段后等待一帧，再核对状态并继续；普通动作没有固定的 0.2 秒停顿，跨回合没有固定的 1.5 秒停顿。遗物闪烁动画不阻塞执行，计数核对读取实际值。手动配置的牌间额外停顿仍然生效。“正常”和“跟随游戏”保留显示停顿；执行完成、停止或失败后恢复原先的游戏动画速度。
 

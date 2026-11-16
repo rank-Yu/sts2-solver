@@ -302,10 +302,7 @@ internal sealed partial class SolverOverlay
         }
         else if (snapshot.Route is { CompletedActions: > 0 } setupRoute)
         {
-            // The projection passes deployment progress only for the deployed route. Outside the
-            // Deploying phase (a run reaching the next turn's setup page, or the WaitingTurn frames
-            // right after a turn's deployment finished) its executed actions stay completed instead
-            // of being redrawn as pending when the rows are rebuilt.
+            // Retained routes keep completed actions dimmed after a stop or matching manual play.
             foreach (SolverRouteRow row in RouteRows)
             {
                 if (!row.Visible || row.StartActionIndex >= setupRoute.CompletedActions)

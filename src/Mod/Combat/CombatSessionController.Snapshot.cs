@@ -28,7 +28,7 @@ internal static partial class CombatSessionController
         bool turnSetupPlan = turnSetupPlanAvailable && turnSetupPage;
         bool turnSetupDriving = PlayerTurnSetupRuntime.IsDriving;
         bool latestStateMatches = _search == null && _latestResult is { } latest
-            && ResultStampMatches(latest);
+            && CurrentRouteMatches(latest);
         bool canExecute = (!HasBlockingDeployment && latestStateMatches)
             || (turnSetupPlan && !turnSetupDriving && _search == null
                 && !HasBlockingDeployment);
@@ -58,7 +58,7 @@ internal static partial class CombatSessionController
             }
         }
         bool canContinue = canStart && latestStateMatches && _searchContinuation is { } continuation
-            && ContinuationInputsMatch(continuation);
+            && SearchStampMatches(continuation.Stamp) && ContinuationInputsMatch(continuation);
         bool continuationAvailable = _search == null && !HasBlockingDeployment
             && _searchContinuation != null;
         bool continuationSearch = _search is { IsContinuation: true };
@@ -280,8 +280,10 @@ internal static partial class CombatSessionController
         // (the next turn's continuation while the previous EndTurn still waits for its boundary)
         // is numbered from its own first action and has not started.
         bool deployed = ReferenceEquals(result, _deploymentResult);
+        int retainedIndex = ReferenceEquals(result, _routeSource) ? _routeIndex : 0;
         return CombatUiProjection.Route(result.Plan, _names, CurrentTurn(),
-            deployed ? _currentActionIndex : 0, deployed ? _completedActions : 0, result.WasReused,
+            deployed ? _currentActionIndex : retainedIndex,
+            deployed ? _completedActions : retainedIndex, result.WasReused,
             deployed && _actionRunning);
     }
 

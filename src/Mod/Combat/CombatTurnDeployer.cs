@@ -42,6 +42,7 @@ internal sealed class CombatTurnDeployer(
         Action<ReplayedAction>? actionCompleted,
         Func<bool>? stopRequested,
         Func<bool>? endTurnSuperseded,
+        int firstActionIndex,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -49,7 +50,8 @@ internal sealed class CombatTurnDeployer(
         Player livePlayer = LocalContext.GetMe(live) ?? player;
         SolverAutomationSettings automation = SolverSettings.Current.Automation;
         _deployer = new ActionDeployer(host, live, livePlayer, rules, tracker, automation.DeploymentSpeed);
-        ReplayedAction[] actions = CombatRouteDecision.CurrentTurnActions(plan.Actions, turn);
+        ReplayedAction[] actions = [.. CombatRouteDecision.CurrentTurnActions(plan.Actions, turn)
+            .Where(action => action.Index >= firstActionIndex)];
         int playableCount = actions.Count(static action =>
             action.Action.Kind != PlayerActionKind.EndTurn);
         int playableIndex = 0;

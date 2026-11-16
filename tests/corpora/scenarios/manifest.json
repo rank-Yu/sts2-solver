@@ -1778,6 +1778,316 @@
         "settingsTierForTest": "Low",
         "enemyCurrentHp": 200
       }
+    },
+    {
+      "id": "resume_choice",
+      "scenario": "resume_choice",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 4,
+        "initialPlayerEnergy": 0,
+        "cards": [
+          {
+            "cardId": "BLOODLETTING",
+            "pile": "Hand",
+            "count": 1
+          },
+          {
+            "cardId": "BURNING_PACT",
+            "pile": "Hand",
+            "count": 1
+          },
+          {
+            "cardId": "INJURY",
+            "pile": "Hand",
+            "count": 2
+          },
+          {
+            "cardId": "THUNDERCLAP",
+            "pile": "Draw",
+            "count": 3
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_end_turn",
+      "scenario": "resume_end_turn",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_immediate",
+      "scenario": "resume_immediate",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_manual",
+      "scenario": "resume_manual",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_manual_guide",
+      "scenario": "resume_manual_guide",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_potion",
+      "scenario": "resume_potion",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 40,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [
+          {
+            "potionId": "FIRE_POTION"
+          }
+        ],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_wrong_card",
+      "scenario": "resume_wrong_card",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_wrong_choice",
+      "scenario": "resume_wrong_choice",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 4,
+        "initialPlayerEnergy": 0,
+        "cards": [
+          {
+            "cardId": "BLOODLETTING",
+            "pile": "Hand",
+            "count": 1
+          },
+          {
+            "cardId": "BURNING_PACT",
+            "pile": "Hand",
+            "count": 1
+          },
+          {
+            "cardId": "INJURY",
+            "pile": "Hand",
+            "count": 2
+          },
+          {
+            "cardId": "THUNDERCLAP",
+            "pile": "Draw",
+            "count": 3
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
+    },
+    {
+      "id": "resume_wrong_target",
+      "scenario": "resume_wrong_target",
+      "group": "controller",
+      "fixture": "k3-basic-potions",
+      "request": {
+        "seed": "GUIDEPREVIEW",
+        "enemyCurrentHp": 25,
+        "initialPlayerEnergy": 5,
+        "cards": [
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Hand",
+            "count": 5,
+            "upgradeLevels": 0
+          },
+          {
+            "cardId": "STRIKE_IRONCLAD",
+            "pile": "Draw",
+            "count": 10
+          }
+        ],
+        "potions": [],
+        "clearPlayerHand": true,
+        "clearPlayerPiles": true,
+        "clearRunDeck": true,
+        "searchTier": "Low",
+        "settingsAutoSearchForTest": false,
+        "settingsAutoExecuteForTest": false
+      },
+      "timeoutSeconds": 180
     }
   ]
 }

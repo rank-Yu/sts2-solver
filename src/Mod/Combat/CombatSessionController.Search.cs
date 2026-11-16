@@ -821,9 +821,6 @@ internal static partial class CombatSessionController
         };
     }
 
-    private static bool ResultStampMatches(CombatControllerResult result)
-        => SearchStampMatches(result.Stamp);
-
     private static bool SearchStampMatches(CombatStateStamp stamp)
     {
         if (!CanSolve(out _) || _state == null || _player == null || _rules == null || _tracker == null)

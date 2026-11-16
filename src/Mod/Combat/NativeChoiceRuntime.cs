@@ -160,7 +160,7 @@ internal static class NativeChoiceRuntime
                 || !ReferenceEquals(session.Combat, CombatManager.Instance.DebugOnlyGetState()))
                 return null;
         }
-        else if (!requiresSurface || !CombatSessionController.ObservesManualGuideChoice(player))
+        else if (!requiresSurface || !CombatSessionController.ObservesManualRouteChoice(player))
         {
             return null;
         }
@@ -190,7 +190,7 @@ internal static class NativeChoiceRuntime
         if (session != null)
             session.Enqueue(request);
         else
-            CombatSessionController.ObserveManualGuideChoice(request);
+            CombatSessionController.ObserveManualRouteChoice(request);
         return request;
     }
 

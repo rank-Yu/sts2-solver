@@ -53,6 +53,17 @@ internal static partial class CombatControllerChecks
             await WaitControllerBeginAsync(host);
             switch (scenario)
             {
+                case "resume_immediate":
+                case "resume_manual":
+                case "resume_manual_guide":
+                case "resume_wrong_card":
+                case "resume_wrong_target":
+                case "resume_choice":
+                case "resume_wrong_choice":
+                case "resume_potion":
+                case "resume_end_turn":
+                    await ResumeRouteAsync(host, Check, Action, scenario);
+                    break;
                 case "auto_execute_controls":
                     await AutoExecuteControlsAsync(host, Check, Action);
                     break;

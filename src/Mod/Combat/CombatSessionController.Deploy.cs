@@ -55,8 +55,10 @@ internal static partial class CombatSessionController
             return;
         }
         InvalidateSearchContinuation("deployment");
-        ReplayedAction[] turnActions =
-            CombatRouteDecision.CurrentTurnActions(result.Plan.Actions, result.StartTurn);
+        int firstActionIndex = RouteStartIndex(result);
+        ReplayedAction[] turnActions = [.. CombatRouteDecision
+            .CurrentTurnActions(result.Plan.Actions, result.StartTurn)
+            .Where(action => action.Index >= firstActionIndex)];
 #if STS2_SOLVER_TESTING
         bool forcePlanExhausted = CombatControllerTestHooks.ForcePlanExhaustedOnce;
         CombatControllerTestHooks.ForcePlanExhaustedOnce = false;
@@ -98,11 +100,11 @@ internal static partial class CombatSessionController
             $"[Sts2Solver] CONTROLLER_DEPLOY_START turn={result.StartTurn} " +
             $"actions={turnActions.Length} run={_runCombat} enemy_hp={enemyHp} " +
             $"player_hp={_player.Creature.CurrentHp}");
-        deployment.Operation = DeployTurnAsync(deployment, result);
+        deployment.Operation = DeployTurnAsync(deployment, result, firstActionIndex);
     }
 
     private static async Task DeployTurnAsync(CombatDeploymentSession deployment,
-        CombatControllerResult result)
+        CombatControllerResult result, int firstActionIndex)
     {
         NGame? host = NGame.Instance;
         if (host == null)
@@ -131,7 +133,7 @@ internal static partial class CombatSessionController
                 },
                 () => deployment.StopRequested,
                 () => deployment.SupersededByTurnSetup,
-                deployment.Cancellation.Token);
+                firstActionIndex, deployment.Cancellation.Token);
             bool replaced = !ReferenceEquals(_deployment, deployment);
             ReleaseDeployment(deployment);
             if (outcome.Pause is { } pause)
@@ -157,10 +159,19 @@ internal static partial class CombatSessionController
             }
             if (outcome.Stopped)
             {
+                if (_completedActions < result.Plan.Actions.Length
+                    && result.Plan.Actions[_completedActions].Before.PlayerTurn == turn
+                    && RouteBoundaryMatches(result, _completedActions))
+                {
+                    _latestResult = result;
+                    _latestStamp = result.Stamp;
+                    SetRouteProgress(result, _completedActions);
+                    _routeObservation = default;
+                }
                 _automaticSearchPaused = true;
                 _automaticSearchPausedTurn = turn;
                 _pauseCode = "stopped";
-                _pauseReason = "stopped_by_user";
+                _pauseReason = "execution_stopped_by_user";
                 _phase = CombatUiPhase.WaitingTurn;
                 PublishSnapshot();
                 ModLog.Info($"[Sts2Solver] CONTROLLER_DEPLOY_STOPPED turn={turn}");

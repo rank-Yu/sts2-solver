@@ -493,9 +493,9 @@ internal static partial class CombatSessionController
         _noSurvivalPauseUsed = false;
         _searchedTurn = null;
         _pumpObserved = false;
-        ResetGuide();
+        ResetRouteProgress();
         if (_player != null)
-            WatchGuideActions();
+            WatchRouteActions();
         _pendingTurnStartedState = null;
         _theftPolicy = state != null && SearchPolicyCapture.IsTheftApplicable(state)
             ? SearchTheftPolicy.PreserveResources
@@ -756,7 +756,7 @@ internal static partial class CombatSessionController
         _playerConfirmedTurn = null;
         _noSurvivalPauseUsed = false;
         _pumpObserved = false;
-        ResetGuide();
+        ResetRouteProgress();
         _pendingTurnStartedState = null;
         _theftPolicy = null;
         _automaticSearchPaused = false;
@@ -948,6 +948,8 @@ internal static partial class CombatSessionController
             PlayerTurnSetupRuntime.ConsumeLastTurnSetup();
             // From here the reuse below (or a search) decides what the panel shows.
             _handedOffContinuation = null;
+            if (SearchAlreadyOwned(turn))
+                return;
             if (_continuationSource != null
                 && TryReuseContinuation(turn, deployWhenReady: deployAfterSetup,
                     out bool stoppedForDeviation))
@@ -1086,10 +1088,10 @@ internal static partial class CombatSessionController
         PumpObservation observation = new(playable, actionsIdle, turn, side, phase,
             PlayerTurnSetupRuntime.HasActivePage, _turnSetupResult != null,
             PlayerTurnSetupRuntime.IsDriving);
-        bool guideChanged = RefreshGuide(playable, actionsIdle, turn);
+        bool routeChanged = RefreshRouteProgress(playable, actionsIdle, turn);
         if (_pumpObserved && observation == _pumpObservation)
         {
-            if (guideChanged)
+            if (routeChanged)
                 PublishSnapshot();
             return;
         }
@@ -1100,9 +1102,9 @@ internal static partial class CombatSessionController
         string? block = null;
         if (!canStart && _search == null && _deployment == null)
             block = CanSolve(out string reason) ? "searching" : reason;
-        bool routeReady = _latestResult is { } result && ResultStampMatches(result);
+        bool routeReady = _latestResult is { } result && CurrentRouteMatches(result);
         CombatUiSnapshot current = CombatUiStore.Snapshot;
-        if (!guideChanged
+        if (!routeChanged
             && current.CanStartSearch == canStart
             && current.SearchBlockReason == block
             && current.CurrentTurnRouteReady == routeReady)

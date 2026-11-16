@@ -67,7 +67,7 @@ STS2 Solver searches faster in 118 of the 126 combats. Opening searches take 373
 
 - During a fight the solver panel at the top left shows search progress, the route for the whole fight and the step being executed; you can drag, resize and collapse it.
 - **Auto-search** is on by default and searches each turn. **Auto-play** is off by default; enable it to play automatically after a search finishes and continue through later turns. Both switches are saved, and Auto-play requires Auto-search. You can also press **Play turn** or **Play combat** manually. Stopping a search keeps its candidate without playing it; stopping execution switches Auto-play off.
-- To follow a route by hand, enable the in-game play guide under Settings → Card play. It highlights the next card and its target, and shows potion, card selection, and end-turn steps.
+- To follow a route by hand, enable the in-game play guide under Settings → Card play. It highlights the next card and its target, and shows potion, card selection, and end-turn steps. After stopping execution, you can resume the remaining route. Playing the planned actions by hand also updates its progress.
 - If a result differs from the prediction, a death is projected or an action cannot be performed, execution stops at once; press **Search again**, or confirm and press **Play combat** to continue.
 - Unsupported content (for example cards added by other Mods) is rejected instead of being played blindly.
 - It can be installed together with CombatSolver, but let only one of them execute each turn, or they get in each other's way.

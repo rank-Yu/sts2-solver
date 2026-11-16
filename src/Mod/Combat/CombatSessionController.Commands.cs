@@ -205,7 +205,7 @@ internal static partial class CombatSessionController
             _automaticSearchPaused = true;
             _automaticSearchPausedTurn = CurrentTurn();
             _pauseCode = "stopped";
-            _pauseReason = "stopped_by_user";
+            _pauseReason = "execution_stopped_by_user";
             ModLog.Info($"[Sts2Solver] CONTROLLER_STOP_DEPLOYMENT turn={deployment.Turn}");
             stopped = true;
         }
@@ -256,14 +256,17 @@ internal static partial class CombatSessionController
             // Activation clears the pause on success and sets a new one when the live state moved;
             // an activation that already deploys (the page asked for it) needs nothing more.
             if (_pauseCode == null && !HasBlockingDeployment
-                && _latestResult is { } activated && ResultStampMatches(activated))
+                && _latestResult is { } activated && CurrentRouteMatches(activated))
             {
                 BeginExecution(runCombat);
                 StartDeployment(activated);
             }
             return true;
         }
-        if (_latestResult is { } result && ResultStampMatches(result))
+        RefreshRouteProgress(CanSolve(out _),
+            MegaCrit.Sts2.Core.Runs.RunManager.Instance.ActionExecutor.FinishedExecutingActions().IsCompleted,
+            CurrentTurn());
+        if (_latestResult is { } result && CurrentRouteMatches(result))
         {
             BeginExecution(runCombat);
             StartDeployment(result);
@@ -349,7 +352,7 @@ internal static partial class CombatSessionController
             PublishSnapshot();
             return true;
         }
-        if (!_automaticSearchPaused && _latestResult is { } result && ResultStampMatches(result))
+        if (!_automaticSearchPaused && _latestResult is { } result && CurrentRouteMatches(result))
             StartFullAutoDeployment(result);
         else if (!_automaticSearchPaused && !PlayerTurnSetupRuntime.HasActivePage && CanSolve(out _))
             RequestSearch(CombatSearchReason.AutoSearchSwitch, deployWhenReady: false);
@@ -655,7 +658,7 @@ internal static partial class CombatSessionController
         {
             return;
         }
-        if (_latestResult is { } result && ResultStampMatches(result))
+        if (_latestResult is { } result && CurrentRouteMatches(result))
             return;
         if (!CanSolve(out _))
             return;

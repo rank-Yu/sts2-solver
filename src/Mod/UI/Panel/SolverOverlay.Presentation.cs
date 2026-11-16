@@ -156,10 +156,9 @@ internal sealed partial class SolverOverlay
             && !snapshot.CurrentTurnRouteReady
             && snapshot.CanStartSearch
             && _routeOutcomePanel is { Visible: true };
-        // The player followed the route by hand: the live state is still one of its boundaries, so
-        // the route is the guide's plan, not a reference.
-        GuideStepUi? guide = outdated && snapshot.Guide is { Advanced: true } advanced ? advanced : null;
-        bool stale = outdated && guide == null;
+        GuideStepUi? guide = snapshot.CurrentTurnRouteReady
+            && snapshot.Guide is { Advanced: true } advanced ? advanced : null;
+        bool stale = outdated;
         if (guide != null)
         {
             string status = SolverText.Get("ui.guide_following");
@@ -606,8 +605,17 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.Ready;
         _lastResultCandidate = snapshot.Result?.CandidateVersion ?? -1;
-        SetStatus(SolverText.Get("ui.search_stopped"), SolverUiTokens.Palette.Danger);
-        if (snapshot.CurrentTurnRouteReady)
+        bool executionStopped = snapshot.PauseReason == "execution_stopped_by_user";
+        SetStatus(SolverText.Get(executionStopped ? "ui.execution_paused" : "ui.search_stopped"),
+            SolverUiTokens.Palette.Danger);
+        if (executionStopped)
+        {
+            SetSummary(string.Empty);
+            SetRouteHeading(SolverText.Get("ui.recommended_route"));
+            SetRouteVisibility(snapshot.Route != null);
+            ApplyContentVisibility();
+        }
+        else if (snapshot.CurrentTurnRouteReady)
         {
             SetSummary(AppendCapacityDropHint(
                 SolverText.Format("ui.search_stopped_the_current_candidate_route_is_retained_below", SolverUiTokens.Palette.WarningHex),

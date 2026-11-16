@@ -21,27 +21,27 @@ STS2 Solver's search strategy and position scoring are based on [CombatSolver](h
 
 STS2 Solver **v0.2.7** versus CombatSolver **v0.51.5**, on the same 126 combats in game v0.113.1.
 
-Combat results (STS2 Solver / CombatSolver throughout):
+**Combat results:**
 
-| Character | Combats | Wins (v0.2.7 / v0.51.5) | Avg HP lost, combats both won |
-|---|---:|---:|---:|
-| Ironclad | 21 | 18 / 18 | 20.2 / 20.1 |
-| Silent | 21 | 15 / 15 | 13.7 / 13.9 |
-| Defect | 21 | 19 / 18 | 18.3 / 18.8 |
-| Necrobinder | 21 | 17 / 17 | 15.9 / 15.5 |
-| Regent | 21 | 18 / 18 | 17.9 / 22.0 |
-| Fool | 21 | 16 / 16 | 19.8 / 21.4 |
-| **Total** | **126** | **103 / 102** | **17.7 / 18.7** |
+| Character | Combats | STS2 Solver wins | CombatSolver wins | STS2 Solver HP lost, combats both won | CombatSolver HP lost, combats both won |
+|---|---:|---:|---:|---:|---:|
+| Ironclad | 21 | 18 | 18 | 20.2 | 20.1 |
+| Silent | 21 | 15 | 15 | 13.7 | 13.9 |
+| Defect | 21 | 19 | 18 | 18.3 | 18.8 |
+| Necrobinder | 21 | 17 | 17 | 15.9 | 15.5 |
+| Regent | 21 | 18 | 18 | 17.9 | 22.0 |
+| Fool | 21 | 16 | 16 | 19.8 | 21.4 |
+| **Total** | **126** | **103** | **102** | **17.7** | **18.7** |
 
-| Encounter | Combats | Wins (v0.2.7 / v0.51.5) | Avg HP lost, combats both won |
-|---|---:|---:|---:|
-| Normal | 48 | 48 / 47 | 11.7 / 12.5 |
-| Elite | 48 | 36 / 36 | 21.6 / 22.9 |
-| Boss | 30 | 19 / 19 | 25.3 / 26.3 |
+| Encounter | Combats | STS2 Solver wins | CombatSolver wins | STS2 Solver HP lost, combats both won | CombatSolver HP lost, combats both won |
+|---|---:|---:|---:|---:|---:|
+| Normal | 48 | 48 | 47 | 11.7 | 12.5 |
+| Elite | 48 | 36 | 36 | 21.6 | 22.9 |
+| Boss | 30 | 19 | 19 | 25.3 | 26.3 |
 
-STS2 Solver wins all 102 combats won by CombatSolver, plus 1 more. Of the 102 combats both win, STS2 Solver loses less HP in 22, CombatSolver in 15, and 65 are equal. HP lost is opening HP minus final HP.
+STS2 Solver wins all 102 combats won by CombatSolver, plus 1 more. In the 102 combats both win, STS2 Solver loses 1.01 less HP on average.
 
-Search performance:
+**Search performance:**
 
 | | Median time | Mean time | Max time | Nodes expanded per second |
 |---|---:|---:|---:|---:|
@@ -50,12 +50,10 @@ Search performance:
 
 STS2 Solver searches faster in 118 of the 126 combats. Opening searches take 373 seconds in total versus 1,343 seconds for CombatSolver, a 72.2% reduction, with about 7.4× as many nodes expanded per second.
 
-Test conditions:
+**Test conditions:**
 
 - Standard mode, Ascension 10, all content unlocked, full starting HP. Each of the six characters has 21 randomly generated decks and encounters: 8 normal, 8 elite and 5 boss fights.
 - Both solvers execute full combats in the real game running headless, using their respective Medium search settings, 4 search threads and Smart potions. Optional choices at combat setup are skipped for both.
-- The same Intel Core Ultra 9 285K host, running sequential batches on the same four CPU cores.
-- Time and nodes cover the first search of each combat. Nodes per second is total expanded nodes divided by total search time.
 
 ## Installation
 

@@ -30,7 +30,7 @@ internal sealed partial class SolverOverlay
         _routeOutcomePanel = SolverUiTokens.CreateSectionPanel("RouteOutcomePanel");
         HBoxContainer routeSummary = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         routeSummary.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
-        routeSummary.AddChild(SolverUiTokens.CreateLabel(SolverText.Get("当前路线摘要"),
+        routeSummary.AddChild(SolverUiTokens.CreateLabel(SolverText.Get("ui.current_route_summary"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary));
         HFlowContainer headingRow = new()
         {
@@ -40,11 +40,11 @@ internal sealed partial class SolverOverlay
         };
         headingRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
         headingRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-        _routeHeadingLabel = SolverUiTokens.CreateLabel(SolverText.Get("推荐路线"),
+        _routeHeadingLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.recommended_route"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
         _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         headingRow.AddChild(_routeHeadingLabel);
-        _deathOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("未找到生还路线"),
+        _deathOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.no_surviving_route_found"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Danger);
         _deathOutcomeLabel.Visible = false;
         _deathOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
@@ -54,7 +54,7 @@ internal sealed partial class SolverOverlay
         _usedPotionOutcomeLabel.Visible = false;
         _usedPotionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         headingRow.AddChild(_usedPotionOutcomeLabel);
-        _potionOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("预计用1瓶药"),
+        _potionOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.potions_1"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Warning);
         _potionOutcomeLabel.Visible = false;
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
@@ -73,12 +73,12 @@ internal sealed partial class SolverOverlay
         _strategyOutcomeRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
         headingRow.AddChild(_strategyOutcomeRow);
         _strategyOutcomeKey = null;
-        _hpOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("本局扣血  0 HP"),
+        _hpOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.hp_lost_0"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Success);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         headingRow.AddChild(_hpOutcomeLabel);
-        _hpRecoveredOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("路线回血  0 HP"),
+        _hpRecoveredOutcomeLabel = SolverUiTokens.CreateLabel(SolverText.Get("ui.route_healing_0_hp"),
             SolverUiTokens.Type.Body, SolverUiTokens.Palette.Success);
         _hpRecoveredOutcomeLabel.Visible = false;
         _hpRecoveredOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
@@ -198,7 +198,7 @@ internal sealed partial class SolverOverlay
             _potionOutcomeLabel.Visible = overlay.PlannedPotionOutcomeText != null
                 || overlay.ProjectedBattlePotionCount > 0 && overlay.UsedPotionOutcomeText == null;
             _potionOutcomeLabel.Text = overlay.PlannedPotionOutcomeText
-                ?? SolverText.Format($"预计用{overlay.ProjectedBattlePotionCount}瓶药");
+                ?? SolverText.Format("potion.planned_count", overlay.ProjectedBattlePotionCount);
         }
         if (_unrecoveredLootLabel != null)
         {
@@ -240,7 +240,7 @@ internal sealed partial class SolverOverlay
             row.Populate(turn, restartMotion);
             int netHpChange = turn.HpRecovered - turn.HpLoss;
             string outcome = turn.CombatEnded
-                ? SolverText.Get("战斗结束")
+                ? SolverText.Get("ui.combat_ends")
                 : netHpChange != 0
                     ? $"{HpChangeText.Signed(netHpChange)} HP"
                     : "0 HP";
@@ -250,9 +250,9 @@ internal sealed partial class SolverOverlay
                     : netHpChange < 0 ? SolverUiTokens.Palette.Danger
                     : netHpChange > 0 ? SolverUiTokens.Palette.Success
                     : SolverUiTokens.Palette.TextMuted,
-                energyText: SolverText.Format($"余 {turn.EnergyLeft} 费"),
+                energyText: SolverText.Format("ui.energy_left", turn.EnergyLeft),
                 enemyDamageText: turn.EnemyHpDamageLost is { } damage
-                    ? SolverText.Format($"对敌伤害 {damage}")
+                    ? SolverText.Format("ui.enemy_damage", damage)
                     : string.Empty);
             bool current = ShowsDeployedRoute
                 ? turn.Turn == snapshot.Turn
@@ -262,8 +262,8 @@ internal sealed partial class SolverOverlay
         if (!hasTurns && snapshot.Phase == CombatUiPhase.Searching)
         {
             SetRouteRowVisible(0, true);
-            RouteRows[0].TurnLabel.Text = SolverText.Format($"第 {snapshot.Turn} 回合");
-            RouteRows[0].ShowStatus(SolverText.Get("等待当前回合候选…"));
+            RouteRows[0].TurnLabel.Text = SolverText.Format("ui.turn", snapshot.Turn);
+            RouteRows[0].ShowStatus(SolverText.Get("search.waiting_current_turn_candidate"));
             RouteRows[0].SetOutcome(string.Empty, SolverUiTokens.Palette.TextMuted);
             RouteRows[0].SetRowState(current: true, completed: false);
         }
@@ -329,10 +329,10 @@ internal sealed partial class SolverOverlay
     private static string RecoveredOutcomeText(SolverOverlaySnapshot overlay)
         => (overlay.RouteHpRecovered, overlay.RoutePostCombatRelicHeal) switch
         {
-            ( > 0, > 0) => SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP")
-                + SolverText.Format($"　战后遗物  {overlay.RoutePostCombatRelicHeal} HP"),
-            ( > 0, _) => SolverText.Format($"路线回血  {overlay.RouteHpRecovered} HP"),
-            (_, > 0) => SolverText.Format($"战后遗物回血  {overlay.RoutePostCombatRelicHeal} HP"),
+            ( > 0, > 0) => SolverText.Format("ui.route_healing_hp", overlay.RouteHpRecovered)
+                + SolverText.Format("ui.post_combat_relics_hp", overlay.RoutePostCombatRelicHeal),
+            ( > 0, _) => SolverText.Format("ui.route_healing_hp", overlay.RouteHpRecovered),
+            (_, > 0) => SolverText.Format("ui.post_combat_healing_hp", overlay.RoutePostCombatRelicHeal),
             _ => string.Empty,
         };
 

@@ -30,8 +30,7 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
     {
         Name = "LoopGroup";
         MouseFilter = MouseFilterEnum.Pass;
-        TooltipText = SolverText.Format(
-            $"框内 {run.Period} 个动作按顺序重复 {run.Repetitions} 次，共 {run.Count} 个动作");
+        TooltipText = SolverText.Format("ui.repeat_the_actions_inside_this_group_in_order_times_actions", run.Period, run.Repetitions, run.Count);
 
         StyleBoxFlat box = SolverUiTokens.CreateBox(
             new Color(0.12f, 0.14f, 0.17f, 0.50f),
@@ -64,7 +63,7 @@ internal sealed partial class SolverLoopGroup : PanelContainer, ISolverFlowGroup
             verticalPadding: 3,
             borderWidth: 1));
         _badgeLabel = SolverUiTokens.CreateLabel(
-            SolverText.Format($"循环 ×{run.Repetitions}"),
+            SolverText.Format("ui.loop", run.Repetitions),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.Accent);
         _badgeLabel.Name = "LoopCount";

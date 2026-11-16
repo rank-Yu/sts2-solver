@@ -79,7 +79,8 @@ internal static class UiLogicChecks
         Check("search_thread_count", ThreadCount);
         Check("result_summary_speed", ResultSummarySpeed);
         Check("search_preview_potion_count", SearchPreviewPotionCount);
-        Check("english_catalog_placeholders", LocaleCatalog);
+        Check("locale_catalog_placeholders", LocaleCatalog);
+        Check("locale_native_names_and_numbers", LocalizationChecks.Run);
         Check("panel_text_catalog", PanelTextCatalog);
         Check("failure_reason_text", FailureReasonText);
         try
@@ -568,10 +569,10 @@ internal static class UiLogicChecks
 
     private static void LocaleCatalog()
     {
-        string[] problems = SolverText.ValidateEnglishCatalog();
+        string[] problems = SolverText.ValidateCatalogs();
         Require(problems.Length == 0, "catalog:" + string.Join(",", problems));
-        Require(SolverText.EnglishCatalogForTesting.Count > 0, "catalog_empty");
-        Require(SolverText.EnglishCatalogForTesting.ContainsKey("尖塔求解器"), "catalog_title_key");
+        Require(SolverText.CatalogsForTesting["eng"].Count > 0, "catalog_empty");
+        Require(SolverText.CatalogsForTesting["eng"].ContainsKey("app.title"), "catalog_title_key");
     }
 
     private static void FailureReasonText()
@@ -583,7 +584,7 @@ internal static class UiLogicChecks
             Region = "Cards",
             Capacity = cardLimit,
             Actual = cardLimit + 1,
-        }) == SolverText.Format($"牌组共 {cardLimit + 1} 张，超过求解器上限 {cardLimit} 张"),
+        }) == SolverText.Format("ui.the_deck_has_cards_the_solver_limit_is", cardLimit + 1, cardLimit),
             "deck_capacity");
         Require(SolverPanelText.CapacityDropHint(
                 new Dictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 })
@@ -660,12 +661,11 @@ internal static class UiLogicChecks
 
     private static void PanelTextCatalog()
     {
-        string[] missing = SolverPanelText.MappedSourceStrings
-            .Where(static source => !SolverText.EnglishCatalogForTesting.ContainsKey(source))
+        string[] missing = SolverPanelText.MappedKeys
+            .Where(static source => !SolverText.CatalogsForTesting["eng"].ContainsKey(source))
             .ToArray();
         Require(missing.Length == 0, "missing:" + string.Join("|", missing));
-        string[] oldCalculation = SolverText.EnglishCatalogForTesting.Keys
-            .Concat(SolverPanelText.MappedSourceStrings)
+        string[] oldCalculation = SolverText.CatalogsForTesting["zhs"].Values
             .Where(static source => source.Contains("计算", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .ToArray();

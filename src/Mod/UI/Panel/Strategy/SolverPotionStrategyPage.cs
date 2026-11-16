@@ -41,9 +41,9 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         };
         presets.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Sm);
         presets.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Sm);
-        _allSmart = CreatePreset(presets, SolverText.Get("全部智能"), "AllSmart",
+        _allSmart = CreatePreset(presets, SolverText.Get("ui.all_smart"), "AllSmart",
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Smart));
-        _allProtect = CreatePreset(presets, SolverText.Get("全部保护"), "AllProtected",
+        _allProtect = CreatePreset(presets, SolverText.Get("ui.protect_all"), "AllProtected",
             () => CombatUiCommands.Instance.SetAllPotionDirectives(SolverPotionMode.Disabled));
         AddChild(presets);
 
@@ -66,7 +66,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
 
     public SolverStrategyPageKind Kind => SolverStrategyPageKind.Potions;
 
-    public string Title => SolverText.Get("药水策略");
+    public string Title => SolverText.Get("strategy.potions");
 
     public Control Root => this;
 
@@ -126,7 +126,7 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         _potionRows.Clear();
         if (potions.Length == 0)
         {
-            Label empty = SolverUiTokens.CreateLabel(SolverText.Get("当前没有药水"),
+            Label empty = SolverUiTokens.CreateLabel(SolverText.Get("ui.no_potions"),
                 SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextMuted);
             empty.Name = "NoPotions";
             empty.CustomMinimumSize = new Vector2(0, 32);
@@ -194,8 +194,8 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         _status.AddThemeColorOverride("font_color",
             accepted ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Danger);
         _status.Text = accepted
-            ? SolverText.Get("已保存，下次搜索生效")
-            : SolverText.Get("保存失败，详情已写入游戏日志");
+            ? SolverText.Get("ui.saved_applies_to_the_next_search")
+            : SolverText.Get("ui.saving_failed_details_are_in_the_game_log");
     }
 
     private static SolverPotionMode ParseMode(string code) => code switch
@@ -207,8 +207,8 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
 
     private static string ModeText(SolverPotionMode mode) => mode switch
     {
-        SolverPotionMode.Disabled => "✕  " + SolverText.Get("禁用 / 保护"),
-        _ => "—  " + SolverText.Get("智能使用"),
+        SolverPotionMode.Disabled => "✕  " + SolverText.Get("ui.disabled_protected"),
+        _ => "—  " + SolverText.Get("ui.smart_use"),
     };
 
     private static void ApplyModeButton(Button button, SolverPotionMode mode, bool canAssign)
@@ -221,9 +221,9 @@ internal sealed partial class SolverPotionStrategyPage : VBoxContainer, ISolverS
         button.Text = ModeText(mode);
         button.Disabled = !canAssign;
         button.TooltipText = !canAssign
-            ? SolverText.Get("该药水不可指定使用策略")
+            ? SolverText.Get("ui.this_potion_has_no_selectable_use_policy")
             : mode == SolverPotionMode.Smart
-                ? SolverText.Get("计入药水成本，与不用药的路线一起比较，选择综合结果更好的路线。")
+                ? SolverText.Get("ui.includes_the_potion_cost_when_comparing_routes_with_or_without")
                 : string.Empty;
         button.AddThemeColorOverride("font_color", tone);
         button.AddThemeColorOverride("font_hover_color", tone.Lightened(0.12f));

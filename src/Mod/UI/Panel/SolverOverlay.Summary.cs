@@ -45,7 +45,7 @@ internal sealed partial class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
         };
         _summaryStateLabel = SolverUiTokens.CreateLabel(
-            SolverText.Get("等待战斗状态"),
+            SolverText.Get("ui.waiting_for_combat"),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.TextMuted);
         _summaryStatusBadge.AddChild(_summaryStateLabel);
@@ -125,9 +125,9 @@ internal sealed partial class SolverOverlay
     private static string? LimitWarning(SearchUiSnapshot? search) => search?.BoundaryCode switch
     {
         "time" => SolverText.Get(
-            "搜索尚未彻底穷尽，已达到当前设置的【时间上限】；现展示目前找到的最佳路线。若想探索更优世界线，可在 设置 > 性能 中提高上限后重新搜索。"),
+            "ui.time_limit_reached_before_search_was_exhausted_showing_the_best"),
         "node" => SolverText.Get(
-            "搜索尚未彻底穷尽，已达到当前设置的【节点上限】；现展示目前找到的最佳路线。若想探索更优世界线，可在 设置 > 性能 中提高上限后重新搜索。"),
+            "ui.node_limit_reached_before_search_was_exhausted_showing_the_best"),
         _ => null,
     };
 
@@ -139,7 +139,7 @@ internal sealed partial class SolverOverlay
             if (_progressText != null)
             {
                 _progressText.Visible = true;
-                _progressText.Text = SolverText.Format($"已用 {elapsed:F1} s");
+                _progressText.Text = SolverText.Format("ui.elapsed_s", elapsed);
             }
             return;
         }

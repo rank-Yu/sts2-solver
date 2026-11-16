@@ -1,4 +1,3 @@
-using System.Globalization;
 using Sts2Solver.Import;
 
 namespace Sts2Solver;
@@ -12,178 +11,178 @@ internal static class SolverPanelText
 {
     private static readonly IReadOnlyDictionary<string, string> ErrorNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["import_failed"] = "搜索初始化失败",
-        ["import_unsupported"] = "搜索初始化失败",
-        ["import_capacity"] = "搜索初始化失败",
-        ["request_invalid"] = "搜索请求无效",
-        ["route_invalid"] = "搜索结果无法回放，已丢弃",
-        ["route_unsupported"] = "路线含有尚未支持的效果",
-        ["route_capacity"] = "路线回放超出状态容量",
-        ["search_failed"] = "搜索失败",
-        ["turn_setup_failed"] = "回合准备选牌失败",
-        ["boundary_deviation"] = "回合开始时实际状态与预测不同，已停止",
-        ["action_deviation"] = "动作结果与预测不同，已停止",
-        ["deploy_failed"] = "自动执行中止",
-        ["cancelled"] = "搜索已取消",
-        ["pilot_failed"] = "执行本场战斗异常结束",
-        ["unsupported_import"] = "当前战斗含有尚未支持的内容",
-        ["unsupported"] = "遇到尚未支持的游戏语义",
-        ["capacity"] = "超出求解器的状态容量",
-        ["not_supported"] = "遇到尚未支持的游戏语义",
-        ["invalid_data"] = "战斗数据校验失败",
-        ["invalid_operation"] = "当前状态不允许继续执行",
-        ["timeout"] = "等待游戏响应超时",
+        ["import_failed"] = "ui.search_setup_failed",
+        ["import_unsupported"] = "ui.search_setup_failed",
+        ["import_capacity"] = "ui.search_setup_failed",
+        ["request_invalid"] = "ui.the_search_request_is_invalid",
+        ["route_invalid"] = "ui.the_search_result_could_not_be_replayed_and_was_discarded",
+        ["route_unsupported"] = "ui.the_route_contains_an_effect_that_is_not_supported_yet",
+        ["route_capacity"] = "ui.replaying_the_route_exceeded_the_state_capacity",
+        ["search_failed"] = "ui.search_failed",
+        ["turn_setup_failed"] = "ui.turn_start_choice_failed",
+        ["boundary_deviation"] = "ui.the_turn_started_differently_than_predicted_stopped",
+        ["action_deviation"] = "ui.an_action_resolved_differently_than_predicted_stopped",
+        ["deploy_failed"] = "ui.automatic_execution_stopped",
+        ["cancelled"] = "ui.search_cancelled",
+        ["pilot_failed"] = "ui.playing_the_combat_ended_abnormally",
+        ["unsupported_import"] = "ui.this_combat_contains_content_that_is_not_supported_yet",
+        ["unsupported"] = "ui.hit_game_behavior_that_is_not_supported_yet",
+        ["capacity"] = "ui.exceeded_the_solver_s_state_capacity",
+        ["not_supported"] = "ui.hit_game_behavior_that_is_not_supported_yet",
+        ["invalid_data"] = "ui.combat_data_failed_validation",
+        ["invalid_operation"] = "ui.the_current_state_does_not_allow_playing_on",
+        ["timeout"] = "ui.timed_out_waiting_for_the_game",
     };
 
     private static readonly IReadOnlyDictionary<string, string> PauseNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["action_deviation"] = "动作结果与预测不同，已停止",
-        ["boundary_deviation"] = "回合开始时实际状态与预测不同，已停止",
-        ["deployment_deviation"] = "实际局面与路线不符，已停止",
-        ["deploy_failed"] = "自动执行中止",
+        ["action_deviation"] = "ui.an_action_resolved_differently_than_predicted_stopped",
+        ["boundary_deviation"] = "ui.the_turn_started_differently_than_predicted_stopped",
+        ["deployment_deviation"] = "ui.the_live_state_no_longer_matches_the_route_stopped",
+        ["deploy_failed"] = "ui.automatic_execution_stopped",
     };
 
     /// <summary>Stable import rejection reasons (see ImportReason).</summary>
     private static readonly IReadOnlyDictionary<string, string> ImportReasonNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["multi-player"] = "当前是多人游戏，求解器只支持单人战斗",
-        ["root-phase"] = "当前不是玩家出牌阶段",
-        ["pending-choice"] = "还有未完成的选牌",
-        ["unsupported-closure"] = "战斗中有尚未支持的卡牌效果或能力组合",
-        ["missing-mirror-risk"] = "无法确定镜像复制会复制哪张牌",
-        ["unrepresentable-state"] = "当前战斗状态无法表示",
-        ["capacity"] = "战斗内容超出求解器容量",
-        ["third-party-content"] = "战斗中含有第三方 Mod 内容",
-        ["missing-private-field"] = "无法读取游戏的内部战斗状态",
-        ["unclaimed-private-state"] = "战斗状态含有求解器未接管的私有数据",
-        ["rules-mismatch"] = "游戏规则与求解器预期不一致",
-        ["known-enemy-history"] = "怪物的行动历史无法表示",
-        ["prefix-plan"] = "开局前缀路线无法表示",
-        ["turn-setup-root"] = "回合开始选择无法组成搜索请求",
-        ["run-deck-hook"] = "牌组上的局外效果无法表示",
-        ["test-content"] = "战斗中含有测试内容",
-        ["deprecated-content"] = "战斗中含有已废弃内容",
-        ["unsupported-policy"] = "搜索策略无法表示",
-        ["unsupported-healing-certificate"] = "治疗上限无法表示",
+        ["multi-player"] = "ui.this_is_a_multiplayer_game_the_solver_supports_single_player",
+        ["root-phase"] = "ui.it_is_not_currently_the_player_s_play_phase",
+        ["pending-choice"] = "ui.a_card_choice_is_still_pending",
+        ["unsupported-closure"] = "ui.this_combat_contains_an_unsupported_card_effect_or_power_combination",
+        ["missing-mirror-risk"] = "ui.unsupported_prediction_effect",
+        ["unrepresentable-state"] = "ui.the_current_combat_state_cannot_be_represented",
+        ["capacity"] = "ui.the_combat_content_exceeds_the_solver_s_capacity",
+        ["third-party-content"] = "ui.this_combat_contains_third_party_mod_content",
+        ["missing-private-field"] = "ui.could_not_read_the_game_s_internal_combat_state",
+        ["unclaimed-private-state"] = "ui.the_combat_state_contains_private_data_the_solver_does_not",
+        ["rules-mismatch"] = "ui.the_game_rules_do_not_match_the_solver_s_expectations",
+        ["known-enemy-history"] = "ui.the_monster_s_action_history_cannot_be_represented",
+        ["prefix-plan"] = "ui.the_opening_prefix_route_cannot_be_represented",
+        ["turn-setup-root"] = "ui.the_turn_start_choices_cannot_be_assembled_into_a_search",
+        ["run-deck-hook"] = "ui.an_out_of_combat_deck_effect_cannot_be_represented",
+        ["test-content"] = "ui.this_combat_contains_test_content",
+        ["deprecated-content"] = "ui.this_combat_contains_deprecated_content",
+        ["unsupported-policy"] = "ui.the_search_policy_cannot_be_represented",
+        ["unsupported-healing-certificate"] = "ui.the_healing_cap_cannot_be_represented",
     };
 
     /// <summary>Fallback category sentences for unsupported content without a resolvable native id.</summary>
     private static readonly IReadOnlyDictionary<string, string> ContentFallbackNames =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["unsupported-card"] = "战斗中有尚未支持的卡牌",
-            ["unsupported-power"] = "战斗中有尚未支持的能力",
-            ["unsupported-relic"] = "战斗中有尚未支持的遗物",
-            ["unsupported-potion"] = "战斗中有尚未支持的药水",
-            ["unsupported-orb"] = "战斗中有尚未支持的充能球",
-            ["unsupported-monster"] = "战斗中有尚未支持的怪物",
-            ["unsupported-enchantment"] = "战斗中有尚未支持的附魔",
-            ["unsupported-affliction"] = "战斗中有尚未支持的灾厄",
+            ["unsupported-card"] = "ui.this_combat_contains_an_unsupported_card",
+            ["unsupported-power"] = "ui.this_combat_contains_an_unsupported_power",
+            ["unsupported-relic"] = "ui.this_combat_contains_an_unsupported_relic",
+            ["unsupported-potion"] = "ui.this_combat_contains_an_unsupported_potion",
+            ["unsupported-orb"] = "ui.this_combat_contains_an_unsupported_orb",
+            ["unsupported-monster"] = "ui.this_combat_contains_an_unsupported_monster",
+            ["unsupported-enchantment"] = "ui.this_combat_contains_an_unsupported_enchantment",
+            ["unsupported-affliction"] = "ui.this_combat_contains_an_unsupported_affliction",
         };
 
     private static readonly IReadOnlyDictionary<string, string> ContentNameFormats =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["unsupported-card"] = "战斗中有尚未支持的卡牌：{0}",
-            ["unsupported-power"] = "战斗中有尚未支持的能力：{0}",
-            ["unsupported-relic"] = "战斗中有尚未支持的遗物：{0}",
-            ["unsupported-potion"] = "战斗中有尚未支持的药水：{0}",
-            ["unsupported-orb"] = "战斗中有尚未支持的充能球：{0}",
-            ["unsupported-monster"] = "战斗中有尚未支持的怪物：{0}",
-            ["unsupported-enchantment"] = "战斗中有尚未支持的附魔：{0}",
-            ["unsupported-affliction"] = "战斗中有尚未支持的灾厄：{0}",
+            ["unsupported-card"] = "ui.this_combat_contains_an_unsupported_card_named",
+            ["unsupported-power"] = "ui.this_combat_contains_an_unsupported_power_named",
+            ["unsupported-relic"] = "ui.this_combat_contains_an_unsupported_relic_named",
+            ["unsupported-potion"] = "ui.this_combat_contains_an_unsupported_potion_named",
+            ["unsupported-orb"] = "ui.this_combat_contains_an_unsupported_orb_named",
+            ["unsupported-monster"] = "ui.this_combat_contains_an_unsupported_monster_named",
+            ["unsupported-enchantment"] = "ui.this_combat_contains_an_unsupported_enchantment_named",
+            ["unsupported-affliction"] = "ui.this_combat_contains_an_unsupported_affliction_named",
         };
 
     /// <summary>Deployment failure reason codes from ActionDeployer / CombatTurnDeployer.</summary>
     private static readonly IReadOnlyDictionary<string, string> DeploymentReasonNames =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["action_failed"] = "原生动作执行出错",
-            ["action_canceled"] = "原生动作被游戏取消",
-            ["action_not_enqueued"] = "动作没有进入游戏动作队列",
-            ["boundary_timeout"] = "等待游戏结算超时",
-            ["live_missing"] = "找不到战斗状态",
-            ["live_player_missing"] = "找不到战斗状态",
-            ["combat_changed"] = "战斗状态已改变或已结束",
-            ["combat_over"] = "战斗状态已改变或已结束",
-            ["combat_ended"] = "战斗状态已改变或已结束",
-            ["import_failed"] = "动作完成后无法读取战斗状态",
-            ["import_unsupported"] = "动作完成后无法读取战斗状态",
-            ["import_capacity"] = "动作完成后无法读取战斗状态",
-            ["import_invalid_operation"] = "动作完成后无法读取战斗状态",
-            ["not_main_thread"] = "部署不在游戏主线程",
-            ["action_kind"] = "路线中有未知的动作类型",
+            ["action_failed"] = "ui.a_native_action_failed",
+            ["action_canceled"] = "ui.the_game_cancelled_a_native_action",
+            ["action_not_enqueued"] = "ui.the_action_did_not_enter_the_game_s_action_queue",
+            ["boundary_timeout"] = "ui.timed_out_waiting_for_the_game_to_resolve",
+            ["live_missing"] = "ui.the_combat_state_could_not_be_found",
+            ["live_player_missing"] = "ui.the_combat_state_could_not_be_found",
+            ["combat_changed"] = "ui.the_combat_state_changed_or_ended",
+            ["combat_over"] = "ui.the_combat_state_changed_or_ended",
+            ["combat_ended"] = "ui.the_combat_state_changed_or_ended",
+            ["import_failed"] = "ui.the_combat_state_could_not_be_read_after_the_action",
+            ["import_unsupported"] = "ui.the_combat_state_could_not_be_read_after_the_action",
+            ["import_capacity"] = "ui.the_combat_state_could_not_be_read_after_the_action",
+            ["import_invalid_operation"] = "ui.the_combat_state_could_not_be_read_after_the_action",
+            ["not_main_thread"] = "ui.deployment_did_not_run_on_the_game_s_main_thread",
+            ["action_kind"] = "ui.the_route_contains_an_unknown_action_type",
         };
 
     /// <summary>Deployment drift reason codes; the same names appear in the stopped summary.</summary>
     private static readonly IReadOnlyDictionary<string, string> DeviationReasonNames =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["turn_drift"] = "回合和路线对不上",
-            ["energy_drift"] = "能量和路线对不上",
-            ["stars_drift"] = "星能和路线对不上",
-            ["hand_drift"] = "手牌和路线对不上",
-            ["potion_slot_drift"] = "药水槽和路线对不上",
-            ["card_missing"] = "路线里的牌不在手牌中",
-            ["card_mismatch"] = "手牌和路线对不上",
-            ["card_unplayable"] = "路线里的牌现在不能打出",
-            ["potion_missing"] = "路线里的药水不在药水槽中",
-            ["potion_mismatch"] = "药水和路线对不上",
-            ["potion_target"] = "药水目标和路线对不上",
-            ["target_missing"] = "路线里的目标不存在",
+            ["turn_drift"] = "ui.the_turn_does_not_match_the_route",
+            ["energy_drift"] = "ui.energy_does_not_match_the_route",
+            ["stars_drift"] = "ui.stars_do_not_match_the_route",
+            ["hand_drift"] = "ui.the_hand_does_not_match_the_route",
+            ["potion_slot_drift"] = "ui.the_potion_slots_do_not_match_the_route",
+            ["card_missing"] = "ui.a_card_in_the_route_is_not_in_hand",
+            ["card_mismatch"] = "ui.the_hand_does_not_match_the_route",
+            ["card_unplayable"] = "ui.a_card_in_the_route_cannot_be_played_now",
+            ["potion_missing"] = "ui.a_potion_in_the_route_is_not_in_the_potion",
+            ["potion_mismatch"] = "ui.the_potions_do_not_match_the_route",
+            ["potion_target"] = "ui.the_potion_target_does_not_match_the_route",
+            ["target_missing"] = "ui.a_target_in_the_route_does_not_exist",
         };
 
     /// <summary>Battle capacity regions translated for the reason line.</summary>
     private static readonly IReadOnlyDictionary<string, string> CapacityRegionNames =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["Cards"] = "牌组",
-            ["Enemies"] = "敌人",
-            ["Powers"] = "能力",
-            ["Relics"] = "遗物数",
-            ["Orbs"] = "充能球",
-            ["PotionSlots"] = "药水槽",
-            ["MonsterRules"] = "怪物规则",
-            ["Choice.Options"] = "选择项",
-            ["Choice.GeneratedOptions"] = "生成的选择项",
-            ["GeneratedCards"] = "生成的牌",
-            ["DrawnCards"] = "抽牌",
-            ["AutoPlayCards"] = "自动打出的牌",
-            ["AttackWaves"] = "攻击波次",
-            ["Card.EnergyModifiers"] = "卡牌能量修正",
-            ["Card.ReplayCount"] = "卡牌重放次数",
-            ["Card.DecimalVars"] = "卡牌小数变量",
-            ["Card.TemporaryStarCosts"] = "卡牌临时星能费用",
-            ["Beam.Pool"] = "搜索候选池",
-            ["TransientMarks"] = "临时标记",
-            ["DetachedCards"] = "分离的牌",
-            ["EncounterSpawns"] = "遭遇生成",
-            ["PowerCommitment.Cards"] = "能力承诺的牌",
+            ["Cards"] = "ui.deck",
+            ["Enemies"] = "ui.enemies",
+            ["Powers"] = "ui.powers",
+            ["Relics"] = "ui.relic_count",
+            ["Orbs"] = "ui.orbs",
+            ["PotionSlots"] = "ui.potion_slots",
+            ["MonsterRules"] = "ui.monster_rules",
+            ["Choice.Options"] = "ui.choices",
+            ["Choice.GeneratedOptions"] = "ui.generated_choices",
+            ["GeneratedCards"] = "ui.generated_cards",
+            ["DrawnCards"] = "ui.card_draws",
+            ["AutoPlayCards"] = "ui.auto_played_cards",
+            ["AttackWaves"] = "ui.attack_waves",
+            ["Card.EnergyModifiers"] = "ui.card_energy_modifiers",
+            ["Card.ReplayCount"] = "ui.card_replay_counts",
+            ["Card.DecimalVars"] = "ui.card_decimal_variables",
+            ["Card.TemporaryStarCosts"] = "ui.temporary_card_star_costs",
+            ["Beam.Pool"] = "ui.search_candidate_pool",
+            ["TransientMarks"] = "ui.transient_marks",
+            ["DetachedCards"] = "ui.detached_cards",
+            ["EncounterSpawns"] = "ui.encounter_spawns",
+            ["PowerCommitment.Cards"] = "ui.power_commitment_cards",
         };
 
     private static readonly IReadOnlyDictionary<string, string> ChoiceEffectNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Discard"] = "弃",
-        ["DiscardAndDraw"] = "弃",
-        ["Exhaust"] = "耗尽",
-        ["Transform"] = "变换",
-        ["MoveToHand"] = "选择",
-        ["MoveToHandFreeThisTurn"] = "选择",
-        ["GenerateToHand"] = "选择",
-        ["Upgrade"] = "升级",
-        ["Duplicate"] = "复制",
-        ["SetFreeThisCombat"] = "选择",
-        ["AutoPlayRepeated"] = "选择",
-        ["ApplySly"] = "选择",
-        ["ApplyRetain"] = "选择",
-        ["ApplyEthereal"] = "选择",
-        ["Nightmare"] = "选择",
-        ["Modify"] = "选择",
-        ["ApplyKnowledgeCurse"] = "选择",
+        ["Discard"] = "choice.discard",
+        ["DiscardAndDraw"] = "choice.discard",
+        ["Exhaust"] = "choice.exhaust",
+        ["Transform"] = "choice.transform",
+        ["MoveToHand"] = "choice.choose",
+        ["MoveToHandFreeThisTurn"] = "choice.choose",
+        ["GenerateToHand"] = "choice.choose",
+        ["Upgrade"] = "choice.upgrade",
+        ["Duplicate"] = "choice.duplicate",
+        ["SetFreeThisCombat"] = "choice.choose",
+        ["AutoPlayRepeated"] = "choice.choose",
+        ["ApplySly"] = "choice.choose",
+        ["ApplyRetain"] = "choice.choose",
+        ["ApplyEthereal"] = "choice.choose",
+        ["Nightmare"] = "choice.choose",
+        ["Modify"] = "choice.choose",
+        ["ApplyKnowledgeCurse"] = "choice.choose",
     };
 
-    /// <summary>Every source string looked up through the maps above; the logic check requires an English entry for each.</summary>
-    internal static IEnumerable<string> MappedSourceStrings
+    /// <summary>Every localization key used by the maps above.</summary>
+    internal static IEnumerable<string> MappedKeys
         => ErrorNames.Values.Concat(PauseNames.Values)
             .Concat(ChoiceEffectNames.Values)
             .Concat(ImportReasonNames.Values).Concat(ContentFallbackNames.Values)
@@ -194,7 +193,7 @@ internal static class SolverPanelText
     internal static string Error(string code)
         => ErrorNames.TryGetValue(code, out string? source)
             ? SolverText.Get(source)
-            : SolverText.Format($"错误：{code}");
+            : SolverText.Format("ui.error", code);
 
     /// <summary>
     /// Warning under a route summary when at least one member dropped children at a Battle
@@ -208,15 +207,15 @@ internal static class SolverPanelText
         foreach (string region in regions.Keys)
         {
             string name = region == "Cards"
-                ? SolverText.Get("牌数")
+                ? SolverText.Get("ui.card_count")
                 : CapacityRegionNames.TryGetValue(region, out string? translated)
                     ? SolverText.Get(translated)
-                    : SolverText.Get("战斗状态");
+                    : SolverText.Get("ui.combat_state");
             if (!names.Contains(name, StringComparer.Ordinal))
                 names.Add(name);
         }
-        string joined = string.Join(SolverText.Get("、"), names);
-        return SolverText.Format($"部分打法因{joined}超出求解器容量被跳过，可能还有更好的路线");
+        string joined = string.Join(SolverText.Get("text.list_separator"), names);
+        return SolverText.Format("ui.some_routes_were_skipped_because_the_exceeded_the_solver_capacity", joined);
     }
 
     /// <summary>
@@ -226,36 +225,36 @@ internal static class SolverPanelText
     internal static string ErrorReason(CombatFailureReason? reason)
     {
         if (reason is null)
-            return SolverText.Get("详细原因已写入日志");
+            return SolverText.Get("ui.full_details_are_in_the_log");
         return reason.Kind switch
         {
             CombatReasonKind.Import => ImportReasonText(reason),
             CombatReasonKind.ImportCapacity => CapacityText(reason),
             CombatReasonKind.CapacityRuntime => CapacityText(reason),
             CombatReasonKind.RouteCapacity => CapacityText(reason),
-            CombatReasonKind.ImportUnsupported => SolverText.Get("战斗中有求解器尚未支持的内容"),
-            CombatReasonKind.InvalidData => SolverText.Get("游戏返回的战斗数据无法校验"),
-            CombatReasonKind.InvalidOperation => SolverText.Get("当前游戏状态不允许继续"),
-            CombatReasonKind.RequestInvalid => SolverText.Get("搜索请求无效"),
-            CombatReasonKind.RouteInvalid => SolverText.Get("搜索得到的路线无法回放"),
-            CombatReasonKind.RouteUnsupported => SolverText.Get("搜索路线含有尚未支持的效果"),
-            CombatReasonKind.SearchNoRoute => SolverText.Get("没有找到任何可执行路线"),
-            CombatReasonKind.SearchMemoryLimit => SolverText.Get("达到内存上限，没有找到可执行路线"),
-            CombatReasonKind.SearchCapacityBounded => SolverText.Get("生成的牌太多，超出求解器容量，没有找到能赢的路线"),
-            CombatReasonKind.SearchFailed => SolverText.Get("搜索过程出错，没有返回可执行路线"),
-            CombatReasonKind.TurnSetupFailed => SolverText.Get("没有找到可执行的回合开始选牌方案"),
-            CombatReasonKind.UnsupportedRuntime => SolverText.Get("搜索遇到尚未支持的游戏语义"),
-            CombatReasonKind.Timeout => SolverText.Get("等待游戏响应超时"),
+            CombatReasonKind.ImportUnsupported => SolverText.Get("ui.this_combat_contains_content_the_solver_does_not_support"),
+            CombatReasonKind.InvalidData => SolverText.Get("ui.the_combat_data_returned_by_the_game_failed_validation"),
+            CombatReasonKind.InvalidOperation => SolverText.Get("ui.the_current_game_state_does_not_allow_continuing"),
+            CombatReasonKind.RequestInvalid => SolverText.Get("ui.the_search_request_is_invalid"),
+            CombatReasonKind.RouteInvalid => SolverText.Get("ui.the_route_returned_by_the_search_cannot_be_replayed"),
+            CombatReasonKind.RouteUnsupported => SolverText.Get("ui.the_search_route_contains_an_effect_the_solver_does_not"),
+            CombatReasonKind.SearchNoRoute => SolverText.Get("ui.no_executable_route_was_found"),
+            CombatReasonKind.SearchMemoryLimit => SolverText.Get("ui.the_search_reached_the_memory_limit_without_finding_an_executable"),
+            CombatReasonKind.SearchCapacityBounded => SolverText.Get("ui.the_solver_generated_too_many_cards_and_exceeded_its_capacity"),
+            CombatReasonKind.SearchFailed => SolverText.Get("ui.the_search_failed_before_returning_an_executable_route"),
+            CombatReasonKind.TurnSetupFailed => SolverText.Get("ui.no_executable_turn_start_choice_plan_was_found"),
+            CombatReasonKind.UnsupportedRuntime => SolverText.Get("ui.the_search_encountered_game_behavior_the_solver_does_not_support"),
+            CombatReasonKind.Timeout => SolverText.Get("ui.timed_out_waiting_for_the_game"),
             CombatReasonKind.Deployment => DeploymentReasonText(reason),
             CombatReasonKind.Deviation => DeviationReasonText(reason),
-            CombatReasonKind.ChoiceMismatch => SolverText.Get("游戏当前的选牌请求和路线里的选择对不上"),
+            CombatReasonKind.ChoiceMismatch => SolverText.Get("ui.the_game_s_current_choice_request_does_not_match_the"),
             CombatReasonKind.RepeatedFailure => reason.Inner is { } inner
                 ? ErrorReason(inner)
-                : SolverText.Get("连续多次搜索失败"),
-            CombatReasonKind.DeathTurn => SolverText.Get("路线预计本回合会死亡"),
-            CombatReasonKind.LiveEndTurnRisk => SolverText.Get("结束回合前的实机复核发现死亡或更大战损"),
-            CombatReasonKind.NoSurvival => SolverText.Get("未找到生还路线，路线预计会死亡"),
-            _ => SolverText.Get("详细原因已写入日志"),
+                : SolverText.Get("ui.the_search_failed_repeatedly"),
+            CombatReasonKind.DeathTurn => SolverText.Get("ui.the_route_predicts_death_this_turn"),
+            CombatReasonKind.LiveEndTurnRisk => SolverText.Get("ui.the_live_end_turn_check_found_death_or_more_hp"),
+            CombatReasonKind.NoSurvival => SolverText.Get("ui.no_surviving_route_the_route_is_predicted_to_die"),
+            _ => SolverText.Get("ui.full_details_are_in_the_log"),
         };
     }
 
@@ -266,12 +265,12 @@ internal static class SolverPanelText
             && ContentNameFormats.TryGetValue(code, out string? named))
         {
             return CombatDisplayNames.TryContentTitle(code, reason.Detail, out string title)
-                ? string.Format(CultureInfo.CurrentCulture, SolverText.Get(named), title)
+                ? string.Format(SolverText.Culture, SolverText.Get(named), title)
                 : SolverText.Get(fallback);
         }
         return reason.Code is { } known && ImportReasonNames.TryGetValue(known, out string? source)
             ? SolverText.Get(source)
-            : SolverText.Get("详细原因已写入日志");
+            : SolverText.Get("ui.full_details_are_in_the_log");
     }
 
     private static string CapacityText(CombatFailureReason reason)
@@ -279,26 +278,26 @@ internal static class SolverPanelText
         if (reason.Region == "Cards")
         {
             if (reason.Actual is { } actual && reason.Capacity is { } capacity)
-                return SolverText.Format($"牌组共 {actual} 张，超过求解器上限 {capacity} 张");
+                return SolverText.Format("ui.the_deck_has_cards_the_solver_limit_is", actual, capacity);
             if (reason.Capacity is { } onlyCapacity)
-                return SolverText.Format($"牌组超过求解器上限 {onlyCapacity} 张");
+                return SolverText.Format("ui.the_deck_exceeds_the_solver_limit_of_cards", onlyCapacity);
             if (reason.Actual is { } onlyActual)
-                return SolverText.Format($"牌组共 {onlyActual} 张，超过求解器容量");
-            return SolverText.Get("牌组超出求解器容量");
+                return SolverText.Format("ui.the_deck_has_cards_and_exceeds_the_solver_s_capacity", onlyActual);
+            return SolverText.Get("ui.the_deck_exceeds_the_solver_s_capacity");
         }
         string region = reason.Region is { } name
             && CapacityRegionNames.TryGetValue(name, out string? translated)
             ? SolverText.Get(translated)
-            : SolverText.Get("战斗状态");
+            : SolverText.Get("ui.combat_state");
         return reason.Capacity is { } limit
-            ? SolverText.Format($"{region}超出求解器上限 {limit}")
-            : SolverText.Get("战斗状态超出求解器容量");
+            ? SolverText.Format("ui.the_exceeded_the_solver_limit_of", region, limit)
+            : SolverText.Get("ui.the_combat_state_exceeded_the_solver_s_capacity");
     }
 
     private static string DeploymentReasonText(CombatFailureReason reason)
         => reason.Code is { } code && DeploymentReasonNames.TryGetValue(code, out string? source)
             ? SolverText.Get(source)
-            : SolverText.Get("详细原因已写入日志");
+            : SolverText.Get("ui.full_details_are_in_the_log");
 
     private static string DeviationReasonText(CombatFailureReason reason)
     {
@@ -338,19 +337,19 @@ internal static class SolverPanelText
                 pile = true;
         }
         List<string> parts = [];
-        if (hand) parts.Add(SolverText.Get("手牌和路线对不上"));
-        if (energy) parts.Add(SolverText.Get("能量和路线对不上"));
-        if (stars) parts.Add(SolverText.Get("星能和路线对不上"));
-        if (potions) parts.Add(SolverText.Get("药水和路线对不上"));
-        if (turn) parts.Add(SolverText.Get("回合和路线对不上"));
-        if (enemies) parts.Add(SolverText.Get("敌人和路线对不上"));
-        if (powers) parts.Add(SolverText.Get("能力和路线对不上"));
-        if (relics) parts.Add(SolverText.Get("遗物和路线对不上"));
-        if (life) parts.Add(SolverText.Get("生命和路线对不上"));
-        if (pile) parts.Add(SolverText.Get("牌堆和路线对不上"));
+        if (hand) parts.Add(SolverText.Get("ui.the_hand_does_not_match_the_route"));
+        if (energy) parts.Add(SolverText.Get("ui.energy_does_not_match_the_route"));
+        if (stars) parts.Add(SolverText.Get("ui.stars_do_not_match_the_route"));
+        if (potions) parts.Add(SolverText.Get("ui.the_potions_do_not_match_the_route"));
+        if (turn) parts.Add(SolverText.Get("ui.the_turn_does_not_match_the_route"));
+        if (enemies) parts.Add(SolverText.Get("ui.the_enemies_do_not_match_the_route"));
+        if (powers) parts.Add(SolverText.Get("ui.the_powers_do_not_match_the_route"));
+        if (relics) parts.Add(SolverText.Get("ui.the_relics_do_not_match_the_route"));
+        if (life) parts.Add(SolverText.Get("ui.hp_does_not_match_the_route"));
+        if (pile) parts.Add(SolverText.Get("ui.the_card_piles_do_not_match_the_route"));
         return parts.Count > 0
-            ? string.Join(SolverText.Get("、"), parts)
-            : SolverText.Get("实际局面和路线对不上");
+            ? string.Join(SolverText.Get("text.list_separator"), parts)
+            : SolverText.Get("ui.the_live_state_does_not_match_the_route");
     }
 
     internal static string Pause(string? code, int turn)
@@ -358,16 +357,16 @@ internal static class SolverPanelText
             ? SolverText.Get(pauseSource)
             : code switch
             {
-                "turn_limit" => SolverText.Get("回合数超过上限，已暂停执行"),
-                "capacity_bounded" => SolverText.Format($"第 {turn} 回合搜索超出战斗状态容量，已暂停执行"),
-                "repeated_failure" => SolverText.Format($"第 {turn} 回合连续多次失败，已暂停执行"),
-                "choice_mismatch" => SolverText.Get("选牌计划与实际请求不一致，已暂停执行"),
-                "death_turn" => SolverText.Format($"第 {turn} 回合是预计死亡回合，已暂停执行"),
-                "live_end_turn_risk" => SolverText.Get("结束回合的实机复核发现风险，已暂停执行"),
-                "no_survival" => SolverText.Get("未找到生还路线，已暂停执行"),
-                "stopped" => SolverText.Get("搜索已停止"),
-                null => SolverText.Get("执行已暂停"),
-                _ => SolverText.Format($"执行已暂停：{code}"),
+                "turn_limit" => SolverText.Get("ui.turn_limit_exceeded_playing_paused"),
+                "capacity_bounded" => SolverText.Format("ui.turn_the_search_exceeded_the_combat_state_capacity_playing_paused", turn),
+                "repeated_failure" => SolverText.Format("ui.turn_repeated_failures_playing_paused", turn),
+                "choice_mismatch" => SolverText.Get("ui.the_card_choice_plan_did_not_match_the_live_request"),
+                "death_turn" => SolverText.Format("ui.turn_is_projected_to_be_fatal_playing_paused", turn),
+                "live_end_turn_risk" => SolverText.Get("ui.the_live_end_turn_check_found_a_risk_playing_paused"),
+                "no_survival" => SolverText.Get("ui.no_surviving_route_playing_paused"),
+                "stopped" => SolverText.Get("ui.search_stopped"),
+                null => SolverText.Get("ui.playing_paused"),
+                _ => SolverText.Format("ui.playing_paused_reason", code),
             };
 
     internal static string ChoiceEffect(string code)
@@ -376,31 +375,31 @@ internal static class SolverPanelText
     /// <summary>Why the search slot is disabled; codes come from the controller's CanSolve.</summary>
     internal static string SearchBlock(string? code) => code switch
     {
-        "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
-        "actions_running" => SolverText.Get("请等当前动作完成。"),
-        "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
-        "turn_setup" => SolverText.Get("等待回合开始选择"),
-        "executing" => SolverText.Get("请先停止自动出牌。"),
-        "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
-        "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),
-        "not_playable" => SolverText.Get("当前战斗状态不能搜索。"),
-        "not_in_combat" => SolverText.Get("当前不在战斗中。"),
-        _ => SolverText.Get("当前状态不能搜索。"),
+        "enemy_turn" => SolverText.Get("ui.enemy_turn_search_when_your_turn_begins"),
+        "actions_running" => SolverText.Get("ui.wait_for_the_current_action_to_finish"),
+        "turn_start" => SolverText.Get("ui.turn_start_is_resolving_search_after_the_opening_choice"),
+        "turn_setup" => SolverText.Get("ui.waiting_for_turn_start_choice"),
+        "executing" => SolverText.Get("ui.stop_automatic_play_first"),
+        "searching" => SolverText.Get("ui.the_search_is_still_winding_down_please_wait"),
+        "multiplayer" => SolverText.Get("ui.search_is_unavailable_in_multiplayer"),
+        "not_playable" => SolverText.Get("ui.search_is_unavailable_in_the_current_combat_state"),
+        "not_in_combat" => SolverText.Get("ui.not_in_combat"),
+        _ => SolverText.Get("ui.search_is_unavailable_in_the_current_state"),
     };
 
     internal static string Tier(SearchPerformanceTier tier) => tier switch
     {
-        SearchPerformanceTier.Low => SolverText.Get("低档"),
-        SearchPerformanceTier.Medium => SolverText.Get("中档"),
-        SearchPerformanceTier.High => SolverText.Get("高档"),
-        SearchPerformanceTier.ExtraHigh => SolverText.Get("极高"),
+        SearchPerformanceTier.Low => SolverText.Get("ui.low"),
+        SearchPerformanceTier.Medium => SolverText.Get("ui.medium"),
+        SearchPerformanceTier.High => SolverText.Get("ui.high"),
+        SearchPerformanceTier.ExtraHigh => SolverText.Get("ui.extra_high"),
         _ => throw new ArgumentOutOfRangeException(nameof(tier), tier, null),
     };
 
     internal static string MemorySource(SearchMemoryBudgetSource source) => source switch
     {
-        SearchMemoryBudgetSource.Settings => SolverText.Get("设置"),
-        SearchMemoryBudgetSource.Default => SolverText.Get("默认"),
+        SearchMemoryBudgetSource.Settings => SolverText.Get("settings.title"),
+        SearchMemoryBudgetSource.Default => SolverText.Get("ui.default"),
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 }

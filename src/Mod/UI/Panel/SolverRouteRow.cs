@@ -83,7 +83,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         layout.AddChild(_currentMarker);
 
         TurnLabel = SolverUiTokens.CreateLabel(
-            SolverText.Format($"第 {index + 1} 回合"),
+            SolverText.Format("ui.turn", index + 1),
             SolverUiTokens.Type.Body,
             index == 0 ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextPrimary);
         TurnLabel.CustomMinimumSize = new Vector2(SolverUiTokens.Size.TurnColumnWidth,
@@ -161,7 +161,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         _rebuildsForTest++;
 #endif
         ClearActions();
-        TurnLabel.Text = SolverText.Format($"第 {turn.Turn} 回合");
+        TurnLabel.Text = SolverText.Format("ui.turn", turn.Turn);
         foreach (string choice in turn.TurnStartChoices)
         {
             Control pill = SolverActionPill.CreateChoice(choice);
@@ -171,7 +171,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         if (turn.Actions.Count == 0)
         {
             Control endTurn = turn.EndTurnAction == null
-                ? SolverActionPill.CreateStatus(SolverText.Get("直接结束"), SolverUiTokens.Palette.TextMuted)
+                ? SolverActionPill.CreateStatus(SolverText.Get("ui.end_now"), SolverUiTokens.Palette.TextMuted)
                 : SolverActionPill.Create(turn.EndTurnAction);
             ActionFlow.AddChild(endTurn);
             _endTurnAction = endTurn;

@@ -25,30 +25,30 @@ Combat results (STS2 Solver / CombatSolver throughout):
 
 | Character | Combats | Wins (v0.2.7 / v0.51.5) | Avg HP lost, combats both won |
 |---|---:|---:|---:|
-| Ironclad | 21 | 18 / 18 | 19.7 / 20.1 |
+| Ironclad | 21 | 18 / 18 | 20.2 / 20.1 |
 | Silent | 21 | 15 / 15 | 13.7 / 13.9 |
 | Defect | 21 | 19 / 18 | 18.3 / 18.8 |
-| Necrobinder | 21 | 17 / 17 | 16.8 / 15.5 |
-| Regent | 21 | 18 / 18 | 20.1 / 22.0 |
-| Fool | 21 | 16 / 16 | 19.9 / 21.4 |
-| **Total** | **126** | **103 / 102** | **18.2 / 18.7** |
+| Necrobinder | 21 | 17 / 17 | 15.9 / 15.5 |
+| Regent | 21 | 18 / 18 | 17.9 / 22.0 |
+| Fool | 21 | 16 / 16 | 19.8 / 21.4 |
+| **Total** | **126** | **103 / 102** | **17.7 / 18.7** |
 
 | Encounter | Combats | Wins (v0.2.7 / v0.51.5) | Avg HP lost, combats both won |
 |---|---:|---:|---:|
-| Normal | 48 | 48 / 47 | 11.8 / 12.5 |
+| Normal | 48 | 48 / 47 | 11.7 / 12.5 |
 | Elite | 48 | 36 / 36 | 21.6 / 22.9 |
-| Boss | 30 | 19 / 19 | 27.5 / 26.3 |
+| Boss | 30 | 19 / 19 | 25.3 / 26.3 |
 
-STS2 Solver wins all 102 combats won by CombatSolver, plus one more. Of the 102 combats both win, STS2 Solver loses less HP in 21, CombatSolver in 17, and 64 are equal. HP lost is opening HP minus final HP.
+STS2 Solver wins all 102 combats won by CombatSolver, plus 1 more. Of the 102 combats both win, STS2 Solver loses less HP in 22, CombatSolver in 15, and 65 are equal. HP lost is opening HP minus final HP.
 
 Search performance:
 
 | | Median time | Mean time | Max time | Nodes expanded per second |
 |---|---:|---:|---:|---:|
-| STS2 Solver v0.2.7 | 1.7 s | 2.9 s | 25.8 s | 23,731 |
+| STS2 Solver v0.2.7 | 1.7 s | 3.0 s | 29.9 s | 22,487 |
 | CombatSolver v0.51.5 | 6.0 s | 10.7 s | 120.9 s | 3,049 |
 
-STS2 Solver searches faster in 119 of the 126 combats. Opening searches take 361 seconds in total versus 1,343 seconds for CombatSolver, a 73.1% reduction, with about 7.8× as many nodes expanded per second.
+STS2 Solver searches faster in 118 of the 126 combats. Opening searches take 373 seconds in total versus 1,343 seconds for CombatSolver, a 72.2% reduction, with about 7.4× as many nodes expanded per second.
 
 Test conditions:
 

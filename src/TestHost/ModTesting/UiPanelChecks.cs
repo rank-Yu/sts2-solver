@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
@@ -13,7 +14,7 @@ namespace Sts2Solver;
 /// <summary>
 /// Structural checks of the in-combat panel during one full-combat request. Every check compares
 /// stable keys and numbers (phase enum names, turn numbers, global action indexes) with the
-/// snapshot the panel last applied; localized text is never asserted. Results go to
+/// snapshot the panel last applied. Locale checks compare controls with their catalog and font. Results go to
 /// <c>results/&lt;root&gt;/ui-panel.json</c>.
 /// </summary>
 internal static class UiPanelChecks
@@ -229,7 +230,91 @@ internal static class UiPanelChecks
         }
         string[] missingKeys = SolverText.ValidateCatalogs();
         session.Check("locale_catalogs_complete", missingKeys.Length == 0, string.Join("|", missingKeys));
+        await CheckSelectableLanguagesAsync(host, panel, session);
         return session;
+    }
+
+    private static async Task CheckSelectableLanguagesAsync(NGame host, SolverOverlay panel, Session session)
+    {
+        string original = LocManager.Instance.Language;
+        Vector2 originalSize = panel.PanelForTest!.Size;
+        try
+        {
+            foreach (string language in LocManager.Languages.Where(l => !LocManager.IsHiddenLanguage(l)))
+            {
+                LocManager.Instance.SetLanguage(language);
+                await Frames(host, 4);
+                session.Check("locale_" + language, panel.ProbeForTest().Language == language
+                    && panel.AutoSearchSwitchForTest!.GetParent().GetChild<Label>(0).Text == SolverText.Get("action.auto_search")
+                    && panel.AutoExecuteSwitchForTest!.GetParent().GetChild<Label>(0).Text == SolverText.Get("action.auto_play"), Describe(panel));
+                foreach (float width in new[] { 560f, 820f })
+                {
+                    panel.ResizeForTest(new Vector2(width, 440));
+                    await Frames(host, 4);
+                    Rect2 bounds = panel.PanelForTest!.GetGlobalRect().Grow(1);
+                    Button[] buttons = [panel.AutoSearchSwitchForTest!, panel.AutoExecuteSwitchForTest!,
+                        panel.SearchButtonForTest!, panel.RestartSearchButtonForTest!,
+                        panel.ExecuteTurnButtonForTest!, panel.ExecuteCombatButtonForTest!,
+                        panel.StopExecutionButtonForTest!, panel.SettingsButtonForTest!];
+                    Button[] visible = buttons.Where(b => b.IsVisibleInTree()).ToArray();
+                    string[] outside = visible.Where(b => !bounds.Encloses(b.GetGlobalRect()))
+                        .Select(b => b.Text + ":" + b.GetGlobalRect()).ToArray();
+                    session.Check($"locale_bounds_{language}_{width}", outside.Length == 0,
+                        $"panel={bounds};" + string.Join("|", outside));
+                    bool overlap = visible.SelectMany((b, i) => visible.Skip(i + 1)
+                        .Select(other => b.GetGlobalRect().Grow(-1).Intersects(other.GetGlobalRect().Grow(-1))))
+                        .Any(hit => hit);
+                    session.Check($"locale_buttons_{language}_{width}", !overlap, Describe(panel));
+                }
+                Font font = panel.SearchButtonForTest!.GetThemeFont("font");
+                string missing = string.Concat(SolverText.CatalogsForTesting[language].Values
+                    .SelectMany(text => text.EnumerateRunes()).Distinct()
+                    .Where(rune => !System.Text.Rune.IsWhiteSpace(rune) && !font.HasChar(rune.Value))
+                    .Select(rune => rune.ToString()));
+                session.Check("locale_glyphs_" + language, missing.Length == 0, missing);
+                await Press(host, panel.SettingsButtonForTest);
+                session.Check("locale_settings_" + language, SettingsShown(panel)
+                    && panel.SettingsButtonForTest!.Text == SolverText.Get("ui.back"), Describe(panel));
+                session.Check("locale_settings_bounds_" + language,
+                    HorizontalTextBounds(panel.SettingsPageForTest!, panel.PanelForTest!.GetGlobalRect(), out string settingsBounds), settingsBounds);
+                await Press(host, panel.SettingsButtonForTest);
+                await Press(host, panel.GrowthButtonForTest);
+                session.Check("locale_strategy_" + language,
+                    SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("strategy.growth")), Describe(panel));
+                Button close = panel.SidebarForTest!.CloseButtonForTest!;
+                session.Check("locale_close_glyph_" + language, close.GetThemeFont("font").HasChar('×'), close.Text);
+                session.Check("locale_strategy_bounds_" + language,
+                    HorizontalTextBounds(panel.SidebarForTest!, panel.SidebarForTest!.GetGlobalRect(), out string strategyBounds), strategyBounds);
+                await Press(host, panel.GrowthButtonForTest);
+            }
+        }
+        finally
+        {
+            LocManager.Instance.SetLanguage(original);
+            panel.ResizeForTest(originalSize);
+            await Frames(host, 4);
+            await Press(host, panel.PotionButtonForTest);
+        }
+    }
+
+    private static bool HorizontalTextBounds(Node root, Rect2 bounds, out string detail)
+    {
+        List<string> outside = [];
+        void Visit(Node node)
+        {
+            if (node is Control control && control.IsVisibleInTree()
+                && node is Label or Button or LineEdit)
+            {
+                Rect2 rect = control.GetGlobalRect();
+                if (rect.Position.X < bounds.Position.X - 1 || rect.End.X > bounds.End.X + 1)
+                    outside.Add($"{node.Name}:{rect}");
+            }
+            foreach (Node child in node.GetChildren())
+                Visit(child);
+        }
+        Visit(root);
+        detail = $"bounds={bounds};" + string.Join("|", outside);
+        return outside.Count == 0;
     }
 
     /// <summary>

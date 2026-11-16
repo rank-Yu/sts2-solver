@@ -46,8 +46,10 @@ def main():
     catalogs = {path.stem: json.loads(path.read_text(), object_pairs_hook=unique_object)
                 for path in sorted(DIRECTORY.glob("*.json"))}
     reference = catalogs["eng"]
-    assert "zhs" in catalogs
+    expected = set("eng zhs zht deu esp fra ind ita jpn kor pol ptb rus spa tha tur".split())
     problems = []
+    if set(catalogs) != expected:
+        problems.append(f"language set: missing={sorted(expected - catalogs.keys())} extra={sorted(catalogs.keys() - expected)}")
     for language, catalog in catalogs.items():
         if not re.fullmatch(r"[a-z]{3}", language):
             problems.append(f"invalid language: {language}")

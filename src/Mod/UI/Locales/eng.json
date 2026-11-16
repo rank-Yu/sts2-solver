@@ -365,5 +365,6 @@
   "text.named_choice": "{0}: {1} {2}",
   "text.enchanted_card": "{0} {1}",
   "summary.live_end_turn_risk": "[color={0}]Planned HP loss: {1} HP; live check before End Turn: {2} HP. Auto-play did not end the turn.[/color]\n",
-  "text.choice_suffix": " ({0})"
+  "text.choice_suffix": " ({0})",
+  "text.counted_name": "{0} ×{1}"
 }

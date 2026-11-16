@@ -207,7 +207,7 @@ internal sealed record SolverOverlaySnapshot(
         foreach (StrategyGrowthUi gain in result.StrategyGrowth)
         {
             string name = SolverGrowthStrategyPage.GainTitle(Enum.Parse<GrowthSource>(gain.Source));
-            growth.Add(gain.Count == 1 ? name : $"{name} ×{gain.Count}");
+            growth.Add(gain.Count == 1 ? name : SolverText.Format("text.counted_name", name, gain.Count));
         }
         string separator = SolverText.Get("text.list_separator");
         List<SolverStrategyOutcome> parts = [];

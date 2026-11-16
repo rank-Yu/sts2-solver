@@ -21,10 +21,9 @@ internal static partial class SolverText
 
     internal static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CatalogsForTesting => Catalogs;
 
-    // Until their own catalogs are supplied, traditional Chinese uses simplified Chinese,
-    // and other game languages use English. Missing keys in an available catalog are errors.
+    // Normal selectable game languages have complete catalogs; hidden languages use English.
     internal static string ResolveLanguage(string language)
-        => Catalogs.ContainsKey(language) ? language : language == "zht" ? "zhs" : "eng";
+        => Catalogs.ContainsKey(language) ? language : "eng";
 
     internal static void Initialize()
         => ModLog.Info($"[Sts2Solver] LOCALE_CATALOG languages={Catalogs.Count} entries={Catalogs["eng"].Count}");

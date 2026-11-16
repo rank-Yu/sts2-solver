@@ -83,6 +83,8 @@ internal sealed partial class SolverSidebar : PanelContainer
         _title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         heading.AddChild(_title);
         _close = SolverUiTokens.CreateButton("×", SolverButtonStyle.Secondary);
+        // This symbol uses the base game font; the Thai text font has no multiplication sign.
+        _close.RemoveThemeFontOverride("font");
         _close.Name = "CloseSidebar";
         _close.CustomMinimumSize = new Vector2(SolverUiTokens.Size.ButtonHeight, SolverUiTokens.Size.ButtonHeight);
         _close.AddThemeFontSizeOverride("font_size", SolverUiTokens.Type.Title);

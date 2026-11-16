@@ -11,6 +11,29 @@ internal static class LocalizationChecks
         string original = LocManager.Instance.Language;
         try
         {
+            string[] selectable = LocManager.Languages.Where(l => !LocManager.IsHiddenLanguage(l)).ToArray();
+            Require(selectable.Order().SequenceEqual(SolverText.CatalogsForTesting.Keys.Order()), "selectable_languages");
+            foreach (string language in selectable)
+            {
+                LocManager.Instance.SetLanguage(language);
+                Require(SolverText.Language == language, language + ":catalog");
+                Require(SolverText.Get("choice.exhaust")
+                    == new LocString("card_keywords", "EXHAUST.title").GetFormattedText(), language + ":exhaust");
+                Require(SolverText.Get("choice.transform")
+                    == new LocString("static_hover_tips", "TRANSFORM.title").GetFormattedText(), language + ":transform");
+                Require(CombatDisplayNames.CaptureEmpty().OstyName
+                    == ModelDb.Monster<MegaCrit.Sts2.Core.Models.Monsters.Osty>().Title.GetFormattedText(), language + ":osty");
+                CheckNames("unsupported-orb", ModelDb.All.OfType<OrbModel>()
+                    .Select(m => (m.Id.Entry, m.Title.GetFormattedText())));
+                CheckNames("unsupported-enchantment", ModelDb.All.OfType<EnchantmentModel>()
+                    .Select(m => (m.Id.Entry, m.Title.GetFormattedText())));
+                CheckNames("unsupported-affliction", ModelDb.All.OfType<AfflictionModel>()
+                    .Select(m => (m.Id.Entry, m.Title.GetFormattedText())));
+                foreach (string key in SolverText.CatalogsForTesting[language].Keys)
+                    _ = SolverText.Format(key, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5);
+            }
+            Require(!SolverText.CatalogsForTesting.ContainsKey("ara")
+                && SolverText.ResolveLanguage("ara") == "eng", "hidden_language");
             LocManager.Instance.SetLanguage("zhs");
             Require(SolverText.Get("choice.exhaust")
                 == new LocString("card_keywords", "EXHAUST.title").GetFormattedText(), "exhaust");
@@ -44,7 +67,7 @@ internal static class LocalizationChecks
             Require(SolverSettingsPage.FormatGigabytes(2_600_000_000) == "2,6", "french_input_display");
 
             LocManager.Instance.SetLanguage("zht");
-            Require(SolverText.Language == (SolverText.CatalogsForTesting.ContainsKey("zht") ? "zht" : "zhs"),
+            Require(SolverText.Language == "zht",
                 "traditional_catalog_selection");
             Require(CombatDisplayNames.CaptureEmpty().OstyName
                 == ModelDb.Monster<MegaCrit.Sts2.Core.Models.Monsters.Osty>().Title.GetFormattedText(), "osty_zht");

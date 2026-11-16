@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "v113-hopper-quest",
   "input": "{\u0022kind\u0022: \u0022fixture\u0022, \u0022fixture\u0022: \u0022fixtures/flash-v113-hopper-quest.json\u0022}",
-  "rulesSha256": "fbd118709dbda730ec242f4fc5a4175cc47a8709edf3167df72274252f9f2870",
+  "rulesSha256": "4ed39cd9f8c14a30076c529f2c0e79bb6348e956c8709d972c6cf7075d17b061",
   "counts": {
     "roots": 1,
     "k1": 1,

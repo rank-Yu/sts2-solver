@@ -21,6 +21,35 @@ internal static class ImportBoundaryChecks
     {
         CheckPoweredHits(state, player, rules);
         CheckRelicHeal(player);
+        CheckPotionSlots(state, player, rules);
+    }
+
+    private static void CheckPotionSlots(CombatState state, Player player, Rules rules)
+    {
+        int originalCount = player.PotionSlots.Count;
+        Registry.TryPotion("FIRE_POTION", out ushort fireId);
+        try
+        {
+            foreach (int count in new[] { 7, 10, 12 })
+            {
+                player.SetMaxPotionCountInternal(count);
+                PotionModel fire = ModelDb.Potion<MegaCrit.Sts2.Core.Models.Potions.FirePotion>().ToMutable();
+                if (!player.AddPotionInternal(fire, count - 1, silent: true).success)
+                    throw new InvalidDataException("Unable to fill the high potion slot.");
+                Battle imported = BattleImporter.Import(state, player, rules);
+                if (imported.PotionSlotCount != count || imported.Potions[count - 1] != fireId + 1)
+                    throw new InvalidDataException($"Potion import lost slot {count}.");
+                fire.Discard();
+            }
+            player.SetMaxPotionCountInternal(13);
+            ExpectRejected("potion-slots-13", ImportReason.Capacity,
+                () => BattleImporter.Import(state, player, rules));
+        }
+        finally
+        {
+            player.SetMaxPotionCountInternal(originalCount);
+        }
+        Console.WriteLine("IMPORT_POTION_SLOTS accepted=7/10/12 rejected=13");
     }
 
     private static void CheckPoweredHits(CombatState state, Player player, Rules rules)

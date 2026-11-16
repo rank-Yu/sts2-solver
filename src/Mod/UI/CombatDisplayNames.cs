@@ -30,6 +30,9 @@ internal sealed class CombatDisplayNames
     private static Dictionary<string, string> _relicNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _powerNames = new(StringComparer.Ordinal);
     private static Dictionary<string, string> _monsterNames = new(StringComparer.Ordinal);
+    private static Dictionary<string, string> _orbNames = new(StringComparer.Ordinal);
+    private static Dictionary<string, string> _enchantmentNames = new(StringComparer.Ordinal);
+    private static Dictionary<string, string> _afflictionNames = new(StringComparer.Ordinal);
     private static WeakReference<CombatState>? _rosterCombat;
     private static string? _rosterLanguage;
     private static Dictionary<uint, string> _rosterNames = [];
@@ -55,7 +58,8 @@ internal sealed class CombatDisplayNames
 
     /// <summary>Empty name table for a snapshot applied while no native combat state is available.</summary>
     internal static CombatDisplayNames CaptureEmpty()
-        => new([], "玩家", "Osty");
+        => new([], SolverText.Get("text.player"),
+            ModelDb.Monster<MegaCrit.Sts2.Core.Models.Monsters.Osty>().Title.GetFormattedText());
 
     internal static CombatDisplayNames Capture(CombatState state)
     {
@@ -111,8 +115,9 @@ internal sealed class CombatDisplayNames
             _rosterNames[combatId] = name;
         }
         Dictionary<uint, string> creatures = new(_rosterNames);
-        string playerName = player.Character?.Title.GetFormattedText() ?? "玩家";
-        string ostyName = player.Osty?.Name ?? "Osty";
+        string playerName = player.Character.Title.GetFormattedText();
+        string ostyName = player.Osty?.Name
+            ?? ModelDb.Monster<MegaCrit.Sts2.Core.Models.Monsters.Osty>().Title.GetFormattedText();
         return new CombatDisplayNames(creatures, playerName, ostyName);
     }
 
@@ -160,6 +165,12 @@ internal sealed class CombatDisplayNames
                 return _potionNames.TryGetValue(nativeId, out title!);
             case "unsupported-monster":
                 return _monsterNames.TryGetValue(nativeId, out title!);
+            case "unsupported-orb":
+                return _orbNames.TryGetValue(nativeId, out title!);
+            case "unsupported-enchantment":
+                return _enchantmentNames.TryGetValue(nativeId, out title!);
+            case "unsupported-affliction":
+                return _afflictionNames.TryGetValue(nativeId, out title!);
             default:
                 return false;
         }
@@ -299,6 +310,12 @@ internal sealed class CombatDisplayNames
             Dictionary<string, string> monsters = new(StringComparer.Ordinal);
             foreach (MonsterModel monster in ModelDb.All.OfType<MonsterModel>())
                 monsters.TryAdd(monster.Id.Entry, monster.Title.GetFormattedText());
+            _orbNames = ModelDb.All.OfType<OrbModel>().ToDictionary(
+                model => model.Id.Entry, model => model.Title.GetFormattedText(), StringComparer.Ordinal);
+            _enchantmentNames = ModelDb.All.OfType<EnchantmentModel>().ToDictionary(
+                model => model.Id.Entry, model => model.Title.GetFormattedText(), StringComparer.Ordinal);
+            _afflictionNames = ModelDb.All.OfType<AfflictionModel>().ToDictionary(
+                model => model.Id.Entry, model => model.Title.GetFormattedText(), StringComparer.Ordinal);
             _cardNames = cards;
             _cardModels = models;
             _potionNames = potions;

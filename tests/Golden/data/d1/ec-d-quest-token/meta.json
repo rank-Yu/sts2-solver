@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "ec-d-quest-token",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-d-quest-token.json\u0022}",
-  "rulesSha256": "aae582333f165d260f3fe5abdd995834e3ccc2ab743923cfcf6d5564e6fd1125",
+  "rulesSha256": "065494efe75ea55743c5ddb116d02bd454c495e1db8c1ee36ce5fda6da62743a",
   "counts": {
     "roots": 1,
     "k1": 3,

@@ -14,7 +14,7 @@ internal static partial class CombatControllerChecks
         check("disabled_without_search", panel.AutoExecuteSwitchForTest is { Disabled: true, ButtonPressed: false });
         check("reject_without_search", !CombatUiCommands.Instance.SetAutoExecute(true));
         check("auto_execute_tooltip", panel.AutoExecuteSwitchForTest!.TooltipText
-            == SolverText.Get("搜索完成后，自动按路线出牌。"));
+            == SolverText.Get("ui.automatically_play_the_route_when_the_search_finishes"));
 
         foreach (float width in new[] { 560f, 820f })
         {

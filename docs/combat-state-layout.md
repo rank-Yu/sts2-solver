@@ -27,19 +27,19 @@
 | `DetachedCards` | 不在任何牌堆、但之后还要用到的完整卡值（见 3.9） | 3 |
 | `DecimalVars` | 精确的 `decimal` 卡牌变量偏移（见 3.10） | 4 |
 | `Roster` | 名单：在场敌人在 `Enemies` 里的下标，按原生名单顺序 | 12 |
-| `Potions` | 各药水槽 | 5 |
+| `Potions` | 各药水槽 | 12 |
 | `Player`、`Osty`、`Wuppy` | `Creature`：HP、最大 HP、格挡、标志 | 各 1 |
 | `Counters` | 整数计数器（见 3.8） | 48 |
 | `Rng` | 十条随机流（含角色的 NonCombatGeneration），每条一个计数器加四个 64 位状态字 | 10 |
 | `Enemies` | 已知敌人，含已死和已逃跑的（见 3.2） | 12 |
-| `Powers` | Power 表（见 3.3） | 28 |
+| `Powers` | Power 表（见 3.3） | 32 |
 | `RelicStates`、`RelicStateFlags` | 遗物动态整数与本场标志（见 3.4） | 24 |
 | `Orbs` | 球（见 3.5） | 10 |
 | `Fool` | 箭矢状态、旋律次数、悲伤生成计数与关联卡牌身份 | 32 支箭 |
 | `HistoryCourseCard` | 上一次攻击的完整卡值（见 3.11） | 1 |
 | `Cards` | 五个牌堆的卡（见 3.6、3.7）；最后一个字段 | 640 |
 
-`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 2896` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 64`。
+`HistoryCourseCard` 紧挨在 `Cards` 前面，`Battle.HeaderSize = 2936` 就是 `Cards` 的偏移。头部把五个牌堆张数存成 `ushort`，并用显式填充字节让 `DetachedCards` 之后的 `DecimalVars` 保持 8 字节对齐；头部没有编译期插入的填充。打包大小 `PackedSize = HeaderSize + CardCount × 46`。搜索状态池、展开缓冲和 BATL 编码均保存这个连续前缀。
 
 ## 3. 各部分的含义
 
@@ -66,7 +66,7 @@
 
 ### 3.2 生物与敌人
 
-Wuppy 占用头部偏移 2816 的 16 字节，紧邻 HistoryCourseCard；Battle 总大小仍为 43856 字节，头部仍为 2896 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
+Wuppy 占用头部偏移 2872 的 16 字节，之后的 2 字节显式填充使 HistoryCourseCard 后的 Cards 保持 8 字节对齐；Battle 总大小为 32376 字节，头部为 2936 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
 
 Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理规则移除；再次召唤时不会带回已移除的力量。
 
@@ -98,7 +98,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.3 Power
 
-全场共享 28 个实例槽位，包含玩家、奥斯蒂和所有敌人；叠加层数不额外占槽，独立实例分别占槽。第 29 个实例显式报告容量不足，不截断。文件使用同一份 28 槽运行时布局。
+全场共享 32 个实例槽位，包含玩家、奥斯蒂、Wuppy 和所有敌人；叠加层数不额外占槽，独立实例分别占槽。第 33 个实例显式报告容量不足，不截断。文件使用同一份 32 槽运行时布局。
 
 **顺序。** `Powers` 按持有者分组，组的顺序就是 Hook 监听顺序里各生物的顺序；组内按获得顺序排列。新 Power 追加到持有者组的末尾，对应原引擎“插在持有者最后一个 Power 之后”的规则。数量归零的 Power 立即移除并压实，之后再获得时排在组末，对应原引擎退役根槽位的语义。
 
@@ -154,7 +154,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 `PEN_NIB` 的 `Aux` 只在一次出牌内有意义；`Rules.PenNibRelicIndex` 让 `Kernel.Step` 在每个稳定边界用一次下标写入把它清零，与导入投影的 0 一致。
 
-药水槽存“内部 Id + 1”，0 表示空。药水的使用次数、生成药水的战略成本和免费槽位记在计数器里（见 3.8）。
+药水槽容量为 12，覆盖药水腰带、Alchemical Coffer 与极速模式三次商店扩槽的组合。药水槽存“内部 Id + 1”，0 表示空。药水的使用次数、生成药水的战略成本和免费槽位记在计数器里（见 3.8）。
 
 ### 3.5 球
 
@@ -162,10 +162,10 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 3.6 卡牌
 
-`Card` 是一张牌的完整值，64 字节。字段集以原引擎的卡牌状态键（`CaptureCardStateFingerprintForTesting`、`CardChoiceSupport.ChoiceCardKey`）为准：
+`Card` 是一张牌的完整值，46 字节。字段集以原引擎的卡牌状态键（`CaptureCardStateFingerprintForTesting`、`CardChoiceSupport.ChoiceCardKey`）为准：
 
 - 卡牌 Id、升级等级、本地关键字位图，以及外部添加/移除关键词的两组位图；
-- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 10，Stomp 每打出一张攻击累加本回合相对减费）、星能费用；`ModifierCount` 低 5 位保存修饰数量，第 5–6 位保存 `HistoryCourseRole`，第 7 位保存 `IsDupe`；
+- 费用：基础费用（含 X 费标志）、能量费用修饰栈（本场、本回合、直到打出、临时；容量 4，Stomp 每打出一张攻击累加本回合相对减费）、星能费用；`ModifierCount` 低 5 位保存修饰数量，第 5–6 位保存 `HistoryCourseRole`，第 7 位保存 `IsDupe`；
 - 临时星能费用：当前条目 `TemporaryStarCost`，加上最多两个同成本的旧条目（`TemporaryStarCostStack`：低 2 位是旧条目数，之后每个旧条目 2 位清除标志）；回合末或打出后按清除标志逐条移除，成本不同的旧条目按容量拒绝；
 - 状态标志 `CardFlags`：下次打出时消耗、本回合狡诈、本回合保留、是否牌组卡、已移出战斗、X 费、X 星费，以及 bit 7 `PowerAfflictionChecked`；
 - `ReplayCount`；
@@ -176,7 +176,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 - `IsDupe`：原版复制品身份，克隆保留，手动和自动打出后都移出战斗。
 - `TransientMark`：一次动作内的对象身份标记（见下）。
 
-能量费用修饰 `CostModifier` 占 3 字节：两字节数量，以及一字节标志（低 3 位有效期、bit 3–4 类型、bit 7 只降低费用）。容量为 10 项。相邻、有效期相同且不带“只降低费用”标志的相对修饰按总量合并；绝对设费、不同有效期与“只降低费用”记录保留为合并边界。总量超出 short 时按正向 32767 或负向 -32768 分段，避免截断，并确保导入和清理后的表示一致；总量为零仍保留一条，以保留“存在修饰”的区别。追加时合并尾部，过期清理后重新合并相邻段；导入与旧状态解码使用同一规则。容量按合并后的记录数计算。
+能量费用修饰 `CostModifier` 占 3 字节：两字节数量，以及一字节标志（低 3 位有效期、bit 3–4 类型、bit 7 只降低费用）。容量为 10 项。相邻、有效期相同且不带“只降低费用”标志的相对修饰按总量合并；相邻、有效期相同且不带“只降低费用”标志的绝对设费只保留最后一条：后一次始终覆盖前一次，且两者同时到期。相对与绝对类型之间、不同有效期与“只降低费用”记录保留为合并边界。总量超出 short 时按正向 32767 或负向 -32768 分段，避免截断，并确保导入和清理后的表示一致；总量为零仍保留一条，以保留“存在修饰”的区别。追加时合并尾部，过期清理后重新合并相邻段；导入使用同一规则。容量按合并后的记录数计算。规则对照游戏 v0.113.1 的 `CardEnergyCost.GetWithModifiers`、`UpgradeBy`、两种到期清理方法及 `HasLocalModifiers`；合并算法由本项目实现。
 
 **`CostState` 的位。**
 
@@ -238,7 +238,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | 本侧回合 | `SkillPlayedThisSideTurn`（原引擎 `_skillsPlayedThisTurn`，苦难归一化用；不同于 `SkillCardsPlayedThisTurn`） | 本侧回合末 |
 | 整场 | 累计失血、回复量、玩家未格挡受伤事件数（TearAsunder）；`FinishedCardPlays`（GoldAxe，含根历史）；`CardsDrawn`（Murder，含根历史）；`LightningChannels`（Voltaic，导入原版历史）；`OrbChannels`（预测期充能次数，对应原引擎 1000 次充能的安全上限）；`EtherealPlays`（BansheesCry、PullFromBelow，含根历史）；`CardsGeneratedThisCombat`（Supermassive，含战斗结束时被拒绝加入的生成卡） | 不清零 |
 | 评分用的路线计数 | `LongTermResourceValue`、`AngerCopiesGenerated`、死亡保护回复量（遗物、药水）与次数、`AutomaticPotionUseCount` | 不清零 |
-| 药水 | `GeneratedPotionUseCount`：本场生成后又被使用的药水数（“生成”指使用时槽里的药水不是根药水；评分计入用药数）。`GeneratedPotionStrategicCost`：低 16 位是显式用药的战略成本，高 16 位是自动用药（Fairy in a Bottle）的成本。`EntropicFreePotionMask`：5 个槽位的免费位，第 i 位对应槽 i，使用该槽时清除，免费药水成本为 0 | — |
+| 药水 | `GeneratedPotionUseCount`：本场生成后又被使用的药水数（“生成”指使用时槽里的药水不是根药水；评分计入用药数）。`GeneratedPotionStrategicCost`：低 16 位是显式用药的战略成本，高 16 位是自动用药（Fairy in a Bottle）的成本。`EntropicFreePotionMask`：12 个槽位的免费位，第 i 位对应槽 i，使用该槽时清除，免费药水成本为 0 | — |
 | 偷窃 | `OutstandingStolenGold`（`ThieveryPower` 的金币账本加所有 `HeistPower` 层数）、`OutstandingStolenCards`（每个持有被偷卡的 `SwipePower` 一张） | — |
 | 其它 | `VitalSparkNormalizedAmount`（原引擎 `_lastNormalizedVitalSparkAmount`，`int.MinValue` 表示 null）；`DampenCasterMask`（MagiKnight 对玩家施加 DampenPower 的施法者位集，按敌人 owner 下标一位一个） | — |
 | 成长 | 5 个打包计数（`GrowthRewards`），每个装两个 16 位来源，十个原版成长来源共用 | — |
@@ -368,21 +368,21 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 | 结构 | 字节 | 说明 |
 | --- | ---: | --- |
-| `Card` | 64 | 费用修饰容量 10，每项 3 字节；外部关键词记录；`FoolIdentity`；`DampenOriginalUpgrade`；`TransientMark` |
+| `Card` | 46 | 费用修饰容量 4，每项 3 字节；外部关键词记录；`FoolIdentity`；`DampenOriginalUpgrade`；`TransientMark` |
 | `Enemy` | 64 | `Rules`、`PoweredAttackHitsThisTurn`、`SteamPhase` 各占原填充的一个字节，最后一个字节仍是填充 |
 | `Power` | 24 | — |
 | `RelicState` | 8 | `Counter` + `Aux`；标志另存为每槽 1 字节 |
 | `Orb` | 8 | `Id` + `Aux` |
 | `RngState` | 40 | 计数器 + 四个 64 位状态字 |
-| `Battle` | 43,856 | 头部 2,896 + 满牌 640 × 64；打包前缀和满容量结构体尺寸相同 |
+| `Battle` | 32,376 | 头部 2,936 + 满牌 640 × 46；打包前缀和满容量结构体尺寸相同 |
 
-典型的 23 张牌状态打包后约 4.3 KiB；30 张牌为 4,816 字节。
+运行时连续前缀：23 张牌约 3.9 KiB；30 张牌为 4,300 字节。
 
 ### 大结构体与 JIT 限制
 
-`Battle` 的 43,856 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
+`Battle` 的 32,376 字节低于 CLR 的数组元素上限 65,535，所以 `Battle[]`、`List<Battle>`、`Dictionary<..., Battle>` 这类容器可以正常使用。超过 65,535 字节的结构体不能作为数组元素，第一次 JIT 到创建该数组的代码时会抛 `TypeLoadException`，错误是“base value type is too large”。以后若要再增大 `Battle`，先检查这个上限。
 
-C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。`Battle` 本身刚好在安全范围内：两个 `Battle` 的元组是 87,712 字节，可以编译；三个 `Battle` 的元组是 131,568 字节，不能编译。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：43,856 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
+C# 元组（`ValueTuple`）另有一条更低的限制：JIT 计算元组大小时把每个字段按 8 字节对齐，总大小达到 128 KiB（131,072 字节）时，第一次 JIT 就抛 `InvalidProgramException`。当前四个 `Battle` 的元组共 129,504 字节，五个则达到 161,880 字节，超过上限。不要在元组、`ValueTuple` 或由元组承载的返回值里放多个大结构体。普通结构体的局部变量、按值参数、返回值和 async 状态机字段没有这条 128 KiB 限制：32,376 字节的 `Battle` 可以按值放进这些位置；实测更大的普通结构体（约 294 KiB 的局部变量、两个约 98 KiB 的 async 状态机字段）也能编译。但多个 `Battle` 按值复制会放大栈帧和复制成本，热路径和异步路径仍优先用 `in`、引用类型或把大局部量拆进单独方法。
 
 这类错误只看方法是否被 JIT 编译，与牌组大小无关：一条很少执行的分支第一次运行就可能让整个方法报 `InvalidProgramException`。测试版 Mod 启动时由 `JitChecks` 对 Mod/Core 程序集（测试构建里是同一个 `Sts2Solver.dll`）的所有非泛型方法调用 `RuntimeHelpers.PrepareMethod`，包括 async 状态机的 `MoveNext`；泛型方法因缺少闭合类型参数跳过。任何 `InvalidProgramException` 或 `TypeLoadException` 都会列出方法名并让启动检查失败。
 
@@ -400,6 +400,6 @@ CLR 还限制单次调用的参数总尺寸。一个满容量 `Battle` 加上其
 
 模式、楼层和领域规则属于根常量：`Rules.Mode` 冻结标准、恐惧或极速；`TotalFloor` 提供塔罗牌的楼层数；`Dominion` 冻结领域类型及召唤后施加的能力。它们均进入规则编码，不能从搜索线程读取原生全局游戏模式。
 
-BATL v10 直接保存当前运行时打包前缀：头部 2896 字节，加每张活动牌 64 字节；最大前缀为 43856 字节。卡牌指纹直接读取当前 Card 字节。
+BATL v15 直接保存当前运行时打包前缀：头部 2936 字节，加每张活动牌 46 字节；最大前缀为 32376 字节。卡牌指纹直接读取当前 Card 字节。
 
 前缀后保存 `ushort` 遗物件数和完整的固定清单，每行 12 字节；动态状态只在 Battle 的 24 槽里保存一次。清单上限为 65535 件。解码返回 Battle 和清单；SREQ 为所有根绑定同一个等价清单。RULE 只编码内容规则表，清单由 BATL 携带，不在 RULE 中重复保存。只接受当前格式，旧布局不提供兼容读取。

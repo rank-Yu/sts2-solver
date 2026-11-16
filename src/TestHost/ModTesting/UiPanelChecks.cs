@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
@@ -13,7 +14,7 @@ namespace Sts2Solver;
 /// <summary>
 /// Structural checks of the in-combat panel during one full-combat request. Every check compares
 /// stable keys and numbers (phase enum names, turn numbers, global action indexes) with the
-/// snapshot the panel last applied; localized text is never asserted. Results go to
+/// snapshot the panel last applied. Locale checks compare controls with their catalog and font. Results go to
 /// <c>results/&lt;root&gt;/ui-panel.json</c>.
 /// </summary>
 internal static class UiPanelChecks
@@ -67,14 +68,14 @@ internal static class UiPanelChecks
             collapsed.Collapsed && SolverSettings.Current.Ui.Collapsed, Describe(panel));
         session.Check("collapsed_header_visible", collapsed.Visible, Describe(panel));
         session.Check("collapsed_button_reads_expand",
-            panel.CollapseButtonForTest?.Text == SolverText.Get("+  展开"), Describe(panel));
+            panel.CollapseButtonForTest?.Text == SolverText.Get("panel.expand"), Describe(panel));
         bool switchClickable = await VisibleAndClickable(host, panel.AutoSearchSwitchForTest);
         session.Check("collapsed_auto_search_switch_clickable", switchClickable, Describe(panel));
         await Press(host, panel.CollapseButtonForTest);
         session.Check("expand_persists",
             !panel.ProbeForTest().Collapsed && !SolverSettings.Current.Ui.Collapsed, Describe(panel));
         session.Check("expanded_button_reads_collapse",
-            panel.CollapseButtonForTest?.Text == SolverText.Get("−  收起"), Describe(panel));
+            panel.CollapseButtonForTest?.Text == SolverText.Get("panel.collapse"), Describe(panel));
 
         bool originalAutoSearch = SolverSettings.Current.Automation.AutoSearch;
         await Toggle(host, panel.AutoSearchSwitchForTest, false);
@@ -97,7 +98,7 @@ internal static class UiPanelChecks
         await Press(host, panel.PotionButtonForTest);
         SolverSidebar? sidebar = panel.SidebarForTest;
         session.Check("potion_opens_sidebar",
-            SidebarOn(panel, SolverStrategyPageKind.Potions, SolverText.Get("药水策略")), Describe(panel));
+            SidebarOn(panel, SolverStrategyPageKind.Potions, SolverText.Get("strategy.potions")), Describe(panel));
         session.Check("sidebar_docked_beside_panel", SidebarDocked(panel, sidebar, out string geometry),
             geometry);
         session.Check("sidebar_dark_surface", DarkSurface(sidebar), "sidebar surface");
@@ -106,7 +107,7 @@ internal static class UiPanelChecks
             PotionRowsMatch(panel, CombatUiStore.Snapshot.Strategy, out string potionRows), potionRows);
         await Press(host, panel.GrowthButtonForTest);
         session.Check("growth_switches_page",
-            SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("成长策略")), Describe(panel));
+            SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("strategy.growth")), Describe(panel));
         await WaitAppliedAsync(host, panel);
         session.Check("growth_rows_match_snapshot",
             GrowthRowsMatch(panel, CombatUiStore.Snapshot.Strategy, out string growthRows), growthRows);
@@ -154,12 +155,12 @@ internal static class UiPanelChecks
         await Press(host, panel.GrowthButtonForTest);
         session.Check("growth_from_settings", !panel.SettingsOpenForTest
             && panel.MainStackForTest is { Visible: true }
-            && SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("成长策略")), Describe(panel));
+            && SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("strategy.growth")), Describe(panel));
         await Press(host, panel.SettingsButtonForTest);
         await Press(host, panel.SettingsButtonForTest);
         session.Check("back_restores_body", !panel.SettingsOpenForTest
             && panel.MainStackForTest is { Visible: true } && page is { Visible: false }
-            && SidebarClosed(panel) && panel.SettingsButtonForTest?.Text == SolverText.Get("设置"),
+            && SidebarClosed(panel) && panel.SettingsButtonForTest?.Text == SolverText.Get("settings.title"),
             Describe(panel));
         await WaitAppliedAsync(host, panel);
         StrategyUiSnapshot theft = CombatUiStore.Snapshot.Strategy;
@@ -184,7 +185,7 @@ internal static class UiPanelChecks
             session.Check("locale_rebuilds_in_english",
                 switched.Language == "eng" && switched.BuildCount == buildsBefore + 1, Describe(panel));
             session.Check("locale_rebuild_keeps_sidebar",
-                SidebarOn(panel, SolverStrategyPageKind.Potions, SolverText.Get("药水策略")),
+                SidebarOn(panel, SolverStrategyPageKind.Potions, SolverText.Get("strategy.potions")),
                 Describe(panel));
             float englishSettings = panel.SettingsButtonForTest?.Size.X ?? 0f;
             await Press(host, panel.SettingsButtonForTest);
@@ -221,15 +222,99 @@ internal static class UiPanelChecks
             LocManager.Instance.StartOverridingLanguageAsEnglish();
             await Frames(host, 4);
             session.Check("collapsed_rebuild_reads_expand", panel.ProbeForTest().Collapsed
-                && panel.CollapseButtonForTest?.Text == SolverText.Get("+  展开"), Describe(panel));
+                && panel.CollapseButtonForTest?.Text == SolverText.Get("panel.expand"), Describe(panel));
             LocManager.Instance.StopOverridingLanguageAsEnglish();
             await Frames(host, 4);
             await Press(host, panel.CollapseButtonForTest);
             await Press(host, panel.PotionButtonForTest);
         }
-        string[] missingKeys = SolverText.MissingKeysForTesting;
-        session.Check("english_keys_present", missingKeys.Length == 0, string.Join("|", missingKeys));
+        string[] missingKeys = SolverText.ValidateCatalogs();
+        session.Check("locale_catalogs_complete", missingKeys.Length == 0, string.Join("|", missingKeys));
+        await CheckSelectableLanguagesAsync(host, panel, session);
         return session;
+    }
+
+    private static async Task CheckSelectableLanguagesAsync(NGame host, SolverOverlay panel, Session session)
+    {
+        string original = LocManager.Instance.Language;
+        Vector2 originalSize = panel.PanelForTest!.Size;
+        try
+        {
+            foreach (string language in LocManager.Languages.Where(l => !LocManager.IsHiddenLanguage(l)))
+            {
+                LocManager.Instance.SetLanguage(language);
+                await Frames(host, 4);
+                session.Check("locale_" + language, panel.ProbeForTest().Language == language
+                    && panel.AutoSearchSwitchForTest!.GetParent().GetChild<Label>(0).Text == SolverText.Get("action.auto_search")
+                    && panel.AutoExecuteSwitchForTest!.GetParent().GetChild<Label>(0).Text == SolverText.Get("action.auto_play"), Describe(panel));
+                foreach (float width in new[] { 560f, 820f })
+                {
+                    panel.ResizeForTest(new Vector2(width, 440));
+                    await Frames(host, 4);
+                    Rect2 bounds = panel.PanelForTest!.GetGlobalRect().Grow(1);
+                    Button[] buttons = [panel.AutoSearchSwitchForTest!, panel.AutoExecuteSwitchForTest!,
+                        panel.SearchButtonForTest!, panel.RestartSearchButtonForTest!,
+                        panel.ExecuteTurnButtonForTest!, panel.ExecuteCombatButtonForTest!,
+                        panel.StopExecutionButtonForTest!, panel.SettingsButtonForTest!];
+                    Button[] visible = buttons.Where(b => b.IsVisibleInTree()).ToArray();
+                    string[] outside = visible.Where(b => !bounds.Encloses(b.GetGlobalRect()))
+                        .Select(b => b.Text + ":" + b.GetGlobalRect()).ToArray();
+                    session.Check($"locale_bounds_{language}_{width}", outside.Length == 0,
+                        $"panel={bounds};" + string.Join("|", outside));
+                    bool overlap = visible.SelectMany((b, i) => visible.Skip(i + 1)
+                        .Select(other => b.GetGlobalRect().Grow(-1).Intersects(other.GetGlobalRect().Grow(-1))))
+                        .Any(hit => hit);
+                    session.Check($"locale_buttons_{language}_{width}", !overlap, Describe(panel));
+                }
+                Font font = panel.SearchButtonForTest!.GetThemeFont("font");
+                string missing = string.Concat(SolverText.CatalogsForTesting[language].Values
+                    .SelectMany(text => text.EnumerateRunes()).Distinct()
+                    .Where(rune => !System.Text.Rune.IsWhiteSpace(rune) && !font.HasChar(rune.Value))
+                    .Select(rune => rune.ToString()));
+                session.Check("locale_glyphs_" + language, missing.Length == 0, missing);
+                await Press(host, panel.SettingsButtonForTest);
+                session.Check("locale_settings_" + language, SettingsShown(panel)
+                    && panel.SettingsButtonForTest!.Text == SolverText.Get("ui.back"), Describe(panel));
+                session.Check("locale_settings_bounds_" + language,
+                    HorizontalTextBounds(panel.SettingsPageForTest!, panel.PanelForTest!.GetGlobalRect(), out string settingsBounds), settingsBounds);
+                await Press(host, panel.SettingsButtonForTest);
+                await Press(host, panel.GrowthButtonForTest);
+                session.Check("locale_strategy_" + language,
+                    SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("strategy.growth")), Describe(panel));
+                Button close = panel.SidebarForTest!.CloseButtonForTest!;
+                session.Check("locale_close_glyph_" + language, close.GetThemeFont("font").HasChar('×'), close.Text);
+                session.Check("locale_strategy_bounds_" + language,
+                    HorizontalTextBounds(panel.SidebarForTest!, panel.SidebarForTest!.GetGlobalRect(), out string strategyBounds), strategyBounds);
+                await Press(host, panel.GrowthButtonForTest);
+            }
+        }
+        finally
+        {
+            LocManager.Instance.SetLanguage(original);
+            panel.ResizeForTest(originalSize);
+            await Frames(host, 4);
+            await Press(host, panel.PotionButtonForTest);
+        }
+    }
+
+    private static bool HorizontalTextBounds(Node root, Rect2 bounds, out string detail)
+    {
+        List<string> outside = [];
+        void Visit(Node node)
+        {
+            if (node is Control control && control.IsVisibleInTree()
+                && node is Label or Button or LineEdit)
+            {
+                Rect2 rect = control.GetGlobalRect();
+                if (rect.Position.X < bounds.Position.X - 1 || rect.End.X > bounds.End.X + 1)
+                    outside.Add($"{node.Name}:{rect}");
+            }
+            foreach (Node child in node.GetChildren())
+                Visit(child);
+        }
+        Visit(root);
+        detail = $"bounds={bounds};" + string.Join("|", outside);
+        return outside.Count == 0;
     }
 
     /// <summary>
@@ -269,30 +354,30 @@ internal static class UiPanelChecks
     private static async Task TheftNoticeAsync(NGame host, SolverOverlay panel,
         CombatControllerChecks.Check check, CombatControllerChecks.Action action)
     {
-        string keep = SolverText.Get("本场有盗贼：保住被偷的牌和金币");
-        string escape = SolverText.Get("本场有盗贼：放走，不追回被偷的牌和金币");
+        string keep = SolverText.Get("ui.thief_in_this_fight_recover_stolen_cards_and_gold");
+        string escape = SolverText.Get("ui.thief_in_this_fight_let_it_escape_with_stolen_cards");
         bool Shows(string text, string button)
             => panel.TheftNoticeForTest is { Visible: true }
                 && panel.TheftNoticeLabelForTest?.Text == text
                 && panel.TheftNoticeButtonForTest?.Text == button;
         check("theft_notice_default", CombatUiStore.Snapshot.Strategy.TheftPolicy == "preserve_resources"
-            && Shows(keep, SolverText.Get("改为放走")), panel.TheftNoticeLabelForTest?.Text);
+            && Shows(keep, SolverText.Get("ui.let_escape")), panel.TheftNoticeLabelForTest?.Text);
         await Press(host, panel.TheftNoticeButtonForTest);
         action("press:theft_notice");
         check("theft_notice_let_escape", CombatUiStore.Snapshot.Strategy.TheftPolicy == "let_escape"
-            && Shows(escape, SolverText.Get("改为保住")), panel.TheftNoticeLabelForTest?.Text);
+            && Shows(escape, SolverText.Get("ui.recover")), panel.TheftNoticeLabelForTest?.Text);
         await Press(host, panel.SettingsButtonForTest);
         check("theft_notice_hidden_in_settings", panel.TheftNoticeForTest is { Visible: false },
             Describe(panel));
         await Press(host, panel.SettingsButtonForTest);
         await Press(host, panel.CollapseButtonForTest);
         check("theft_notice_collapsed", panel.ProbeForTest().Collapsed
-            && Shows(escape, SolverText.Get("改为保住")), Describe(panel));
+            && Shows(escape, SolverText.Get("ui.recover")), Describe(panel));
         await Press(host, panel.CollapseButtonForTest);
         await Press(host, panel.TheftNoticeButtonForTest);
         action("press:theft_notice");
         check("theft_notice_preserve", CombatUiStore.Snapshot.Strategy.TheftPolicy == "preserve_resources"
-            && Shows(keep, SolverText.Get("改为放走")), panel.TheftNoticeLabelForTest?.Text);
+            && Shows(keep, SolverText.Get("ui.let_escape")), panel.TheftNoticeLabelForTest?.Text);
     }
 
     private static async Task PotionPageAsync(NGame host, SolverOverlay panel,
@@ -301,7 +386,7 @@ internal static class UiPanelChecks
         await Press(host, panel.PotionButtonForTest);
         SolverPotionStrategyPage page = panel.PotionPageForTest
             ?? throw new InvalidDataException("potion page missing");
-        string saved = SolverText.Get("已保存，下次搜索生效");
+        string saved = SolverText.Get("ui.saved_applies_to_the_next_search");
         StrategyUiSnapshot strategy = CombatUiStore.Snapshot.Strategy;
         check("potion_rows", PotionRowsMatch(panel, strategy, out string rows), rows);
         int index = Array.FindIndex(strategy.Potions, static potion => potion.CanAssignPolicy);
@@ -347,7 +432,7 @@ internal static class UiPanelChecks
         await Press(host, panel.GrowthButtonForTest);
         SolverGrowthStrategyPage page = panel.GrowthPageForTest
             ?? throw new InvalidDataException("growth page missing");
-        string saved = SolverText.Get("已保存，下次搜索生效");
+        string saved = SolverText.Get("ui.saved_applies_to_the_next_search");
         StrategyUiSnapshot Strategy() => CombatUiStore.Snapshot.Strategy;
         void CheckRows(string name, bool condition)
         {
@@ -392,11 +477,11 @@ internal static class UiPanelChecks
         await Submit(host, feed, "abc");
         action("submit:growth:feed:abc");
         check("growth_budget_invalid", Strategy().GrowthBudgets.Feed == 7
-            && page.StatusTextForTest == SolverText.Format($"请输入 {0}–{1000} 的整数"),
+            && page.StatusTextForTest == SolverText.Format("ui.enter_an_integer_from_to", 0, 1000),
             page.StatusTextForTest);
         await Press(host, panel.SidebarForTest?.CloseButtonForTest);
         check("growth_invalid_keeps_sidebar",
-            SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("成长策略")), Describe(panel));
+            SidebarOn(panel, SolverStrategyPageKind.Growth, SolverText.Get("strategy.growth")), Describe(panel));
         await Submit(host, feed, "0");
         action("submit:growth:feed:0");
         feed.ReleaseFocus();
@@ -411,7 +496,7 @@ internal static class UiPanelChecks
         await Press(host, panel.RelicButtonForTest);
         SolverRelicStrategyPage page = panel.RelicPageForTest
             ?? throw new InvalidDataException("relic page missing");
-        check("relic_page_open", SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("遗物策略")),
+        check("relic_page_open", SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("strategy.relics")),
             Describe(panel));
         StrategyUiSnapshot Strategy() => CombatUiStore.Snapshot.Strategy;
         RelicCounterUi[] relics = Strategy().RelicCounters;
@@ -426,7 +511,7 @@ internal static class UiPanelChecks
         bool rowsMatch = page.RowCountForTest == relics.Length && relics.All(relic =>
             page.TitleTextForTest(relic.Slot) == CombatDisplayNames.RelicTitle(relic.RelicId)
             && relic.Target == relic.Period - 1
-            && page.CountTextForTest(relic.Slot) == SolverText.Format($"目标 {relic.Target}/{relic.Period}")
+            && page.CountTextForTest(relic.Slot) == SolverText.Format("ui.target", relic.Target, relic.Period)
             && page.AllowanceInputForTest(relic.Slot).Text == "0"
             // Every relic starts switched off, and a switched-off relic's allowance cannot be edited.
             && !page.EnabledToggleForTest(relic.Slot).ButtonPressed
@@ -442,20 +527,20 @@ internal static class UiPanelChecks
         action($"toggle:relic:{first.RelicId}:on");
         check("relic_switch_on", On() && input.Editable
             && Strategy().RelicCounterRelics.Length == 1
-            && page.StatusTextForTest == SolverText.Get("已保存，下次搜索生效"),
+            && page.StatusTextForTest == SolverText.Get("ui.saved_applies_to_the_next_search"),
             $"on={On()} editable={input.Editable} status={page.StatusTextForTest}");
         await Submit(host, input, "3");
         action($"submit:relic:{first.RelicId}:3");
         input.ReleaseFocus();
         check("relic_allowance_value", Allowance() == 3 && input.Text == "3"
-            && page.StatusTextForTest == SolverText.Get("已保存，下次搜索生效"), page.StatusTextForTest);
+            && page.StatusTextForTest == SolverText.Get("ui.saved_applies_to_the_next_search"), page.StatusTextForTest);
         await Submit(host, input, "abc");
         action($"submit:relic:{first.RelicId}:abc");
         check("relic_allowance_invalid", Allowance() == 3
-            && page.StatusTextForTest == SolverText.Format($"请输入 {0}–{1000} 的整数"), page.StatusTextForTest);
+            && page.StatusTextForTest == SolverText.Format("ui.enter_an_integer_from_to", 0, 1000), page.StatusTextForTest);
         await Press(host, panel.SidebarForTest?.CloseButtonForTest);
         check("relic_invalid_keeps_sidebar",
-            SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("遗物策略")), Describe(panel));
+            SidebarOn(panel, SolverStrategyPageKind.Relics, SolverText.Get("strategy.relics")), Describe(panel));
         await Submit(host, input, "0");
         action($"submit:relic:{first.RelicId}:0");
         input.ReleaseFocus();
@@ -491,7 +576,7 @@ internal static class UiPanelChecks
         check("boss_minimize", minimizeShown
             && Strategy().ActTransitionBossHpStrategy == SearchBossHpStrategy.MinimizeHpLoss
             && Strategy().FinalBossHpStrategy == SearchBossHpStrategy.MinimizeHpLoss
-            && page.StatusTextForTest == SolverText.Get("已保存，下次搜索生效"),
+            && page.StatusTextForTest == SolverText.Get("ui.saved_applies_to_the_next_search"),
             minimize + " status=" + page.StatusTextForTest);
         await Press(host, page.ResetButtonForTest);
         action("press:reset_defaults");
@@ -632,10 +717,10 @@ internal static class UiPanelChecks
         return order.Zip(order.Skip(1)).All(static pair => pair.First >= 0 && pair.Second == pair.First + 1)
             && order[^1] == header.GetChildCount() - 1
             && buttons.All(static button => button!.Visible && !button.ButtonPressed)
-            && panel.PotionButtonForTest!.Text == SolverText.Get("药水")
-            && panel.GrowthButtonForTest!.Text == SolverText.Get("成长")
-            && panel.RelicButtonForTest!.Text == SolverText.Get("遗物")
-            && panel.SettingsButtonForTest!.Text == SolverText.Get("设置");
+            && panel.PotionButtonForTest!.Text == SolverText.Get("tab.potions")
+            && panel.GrowthButtonForTest!.Text == SolverText.Get("tab.growth")
+            && panel.RelicButtonForTest!.Text == SolverText.Get("tab.relics")
+            && panel.SettingsButtonForTest!.Text == SolverText.Get("settings.title");
     }
 
     private static bool HeaderButtonsHidden(SolverOverlay panel)
@@ -673,7 +758,7 @@ internal static class UiPanelChecks
         => panel.ProbeForTest().SettingsVisible
             && panel.SettingsPageForTest is { } page && page.IsVisibleInTree()
             && panel.MainStackForTest is { Visible: false }
-            && panel.SettingsButtonForTest?.Text == SolverText.Get("返回");
+            && panel.SettingsButtonForTest?.Text == SolverText.Get("ui.back");
 
     private static bool DarkSurface(Control? box)
         => box != null
@@ -708,9 +793,9 @@ internal static class UiPanelChecks
         bool Items(OptionButton option)
             => option.ItemCount == 2
                 && option.GetItemId(0) == (int)SearchBossHpStrategy.ProgressionFirst
-                && option.GetItemText(0) == SolverText.Get("通关优先（默认）")
+                && option.GetItemText(0) == SolverText.Get("ui.progression_first_default")
                 && option.GetItemId(1) == (int)SearchBossHpStrategy.MinimizeHpLoss
-                && option.GetItemText(1) == SolverText.Get("最低战损");
+                && option.GetItemText(1) == SolverText.Get("ui.minimize_hp_loss");
         detail = $"act={act.GetSelectedId()}/{(int)strategy.ActTransitionBossHpStrategy} " +
             $"final={final.GetSelectedId()}/{(int)strategy.FinalBossHpStrategy}";
         return Items(act) && Items(final)
@@ -755,7 +840,7 @@ internal static class UiPanelChecks
         {
             return presets && rows.Count == 0
                 && page.FindChild("NoPotions", recursive: true, owned: false) is Label { Visible: true } empty
-                && empty.Text == SolverText.Get("当前没有药水");
+                && empty.Text == SolverText.Get("ui.no_potions");
         }
         if (!presets || rows.Count != potions.Length)
             return false;
@@ -764,8 +849,8 @@ internal static class UiPanelChecks
             PotionSlotUi potion = potions[index];
             (int slot, string potionId, bool canAssign, Button button) = rows[index];
             string tooltip = !potion.CanAssignPolicy
-                ? SolverText.Get("该药水不可指定使用策略")
-                : potion.Mode == "smart" ? SolverText.Get("计入药水成本，与不用药的路线一起比较，选择综合结果更好的路线。") : "";
+                ? SolverText.Get("ui.this_potion_has_no_selectable_use_policy")
+                : potion.Mode == "smart" ? SolverText.Get("ui.includes_the_potion_cost_when_comparing_routes_with_or_without") : "";
             if (slot != potion.Slot || potionId != potion.PotionId || canAssign != potion.CanAssignPolicy
                 || button.Disabled != !potion.CanAssignPolicy || button.Text != ModeText(potion.Mode)
                 || button.TooltipText != tooltip)
@@ -825,8 +910,8 @@ internal static class UiPanelChecks
 
     private static string ModeText(string mode) => mode switch
     {
-        "smart" => "—  " + SolverText.Get("智能使用"),
-        "disabled" => "✕  " + SolverText.Get("禁用 / 保护"),
+        "smart" => "—  " + SolverText.Get("ui.smart_use"),
+        "disabled" => "✕  " + SolverText.Get("ui.disabled_protected"),
         _ => throw new InvalidDataException("unknown potion mode " + mode),
     };
 
@@ -1320,9 +1405,9 @@ internal sealed partial class UiPanelObserver : Node
         bool plainSearch = snapshot.IsSearching && !executing;
         bool notStarted = snapshot.SearchStage == TurnSearchStage.NotStarted;
         bool stoppingSearch = snapshot.Search?.Phase == SearchUiPhase.Stopping;
-        string leftText = plainSearch ? SolverText.Get("停止搜索")
-            : notStarted ? SolverText.Get("开始搜索")
-            : SolverText.Get("继续搜索");
+        string leftText = plainSearch ? SolverText.Get("action.stop_search")
+            : notStarted ? SolverText.Get("action.search")
+            : SolverText.Get("action.continue_search");
         bool leftDisabled = executing
             || (plainSearch ? stoppingSearch : notStarted ? !snapshot.CanStartSearch : !snapshot.CanContinueSearch);
         bool restartVisible = !plainSearch && !notStarted;
@@ -1358,14 +1443,14 @@ internal sealed partial class UiPanelObserver : Node
                 panel.ExecuteTurnButtonForTest?.Disabled == !snapshot.CurrentTurnRouteReady);
             Expect("execute_combat_disabled",
                 panel.ExecuteCombatButtonForTest?.Disabled == !snapshot.CurrentTurnRouteReady);
-            Expect("execute_turn_text", panel.ExecuteTurnButtonForTest?.Text == SolverText.Get("执行本回合"));
+            Expect("execute_turn_text", panel.ExecuteTurnButtonForTest?.Text == SolverText.Get("action.play_turn"));
             Expect("execute_combat_text",
-                panel.ExecuteCombatButtonForTest?.Text == SolverText.Get("执行本场战斗"));
+                panel.ExecuteCombatButtonForTest?.Text == SolverText.Get("action.play_combat"));
         }
         Expect("stop_visible", panel.StopExecutionButtonForTest?.Visible == executing);
         if (executing)
         {
-            Expect("stop_text", panel.StopExecutionButtonForTest?.Text == SolverText.Get("停止执行"));
+            Expect("stop_text", panel.StopExecutionButtonForTest?.Text == SolverText.Get("action.stop_play"));
             Expect("stop_disabled",
                 panel.StopExecutionButtonForTest?.Disabled == snapshot.IsStoppingDeployment);
         }
@@ -1387,15 +1472,15 @@ internal sealed partial class UiPanelObserver : Node
 
     private static string BlockText(string? code) => code switch
     {
-        "enemy_turn" => SolverText.Get("敌方回合，轮到你时再搜索。"),
-        "actions_running" => SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
-        "turn_start" => SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
-        "executing" => SolverText.Get("正在执行本回合；要重新搜索请先停止执行。"),
-        "searching" => SolverText.Get("搜索仍在收尾，请稍候。"),
-        "multiplayer" => SolverText.Get("多人游戏中不能搜索。"),
-        "not_playable" => SolverText.Get("当前战斗状态不能搜索。"),
-        "not_in_combat" => SolverText.Get("当前不在战斗中。"),
-        _ => SolverText.Get("当前状态不能搜索。"),
+        "enemy_turn" => SolverText.Get("ui.enemy_turn_search_when_your_turn_begins"),
+        "actions_running" => SolverText.Get("ui.wait_for_the_current_action_to_finish"),
+        "turn_start" => SolverText.Get("ui.turn_start_is_resolving_search_after_the_opening_choice"),
+        "executing" => SolverText.Get("ui.stop_automatic_play_first"),
+        "searching" => SolverText.Get("ui.the_search_is_still_winding_down_please_wait"),
+        "multiplayer" => SolverText.Get("ui.search_is_unavailable_in_multiplayer"),
+        "not_playable" => SolverText.Get("ui.search_is_unavailable_in_the_current_combat_state"),
+        "not_in_combat" => SolverText.Get("ui.not_in_combat"),
+        _ => SolverText.Get("ui.search_is_unavailable_in_the_current_state"),
     };
 
     private void CheckRows(CombatUiSnapshot snapshot, SolverOverlayProbe probe)

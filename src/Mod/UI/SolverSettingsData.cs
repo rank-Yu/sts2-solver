@@ -378,7 +378,7 @@ internal sealed record SolverUiSettings
     public bool ShowBattleDamagePerformanceHint { get; init; } = true;
 
     /// <summary>Draw the in-game guide (card, target and choice markers) for the next route step.</summary>
-    public bool ShowGuide { get; init; } = true;
+    public bool ShowGuide { get; init; }
 
     internal void Validate()
     {

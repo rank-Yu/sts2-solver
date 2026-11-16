@@ -67,7 +67,7 @@ internal sealed class PlannedNativeSelector(
                 $"bounds={minSelect}..{maxSelect} cards=[{string.Join(',', live.Select(CardName))}]");
         }
         PlannedChoice choice = _choices[_index];
-        if (!TryMapOptions(choice, live, out int[] map, out string error))
+        if (!TryMapOptions(player, choice, live, owner, out int[] map, out string error))
             return Fail(live, minSelect, maxSelect, error);
         int expected = choice.SelectedIndexes().Count();
         int actualMin = Math.Min(minSelect, live.Count);
@@ -116,8 +116,8 @@ internal sealed class PlannedNativeSelector(
             ModLog.Error($"[Sts2Solver] DEPLOY_CHOICE_MISMATCH {message}");
     }
 
-    private bool TryMapOptions(PlannedChoice choice, List<CardModel> live, out int[] map,
-        out string error)
+    internal static bool TryMapOptions(Player player, PlannedChoice choice,
+        IReadOnlyList<CardModel> live, string owner, out int[] map, out string error)
     {
         map = [];
         int count = choice.Request.OptionCount;
@@ -143,7 +143,7 @@ internal sealed class PlannedNativeSelector(
             }
             for (int index = 0; index < live.Count; index++)
             {
-                if (!ContainsReference(source, live[index]))
+                if (IndexOfReference(source, live[index]) < 0)
                 {
                     error = $"{owner} 选项 {CardName(live[index])} 不在计划的牌堆 " +
                         $"{choice.Request.Source} 中。choice={Describe(choice)}";
@@ -161,7 +161,7 @@ internal sealed class PlannedNativeSelector(
                     error = $"{owner} 计划牌堆位置 {index} 与原生状态不符。";
                     return false;
                 }
-                int match = live.FindIndex(card => ReferenceEquals(card, source[index]));
+                int match = IndexOfReference(live, source[index]);
                 if (match < 0)
                 {
                     error = $"{owner} 计划牌堆位置 {index} 不在选项中。";
@@ -217,14 +217,14 @@ internal sealed class PlannedNativeSelector(
         _ => null,
     };
 
-    private static bool ContainsReference(IReadOnlyList<CardModel> cards, CardModel card)
+    private static int IndexOfReference(IReadOnlyList<CardModel> cards, CardModel card)
     {
         for (int index = 0; index < cards.Count; index++)
         {
             if (ReferenceEquals(cards[index], card))
-                return true;
+                return index;
         }
-        return false;
+        return -1;
     }
 
     private static bool TryIdentity(in Card card, out CardIdentity identity)

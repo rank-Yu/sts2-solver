@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "nb-b-doom",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-b-doom.json\u0022}",
-  "rulesSha256": "e9944b621dc95dc9fa5ddab72b608cecef8f9e5f81b0d8a6bdf6b1ad1d87f8e3",
+  "rulesSha256": "bfd3788321b6cdea071d1ff495d2e2f069acdb87e20e840ccb52f7c9be331600",
   "counts": {
     "roots": 1,
     "k1": 11,

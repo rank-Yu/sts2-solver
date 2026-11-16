@@ -19,9 +19,9 @@ CardCostModifierChecks.Run();
 RelicStorageChecks.Run();
 
 Check(Unsafe.SizeOf<CostModifier>() == 3, "费用修饰应为 3 字节");
-Check(Unsafe.SizeOf<Card>() == 64, $"Card 应为 64 字节，实际 {Unsafe.SizeOf<Card>()}");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsAddedFromOutside)) == 62
-    && (int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsRemovedFromOutside)) == 63,
+Check(Unsafe.SizeOf<Card>() == 46, $"Card 应为 46 字节，实际 {Unsafe.SizeOf<Card>()}");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsAddedFromOutside)) == 44
+    && (int)System.Runtime.InteropServices.Marshal.OffsetOf<Card>(nameof(Card.KeywordsRemovedFromOutside)) == 45,
     "外部关键词记录应占用 Card 末尾两个字节");
 Check(Unsafe.SizeOf<Enemy>() == 64, $"Enemy 应为 64 字节，实际 {Unsafe.SizeOf<Enemy>()}");
 Check(Unsafe.SizeOf<Power>() == 24, $"Power 应为 24 字节，实际 {Unsafe.SizeOf<Power>()}");
@@ -38,9 +38,9 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard))
         + Unsafe.SizeOf<Card>() == Battle.HeaderSize,
     "HistoryCourseCard 应紧挨在 Cards 之前");
-Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 43856,
-    "满牌打包前缀应为 43856 字节");
-Check(Battle.ExpectedSize == 43856, $"Battle 满容量大小应为 43856，实际 {Battle.ExpectedSize}");
+Check(Battle.HeaderSize + Limits.Cards * Unsafe.SizeOf<Card>() == 32376,
+    "满牌打包前缀应为 32376 字节");
+Check(Battle.ExpectedSize == 32376, $"Battle 满容量大小应为 32376，实际 {Battle.ExpectedSize}");
 Check(Battle.ExpectedSize <= 65535, "Battle 结构体应不超过 .NET 数组元素上限");
 // Header anchors: every field starts where the preceding explicit field size ends, so the widened
 // pile counts and the alignment byte introduce no compiler-inserted padding.
@@ -50,34 +50,34 @@ Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle
     "MaxHandSize 偏移");
 Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DetachedCards)) == 52,
     "DetachedCards 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 248,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.DecimalVars)) == 192,
     "DecimalVars 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 312,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Roster)) == 256,
     "Roster 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 324,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Potions)) == 268,
     "Potions 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 336,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Player)) == 296,
     "Player 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 368,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Counters)) == 328,
     "Counters 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 560,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Rng)) == 520,
     "Rng 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 960,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Enemies)) == 920,
     "Enemies 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1728,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Powers)) == 1688,
     "Powers 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStates)) == 2400,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStates)) == 2456,
     "RelicStates 偏移");
 Check(Unsafe.SizeOf<RelicState>() == 8 && Unsafe.SizeOf<RelicStateArray>() == 192
     && Unsafe.SizeOf<RelicStateFlagsArray>() == 24, "遗物动态状态大小");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStateFlags)) == 2592,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.RelicStateFlags)) == 2648,
     "RelicStateFlags 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 2616,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Orbs)) == 2672,
     "Orbs 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2832,
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.HistoryCourseCard)) == 2890,
     "HistoryCourseCard 偏移");
-Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Wuppy)) == 2816
-    && Unsafe.SizeOf<Creature>() == 16, "Wuppy 应复用历史牌前的 16 字节填充");
+Check((int)System.Runtime.InteropServices.Marshal.OffsetOf<Battle>(nameof(Battle.Wuppy)) == 2872
+    && Unsafe.SizeOf<Creature>() == 16, "Wuppy 应占用历史牌前的 16 字节");
 string? execCoverageError = ExecCoverage.Validate();
 Check(execCoverageError == null, $"Exec 字段覆盖合同失败：{execCoverageError}");
 
@@ -1195,6 +1195,30 @@ static void CheckMbKernel(Rules battleRules)
         "免费药水不应计入生成药水战略成本");
     Check(potionBattle.Counter(Counter.EntropicFreePotionMask) == 0, "使用后应清除免费位");
     Check(potionBattle.Enemies[0].Creature.CurrentHp < enemyHp, "免费药水效果应正常结算");
+    // Generated potions must retain their free-use bit beyond the old five-slot boundary.
+    Battle wide = NewBattle();
+    wide.PotionSlotCount = Limits.PotionSlots;
+    for (int slot = 0; slot < Limits.PotionSlots; slot++)
+        Check(Kernel.TryProcurePotion(ref wide, rules, fire, freeFromEntropic: true),
+            $"应能向第 {slot + 1} 槽放入免费药水");
+    Check(wide.Counter(Counter.EntropicFreePotionMask) == (1 << Limits.PotionSlots) - 1,
+        "所有12个免费槽位均应保留");
+    Battle decoded = BattleCodec.Decode(BattleCodec.Encode(wide, rules.Relics), out _);
+    Check(Fingerprint.Equal(wide, decoded), "12槽状态应可无损编解码");
+    for (int slot = 5; slot < Limits.PotionSlots; slot++)
+    {
+        Battle child = default;
+        Battle.CopyPacked(wide, ref child);
+        int beforeHp = child.Enemies[0].Creature.CurrentHp;
+        Kernel.Step(ref child, PlayerAction.UsePotion(slot, Limits.FirstEnemyOwner), rules, out _);
+        Check(child.Potions[slot] == 0 && child.Enemies[0].Creature.CurrentHp < beforeHp,
+            $"第 {slot + 1} 槽药水应正常使用");
+        Check(child.Counter(Counter.EntropicFreePotionMask)
+                == (((1 << Limits.PotionSlots) - 1) & ~(1 << slot))
+            && child.Counter(Counter.GeneratedPotionStrategicCost) == 0,
+            $"第 {slot + 1} 槽应只清除自己的免费位");
+    }
+
 }
 
 static Rules MbPotionRules()

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "dx7-duplicate-stomp",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx7-duplicate-stomp.json\u0022}",
-  "rulesSha256": "6d912a51991764132077e4146310820f9ec24b904f4c919b044c35f804ee87cd",
+  "rulesSha256": "cee594fd2ad50e50ba455dd4bf92004d4a00289dabd5d2a37b0c76af039d4d2c",
   "counts": {
     "roots": 1,
     "k1": 5,

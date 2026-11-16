@@ -154,9 +154,13 @@ internal static class NativeChoiceRuntime
         if (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) != null || MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.LocalSelector != null)
             return null;
         NativeChoiceSession? session = _session;
-        if (session == null
-            || !ReferenceEquals(session.Player, player)
-            || !ReferenceEquals(session.Combat, CombatManager.Instance.DebugOnlyGetState()))
+        if (session != null)
+        {
+            if (!ReferenceEquals(session.Player, player)
+                || !ReferenceEquals(session.Combat, CombatManager.Instance.DebugOnlyGetState()))
+                return null;
+        }
+        else if (!requiresSurface || !CombatSessionController.ObservesManualGuideChoice(player))
         {
             return null;
         }
@@ -183,7 +187,10 @@ internal static class NativeChoiceRuntime
         {
             Filter = filter,
         };
-        session.Enqueue(request);
+        if (session != null)
+            session.Enqueue(request);
+        else
+            CombatSessionController.ObserveManualGuideChoice(request);
         return request;
     }
 

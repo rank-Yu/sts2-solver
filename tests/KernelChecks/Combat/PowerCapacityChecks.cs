@@ -21,12 +21,12 @@ internal static class PowerCapacityChecks
         }
         battle.PowerCount = Limits.Powers - 1;
         Kernel.SetPowerAmount(ref battle, Limits.FirstEnemyOwner, strength, 4);
-        Require(battle.PowerCount == Limits.Powers, "28th power accepted");
+        Require(battle.PowerCount == Limits.Powers, "32nd power accepted");
         Battle before = battle;
         bool rejected = false;
         try { Kernel.SetPowerAmount(ref battle, Limits.OstyOwner, dexterity, 1); }
         catch (CapacityException) { rejected = true; }
-        Require(rejected && Fingerprint.Equal(before, battle), "29th power rejected without mutation");
+        Require(rejected && Fingerprint.Equal(before, battle), "33rd power rejected without mutation");
         Kernel.SetPowerAmount(ref battle, Limits.FirstEnemyOwner, strength, 9);
         Require(battle.PowerCount == Limits.Powers && battle.Powers[Limits.Powers - 1].Amount == 9,
             "stacking existing power at capacity");
@@ -42,7 +42,7 @@ internal static class PowerCapacityChecks
         Battle copy = BattleCodec.Decode(encoded, out _);
         Require(Fingerprint.Equal(battle, copy), "full power table and following fields round trip");
         Require(encoded.AsSpan().SequenceEqual(BattleCodec.Encode(copy, roster)), "current payload");
-        encoded[BattleCodec.HeaderSize + 4 + 45] = 29;
+        encoded[BattleCodec.HeaderSize + 4 + 45] = 33;
         rejected = false;
         try { BattleCodec.Decode(encoded, out _); }
         catch (InvalidDataException) { rejected = true; }
@@ -53,7 +53,7 @@ internal static class PowerCapacityChecks
         Kernel.SetPowerAmount(ref battle, Limits.OstyOwner, dexterity, 1);
         Require(battle.PowerCount == Limits.Powers && Kernel.GetAmount(battle, Limits.OstyOwner, dexterity) == 1,
             "released slot reusable by another owner");
-        Console.WriteLine("POWER_CAPACITY28 insert/overflow/stack/remove/reuse/wire=pass");
+        Console.WriteLine("POWER_CAPACITY32 insert/overflow/stack/remove/reuse/wire=pass");
     }
 
     private static void Require(bool ok, string reason)

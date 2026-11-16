@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "event-equipment-upgraded",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-event-equipment-upgraded.json\u0022}",
-  "rulesSha256": "8c473366b309edb71d675b66aa2ab1d70a87d84179ca4c49d7271462d83a75d2",
+  "rulesSha256": "a680af133102d8c1c47bcaac49408608087bdfc6f26f1269aef1f069f8d78f7f",
   "counts": {
     "roots": 1,
     "k1": 5,

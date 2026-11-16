@@ -84,7 +84,7 @@ internal static class CombatLogRecorder
             run?.CurrentActIndex,
             run?.TotalFloor,
             run?.AscensionLevel,
-            SolverText.IsEnglish ? "en" : "zh");
+            SolverText.Language == "eng" ? "en" : "zh");
         Volatile.Write(ref _current, folder);
         Interlocked.Exchange(ref _searches, 0);
         Interlocked.Exchange(ref _deviations, 0);
@@ -217,14 +217,14 @@ internal static class CombatLogRecorder
         if (_export is { IsCompleted: false })
             return _export;
         if (_root is not { } root)
-            return Task.FromResult(new DiagnosticLogExport(null, SolverText.Get("日志尚未初始化")));
+            return Task.FromResult(new DiagnosticLogExport(null, SolverText.Get("ui.logging_has_not_initialized")));
 
         string settings = ProjectSettings.GlobalizePath(SolverSettings.RelativePath);
         string logs = ProjectSettings.GlobalizePath("user://logs");
         string exports = ProjectSettings.GlobalizePath("user://sts2solver/exports");
         TaskCompletionSource<DiagnosticLogExport> done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _export = done.Task;
-        string incomplete = SolverText.Get("日志打包未完成");
+        string incomplete = SolverText.Get("ui.log_packaging_did_not_complete");
         Enqueue(() =>
         {
             try

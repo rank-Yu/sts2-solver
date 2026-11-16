@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "qf-fisticuffs-replay",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-fisticuffs-replay.json\u0022}",
-  "rulesSha256": "7a111761719a0b23d72810e4d9bfd096506df0d8f8cbebf7f7299c30920649f7",
+  "rulesSha256": "3285069ba7c44d1bf62e3bf478d430e1b61d7a98b200583db788fada0f00aead",
   "counts": {
     "roots": 1,
     "k1": 2,

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "potion-capacity-coffer",
+  "gameModeForTest": "Dread",
+  "generatedScenarioPath": "tests/Differential/fixtures/potion-capacity-coffer.scenario.json",
+  "cards": [],
+  "fullCombatForTest": true,
+  "searchThreadsForTest": 4,
+  "timeoutSeconds": 180,
+  "potionDefaultModeForTest": "Smart"
+}

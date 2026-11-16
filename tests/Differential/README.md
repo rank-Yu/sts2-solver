@@ -89,6 +89,17 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/v1131-obsidian-vice-empty.json end
 ```
 
+## 用药时机与遗物
+
+以下用例核对第二回合用药获得临时力量，以及先让燃烧获得的力量触发头盔翻倍、再喝力量药、鱼油或玛扎雷斯的馈赠的结算。搜索回归在 KernelChecks 中验证这些后续回合的用药路线能被找到，并覆盖已熔化遗物。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-timing-reptile.json end potion:0:255 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-timing-helmet.json play:0:255 end potion:0:255 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-timing-helmet-fysh.json play:0:255 end potion:0:255 play:0:2
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-timing-helmet-ritual.json play:0:255 end potion:0:255 end play:0:2
+```
+
 ## 恐惧开战与多实例炸弹回归
 
 [灵魂鱼领域开局](fixtures/dread-soul-fysh-start.json)保留原版开局，并通过正式控制器执行整场战斗。必须使用游戏宿主：控制器在领域生成 Beckon 之前编译规则，离线宿主从可出牌状态编译规则不能检出此遗漏。
@@ -376,3 +387,16 @@ dotnet artifacts/bin/Differential/release/Differential.dll --setup-enumerate ope
 ```
 
 开局对照覆盖遗物造牌、抽牌优先级、赌博筹码候选变化和低语耳环的自动选择；每条准备计划均与原版比较完整状态。
+
+
+## 药水槽容量
+
+以下场景实际执行扩槽遗物的获得效果：恐惧模式故障机器人获得 Alchemical Coffer 后为 7 槽，叠加 Phial Holster 和 Potion Belt 后为 10 槽。极速场景在 Potion Belt 和 Alchemical Coffer 的 9 槽基础上，将槽数设为三次商店扩槽后的 12，逐步对照第 6～12 槽用药。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-coffer.json potion:5:255 potion:6:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-stacked.json potion:5:255 potion:6:255 potion:7:255 potion:8:255 potion:9:255
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/potion-capacity-blitz.json potion:5:255 potion:6:255 potion:7:255 potion:8:255 potion:9:255 potion:10:255 potion:11:255
+```
+
+--import-negative 同时检查 7、10、12 槽和最高槽位的药水均能导入，13 槽明确拒绝。KernelChecks 覆盖高槽位搜索、免费生成药水标记、打包复制与编码往返。

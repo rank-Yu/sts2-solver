@@ -52,10 +52,10 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         };
         top.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         CardModel flame = ModelDb.Card<BrightestFlame>();
-        _limitFlame = AddSwitchRow(top, SolverText.Format($"限制{flame.Title}的最大生命消耗"),
+        _limitFlame = AddSwitchRow(top, SolverText.Format("ui.limit_max_hp_cost", flame.Title),
             "LimitBrightestFlame");
-        string flameTip = SolverText.Get("0 表示求解器不再使用；已手动消耗的额度也计入。");
-        _flame = AddHpRow(top, flame.Portrait, SolverText.Get("每场最多消耗"),
+        string flameTip = SolverText.Get("ui.at_0_the_solver_stops_using_it_manual_plays_count");
+        _flame = AddHpRow(top, flame.Portrait, SolverText.Get("ui.max_hp_per_combat"),
             "BrightestFlameMaxHpLossLimit", flameTip, labelTooltip: true,
             value => CombatUiCommands.Instance.SetBrightestFlameLimit(value));
         content.AddChild(top);
@@ -67,10 +67,10 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         section.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        _growth = AddSwitchRow(section, SolverText.Get("考虑成长性卡牌收益"), "GrowthRewards");
-        string budgetTip = SolverText.Get("0 仍优先获取同等战损下的收益；多次成功触发逐次累计。");
+        _growth = AddSwitchRow(section, SolverText.Get("ui.value_growth_card_rewards"), "GrowthRewards");
+        string budgetTip = SolverText.Get("ui.at_0_prefer_gains_at_equal_hp_loss_multiple_triggers");
         HBoxContainer heading = SolverSettingsControls.CreateSectionHeading(
-            SolverText.Get("每次收益允许的额外战损"));
+            SolverText.Get("ui.extra_hp_loss_allowed_per_gain"));
         heading.TooltipText = budgetTip;
         heading.MouseFilter = MouseFilterEnum.Pass;
         section.AddChild(heading);
@@ -80,8 +80,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         {
             CardModel card = SourceCard(source);
             string title = source == GrowthSource.Goopy
-                ? ModelDb.Enchantment<Goopy>().Title.GetFormattedText()
-                    + (SolverText.IsEnglish ? " " : "") + card.Title
+                ? SolverText.Format("text.enchanted_card", ModelDb.Enchantment<Goopy>().Title.GetFormattedText(), card.Title)
                 : card.Title;
             _budgets[(int)source] = AddHpRow(section, card.Portrait, title, source.ToString(), budgetTip,
                 labelTooltip: false, value => CombatUiCommands.Instance.SetGrowthBudget(source, value));
@@ -102,7 +101,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
 
     public SolverStrategyPageKind Kind => SolverStrategyPageKind.Growth;
 
-    public string Title => SolverText.Get("成长策略");
+    public string Title => SolverText.Get("strategy.growth");
 
     public Control Root => this;
 
@@ -277,11 +276,11 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
     {
         if (row.Edit.Text == row.Shown)
             return true;
-        if (!int.TryParse(row.Edit.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture,
+        if (!int.TryParse(row.Edit.Text.Trim(), NumberStyles.None, SolverText.Culture,
                 out int value) || value > MaximumHp)
         {
             row.Edit.AddThemeColorOverride("font_color", SolverUiTokens.Palette.Danger);
-            SetStatus(SolverText.Format($"请输入 {MinimumHp}–{MaximumHp} 的整数"),
+            SetStatus(SolverText.Format("ui.enter_an_integer_from_to", MinimumHp, MaximumHp),
                 SolverUiTokens.Palette.Danger);
             row.Edit.GrabFocus();
             return false;
@@ -308,7 +307,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         int? limit = limited ? DefaultFlameLimit : null;
         bool accepted = CombatUiCommands.Instance.SetBrightestFlameLimit(limit);
         ModLog.Info(
-            $"[Sts2Solver] UI_ACTION action=brightest_flame_limit value={limit?.ToString(CultureInfo.InvariantCulture) ?? "none"} " +
+            $"[Sts2Solver] UI_ACTION action=brightest_flame_limit value={limit?.ToString(SolverText.Culture) ?? "none"} " +
             $"accepted={accepted}");
         ShowSaved(accepted);
         Apply(CombatUiStore.Snapshot);
@@ -316,8 +315,8 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
 
     private void ShowSaved(bool accepted)
         => SetStatus(accepted
-                ? SolverText.Get("已保存，下次搜索生效")
-                : SolverText.Get("保存失败，详情已写入游戏日志"),
+                ? SolverText.Get("ui.saved_applies_to_the_next_search")
+                : SolverText.Get("ui.saving_failed_details_are_in_the_game_log"),
             accepted ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Danger);
 
     private void SetStatus(string text, Color color)
@@ -329,7 +328,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
     /// <summary>Displays a saved value; a box still showing it has nothing to commit.</summary>
     private static void Show(HpRow row, int value)
     {
-        row.Shown = value.ToString(CultureInfo.InvariantCulture);
+        row.Shown = value.ToString(SolverText.Culture);
         if (row.Edit.Text != row.Shown)
             row.Edit.Text = row.Shown;
         ColorNumber(row);

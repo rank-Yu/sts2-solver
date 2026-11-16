@@ -127,14 +127,12 @@ internal sealed record SolverOverlaySnapshot(
         // show it, so the recalculation increase does not drop off on a refresh.
         int increase = result?.ProjectedBattleHpLossIncrease ?? 0;
         string hpOutcome = !projectedKnown
-            ? SolverText.Get("预计战损 未知")
+            ? SolverText.Get("ui.projected_hp_loss_unknown")
             : projectedLost > 0 || lostBefore > 0
                 ? increase > 0
-                    ? SolverText.Format(
-                        $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP    重算增加 {increase} HP")
-                    : SolverText.Format(
-                        $"本局扣血  已 {lostBefore}    预计 {projectedLost} HP")
-                : SolverText.Get("本局扣血  0 HP");
+                    ? SolverText.Format("ui.hp_lost_so_far_projected_recalculated", lostBefore, projectedLost, increase)
+                    : SolverText.Format("ui.hp_lost_so_far_projected", lostBefore, projectedLost)
+                : SolverText.Get("ui.hp_lost_0");
         return new SolverOverlaySnapshot(
             potions,
             projectedLost,
@@ -164,7 +162,7 @@ internal sealed record SolverOverlaySnapshot(
             return null;
         int count = shown.PotionsUsedSoFar.Length;
         string names = PotionNames(shown.PotionsUsedSoFar);
-        return SolverText.Format($"已用药：{count}瓶（{names}）");
+        return SolverText.Format("ui.used_potion_s", count, names);
     }
 
     private static string? PlannedPotionOutcome(CombatResultUiSnapshot? result)
@@ -174,8 +172,8 @@ internal sealed record SolverOverlaySnapshot(
         int count = shown.PlannedPotionIds.Length;
         string names = PotionNames(shown.PlannedPotionIds);
         return shown.PotionsUsedSoFar.Length == 0
-            ? SolverText.Format($"预计用药：{count}瓶（{names}）")
-            : SolverText.Format($"还要用：{count}瓶（{names}）");
+            ? SolverText.Format("ui.planned_potion_s", count, names)
+            : SolverText.Format("ui.remaining_potion_s", count, names);
     }
 
     private static string? UnrecoveredLoot(CombatResultUiSnapshot? result)
@@ -184,11 +182,11 @@ internal sealed record SolverOverlaySnapshot(
             return null;
         int cards = shown.UnrecoveredCards;
         int gold = shown.UnrecoveredGold;
-        return SolverText.Format($"预计未追回：{cards} 张牌 / {gold} 金币");
+        return SolverText.Format("ui.unrecovered_cards_gold", cards, gold);
     }
 
     private static string PotionNames(IEnumerable<string> ids)
-        => string.Join(SolverText.IsEnglish ? ", " : "、", ids.Select(CombatDisplayNames.PotionTitle));
+        => string.Join(SolverText.Get("text.list_separator"), ids.Select(CombatDisplayNames.PotionTitle));
 
     // Ported from CombatSolver src/UI/SolverStrategyOutcomeText.cs at 5c773caa (MIT License,
     // Copyright (c) 2026 Torch1230 and contributors). Targets are fixed one short of triggering, so an
@@ -204,21 +202,21 @@ internal sealed record SolverOverlaySnapshot(
             if (relic.Met)
                 completed.Add($"{name} {relic.Value}");
             else
-                pending.Add(SolverText.Format($"{name} {relic.Goal} 实际 {relic.Value}"));
+                pending.Add(SolverText.Format("ui.actual", name, relic.Goal, relic.Value));
         }
         foreach (StrategyGrowthUi gain in result.StrategyGrowth)
         {
             string name = SolverGrowthStrategyPage.GainTitle(Enum.Parse<GrowthSource>(gain.Source));
-            growth.Add(gain.Count == 1 ? name : $"{name} ×{gain.Count}");
+            growth.Add(gain.Count == 1 ? name : SolverText.Format("text.counted_name", name, gain.Count));
         }
-        string separator = SolverText.IsEnglish ? ", " : "、";
+        string separator = SolverText.Get("text.list_separator");
         List<SolverStrategyOutcome> parts = [];
         if (completed.Count > 0)
-            parts.Add(new(SolverText.Format($"已卡：{string.Join(separator, completed)}"), true));
+            parts.Add(new(SolverText.Format("ui.counters_aligned", string.Join(separator, completed)), true));
         if (pending.Count > 0)
-            parts.Add(new(SolverText.Format($"未达标：{string.Join(separator, pending)}"), false));
+            parts.Add(new(SolverText.Format("ui.targets_unmet", string.Join(separator, pending)), false));
         if (growth.Count > 0)
-            parts.Add(new(SolverText.Format($"已获得：{string.Join(separator, growth)}"), true));
+            parts.Add(new(SolverText.Format("ui.growth_gained", string.Join(separator, growth)), true));
         return parts;
     }
 
@@ -252,17 +250,16 @@ internal sealed record SolverOverlaySnapshot(
     private static string FormatStartChoice(TurnStartChoiceUi choice)
     {
         string effect = SolverPanelText.ChoiceEffect(choice.Effect);
-        string separator = SolverText.IsEnglish ? ", " : "、";
+        string separator = SolverText.Get("text.list_separator");
         string cards = string.Join(separator,
             choice.Cards.Select(card => CombatDisplayNames.CardTitle(card.CardId, card.Upgrade)));
         string source = ResolveStartChoiceSource(choice);
-        string colon = SolverText.IsEnglish ? ": " : "：";
-        return $"{source}{colon}{effect} {cards}";
+        return SolverText.Format("text.named_choice", source, effect, cards);
     }
 
     private static string ResolveStartChoiceSource(TurnStartChoiceUi choice)
     {
-        string fallback = SolverText.Get("起手选择");
+        string fallback = SolverText.Get("ui.turn_start_choice");
         if (choice.SourceId.Length == 0)
             return fallback;
         string title = choice.SourceKind switch
@@ -289,7 +286,7 @@ internal sealed record SolverOverlaySnapshot(
             "use_potion" => action.PotionId is { Length: > 0 } potion
                 ? CombatDisplayNames.PotionTitle(potion)
                 : throw new InvalidDataException("路线 use_potion 缺少 PotionId。"),
-            "end_turn" => SolverText.Get("结束回合"),
+            "end_turn" => SolverText.Get("ui.end_turn"),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action.Kind, "未知路线动作类型。"),
         };
         string target = action.TargetKind switch
@@ -389,7 +386,7 @@ internal sealed record SolverOverlaySnapshot(
             "use_potion" => action.PotionId is { Length: > 0 } potion
                 ? CombatDisplayNames.PotionTitle(potion)
                 : throw new InvalidDataException("路线 use_potion 缺少 PotionId。"),
-            "end_turn" => SolverText.Get("结束回合"),
+            "end_turn" => SolverText.Get("ui.end_turn"),
             _ => throw new ArgumentOutOfRangeException(nameof(action), action.Kind, "未知路线动作类型。"),
         };
         string target = action.TargetKind switch
@@ -423,9 +420,9 @@ internal sealed record SolverOverlaySnapshot(
         foreach (ChoiceCardUi[] layer in choices)
         {
             layers.Add(layer.Length == 0
-                ? SolverText.Get("不选")
-                : SolverText.Format($"选 {string.Join(SolverText.Get("、"),
-                    layer.Select(card => CombatDisplayNames.CardTitle(card.CardId, card.Upgrade)))}"));
+                ? SolverText.Get("ui.skip_choice")
+                : SolverText.Format("ui.choose", string.Join(SolverText.Get("text.list_separator"),
+                    layer.Select(card => CombatDisplayNames.CardTitle(card.CardId, card.Upgrade)))));
         }
         return string.Join(" / ", layers);
     }
@@ -433,12 +430,12 @@ internal sealed record SolverOverlaySnapshot(
     private static string Tooltip(string title, string target, string? choice, string[] kills,
         bool potion)
         => title
-            + (potion ? SolverText.Get("（药水）") : string.Empty)
+            + (potion ? SolverText.Get("text.potion_suffix") : string.Empty)
             + (string.IsNullOrEmpty(target) ? string.Empty : $"→{target}")
-            + (choice == null ? string.Empty : $"（{choice}）")
+            + (choice == null ? string.Empty : SolverText.Format("text.choice_suffix", choice))
             + (kills.Length == 0
                 ? string.Empty
-                : SolverText.Format($"，击杀 {string.Join(SolverText.Get("、"), kills)}"));
+                : SolverText.Format("ui.kills", string.Join(SolverText.Get("text.list_separator"), kills)));
 
     private static SolverOverlayActionVisualKind Visual(string? cardType, string kind)
     {

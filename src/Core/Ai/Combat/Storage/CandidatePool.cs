@@ -83,14 +83,13 @@ internal sealed partial class BeamSolver
         private readonly RouteNodeStore _routeNodes;
         private readonly ChunkedList<RoutingSignature> _routingSignatures;
         private readonly SearchStorage _storage;
-        private readonly bool _checkPotionQuota;
+        private readonly bool _preservePotionLineages;
         private readonly bool _preserveReplayAllocatorOpening;
         private readonly int _policyWidth;
         private readonly BeamTrace? _trace;
 
         /// <summary>The solver phase label used by the offline trace (only read when <see cref="_trace"/> is set).</summary>
         public string TracePhase { get; set; } = "next";
-        private readonly HashSet<int> _potionReservations = new();
         private readonly Dictionary<int, PotionLineageLeaders> _potionLineageGroups = new();
         private readonly List<int> _potionLineageOrder = new();
         private const int RoutingChoiceLimit = 96;
@@ -145,7 +144,7 @@ internal sealed partial class BeamSolver
             bool secondRankBand, int secondRankBandWidth,
             bool aggressivePowerCommitment, PowerCommitmentCatalog? powerCommitments,
             ChunkedList<PowerCommitmentState> commitmentStates, RouteNodeStore routeNodes,
-            ChunkedList<RoutingSignature> routingSignatures, bool checkPotionQuota,
+            ChunkedList<RoutingSignature> routingSignatures, bool preservePotionLineages,
             bool preserveReplayAllocatorOpening, BeamTrace? trace, SearchStorage storage,
             CancellationToken cancellationToken = default,
             Action? checkpoint = null, Action? retentionObserver = null)
@@ -164,7 +163,7 @@ internal sealed partial class BeamSolver
             _routeNodes = routeNodes;
             _routingSignatures = routingSignatures;
             _storage = storage;
-            _checkPotionQuota = checkPotionQuota;
+            _preservePotionLineages = preservePotionLineages;
             _preserveReplayAllocatorOpening = preserveReplayAllocatorOpening;
             _trace = trace;
             _policyWidth = secondRankBandWidth > 0 ? secondRankBandWidth : maxCapacity;

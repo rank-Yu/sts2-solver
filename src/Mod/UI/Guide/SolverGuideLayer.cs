@@ -14,7 +14,6 @@ using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.Potions;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Screens.Capstones;
-using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using NativeCreature = MegaCrit.Sts2.Core.Entities.Creatures.Creature;
 
@@ -31,11 +30,7 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
     private readonly SolverGuideCanvas _canvas = new() { Name = "GuideCanvas" };
     private readonly PanelContainer _caption = new() { Name = "GuideCaption", Visible = false };
     private Label? _captionLabel;
-    private GuideStepUi? _step;
-    private int _choiceIndex;
-    private bool _choiceSurfaceOpen;
-    private bool _choiceSeen;
-    private string? _captionKey;
+    private (GuideStepUi Step, long Choice, string Language)? _captionKey;
     private string? _captionText;
 
     public override void _Ready()
@@ -52,8 +47,7 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
             SolverUiTokens.Radius.Large,
             SolverUiTokens.Spacing.Md,
             SolverUiTokens.Spacing.Sm,
-            borderWidth: 2,
-            shadow: true));
+            borderWidth: 1));
         AddChild(_caption);
     }
 
@@ -76,37 +70,35 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
     private SolverGuideFrame? BuildFrame()
     {
         if (!SolverSettings.Current.Ui.ShowGuide || MegaCrit.Sts2.Core.Localization.LocManager.Instance == null)
-            return Reset();
+            return null;
         CombatManager manager = CombatManager.Instance;
         if (manager == null || !manager.IsInProgress || CombatSessionController.IsMultiplayerSession)
-            return Reset();
+            return null;
         CombatState? state = manager.DebugOnlyGetState();
         if (state == null || state.Players.Count != 1 || LocalContext.GetMe(state) is not { } player)
-            return Reset();
+            return null;
         GuideStepUi? step = CombatUiStore.Snapshot.Guide;
         if (step == null || step.Turn != player.PlayerCombatState?.TurnNumber)
-            return Reset();
-        if (!ReferenceEquals(step, _step))
-        {
-            _step = step;
-            _choiceIndex = 0;
-            _choiceSurfaceOpen = false;
-            _choiceSeen = false;
-            _captionKey = null;
-        }
+            return null;
         if (NCombatRoom.Instance is not { } room || !room.IsInsideTree() || room.Ui is not { } ui)
             return null;
         if (NCapstoneContainer.Instance?.InUse == true || NModalContainer.Instance?.OpenModal != null)
             return null;
 
-        Node? surface = ChoiceSurface(ui.Hand, out bool foreignOverlay);
-        if (foreignOverlay)
+        IReadOnlyList<CardModel>? selected = CombatSessionController.GuideChoiceCards(step,
+            out NativeChoiceSurfaceKind kind, out long sequence);
+        if (selected != null)
+        {
+            return NativeChoiceSurface.GetState(kind, out Node? surface)
+                    == NativeChoiceSurfaceState.ExpectedVisible
+                ? ChoiceFrame(step, surface!, selected, sequence)
+                : null;
+        }
+        if (state.CurrentSide != CombatSide.Player || ui.Hand.IsInCardSelection
+            || NOverlayStack.Instance?.Peek() != null)
+        {
             return null;
-        TrackChoiceSurface(surface != null);
-        if (surface != null)
-            return ChoiceFrame(step, surface);
-        if (state.CurrentSide != CombatSide.Player)
-            return null;
+        }
         return step.Action.Kind switch
         {
             "play_card" => CardFrame(step, state, player, room, ui.Hand),
@@ -116,74 +108,30 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
         };
     }
 
-    private SolverGuideFrame? Reset()
+    private SolverGuideFrame? ChoiceFrame(GuideStepUi step, Node surface,
+        IReadOnlyList<CardModel> selected, long sequence)
     {
-        _step = null;
-        return null;
-    }
-
-    /// <summary>
-    /// The visible card-selection surface: the hand in selection mode or a card grid on top of the
-    /// overlay stack. Any other overlay (deck view, settings) hides the guide.
-    /// </summary>
-    private static Node? ChoiceSurface(NPlayerHand hand, out bool foreignOverlay)
-    {
-        foreignOverlay = false;
-        if (hand.IsInCardSelection)
-            return hand;
-        if (NOverlayStack.Instance?.Peek() is not Node top)
-            return null;
-        if (top is NChooseACardSelectionScreen or NCardGridSelectionScreen)
-        {
-            return top;
-        }
-        foreignOverlay = true;
-        return null;
-    }
-
-    /// <summary>Each selection surface opened during one step answers the step's next choice.</summary>
-    private void TrackChoiceSurface(bool open)
-    {
-        if (open && !_choiceSurfaceOpen)
-        {
-            if (_choiceSeen)
-                _choiceIndex++;
-            _choiceSeen = true;
-            _captionKey = null;
-        }
-        _choiceSurfaceOpen = open;
-    }
-
-    private SolverGuideFrame? ChoiceFrame(GuideStepUi step, Node surface)
-    {
-        if (_choiceIndex >= step.Choices.Length)
-            return null;
-        ChoiceCardUi[] wanted = step.Choices[_choiceIndex];
         List<SolverGuideRect> marks = [];
         foreach (NCardHolder holder in Descendants<NCardHolder>(surface))
         {
-            if (!holder.IsVisibleInTree() || holder.CardModel is not { } card)
-                continue;
-            if (!wanted.Any(choice => choice.CardId == card.Id.Entry
-                    && choice.Upgrade == card.CurrentUpgradeLevel))
+            if (holder.CardModel is { } card
+                && selected.Contains(card, ReferenceEqualityComparer.Instance)
+                && SolverGuideRect.Of(holder.Hitbox) is { } rect)
             {
-                continue;
-            }
-            if (SolverGuideRect.Of(holder.Hitbox) is { } rect)
                 marks.Add(rect);
+            }
         }
+        if (selected.Count > 0 && marks.Count == 0)
+            return null;
         Vector2 anchor = marks.Count > 0
             ? marks.Aggregate(marks[0].Top, (top, rect) => rect.Top.Y < top.Y ? rect.Top : top)
             : _canvas.GetViewportRect().GetCenter();
         return new SolverGuideFrame(SolverGuideKind.Choice, null, null, marks, null, anchor,
-            CaptionText(step, "choice:" + _choiceIndex, () =>
-            {
-                string cards = wanted.Length == 0
-                    ? SolverText.Get("不选择任何牌")
-                    : string.Join(SolverText.Get("、"), wanted.Select(
-                        choice => CombatDisplayNames.CardTitle(choice.CardId, choice.Upgrade)));
-                return SolverText.Format($"选择：{cards}，然后确认");
-            }));
+            CaptionText(step, () => selected.Count == 0
+                ? SolverText.Get("ui.skip_choice")
+                : SolverText.Format("ui.guide_select_cards", string.Join(SolverText.Get("text.list_separator"),
+                    selected.Select(card => CombatDisplayNames.CardTitle(card.Id.Entry,
+                        card.CurrentUpgradeLevel)))), sequence));
     }
 
     private SolverGuideFrame? CardFrame(GuideStepUi step, CombatState state, Player player,
@@ -212,14 +160,11 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
         Vector2 anchor = source?.Top ?? target!.Value.Top;
         Vector2? dropPoint = target == null && source != null ? PlayDropPoint() : null;
         return new SolverGuideFrame(kind, source, target, [], dropPoint, anchor,
-            CaptionText(step, "card", () =>
+            CaptionText(step, () =>
             {
                 string name = CombatDisplayNames.CardTitle(card.Id.Entry, card.CurrentUpgradeLevel);
-                string? targetName = TargetName(step.Action, state);
-                string text = targetName == null
-                    ? SolverText.Format($"打出 {name}")
-                    : SolverText.Format($"打出 {name} → {targetName}");
-                return step.Choices.Length > 0 ? text + SolverText.Get("（随后选牌）") : text;
+                return WithTarget(SolverText.Format("ui.guide_play_card", name),
+                    TargetName(step.Action, state));
             }));
     }
 
@@ -241,15 +186,13 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
         Vector2 below = source == null ? Vector2.Zero : new Vector2(source.Value.Center.X, source.Value.Bottom.Y + 64);
         return source == null ? null
             : new SolverGuideFrame(SolverGuideKind.Potion, source, target, [], null, below,
-                CaptionText(step, "potion", () =>
+                CaptionText(step, () =>
                 {
                     string name = CombatDisplayNames.PotionTitle(step.Action.PotionId ?? "");
                     string? targetName = step.Action.TargetKind == "enemy"
                         ? TargetName(step.Action, state)
                         : null;
-                    return targetName == null
-                        ? SolverText.Format($"使用药水 {name}")
-                        : SolverText.Format($"使用药水 {name} → {targetName}");
+                    return WithTarget(SolverText.Format("ui.guide_use_potion", name), targetName);
                 }), CaptionBelow: true);
     }
 
@@ -261,7 +204,7 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
             return null;
         }
         return new SolverGuideFrame(SolverGuideKind.EndTurn, rect, null, [], null, rect.Top,
-            CaptionText(step, "end", static () => SolverText.Get("结束回合")));
+            CaptionText(step, static () => SolverText.Get("ui.end_turn")));
     }
 
     private static SolverGuideRect? TargetRect(RouteActionUi action, CombatState state, Player player,
@@ -300,14 +243,16 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
         return new Vector2(view.GetCenter().X, view.Position.Y + view.Size.Y * 0.45f);
     }
 
-    /// <summary>Caption text is rebuilt only when the step or its phase changes.</summary>
-    private string CaptionText(GuideStepUi step, string phase, Func<string> body)
+    private static string WithTarget(string action, string? target)
+        => target == null ? action : $"{action} → {target}";
+
+    private string CaptionText(GuideStepUi step, Func<string> body, long choice = 0)
     {
-        string key = phase + "|" + step.ActionIndex;
+        var key = (step, choice, SolverText.Language);
         if (_captionKey == key && _captionText != null)
             return _captionText;
         _captionKey = key;
-        _captionText = SolverText.Format($"第 {step.TurnStep}/{step.TurnStepCount} 步") + "  " + body();
+        _captionText = SolverText.Format("ui.guide_step", step.TurnStep, step.TurnStepCount) + "  " + body();
         return _captionText;
     }
 
@@ -315,7 +260,7 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
     {
         if (_captionLabel == null)
         {
-            _captionLabel = SolverUiTokens.CreateLabel(string.Empty, SolverUiTokens.Type.Title,
+            _captionLabel = SolverUiTokens.CreateLabel(string.Empty, SolverUiTokens.Type.Body,
                 SolverUiTokens.Palette.TextPrimary);
             _captionLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _caption.AddChild(_captionLabel);

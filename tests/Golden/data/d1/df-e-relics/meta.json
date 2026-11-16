@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "df-e-relics",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-e-relics.json\u0022}",
-  "rulesSha256": "488abed9836c70e5ead19f8ea5976e92656f3ef7263867b871f8857ea938ed0b",
+  "rulesSha256": "9386a8419144697c84b79cba37511f14a60038b9fb6124bb969167c8e749513e",
   "counts": {
     "roots": 1,
     "k1": 5,

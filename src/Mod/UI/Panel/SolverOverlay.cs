@@ -252,8 +252,8 @@ internal sealed partial class SolverOverlay : CanvasLayer
         AddChild(panel);
         _panel = panel;
         // Labels that swap keep the width of the wider one, so the header and notice never jump.
-        SolverUiTokens.FitWidestText(_settingsButton!, SolverText.Get("设置"), SolverText.Get("返回"));
-        SolverUiTokens.FitWidestText(_theftNoticeButton!, SolverText.Get("改为放走"), SolverText.Get("改为保住"));
+        SolverUiTokens.FitWidestText(_settingsButton!, SolverText.Get("settings.title"), SolverText.Get("ui.back"));
+        SolverUiTokens.FitWidestText(_theftNoticeButton!, SolverText.Get("ui.let_escape"), SolverText.Get("ui.recover"));
         _potionPage = new SolverPotionStrategyPage();
         _growthPage = new SolverGrowthStrategyPage();
         _relicPage = new SolverRelicStrategyPage();
@@ -288,7 +288,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         };
         header.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         header.GuiInput += OnHeaderGuiInput;
-        Label title = SolverUiTokens.CreateLabel(SolverText.Get("尖塔求解器"), SolverUiTokens.Type.Title,
+        Label title = SolverUiTokens.CreateLabel(SolverText.Get("app.title"), SolverUiTokens.Type.Title,
             SolverUiTokens.Palette.TextPrimary);
         title.Name = "Title";
         title.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
@@ -300,22 +300,22 @@ internal sealed partial class SolverOverlay : CanvasLayer
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
 
-        _potionButton = CreateStrategyButton(SolverText.Get("药水"), "PotionStrategyButton",
+        _potionButton = CreateStrategyButton(SolverText.Get("tab.potions"), "PotionStrategyButton",
             SolverStrategyPageKind.Potions);
         header.AddChild(_potionButton);
-        _growthButton = CreateStrategyButton(SolverText.Get("成长"), "GrowthStrategyButton",
+        _growthButton = CreateStrategyButton(SolverText.Get("tab.growth"), "GrowthStrategyButton",
             SolverStrategyPageKind.Growth);
         header.AddChild(_growthButton);
-        _relicButton = CreateStrategyButton(SolverText.Get("遗物"), "RelicStrategyButton",
+        _relicButton = CreateStrategyButton(SolverText.Get("tab.relics"), "RelicStrategyButton",
             SolverStrategyPageKind.Relics);
         header.AddChild(_relicButton);
-        _settingsButton = CreateHeaderButton(SolverText.Get("设置"), 54);
+        _settingsButton = CreateHeaderButton(SolverText.Get("settings.title"), 54);
         _settingsButton.Name = "SettingsButton";
         _settingsButton.Pressed += ToggleSettings;
         header.AddChild(_settingsButton);
         _collapseButton = CreateHeaderButton(CollapseButtonText(_collapsed), 64);
         _collapseButton.Name = "CollapseButton";
-        _collapseButton.TooltipText = SolverText.Get("收起路线内容；标题栏保持可见。");
+        _collapseButton.TooltipText = SolverText.Get("ui.collapse_the_route_content_the_title_bar_stays_visible");
         _collapseButton.Pressed += ToggleCollapsed;
         header.AddChild(_collapseButton);
         return header;
@@ -486,7 +486,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
 
     /// <summary>The header button names the action it performs: 展开 while collapsed, 收起 otherwise.</summary>
     private static string CollapseButtonText(bool collapsed) =>
-        collapsed ? SolverText.Get("+  展开") : SolverText.Get("−  收起");
+        collapsed ? SolverText.Get("panel.expand") : SolverText.Get("panel.collapse");
 
     private void ApplyContentVisibility()
     {
@@ -525,7 +525,7 @@ internal sealed partial class SolverOverlay : CanvasLayer
         if (_settingsButton != null)
         {
             _settingsButton.Visible = !_collapsed;
-            _settingsButton.Text = SolverText.Get(_settingsVisible ? "返回" : "设置");
+            _settingsButton.Text = SolverText.Get(_settingsVisible ? "ui.back" : "settings.title");
             _settingsButton.AddThemeColorOverride("font_color",
                 _settingsVisible ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextSecondary);
         }

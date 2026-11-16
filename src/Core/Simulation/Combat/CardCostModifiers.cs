@@ -1,8 +1,9 @@
 namespace Sts2Solver.Simulation.Combat;
 
 /// <summary>
-/// Canonical storage for adjacent, unrestricted relative cost modifiers with identical expiration.
-/// Amounts add before the final cost clamp; absolute and reduce-only entries remain order barriers.
+/// Canonical storage for adjacent, unrestricted cost modifiers with identical expiration.
+/// Relative amounts add before the final cost clamp; a later absolute replaces an adjacent absolute.
+/// Different types, expirations and reduce-only entries remain order barriers.
 /// Zero totals retain one entry, preserving the native HasLocalModifiers distinction.
 /// </summary>
 public static class CardCostModifiers
@@ -12,6 +13,12 @@ public static class CardCostModifiers
         int count = card.EnergyModifierCount;
         if ((uint)count > Limits.CardEnergyCostModifiers)
             throw new CapacityException("Card.EnergyModifiers", Limits.CardEnergyCostModifiers);
+        if (count > 0 && modifier.Type == CostType.Absolute && !modifier.IsReduceOnly
+            && card.EnergyModifiers[count - 1].Packed == modifier.Packed)
+        {
+            card.EnergyModifiers[count - 1] = modifier;
+            return;
+        }
         int first = count;
         int sum = modifier.Amount;
         if (modifier.Type == CostType.Relative && !modifier.IsReduceOnly)
@@ -48,7 +55,7 @@ public static class CardCostModifiers
         card.EnergyModifierCount = end;
     }
 
-    /// <summary>Used after expiration and at cold import/decode boundaries; no per-node scan.</summary>
+    /// <summary>Rebuild adjacent runs after expiration or at explicit normalization boundaries; no per-node scan.</summary>
     public static void Compact(ref Card card)
     {
         int count = card.EnergyModifierCount;
@@ -66,7 +73,7 @@ public static class CardCostModifiers
             card.EnergyModifiers[index] = default;
     }
 
-    /// <summary>Canonicalize an old byte-image root when loading it, including detached snapshots.</summary>
+    /// <summary>Canonicalize all live card values, including detached and history snapshots.</summary>
     public static void Compact(ref Battle battle)
     {
         for (int index = 0; index < battle.CardCount; index++)

@@ -494,6 +494,8 @@ internal static partial class CombatSessionController
         _searchedTurn = null;
         _pumpObserved = false;
         ResetGuide();
+        if (_player != null)
+            WatchGuideActions();
         _pendingTurnStartedState = null;
         _theftPolicy = state != null && SearchPolicyCapture.IsTheftApplicable(state)
             ? SearchTheftPolicy.PreserveResources

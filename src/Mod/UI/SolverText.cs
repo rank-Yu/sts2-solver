@@ -1,117 +1,82 @@
 // Adapted from CombatSolver src/UI/SolverText.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The catalog is rebuilt for Sts2Solver and missing keys fall back to the Chinese source string.
+// Catalogs use stable keys and are embedded separately for each game language.
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using MegaCrit.Sts2.Core.Localization;
 
 namespace Sts2Solver;
 
-/// <summary>
-/// UI-only source-string catalog. Format templates before inserting game names or player input.
-/// Chinese source strings are the keys; <c>English.json</c> is an embedded resource.
-/// </summary>
+/// <summary>UI text only. Game content names come from the native localization models.</summary>
 internal static partial class SolverText
 {
-    private static readonly IReadOnlyDictionary<string, string> English = LoadEnglish();
-    private static readonly HashSet<string> MissingKeys = new(StringComparer.Ordinal);
-    private static readonly object Gate = new();
+    private const string ResourcePrefix = "Sts2Solver.UI.Locales.";
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Catalogs = LoadCatalogs();
 
-    internal static bool IsEnglish
-        => LocManager.Instance is { } manager && manager.Language is not ("zhs" or "zht");
+    internal static string Language => ResolveLanguage(LocManager.Instance.Language);
 
-    internal static IReadOnlyDictionary<string, string> EnglishCatalogForTesting => English;
+    internal static CultureInfo Culture => LocManager.Instance.CultureInfo;
 
-    /// <summary>Source strings that were requested in English but have no catalog entry.</summary>
-    internal static string[] MissingKeysForTesting
-    {
-        get
-        {
-            lock (Gate)
-                return [.. MissingKeys];
-        }
-    }
+    internal static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CatalogsForTesting => Catalogs;
+
+    // Normal selectable game languages have complete catalogs; hidden languages use English.
+    internal static string ResolveLanguage(string language)
+        => Catalogs.ContainsKey(language) ? language : "eng";
 
     internal static void Initialize()
-        => ModLog.Info($"[Sts2Solver] LOCALE_CATALOG entries={English.Count}");
+        => ModLog.Info($"[Sts2Solver] LOCALE_CATALOG languages={Catalogs.Count} entries={Catalogs["eng"].Count}");
 
-    public static string Get(string source)
+    public static string Get(string key) => Catalogs[Language][key];
+
+    public static string Format(string key, params object?[] arguments)
+        => string.Format(Culture, Get(key), arguments);
+
+    internal static string[] ValidateCatalogs()
     {
-        if (!IsEnglish)
-            return source;
-        if (English.TryGetValue(source, out string? translated))
-            return translated;
-        lock (Gate)
-        {
-            if (MissingKeys.Add(source))
-                ModLog.Warn($"[Sts2Solver] LOCALE_KEY_MISSING key={source}");
-        }
-        return source;
-    }
-
-    public static string Format(FormattableString source)
-        => string.Format(CultureInfo.CurrentCulture, Get(source.Format), source.GetArguments());
-
-    /// <summary>Returns catalog problems; used by the headless localization check.</summary>
-    internal static string[] ValidateEnglishCatalog()
-    {
-        if (English.Count == 0)
-            return ["catalog_empty"];
         List<string> problems = [];
-        foreach ((string source, string translated) in English)
+        IReadOnlyDictionary<string, string> english = Catalogs["eng"];
+        foreach ((string language, IReadOnlyDictionary<string, string> catalog) in Catalogs)
         {
-            if (string.IsNullOrEmpty(translated))
+            foreach (string key in english.Keys.Except(catalog.Keys))
+                problems.Add($"{language}:missing:{key}");
+            foreach (string key in catalog.Keys.Except(english.Keys))
+                problems.Add($"{language}:extra:{key}");
+            foreach ((string key, string value) in catalog)
             {
-                problems.Add($"empty_translation:{source}");
-                continue;
+                if (string.IsNullOrWhiteSpace(value))
+                    problems.Add($"{language}:empty:{key}");
+                _ = CompositeFormat.Parse(value);
+                if (english.TryGetValue(key, out string? reference)
+                    && !FormatItems(value).SequenceEqual(FormatItems(reference)))
+                    problems.Add($"{language}:placeholders:{key}");
             }
-            int[] sourceItems = FormatItems(source);
-            int[] translatedItems = FormatItems(translated);
-            if (!sourceItems.SequenceEqual(translatedItems))
-                problems.Add($"placeholder_mismatch:{source}");
         }
         return [.. problems];
     }
 
     private static int[] FormatItems(string template)
-    {
-        List<int> items = [];
-        foreach (Match match in FormatItemPattern().Matches(template))
-            items.Add(int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture));
-        items.Sort();
-        return [.. items];
-    }
+        => FormatItemPattern().Matches(template).Select(match => int.Parse(match.Groups[1].Value,
+            CultureInfo.InvariantCulture)).Order().ToArray();
 
     [GeneratedRegex(@"\{([0-9]+)(?:,[^{}]*)?(?::[^{}]*)?\}")]
     private static partial Regex FormatItemPattern();
 
-    private static IReadOnlyDictionary<string, string> LoadEnglish()
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadCatalogs()
     {
-        try
+        var assembly = typeof(SolverText).Assembly;
+        Dictionary<string, IReadOnlyDictionary<string, string>> catalogs = new(StringComparer.Ordinal);
+        foreach (string resource in assembly.GetManifestResourceNames()
+                     .Where(name => name.StartsWith(ResourcePrefix, StringComparison.Ordinal)
+                         && name.EndsWith(".json", StringComparison.Ordinal)))
         {
-            using Stream? stream = typeof(SolverText).Assembly
-                .GetManifestResourceStream("Sts2Solver.UI.English.json");
-            if (stream == null)
-            {
-                ModLog.Error("[Sts2Solver] LOCALE_CATALOG_MISSING resource=Sts2Solver.UI.English.json");
-                return new Dictionary<string, string>(StringComparer.Ordinal);
-            }
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(stream)
-                ?? throw new InvalidDataException("英文目录为空。");
+            string language = resource[ResourcePrefix.Length..^5];
+            using Stream stream = assembly.GetManifestResourceStream(resource)
+                ?? throw new InvalidDataException($"缺少文案资源：{resource}");
+            catalogs.Add(language, JsonSerializer.Deserialize<Dictionary<string, string>>(stream)
+                ?? throw new InvalidDataException($"文案目录为空：{resource}"));
         }
-        catch (IOException exception)
-        {
-            ModLog.Error($"[Sts2Solver] LOCALE_CATALOG_MISSING reason=io detail={exception.Message}");
-        }
-        catch (JsonException exception)
-        {
-            ModLog.Error($"[Sts2Solver] LOCALE_CATALOG_MISSING reason=json detail={exception.Message}");
-        }
-        catch (NotSupportedException exception)
-        {
-            ModLog.Error($"[Sts2Solver] LOCALE_CATALOG_MISSING reason=unsupported detail={exception.Message}");
-        }
-        return new Dictionary<string, string>(StringComparer.Ordinal);
+        return catalogs;
     }
 }

@@ -644,7 +644,7 @@ internal sealed partial class BeamSolver
         for (int slot = 0; slot < rootScore.RootPotionSlotCount && slot < Limits.PotionSlots; slot++)
         {
             ushort stored = rootScore.RootPotions[slot];
-            if (stored != 0 && PotionUsePolicy.OpeningOnlyPotionIds.Contains(Registry.Potion((ushort)(stored - 1)).NativeId))
+            if (stored != 0 && PotionUsePolicy.RestrictToOpeningTurn(Registry.Potion((ushort)(stored - 1)).NativeId, rules))
                 _openingOnlyRootPotion[slot] = stored;
         }
         _pruneEqualHp = _bound?.PruneEqualHp ?? false;
@@ -803,31 +803,31 @@ internal sealed partial class BeamSolver
         _capacityDropped.Clear();
         bool preserveTheft = _theftPolicy == TheftPolicy.PreserveResources;
         int bandWidth = width;
-        bool checkPotionQuota = _effectivePotionPolicy != PotionUseMode.Disabled;
+        bool preservePotionLineages = _effectivePotionPolicy != PotionUseMode.Disabled;
         Pool current = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool next = new(initialChildren, poolLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool ended = new(Math.Min(initialChildren, endedLimit), endedLimit, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
             retentionObserver: _options.RetentionCheckpoint);
         Pool turnFrontier = new(frontierCapacity, frontierCapacity, preserveTheft, _scorer,
             _options.SecondRankBand, bandWidth, _aggressivePowerCommitment, _powerCommitments, _commitments,
-            _nodes, _routingSignatures, checkPotionQuota,
+            _nodes, _routingSignatures, preservePotionLineages,
             _options.PreserveReplayAllocatorOpening, _options.Trace, _storage,
             cancellationToken: _options.UnlimitedNodes ? cancellationToken : default,
             checkpoint: _options.UnlimitedNodes ? SearchCheckpoint : null,
@@ -1718,8 +1718,8 @@ internal sealed partial class BeamSolver
     /// The slot holds a searchable potion the request's strategy/policy offers now. The existing
     /// <c>EnumeratePlannedPotionActions</c> reads the potion currently in the slot, so a potion generated
     /// during the search is offered by its own identity rather than by the root potion's policy.
-    /// A root potion of an opening-only kind (<see cref="PotionUsePolicy.OpeningOnlyPotionIds"/>) still in
-    /// its root slot is offered only on the search's first turn: drinking it later is never better.
+    /// Root potions restricted by <see cref="PotionUsePolicy.RestrictToOpeningTurn"/> are offered only
+    /// on the search's first turn while they remain in their original slots.
     /// </summary>
     private bool PotionAllowed(in Battle battle, int slot)
     {

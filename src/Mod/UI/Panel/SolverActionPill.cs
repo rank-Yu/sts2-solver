@@ -48,7 +48,7 @@ internal static class SolverActionPill
         if (action.ReplayCount > 0)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                SolverText.Format($"重放×{action.ReplayCount}"),
+                SolverText.Format("ui.replay", action.ReplayCount),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Warning));
         }
@@ -87,7 +87,7 @@ internal static class SolverActionPill
         if (killed)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                SolverText.Format($"击杀：{string.Join(SolverText.Get("、"), action.Kills)}"),
+                SolverText.Format("ui.kill", string.Join(SolverText.Get("text.list_separator"), action.Kills)),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Success));
         }

@@ -81,7 +81,7 @@ internal sealed partial class SolverOverlay
         }
         else if (snapshot.Phase == CombatUiPhase.Failed)
         {
-            ShowMessage(SolverText.Get("求解器消息"),
+            ShowMessage(SolverText.Get("ui.solver_message"),
                 SolverPanelText.Error(snapshot.ErrorCode ?? "search_failed"),
                 SolverPanelText.ErrorReason(snapshot.ErrorReason));
         }
@@ -162,15 +162,15 @@ internal sealed partial class SolverOverlay
         bool stale = outdated && guide == null;
         if (guide != null)
         {
-            string status = SolverText.Get("按指引手动出牌");
+            string status = SolverText.Get("ui.guide_following");
             string context = SolverText.Format(
-                $"第 {snapshot.Turn} 回合    第 {guide.TurnStep}/{guide.TurnStepCount} 步");
+                "ui.guide_turn_step", snapshot.Turn, guide.TurnStep, guide.TurnStepCount);
             if (_summaryStateLabel?.Text != status || _guideStatusContext != context)
             {
                 SetStatus(status, SolverUiTokens.Palette.Accent, context);
                 _guideStatusContext = context;
             }
-            SetRouteHeading(SolverText.Get("推荐路线"));
+            SetRouteHeading(SolverText.Get("ui.recommended_route"));
         }
         else
         {
@@ -178,13 +178,13 @@ internal sealed partial class SolverOverlay
         }
         if (stale)
         {
-            string status = SolverText.Get("历史路线（仅供参考）");
+            string status = SolverText.Get("ui.previous_route_reference_only");
             if (_summaryStateLabel?.Text != status)
             {
                 SetStatus(status, SolverUiTokens.Palette.TextMuted,
-                    SolverText.Format($"第 {snapshot.Turn} 回合"));
+                    SolverText.Format("ui.turn", snapshot.Turn));
             }
-            SetRouteHeading(SolverText.Get("已保存路线（已过期）"));
+            SetRouteHeading(SolverText.Get("ui.saved_route_outdated"));
         }
         else if ((_routeStale || _routeGuided && guide == null)
                  && _presentation == SolverOverlayPresentation.Ready
@@ -257,16 +257,15 @@ internal sealed partial class SolverOverlay
         _lastProgressReviewedWorldlines = 0L;
         _lastProgressSampledAt = 0L;
         _statusQueued = ExecutionQueued(snapshot);
-        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
+        SetStatus(SolverText.Get("ui.searching"), SolverUiTokens.Palette.Accent,
             _statusQueued
-                ? SolverText.Format($"第 {search.Turn} 回合    已排队执行")
-                : SolverText.Format($"第 {search.Turn} 回合"));
-        SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
+                ? SolverText.Format("ui.turn_execution_queued", search.Turn)
+                : SolverText.Format("ui.turn", search.Turn));
+        SetRouteHeading(SolverText.Get("ui.current_candidate_unverified"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在搜索当前回合，等待可存活候选…[/color]");
+            _summaryText.Text = SolverText.Format("ui.searching_this_turn_for_a_survivable_candidate", SolverUiTokens.Palette.TextSecondaryHex);
         }
         if (_progressText != null)
             _progressText.Visible = true;
@@ -280,8 +279,8 @@ internal sealed partial class SolverOverlay
         {
             SetRouteVisibility(true);
             SetRouteRowVisible(0, true);
-            RouteRows[0].TurnLabel.Text = SolverText.Format($"第 {search.Turn} 回合");
-            RouteRows[0].ShowStatus(SolverText.Get("等待当前回合候选…"));
+            RouteRows[0].TurnLabel.Text = SolverText.Format("ui.turn", search.Turn);
+            RouteRows[0].ShowStatus(SolverText.Get("search.waiting_current_turn_candidate"));
             RouteRows[0].SetOutcome(string.Empty, SolverUiTokens.Palette.TextMuted);
             RouteRows[0].SetRowState(current: true, completed: false);
             for (int index = 1; index < TurnRows; index++)
@@ -300,12 +299,12 @@ internal sealed partial class SolverOverlay
             PopulateRoute(overlay, snapshot);
         }
         string routeContext = _searchBestSnapshot is { Turns.Count: > 0 } best
-            ? SolverText.Format($"已规划至第 {best.Turns[^1].Turn} 回合")
-            : SolverText.Get("等待候选路线");
+            ? SolverText.Format("ui.planned_through_turn", best.Turns[^1].Turn)
+            : SolverText.Get("search.waiting_candidate");
         _statusQueued = ExecutionQueued(snapshot);
-        SetStatus(SolverText.Get("后台搜索中"), SolverUiTokens.Palette.Accent,
-            _statusQueued ? SolverText.Format($"{routeContext}    已排队执行") : routeContext);
-        SetRouteHeading(SolverText.Get("求解器当前考虑（尚未验证）"));
+        SetStatus(SolverText.Get("ui.searching"), SolverUiTokens.Palette.Accent,
+            _statusQueued ? SolverText.Format("ui.execution_queued", routeContext) : routeContext);
+        SetRouteHeading(SolverText.Get("ui.current_candidate_unverified"));
         // ExpandedNodes counts the whole request (finished members plus the running one), so the
         // total only grows; the rate is measured on the main thread's clock between samples, since
         // the snapshot's elapsed time restarts with every member.
@@ -341,13 +340,12 @@ internal sealed partial class SolverOverlay
         long speed = (long)Math.Round(_shownWorldlinesPerSecond);
         _summaryText.Visible = true;
         string reviewed = speed > 0
-            ? SolverText.Format($"已查阅 {shown:N0} 条世界线（{speed:N0} 条/s）")
-            : SolverText.Format($"已查阅 {shown:N0} 条世界线");
+            ? SolverText.Format("ui.explored_timelines_s", shown, speed)
+            : SolverText.Format("ui.explored_timelines", shown);
         string prefix = _searchBestSnapshot is { Turns.Count: > 0 } best
             ? FormatResultSummary(best.Turns.Count,
                 best.Turns[^1].CombatEnded && best.Turns[^1].Turn == best.Turns[0].Turn)
-            : SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在搜索当前回合，等待可存活候选…[/color]");
+            : SolverText.Format("ui.searching_this_turn_for_a_survivable_candidate", SolverUiTokens.Palette.TextSecondaryHex);
         _summaryText.Text = prefix.Length > 0 ? prefix + "  │  " + reviewed : reviewed;
     }
 
@@ -375,20 +373,20 @@ internal sealed partial class SolverOverlay
         _waitingForNextTurnPlan = false;
         _lastResultCandidate = result.CandidateVersion;
         bool noSurvival = result.DeathTurn is not null;
-        string status = noSurvival ? SolverText.Get("未找到生还路线")
+        string status = noSurvival ? SolverText.Get("ui.no_surviving_route_found")
             : result.ProjectedBattleHpLossIncrease > 0
-                ? SolverText.Get("重算后战损上升")
-                : result.WasReused ? SolverText.Get("方案已复用") : SolverText.Get("方案就绪");
+                ? SolverText.Get("ui.hp_loss_increased_after_recalculation")
+                : result.WasReused ? SolverText.Get("ui.plan_reused") : SolverText.Get("ui.plan_ready");
         SolverOverlayTone tone = noSurvival || result.ProjectedBattleHpLossIncrease > 0
             ? SolverOverlayTone.Danger
             : result.WasReused ? SolverOverlayTone.Success : SolverOverlayTone.Accent;
         SetStatus(status, ToneColor(tone));
-        SetRouteHeading(SolverText.Get("推荐路线"));
+        SetRouteHeading(SolverText.Get("ui.recommended_route"));
         string summary = result.DeathTurn is { } deathTurn
             ? FormatDeathSummary(deathTurn, result.StartTurn)
             : FormatResultSummary(overlay.Turns.Count, result.CombatEndedTurn == result.StartTurn);
         if (overlay.Turns.Count > 16)
-            summary += "\n" + SolverText.Format($"另有 {overlay.Turns.Count - 16} 回合未展开显示");
+            summary += "\n" + SolverText.Format("ui.more_turns_not_shown", overlay.Turns.Count - 16);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
@@ -440,15 +438,14 @@ internal sealed partial class SolverOverlay
             ? overlay.Turns[0].Actions.Count
             : snapshot.Route?.Turns.FirstOrDefault()?.Actions.Count(static action => !action.EndsTurn) ?? 0;
         _lastDeploymentEndedTurn = false;
-        SetStatus(SolverText.Get("正在执行"), SolverUiTokens.Palette.Warning,
-            SolverText.Format($"第 {snapshot.Turn} 回合"));
-        SetRouteHeading(SolverText.Get("正在执行的路线"));
+        SetStatus(SolverText.Get("ui.executing"), SolverUiTokens.Palette.Warning,
+            SolverText.Format("ui.turn", snapshot.Turn));
+        SetRouteHeading(SolverText.Get("ui.executing_route"));
         SetReviewText(null);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]按推荐顺序执行 [b]{_lastDeploymentActionCount}[/b] 张牌，完成后结束本回合。[/color]");
+            _summaryText.Text = SolverText.Format("ui.play_cards_in_order_then_end_the_turn", SolverUiTokens.Palette.TextSecondaryHex, _lastDeploymentActionCount);
         }
         PopulateRoute(overlay, snapshot);
         ShowDeploymentStep(overlay, snapshot);
@@ -479,10 +476,8 @@ internal sealed partial class SolverOverlay
                     if (_summaryText != null)
                     {
                         _summaryText.Text =
-                            SolverText.Format(
-                                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行：[/color]")
-                            + SolverText.Format(
-                                $"[color={SolverUiTokens.Palette.WarningHex}] 结束回合[/color]");
+                            SolverText.Format("ui.executing_colored", SolverUiTokens.Palette.TextSecondaryHex)
+                            + SolverText.Format("ui.end_turn_colored", SolverUiTokens.Palette.WarningHex);
                     }
                     if (RouteRows[0] != null)
                         RouteRows[0].SetEndTurnDeploymentState(active: true, completed: false);
@@ -491,8 +486,7 @@ internal sealed partial class SolverOverlay
             }
             if (active != null && _summaryText != null)
             {
-                _summaryText.Text = SolverText.Format(
-                    $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行 [b]{route.CompletedActions + 1}/{_lastDeploymentActionCount}[/b]：[/color][color={SolverUiTokens.Palette.WarningHex}] {active.Title}[/color]");
+                _summaryText.Text = SolverText.Format("ui.playing", SolverUiTokens.Palette.TextSecondaryHex, route.CompletedActions + 1, _lastDeploymentActionCount, SolverUiTokens.Palette.WarningHex, active.Title);
             }
         }
     }
@@ -504,16 +498,16 @@ internal sealed partial class SolverOverlay
         _waitingForNextTurnPlan = true;
         int turn = result?.StartTurn ?? _lastDeploymentTurn;
         int actions = _lastDeploymentActionCount;
-        SetStatus(SolverText.Get("执行完成"), SolverUiTokens.Palette.Accent,
-            SolverText.Format($"第 {turn} 回合"));
-        SetRouteHeading(SolverText.Get("已执行路线（后续回合待校验）"));
+        SetStatus(SolverText.Get("ui.execution_complete"), SolverUiTokens.Palette.Accent,
+            SolverText.Format("ui.turn", turn));
+        SetRouteHeading(SolverText.Get("ui.executed_route_later_turns_pending_validation"));
         SetReviewText(null);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text = _lastDeploymentEndedTurn
-                ? SolverText.Format($"已按推荐路线打出 [b]{actions}[/b] 张牌，并提交结束回合动作。")
-                : SolverText.Format($"已打出 [b]{actions}[/b] 张牌；战斗或当前回合已在执行期间结束。");
+                ? SolverText.Format("ui.played_cards_and_submitted_end_turn", actions)
+                : SolverText.Format("ui.played_cards_combat_or_the_turn_ended_during_execution", actions);
         }
         SolverOverlaySnapshot display = overlay.Turns.Count > 0
             ? overlay
@@ -528,15 +522,14 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.ExecutedHistory;
         _waitingForNextTurnPlan = true;
-        SetStatus(SolverText.Get("等待下一回合方案"), SolverUiTokens.Palette.TextMuted,
-            SolverText.Format($"第 {_lastDeploymentTurn} 回合已执行"));
-        SetRouteHeading(SolverText.Get("已执行路线（后续回合待校验）"));
+        SetStatus(SolverText.Get("ui.waiting_for_next_turn_s_plan"), SolverUiTokens.Palette.TextMuted,
+            SolverText.Format("ui.turn_executed", _lastDeploymentTurn));
+        SetRouteHeading(SolverText.Get("ui.executed_route_later_turns_pending_validation"));
         SetReviewText(null);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]当前路线已经执行；等待下一回合方案就绪。[/color]");
+            _summaryText.Text = SolverText.Format("ui.route_executed_waiting_for_the_next_turn_s_plan", SolverUiTokens.Palette.TextSecondaryHex);
         }
         SolverOverlaySnapshot display = overlay.Turns.Count > 0
             ? overlay
@@ -551,25 +544,24 @@ internal sealed partial class SolverOverlay
         string code = snapshot.PauseCode ?? "";
         if (code == "death_turn")
         {
-            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
-                SolverText.Format($"第 {snapshot.Turn} 回合    预计死亡"));
-            SetSummary(SolverText.Format(
-                $"[color={SolverUiTokens.Palette.DangerHex}]当前方案预计本回合死亡，操作权已交还。[/color]"));
+            SetStatus(SolverText.Get("ui.execution_paused"), SolverUiTokens.Palette.Danger,
+                SolverText.Format("ui.turn_death_predicted", snapshot.Turn));
+            SetSummary(SolverText.Format("ui.this_plan_predicts_death_this_turn_control_returned_to_you", SolverUiTokens.Palette.DangerHex));
         }
         else if (code == "no_survival")
         {
-            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
-                SolverText.Format($"第 {snapshot.Turn} 回合    未找到生还路线"));
+            SetStatus(SolverText.Get("ui.execution_paused"), SolverUiTokens.Palette.Danger,
+                SolverText.Format("ui.turn_no_surviving_route", snapshot.Turn));
             string death = snapshot.Result?.DeathTurn is { } deathTurn
-                ? SolverText.Format($"当前方案预计第 {deathTurn} 回合死亡，操作权已交还。")
-                : SolverText.Get("未找到生还路线，操作权已交还。");
+                ? SolverText.Format("ui.this_plan_predicts_death_on_turn_control_returned_to_you", deathTurn)
+                : SolverText.Get("ui.no_surviving_route_found_control_returned_to_you");
             SetSummary($"[color={SolverUiTokens.Palette.DangerHex}]{death}\n"
-                + SolverText.Get("可在 设置 中提高搜索档位后重新搜索，或点“执行本场战斗”继续（本场不再因此暂停）。")
+                + SolverText.Get("ui.raise_the_search_tier_in_settings_and_search_again_or")
                 + "[/color]");
         }
         else if (CombatSessionController.IsTurnStopPause(code))
         {
-            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger);
+            SetStatus(SolverText.Get("ui.execution_paused"), SolverUiTokens.Palette.Danger);
             string title = SolverPanelText.Pause(code, snapshot.Turn);
             string reason = SolverPanelText.ErrorReason(snapshot.PauseDetailReason);
             SetSummary(
@@ -577,29 +569,27 @@ internal sealed partial class SolverOverlay
         }
         else if (code == "live_end_turn_risk")
         {
-            SetStatus(SolverText.Get("已暂停执行"), SolverUiTokens.Palette.Danger,
+            SetStatus(SolverText.Get("ui.execution_paused"), SolverUiTokens.Palette.Danger,
                 snapshot.PausePlayerDead
-                    ? SolverText.Format($"第 {snapshot.Turn} 回合    实机复核将死亡")
-                    : SolverText.Format($"第 {snapshot.Turn} 回合    实机复核战损上升"));
+                    ? SolverText.Format("ui.turn_live_check_predicts_death", snapshot.Turn)
+                    : SolverText.Format("ui.turn_live_check_predicts_higher_hp_loss", snapshot.Turn));
             SetSummary(
-                SolverText.Format(
-                    $"[color={SolverUiTokens.Palette.DangerHex}]路线预计掉血 {snapshot.PausePlannedHpLost ?? 0} HP，")
-                + SolverText.Format(
-                    $"结束回合前实机复核为 {snapshot.PauseLiveHpLost ?? 0} HP；没有提交结束回合。[/color]\n"));
+                SolverText.Format("summary.live_end_turn_risk", SolverUiTokens.Palette.DangerHex,
+                    snapshot.PausePlannedHpLost ?? 0, snapshot.PauseLiveHpLost ?? 0));
         }
         else if (code == "choice_mismatch")
         {
-            ShowMessage(SolverText.Get("求解器消息"),
-                SolverText.Get("自动选牌未完成，已暂停执行。当前选择交还手动操作，完成后点击“重新搜索”。"),
+            ShowMessage(SolverText.Get("ui.solver_message"),
+                SolverText.Get("ui.automatic_selection_could_not_finish_execution_is_paused_and_the"),
                 SolverPanelText.ErrorReason(snapshot.PauseDetailReason));
         }
         else
         {
-            ShowMessage(SolverText.Get("求解器消息"),
+            ShowMessage(SolverText.Get("ui.solver_message"),
                 SolverPanelText.Pause(code, snapshot.Turn),
                 SolverPanelText.ErrorReason(snapshot.PauseDetailReason));
         }
-        SetRouteHeading(SolverText.Get("推荐路线"));
+        SetRouteHeading(SolverText.Get("ui.recommended_route"));
         PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
@@ -616,18 +606,16 @@ internal sealed partial class SolverOverlay
     {
         _presentation = SolverOverlayPresentation.Ready;
         _lastResultCandidate = snapshot.Result?.CandidateVersion ?? -1;
-        SetStatus(SolverText.Get("搜索已停止"), SolverUiTokens.Palette.Danger);
+        SetStatus(SolverText.Get("ui.search_stopped"), SolverUiTokens.Palette.Danger);
         if (snapshot.CurrentTurnRouteReady)
         {
             SetSummary(AppendCapacityDropHint(
-                SolverText.Format(
-                    $"[color={SolverUiTokens.Palette.WarningHex}]搜索已停止；下方保留停止时已经得到的当前候选路线。[/color]"),
+                SolverText.Format("ui.search_stopped_the_current_candidate_route_is_retained_below", SolverUiTokens.Palette.WarningHex),
                 snapshot.Result));
         }
         else
         {
-            SetSummary(SolverText.Format(
-                $"[color={SolverUiTokens.Palette.DangerHex}]本回合搜索已停止。可手动开始搜索；进入下一回合后是否自动搜索由设置决定。[/color]"));
+            SetSummary(SolverText.Format("ui.search_stopped_for_this_turn_start_it_manually_automatic_search", SolverUiTokens.Palette.DangerHex));
             SetRouteVisibility(false);
             ApplyContentVisibility();
         }
@@ -647,10 +635,9 @@ internal sealed partial class SolverOverlay
     private void ShowManualCalculationReady(CombatUiSnapshot snapshot)
     {
         _presentation = SolverOverlayPresentation.Ready;
-        SetStatus(SolverText.Get("等待手动搜索"), SolverUiTokens.Palette.TextMuted);
-        string action = SolverText.Get("开始搜索");
-        SetSummary(SolverText.Format(
-            $"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索已关闭。点击“{action}”生成当前回合路线。[/color]"));
+        SetStatus(SolverText.Get("ui.waiting_for_manual_search"), SolverUiTokens.Palette.TextMuted);
+        string action = SolverText.Get("action.search");
+        SetSummary(SolverText.Format("ui.auto_search_is_off_click_to_plan_this_turn", SolverUiTokens.Palette.TextSecondaryHex, action));
         SetReviewText(null);
         SetRouteVisibility(false);
         ApplyContentVisibility();
@@ -662,9 +649,9 @@ internal sealed partial class SolverOverlay
         _presentation = SolverOverlayPresentation.TurnSetupPending;
         _waitingForNextTurnPlan = false;
         _lastResultCandidate = -1;
-        SetStatus(SolverText.Get("等待回合开始选择"), SolverUiTokens.Palette.Accent,
-            SolverText.Format($"第 {snapshot.Turn} 回合"));
-        SetSummary(SolverText.Get("选牌页面出现后自动开始搜索"));
+        SetStatus(SolverText.Get("ui.waiting_for_turn_start_choice"), SolverUiTokens.Palette.Accent,
+            SolverText.Format("ui.turn", snapshot.Turn));
+        SetSummary(SolverText.Get("ui.the_search_starts_when_the_choice_page_appears"));
         SetReviewText(null);
         SetRouteVisibility(false);
         ApplyContentVisibility();
@@ -681,8 +668,8 @@ internal sealed partial class SolverOverlay
         }
         _presentation = SolverOverlayPresentation.TurnSetupContinuation;
         _waitingForNextTurnPlan = false;
-        SetStatus(SolverText.Get("等待回合开始选择"), SolverUiTokens.Palette.Accent,
-            SolverText.Format($"第 {snapshot.Turn} 回合"));
+        SetStatus(SolverText.Get("ui.waiting_for_turn_start_choice"), SolverUiTokens.Palette.Accent,
+            SolverText.Format("ui.turn", snapshot.Turn));
         PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
     }
@@ -696,9 +683,9 @@ internal sealed partial class SolverOverlay
         }
         _presentation = SolverOverlayPresentation.TurnSetupDriving;
         _waitingForNextTurnPlan = false;
-        SetStatus(SolverText.Get("正在执行"), SolverUiTokens.Palette.Warning,
-            SolverText.Format($"第 {snapshot.Turn} 回合"));
-        SetSummary(SolverText.Get("正在执行回合开始选择"));
+        SetStatus(SolverText.Get("ui.executing"), SolverUiTokens.Palette.Warning,
+            SolverText.Format("ui.turn", snapshot.Turn));
+        SetSummary(SolverText.Get("ui.making_the_turn_start_choice"));
         SetReviewText(null);
         PopulateRoute(overlay, snapshot);
         RefreshControls(snapshot);
@@ -738,33 +725,28 @@ internal sealed partial class SolverOverlay
     /// </summary>
     internal static string FormatDeathSummary(int deathTurn, int startTurn)
         => (deathTurn == startTurn
-                ? SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]未找到生还路线：预计本回合死亡[/color]")
-                : SolverText.Format(
-                    $"[color={SolverUiTokens.Palette.DangerHex}]未找到生还路线：预计第 {deathTurn} 回合死亡[/color]"))
+                ? SolverText.Format("ui.no_surviving_route_death_predicted_this_turn", SolverUiTokens.Palette.DangerHex)
+                : SolverText.Format("ui.no_surviving_route_death_predicted_on_turn", SolverUiTokens.Palette.DangerHex, deathTurn))
             + "\n"
-            + SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]可在 设置 中提高搜索档位后重新搜索。[/color]");
+            + SolverText.Format("ui.raise_the_search_tier_in_settings_and_search_again", SolverUiTokens.Palette.TextSecondaryHex);
 
     internal static string FormatResultSummary(int turnCount, bool endsThisTurn)
         => endsThisTurn
-            ? SolverText.Format($"[color={SolverUiTokens.Palette.SuccessHex}]本回合结束战斗[/color]")
-            : SolverText.Format(
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]预计路线 [b]{turnCount}[/b] 回合[/color]");
+            ? SolverText.Format("ui.combat_ends_this_turn", SolverUiTokens.Palette.SuccessHex)
+            : SolverText.Format("ui.planned_route_turns", SolverUiTokens.Palette.TextSecondaryHex, turnCount);
 
     internal static string FormatSearchReview(long reviewedWorldlines, long requestExpandedNodes,
         long requestElapsedMilliseconds, bool reused)
     {
         if (reused)
-            return SolverText.Format($"路线已复用，共查阅了 {reviewedWorldlines:N0} 条世界线");
+            return SolverText.Format("ui.plan_reused_explored_timelines_in_total", reviewedWorldlines);
         double seconds = requestElapsedMilliseconds / 1000d;
         long speed = seconds > 0d
             ? (long)Math.Round(requestExpandedNodes / seconds)
             : 0L;
         return speed > 0
-            ? SolverText.Format(
-                $"花费了 {seconds:F1} 秒，共查阅了 {reviewedWorldlines:N0} 条世界线（{speed:N0} 条/s）")
-            : SolverText.Format(
-                $"花费了 {seconds:F1} 秒，共查阅了 {reviewedWorldlines:N0} 条世界线");
+            ? SolverText.Format("ui.searched_for_s_explored_timelines_s", seconds, reviewedWorldlines, speed)
+            : SolverText.Format("ui.searched_for_s_explored_timelines", seconds, reviewedWorldlines);
     }
 
     private static Godot.Color ToneColor(SolverOverlayTone tone) => tone switch

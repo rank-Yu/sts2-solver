@@ -61,10 +61,10 @@ internal sealed partial class SolverOverlay
         {
             (string text, string button) = strategy.TheftPolicy switch
             {
-                "preserve_resources" => (SolverText.Get("本场有盗贼：保住被偷的牌和金币"),
-                    SolverText.Get("改为放走")),
-                "let_escape" => (SolverText.Get("本场有盗贼：放走，不追回被偷的牌和金币"),
-                    SolverText.Get("改为保住")),
+                "preserve_resources" => (SolverText.Get("ui.thief_in_this_fight_recover_stolen_cards_and_gold"),
+                    SolverText.Get("ui.let_escape")),
+                "let_escape" => (SolverText.Get("ui.thief_in_this_fight_let_it_escape_with_stolen_cards"),
+                    SolverText.Get("ui.recover")),
                 _ => throw new InvalidDataException($"未知的盗贼策略码：{strategy.TheftPolicy ?? "null"}"),
             };
             _theftNoticeLabel.Text = text;
@@ -107,7 +107,7 @@ internal sealed partial class SolverOverlay
     private Control CreatePerformanceHint()
     {
         _performanceHintButton = SolverUiTokens.CreateButton(
-            SolverText.Get("本场战斗出现大战损，若对结果不满意可以前往 设置 > 性能，将性能预设调为高或极高后重试。点击本消息之后不再提示"),
+            SolverText.Get("ui.this_fight_has_substantial_hp_loss_for_a_better_result"),
             SolverButtonStyle.Secondary);
         _performanceHintButton.Name = "PerformanceHint";
         _performanceHintButton.Visible = false;

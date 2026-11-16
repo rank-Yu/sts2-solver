@@ -356,35 +356,20 @@ internal static class CombatUiProjection
         }
     }
 
-    /// <summary>
-    /// Projects one route action as a guide step. <paramref name="turnActions"/> are the actions of
-    /// the step's turn in route order; the step is the one at <paramref name="position"/>.
-    /// </summary>
-    internal static GuideStepUi GuideStep(ReplayedAction[] turnActions, int position,
-        CombatDisplayNames names, Rules rules, bool advanced)
+    internal static GuideStepUi GuideStep(ReplayedAction action, int position, int turnStepCount,
+        CombatDisplayNames names, Rules rules)
     {
-        ReplayedAction action = turnActions[position];
-        PlayerAction kind = action.Action;
-        List<ChoiceCardUi[]> choices = [];
-        foreach (PlannedChoice choice in action.Choices)
-        {
-            if (choice.Implicit)
-                continue;
-            if (choice.Request.Timing is not (ChoiceTiming.Action or ChoiceTiming.PlayerTurnEnd))
-                continue;
-            choices.Add(Choice(choice));
-        }
+        PlayerAction input = action.Action;
         return new GuideStepUi
         {
             ActionIndex = action.Index,
             Turn = action.Before.PlayerTurn,
-            TurnStep = position + 1,
-            TurnStepCount = turnActions.Length,
-            HandIndex = kind.Kind == PlayerActionKind.PlayCard ? kind.HandIndex : -1,
-            PotionSlot = kind.Kind == PlayerActionKind.UsePotion ? kind.PotionSlot : -1,
+            TurnStep = position,
+            TurnStepCount = turnStepCount,
+            HandIndex = input.Kind == PlayerActionKind.PlayCard ? input.HandIndex : -1,
+            PotionSlot = input.Kind == PlayerActionKind.UsePotion ? input.PotionSlot : -1,
             Action = Action(action, names, rules),
-            Choices = [.. choices],
-            Advanced = advanced,
+            Advanced = action.Index > 0,
         };
     }
 

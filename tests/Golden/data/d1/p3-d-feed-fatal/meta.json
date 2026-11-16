@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p3-d-feed-fatal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p3-d-feed-fatal.json\u0022}",
-  "rulesSha256": "52245cd6334f32e0575dd5f9cc75984a5159851468d095ab7c1817d8f65ab9cd",
+  "rulesSha256": "7fc88c17028693e0fd26965f8146c762035df813873b314a2632349b3afdda6f",
   "counts": {
     "roots": 1,
     "k1": 3,

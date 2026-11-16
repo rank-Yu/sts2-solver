@@ -1,5 +1,6 @@
 // Ported from CombatSolver src/Search/PotionUsePolicy.cs at a62f1850 (MIT License, Copyright (c) 2026 Torch1230 and contributors); only the members Sts2Solver reads.
 using Sts2Solver.Ai.Combat.Scoring;
+using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Ai.Combat.Policy;
 
@@ -19,18 +20,32 @@ internal static class PotionUsePolicy
             : optionalPotionStrategicCost;
 
     /// <summary>
-    /// Potions whose whole effect is a buff that lasts the combat and never decays: Strength, Dexterity,
-    /// Focus, Fysh Oil (Strength and Dexterity), Mazaleth's Gift (Ritual) and Liquid Bronze (Thorns).
-    /// Drinking one later than the search's first turn is never better than drinking it then, so the
-    /// search offers a root potion of these kinds only on its first turn. Decaying or consumed buffs
-    /// (Heart of Iron, Gigantification, Clarity), effects that depend on when they land (Soldier's Stew
-    /// on the Strikes present, King's Courage forging, Potion of Capacity changing when orbs evoke) and
-    /// one-turn buffs are not listed. No monster in the game reacts to a buff the player applies.
+    /// Persistent buffs whose use is normally restricted to the search's opening turn.
+    /// Relic interactions can make a later use more valuable; resolve those once per root slot.
+    /// Decaying, consumed and turn-local buffs are not in this set.
     /// </summary>
-    public static readonly IReadOnlySet<string> OpeningOnlyPotionIds = new HashSet<string>(StringComparer.Ordinal)
+    private static readonly IReadOnlySet<string> PersistentBuffPotionIds = new HashSet<string>(StringComparer.Ordinal)
     {
         "STRENGTH_POTION", "DEXTERITY_POTION", "FOCUS_POTION", "FYSH_OIL", "MAZALETHS_GIFT", "LIQUID_BRONZE",
     };
+
+    internal static bool RestrictToOpeningTurn(string potionId, Rules rules)
+    {
+        if (!PersistentBuffPotionIds.Contains(potionId))
+            return false;
+        foreach (ushort index in rules.Relics.Active)
+        {
+            string relicId = Registry.Relic(rules.Relics.Id(index)).NativeId;
+            // Its temporary Strength is worth saving for an attack-heavy turn.
+            if (relicId == "REPTILE_TRINKET")
+                return false;
+            // Let a larger Strength gain consume the first-gain multiplier before the potion
+            // or its Ritual trigger.
+            if (relicId == "RUINED_HELMET" && potionId is "STRENGTH_POTION" or "FYSH_OIL" or "MAZALETHS_GIFT")
+                return false;
+        }
+        return true;
+    }
 
     /// <summary>Share of its strategic cost each optional potion beyond the dearest one is priced at.</summary>
     public const decimal AdditionalPotionPriceFactor = 0.5m;

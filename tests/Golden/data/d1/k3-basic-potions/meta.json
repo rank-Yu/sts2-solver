@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "k3-basic-potions",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-k3-basic-potions.json\u0022}",
-  "rulesSha256": "33663a3702313a2e18381e7fdccb5fdffdf6b1f29f0c7538af388f1b544cc5f8",
+  "rulesSha256": "d6603f385f997930f7f5557d96e25cf8012b090f6c00454a3be3d83576645278",
   "counts": {
     "roots": 1,
     "k1": 14,

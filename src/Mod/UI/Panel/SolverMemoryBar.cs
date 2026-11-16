@@ -4,7 +4,6 @@
 // search memory budget; the filled part is the search ledger in use while a search runs and the
 // latest search peak of this combat between searches. The game process working set is shown as
 // text only, never as a limit.
-using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Localization.Fonts;
 
@@ -38,7 +37,7 @@ internal sealed partial class SolverMemoryBar : PanelContainer
         content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs);
         AddChild(content);
         _label = SolverUiTokens.CreateLabel(
-            SolverText.Get("搜索内存 --"),
+            SolverText.Get("ui.search_memory"),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.TextSecondary,
             FontType.Regular);
@@ -81,17 +80,14 @@ internal sealed partial class SolverMemoryBar : PanelContainer
             ? SolverUiTokens.Palette.Danger
             : SolverUiTokens.Palette.Accent;
         _label.Text = running
-            ? SolverText.Format(
-                $"搜索内存 已用 {Gigabytes(used)} / 上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB")
+            ? SolverText.Format("ui.search_memory_in_use_limit_gb_game_gb", Gigabytes(used), Gigabytes(memory.BudgetBytes), Gigabytes(process))
             : peak > 0
-                ? SolverText.Format(
-                    $"搜索内存 峰值 {Gigabytes(peak)} / 上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB")
-                : SolverText.Format(
-                    $"搜索内存上限 {Gigabytes(memory.BudgetBytes)} GB · 游戏占用 {Gigabytes(process)} GB");
-        TooltipText = SolverText.Get("求解器内存与性能监视") + "\n"
-            + SolverText.Get("- 整条表示搜索内存上限；彩色在搜索中是当前用量，搜索结束后是本场最近一次搜索的峰值。超过上限时搜索会提前停下。") + "\n"
-            + SolverText.Get("- 游戏占用是游戏进程实际占用的内存，包含求解器和其他 Mod，只作参考。") + "\n"
-            + SolverText.Format($"搜索内存上限：{Gigabytes(memory.BudgetBytes)} GB（{SolverPanelText.MemorySource(memory.BudgetSource)}），可在 设置 > 性能 中修改。");
+                ? SolverText.Format("ui.search_memory_peak_limit_gb_game_gb", Gigabytes(peak), Gigabytes(memory.BudgetBytes), Gigabytes(process))
+                : SolverText.Format("ui.search_memory_limit_gb_game_gb", Gigabytes(memory.BudgetBytes), Gigabytes(process));
+        TooltipText = SolverText.Get("ui.solver_memory_monitor") + "\n"
+            + SolverText.Get("ui.the_whole_bar_is_the_search_memory_limit_the_colored") + "\n"
+            + SolverText.Get("ui.game_is_the_memory_the_game_process_actually_uses_including") + "\n"
+            + SolverText.Format("ui.search_memory_limit_gb_change_it_in_settings_performance", Gigabytes(memory.BudgetBytes), SolverPanelText.MemorySource(memory.BudgetSource));
         if (!_hasShown)
         {
             _hasShown = true;
@@ -119,7 +115,7 @@ internal sealed partial class SolverMemoryBar : PanelContainer
     }
 
     private static string Gigabytes(long bytes)
-        => (bytes / Gigabyte).ToString("F1", CultureInfo.InvariantCulture);
+        => (bytes / Gigabyte).ToString("F1", SolverText.Culture);
 
     private static ColorRect CreateSegment(Color color) => new()
     {

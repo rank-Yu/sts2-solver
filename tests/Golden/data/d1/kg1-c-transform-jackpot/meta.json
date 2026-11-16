@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "kg1-c-transform-jackpot",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg1-c-transform-jackpot.json\u0022}",
-  "rulesSha256": "7423e2d57c5a829ebb3e5478b3f4fc9dd7859ff77740c3aa50eb8792d5ef1bc3",
+  "rulesSha256": "a0567f2aaa9a3f4b65360f9ba8c904e8331676a8fb37f813d58f495adb6f6005",
   "counts": {
     "roots": 1,
     "k1": 14,

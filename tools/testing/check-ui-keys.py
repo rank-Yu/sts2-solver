@@ -1,172 +1,96 @@
 #!/usr/bin/env python3
-"""Check that every SolverText source string is in English.json and vice versa."""
+"""检查稳定文案键、语言目录、格式参数和富文本。无需游戏文件。"""
+import collections
 import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG = ROOT / 'src/Mod/UI/English.json'
+DIRECTORY = ROOT / "src/Mod/UI/Locales"
+KEY = r"(?:app|action|choice|panel|potion|search|settings|strategy|summary|tab|text|ui)\.[a-z0-9_]+"
+ITEM = re.compile(r"\{(\d+)(?:,-?\d+)?(?::[^{}]+)?\}")
+TAG = re.compile(r"\[(/?)(b|i|color)(?:=[^\]]+)?\]")
 
 
-def unescape(text: str) -> str:
-    return (text.replace('\\"', '"').replace('\\\\', '\\')
-                .replace('\\n', '\n').replace('\\r', '\r').replace('\\t', '\t'))
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate key: {key}")
+        result[key] = value
+    return result
 
 
-def read_csharp_string(source: str, index: int) -> tuple[str, int]:
-    """Read a normal C# string; index points at the opening quote."""
-    assert source[index] == '"'
-    index += 1
-    out = []
-    while index < len(source):
-        c = source[index]
-        if c == '\\':
-            out.append(source[index:index + 2])
-            index += 2
-            continue
-        if c == '"':
-            return unescape(''.join(out)), index + 1
-        out.append(c)
-        index += 1
-    raise ValueError('unterminated string')
+def placeholders(value):
+    remaining = ITEM.sub("", value).replace("{{", "").replace("}}", "")
+    if "{" in remaining or "}" in remaining:
+        raise ValueError("invalid format braces")
+    return collections.Counter(int(m.group(1)) for m in ITEM.finditer(value))
 
 
-def parse_interpolated(source: str, index: int) -> tuple[str, int]:
-    """Parse $"..." or $@"..." starting at the opening quote and return the format key."""
-    assert source[index] == '"'
-    index += 1
-    out = []
-    holes = 0
-    while index < len(source):
-        c = source[index]
-        if c == '\\':
-            out.append(source[index:index + 2])
-            index += 2
-            continue
-        if c == '"':
-            return unescape(''.join(out)), index + 1
-        if c == '{':
-            if index + 1 < len(source) and source[index + 1] == '{':
-                out.append('{{')
-                index += 2
-                continue
-            depth = 1
-            cursor = index + 1
-            in_string = False
-            while cursor < len(source) and depth:
-                ch = source[cursor]
-                if in_string:
-                    if ch == '\\':
-                        cursor += 2
-                        continue
-                    if ch == '"':
-                        in_string = False
-                    cursor += 1
-                    continue
-                if ch == '"':
-                    in_string = True
-                elif ch == '{':
-                    depth += 1
-                elif ch == '}':
-                    depth -= 1
-                cursor += 1
-            if depth:
-                raise ValueError('unterminated interpolation hole')
-            hole = source[index + 1:cursor - 1]
-            fmt = None
-            depth = 0
-            in_string = False
-            for pos, ch in enumerate(hole):
-                if in_string:
-                    if ch == '\\':
-                        continue
-                    if ch == '"':
-                        in_string = False
-                    continue
-                if ch == '"':
-                    in_string = True
-                elif ch in '({[':
-                    depth += 1
-                elif ch in ')}]':
-                    depth -= 1
-                elif ch == ':' and depth == 0:
-                    fmt = hole[pos + 1:].strip()
-                    break
-            out.append('{%d%s}' % (holes, ':' + fmt if fmt else ''))
-            holes += 1
-            index = cursor
-            continue
-        if c == '}':
-            if index + 1 < len(source) and source[index + 1] == '}':
-                out.append('}}')
-                index += 2
-                continue
-            raise ValueError('unexpected }')
-        out.append(c)
-        index += 1
-    raise ValueError('unterminated interpolated string')
-
-
-def parse_calls(text: str) -> set[str]:
-    keys: set[str] = set()
-    pattern = re.compile(r'SolverText\.(Get|Format)\s*\(')
-    for match in pattern.finditer(text):
-        i = match.end()
-        while i < len(text) and text[i] in ' \t\r\n':
-            i += 1
-        if match.group(1) == 'Get' and text[i:i + 1] not in ('$', '"'):
-            # Literal-only conditional, e.g. Get(disabled ? "on" : "off"). Switch
-            # expressions and mapped variables are covered by parse_mapping_values.
-            depth = 1
-            cursor = i
-            while cursor < len(text):
-                ch = text[cursor]
-                if ch == '(':
-                    depth += 1
-                elif ch == ')':
-                    depth -= 1
-                    if depth == 0:
-                        break
-                cursor += 1
-            argument = text[i:cursor]
-            if '?' in argument and 'switch' not in argument:
-                for literal in re.finditer(r'"(?:\\.|[^"\\])*"', argument):
-                    keys.add(unescape(literal.group(0)[1:-1]))
-            continue
-        if text.startswith('$"', i):
-            key, _ = parse_interpolated(text, i + 1)
-        elif text[i:i + 1] == '"':
-            key, _ = read_csharp_string(text, i)
+def check_tags(value):
+    stack = []
+    for match in TAG.finditer(value):
+        close, name = match.groups()
+        if close:
+            if not stack or stack.pop() != name:
+                raise ValueError(f"unmatched closing tag: {name}")
         else:
-            continue
-        keys.add(key)
-    return keys
+            stack.append(name)
+    if stack:
+        raise ValueError(f"unclosed tags: {stack}")
 
 
-def parse_mapping_values(text: str) -> set[str]:
-    keys = set()
-    for match in re.finditer(r'\["[^"]*"\]\s*=\s*"((?:[^"\\]|\\.)*)"', text):
-        keys.add(unescape(match.group(1)))
-    return keys
+def main():
+    catalogs = {path.stem: json.loads(path.read_text(), object_pairs_hook=unique_object)
+                for path in sorted(DIRECTORY.glob("*.json"))}
+    reference = catalogs["eng"]
+    expected = set("eng zhs zht deu esp fra ind ita jpn kor pol ptb rus spa tha tur".split())
+    problems = []
+    if set(catalogs) != expected:
+        problems.append(f"language set: missing={sorted(expected - catalogs.keys())} extra={sorted(catalogs.keys() - expected)}")
+    for language, catalog in catalogs.items():
+        if not re.fullmatch(r"[a-z]{3}", language):
+            problems.append(f"invalid language: {language}")
+        for key in sorted(reference.keys() - catalog.keys()):
+            problems.append(f"{language}: missing {key}")
+        for key in sorted(catalog.keys() - reference.keys()):
+            problems.append(f"{language}: extra {key}")
+        for key, value in catalog.items():
+            if not re.fullmatch(KEY, key):
+                problems.append(f"{language}: invalid key {key}")
+            if not isinstance(value, str) or not value.strip():
+                problems.append(f"{language}: empty/non-string {key}")
+                continue
+            try:
+                if key in reference and placeholders(value) != placeholders(reference[key]):
+                    problems.append(f"{language}: placeholders {key}")
+                check_tags(value)
+            except ValueError as error:
+                problems.append(f"{language}: {key}: {error}")
+    used = set()
+    for root in ("src/Mod", "src/TestHost/ModTesting"):
+        for path in (ROOT / root).rglob("*.cs"):
+            if any(part in ("bin", "obj", ".godot") for part in path.parts):
+                continue
+            text = path.read_text()
+            used.update(key for key in re.findall(r'"(' + KEY + r')"', text)
+                        if not key.endswith(".json"))
+            if re.search(r'SolverText\.Format\(\s*\$"', text):
+                problems.append(f"old interpolated API: {path.relative_to(ROOT)}")
+            for key in re.findall(r'SolverText\.(?:Get|Format)\(\s*"([^"]*)"', text):
+                if not re.fullmatch(KEY, key):
+                    problems.append(f"non-key argument: {path.relative_to(ROOT)}: {key}")
+    for key in sorted(used - reference.keys()):
+        problems.append(f"unknown key: {key}")
+    for key in sorted(reference.keys() - used):
+        problems.append(f"unused key: {key}")
+    print(f"languages={len(catalogs)} keys={len(reference)} used={len(used)} errors={len(problems)}")
+    for problem in problems:
+        print(problem)
+    return bool(problems)
 
 
-def main() -> int:
-    catalog = json.loads(CATALOG.read_text())
-    used: set[str] = set()
-    for path in sorted((ROOT / 'src').rglob('*.cs')):
-        text = path.read_text()
-        used |= parse_calls(text)
-        used |= parse_mapping_values(text)
-    missing = sorted(used - catalog.keys())
-    unused = sorted(catalog.keys() - used)
-    print(f'catalog={len(catalog)} used={len(used)} missing={len(missing)} unused={len(unused)}')
-    for key in missing:
-        print(f'MISSING {key!r}')
-    for key in unused:
-        print(f'UNUSED  {key!r}')
-    return 1 if missing or unused else 0
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

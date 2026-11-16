@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "hs2-sword-sage-forge",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs2-sword-sage-forge.json\u0022}",
-  "rulesSha256": "fac1f19382d71841c80ab30c8891431cfcc368223a569507b87e4c856d1eba21",
+  "rulesSha256": "3bddf26f025f8d83cc66a38c08943e0856302116e12ebf894b512b4b697b1ea9",
   "counts": {
     "roots": 1,
     "k1": 5,

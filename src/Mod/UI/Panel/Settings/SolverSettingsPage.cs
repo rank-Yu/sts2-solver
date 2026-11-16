@@ -85,11 +85,11 @@ internal sealed partial class SolverSettingsPage : PanelContainer
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         heading.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        Label title = SolverUiTokens.CreateLabel(SolverText.Get("求解器设置"), SolverUiTokens.Type.Title,
+        Label title = SolverUiTokens.CreateLabel(SolverText.Get("ui.solver_settings"), SolverUiTokens.Type.Title,
             SolverUiTokens.Palette.TextPrimary);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         heading.AddChild(title);
-        _reset = SolverUiTokens.CreateButton(SolverText.Get("恢复默认"), SolverButtonStyle.Secondary);
+        _reset = SolverUiTokens.CreateButton(SolverText.Get("ui.reset"), SolverButtonStyle.Secondary);
         _reset.Name = "ResetDefaults";
         _reset.CustomMinimumSize = new Vector2(96, SolverUiTokens.Size.ButtonHeight);
         _reset.Pressed += ResetDefaults;
@@ -102,17 +102,17 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         GridContainer play = SolverSettingsControls.CreateSettingsGrid();
         _speed = SolverSettingsControls.CreateOptionInput();
         _speed.Name = "DeploymentSpeedOption";
-        _speed.AddItem(SolverText.Get("跟随游戏（默认）"), (int)SolverDeploymentSpeed.FollowGame);
-        _speed.AddItem(SolverText.Get("正常"), (int)SolverDeploymentSpeed.Normal);
-        _speed.AddItem(SolverText.Get("快速"), (int)SolverDeploymentSpeed.Fast);
+        _speed.AddItem(SolverText.Get("ui.follow_game_default"), (int)SolverDeploymentSpeed.FollowGame);
+        _speed.AddItem(SolverText.Get("ui.normal"), (int)SolverDeploymentSpeed.Normal);
+        _speed.AddItem(SolverText.Get("ui.fast"), (int)SolverDeploymentSpeed.Fast);
         _speed.ItemSelected += OnSpeedSelected;
-        SolverSettingsControls.AddBasicRow(play, SolverText.Get("自动出牌速度"), _speed);
+        SolverSettingsControls.AddBasicRow(play, SolverText.Get("ui.play_speed"), _speed);
         _delay = SolverSettingsControls.CreateInput("0");
         _delay.Name = "InterActionDelayInput";
         _delay.TextSubmitted += _ => CommitDelay();
         _delay.FocusExited += () => CommitDelay();
-        SolverSettingsControls.AddBasicRow(play, SolverText.Get("牌间额外停顿（秒）"), _delay);
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("出牌"), play);
+        SolverSettingsControls.AddBasicRow(play, SolverText.Get("ui.extra_delay_per_action_s"), _delay);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.card_play"), play);
 
         GridContainer performance = SolverSettingsControls.CreateSettingsGrid();
         _tier = SolverSettingsControls.CreateOptionInput();
@@ -120,36 +120,36 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         foreach (SearchPerformanceTier tier in Enum.GetValues<SearchPerformanceTier>())
         {
             _tier.AddItem(tier == SearchPerformanceTier.Medium
-                ? SolverText.Get("中档（默认）")
+                ? SolverText.Get("ui.medium_default")
                 : SolverPanelText.Tier(tier), (int)tier);
         }
         _tier.ItemSelected += OnTierSelected;
-        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("性能预设"), _tier,
-            SolverText.Get("越高越可能找到更好的路线，但搜索更久。"));
+        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("ui.performance_preset"), _tier,
+            SolverText.Get("ui.higher_tiers_are_more_likely_to_find_a_better_route"));
         _threads = SolverSettingsControls.CreateInput(string.Empty);
         _threads.Name = "ThreadsInput";
         _threads.TextSubmitted += _ => CommitThreads();
         _threads.FocusExited += () => CommitThreads();
-        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("搜索并行度"), _threads,
-            SolverText.Get("越大搜索越快，但更占 CPU，可能让游戏卡顿。"));
+        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("ui.search_parallelism"), _threads,
+            SolverText.Get("ui.higher_values_search_faster_but_use_more_cpu_and_may"));
         _memory = SolverSettingsControls.CreateInput(string.Empty);
         _memory.Name = "MemoryInput";
         _memory.TextSubmitted += _ => CommitMemory();
         _memory.FocusExited += () => CommitMemory();
-        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("搜索内存上限（GB）"), _memory,
-            SolverText.Get("只限制搜索用的内存。设太小可能搜不完。"));
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("性能"), performance);
+        SolverSettingsControls.AddBasicRow(performance, SolverText.Get("ui.search_memory_limit_gb"), _memory,
+            SolverText.Get("ui.limits_only_the_memory_used_by_search_too_small_a"));
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.performance"), performance);
 
         GridContainer boss = SolverSettingsControls.CreateSettingsGrid();
         _actBoss = CreateBossInput("ActBossHpOption");
         _actBoss.ItemSelected += OnActBossSelected;
-        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("第一、二幕血量取舍"), _actBoss,
-            SolverText.Get("通关优先会按战后回复 80% 折算血量价值并尽量保留药水；最低战损会按普通战斗完整比较掉血。"));
+        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("ui.act_1_2_hp_policy"), _actBoss,
+            SolverText.Get("ui.progression_first_discounts_hp_loss_using_80_post_combat_healing"));
         _finalBoss = CreateBossInput("FinalBossHpOption");
         _finalBoss.ItemSelected += OnFinalBossSelected;
-        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("最终 Boss 血量取舍"), _finalBoss,
-            SolverText.Get("通关优先只要求路线存活并优先保留资源；最低战损会继续比较剩余血量。"));
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("Boss 策略"), boss);
+        SolverSettingsControls.AddBasicRow(boss, SolverText.Get("ui.final_boss_hp_policy"), _finalBoss,
+            SolverText.Get("ui.progression_first_requires_survival_and_prioritizes_resources_minimize_hp_loss"));
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.boss_strategy"), boss);
 
         GridContainer display = SolverSettingsControls.CreateSettingsGrid();
         HBoxContainer opacityRow = new()
@@ -168,25 +168,25 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _opacityValue.HorizontalAlignment = HorizontalAlignment.Right;
         _opacityValue.CustomMinimumSize = new Vector2(48, 24);
         opacityRow.AddChild(_opacityValue);
-        SolverSettingsControls.AddBasicRow(display, SolverText.Get("覆盖层透明度"), opacityRow);
+        SolverSettingsControls.AddBasicRow(display, SolverText.Get("ui.overlay_opacity"), opacityRow);
         _guide = SolverSettingsControls.CreateToggle();
         _guide.Name = "GuideToggle";
         _guide.Toggled += OnGuideToggled;
-        SolverSettingsControls.AddBasicRow(display, SolverText.Get("游戏内出牌指引"), _guide);
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("显示"), display);
+        SolverSettingsControls.AddBasicRow(display, SolverText.Get("ui.guide_setting"), _guide);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.display"), display);
 
         HBoxContainer feedback = new()
         {
             MouseFilter = MouseFilterEnum.Pass,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        _exportLog = SolverUiTokens.CreateButton(SolverText.Get("导出Mod日志"), SolverButtonStyle.Secondary);
+        _exportLog = SolverUiTokens.CreateButton(SolverText.Get("ui.export_mod_logs"), SolverButtonStyle.Secondary);
         _exportLog.Name = "ExportLogs";
         _exportLog.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-        _exportLog.TooltipText = SolverText.Get("遇到问题时可导出发给作者");
+        _exportLog.TooltipText = SolverText.Get("ui.if_you_run_into_a_problem_export_and_send_the");
         _exportLog.Pressed += ExportLogs;
         feedback.AddChild(_exportLog);
-        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("反馈"), feedback);
+        SolverSettingsControls.AddSettingsSection(content, SolverText.Get("ui.feedback"), feedback);
 
         _scroll = SolverSettingsControls.CreatePageScroll(content);
         layout.AddChild(_scroll);
@@ -232,7 +232,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         string trimmed = text.Trim();
         if (trimmed.Length == 0)
             return true;
-        if (!int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out int value)
+        if (!int.TryParse(trimmed, NumberStyles.None, SolverText.Culture, out int value)
             || value < MinimumThreads || value > SearchThreadCount.Maximum)
         {
             return false;
@@ -253,7 +253,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         string trimmed = text.Trim();
         if (trimmed.Length == 0)
             return true;
-        if (!double.TryParse(trimmed, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture,
+        if (!double.TryParse(trimmed, NumberStyles.AllowDecimalPoint, SolverText.Culture,
                 out double gigabytes)
             || gigabytes < MinimumMemoryGigabytes || gigabytes * Gigabyte > maximumBytes)
         {
@@ -266,7 +266,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     }
 
     internal static string FormatGigabytes(long bytes)
-        => (bytes / Gigabyte).ToString("0.0", CultureInfo.InvariantCulture);
+        => (bytes / Gigabyte).ToString("0.0", SolverText.Culture);
 
     public override void _Process(double delta)
     {
@@ -286,8 +286,8 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         if (_export != null)
             return;
         _exportLog.Disabled = true;
-        _exportLog.Text = SolverText.Get("正在打包…");
-        SetStatus(SolverText.Get("正在打包…"), SolverUiTokens.Palette.TextSecondary);
+        _exportLog.Text = SolverText.Get("ui.packing");
+        SetStatus(SolverText.Get("ui.packing"), SolverUiTokens.Palette.TextSecondary);
         _export = CombatUiCommands.Instance.ExportLogsAsync();
         SetProcess(true);
     }
@@ -295,17 +295,17 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     private void ShowExport(DiagnosticLogExport result)
     {
         _exportLog.Disabled = false;
-        _exportLog.Text = SolverText.Get("导出Mod日志");
+        _exportLog.Text = SolverText.Get("ui.export_mod_logs");
         if (result.ZipPath is not { } zip)
         {
             ModLog.Error($"[Sts2Solver] LOG_EXPORT_FAILED reason={result.Error}");
-            SetStatus(SolverText.Format($"导出失败：{result.Error}"), SolverUiTokens.Palette.Danger);
+            SetStatus(SolverText.Format("ui.export_failed", result.Error), SolverUiTokens.Palette.Danger);
             return;
         }
         ModLog.Info($"[Sts2Solver] LOG_EXPORTED path={zip}");
-        SetStatus(SolverText.Format($"已导出 {Path.GetFileName(zip)}"), SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Format("ui.exported", Path.GetFileName(zip)), SolverUiTokens.Palette.Success);
         if (!ModEntry.TestMode && OS.ShellShowInFileManager(zip) != Error.Ok)
-            SetStatus(SolverText.Format($"已导出，请打开：{zip}"), SolverUiTokens.Palette.TextSecondary);
+            SetStatus(SolverText.Format("ui.exported_open", zip), SolverUiTokens.Palette.TextSecondary);
     }
 
     public override void _Input(InputEvent inputEvent)
@@ -328,7 +328,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _speed.Select(_speed.GetItemIndex((int)data.Automation.DeploymentSpeed));
         double delay = data.Automation.InterActionDelaySeconds;
         Show(_delay, ref _delayShown,
-            delay > 0d ? delay.ToString("0.###", CultureInfo.InvariantCulture) : string.Empty);
+            delay > 0d ? delay.ToString("0.###", SolverText.Culture) : string.Empty);
         _tier.Select(_tier.GetItemIndex((int)data.Search.Tier));
         _opacity.SetValueNoSignal(data.Ui.Opacity);
         _opacityValue.Text = Percent(data.Ui.Opacity);
@@ -336,7 +336,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _pendingOpacity = null;
         foreach (LineEdit input in new[] { _delay, _threads, _memory })
             MarkValid(input);
-        _status.Text = _export != null ? SolverText.Get("正在打包…") : string.Empty;
+        _status.Text = _export != null ? SolverText.Get("ui.packing") : string.Empty;
         _loading = false;
         ApplyEffectiveValues(CombatUiStore.Snapshot, force: true);
         ApplyBossStrategies(CombatUiStore.Snapshot.Strategy);
@@ -346,8 +346,8 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     {
         OptionButton input = SolverSettingsControls.CreateOptionInput();
         input.Name = name;
-        input.AddItem(SolverText.Get("通关优先（默认）"), (int)SearchBossHpStrategy.ProgressionFirst);
-        input.AddItem(SolverText.Get("最低战损"), (int)SearchBossHpStrategy.MinimizeHpLoss);
+        input.AddItem(SolverText.Get("ui.progression_first_default"), (int)SearchBossHpStrategy.ProgressionFirst);
+        input.AddItem(SolverText.Get("ui.minimize_hp_loss"), (int)SearchBossHpStrategy.MinimizeHpLoss);
         return input;
     }
 
@@ -384,10 +384,10 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     {
         if (accepted)
         {
-            SetStatus(SolverText.Get("已保存，下次搜索生效"), SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("ui.saved_applies_to_the_next_search"), SolverUiTokens.Palette.Success);
             return;
         }
-        SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
+        SetStatus(SolverText.Get("ui.saving_failed_details_are_in_the_game_log"), SolverUiTokens.Palette.Danger);
         ApplyBossStrategies(CombatUiStore.Snapshot.Strategy);
     }
 
@@ -397,7 +397,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         _settings = snapshot.Settings;
         _availableMemoryBytes = snapshot.Memory.GcAvailableBytes;
         if (force || !_threads.HasFocus())
-            Show(_threads, ref _threadsShown, _settings.SearchThreads.ToString(CultureInfo.InvariantCulture));
+            Show(_threads, ref _threadsShown, _settings.SearchThreads.ToString(SolverText.Culture));
         if (force || !_memory.HasFocus())
             Show(_memory, ref _memoryShown, FormatGigabytes(_settings.MemoryBudgetBytes));
     }
@@ -408,7 +408,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
             return;
         SolverDeploymentSpeed speed = (SolverDeploymentSpeed)_speed.GetItemId((int)index);
         Save(current => current with { Automation = current.Automation with { DeploymentSpeed = speed } },
-            SolverText.Get("已保存，下次执行生效"));
+            SolverText.Get("ui.saved_applies_to_the_next_execution"));
     }
 
     private void OnTierSelected(long index)
@@ -417,7 +417,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
             return;
         SearchPerformanceTier tier = (SearchPerformanceTier)_tier.GetItemId((int)index);
         Save(current => current with { Search = current.Search with { Tier = tier } },
-            SolverText.Get("已保存，下次搜索生效"));
+            SolverText.Get("ui.saved_applies_to_the_next_search"));
     }
 
     private bool CommitDelay()
@@ -427,11 +427,11 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         string text = _delay.Text.Trim();
         double seconds = 0d;
         if (text.Length > 0
-            && (!double.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out seconds)
+            && (!double.TryParse(text, NumberStyles.AllowDecimalPoint, SolverText.Culture, out seconds)
                 || seconds < MinimumDelaySeconds || seconds > MaximumDelaySeconds))
         {
             ShowInvalid(_delay,
-                SolverText.Format($"请输入 {MinimumDelaySeconds:0.###}–{MaximumDelaySeconds:0.###} 的数字"));
+                SolverText.Format("ui.enter_a_number_from_to", MinimumDelaySeconds, MaximumDelaySeconds));
             return false;
         }
         MarkValid(_delay);
@@ -441,7 +441,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         return Save(current => current with
             {
                 Automation = current.Automation with { InterActionDelaySeconds = seconds },
-            }, SolverText.Get("已保存，下次执行生效"));
+            }, SolverText.Get("ui.saved_applies_to_the_next_execution"));
     }
 
     private bool CommitThreads()
@@ -451,16 +451,16 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         if (!TryParseThreads(_threads.Text, _settings.SearchThreadsDefault, out int? threads))
         {
             ShowInvalid(_threads,
-                SolverText.Format($"请输入 {MinimumThreads}–{SearchThreadCount.Maximum} 的整数"));
+                SolverText.Format("ui.enter_an_integer_from_to", MinimumThreads, SearchThreadCount.Maximum));
             return false;
         }
         MarkValid(_threads);
         Show(_threads, ref _threadsShown,
-            (threads ?? _settings.SearchThreadsDefault).ToString(CultureInfo.InvariantCulture));
+            (threads ?? _settings.SearchThreadsDefault).ToString(SolverText.Culture));
         if (SolverSettings.Current.Search.Threads == threads)
             return true;
         return Save(current => current with { Search = current.Search with { Threads = threads } },
-            SolverText.Get("已保存，下次搜索生效"));
+            SolverText.Get("ui.saved_applies_to_the_next_search"));
     }
 
     private bool CommitMemory()
@@ -473,7 +473,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         {
             double maximum = Math.Floor(maximumBytes / Gigabyte * 10d) / 10d;
             ShowInvalid(_memory,
-                SolverText.Format($"请输入 {MinimumMemoryGigabytes:0.###}–{maximum:0.###} 的数字"));
+                SolverText.Format("ui.enter_a_number_from_to", MinimumMemoryGigabytes, maximum));
             return false;
         }
         MarkValid(_memory);
@@ -481,7 +481,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         if (SolverSettings.Current.Search.MemoryBudgetBytes == bytes)
             return true;
         return Save(current => current with { Search = current.Search with { MemoryBudgetBytes = bytes } },
-            SolverText.Get("已保存，下次搜索生效"));
+            SolverText.Get("ui.saved_applies_to_the_next_search"));
     }
 
     private void OnOpacityChanged(double value)
@@ -501,7 +501,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         if (_loading || SolverSettings.Current.Ui.ShowGuide == on)
             return;
         Save(current => current with { Ui = current.Ui with { ShowGuide = on } },
-            SolverText.Get("已保存并立即生效"));
+            SolverText.Get("ui.saved_and_applied"));
     }
 
     private void FlushOpacity()
@@ -512,7 +512,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         if (Math.Abs(SolverSettings.Current.Ui.Opacity - opacity) < 0.0001f)
             return;
         Save(current => current with { Ui = current.Ui with { Opacity = opacity } },
-            SolverText.Get("已保存并立即生效"));
+            SolverText.Get("ui.saved_and_applied"));
     }
 
     /// <summary>
@@ -550,7 +550,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
                 },
             }))
         {
-            SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
+            SetStatus(SolverText.Get("ui.saving_failed_details_are_in_the_game_log"), SolverUiTokens.Palette.Danger);
             return;
         }
         bool actReset = CombatUiCommands.Instance.SetActTransitionBossHpStrategy(
@@ -558,9 +558,9 @@ internal sealed partial class SolverSettingsPage : PanelContainer
         bool finalReset = CombatUiCommands.Instance.SetFinalBossHpStrategy(search.FinalBossHpStrategy);
         Reload();
         if (actReset && finalReset)
-            SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("ui.default_settings_restored"), SolverUiTokens.Palette.Success);
         else
-            SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
+            SetStatus(SolverText.Get("ui.saving_failed_details_are_in_the_game_log"), SolverUiTokens.Palette.Danger);
         DefaultsRestored?.Invoke();
         OpacityPreview?.Invoke(SolverSettings.Current.Ui.Opacity);
     }
@@ -569,7 +569,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     {
         if (!SolverSettings.Update(change))
         {
-            SetStatus(SolverText.Get("保存失败，详情已写入游戏日志"), SolverUiTokens.Palette.Danger);
+            SetStatus(SolverText.Get("ui.saving_failed_details_are_in_the_game_log"), SolverUiTokens.Palette.Danger);
             Reload();
             return false;
         }
@@ -602,7 +602,7 @@ internal sealed partial class SolverSettingsPage : PanelContainer
     }
 
     private static string Percent(float value)
-        => Math.Round(value * 100d).ToString(CultureInfo.InvariantCulture) + "%";
+        => Math.Round(value * 100d).ToString(SolverText.Culture) + "%";
 
 #if STS2_SOLVER_TESTING
     internal Button ExportButtonForTest => _exportLog;

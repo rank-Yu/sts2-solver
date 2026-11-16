@@ -68,7 +68,7 @@ internal static class GeneratedCombatScenario
             || options.Ascension is < 0 or > 10
             || options.Mode is not ("Setup" or "Search" or "Deploy")
             || options.EncounterKind is not ("EliteOrBoss" or "Elite" or "Boss" or "Monster")
-            || options.PotionSlotCount is < 0 or > 10 || options.PlayerCurrentHp is <= 0)
+            || options.PotionSlotCount is < 0 or > Sts2Solver.Simulation.Combat.Limits.PotionSlots || options.PlayerCurrentHp is <= 0)
             throw new InvalidDataException("生成场景的版本、种子、A等级、模式、遭遇类型、生命或药水槽无效。");
         CharacterModel[] characters = Native(ModelDb.AllCharacters);
         CharacterModel character = options.CharacterId is { } id

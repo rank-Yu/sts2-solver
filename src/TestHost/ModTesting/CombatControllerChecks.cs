@@ -522,8 +522,8 @@ internal static partial class CombatControllerChecks
         check("stale_route_kept", after.Result != null && !after.CurrentTurnRouteReady,
             $"result={after.Result != null} ready={after.CurrentTurnRouteReady}");
         check("stale_route_marked", panel?.RouteStaleForTest == true
-            && panel.StatusTextForTest == SolverText.Get("历史路线（仅供参考）")
-            && panel.RouteHeadingForTest == SolverText.Get("已保存路线（已过期）"),
+            && panel.StatusTextForTest == SolverText.Get("ui.previous_route_reference_only")
+            && panel.RouteHeadingForTest == SolverText.Get("ui.saved_route_outdated"),
             $"status={panel?.StatusTextForTest} heading={panel?.RouteHeadingForTest}");
         // The turn ended without a card played, so the enemies hit; a new search shows that loss as the
         // battle's loss so far, and its projection adds the route's own.
@@ -538,7 +538,7 @@ internal static partial class CombatControllerChecks
         check("battle_hp_lost_so_far", lost > 0 && result.BattleHpLostSoFar == lost
             && (result.CombatEndedTurn == null || result.ProjectedBattleHpLost == lost + routeLost),
             $"history={lost} shown={result.BattleHpLostSoFar} projected={result.ProjectedBattleHpLost} route={routeLost}");
-        string expected = SolverText.Format($"本局扣血  已 {lost}    预计 {result.ProjectedBattleHpLost} HP");
+        string expected = SolverText.Format("ui.hp_lost_so_far_projected", lost, result.ProjectedBattleHpLost);
         check("battle_hp_text", result.CombatEndedTurn == null || panel?.HpOutcomeTextForTest == expected,
             $"text={panel?.HpOutcomeTextForTest} expected={expected}");
     }
@@ -767,7 +767,7 @@ internal static partial class CombatControllerChecks
             stopped.PauseCode ?? "-");
         check("can_continue", stopped.CanContinueSearch, "continue available");
         string continueText = await SearchButtonTextAsync(host);
-        check("continue_text", continueText == SolverText.Get("继续搜索"), continueText);
+        check("continue_text", continueText == SolverText.Get("action.continue_search"), continueText);
         check("route_retained", stopped.Result != null && stopped.CurrentTurnRouteReady);
         int stoppedIndex = FindStoppedMember(stopped);
         check("stopped_middle", stoppedIndex == 2, $"stopped_member={stoppedIndex}");
@@ -846,7 +846,7 @@ internal static partial class CombatControllerChecks
             check("no_continue", !changed.CanContinueSearch,
                 "continue rejected after a settings change");
             string restartText = await SearchButtonTextAsync(host);
-            check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+            check("restart_text", restartText == SolverText.Get("action.restart_search"), restartText);
             int searches = changed.Searches;
             await PressPanelButtonAsync(host, PanelButton.Search, "restart_after_settings");
             action("press_restart_after_settings");
@@ -882,7 +882,7 @@ internal static partial class CombatControllerChecks
         CombatUiSnapshot changed = Snapshot();
         check("no_continue", !changed.CanContinueSearch, "continue rejected after a state change");
         string restartText = await SearchButtonTextAsync(host);
-        check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+        check("restart_text", restartText == SolverText.Get("action.restart_search"), restartText);
         int searches = changed.Searches;
         await PressPanelButtonAsync(host, PanelButton.Search, "restart_after_state");
         action("press_restart_after_state");
@@ -919,7 +919,7 @@ internal static partial class CombatControllerChecks
             $"members={members.Length}");
         check("no_continue", !stopped.CanContinueSearch, "the last member has nothing to continue");
         string restartText = await SearchButtonTextAsync(host);
-        check("restart_text", restartText == SolverText.Get("重新搜索"), restartText);
+        check("restart_text", restartText == SolverText.Get("action.restart_search"), restartText);
     }
 
     private static async Task ContinueSearchTwiceAsync(NGame host, Check check, Action action)
@@ -1053,9 +1053,9 @@ internal static partial class CombatControllerChecks
         // greyed 继续搜索 next to 重新搜索 then.
         SolverOverlay? panel = SolverOverlay.Instance;
         if (panel?.SearchButtonForTest is { Disabled: true } left
-            && left.Text == SolverText.Get("继续搜索") && Usable(panel.RestartSearchButtonForTest))
+            && left.Text == SolverText.Get("action.continue_search") && Usable(panel.RestartSearchButtonForTest))
         {
-            return SolverText.Get("重新搜索");
+            return SolverText.Get("action.restart_search");
         }
         return panel?.SearchButtonForTest?.Text ?? "";
     }
@@ -1196,7 +1196,7 @@ internal static partial class CombatControllerChecks
             check("export_busy", page.ExportPendingForTest && page.ExportButtonForTest.Disabled);
             page.ExportButtonForTest.EmitSignal(BaseButton.SignalName.Pressed);
             page.Opened();
-            check("export_reopen_busy", page.StatusTextForTest == SolverText.Get("正在打包…"));
+            check("export_reopen_busy", page.StatusTextForTest == SolverText.Get("ui.packing"));
             for (int frame = 0; frame < 900 && page.ExportPendingForTest; frame++)
                 await Frames(host, 1);
             check("export_finished", !page.ExportPendingForTest && !page.ExportButtonForTest.Disabled,
@@ -1216,7 +1216,7 @@ internal static partial class CombatControllerChecks
                 check("export_game_logs", archive.Entries.Any(static e => e.FullName.StartsWith("logs/")));
                 check("export_no_nested_zip", archive.Entries.All(static e => !e.FullName.Contains("exports/")));
                 check("export_success_status", page.StatusTextForTest ==
-                    SolverText.Format($"已导出 {Path.GetFileName(added[0])}"), page.StatusTextForTest);
+                    SolverText.Format("ui.exported", Path.GetFileName(added[0])), page.StatusTextForTest);
             }
             action("export_logs");
         }
@@ -1438,7 +1438,7 @@ internal static partial class CombatControllerChecks
             paused.PauseDetailReason?.Kind ?? "-");
         check("reason_inner", paused.PauseDetailReason?.Inner?.Kind == CombatReasonKind.SearchFailed,
             paused.PauseDetailReason?.Inner?.Kind ?? "-");
-        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
         await Frames(host, 4);
         check("summary", Summary() == SolverPanelText.Pause(paused.PauseCode, paused.Turn)
             + "\n" + SolverPanelText.ErrorReason(paused.PauseDetailReason), Summary());
@@ -1774,7 +1774,7 @@ internal static partial class CombatControllerChecks
         check("plan_ready", plan.TurnSetupPlanReady);
         string[] texts = SetupChoiceTexts(host);
         check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
-        bool english = SolverText.IsEnglish;
+        bool english = SolverText.Language == "eng";
         string expected = (english, scenarioId) switch
         {
             (false, "FLASH-TS-A-TOASTY") => "烘焙手套",
@@ -1819,7 +1819,7 @@ internal static partial class CombatControllerChecks
             PlayerTurnSetupRuntime.TestContinuationValidationCandidateMismatch.ToString());
         string[] texts = SetupChoiceTexts(host);
         check("capsule_present", texts.Length > 0, string.Join(" | ", texts));
-        bool english = SolverText.IsEnglish;
+        bool english = SolverText.Language == "eng";
         string expected = (english, scenarioId) switch
         {
             (false, "TS-G-MULTI-CHOICE") => "暴政",
@@ -2144,12 +2144,12 @@ internal static partial class CombatControllerChecks
             check("reason_kind",
                 failed.ErrorReason?.Kind == CombatReasonKind.TurnSetupFailed,
                 failed.ErrorReason?.Kind ?? "-");
-            await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+            await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
             check("summary_title",
-                Summary().Contains(SolverText.Get("回合准备选牌失败"), StringComparison.Ordinal),
+                Summary().Contains(SolverText.Get("ui.turn_start_choice_failed"), StringComparison.Ordinal),
                 Summary());
             check("summary_reason",
-                Summary().Contains(SolverText.Get("没有找到可执行的回合开始选牌方案"),
+                Summary().Contains(SolverText.Get("ui.no_executable_turn_start_choice_plan_was_found"),
                     StringComparison.Ordinal), Summary());
             check("page_open", failed.TurnSetupPageOpen);
             check("no_plan", !failed.TurnSetupPlanReady);
@@ -2788,7 +2788,7 @@ internal static partial class CombatControllerChecks
         check("left_text", SearchAvailable(panel), FooterText(panel));
         check("left_enabled", SearchAvailable(panel), FooterText(panel));
         check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        await WaitStatusAsync(host, SolverText.Get("ui.execution_paused"));
         check("summary", Summary().Contains("动作结果与预测不同，已停止", StringComparison.Ordinal),
             Summary());
         check("summary_reason", Summary().Contains(
@@ -2862,13 +2862,13 @@ internal static partial class CombatControllerChecks
             paused.PauseDetailReason?.Kind ?? "-");
         check("reason_text",
             SolverPanelText.ErrorReason(paused.PauseDetailReason)
-                == SolverText.Get("手牌和路线对不上"),
+                == SolverText.Get("ui.the_hand_does_not_match_the_route"),
             SolverPanelText.ErrorReason(paused.PauseDetailReason));
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        await WaitStatusAsync(host, SolverText.Get("ui.execution_paused"));
         check("summary_reason",
-            Summary().Contains(SolverText.Get("手牌和路线对不上"), StringComparison.Ordinal),
+            Summary().Contains(SolverText.Get("ui.the_hand_does_not_match_the_route"), StringComparison.Ordinal),
             Summary());
-        if (SolverText.IsEnglish)
+        if (SolverText.Language == "eng")
         {
             check("english_reason",
                 Summary().Contains("The hand does not match the route.",
@@ -2920,7 +2920,7 @@ internal static partial class CombatControllerChecks
         check("left_text", SearchAvailable(panel), FooterText(panel));
         check("left_enabled", SearchAvailable(panel), FooterText(panel));
         check("right_hidden", ExecuteUnavailable(panel), FooterText(panel));
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        await WaitStatusAsync(host, SolverText.Get("ui.execution_paused"));
         check("summary",
             Summary().Contains("回合开始时实际状态与预测不同，已停止", StringComparison.Ordinal),
             Summary());
@@ -2958,7 +2958,7 @@ internal static partial class CombatControllerChecks
         await Frames(host, 60);
         check("no_research", Snapshot().Searches == searches,
             $"{searches}->{Snapshot().Searches}");
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        await WaitStatusAsync(host, SolverText.Get("ui.execution_paused"));
         check("summary",
             Summary().Contains("回合开始时实际状态与预测不同，已停止", StringComparison.Ordinal),
             Summary());
@@ -3008,7 +3008,7 @@ internal static partial class CombatControllerChecks
         // route and runs again.
         check("right_visible", Usable(panel?.ExecuteCombatButtonForTest)
             && Usable(panel?.ExecuteTurnButtonForTest), FooterText(panel));
-        check("right_text", panel?.ExecuteCombatButtonForTest?.Text == SolverText.Get("执行本场战斗"),
+        check("right_text", panel?.ExecuteCombatButtonForTest?.Text == SolverText.Get("action.play_combat"),
             FooterText(panel));
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute_after_death_pause");
         action("press_execute_after_death_pause");
@@ -3117,43 +3117,43 @@ internal static partial class CombatControllerChecks
         using SettingsOverride slowTier = SlowSearchTier();
         check("mode_set", CombatSessionController.LeaveRunForTest(autoSearch: false), "manual");
         await WaitIdleAsync(host, "manual idle");
-        await WaitStatusAsync(host, SolverText.Get("等待手动搜索"));
-        check("manual_status", Status() == SolverText.Get("等待手动搜索"), Status());
+        await WaitStatusAsync(host, SolverText.Get("ui.waiting_for_manual_search"));
+        check("manual_status", Status() == SolverText.Get("ui.waiting_for_manual_search"), Status());
         check("manual_summary", Summary().Contains("自动搜索已关闭", StringComparison.Ordinal)
             && Summary().Contains("开始搜索", StringComparison.Ordinal), Summary());
         await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search started");
-        await WaitStatusAsync(host, SolverText.Get("后台搜索中"));
-        check("searching_status", Status() == SolverText.Get("后台搜索中"), Status());
-        check("searching_heading", Heading() == SolverText.Get("求解器当前考虑（尚未验证）"), Heading());
+        await WaitStatusAsync(host, SolverText.Get("ui.searching"));
+        check("searching_status", Status() == SolverText.Get("ui.searching"), Status());
+        check("searching_heading", Heading() == SolverText.Get("ui.current_candidate_unverified"), Heading());
         check("searching_summary", Summary().Contains("正在搜索当前回合", StringComparison.Ordinal)
             || Summary().Contains("已查阅", StringComparison.Ordinal), Summary());
         await WaitAsync(host, static s => s.Result != null && !s.IsSearching, 900, "result ready");
-        await WaitStatusAsync(host, SolverText.Get("方案就绪"), SolverText.Get("方案已复用"));
+        await WaitStatusAsync(host, SolverText.Get("ui.plan_ready"), SolverText.Get("ui.plan_reused"));
         check("ready_status", Status() is "方案就绪" or "方案已复用", Status());
-        check("ready_heading", Heading() == SolverText.Get("推荐路线"), Heading());
+        check("ready_heading", Heading() == SolverText.Get("ui.recommended_route"), Heading());
         await PressPanelButtonAsync(host, PanelButton.Execute, "execute");
         await WaitAsync(host, static s => s.IsDeploying, 240, "deploying");
-        await WaitStatusAsync(host, SolverText.Get("正在执行"));
-        check("deploying_status", Status() == SolverText.Get("正在执行"), Status());
-        check("deploying_heading", Heading() == SolverText.Get("正在执行的路线"), Heading());
+        await WaitStatusAsync(host, SolverText.Get("ui.executing"));
+        check("deploying_status", Status() == SolverText.Get("ui.executing"), Status());
+        check("deploying_heading", Heading() == SolverText.Get("ui.executing_route"), Heading());
         check("deploying_summary", Summary().Contains("按推荐顺序执行", StringComparison.Ordinal)
             || Summary().Contains("正在执行", StringComparison.Ordinal), Summary());
         await WaitAsync(host, static s => !s.IsDeploying, 1800, "deployment done");
         await WaitStatusAsync(host,
-            SolverText.Get("执行完成"), SolverText.Get("等待下一回合方案"));
-        check("complete_status", Status() == SolverText.Get("执行完成")
-            || Status() == SolverText.Get("等待下一回合方案"), Status());
-        await WaitStatusAsync(host, SolverText.Get("等待下一回合方案"));
-        check("waiting_status", Status() == SolverText.Get("等待下一回合方案"), Status());
+            SolverText.Get("ui.execution_complete"), SolverText.Get("ui.waiting_for_next_turn_s_plan"));
+        check("complete_status", Status() == SolverText.Get("ui.execution_complete")
+            || Status() == SolverText.Get("ui.waiting_for_next_turn_s_plan"), Status());
+        await WaitStatusAsync(host, SolverText.Get("ui.waiting_for_next_turn_s_plan"));
+        check("waiting_status", Status() == SolverText.Get("ui.waiting_for_next_turn_s_plan"), Status());
         check("waiting_context", Context().Contains("回合已执行", StringComparison.Ordinal), Context());
         check("waiting_summary", Summary().Contains("等待下一回合方案就绪", StringComparison.Ordinal), Summary());
 
         await PressPanelButtonAsync(host, PanelButton.Search, "recalculate");
         await WaitAsync(host, static s => s.IsSearching, 240, "search for stop");
         await PressPanelButtonAsync(host, PanelButton.Search, "stop");
-        await WaitStatusAsync(host, SolverText.Get("搜索已停止"));
-        check("stop_status", Status() == SolverText.Get("搜索已停止"), Status());
+        await WaitStatusAsync(host, SolverText.Get("ui.search_stopped"));
+        check("stop_status", Status() == SolverText.Get("ui.search_stopped"), Status());
         check("stop_summary_no_candidate",
             Summary().Contains("本回合搜索已停止", StringComparison.Ordinal), Summary());
 
@@ -3174,7 +3174,7 @@ internal static partial class CombatControllerChecks
         }
         check("stop_candidate_stopped", candidateStopped,
             Snapshot().CurrentTurnRouteReady.ToString());
-        await WaitStatusAsync(host, SolverText.Get("搜索已停止"));
+        await WaitStatusAsync(host, SolverText.Get("ui.search_stopped"));
         check("stop_candidate_summary",
             Summary().Contains("下方保留停止时已经得到的当前候选路线", StringComparison.Ordinal), Summary());
     }
@@ -3205,15 +3205,15 @@ internal static partial class CombatControllerChecks
         check("search_failed_terminal_reason",
             terminalReason?.StartsWith("controller_failed code=search_failed",
                 StringComparison.Ordinal) == true, terminalReason ?? "-");
-        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
-        check("search_failed_status", Status() == SolverText.Get("求解器消息"), Status());
+        await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
+        check("search_failed_status", Status() == SolverText.Get("ui.solver_message"), Status());
         check("search_failed_reason_kind",
             failed.ErrorReason?.Kind == CombatReasonKind.SearchFailed,
             failed.ErrorReason?.Kind ?? "-");
         check("search_failed_summary",
             Summary() == SolverPanelText.Error("search_failed") + "\n"
                 + SolverPanelText.ErrorReason(failed.ErrorReason), Summary());
-        if (SolverText.IsEnglish)
+        if (SolverText.Language == "eng")
         {
             check("search_failed_english_reason",
                 Summary().Contains("The search failed before returning an executable route.",
@@ -3277,7 +3277,7 @@ internal static partial class CombatControllerChecks
             failed.ErrorReason?.Capacity?.ToString() ?? "-");
         check("reason_actual", failed.ErrorReason?.Actual == limit + 1,
             failed.ErrorReason?.Actual?.ToString() ?? "-");
-        string expected = SolverText.Format($"牌组共 {limit + 1} 张，超过求解器上限 {limit} 张");
+        string expected = SolverText.Format("ui.the_deck_has_cards_the_solver_limit_is", limit + 1, limit);
         check("reason_text", SolverPanelText.ErrorReason(failed.ErrorReason) == expected,
             SolverPanelText.ErrorReason(failed.ErrorReason));
         check("no_route", failed.Result == null && !failed.CurrentTurnRouteReady);
@@ -3286,9 +3286,9 @@ internal static partial class CombatControllerChecks
         check("terminal_reason",
             terminal?.StartsWith("controller_failed code=import_capacity",
                 StringComparison.Ordinal) == true, terminal ?? "-");
-        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
-        check("status", Status() == SolverText.Get("求解器消息"), Status());
-        check("title", Summary().Contains(SolverText.Get("搜索初始化失败"), StringComparison.Ordinal),
+        await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
+        check("status", Status() == SolverText.Get("ui.solver_message"), Status());
+        check("title", Summary().Contains(SolverText.Get("ui.search_setup_failed"), StringComparison.Ordinal),
             Summary());
         check("summary_reason", Summary().Contains(expected, StringComparison.Ordinal), Summary());
         SolverOverlay? panel = SolverOverlay.Instance;
@@ -3327,7 +3327,7 @@ internal static partial class CombatControllerChecks
         check("terminal_reason",
             terminal?.StartsWith("controller_failed code=import_", StringComparison.Ordinal) == true,
             terminal ?? "-");
-        await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+        await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
         string title = SolverPanelText.Error(failed.ErrorCode ?? "search_failed");
         string reason = SolverPanelText.ErrorReason(failed.ErrorReason);
         check("summary_title", Summary().Contains(title, StringComparison.Ordinal), Summary());
@@ -3376,10 +3376,10 @@ internal static partial class CombatControllerChecks
                 string title = SolverPanelText.Error("search_failed");
                 string reason = SolverPanelText.ErrorReason(failed.ErrorReason);
                 check($"{name}_reason", reason == SolverText.Get(reasonSource), reason);
-                await WaitStatusAsync(host, SolverText.Get("求解器消息"));
+                await WaitStatusAsync(host, SolverText.Get("ui.solver_message"));
                 await Frames(host, 4);
                 check($"{name}_summary", Summary() == title + "\n" + reason, Summary());
-                if (SolverText.IsEnglish)
+                if (SolverText.Language == "eng")
                 {
                     check($"{name}_english_line",
                         Summary().Contains("\n", StringComparison.Ordinal)
@@ -3412,7 +3412,7 @@ internal static partial class CombatControllerChecks
             ready.Result?.CapacityDroppedRegions is { } r
                 ? string.Join(",", r.Select(static pair => $"{pair.Key}={pair.Value}"))
                 : "-");
-        await WaitStatusAsync(host, SolverText.Get("方案就绪"), SolverText.Get("方案已复用"));
+        await WaitStatusAsync(host, SolverText.Get("ui.plan_ready"), SolverText.Get("ui.plan_reused"));
         await Frames(host, 4);
         string hint = SolverPanelText.CapacityDropHint(
             new SortedDictionary<string, int>(StringComparer.Ordinal) { ["Cards"] = 1 });
@@ -3421,7 +3421,7 @@ internal static partial class CombatControllerChecks
         check("left_text", SearchAvailable(panel), FooterText(panel));
         check("left_enabled", SearchAvailable(panel), FooterText(panel));
         check("right_visible", panel?.ExecuteTurnButtonForTest?.Visible == true, FooterText(panel));
-        check("right_text", panel?.ExecuteTurnButtonForTest?.Text == SolverText.Get("执行本回合"),
+        check("right_text", panel?.ExecuteTurnButtonForTest?.Text == SolverText.Get("action.play_turn"),
             FooterText(panel));
         check("right_enabled", panel?.ExecuteTurnButtonForTest?.Disabled == false, FooterText(panel));
     }
@@ -3567,7 +3567,7 @@ internal static partial class CombatControllerChecks
         CombatUiSnapshot idle = Snapshot();
         check("stage_not_started", idle.SearchStage == TurnSearchStage.NotStarted, idle.SearchStage.ToString());
         check("start_key", panel?.SearchButtonForTest is { Visible: true, Disabled: false } start
-            && start.Text == SolverText.Get("开始搜索"), FooterText(panel));
+            && start.Text == SolverText.Get("action.search"), FooterText(panel));
         check("restart_hidden_before_search", panel?.RestartSearchButtonForTest?.Visible == false,
             FooterText(panel));
         check("execute_greyed_before_search",
@@ -3584,7 +3584,7 @@ internal static partial class CombatControllerChecks
             static s => !s.IsSearching && s.CurrentTurnRouteReady, 1800, "route ready");
         await Frames(host, 4);
         check("stage_ended", Snapshot().SearchStage == TurnSearchStage.Ended, Snapshot().SearchStage.ToString());
-        check("continue_restart_pair", panel?.SearchButtonForTest?.Text == SolverText.Get("继续搜索")
+        check("continue_restart_pair", panel?.SearchButtonForTest?.Text == SolverText.Get("action.continue_search")
             && panel.RestartSearchButtonForTest is { Visible: true, Disabled: false }, FooterText(panel));
         check("execute_ready", Usable(panel?.ExecuteTurnButtonForTest)
             && Usable(panel?.ExecuteCombatButtonForTest), FooterText(panel));
@@ -4122,7 +4122,7 @@ internal static partial class CombatControllerChecks
         SolverOverlay? panel = SolverOverlay.Instance;
         check("enemy_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
         check("enemy_tooltip",
-            panel?.SearchButtonForTest?.TooltipText == SolverText.Get("敌方回合，轮到你时再搜索。"),
+            panel?.SearchButtonForTest?.TooltipText == SolverText.Get("ui.enemy_turn_search_when_your_turn_begins"),
             panel?.SearchButtonForTest?.TooltipText ?? "-");
         await WaitAsync(host, static s => s.CanStartSearch, 900, "player turn restored");
         CombatControllerTestHooks.ForceActionsRunningForTest = true;
@@ -4139,7 +4139,7 @@ internal static partial class CombatControllerChecks
             check("actions_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
             check("actions_tooltip",
                 panel?.SearchButtonForTest?.TooltipText
-                    == SolverText.Get("动作结算中（含选牌界面），结算完再搜索。"),
+                    == SolverText.Get("ui.wait_for_the_current_action_to_finish"),
                 panel?.SearchButtonForTest?.TooltipText ?? "-");
             check("actions_rejected", !CombatUiCommands.Instance.StartSearch());
         }
@@ -4163,7 +4163,7 @@ internal static partial class CombatControllerChecks
             check("turn_start_left_disabled", panel?.SearchButtonForTest?.Disabled == true);
             check("turn_start_tooltip",
                 panel?.SearchButtonForTest?.TooltipText
-                    == SolverText.Get("回合开始结算中，完成开局选择后再搜索。"),
+                    == SolverText.Get("ui.turn_start_is_resolving_search_after_the_opening_choice"),
                 panel?.SearchButtonForTest?.TooltipText ?? "-");
         }
         finally
@@ -4206,7 +4206,7 @@ internal static partial class CombatControllerChecks
         check("deviations", stopped.Deviations == 0, stopped.Deviations.ToString());
         check("reason_kind", stopped.PauseDetailReason?.Kind == CombatReasonKind.Deployment,
             stopped.PauseDetailReason?.Kind ?? "-");
-        await WaitStatusAsync(host, SolverText.Get("已暂停执行"));
+        await WaitStatusAsync(host, SolverText.Get("ui.execution_paused"));
         check("summary_title",
             Summary().Contains("自动执行中止", StringComparison.Ordinal), Summary());
         check("summary_reason",
@@ -4323,7 +4323,7 @@ internal static partial class CombatControllerChecks
     private static bool SearchAvailable(SolverOverlay? panel)
         => panel != null
             && (Usable(panel.SearchButtonForTest)
-                    && panel.SearchButtonForTest!.Text != SolverText.Get("停止搜索")
+                    && panel.SearchButtonForTest!.Text != SolverText.Get("action.stop_search")
                 || Usable(panel.RestartSearchButtonForTest));
 
     /// <summary>No execute-area key can be pressed (hidden or greyed).</summary>

@@ -79,27 +79,25 @@ internal sealed partial class SolverGuideCanvas : Control
     {
         if (Frame is not { } frame)
             return;
-        float time = Time.GetTicksMsec() / 1000f;
-        float pulse = 0.5f + 0.5f * Mathf.Sin(time * 4.5f);
         Color color = KindColor(frame.Kind);
 
         if (frame.Source is { } source)
-            DrawHighlight(source, color, pulse);
+            DrawHighlight(source, color);
         foreach (SolverGuideRect mark in frame.Marks)
-            DrawHighlight(mark, color, pulse);
+            DrawHighlight(mark, color);
         if (frame.Target is { } target)
-            DrawBrackets(target.Grow(10), color, pulse);
+            DrawBrackets(target.Grow(6), color);
 
         if (frame.Source is { } from)
         {
             bool fromBelow = frame.Kind == SolverGuideKind.Potion;
             Vector2 start = fromBelow ? from.Bottom : from.Top;
             if (frame.Target is { } to)
-                DrawGuideArrow(start, to.Center, color, time, bendDown: fromBelow);
+                DrawGuideArrow(start, to.Center, color, bendDown: fromBelow);
             else if (frame.DropPoint is { } drop)
             {
-                DrawGuideArrow(start, drop, color, time, bendDown: false);
-                DrawDropRing(drop, color, pulse);
+                DrawGuideArrow(start, drop, color, bendDown: false);
+                DrawDropRing(drop, color);
             }
         }
     }
@@ -113,20 +111,18 @@ internal sealed partial class SolverGuideCanvas : Control
         _ => SolverUiTokens.Palette.Choice,
     };
 
-    private void DrawHighlight(SolverGuideRect rect, Color color, float pulse)
+    private void DrawHighlight(SolverGuideRect rect, Color color)
     {
-        SolverGuideRect grown = rect.Grow(6);
+        SolverGuideRect grown = rect.Grow(3);
         Vector2[] loop = [grown.A, grown.B, grown.C, grown.D, grown.A];
-        Color glow = color with { A = 0.18f + 0.22f * pulse };
-        DrawPolyline(loop, glow, 14f + 6f * pulse, antialiased: true);
-        DrawPolyline(loop, Outline, 7f, antialiased: true);
-        DrawPolyline(loop, color, 4f, antialiased: true);
+        DrawPolyline(loop, Outline, 4f, antialiased: true);
+        DrawPolyline(loop, color, 2f, antialiased: true);
     }
 
-    private void DrawBrackets(SolverGuideRect rect, Color color, float pulse)
+    private void DrawBrackets(SolverGuideRect rect, Color color)
     {
         Vector2[] corners = [rect.A, rect.B, rect.C, rect.D];
-        float scale = 0.22f + 0.04f * pulse;
+        const float scale = 0.17f;
         for (int index = 0; index < 4; index++)
         {
             Vector2 corner = corners[index];
@@ -138,24 +134,20 @@ internal sealed partial class SolverGuideCanvas : Control
                 corner,
                 corner + (next - corner) * scale,
             ];
-            DrawPolyline(bracket, Outline, 10f, antialiased: true);
-            DrawPolyline(bracket, color, 6f, antialiased: true);
+            DrawPolyline(bracket, Outline, 5f, antialiased: true);
+            DrawPolyline(bracket, color, 3f, antialiased: true);
         }
-        Vector2 center = rect.Center;
-        float radius = 10f + 4f * pulse;
-        DrawCircle(center, radius + 3f, Outline);
-        DrawCircle(center, radius, color with { A = 0.85f });
     }
 
-    private void DrawDropRing(Vector2 center, Color color, float pulse)
+    private void DrawDropRing(Vector2 center, Color color)
     {
-        float radius = 46f + 8f * pulse;
-        DrawArc(center, radius, 0, Mathf.Tau, 48, Outline, 8f, antialiased: true);
-        DrawArc(center, radius, 0, Mathf.Tau, 48, color, 4f, antialiased: true);
+        const float radius = 28f;
+        DrawArc(center, radius, 0, Mathf.Tau, 48, Outline, 5f, antialiased: true);
+        DrawArc(center, radius, 0, Mathf.Tau, 48, color, 3f, antialiased: true);
     }
 
-    /// <summary>A quadratic curve bowed away from the hand, with moving dots and an arrowhead.</summary>
-    private void DrawGuideArrow(Vector2 start, Vector2 end, Color color, float time, bool bendDown)
+    /// <summary>A quadratic curve bowed away from the hand, ending in an arrowhead.</summary>
+    private void DrawGuideArrow(Vector2 start, Vector2 end, Color color, bool bendDown)
     {
         Vector2 delta = end - start;
         float distance = delta.Length();
@@ -171,20 +163,13 @@ internal sealed partial class SolverGuideCanvas : Control
             _curve[index] = u * u * start + 2 * u * t * control + t * t * end;
         }
         // Stop the shaft short of the tip so the head covers it.
-        const float headLength = 30f;
+        const float headLength = 18f;
         int shaftEnd = CurveSamples;
         while (shaftEnd > 1 && _curve[shaftEnd].DistanceTo(end) < headLength * 0.7f)
             shaftEnd--;
         Vector2[] shaft = _curve[..(shaftEnd + 1)];
-        DrawPolyline(shaft, Outline, 13f, antialiased: true);
-        DrawPolyline(shaft, color, 7f, antialiased: true);
-
-        for (int dot = 0; dot < 3; dot++)
-        {
-            float phase = (time * 0.7f + dot / 3f) % 1f;
-            int sample = Math.Min(shaftEnd, (int)(phase * shaftEnd));
-            DrawCircle(_curve[sample], 4.5f, Colors.White with { A = 0.9f });
-        }
+        DrawPolyline(shaft, Outline, 6f, antialiased: true);
+        DrawPolyline(shaft, color, 3f, antialiased: true);
 
         Vector2 direction = (end - _curve[Math.Max(0, shaftEnd - 2)]).Normalized();
         Vector2 normal = new(-direction.Y, direction.X);
@@ -196,7 +181,7 @@ internal sealed partial class SolverGuideCanvas : Control
             baseCenter - normal * headLength * 0.62f,
         ];
         Vector2[] headOutline = [head[0], head[1], head[2], head[0]];
-        DrawPolyline(headOutline, Outline, 6f, antialiased: true);
+        DrawPolyline(headOutline, Outline, 3f, antialiased: true);
         DrawColoredPolygon(head, color);
     }
 }

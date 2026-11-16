@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "dx4-dread-baseline",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx4-dread-baseline.json\u0022}",
-  "rulesSha256": "6b4e9beb6e7919b8102d800bf0ac13041c22a5706c438c1bddfc211779cbc6c8",
+  "rulesSha256": "352ceb6024d3fbee33c2a8180f28b28d5fb11eb2da36d8e2784d1e16b7753c22",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "ka-infested-prisms-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ka-infested-prisms-elite.json\u0022}",
-  "rulesSha256": "2942b9ce06fbac86b70793880a789a208dda865e096054b8e38fe4236f12b79e",
+  "rulesSha256": "eceefaf51a430fa5a4616bf160a7511444465b22da4e3fc3bc07c5585e728211",
   "counts": {
     "roots": 1,
     "k1": 7,

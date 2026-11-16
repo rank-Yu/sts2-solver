@@ -35,7 +35,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
 
         VBoxContainer content = SolverSettingsControls.CreatePageContent("RelicContent");
         _heading = SolverSettingsControls.CreateSectionHeading(
-            SolverText.Get("卡遗物计数允许的额外战损"));
+            SolverText.Get("ui.extra_hp_loss_allowed_for_relic_counters"));
         _heading.Name = "RelicHeading";
         content.AddChild(_heading);
         _rows = new VBoxContainer
@@ -58,7 +58,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
 
     public SolverStrategyPageKind Kind => SolverStrategyPageKind.Relics;
 
-    public string Title => SolverText.Get("遗物策略");
+    public string Title => SolverText.Get("strategy.relics");
 
     public Control Root => this;
 
@@ -82,7 +82,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         foreach (RelicRow row in _relicRows)
         {
             RelicCounterUi counter = Array.Find(strategy.RelicCounters, item => item.Slot == row.Slot)!;
-            row.Count.Text = SolverText.Format($"目标 {counter.Target}/{counter.Period}");
+            row.Count.Text = SolverText.Format("ui.target", counter.Target, counter.Period);
             bool on = Array.IndexOf(strategy.RelicCounterRelics, row.RelicId) >= 0;
             row.Toggle.SetPressedNoSignal(on);
             ApplyRow(row, strategy.RelicCounterAllowances.TryGetValue(row.RelicId, out int hp) ? hp : 0, on);
@@ -124,7 +124,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         _heading.Visible = counters.Length != 0;
         if (counters.Length == 0)
         {
-            Label empty = SolverUiTokens.CreateLabel(SolverText.Get("当前没有计数遗物"),
+            Label empty = SolverUiTokens.CreateLabel(SolverText.Get("ui.no_counter_relics"),
                 SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextMuted);
             empty.Name = "NoRelics";
             empty.CustomMinimumSize = new Vector2(0, RowHeight);
@@ -206,8 +206,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         ModLog.Info(
             $"[Sts2Solver] UI_ACTION action=relic_enabled relic={row.RelicId} enabled={enabled} accepted={accepted}");
         SetStatus(accepted
-                ? SolverText.Get("已保存，下次搜索生效")
-                : SolverText.Get("保存失败，详情已写入游戏日志"),
+                ? SolverText.Get("ui.saved_applies_to_the_next_search")
+                : SolverText.Get("ui.saving_failed_details_are_in_the_game_log"),
             accepted ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Danger);
         Apply(CombatUiStore.Snapshot);
     }
@@ -216,11 +216,11 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
     {
         if (row.Edit.Text == row.Shown)
             return true;
-        if (!int.TryParse(row.Edit.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture,
+        if (!int.TryParse(row.Edit.Text.Trim(), NumberStyles.None, SolverText.Culture,
                 out int value) || value > MaximumHp)
         {
             row.Edit.AddThemeColorOverride("font_color", SolverUiTokens.Palette.Danger);
-            SetStatus(SolverText.Format($"请输入 {MinimumHp}–{MaximumHp} 的整数"),
+            SetStatus(SolverText.Format("ui.enter_an_integer_from_to", MinimumHp, MaximumHp),
                 SolverUiTokens.Palette.Danger);
             row.Edit.GrabFocus();
             return false;
@@ -230,8 +230,8 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
         ModLog.Info(
             $"[Sts2Solver] UI_ACTION action=relic_allowance relic={row.RelicId} value={value} accepted={accepted}");
         SetStatus(accepted
-                ? SolverText.Get("已保存，下次搜索生效")
-                : SolverText.Get("保存失败，详情已写入游戏日志"),
+                ? SolverText.Get("ui.saved_applies_to_the_next_search")
+                : SolverText.Get("ui.saving_failed_details_are_in_the_game_log"),
             accepted ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.Danger);
         if (!accepted)
             Apply(CombatUiStore.Snapshot);
@@ -247,7 +247,7 @@ internal sealed partial class SolverRelicStrategyPage : VBoxContainer, ISolverSi
     /// <summary>Displays a saved value; a box still showing it has nothing to commit.</summary>
     private static void Show(RelicRow row, int value)
     {
-        row.Shown = value.ToString(CultureInfo.InvariantCulture);
+        row.Shown = value.ToString(SolverText.Culture);
         if (row.Edit.Text != row.Shown)
             row.Edit.Text = row.Shown;
         ColorNumber(row);

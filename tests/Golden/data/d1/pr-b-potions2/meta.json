@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "pr-b-potions2",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-b-potions2.json\u0022}",
-  "rulesSha256": "a821574d79e56febd16fea119eba39ce115eac291ad91c5882a162c1f82c34b5",
+  "rulesSha256": "920ed6b1f884f44fa2e9211bd3982d3aaae683d10e6c3f7bad496ebed2e0df4d",
   "counts": {
     "roots": 1,
     "k1": 19,

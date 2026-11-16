@@ -824,12 +824,6 @@ internal sealed record GuideStepUi
 
     public RouteActionUi Action { get; init; } = new();
 
-    /// <summary>
-    /// Choices the player answers on screen during this action, in order (timings Action and
-    /// PlayerTurnEnd, implicit choices left out). Each entry lists the selected card identities.
-    /// </summary>
-    public ChoiceCardUi[][] Choices { get; init; } = [];
-
     /// <summary>The step is past the route's first action: the live state left the search root by following it.</summary>
     public bool Advanced { get; init; }
 }

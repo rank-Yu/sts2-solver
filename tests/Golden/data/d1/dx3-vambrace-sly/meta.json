@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "dx3-vambrace-sly",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-vambrace-sly.json\u0022}",
-  "rulesSha256": "f25fa68b28a8853677e45e1a5580e190355ae20bd2c8c99f0f542f317cd30a55",
+  "rulesSha256": "2f256c9e482b383d3c24f60c9361d9bca734f3069c9e8bf49f67b88212bdf1ea",
   "counts": {
     "roots": 1,
     "k1": 31,

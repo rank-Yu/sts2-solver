@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p11-d-potions",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-d-potions.json\u0022}",
-  "rulesSha256": "333fbb8b6739efeb902819e0f6481966dd983964d82772f7743b3f2d01e9cb0c",
+  "rulesSha256": "9ad3b7cc92a8a00bd6848bef0c90a02f31b9710225c7e5e8e1e32d21789a1f89",
   "counts": {
     "roots": 1,
     "k1": 10,

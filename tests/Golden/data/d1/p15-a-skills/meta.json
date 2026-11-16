@@ -1,9 +1,9 @@
 {
-  "formatVersion": 12,
-  "battleSize": 43856,
+  "formatVersion": 15,
+  "battleSize": 32376,
   "root": "p15-a-skills",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-a-skills.json\u0022}",
-  "rulesSha256": "e8d40798651744fdda659c532b33235a5e794b98c9c4e604975b259124a04f12",
+  "rulesSha256": "95068e4829a3f9383c58b3e9c3509ea10385cdeb2620b2c7eb269bbba07f0a7e",
   "counts": {
     "roots": 1,
     "k1": 13,

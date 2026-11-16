@@ -27,6 +27,7 @@ internal static class IncumbentAndLoopChecks
         CheckPruningBounds(fixtureRules);
         CheckVictoryTargets();
         CheckEntropicHealing();
+        CheckPotionTiming();
         CheckLoopGuard();
         CheckCrossTurnCut();
         Console.WriteLine("INCUMBENT_AND_LOOP contracts=pass");
@@ -582,6 +583,68 @@ internal static class IncumbentAndLoopChecks
     }
 
 
+    private static void CheckPotionTiming()
+    {
+        Registry.TryRelic("REPTILE_TRINKET", out ushort reptile);
+        Registry.TryRelic("RUINED_HELMET", out ushort helmet);
+        Registry.TryRelic("BELT_BUCKLE", out ushort buckle);
+        foreach (string potionName in new[] { "STRENGTH_POTION", "DEXTERITY_POTION", "FOCUS_POTION",
+                     "FYSH_OIL", "MAZALETHS_GIFT", "LIQUID_BRONZE" })
+            CheckDelayed(potionName, reptile, RelicFlags.None, helmetSetup: false, shouldWin: true);
+        foreach (string potionName in new[] { "STRENGTH_POTION", "FYSH_OIL", "MAZALETHS_GIFT" })
+            CheckDelayed(potionName, helmet, RelicFlags.None, helmetSetup: true, shouldWin: true);
+        CheckDelayed("FOCUS_POTION", reptile, RelicFlags.Melted, helmetSetup: false, shouldWin: false);
+        CheckDelayed("FOCUS_POTION", buckle, RelicFlags.None, helmetSetup: false, shouldWin: false);
+        for (int slot = 5; slot < Limits.PotionSlots; slot++)
+            CheckDelayed("FOCUS_POTION", reptile, RelicFlags.None, helmetSetup: false,
+                shouldWin: true, slot: slot);
+        Console.WriteLine("POTION_TIMING late_reptile=6 late_helmet=3 high_slots=7 melted/unrelated=pass");
+
+        void CheckDelayed(string potionName, ushort relic, RelicFlags flags, bool helmetSetup, bool shouldWin, int slot = 0)
+        {
+            Registry.TryPotion(potionName, out ushort potion);
+            ushort strike = CardId("STRIKE_IRONCLAD");
+            Rules rules = BuildSearchRules(CardId("IP1_TEST_BLOCK_LOOP"), strike,
+                CardId("IP1_TEST_POISON_LOOP"), CardId("IP1_TEST_STRENGTH_LOOP"), attack: 0,
+                timingPotion: potion);
+            bool strengthPotion = potionName is "STRENGTH_POTION" or "FYSH_OIL";
+            bool ritualHelmet = helmetSetup && potionName == "MAZALETHS_GIFT";
+            Battle root = EmptyHandRoot(enemyHp: ritualHelmet ? 28 : helmetSetup ? 15 : strengthPotion ? 6 : 4);
+            TestRelics.Set(ref root, ref rules, new Relic { Id = relic, Flags = flags });
+            root.PotionSlotCount = checked((byte)(slot + 1));
+            root.Potions[slot] = checked((ushort)(potion + 1));
+            // No turn-one card can attack or grant Strength. Both arrive on turn two.
+            if (helmetSetup)
+                Piles.Append(ref root, Pile.Draw,
+                    new Card { Id = CardId("INFLAME"), BaseCost = 1, BaseStarCost = -1 });
+            Piles.Append(ref root, Pile.Draw,
+                new Card { Id = strike, BaseCost = 0, BaseStarCost = -1 });
+            ushort[] rootPotions = new ushort[root.PotionSlotCount];
+            rootPotions[slot] = root.Potions[slot];
+            ScoreRules score = BuildScoreRules(rules, rootPotions);
+            BeamOptions options = new(32, 2000, ritualHelmet ? 3 : 2, TimeSpan.MaxValue)
+            {
+                Scorer = new Scorer(score),
+                Ordering = new RouteOrdering(50, BossHpRelief.None, PostCombatRelicHealProfile.None),
+                Potions = new(new(PotionUseMode.Smart, []), false),
+                SearchMemoryBudgetBytes = 512L << 20,
+                StatePoolBudgetBytes = 256L << 20,
+            };
+            BeamResult result = new BeamSolver(rules, options).Solve([root], CancellationToken.None);
+            Assert(result.BestIsVictory == shouldWin, $"{potionName}/{Registry.Relic(relic).NativeId}: victory={result.BestIsVictory}");
+            ReplayedRoute replay = ReplayedRoute.Build(root, rules, result.BestRoute, result.BestIsVictory);
+            if (shouldWin)
+            {
+                ReplayedAction used = replay.Actions.Single(a => a.Action.Kind == PlayerActionKind.UsePotion);
+                Assert(used.Before.PlayerTurn == 2, potionName + " must wait for turn two");
+                Assert(used.Action.PotionSlot == slot, "must use the selected high potion slot");
+                if (helmetSetup)
+                    Assert(Kernel.GetAmount(used.Before, Limits.PlayerOwner, score.StrengthPowerId) == 12,
+                        "Inflame must consume the helmet before the smaller potion");
+            }
+        }
+    }
+
     private static void CheckCrossTurnCut()
     {
         ushort block = CardId("IP1_TEST_BLOCK_LOOP");
@@ -687,7 +750,8 @@ internal static class IncumbentAndLoopChecks
     }
 
     private static Rules BuildSearchRules(ushort block, ushort strike, ushort poison,
-        ushort strength, int attack, ushort growth = ushort.MaxValue, ushort healing = ushort.MaxValue)
+        ushort strength, int attack, ushort growth = ushort.MaxValue, ushort healing = ushort.MaxValue,
+        ushort timingPotion = ushort.MaxValue)
     {
         RulesDraft builder = new()
         {
@@ -705,7 +769,7 @@ internal static class IncumbentAndLoopChecks
                 new MonsterNode
                 {
                     NativeId = "MOVE", Kind = MonsterNodeKind.Move, FollowUp = 2,
-                    Attacks = [new MonsterAttack(attack, 1)],
+                    Attacks = timingPotion == ushort.MaxValue ? [new MonsterAttack(attack, 1)] : [],
                 },
                 new MonsterNode
                 {
@@ -715,7 +779,7 @@ internal static class IncumbentAndLoopChecks
                 new MonsterNode
                 {
                     NativeId = "MOVE_ALT", Kind = MonsterNodeKind.Move, FollowUp = 0,
-                    Attacks = [new MonsterAttack(attack, 1)],
+                    Attacks = timingPotion == ushort.MaxValue ? [new MonsterAttack(attack, 1)] : [],
                 },
             ],
             InitialNode = 0,
@@ -728,6 +792,21 @@ internal static class IncumbentAndLoopChecks
         builder.SetCard(strike, 0, CardStats(CardType.Attack, TargetType.AnyEnemy, 0, [1m]));
         builder.SetCard(poison, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
         builder.SetCard(strength, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
+        if (timingPotion != ushort.MaxValue)
+        {
+            string potionName = Registry.Potion(timingPotion).NativeId;
+            builder.SetPotion(timingPotion, new PotionStats
+            {
+                Target = TargetType.Self, Rarity = PotionRarity.Common, StrategicCost = 0,
+                Vars = potionName == "FYSH_OIL" ? [2m, 2m] : [2m],
+                VarProps = potionName == "FYSH_OIL" ? [ValueProps.None, ValueProps.None] : [ValueProps.None],
+            });
+            Registry.TryRelic("REPTILE_TRINKET", out ushort reptile);
+            builder.SetRelicVars(reptile, [3m]);
+            Registry.TryRelic("BELT_BUCKLE", out ushort buckle);
+            builder.SetRelicVars(buckle, [2m]);
+            builder.SetCard(CardId("INFLAME"), 0, CardStats(CardType.Power, TargetType.Self, 1, [6m]));
+        }
         if (growth != ushort.MaxValue)
             builder.SetCard(growth, 0, CardStats(CardType.Skill, TargetType.Self, 0, []));
         if (healing != ushort.MaxValue)

@@ -350,14 +350,7 @@ internal static class TestSession
                     WriteJson(Path.Combine(resultDirectory, "full-combat.json"), auto);
                     if (request.UiSnapshotForTest)
                         UiSnapshotChecks.Run(resultDirectory, auto, CombatUiStore.History);
-                    if (request.EnglishForTest)
-                    {
-                        string[] missing = SolverText.MissingKeysForTesting;
-                        ModLog.Info($"[Sts2Solver] ENGLISH_RUN missing_keys={missing.Length}");
-                        if (missing.Length > 0)
-                            failure = "english_missing:" + string.Join("|", missing);
-                    }
-                    else
+                    if (!request.EnglishForTest)
                     {
                         stage = "ui_panel";
                         await UiPanelChecks.FinishAsync(host, panelChecks!, resultDirectory);

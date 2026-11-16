@@ -146,8 +146,6 @@ internal sealed partial class BeamSolver
                 AdmitPowerCommitmentSeats(selected, required, width);
             if (_scorer.QueenPolicy is { } queen)
                 AdmitQueenPhaseSeats(selected, width, queen);
-            if (_checkPotionQuota)
-                ApplyPotionUseQuota(selected, width);
             CollectionsMarshal.AsSpan(selected).Sort(new RankPositionComparer(_rankPosition));
             if (_trace != null)
             {
@@ -351,95 +349,6 @@ internal sealed partial class BeamSolver
                 if (target == fsetup) labels.Add("focus.setup");
             }
             return labels.Count == 0 ? "-" : string.Join(",", labels);
-        }
-
-        /// <summary>
-        /// <c>BeamRetentionPolicy.FeasiblePotionUseQuotas</c> and the two quota passes after the
-        /// ordinary/required seats are chosen. The quota only swaps seats; it never widens the beam.
-        /// </summary>
-        private void ApplyPotionUseQuota(List<int> selected, int limit)
-        {
-            bool anyUsed = false, anyUnused = false;
-            for (int position = 0; position < Count; position++)
-            {
-                if (UsesPotion(_rankOrder[position]))
-                    anyUsed = true;
-                else
-                    anyUnused = true;
-                if (anyUsed && anyUnused)
-                    break;
-            }
-            if (!anyUsed || !anyUnused)
-                return;
-            (int usedQuota, int unusedQuota) = FeasiblePotionUseQuotas(_policyWidth);
-            _potionReservations.Clear();
-            for (int index = 0; index < _requiredScratch.Count; index++)
-                _potionReservations.Add(_requiredScratch[index]);
-            ReservePotionQuotaLeaders(usesPotion: true, usedQuota);
-            ReservePotionQuotaLeaders(usesPotion: false, unusedQuota);
-            EnforcePotionUseQuota(selected, usesPotion: true, usedQuota);
-            EnforcePotionUseQuota(selected, usesPotion: false, unusedQuota);
-        }
-
-        private static (int Used, int Unused) FeasiblePotionUseQuotas(int limit)
-        {
-            if (limit < 1)
-                throw new ArgumentOutOfRangeException(nameof(limit));
-            int used = limit < 4 ? 1 : Math.Max(2, limit / 3);
-            return (used, limit - used);
-        }
-
-        private bool UsesPotion(int index) => _facts[index].PotionCount > 0;
-
-        private void ReservePotionQuotaLeaders(bool usesPotion, int quota)
-        {
-            if (quota <= 0)
-                return;
-            int reserved = 0;
-            for (int position = 0; position < Count; position++)
-            {
-                int candidate = _rankOrder[position];
-                if (UsesPotion(candidate) != usesPotion)
-                    continue;
-                _potionReservations.Add(candidate);
-                reserved++;
-                if (reserved >= quota)
-                    return;
-            }
-        }
-
-        private void EnforcePotionUseQuota(List<int> selected, bool usesPotion, int quota)
-        {
-            int retained = 0;
-            for (int index = 0; index < selected.Count; index++)
-            {
-                if (UsesPotion(selected[index]) == usesPotion)
-                    retained++;
-            }
-            if (retained >= quota)
-                return;
-            for (int position = 0; position < Count; position++)
-            {
-                if (retained >= quota)
-                    return;
-                int candidate = _rankOrder[position];
-                if (UsesPotion(candidate) != usesPotion || selected.Contains(candidate))
-                    continue;
-                int replaceIndex = -1;
-                for (int index = selected.Count - 1; index >= 0; index--)
-                {
-                    int node = selected[index];
-                    if (UsesPotion(node) != usesPotion && !_potionReservations.Contains(node))
-                    {
-                        replaceIndex = index;
-                        break;
-                    }
-                }
-                if (replaceIndex < 0)
-                    return;
-                selected[replaceIndex] = candidate;
-                retained++;
-            }
         }
 
         /// <summary>Left-rotate <c>_order[0..count)</c> by <paramref name="bandWidth"/> in place.</summary>
@@ -2810,7 +2719,7 @@ internal sealed partial class BeamSolver
         /// </summary>
         private void AddPotionLineageRepresentatives(List<int> required, int width)
         {
-            if (!_checkPotionQuota)
+            if (!_preservePotionLineages)
                 return;
             int potionLineageLimit = Math.Clamp(_policyWidth / 6, 2, 6);
             for (int potionIndex = 0; potionIndex < _potionCountOrder.Count; potionIndex++)

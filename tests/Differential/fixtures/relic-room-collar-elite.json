@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "relic-room-collar-elite",
+  "characterId": "IRONCLAD",
+  "encounterId": "DECIMILLIPEDE_ELITE",
+  "seed": "ELITEROOMRELICS",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": false,
+  "timeoutSeconds": 120,
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "TORMENTOUS_COLLAR",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "targetRoomType": "Elite",
+  "enemyCurrentHp": 200
+}

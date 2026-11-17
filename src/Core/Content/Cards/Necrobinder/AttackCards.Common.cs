@@ -98,7 +98,7 @@ public sealed class Flatten : CardDef
     // Osty attacked this turn gets the same zero-cost modifier.
     public override void AfterEnteredCombat(ref Exec x, Pile pile, int index)
     {
-        if (x.B.Counter(Counter.OstyAttacksThisTurn) <= 0)
+        if ((x.B.Flags & BattleFlags.OstyPresent) == 0 || x.B.Counter(Counter.OstyAttacksThisTurn) <= 0)
             return;
         ref Card card = ref Piles.At(ref x.B, pile, index);
         Kernel.AddEnergyCostModifier(ref card, 0, CostType.Absolute, CostExpiration.EndOfTurn,

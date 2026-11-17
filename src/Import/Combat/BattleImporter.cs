@@ -143,6 +143,10 @@ public static partial class BattleImporter
 
         battle.Player = Vitals(player.Creature, history.HasLostHpThisTurn(player.Creature));
         Creature? osty = player.Osty;
+        Creature? retainedOsty = state.Allies.FirstOrDefault(ally =>
+            ally.Monster is MegaCrit.Sts2.Core.Models.Monsters.Osty && ally.PetOwner == player);
+        if (retainedOsty != null)
+            battle.Flags |= BattleFlags.OstyEverPresent;
         if (osty != null)
         {
             NativeAccess.RequireOriginalType(osty.GetType());
@@ -156,7 +160,7 @@ public static partial class BattleImporter
         Creature? wuppy = playerState.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy);
         if (wuppy != null)
             battle.Wuppy = Vitals(wuppy, history.HasLostHpThisTurn(wuppy));
-        ImportCounters(ref battle, state, player, known, osty, history, options);
+        ImportCounters(ref battle, state, player, known, retainedOsty, history, options);
         ImportRng(ref battle, state.RunState.Rng, player);
         ImportEnemies(ref battle, state, player, known, rules, history, projections, options);
         ImportPowers(ref battle, player, known, osty, rules, history, projections);

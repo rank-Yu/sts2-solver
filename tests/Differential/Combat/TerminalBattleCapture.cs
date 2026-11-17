@@ -16,6 +16,7 @@ internal enum TerminalCapturePath : byte
     None = 0,
     Victory = 1,
     Defeat = 2,
+    EventDefeat = 3,
 }
 
 internal static class TerminalBattleCapture
@@ -111,7 +112,8 @@ internal static class TerminalBattleCapture
         }
     }
 
-    private static void VictoryPrefix() => Capture(TerminalCapturePath.Victory);
+    private static void VictoryPrefix() => Capture(CombatManager.Instance.DebugOnlyGetState()?.Encounter is MegaCrit.Sts2.Core.Models.Encounters.BattlewornDummyEventEncounter { RanOutOfTime: true }
+            ? TerminalCapturePath.EventDefeat : TerminalCapturePath.Victory);
 
     private static void DefeatPrefix() => Capture(TerminalCapturePath.Defeat);
 

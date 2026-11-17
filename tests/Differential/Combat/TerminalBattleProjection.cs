@@ -16,13 +16,12 @@ internal static class TerminalBattleProjection
         TerminalCapturePath path, Rules rules)
     {
         List<string> diff = [];
-        if (predicted.Outcome == Outcome.EventDefeat)
+        Outcome nativeOutcome = path switch
         {
-            diff.Add("outcome: event-defeat is not covered by the terminal contract");
-            return diff[0];
-        }
-        Outcome nativeOutcome = path == TerminalCapturePath.Victory
-            ? Outcome.Victory : Outcome.Defeat;
+            TerminalCapturePath.Victory => Outcome.Victory,
+            TerminalCapturePath.EventDefeat => Outcome.EventDefeat,
+            _ => Outcome.Defeat,
+        };
         if (predicted.Outcome != nativeOutcome)
             diff.Add($"outcome: predicted={predicted.Outcome} native={nativeOutcome}");
         if (predicted.Player.CurrentHp != native.Player.CurrentHp)

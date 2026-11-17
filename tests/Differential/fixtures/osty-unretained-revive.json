@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "osty-unretained-revive",
+  "characterId": "NECROBINDER",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "OSTYREVIVE",
+  "ascension": 0,
+  "initialPlayerMaxHp": 3000,
+  "initialPlayerHp": 3000,
+  "initialPlayerEnergy": 20,
+  "enemyCurrentHp": 999,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "POKE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SACRIFICE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "RATTLE",
+      "pile": "Hand"
+    }
+  ],
+  "timeoutSeconds": 120,
+  "clearAllPowers": true
+}

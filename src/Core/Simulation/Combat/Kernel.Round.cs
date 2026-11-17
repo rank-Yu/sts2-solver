@@ -327,9 +327,8 @@ public static partial class Kernel
             battle.SetCounter(counter, 0);
         // BeginSideTurn's ResetTurnCounter(_starsGainedThisTurn) for the player.
         battle.SetCounter(Counter.StarsGainedThisTurn, 0);
-        // SimulatedCombatState.BeginSideTurn(player): Osty's per-turn counters are reset through the
-        // native `ownerPlayer.Osty` pet field. DieForYouPower keeps the pet object there after death,
-        // and a pet summoned during the search is present as soon as the summon completes.
+        // Native attack history belongs to the retained Osty object even after sacrifice removes
+        // it from the pet list. Preserve that count for revival, then reset it at the next turn.
         if ((battle.Flags & BattleFlags.OstyEverPresent) != 0)
             battle.SetCounter(Counter.OstyAttacksThisTurn, 0);
         battle.SetCounter(Counter.DoomAppliedThisTurn, 0);

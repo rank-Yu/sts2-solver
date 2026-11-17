@@ -194,7 +194,8 @@ internal sealed class Scorer
                     && battle.Osty.IsAlive ? battle.Osty.CurrentHp : 0,
                 CalculatedKind.OstyMaxHp => (battle.Flags & BattleFlags.OstyPresent) != 0
                     && battle.Osty.IsAlive ? battle.Osty.MaxHp : 0,
-                CalculatedKind.OstyAttacksPlusOne => 1 + battle.Counter(Counter.OstyAttacksThisTurn),
+                CalculatedKind.OstyAttacksPlusOne => 1 + ((battle.Flags & BattleFlags.OstyPresent) != 0
+                    ? battle.Counter(Counter.OstyAttacksThisTurn) : 0),
                 CalculatedKind.OstyAttackCardsMinusSelf => CountCardsWithTag(battle, CardTag.OstyAttack)
                     - ((stats.Tags & CardTag.OstyAttack) != 0 ? 1 : 0),
                 CalculatedKind.ExhaustSoulCount => CountExhaustSoulCards(battle),

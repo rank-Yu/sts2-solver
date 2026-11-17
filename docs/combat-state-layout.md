@@ -243,7 +243,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | 其它 | `VitalSparkNormalizedAmount`（原引擎 `_lastNormalizedVitalSparkAmount`，`int.MinValue` 表示 null）；`DampenCasterMask`（MagiKnight 对玩家施加 DampenPower 的施法者位集，按敌人 owner 下标一位一个） | — |
 | 成长 | 5 个打包计数（`GrowthRewards`），每个装两个 16 位来源，十个原版成长来源共用 | — |
 
-\* `OstyAttacksThisTurn` 只在根捕获时原生 `Player.Osty` 存在才于玩家回合开始清零。
+\* `OstyAttacksThisTurn` 保存奥斯提本回合的攻击历史，失去代受能力并被献祭移出宠物列表后仍保留，重新召唤时继续使用；玩家回合开始清零。
 
 生物的本回合失血标记不在计数器里，而是 `CreatureFlags.LostHpThisTurn`，换边或换轮时清除（额外回合的处理见 [内核语义](combat-semantics.md#71-额外回合)）。
 

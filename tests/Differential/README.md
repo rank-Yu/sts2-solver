@@ -400,3 +400,12 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 ```
 
 --import-negative 同时检查 7、10、12 槽和最高槽位的药水均能导入，13 槽明确拒绝。KernelChecks 覆盖高槽位搜索、免费生成药水标记、打包复制与编码往返。
+
+## 奥斯提献祭与重新召唤
+
+先让奥斯提攻击，再献祭并于同一回合重新召唤，最后打出 `Rattle`。核对在场状态、保留对象与本回合攻击历史；第二个用例移除初始能力，验证奥斯提不再被能力保留在宠物列表时的原生行为。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/osty-sacrifice-revive.json play:0:2 play:0:255 play:0:255 play:0:2 end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/osty-unretained-revive.json play:0:2 play:0:255 play:0:255 play:0:2 end
+```

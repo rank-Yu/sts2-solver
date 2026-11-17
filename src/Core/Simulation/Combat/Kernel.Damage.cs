@@ -610,6 +610,11 @@ public static partial class Kernel
             // remove mortal powers from a retained dead pet too.
             // DieForYou survives, while Strength and other temporary combat state do not.
             RemovePowersAfterDeath(ref x, owner);
+            if (owner == Limits.OstyOwner && remove)
+            {
+                x.B.Osty = default;
+                x.B.Flags &= ~BattleFlags.OstyPresent;
+            }
         }
     }
 

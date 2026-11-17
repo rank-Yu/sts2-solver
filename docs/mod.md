@@ -6,7 +6,7 @@
 
 ## 安装包
 
-把 `Sts2Solver/` 目录放进游戏的 `mods/` 目录。包里有 `Sts2Solver.dll`、`Sts2Solver.json`、`LICENSE` 和 `README.md`，不含游戏文件，也不含 RitsuLib，RitsuLib 由玩家另装。
+把 `Sts2Solver/` 目录放进游戏的 `mods/` 目录。根目录的 `Sts2Solver.dll` 是共用加载器，实际战斗代码放在 `game-public/Sts2Solver.Runtime.dll` 或 `game-public-beta/Sts2Solver.Runtime.dll`。包内还提供 `Sts2Solver.json`、`LICENSE` 和 `README.md`；游戏文件与 RitsuLib 不随包提供。
 
 - 兼容性：当前适配游戏 v0.113.1，清单要求 RitsuLib 至少 0.6.11。
 - 与 CombatSolver 共存：两个都正常启用，玩家可以都用来搜索，但每回合只能让一个执行。检测到 CombatSolver 已加载或等待加载时只写一行 `COEXIST` 日志，并把回合准备页面的接管限制在“执行本场战斗”进行中；只开自动搜索时页面只搜索不接管：照样在页面出现后搜索并显示计划，但不替换游戏的回合准备任务（CombatSolver 开着自动计算时会替换同一个任务）；玩家自己选，或按执行键让本 Mod 点完再执行，出牌阶段照常搜索；选牌页面的挂钩只在本 Mod 自己的回合准备会话里起作用，平时只观察不干预。两个求解器同时执行（自动出牌或代选）会互相干扰，本 Mod 发现选牌或局面对不上时按偏差暂停并交还手动操作。
@@ -33,16 +33,53 @@ dotnet build src/Mod -c Release -p:EnableModTesting=true
 | TestHost、测试入口与补丁 | 不编入 | 编入 |
 | `STS2_SOLVER_TEST_DIR` | 不读取 | 设置后进入测试循环 |
 
-游戏加载器只加载与清单 ID 同名的 DLL，所以 Core 与 Import 的源码直接编入 `Sts2Solver.dll`，不附带其它求解器 DLL。两种构建的 Mod ID 相同，不要同时安装。构建只写仓库里的 `artifacts/`，不碰玩家的游戏目录。测试版入口只在显式测试模式下注册测试补丁；正式版既没有测试补丁目录，也没有补丁注册逻辑。
+游戏先加载与清单 ID 同名的 `Sts2Solver.dll`，它按实际游戏版本选择一个 Runtime，登记到同一个 Mod 后调用初始化入口。Core、Import 与界面代码编入该 Runtime。单分支开发构建只包含自己的 Runtime；双分支发布包的构建方式见[双分支打包](#双分支打包)。两种构建的 Mod ID 相同，不要同时安装。构建只写仓库里的 `artifacts/`，不碰玩家的游戏目录。测试版入口只在显式测试模式下注册测试补丁；正式版既没有测试补丁目录，也没有补丁注册逻辑。
 
 不加载游戏就能检查两种包的编译边界（类型与程序集引用）：
 
 ```bash
-dotnet run --project tests/Architecture -c Release --no-build -- --mod artifacts/mod/Sts2Solver/Sts2Solver.dll
-dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod artifacts/mod-testing/Sts2Solver/Sts2Solver.dll
+dotnet run --project tests/Architecture -c Release --no-build -- --mod artifacts/mod/Sts2Solver/game-public-beta/Sts2Solver.Runtime.dll
+dotnet run --project tests/Architecture -c Release --no-build -- --testing-mod artifacts/mod-testing/Sts2Solver/game-public-beta/Sts2Solver.Runtime.dll
 ```
 
 测试版的无头运行方法见 [测试与验证](testing.md#9-实机无头测试)。
+
+## 双分支打包
+
+`main` 维护游戏 `public-beta`，`game-public` 维护游戏 `public`。分支自己的 `src/Mod/GameTarget.props` 指定目录、游戏版本和 RitsuLib 引用目标；共用加载器位于 `src/Loader`。加载器依据实际游戏版本选择实现，不依赖 Steam 客户端是否运行，也不在战斗热路径内判断游戏版本。
+
+发布包结构：
+
+```text
+Sts2Solver/
+├── Sts2Solver.dll
+├── Sts2Solver.json
+├── game-public/Sts2Solver.Runtime.dll
+├── game-public-beta/Sts2Solver.Runtime.dll
+├── build-info.json
+├── LICENSE
+└── README.md
+```
+
+两个分支的 Mod 版本号保持一致，版本号由 `Directory.Build.props` 的 `SolverVersion` 提供，并同步 `src/Mod/Sts2Solver.json`。公共加载器的修改同步到两个分支；各分支的战斗规则独立维护。每份实现完成对应游戏环境验证后，在主分支执行：
+
+```bash
+python3 tools/release/build-bundle.py \
+  --public-ref game-public \
+  --beta-ref main \
+  --public-game /path/to/sts2-public \
+  --beta-game /path/to/sts2-public-beta \
+  --ritsu-root /path/to/RitsuLib \
+  --output artifacts/bundles/v0.2.10
+```
+
+`--public-ref` 和 `--beta-ref` 也可以直接传提交号。脚本在启动时固定两个提交，导出到临时目录，分别构建正式 Runtime，再打包成一个 ZIP；不包含工作区未提交的改动，也不改玩家安装目录。根加载器使用正式版游戏引用构建，两边的加载器源码必须一致。输出目录必须是新目录，内含安装目录、ZIP、SHA256 和两份构建日志。`build-info.json` 记录各 Runtime 的代码提交、游戏版本、游戏提交及包内文件校验值。临时源码和编译目录在结束时清理。
+
+打包契约检查不需要游戏文件：
+
+```bash
+python3 -m unittest discover -s tools/release -p 'test_*.py'
+```
 
 ## 设置文件
 

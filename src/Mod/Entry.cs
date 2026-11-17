@@ -6,7 +6,6 @@ using STS2RitsuLib.Patching.Core;
 
 namespace Sts2Solver;
 
-[ModInitializer(nameof(Initialize))]
 public static class ModEntry
 {
     public const string ModId = "Sts2Solver";

@@ -1,10 +1,7 @@
 <Project Sdk="Godot.NET.Sdk/4.5.1">
-  <!--
-    Sts2Solver Mod 本体。游戏加载器只加载与清单 id 同名的 <id>.dll，不会加载同目录的其它
-    DLL（见 docs/mod.md 的打包结论），因此本工程把 Core、Import 的源码（测试构建额外包含 TestHost）一起编进
-    Sts2Solver.dll；ProjectReference 只建立依赖顺序，不复制程序集。
-  -->
+  <!-- 每个游戏分支编译自己的 Runtime，由共用加载器选取。 -->
   <Import Project="$(MSBuildProjectDirectory)/local.props" Condition="Exists('$(MSBuildProjectDirectory)/local.props')" />
+  <Import Project="GameTarget.props" />
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -13,9 +10,9 @@
     <ImplicitUsings>true</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <AssemblyName>Sts2Solver</AssemblyName>
+    <AssemblyName>Sts2Solver.Runtime</AssemblyName>
     <RootNamespace>Sts2Solver</RootNamespace>
-    <Version>0.2.9</Version>
+    <Version>$(SolverVersion)</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>$(NoWarn);CS0436</NoWarn>
     <Sts2DataDir Condition="'$(Sts2DataDir)' == '' and '$(OS)' == 'Windows_NT'">$(Sts2Dir)/data_sts2_windows_x86_64</Sts2DataDir>
@@ -35,6 +32,8 @@
     <Compile Include="../Core/**/*.cs" Exclude="../Core/bin/**;../Core/obj/**" LinkBase="Core" />
     <Compile Include="../Import/**/*.cs" Exclude="../Import/bin/**;../Import/obj/**" LinkBase="Import" />
     <Compile Condition="'$(EnableModTesting)' == 'true'" Include="../TestHost/**/*.cs" Exclude="../TestHost/bin/**;../TestHost/obj/**" LinkBase="TestHost" />
+    <ProjectReference Include="../Loader/Sts2Solver.Loader.csproj" ReferenceOutputAssembly="false"
+                      AdditionalProperties="Sts2Dir=$(Sts2Dir);Sts2DataDir=$(Sts2DataDir)" />
     <ProjectReference Include="../Core/Sts2Solver.Core.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../Import/Sts2Solver.Import.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Condition="'$(EnableModTesting)' == 'true'" Include="../TestHost/Sts2Solver.TestHost.csproj" ReferenceOutputAssembly="false" />
@@ -60,8 +59,12 @@
   <Target Name="PackSts2SolverMod" AfterTargets="Build">
     <RemoveDir Directories="$(ModOutputDir)" />
     <MakeDir Directories="$(ModOutputDir)" />
-    <Copy SourceFiles="$(TargetPath);$(MSBuildProjectDirectory)/Sts2Solver.json;$(MSBuildProjectDirectory)/../../LICENSE;$(MSBuildProjectDirectory)/../../README.md"
+    <MSBuild Projects="../Loader/Sts2Solver.Loader.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="LoaderAssembly" />
+    </MSBuild>
+    <Copy SourceFiles="@(LoaderAssembly);$(MSBuildProjectDirectory)/Sts2Solver.json;$(MSBuildProjectDirectory)/../../LICENSE;$(MSBuildProjectDirectory)/../../README.md"
           DestinationFolder="$(ModOutputDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOutputDir)/$(SolverGameTarget)" />
     <Message Importance="high" Text="Sts2Solver mod packaged: $(ModOutputDir)" />
   </Target>
 </Project>

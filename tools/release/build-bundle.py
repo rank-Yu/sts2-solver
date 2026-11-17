@@ -128,7 +128,7 @@ def main():
         for target, source in sources.items():
             packages[target] = source / "artifacts/mod/Sts2Solver"
             env = dict(os.environ, TMPDIR=str(workspace))
-            command = ["dotnet", "build", "src/Mod/Sts2Solver.csproj", "-c", "Release", "-v", "minimal",
+            command = ["dotnet", "build", "src/Mod/Sts2Solver.csproj", "-c", "Release", "-v", "minimal", "--disable-build-servers",
                        f"-p:Sts2Dir={games[target]}", f"-p:RitsuWorkshopRoot={args.ritsu_root.resolve()}",
                        f"-p:RitsuLibReferenceTarget={metadata[target]['ritsuTarget']}",
                        "-p:EnableModTesting=false", "-p:ContinuousIntegrationBuild=true"]

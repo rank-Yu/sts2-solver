@@ -180,32 +180,14 @@ public sealed class Comet : CardDef
     }
 }
 
-/// <summary>
-/// <c>DyingStar</c> (3 star cost, Ethereal): attack every enemy, then CardEffectSpecRegistry applies
-/// DyingStarPower (a temporary Strength loss) to every hittable enemy in roster order.
-/// </summary>
+/// <summary>Attack all enemies and apply temporary Strength loss to the original targets.</summary>
 [ContentId("DYING_STAR")]
 public sealed class DyingStar : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["Damage", "StrengthLoss"];
 
     public override void OnPlay(ref Exec x)
-    {
-        CardEffects.GeneralAttack(ref x, 0);
-        if (x.NeedsChoice)
-            return;
-        ushort power = Registry.PowerId<Powers.DyingStarPower>();
-        int amount = (int)CardEffects.Var(x, 1);
-        for (int position = 0; position < x.B.RosterCount; position++)
-        {
-            byte enemy = Kernel.EnemyOwner(x.B.Roster[position]);
-            if (!Kernel.IsHittable(x.B, enemy))
-                continue;
-            Kernel.ApplyTemporaryStrength(ref x, enemy, power, amount, Limits.PlayerOwner, -1);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
+        => CardEffects.AttackWithTemporaryStrengthLoss(ref x, Registry.PowerId<Powers.DyingStarPower>());
 }
 
 /// <summary><c>Bombardment</c>: the inferred recipe is a plain single-target attack.</summary>

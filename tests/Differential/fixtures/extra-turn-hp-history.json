@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "INTERACTIONROUND6",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "characterId": "IRONCLAD",
+  "scenarioId": "extra-turn-hp-history",
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "EXTRA_TURN_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ]
+}

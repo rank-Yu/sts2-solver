@@ -339,8 +339,8 @@ public sealed class PossessSpeedPower : PowerDef
 /// <summary>
 /// Native <c>StockPower</c>: on its owner's death it spawns a replacement Axebot in the same slot with
 /// one less StockPower, and the combat does not end while unresolved (<c>ShouldStopCombatFromEnding</c>,
-/// <c>DeathPowerSupport.SpawnsPrimaryEnemyOnDeath</c>). The immediate spawn is implemented by the
-/// Axebot monster's <c>AfterDeath</c>; this definition only carries the removal/ending flags.
+/// <c>DeathPowerSupport.SpawnsPrimaryEnemyOnDeath</c>). Spawn during this power's AfterDeath
+/// listener, before later death powers such as ExplosivePower react to the same kill.
 /// </summary>
 [ContentId("STOCK_POWER")]
 public sealed class StockPower : PowerDef
@@ -353,6 +353,29 @@ public sealed class StockPower : PowerDef
 
     // Native StockPower.ShouldStopCombatFromEnding: the dead owner still spawns a replacement.
     public override bool PreventsCombatEnding => true;
+
+    private const int StockPerRespawnHp = 10;
+
+    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
+        bool hasCardSource, in Card cardSource)
+    {
+        if (wasRemovalPrevented || creature != self.Owner
+            || x.B.Powers[self.Index].Amount <= 0)
+        {
+            return;
+        }
+        if (!Registry.TryMonster("AXEBOT", out ushort monsterId)
+            || !x.R.TrySpawnRulesId(monsterId, out int rulesId))
+        {
+            throw new UnsupportedException("Axebot 补货没有生成规则条目。");
+        }
+        int newStock = x.B.Powers[self.Index].Amount - 1;
+        // The compiled rule is the StockAmount-1 variant (RespawnCount 1, +10 HP range); missing
+        // further stock shifts the whole range by another RespawnMaxHpBonus (native RespawnCount =
+        // 2 - StockAmount feeds MinInitialHp/MaxInitialHp before CreatePredictedMonster rolls).
+        Kernel.SpawnMonster(ref x, self.Owner, rulesId, x.B.Enemy(self.Owner).Slot, minion: false,
+            hpRangeShift: (1 - newStock) * StockPerRespawnHp);
+    }
 }
 
 /// <summary>

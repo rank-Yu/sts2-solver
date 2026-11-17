@@ -6,6 +6,29 @@ namespace Sts2Solver.Simulation.Combat;
 /// </summary>
 public static class CardEffects
 {
+    public static void AttackWithTemporaryStrengthLoss(ref Exec x, ushort power)
+    {
+        // Native captures HittableEnemies before damage; death-spawned enemies are not debuff targets.
+        Span<byte> targets = stackalloc byte[Limits.Enemies];
+        int count = 0;
+        for (int position = 0; position < x.B.RosterCount; position++)
+        {
+            byte enemy = Kernel.EnemyOwner(x.B.Roster[position]);
+            if (Kernel.IsHittable(x.B, enemy))
+                targets[count++] = enemy;
+        }
+        CardEffects.GeneralAttack(ref x, 0);
+        if (x.NeedsChoice)
+            return;
+        int amount = (int)CardEffects.Var(x, 1);
+        foreach (byte enemy in targets[..count])
+        {
+            Kernel.ApplyTemporaryStrength(ref x, enemy, power, amount, Limits.PlayerOwner, -1);
+            if (x.NeedsChoice)
+                return;
+        }
+    }
+
     /// <summary>Number of cards in every combat pile whose canonical tags include <paramref name="tag"/>.</summary>
     public static int CountCardsWithTag(in Exec x, CardTag tag)
     {

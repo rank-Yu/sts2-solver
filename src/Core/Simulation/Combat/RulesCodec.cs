@@ -13,7 +13,7 @@ public static class RulesCodec
     internal const uint Magic = 0x454C5552; // "RULE"
 
     /// <summary>Matches <see cref="Rules.SchemaFieldCount"/>; the K0 contract checks both.</summary>
-    internal const int EncodedFieldCount = 32;
+    internal const int EncodedFieldCount = 31;
 
     public static byte[] Encode(Rules rules)
     {
@@ -93,7 +93,7 @@ public static class RulesCodec
             for (int id = 0; id < rules.PowerDeathHistoryRiskTable.Length; id++)
                 writer.Write(rules.PowerDeathHistoryRiskTable[id]);
 
-            // 12-32: scalars
+            // 12-31: scalars
             writer.Write(rules.HasEncounter);
             Codec.WriteString(writer, string.Join("\u001f", rules.EncounterSlotTable));
             writer.Write(rules.RootEnemyCount);
@@ -110,7 +110,6 @@ public static class RulesCodec
             writer.Write(rules.HasInfiniteHpDisplayMonster);
             writer.Write(rules.HasPaelsLegion);
             writer.Write(rules.FurCoatSpawnHpOne);
-            writer.Write(rules.RootLostHpMask);
             writer.Write(rules.HasHistoryCourse);
             writer.Write(rules.TotalFloor);
             writer.Write((byte)rules.Dominion.Kind);
@@ -222,7 +221,6 @@ public static class RulesCodec
             bool hasInfiniteHpDisplayMonster = Codec.ReadBool(reader);
             bool hasPaelsLegion = Codec.ReadBool(reader);
             bool furCoatSpawnHpOne = Codec.ReadBool(reader);
-            ushort rootLostHpMask = reader.ReadUInt16();
             bool hasHistoryCourse = Codec.ReadBool(reader);
             int totalFloor = reader.ReadInt32();
             DominionKind dominionKind = (DominionKind)reader.ReadByte();
@@ -236,7 +234,7 @@ public static class RulesCodec
                 rootEnemyCount, baseMaxEnergy, playerSlotIndex, baseOrbSlotCount, rootSwordSageAmount,
                 unsettlingLampRelicId, hasIdentityContent, hasShuffleOrderEnchantment,
                 hasBeforeFlushEnchantment, hasTheftContent, hasDecimalCardVars,
-                hasInfiniteHpDisplayMonster, hasPaelsLegion, furCoatSpawnHpOne, rootLostHpMask,
+                hasInfiniteHpDisplayMonster, hasPaelsLegion, furCoatSpawnHpOne,
                 hasHistoryCourse, totalFloor, dominion, mode);
         });
 

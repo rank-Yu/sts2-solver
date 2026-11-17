@@ -45,32 +45,14 @@ public sealed class GuidingStar : CardDef
     }
 }
 
-/// <summary>
-/// <c>CrushUnder</c>: attack every enemy, then CardEffectSpecRegistry applies CrushUnderPower (a
-/// temporary Strength loss) to every hittable enemy in roster order.
-/// </summary>
+/// <summary>Attack all enemies and apply temporary Strength loss to the original targets.</summary>
 [ContentId("CRUSH_UNDER")]
 public sealed class CrushUnder : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["Damage", "StrengthLoss"];
 
     public override void OnPlay(ref Exec x)
-    {
-        CardEffects.GeneralAttack(ref x, 0);
-        if (x.NeedsChoice)
-            return;
-        ushort power = Registry.PowerId<Powers.CrushUnderPower>();
-        int amount = (int)CardEffects.Var(x, 1);
-        for (int position = 0; position < x.B.RosterCount; position++)
-        {
-            byte enemy = Kernel.EnemyOwner(x.B.Roster[position]);
-            if (!Kernel.IsHittable(x.B, enemy))
-                continue;
-            Kernel.ApplyTemporaryStrength(ref x, enemy, power, amount, Limits.PlayerOwner, -1);
-            if (x.NeedsChoice)
-                return;
-        }
-    }
+        => CardEffects.AttackWithTemporaryStrengthLoss(ref x, Registry.PowerId<Powers.CrushUnderPower>());
 }
 
 /// <summary><c>CelestialMight</c>: the general attack with the Repeat variable as its hit count.</summary>

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION6-beta-FOOL-Dread-act1-0",
+  "characterId": "FOOL",
+  "ascension": 0,
+  "actIndex": 1,
+  "encounterKind": "Monster",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 0
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 0
+  },
+  "relics": {
+    "count": 8
+  },
+  "potions": {
+    "count": 2
+  },
+  "mode": "Setup"
+}

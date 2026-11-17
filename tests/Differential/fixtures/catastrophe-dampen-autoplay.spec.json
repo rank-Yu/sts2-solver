@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION8-public-REGENT-Standard-act2-5",
+  "characterId": "REGENT",
+  "ascension": 5,
+  "actIndex": 2,
+  "encounterKind": "Elite",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 1
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 1
+  },
+  "relics": {
+    "count": 8
+  },
+  "potions": {
+    "count": 2
+  },
+  "mode": "Setup"
+}

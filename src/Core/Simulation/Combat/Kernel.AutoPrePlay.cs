@@ -227,8 +227,6 @@ public static partial class Kernel
             Card copy = CloneCard(PreviousHistoryCourse(x.B, previous));
             copy.IsDupe = true;
             copy.RemoveKeyword(Keywords.Exhaust);
-            // The clone is a new object: it is not in the existing engine's _returnToHandNextTurn set.
-            copy.ReturnToHandNextTurn = false;
             AutoPlay(ref x, copy, Limits.NoOwner, skipXCapture: false, historyCourseDupe: true,
                 out _, out _, out _);
             if (x.NeedsChoice)

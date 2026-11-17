@@ -516,7 +516,7 @@ public sealed class RupturePower : PowerDef
 /// infinite HP (Waterfall Giant's steam-eruption rewrite) the auto-play stops after nine draws and
 /// the counter keeps incrementing; the finite branch resets it. Aux0 is
 /// <c>infiniteAutoPlaysThisTurn</c> (HellraiserPredictionState; without an entry the model's internal
-/// data). <c>EndTurnBatch048</c> resets it when the owner participates (ResetInfiniteAutoPlayData).
+/// data). <c>EndTurnRegular</c> resets it when the owner participates (ResetInfiniteAutoPlayData).
 /// </summary>
 [ContentId("HELLRAISER_POWER")]
 public sealed class HellraiserPower : PowerDef
@@ -548,7 +548,7 @@ public sealed class HellraiserPower : PowerDef
             Kernel.AutoPlayDrawnCard(ref x, drawnPosition);
     }
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         // CorePowerSupport/EndTurnPowerSupport resets the turn counter when the owner participates.
         if (participates)

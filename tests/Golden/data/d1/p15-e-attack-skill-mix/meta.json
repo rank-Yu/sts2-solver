@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p15-e-attack-skill-mix",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-e-attack-skill-mix.json\u0022}",
-  "rulesSha256": "7d35e703954914ffd02c22ddd3c98e16ea04b7f8f2fbdd1feb1795bdacf1dbb2",
+  "rulesSha256": "da2faa81b471564d7946f09b5fc053617f23939680fe9769c4a9999532ab28f1",
   "counts": {
     "roots": 1,
     "k1": 15,

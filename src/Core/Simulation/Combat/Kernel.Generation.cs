@@ -394,6 +394,7 @@ public static partial class Kernel
         clone.FoolIdentity = 0;
         clone.HistoryCourseRole = 0;
         clone.DampenOriginalUpgrade = 0;
+        clone.ReturnToHandNextTurn = false;
         // PredictedCard/CardModel clones are new objects: the existing engine's per-card dictionaries
         // have no entry for them until their first normalization/play. Other cards keep Private (the
         // native clone copies Claw/Rampage-style private counters).

@@ -32,13 +32,7 @@ public static partial class Kernel
         int energyNextTurn = ConsumeEnergyNextTurn(ref x.B);
         x.B.Energy = (int)Math.Clamp((long)x.B.Energy + Math.Max(0, ModifiedMaxEnergy(ref x)) + energyNextTurn,
             0, Limits.ValueClamp);
-        PowersAfterEnergyReset(ref x);
-        if (x.NeedsChoice)
-            return;
-        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player);
-        if (x.NeedsChoice)
-            return;
-        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player);
+        AfterEnergyReset(ref x);
         if (x.NeedsChoice)
             return;
 

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "dampen-ghost-seed",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dampen-ghost-seed.json\u0022}",
-  "rulesSha256": "dcd63656f8020cd28c9607a756b44b9f860f246ac50b0de1ba6e5d8366cd4abf",
+  "rulesSha256": "94de95e0506f5725f08a9b92738ba4eb9d25b49db61e37d290c938ac18c97284",
   "counts": {
     "roots": 1,
     "k1": 25,

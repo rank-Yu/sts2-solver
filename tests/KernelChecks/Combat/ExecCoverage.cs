@@ -68,6 +68,7 @@ internal static class ExecCoverage
         nameof(Exec.Request),
         "_choicesTaken",
         nameof(Exec.EffectDepth),
+        nameof(Exec.PendingEnemyDeaths),
         nameof(Exec.TransientMarkBase),
         nameof(Exec.TakingExtraTurn),
         nameof(Exec.SetupPause),

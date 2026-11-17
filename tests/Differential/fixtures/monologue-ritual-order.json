@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "monologue-ritual-order",
+  "characterId": "REGENT",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "MONOLOGUERITUAL",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "MONOLOGUE",
+      "pile": "Hand",
+      "count": 1
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "MAZALETHS_GIFT"
+    }
+  ]
+}

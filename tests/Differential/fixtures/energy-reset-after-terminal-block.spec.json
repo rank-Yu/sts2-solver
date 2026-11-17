@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION12-beta-IRONCLAD-Standard-act0-12",
+  "characterId": "IRONCLAD",
+  "ascension": 0,
+  "actIndex": 0,
+  "encounterKind": "Monster",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 0
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 0,
+    "ids": [
+      "CALAMITY",
+      "BEAT_DOWN"
+    ]
+  },
+  "relics": {
+    "count": 8,
+    "ids": [
+      "MUMMIFIED_HAND",
+      "BURNING_STICKS"
+    ]
+  },
+  "potions": {
+    "count": 2,
+    "ids": [
+      "DISTILLED_CHAOS"
+    ]
+  },
+  "mode": "Setup"
+}

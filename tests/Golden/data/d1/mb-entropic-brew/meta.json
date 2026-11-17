@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "mb-entropic-brew",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-mb-entropic-brew.json\u0022}",
-  "rulesSha256": "695e4d50ca65dd15d518a0dda1758418c0086389c157a0979403f01e515f7311",
+  "rulesSha256": "996269fe457b98bfede63e6c166b852db7a395f45771bfe61fb7bee5233f42bf",
   "counts": {
     "roots": 1,
     "k1": 10,

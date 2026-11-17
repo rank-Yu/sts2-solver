@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION8-beta-REGENT-Standard-act0-9",
+  "characterId": "REGENT",
+  "ascension": 5,
+  "actIndex": 0,
+  "encounterKind": "Boss",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 1
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 1,
+    "ids": [
+      "JACK_OF_ALL_TRADES"
+    ]
+  },
+  "relics": {
+    "count": 8,
+    "ids": [
+      "BURNING_STICKS",
+      "MUMMIFIED_HAND"
+    ]
+  },
+  "potions": {
+    "count": 2,
+    "ids": [
+      "DUPLICATOR",
+      "SKILL_POTION"
+    ]
+  },
+  "mode": "Setup"
+}

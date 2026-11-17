@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "qf3-mayhem-summon-forth",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-mayhem-summon-forth.json\u0022}",
-  "rulesSha256": "3ba069912b0dcd0e9e833cd77169194d8780d055c51eb1f48380683e5340217b",
+  "rulesSha256": "a0e1b0c937e899359093fed8695343827fca17ea79c7759da0635c45ba90e877",
   "counts": {
     "roots": 1,
     "k1": 1,

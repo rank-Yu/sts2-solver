@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "mb-insatiable",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-mb-insatiable.json\u0022}",
-  "rulesSha256": "1986daed3763b99dc11ab6114b9a95f4d4750b73a8a2e9d900b3aa0eb0d127b2",
+  "rulesSha256": "c7c19fb84516a27e67079be3240f922a08d3b57786f979238d455f5e6cb452f4",
   "counts": {
     "roots": 1,
     "k1": 7,

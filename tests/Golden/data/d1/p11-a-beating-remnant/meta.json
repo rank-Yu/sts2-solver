@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p11-a-beating-remnant",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-a-beating-remnant.json\u0022}",
-  "rulesSha256": "7423bf43a6df47a6af695cb7def67d026f564b0b3c8e1528e6b8624b1c9282b0",
+  "rulesSha256": "cb1bae0448518b3da518dbac50ad9257834b44d59b980b0eabbe03034b613638",
   "counts": {
     "roots": 1,
     "k1": 3,

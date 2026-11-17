@@ -51,8 +51,18 @@ internal static class NativeEffectChecks
                 int executed = 0;
                 while (executed < limit && current.Outcome == Outcome.None)
                 {
-                    ReplayedAction planned = RandomCombatPolicy.Choose(current, rules, random, coverage)
-                        ?? throw new InvalidDataException("Ongoing battle has no legal action.");
+                    ReplayedAction planned;
+                    try
+                    {
+                        planned = RandomCombatPolicy.Choose(current, rules, random, coverage)
+                            ?? throw new InvalidDataException("Ongoing battle has no legal action.");
+                    }
+                    catch (CapacityException exception)
+                    {
+                        // This action cannot be represented; retain the verified prefix and report the limit.
+                        Console.WriteLine($"NATIVE_WALK_LIMIT step={executed} reason={exception.Message}");
+                        break;
+                    }
                     Console.WriteLine($"NATIVE_WALK_ACTION step={executed} action={CombatPilotAction.Describe(planned)} selections={string.Join(",", planned.Choices.Select(c => c.Selection.ToString("X", CultureInfo.InvariantCulture)))}");
                     Execute(planned);
                     coverage.CountAction(planned.Action.Kind);
@@ -67,6 +77,13 @@ internal static class NativeEffectChecks
             else if (fields is [("generate" or "replace" or "transform"), var cardId])
             {
                 CheckArrowEntry(loop, state, player, rules, current, fields[0], cardId);
+                rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
+                tracker = new(state);
+                current = tracker.ImportRoot(state, player, rules);
+                tracker.Observe(current);
+            }
+            else if (fields is ["recapture"])
+            {
                 rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
                 tracker = new(state);
                 current = tracker.ImportRoot(state, player, rules);

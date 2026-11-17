@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "dx3-chains-clone",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-chains-clone.json\u0022}",
-  "rulesSha256": "9892172da816727d2ef5bf7c9260397a164e5d465ff2ad3e15877c4373f60185",
+  "rulesSha256": "61200838130b15aaaf462e4340ddcb348efe91bf33a87225d45f55844090d52c",
   "counts": {
     "roots": 1,
     "k1": 17,

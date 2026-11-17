@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "sk-a-discard-sly",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-a-discard-sly.json\u0022}",
-  "rulesSha256": "6e630694d43615ed8a94826cf2c75fd6bd81dc0b09eef3c9a645a3c09f35f6a1",
+  "rulesSha256": "3c406a03807f087494be566757a99c6fbe387deb8b899bfd6811a4867c3ee716",
   "counts": {
     "roots": 1,
     "k1": 83,

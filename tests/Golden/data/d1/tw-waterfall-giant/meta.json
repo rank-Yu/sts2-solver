@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "tw-waterfall-giant",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-tw-waterfall-giant.json\u0022}",
-  "rulesSha256": "79750bc79b263a616211c27f857ba3a1196155c170ad99e84e616cd166cb0bab",
+  "rulesSha256": "b570d8bf90567a225039449ae86435691850cc6f0a36af184d1a006c069a332a",
   "counts": {
     "roots": 1,
     "k1": 7,

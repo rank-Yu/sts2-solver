@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-construct-menagerie-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-construct-menagerie-normal.json\u0022}",
-  "rulesSha256": "5ce39989f0409e97b543ef3038e4e29b2bee55f791e2a10e3eb4a57c29b5ab12",
+  "rulesSha256": "bcb3437e1fb3ba06582f393a159350ea49abeaae9d67fdfb98b1f532d5d9fed5",
   "counts": {
     "roots": 1,
     "k1": 11,

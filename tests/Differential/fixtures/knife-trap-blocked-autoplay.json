@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "knife-trap-blocked-autoplay",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/knife-trap-blocked-autoplay.spec.json",
+  "gameModeForTest": "Blitz"
+}

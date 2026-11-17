@@ -244,7 +244,7 @@ internal sealed class NativeHistory
         => card is Fetch && _cardPlaysFinished.Any(entry => ThisTurn(entry)
             && ReferenceEquals(entry.CardPlay.Card, card));
 
-    /// <summary><c>CaptureEmotionChipState</c>: unblocked damage in the previous/current player turn.</summary>
+    /// <summary>EmotionChip history windows follow player turn numbers, including both sides of the round.</summary>
     public (bool LastPlayerTurn, bool ThisTurn) EmotionChipDamage(EmotionChip relic)
     {
         Creature receiver = relic.Owner.Creature;
@@ -257,7 +257,8 @@ internal sealed class NativeHistory
             entry is DamageReceivedEntry damage
             && ReferenceEquals(damage.Receiver, receiver)
             && !damage.Result.WasFullyBlocked
-            && damage.HappenedThisTurn(receiver.CombatState));
+            && damage._playerTurnNumbers.TryGetValue(relic.Owner.NetId, out int turn)
+            && turn == relic.Owner.PlayerCombatState!.TurnNumber);
         return (last, current);
     }
 

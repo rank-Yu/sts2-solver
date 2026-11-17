@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p10-a-turn-end-status",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-a-turn-end-status.json\u0022}",
-  "rulesSha256": "d525335184ff552d5cb19b008dfb977ac033a04a23a2489ae47d2fb90703ac46",
+  "rulesSha256": "aa42d2d71a2e7a3fd1e84745a719902a813559a7e5c5a0bda345597a9afa7c4f",
   "counts": {
     "roots": 1,
     "k1": 3,

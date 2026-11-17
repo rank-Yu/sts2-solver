@@ -405,8 +405,8 @@ public enum HookMaskExt : ulong
     AfterTakingExtraTurn = 1UL << 5,
 
     /// <summary>
-    /// <c>SimulatedCombatState.RecordRelicRoundDamage</c>: the per-round relic bookkeeping after the
-    /// enemy turn (or before an extra turn starts). EmotionChip rotates its lost-HP window here.
+    /// <c>SimulatedCombatState.RecordRelicRoundDamage</c>: the relic bookkeeping when the player turn number
+    /// advances. EmotionChip rotates its damage-history window here.
     /// Uses bits 3-15.
     /// </summary>
     AfterRelicRound = 1UL << 6,
@@ -441,6 +441,14 @@ public enum HookMaskExt : ulong
 /// </summary>
 public static class CardPools
 {
+    // Canonical character pools used when transforming cards from any character.
+    public const string IroncladAll = "ironclad.all";
+    public const string SilentAll = "silent.all";
+    public const string DefectAll = "defect.all";
+    public const string NecrobinderAll = "necrobinder.all";
+    public const string RegentAll = "regent.all";
+    public const string FoolAll = "fool.all";
+
     public const string Tarot = "tarot";
     public const string OtherCharacterCards = "character.other-all";
     public const string CharacterShots = "character.shots";
@@ -766,9 +774,8 @@ public abstract class ListenerDef : ContentDef
     }
 
     /// <summary>
-    /// <c>SimulatedCombatState.RecordRelicRoundDamage</c>: the per-round relic bookkeeping the existing
-    /// engine runs after the enemy turn or before an extra player turn. EmotionChip rotates its
-    /// "lost HP last turn" window here.
+    /// <c>SimulatedCombatState.RecordRelicRoundDamage</c>: the relic bookkeeping when the player turn number
+    /// advances. EmotionChip rotates its damage-history window here.
     /// </summary>
     public virtual void AfterRelicRound(ref Exec x, Listener self)
     {
@@ -1451,11 +1458,6 @@ public abstract class PowerDef : ListenerDef
 
     /// <summary>Case in <c>EndTurnPowerSupport.TriggerRegular</c>.</summary>
     public virtual void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
-    {
-    }
-
-    /// <summary>Case in <c>EndTurnPowerSupport.TriggerBatch048</c>.</summary>
-    public virtual void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
     {
     }
 

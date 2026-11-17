@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "impaled-hatch",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/impaled-hatch.scenario.json",
+  "gameModeForTest": "Dread",
+  "dominionForTest": "KAISER_CRAB_DOMINION"
+}

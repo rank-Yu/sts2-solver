@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "blight-zero-new-doom",
+  "characterId": "NECROBINDER",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "ZERODOOM",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 100,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BLIGHT_STRIKE",
+      "pile": "Hand",
+      "count": 1
+    },
+    {
+      "cardId": "DEATHS_DOOR",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "BUFFER_POWER",
+      "target": "Enemy",
+      "amount": 1
+    }
+  ]
+}

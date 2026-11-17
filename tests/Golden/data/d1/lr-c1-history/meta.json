@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "lr-c1-history",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-c1-history.json\u0022}",
-  "rulesSha256": "dca05c776ce4e8ffb35b7f424ecc3e3847d074bd2b7f542e3b63ff7b73ba9391",
+  "rulesSha256": "91d9491c62b1b2b595b5c86fbbfd13c9b8f0c26cef9998c25df468c45f08b62e",
   "counts": {
     "roots": 1,
     "k1": 13,

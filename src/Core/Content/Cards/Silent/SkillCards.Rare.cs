@@ -200,45 +200,36 @@ public sealed class KnifeTrap : CardDef
     {
         if (x.Target == Limits.NoOwner)
             throw new UnsupportedException("KnifeTrap 需要目标。");
-        int exhaust = x.B.ExhaustCount;
-        if (exhaust == 0)
-            return;
-        Span<Card> shivs = stackalloc Card[exhaust];
+        Span<int> selected = stackalloc int[x.B.ExhaustCount];
         int count = 0;
-        int start = Piles.Start(x.B, Pile.Exhaust);
-        for (int offset = 0; offset < exhaust; offset++)
+        for (int index = 0; index < x.B.ExhaustCount; index++)
         {
-            Card card = x.B.Cards[start + offset];
+            ref readonly Card card = ref Piles.At(ref x.B, Pile.Exhaust, index);
             if ((x.R.Card(card.Id, card.Upgrade).Tags & CardTag.Shiv) != 0)
-                shivs[count++] = card;
+                selected[count++] = index;
         }
-        bool upgrade = x.Card.Upgrade > 0;
-        for (int item = 0; item < count; item++)
+        Span<byte> marks = stackalloc byte[count];
+        Span<byte> outer = stackalloc byte[count];
+        int saved = Kernel.ReserveTransientMarks(ref x, count, out int first);
+        Kernel.MarkPileCards(ref x.B, Pile.Exhaust, selected[..count], marks, outer, first);
+        try
         {
-            Card wanted = shivs[item];
-            int found = -1;
-            int pileCount = x.B.ExhaustCount;
-            int pileStart = Piles.Start(x.B, Pile.Exhaust);
-            for (int offset = 0; offset < pileCount; offset++)
+            for (int item = 0; item < count; item++)
             {
-                ref readonly Card candidate = ref x.B.Cards[pileStart + offset];
-                if (candidate.Id == wanted.Id && candidate.Upgrade == wanted.Upgrade
-                    && (x.R.Card(candidate.Id, candidate.Upgrade).Tags & CardTag.Shiv) != 0)
-                {
-                    found = offset;
-                    break;
-                }
+                if (!Kernel.TryFindUniqueTransientMark(x.B, marks[item], out Pile pile, out int index))
+                    throw new UnsupportedException("KnifeTrap 的 Shiv 在结算前离开了战斗牌堆。");
+                if (Kernel.CurrentPlayCard(ref x).Upgrade > 0)
+                    Kernel.UpgradeCard(x.R, ref Piles.At(ref x.B, pile, index));
+                // A blocked auto-play still moves this Shiv to its result pile; later Shivs continue.
+                Kernel.AutoPlay(ref x, pile, index, x.Target);
+                if (x.NeedsChoice)
+                    return;
             }
-            if (found < 0)
-                throw new UnsupportedException("KnifeTrap 的 Shiv 在结算前离开了消耗堆。");
-            if (upgrade)
-            {
-                Kernel.UpgradeCard(x.R, ref Piles.At(ref x.B, Pile.Exhaust, found));
-            }
-            if (!Kernel.AutoPlay(ref x, Pile.Exhaust, found, x.Target))
-                return;
-            if (x.NeedsChoice)
-                return;
+        }
+        finally
+        {
+            Kernel.RestoreMarkedCards(ref x.B, marks, outer);
+            Kernel.ReleaseTransientMarks(ref x, saved, first, count);
         }
     }
 }

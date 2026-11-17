@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "lr-c2-generation",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-lr-c2-generation.json\u0022}",
-  "rulesSha256": "fba5393283f34abadbbe7a45466751aac7ddb13965c0db9339f9b11e76b61dd9",
+  "rulesSha256": "7be151e2b4243dcb70905e1f618f69fb85e438d91e8e7702438d36e6d0503078",
   "counts": {
     "roots": 1,
     "k1": 11,

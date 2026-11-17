@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p9-defensive-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-defensive-powers.json\u0022}",
-  "rulesSha256": "399a9ddc51aec153aa7a4b9dcc2ccc048a239cbf5c1e303b2847ab38d83efc5e",
+  "rulesSha256": "6b45311e2873b17ebe473a6f3febd23248094abb1d199cab09e8ed4ce044b853",
   "counts": {
     "roots": 1,
     "k1": 6,

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "generated-show-off",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/generated-show-off.scenario.json",
+  "gameModeForTest": "Dread",
+  "dominionForTest": "KAISER_CRAB_DOMINION"
+}

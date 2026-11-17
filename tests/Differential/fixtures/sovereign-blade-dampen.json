@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "INTERACTIONFIXED",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "scenarioId": "sovereign-blade-dampen",
+  "characterId": "REGENT",
+  "actIndexForTest": 2,
+  "initialEnemyMoveIds": [
+    "RAM_MOVE",
+    "HEX",
+    "DAMPEN_MOVE"
+  ],
+  "cards": [
+    {
+      "cardId": "SUMMON_FORTH",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "SOVEREIGN_BLADE",
+      "pile": "Hand",
+      "upgradeLevels": 1
+    }
+  ]
+}

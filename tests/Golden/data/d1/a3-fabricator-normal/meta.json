@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-fabricator-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-fabricator-normal.json\u0022}",
-  "rulesSha256": "ca0dfe681360e88d3a9b07b12aea8a339271e3e70dea60c6ec88a5190f2c0eeb",
+  "rulesSha256": "164f124a418294b4e4726ab8125336dec5a5515d3416e37d3a11f58db7d32dbf",
   "counts": {
     "roots": 1,
     "k1": 7,

@@ -8,6 +8,7 @@ public struct DamageResult
     public bool WasTargetKilled;
     public bool WasBlockBroken;
     public bool WasFullyBlocked;
+    public bool RecordedInHistory;
     public int UnblockedDamage;
     public int OverkillDamage;
     public int BlockedDamage;
@@ -59,6 +60,11 @@ public static partial class Kernel
         if (x.R.HasAttackHitCountRelics)
             hitCount = HookDispatch.ModifyAttackHitCount(ref x, hitCount);
         BeginAttack(ref x, props, hasCardSource: true);
+        // A repeated attack can have no living target. Its empty hit list must not reuse
+        // the previous play's damage when Omnislice reads the result.
+        x.LastDamageTotal = 0;
+        x.LastDamageOverkill = 0;
+        x.LastDamageKills = 0;
         Span<byte> targets = stackalloc byte[Limits.Enemies + 1];
         for (int hit = 0; hit < hitCount; hit++)
         {
@@ -340,7 +346,7 @@ public static partial class Kernel
             DamageResult pet = LoseHp(ref x.B.Wuppy, Limits.WuppyOwner, modified, props);
             pet.HasCardSource = hasCardSource;
             pet.CardSource = cardSource;
-            RecordDamageReceived(ref x.B, Limits.WuppyOwner, dealer, pet);
+            RecordDamageReceived(ref x.B, Limits.WuppyOwner, dealer, ref pet);
             results[count++] = pet;
             modified = pet.OverkillDamage;
         }
@@ -385,7 +391,7 @@ public static partial class Kernel
         result.WasFullyBlocked = (props & ValueProps.Unblockable) == 0
             && (blocked > 0m || creature.Block > 0)
             && (int)unblocked == 0;
-        RecordDamageReceived(ref x.B, target, dealer, result);
+        RecordDamageReceived(ref x.B, target, dealer, ref result);
         results[count++] = result;
         return true;
     }
@@ -409,7 +415,7 @@ public static partial class Kernel
         redirectedResult.WasFullyBlocked = (props & ValueProps.Unblockable) == 0
             && (blocked > 0m || original.Block > 0)
             && (int)unblocked == 0;
-        RecordDamageReceived(ref x.B, redirect, dealer, redirectedResult);
+        RecordDamageReceived(ref x.B, redirect, dealer, ref redirectedResult);
         results[count++] = redirectedResult;
 
         decimal overflow = redirectedResult.OverkillDamage;
@@ -430,7 +436,7 @@ public static partial class Kernel
         originalResult.BlockedDamage = (int)blocked;
         originalResult.WasBlockBroken = redirectedResult.WasBlockBroken;
         originalResult.WasFullyBlocked = redirectedResult.WasFullyBlocked;
-        RecordDamageReceived(ref x.B, originalTarget, dealer, originalResult);
+        RecordDamageReceived(ref x.B, originalTarget, dealer, ref originalResult);
         results[count++] = originalResult;
         return true;
     }
@@ -444,61 +450,83 @@ public static partial class Kernel
     /// <summary>Mirrors <c>CombatPredictionSimulator.ProcessDamageResults</c>.</summary>
     private static void ProcessDamageResults(ref Exec x, scoped ReadOnlySpan<DamageResult> results, byte dealer)
     {
-        Span<byte> killed = stackalloc byte[MaxDamageResults];
-        int killedCount = 0;
+        ushort outerDeaths = x.PendingEnemyDeaths;
         foreach (DamageResult result in results)
+            if (result.WasTargetKilled && IsEnemyOwner(result.Receiver))
+                x.PendingEnemyDeaths |= (ushort)(1 << (result.Receiver - Limits.FirstEnemyOwner));
+        try
         {
-            if (result.WasBlockBroken)
+            Span<byte> killed = stackalloc byte[MaxDamageResults];
+            int killedCount = 0;
+            foreach (DamageResult result in results)
             {
-                AfterBlockBrokenHook broken = new() { Target = result.Receiver, Breaker = dealer };
-                HookDispatch.Dispatch(ref x, ref broken, gatedByEnding: false);
+                if (result.WasBlockBroken)
+                {
+                    AfterBlockBrokenHook broken = new() { Target = result.Receiver, Breaker = dealer };
+                    HookDispatch.Dispatch(ref x, ref broken, gatedByEnding: false);
+                    if (x.NeedsChoice)
+                        return;
+                }
+                if (result.UnblockedDamage > 0)
+                {
+                    AfterCurrentHpChanged(ref x, result.Receiver, -result.UnblockedDamage);
+                    if (x.NeedsChoice)
+                        return;
+                }
+                AfterDamageGivenHook given = new() { Result = result, Dealer = dealer };
+                HookDispatch.Dispatch(ref x, ref given, gatedByEnding: false);
                 if (x.NeedsChoice)
                     return;
+                if (!result.WasTargetKilled || !x.B.Creature(result.Receiver).IsDead)
+                {
+                    AfterDamageReceivedHook received = new() { Result = result, Dealer = dealer };
+                    HookDispatch.Dispatch(ref x, ref received, gatedByEnding: false);
+                    if (x.NeedsChoice)
+                        return;
+                    AfterDamageReceivedLateHook late = new() { Result = result, Dealer = dealer };
+                    HookDispatch.Dispatch(ref x, ref late, gatedByEnding: false);
+                    if (x.NeedsChoice)
+                        return;
+                }
+                else
+                {
+                    killed[killedCount++] = result.Receiver;
+                }
             }
-            if (result.UnblockedDamage > 0)
-            {
-                AfterCurrentHpChanged(ref x, result.Receiver, -result.UnblockedDamage);
-                if (x.NeedsChoice)
-                    return;
-            }
-            AfterDamageGivenHook given = new() { Result = result, Dealer = dealer };
-            HookDispatch.Dispatch(ref x, ref given, gatedByEnding: false);
-            if (x.NeedsChoice)
-                return;
-            if (!result.WasTargetKilled || !x.B.Creature(result.Receiver).IsDead)
-            {
-                AfterDamageReceivedHook received = new() { Result = result, Dealer = dealer };
-                HookDispatch.Dispatch(ref x, ref received, gatedByEnding: false);
-                if (x.NeedsChoice)
-                    return;
-                AfterDamageReceivedLateHook late = new() { Result = result, Dealer = dealer };
-                HookDispatch.Dispatch(ref x, ref late, gatedByEnding: false);
-                if (x.NeedsChoice)
-                    return;
-            }
-            else
-            {
-                killed[killedCount++] = result.Receiver;
-            }
+            if (killedCount > 0)
+                Kill(ref x, killed[..killedCount], force: false, results[0].HasCardSource, results[0].CardSource);
+            else if (x.B.Player.IsDead)
+                LoseCombat(ref x.B);
         }
-        if (killedCount > 0)
-            Kill(ref x, killed[..killedCount], force: false, results[0].HasCardSource, results[0].CardSource);
-        else if (x.B.Player.IsDead)
-            LoseCombat(ref x.B);
+        finally
+        {
+            x.PendingEnemyDeaths = outerDeaths;
+        }
     }
 
     /// <summary>Mirrors <c>CombatPredictionSimulator.Kill(IReadOnlyList&lt;Creature&gt;, bool)</c>.</summary>
     public static void Kill(ref Exec x, scoped ReadOnlySpan<byte> creatures, bool force,
         bool hasCardSource = false, Card cardSource = default)
     {
+        ushort outerDeaths = x.PendingEnemyDeaths;
         foreach (byte creature in creatures)
+            if (IsEnemyOwner(creature))
+                x.PendingEnemyDeaths |= (ushort)(1 << (creature - Limits.FirstEnemyOwner));
+        try
         {
-            KillWithoutCheckingWinCondition(ref x, creature, force, hasCardSource, cardSource);
-            if (x.NeedsChoice)
-                return;
+            foreach (byte creature in creatures)
+            {
+                KillWithoutCheckingWinCondition(ref x, creature, force, hasCardSource, cardSource);
+                if (x.NeedsChoice)
+                    return;
+            }
+            if (x.B.Player.IsDead)
+                LoseCombat(ref x.B);
         }
-        if (x.B.Player.IsDead)
-            LoseCombat(ref x.B);
+        finally
+        {
+            x.PendingEnemyDeaths = outerDeaths;
+        }
     }
 
     /// <summary>
@@ -739,8 +767,9 @@ public static partial class Kernel
     /// The hit is recorded even when the attack was fully blocked, exactly like the existing engine.
     /// </summary>
     private static void RecordDamageReceived(ref Battle battle, byte receiver, byte dealer,
-        in DamageResult result)
+        ref DamageResult result)
     {
+        result.RecordedInHistory = !IsOverOrEnding(battle);
         if (result.Props.IsPoweredAttack() && dealer == Limits.PlayerOwner && IsEnemyOwner(receiver))
         {
             ref Enemy enemy = ref battle.Enemies[receiver - Limits.FirstEnemyOwner];
@@ -780,6 +809,9 @@ public static partial class Kernel
         for (int index = 0; index < x.B.EnemyCount; index++)
         {
             ref Enemy enemy = ref x.B.Enemies[index];
+            // Nested auto-plays must leave the enclosing batch to run its AfterDeath callbacks.
+            if ((x.PendingEnemyDeaths & (1 << index)) != 0)
+                continue;
             if (rosterOnly && !InRoster(x.B, EnemyOwner((byte)index)))
                 continue;
             if ((enemy.Flags & EnemyFlags.DeathProcessed) != 0 || enemy.Creature.IsAlive)

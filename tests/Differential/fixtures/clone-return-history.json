@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "clone-return-history",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/clone-return-history.spec.json",
+  "gameModeForTest": "Blitz"
+}

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "catastrophe-dampen-autoplay",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/catastrophe-dampen-autoplay.spec.json"
+}

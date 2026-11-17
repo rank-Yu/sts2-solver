@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p13-mytes-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-mytes-normal.json\u0022}",
-  "rulesSha256": "cbeb987c59ed2f803477fbcea617413f5420464026d70ecd05e92043b78f7328",
+  "rulesSha256": "a35ec4a1e8da71295ae5f92cc2aa86aaea15f70ac29d3c43fb382b9f84499238",
   "counts": {
     "roots": 1,
     "k1": 11,

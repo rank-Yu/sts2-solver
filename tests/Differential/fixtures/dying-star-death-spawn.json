@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "dying-star-death-spawn",
+  "characterId": "REGENT",
+  "encounterId": "PHROG_PARASITE_ELITE",
+  "seed": "DYINGSTARSPAWN",
+  "initialPlayerStars": 3,
+  "initialEnemyCurrentHps": [
+    1
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "DYING_STAR",
+      "pile": "Hand"
+    }
+  ]
+}

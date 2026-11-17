@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "v113-helix-drill-free-transfigure",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-v113-helix-drill-free-transfigure.json\u0022}",
-  "rulesSha256": "6d116911d8749ebb371047ea56323679fe22daa0b78ecf3a9b022bad8dfbd908",
+  "rulesSha256": "8267eea9aa5e831f470f440de941c07d1edc6e66338f6792a0740ab7370e49ab",
   "counts": {
     "roots": 1,
     "k1": 7,

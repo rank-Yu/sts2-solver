@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "ks-lagavulin-matriarch-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ks-lagavulin-matriarch-boss.json\u0022}",
-  "rulesSha256": "eeb61a27b26f5298e1713df4fc36a76b2ac4aaf9d0f1f9a9b889ee81601099ad",
+  "rulesSha256": "53effbd93fe389be5b1c2b621e73c0404eb49eb60cca57622e422c39686e0344",
   "counts": {
     "roots": 1,
     "k1": 7,

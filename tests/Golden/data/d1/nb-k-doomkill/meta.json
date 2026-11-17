@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "nb-k-doomkill",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-k-doomkill.json\u0022}",
-  "rulesSha256": "794c6ebaf6e836a9edc5075fe9d4cf5fce24505aad530d7517726313dd936bbe",
+  "rulesSha256": "d2a398dc9d0f04c965c2cb76784358e40bb1cf35881c8c237ee4f9f68e597c56",
   "counts": {
     "roots": 1,
     "k1": 7,

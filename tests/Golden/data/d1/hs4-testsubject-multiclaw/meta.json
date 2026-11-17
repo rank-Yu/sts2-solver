@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "hs4-testsubject-multiclaw",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs4-testsubject-multiclaw.json\u0022}",
-  "rulesSha256": "c77a9ac4297a4881b89ae60d4c26384d006f682cfb9217ea25ab2fe94c909a38",
+  "rulesSha256": "89c4288f14624bd2484b95b76dec6fefbe77d6d45bfb90c04279da32482084d0",
   "counts": {
     "roots": 1,
     "k1": 1,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p15-g-hand-conditions",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p15-g-hand-conditions.json\u0022}",
-  "rulesSha256": "c8962826e1b5b801c47e890b631d6bd87a0ba837439e03374c95853254f54442",
+  "rulesSha256": "e94187aeb90987a6015ce20f7db652af45b26028fd7f4c6be4c28ccb7c32de38",
   "counts": {
     "roots": 1,
     "k1": 9,

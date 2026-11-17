@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "ts-b-toolbox",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ts-b-toolbox.json\u0022}",
-  "rulesSha256": "99cf985741464cfb3483a45fb05e3cbd960fbc9afd4cc525be046403d63756f8",
+  "rulesSha256": "ca88ea9025e30e1bf8f9f25e0eeb63813acafce45cfe446414b163be55064f79",
   "counts": {
     "roots": 3,
     "k1": 42,

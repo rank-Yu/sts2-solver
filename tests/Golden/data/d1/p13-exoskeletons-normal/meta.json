@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p13-exoskeletons-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-exoskeletons-normal.json\u0022}",
-  "rulesSha256": "5e3edbd399939e6e123dd6dfb8f177fa5fa19fb5942176cd7817ab89e3a56e32",
+  "rulesSha256": "7c093df94cb214f84c719882de9059c1eede773d61225653369c8b1f396a12ba",
   "counts": {
     "roots": 1,
     "k1": 16,

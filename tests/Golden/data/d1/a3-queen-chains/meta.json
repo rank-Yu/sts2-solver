@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-queen-chains",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-queen-chains.json\u0022}",
-  "rulesSha256": "c31db6ec00306858c5e8ed24716ebc0d9c7549b3f8eb514260741267789bf618",
+  "rulesSha256": "5f2729958f4d78b3f61121846b775e8a36933da6f715088a4a65f4db2c748d2b",
   "counts": {
     "roots": 1,
     "k1": 12,

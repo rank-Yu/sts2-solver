@@ -56,7 +56,6 @@ public static class RulesDiff
             actual.HasInfiniteHpDisplayMonster, Add);
         Scalar("hasPaelsLegion", expected.HasPaelsLegion, actual.HasPaelsLegion, Add);
         Scalar("furCoatSpawnHpOne", expected.FurCoatSpawnHpOne, actual.FurCoatSpawnHpOne, Add);
-        Scalar("rootLostHpMask", expected.RootLostHpMask, actual.RootLostHpMask, Add);
         Scalar("hasHistoryCourse", expected.HasHistoryCourse, actual.HasHistoryCourse, Add);
         return differences;
     }

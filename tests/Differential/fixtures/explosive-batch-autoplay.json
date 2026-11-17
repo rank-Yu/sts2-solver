@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "KNIGHTS_ELITE",
+  "seed": "INTERACTIONROUND6",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "characterId": "IRONCLAD",
+  "scenarioId": "explosive-batch-autoplay",
+  "actIndexForTest": 2,
+  "initialEnemyCurrentHps": [
+    500,
+    1,
+    1
+  ],
+  "cards": [
+    {
+      "cardId": "HOWL_FROM_BEYOND",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw",
+      "count": 3
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "HELLRAISER_POWER",
+      "target": "Player",
+      "amount": 1
+    },
+    {
+      "powerId": "EXPLOSIVE_POWER",
+      "target": "Enemy",
+      "targetIndex": 1,
+      "amount": 5
+    },
+    {
+      "powerId": "EXPLOSIVE_POWER",
+      "target": "Enemy",
+      "targetIndex": 2,
+      "amount": 5
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "GREMLIN_HORN",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

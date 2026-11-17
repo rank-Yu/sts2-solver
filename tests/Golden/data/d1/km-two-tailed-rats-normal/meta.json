@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "km-two-tailed-rats-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km-two-tailed-rats-normal.json\u0022}",
-  "rulesSha256": "e4d22e16fc1322897203b930160ea2ed66061466cd7b5e4b2d29619fc9c129e9",
+  "rulesSha256": "d77d770521ac31cab2d4115f26337448b04df9c98b69f99d1487a02d83d38dad",
   "counts": {
     "roots": 1,
     "k1": 15,

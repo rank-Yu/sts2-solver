@@ -83,11 +83,6 @@ public static partial class Kernel
             return false;
         if (extraTurn)
         {
-            // An extra turn advances the player's turn number, so damage from the just-finished turn
-            // becomes Emotion Chip's "previous turn" window (recorded only when that relic is present).
-            AfterRelicRoundPass(ref x);
-            if (x.NeedsChoice)
-                return false;
             AfterTakingExtraTurnPass(ref x, extraTurnSource);
             if (x.NeedsChoice)
                 return false;
@@ -247,9 +242,6 @@ public static partial class Kernel
             return;
         if (!x.NeedsChoice)
             NormalizeCardAfflictions(ref x);
-        AfterRelicRoundPass(ref x);
-        if (x.NeedsChoice)
-            return;
         if (CheckWinCondition(ref x.B))
             return;
         PrepareMonsterMovesForNextRound(ref x);
@@ -281,30 +273,6 @@ public static partial class Kernel
         if (battle.Side != side)
             ClearLostHpThisTurn(ref battle);
         battle.Side = side;
-    }
-
-    /// <summary>
-    /// <c>HasLostHpThisTurn</c> after <c>AdvancePlayerTurn</c>'s cache reset: only the root history's
-    /// per-creature answer remains (<see cref="Rules.RootLostHpMask"/>).
-    /// </summary>
-    private static void RestoreRootLostHp(ref Battle battle, ushort mask)
-    {
-        SetLostHpFlag(ref battle.Player, (mask & (1 << Limits.PlayerOwner)) != 0);
-        SetLostHpFlag(ref battle.Osty, (mask & (1 << Limits.OstyOwner)) != 0);
-        SetLostHpFlag(ref battle.Wuppy, (mask & (1 << Limits.WuppyOwner)) != 0);
-        for (int index = 0; index < battle.EnemyCount; index++)
-        {
-            SetLostHpFlag(ref battle.Enemies[index].Creature,
-                (mask & (1 << EnemyOwner(index))) != 0);
-        }
-    }
-
-    private static void SetLostHpFlag(ref Creature creature, bool lost)
-    {
-        if (lost)
-            creature.Flags |= CreatureFlags.LostHpThisTurn;
-        else
-            creature.Flags &= ~CreatureFlags.LostHpThisTurn;
     }
 
     private static void ClearLostHpThisTurn(ref Battle battle)
@@ -708,14 +676,12 @@ public static partial class Kernel
         if (!takingExtraTurn)
             x.B.Round++;
         x.B.PlayerTurn++;
-        // RoundNumber and CurrentSide only clear the lost-HP marks when they change. An extra turn
-        // keeps the same round and side, and AdvancePlayerTurn only drops the prediction cache: the
-        // engine then answers HasLostHpThisTurn from the immutable root history. Restore exactly the
-        // root answer for an extra turn; a normal turn advances the round and clears everything.
-        if (takingExtraTurn)
-            RestoreRootLostHp(ref x.B, x.R.RootLostHpMask);
-        else
-            ClearLostHpThisTurn(ref x.B);
+        // The history window advances with the player turn number, including extra turns.
+        AfterRelicRoundPass(ref x);
+        if (x.NeedsChoice)
+            return false;
+        // Native history includes the player turn number, so an extra turn also starts a new window.
+        ClearLostHpThisTurn(ref x.B);
         BeginPlayerSideTurn(ref x.B);
         SnapshotPowerAmountsAtTurnStart(ref x.B, ParticipantMask(Limits.PlayerOwner));
         ReadOnlySpan<byte> player = [Limits.PlayerOwner];
@@ -752,13 +718,7 @@ public static partial class Kernel
         int energyNextTurn = ConsumeEnergyNextTurn(ref x.B);
         x.B.Energy = (int)Math.Clamp((long)x.B.Energy + Math.Max(0, ModifiedMaxEnergy(ref x)) + energyNextTurn,
             0, Limits.ValueClamp);
-        PowersAfterEnergyReset(ref x);
-        if (x.NeedsChoice)
-            return;
-        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player);
-        if (x.NeedsChoice)
-            return;
-        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player);
+        AfterEnergyReset(ref x);
         if (x.NeedsChoice)
             return;
 

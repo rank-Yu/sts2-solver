@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-devoted-sculptor-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-devoted-sculptor-weak.json\u0022}",
-  "rulesSha256": "cae022a30272b1d62b82c52f95b49fc52cabaf2f3175a8af6a219c36a213636e",
+  "rulesSha256": "845e7013890d0a684ddedfd9980f18dc46c8771fa48bcabffae54d3f28dab6ed",
   "counts": {
     "roots": 1,
     "k1": 7,

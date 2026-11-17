@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "r2-a-relic-combat",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r2-a-relic-combat.json\u0022}",
-  "rulesSha256": "ca0829334eb6974231ca14c33ad24352f92c6c1ec5e0a1b5af59e0e218840975",
+  "rulesSha256": "7aeca0ee1f494655871c95783c27e1163564f8773467aeaca10a4a94af5a0840",
   "counts": {
     "roots": 1,
     "k1": 16,

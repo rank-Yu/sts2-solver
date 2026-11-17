@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "enemy-turn-autoplay-cost-cleanup",
+  "characterId": "IRONCLAD",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "ENEMYCOSTCLEANUP",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 500,
+  "initialEnemyMoveIds": [
+    "SWIPE_MOVE"
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STOMP",
+      "pile": "Discard",
+      "count": 1
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw",
+      "count": 3
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "HELLRAISER_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "CENTENNIAL_PUZZLE",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

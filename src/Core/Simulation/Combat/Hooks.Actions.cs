@@ -83,18 +83,32 @@ public static partial class HookDispatch
         int count = CollectListeners(x.B, x.R, T.Mask, listeners);
         if (count == 0)
             return;
-        Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
-        for (int index = 0; index < count; index++)
-            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
-        for (int index = 0; index < count; index++)
+        Span<byte> outerMarks = stackalloc byte[count];
+        int marked = MarkCardListeners(ref x, listeners[..count], outerMarks, out int markBase, out int markStart);
+        try
         {
-            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
-                continue;
-            int instances = CountSnapshotPower(x.B, snapshot[index]);
-            InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
-            AdvancePowerSnapshot(x.B, snapshot, index, instances);
-            if (x.NeedsChoice)
-                return;
+            Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
+            for (int index = 0; index < count; index++)
+                snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
+            for (int index = 0; index < count; index++)
+            {
+                if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
+                    continue;
+                int instances = CountSnapshotPower(x.B, snapshot[index]);
+                InvokeWithChoiceSource(ref x, Definition(x.B, x.R, current), current, ref hook);
+                AdvancePowerSnapshot(x.B, snapshot, index, instances);
+                if (x.NeedsChoice)
+                    return;
+            }
+        }
+        finally
+        {
+            if (marked != 0)
+            {
+                for (int index = 0; index < marked; index++)
+                    Kernel.RestoreTransientMark(ref x.B, (byte)(markStart + index), outerMarks[index]);
+                Kernel.ReleaseTransientMarks(ref x, markBase, markStart, marked);
+            }
         }
     }
 
@@ -151,6 +165,42 @@ public static partial class HookDispatch
         {
             x.ChoiceOrigin = savedOrigin;
         }
+    }
+
+    // Card listeners are adjacent and ordered by absolute card position in CollectListeners.
+    // Give each distinct card an identity for this pass; generation or movement by an earlier
+    // listener can otherwise make an old index point at another copy of the same card.
+    private static int MarkCardListeners(ref Exec x, scoped ReadOnlySpan<Listener> listeners,
+        scoped Span<byte> outerMarks, out int markBase, out int markStart)
+    {
+        int count = 0;
+        int previous = -1;
+        foreach (Listener listener in listeners)
+        {
+            if (listener.Kind is not (ListenerKind.Card or ListenerKind.Affliction or ListenerKind.Enchantment)
+                || listener.Index == previous)
+                continue;
+            previous = listener.Index;
+            count++;
+        }
+        markBase = x.TransientMarkBase;
+        markStart = 0;
+        if (count == 0)
+            return 0;
+        markBase = Kernel.ReserveTransientMarks(ref x, count, out markStart);
+        previous = -1;
+        int item = 0;
+        foreach (Listener listener in listeners)
+        {
+            if (listener.Kind is not (ListenerKind.Card or ListenerKind.Affliction or ListenerKind.Enchantment)
+                || listener.Index == previous)
+                continue;
+            previous = listener.Index;
+            ref Card card = ref x.B.Cards[listener.Index];
+            outerMarks[item] = card.TransientMark;
+            card.TransientMark = (byte)(markStart + item++);
+        }
+        return count;
     }
 
     private static SnapshotEntry Snapshot(in Battle battle, Rules rules, Listener listener)
@@ -310,6 +360,15 @@ public static partial class HookDispatch
             case ListenerKind.Card:
             case ListenerKind.Affliction:
             case ListenerKind.Enchantment:
+                if (entry.Card.TransientMark != 0)
+                {
+                    if (!Kernel.TryFindUniqueTransientMark(battle, entry.Card.TransientMark,
+                        out Pile markedPile, out int markedIndex))
+                        return false;
+                    int absolute = Piles.Start(battle, markedPile) + markedIndex;
+                    current = new Listener(entry.Listener.Kind, (ushort)absolute, entry.Listener.Owner);
+                    return ListenerId(battle, rules, current) == entry.Id;
+                }
                 // A played card keeps its Play-local slot while generated cards shift the packed
                 // prefix. Its old absolute index can point at an identical exhausted copy.
                 // Other piles can move within the same callback: Right Hand Hand moves Discard to

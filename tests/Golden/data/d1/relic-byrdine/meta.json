@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "relic-byrdine",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-byrdine.json\u0022}",
-  "rulesSha256": "0196b1705f35aa84a11679580dc61c6da01ab8e0a427fe0e0a0d428e8039efad",
+  "rulesSha256": "8e2a6cc00ed1a0e64f7603c0b9f4bf943c13ffb7fcd7b3adabedd517c4a7c3f2",
   "counts": {
     "roots": 1,
     "k1": 4,

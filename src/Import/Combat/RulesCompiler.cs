@@ -213,21 +213,6 @@ public static partial class RulesCompiler
         if (known.Count > Limits.Enemies)
             throw new UnsupportedImportException(ImportReason.Capacity, $"敌人数 {known.Count}");
 
-        ushort rootLostHpMask = 0;
-        if (history.HasLostHpThisTurn(player.Creature))
-            rootLostHpMask |= 1 << Limits.PlayerOwner;
-        if (player.Osty is { } osty && history.HasLostHpThisTurn(osty))
-            rootLostHpMask |= 1 << Limits.OstyOwner;
-        for (int index = 0; index < known.Count && index < Limits.Enemies; index++)
-        {
-            if (history.HasLostHpThisTurn(known[index]))
-                rootLostHpMask |= (ushort)(1 << (Limits.FirstEnemyOwner + index));
-        }
-        if (player.PlayerCombatState!.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy) is { } wuppy
-            && history.HasLostHpThisTurn(wuppy))
-            rootLostHpMask |= 1 << Limits.WuppyOwner;
-        builder.RootLostHpMask = rootLostHpMask;
-
         List<ushort> spawnClosure = SpawnClosure(known);
         if (known.Count + spawnClosure.Count > Limits.MonsterRules)
             throw new UnsupportedImportException(ImportReason.Capacity,
@@ -481,7 +466,15 @@ public static partial class RulesCompiler
                 ColorlessCardPool => TransformPool.Colorless,
                 StatusCardPool => TransformPool.Status,
                 CurseCardPool => TransformPool.Curse,
-                _ => TransformPool.Character,
+                IroncladCardPool => TransformPool.Ironclad,
+                SilentCardPool => TransformPool.Silent,
+                DefectCardPool => TransformPool.Defect,
+                NecrobinderCardPool => TransformPool.Necrobinder,
+                RegentCardPool => TransformPool.Regent,
+                FoolCardPool => TransformPool.Fool,
+                EventCardPool or QuestCardPool or TokenCardPool => TransformPool.Colorless,
+                _ => throw new UnsupportedImportException(ImportReason.UnsupportedCard,
+                    $"未知变牌卡池 {copy.Pool.Id.Entry}"),
             },
             EnergyCost = copy.EnergyCost._base,
             CostsX = copy.EnergyCost.CostsX,
@@ -541,15 +534,13 @@ public static partial class RulesCompiler
         ushort[]? outOfCombatPotionPool = null;
         bool needsPotionPool = false;
         bool needsOutOfCombatPotionPool = false;
-        // The root scan above only sees content that already exists. A generated identity-ledger
-        // card (Forge's Sovereign Blade) requires the same scans. Only the card that owns a
-        // per-object ledger counts here: whether a generated pool contains some card that could
-        // generate identity content is not enough (Entropy's pools do), and the root flag is part
-        // of the frozen rules encoding.
+        // Generated cards and powers need the same identity-aware hooks as root content.
+        // Declare traverses the actual generation closure, including potion card pools.
         bool generatedIdentityContent = false;
         void Declare(ContentDef def)
         {
-            generatedIdentityContent |= def is CardDef { UsesIdentityLedger: true };
+            generatedIdentityContent |= def is CardDef { IsIdentityContent: true }
+                or CardDef { UsesIdentityLedger: true } or PowerDef { IsIdentityContent: true };
             needsPotionPool |= def.GeneratesRandomPotion;
             needsOutOfCombatPotionPool |= def.GeneratesOutOfCombatPotion;
             if (def is PotionDef && !seenPotionDefs.Add(def.Id))
@@ -727,6 +718,18 @@ public static partial class RulesCompiler
                     : card.Tags.Contains(poolKey == CardPools.Wah ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Wah
                         : poolKey == CardPools.Cho ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Cho
                         : MegaCrit.Sts2.Core.Entities.Cards.CardTag.Ki)),
+            CardPools.IroncladAll => ModelDb.CardPool<IroncladCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
+            CardPools.SilentAll => ModelDb.CardPool<SilentCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
+            CardPools.DefectAll => ModelDb.CardPool<DefectCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
+            CardPools.NecrobinderAll => ModelDb.CardPool<NecrobinderCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
+            CardPools.RegentAll => ModelDb.CardPool<RegentCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
+            CardPools.FoolAll => ModelDb.CardPool<FoolCardPool>()
+                .GetUnlockedCards(player.UnlockState, constraint),
             CardPools.CharacterAll => player.Character.CardPool
                 .GetUnlockedCards(player.UnlockState, constraint),
             CardPools.CharacterAttacks => player.Character.CardPool

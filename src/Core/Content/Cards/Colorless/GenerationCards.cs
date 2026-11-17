@@ -128,10 +128,9 @@ public sealed class Catastrophe : CardDef
 
     public override void OnPlay(ref Exec x)
     {
-        int count = (int)CardEffects.Var(x, 0);
-        Span<Card> buffer = stackalloc Card[x.B.CardCount];
-        Span<int> origins = stackalloc int[x.B.CardCount];
-        for (int item = 0; item < count; item++)
+        Span<Card> buffer = stackalloc Card[Limits.Cards];
+        Span<int> origins = stackalloc int[Limits.Cards];
+        for (int item = 0; item < (int)CardEffects.Var(x, 0); item++)
         {
             int pileCount = x.B.DrawCount;
             int eligibleCount = 0;
@@ -168,6 +167,8 @@ public sealed class Catastrophe : CardDef
             Kernel.AutoPlay(ref x, Pile.Draw, position);
             if (x.NeedsChoice)
                 return;
+            // An auto-play can kill the last Dampen caster and restore this card mid-loop.
+            Kernel.SyncCurrentPlayCard(ref x);
         }
     }
 

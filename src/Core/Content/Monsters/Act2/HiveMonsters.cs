@@ -162,7 +162,7 @@ public sealed class Ovicopter : MonsterDef
 /// <summary>
 /// ToughEgg: summoned by Ovicopter. Entrance applies HatchPower 2 during the enemy turn and 1
 /// otherwise (MonsterSpawnSupport.ApplyNativeEntrancePowers). "HATCH_MOVE" removes every power except
-/// Minion, rolls its new HP from the Niche stream in [HatchlingMinHp, HatchlingMaxHp] and sets both
+/// Minion and Impaled, rolls its new HP from the Niche stream in [HatchlingMinHp, HatchlingMaxHp] and sets both
 /// current and max HP (MonsterMoveEffects "ToughEgg"). The follow-up NIBBLE_MOVE is a plain attack.
 /// </summary>
 [ContentId("TOUGH_EGG")]
@@ -192,7 +192,7 @@ public sealed partial class ToughEgg : MonsterDef
         {
             if (x.B.Powers[index].Owner != owner)
                 continue;
-            if (Registry.Power(x.B.Powers[index].Id).NativeId == "MINION_POWER")
+            if (Registry.Power(x.B.Powers[index].Id).NativeId is "MINION_POWER" or "IMPALED_POWER")
                 continue;
             Kernel.SetPowerAmount(ref x.B, owner, x.B.Powers[index].Id, 0);
         }

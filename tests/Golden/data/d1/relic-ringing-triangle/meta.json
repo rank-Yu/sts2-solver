@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "relic-ringing-triangle",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022fixtures/flash-relic-ringing-triangle.json\u0022}",
-  "rulesSha256": "1243d26d5a3252f627bba139aa00da1aa4c51d7debc6b936e1528886becc6511",
+  "rulesSha256": "9354deb9a1d35c2346e1bc5ae509d515bd4dada7a61158d79f9e653b64492ca0",
   "counts": {
     "roots": 1,
     "k1": 3,

@@ -23,31 +23,15 @@ public sealed class MonologuePower : PowerDef
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
         => Kernel.ResolveMonologueAfterPlay(ref x, self, Registry.PowerId<StrengthPower>());
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (!participates)
             return;
-        ref Power power = ref x.B.Powers[self.Index];
-        int strengthApplied = power.Aux1;
-        int amount = power.Amount;
-        int strengthValue = power.Aux0;
-        byte owner = power.Owner;
-        if (strengthApplied != 0 && Registry.TryPower("STRENGTH_POWER", out ushort strength))
-        {
-            // Retiring the temporary Strength buff can remove it (and shift this row), so address the
-            // Monologue instance by its captured value, not by the pre-application row index.
-            Kernel.ApplyPower(ref x, owner, strength, -strengthApplied, owner);
-        }
-        for (int index = 0; index < x.B.PowerCount; index++)
-        {
-            ref readonly Power candidate = ref x.B.Powers[index];
-            if (candidate.Id == Id && candidate.Owner == owner && candidate.Amount == amount
-                && candidate.Aux0 == strengthValue && candidate.Aux1 == strengthApplied)
-            {
-                Kernel.SetPowerAmountAt(ref x.B, index, 0);
-                return;
-            }
-        }
+        int strengthApplied = x.B.Powers[self.Index].Aux1;
+        Kernel.RemovePowerAt(ref x.B, self.Index);
+        if (strengthApplied != 0)
+            Kernel.ApplyPower(ref x, self.Owner, Registry.PowerId<StrengthPower>(),
+                -strengthApplied, self.Owner);
     }
 }
 

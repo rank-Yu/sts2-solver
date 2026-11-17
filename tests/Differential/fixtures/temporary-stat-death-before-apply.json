@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "temporary-stat-death-before-apply",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/temporary-stat-death-before-apply.spec.json",
+  "gameModeForTest": "Blitz"
+}

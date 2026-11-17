@@ -285,7 +285,7 @@ public sealed class ShroudPower : PowerDef
 /// <summary>
 /// <c>SicEmPower</c>: when the applier's Osty damages the owner, summon that much HP for the pet
 /// (<c>AfterDamageGivenMirrors.HandleSicEmPower</c>); removed at its owner's side turn end
-/// (<c>EndTurnPowerSupport.TriggerBatch048</c>).
+/// (<c>PowerModel.AfterSideTurnEnd</c>).
 /// </summary>
 [ContentId("SIC_EM_POWER")]
 public sealed class SicEmPower : PowerDef
@@ -304,7 +304,7 @@ public sealed class SicEmPower : PowerDef
         }
     }
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
             Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, 0);
@@ -314,7 +314,7 @@ public sealed class SicEmPower : PowerDef
 /// <summary>
 /// <c>OblivionPower</c>: records its amount at each play start (the kernel's transient play stack, the
 /// existing engine's <c>CardPlayPairPredictionState</c>) and applies that amount as Doom after the play;
-/// removed at the player's side turn end (<c>EndTurnPowerSupport.TriggerBatch048</c>).
+/// removed at the player's side turn end (<c>PowerModel.AfterSideTurnEnd</c>).
 /// </summary>
 [ContentId("OBLIVION_POWER")]
 public sealed class OblivionPower : PowerDef
@@ -339,7 +339,7 @@ public sealed class OblivionPower : PowerDef
         Kernel.ApplyPower(ref x, self.Owner, CountdownPower.DoomId(), amount, power.Applier);
     }
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (side == Side.Player)
             Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, 0);
@@ -385,7 +385,7 @@ public sealed class VeilpiercerPower : PowerDef
 /// <summary>
 /// <c>DebilitatePower</c>: the owner takes double Vulnerable damage and deals half Weak damage
 /// (<c>ModifyDamageMirrors</c> folds this into the Vulnerable and Weak multipliers); decrements at its
-/// owner's side turn end (<c>EndTurnPowerSupport.TriggerBatch048</c>).
+/// owner's side turn end (<c>PowerModel.AfterSideTurnEnd</c>).
 /// </summary>
 [ContentId("DEBILITATE_POWER")]
 public sealed class DebilitatePower : PowerDef
@@ -394,7 +394,7 @@ public sealed class DebilitatePower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
             Kernel.ModifyPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id,

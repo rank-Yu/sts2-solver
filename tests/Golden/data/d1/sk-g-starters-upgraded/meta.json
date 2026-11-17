@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "sk-g-starters-upgraded",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-g-starters-upgraded.json\u0022}",
-  "rulesSha256": "e8275c671e2d858c698dbddf78835c67f79aa250917c4c160c979e2a4f07e640",
+  "rulesSha256": "2a243a2e8faa9b3dd0e414ba6d09deff444c4f18315e54c411ec901b1b3212ad",
   "counts": {
     "roots": 1,
     "k1": 9,

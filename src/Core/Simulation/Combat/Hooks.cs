@@ -612,11 +612,19 @@ public static partial class HookDispatch
         }
         Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
         int count = CollectListeners(x.B, x.R, HookMask.AfterModifyingCardPlayCount, listeners);
+        Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
+        int changed = 0;
         for (int index = 0; index < count; index++)
+            if (Contains(modifiers, listeners[index]))
+                snapshot[changed++] = Snapshot(x.B, x.R, listeners[index]);
+        snapshot = snapshot[..changed];
+        for (int index = 0; index < changed; index++)
         {
-            if (!Contains(modifiers, listeners[index]))
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
                 continue;
-            Definition(x.B, x.R, listeners[index]).AfterModifyingCardPlayCount(ref x, listeners[index], card);
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
+            Definition(x.B, x.R, current).AfterModifyingCardPlayCount(ref x, current, card);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
             if (x.NeedsChoice)
                 return;
         }

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "characterId": "IRONCLAD",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "EMOTIONWINDOWS",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 30,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BLOODLETTING",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "scenarioId": "emotion-chip-doom-terminal",
+  "initialPlayerBlock": 500,
+  "powers": [
+    {
+      "powerId": "BARRICADE_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "POTION_OF_DOOM"
+    }
+  ]
+}

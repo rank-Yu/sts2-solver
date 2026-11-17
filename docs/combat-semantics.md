@@ -80,7 +80,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 
 新一轮侧回合开始派发在入口检查战斗是否结束；滚石等效果已击杀最后敌人时，不再清零开信刀等回合计数。
 
-**回合末监听器迭代。** `Hook.AfterSideTurnEnd` 在进入阶段二时创建一次监听器迭代；`IsOverOrEnding` 只在迭代开始时检查。阶段二的 Power 监听先运行、随后才是遗物监听，如果前一个监听在本次迭代中击杀最后一名主要敌人，剩余监听（ArtOfWar、Kusarigama 等）仍按原版快照继续执行。相反，阶段二入口已经结束或玩家已进入失败结算时整次迭代为空，遗物不得清零。回合准备的 `ModifyHandDraw` 在战斗已结束/结束中时同样为空，Pendulum 等监听不推进计数。
+**回合末监听器迭代。** `Hook.AfterSideTurnEnd` 在进入阶段二时创建一次监听器迭代；`IsOverOrEnding` 只在迭代开始时检查。阶段二的 Power 监听先运行、随后才是遗物监听，如果前一个监听在本次迭代中击杀最后一名主要敌人，剩余监听（ArtOfWar、Kusarigama 等）仍按原版快照继续执行。相反，阶段二入口已经结束或玩家已进入失败结算时整次迭代为空，遗物不得清零。回合准备的 `ModifyHandDraw` 在战斗已结束/结束中时同样为空，Pendulum 等监听不推进计数。 `AfterEnergyReset` 与 Late 各自在开始时检查战斗是否已结束；普通阶段中的能力与遗物共用一次迭代，能力中途结束战斗不截断同阶段剩余遗物。
 
 ### 3.3 Hook 目录
 
@@ -157,7 +157,7 @@ Power 的顺序见 [状态布局](combat-state-layout.md#33-power)。
 - **加入战斗。** `AddGeneratedCard` 对应 `AddGeneratedCardsToCombat` 的单卡路径：手牌已满改投弃牌堆，按 `Bottom`/`Top`/`Random` 插入，调用卡的 `AfterEnteredCombat`。`SetToFreeThisTurn` 写入绝对 0 能量修饰（EndOfTurn|WhenPlayed）和 0 临时星能费用（回合末清除）。
 - **生成选项选择。** Discovery/Splash 先记录生成的选项并写入风险（原引擎的 `History.CardGenerationOptions` + `RecordRisk(UnresolvedPlayerChoice)`），随后 `GetSpec` 的 `GenerateToHand` 分支在 `OwnChoice` 提问。Sts2Solver 把选项值直接放进 `ChoiceRequest.GeneratedOptions`（不在任何牌堆），选择后按 `PredictedCard.Clone()` 的语义复制卡值（不是 `CreateClone`，`IsClone` 保持为假）、`SetToFreeThisTurn`、加入手牌；空选项也提一个空范围选择，与 `RangeSpec` 一致。
 - **回合开始的生成。** SentryMode 在 `BeforeHandDraw` 生成 `SweepingGaze`；CallOfTheVoid 在同一时机对 `CharacterAll` 逐张执行 `TakeRandom(1)`（每张一次完整洗牌，等价原引擎的 `GetDistinctForCombat(1)` 循环），生成后补 Ethereal 关键字再入手；Pagestorm 在 `AfterCardDrawn` 只按本地 Ethereal 关键字追加抽牌。BigHat 的生成发生在玩家第 1 回合开始，早于根捕获，故不在内核路径里。
-- **变化的候选池。** `CardFactory.GetDefaultTransformationOptions` 对 Quest/Event/Ancient/Token 用无色池，其余用卡牌自己的原生池（角色、无色、Status、Curse）。Sts2Solver 在规则表为每张卡编译 `TransformPool`，Entropy 的变化按它选择冻结池，而不是按“当前是否在角色池里”猜测；Status/Curse 池分别对应 `CardPools.StatusAll`/`CurseAll`。`ReplaceCard` 对应 `CardCmd.Transform` 的原引擎结算：从原牌堆移除原卡（`RemoveFromCombat`），再把替换卡插回 `min(原下标, 当前长度)` 并调用 `AfterEnteredCombat`；不触发 `AfterCardChangedPiles`。Sts2Solver 没有实例身份，按位置定位；PrimalForce 对 snapshot 的手牌攻击按升序原位替换为 GiantRock（PrimalForce 升级时 GiantRock 升 1 级）。Entropy 的回合开始变化按 `TurnStartChoiceSupport.Resolve(Transform)` 选择手牌，再对每张走 `CombatPredictionSimulator.CreateRandomCardForTransform`：候选是原卡 `Pool`（Quest/Event/Ancient/Token 取无色池）中 `CanBeGeneratedInCombat`、非 Basic/Ancient/Event/Epoch 排除的卡，排除原卡 Id，用 `CombatCardSelection` 流 `NextItem` 抽一张 0 级规范卡；候选为空按 `UnsupportedException` 拒绝。
+- **变化的候选池。** `CardFactory.GetDefaultTransformationOptions` 对 Quest/Event/Ancient/Token 用无色池，其余用卡牌自己的原生池（各角色各自的卡池、无色、Status、Curse）。Sts2Solver 在规则表为每张卡编译 `TransformPool`，Entropy 的变化按它选择冻结池，而不是按“当前是否在角色池里”猜测；Status/Curse 池分别对应 `CardPools.StatusAll`/`CurseAll`。`ReplaceCard` 对应 `CardCmd.Transform` 的原引擎结算：从原牌堆移除原卡（`RemoveFromCombat`），再把替换卡插回 `min(原下标, 当前长度)` 并调用 `AfterEnteredCombat`；不触发 `AfterCardChangedPiles`。Sts2Solver 没有实例身份，按位置定位；PrimalForce 对 snapshot 的手牌攻击按升序原位替换为 GiantRock（PrimalForce 升级时 GiantRock 升 1 级）。Entropy 的回合开始变化按 `TurnStartChoiceSupport.Resolve(Transform)` 选择手牌，再对每张走 `CombatPredictionSimulator.CreateRandomCardForTransform`：候选是原卡 `Pool`（Quest/Event/Ancient/Token 取无色池）中 `CanBeGeneratedInCombat`、非 Basic/Ancient/Event/Epoch 排除的卡，排除原卡 Id，用 `CombatCardGeneration` 流 `NextItem` 抽一张 0 级规范卡；候选为空按 `UnsupportedException` 拒绝。
 - **随机药水。** 一次 `CombatPotionGeneration` `NextFloat` 选稀有度（Rare ≤ 0.1、Uncommon ≤ 0.35、否则 Common），再一次 `NextItem` 在冻结的同稀有度池中选；`TryProcurePotion` 放入第一个空槽，成功时记录 `LongTermResourceValue + 20`。
 - **药水生成选择。** Attack/Skill/Power/ColorlessPotion 在 `OnUse` 里生成 3 张去重候选，再走 `PotionChoiceSupport.GetSpec` 的 `GenerateToHand` 0..1 选择。该选择不走 `PendingTurnStartChoice`：原引擎把候选写进 `History.CardGenerationOptions`，`PotionExecutionSupport.Complete` 从 `PlanAction.Choice` 直接结算 `PotionChoiceSupport.Apply`。Sts2Solver 走普通的选择协议：动作没带选择时返回 `NeedsChoice`，调用方带上选择从父状态重执行；选定后按 `PredictedCard.Clone()` 语义复制（`IsClone` 保持假）、`SetToFreeThisTurn`，加入手牌底部。
 - **风险标记。** `BattleFlags.HasRisk` 表示原引擎快照里**未补偿**的风险，根导入时读取（含义见 [状态布局](combat-state-layout.md#31-头部)）。Discovery、Splash 虽然记录 `UnresolvedPlayerChoice`，但 `CardOnPlayCompensationCatalog` 把它们的 `OnPlay` 风险标为已补偿，内核不置位。SeekerStrike 的 `BuildSeekerSpec` 不在补偿目录里，原引擎会记录风险；本内核逐一枚举这个选择，不置位（保留路线历史标记）。充能球生成达到 1000 次上限时置位，并一直保持到战斗结束。
@@ -234,10 +234,10 @@ AmbergrisPower 和 PaelsEye 能让玩家连续行动一回合，这时整个敌�
 
 玩家回合结束第二阶段和敌人死亡结算之后、敌方回合之前，`Kernel.ShouldTakeExtraTurnPass` 按监听顺序询问 `ShouldTakeExtraTurn`，第一个返回真的生效。生效时：
 
-1. 先跑 `AfterRelicRoundPass`（原引擎 `RecordRelicRoundDamage` 的位置）：EmotionChip 在这里把“本回合失血”翻到“上一回合”。
-2. 再在固定的监听快照上跑 `AfterTakingExtraTurnPass`：Ambergris 自减一层，PaelsEye 置已用。
-3. **跳过整个敌方回合**和 `PrepareMonsterMovesForNextRound`，以 `AdvanceRoundPlayerStart(takingExtraTurn: true)` 进入玩家回合开始：轮次不加一，玩家回合数加一，`TriggerSideTurnStart` 的 Rampart 不执行。随后的 `StartTurn` 与普通回合走同一个 `SetupPlayerTurn`：额外回合只把起始生物限定为 `PlayersTakingExtraTurn`，并跳过敌方 `PrepareForNextTurn` [GAME CombatManager.cs:701-706, 725-733]；抽牌、`AfterPlayerTurnStart` 的选择、`AfterSideTurnStart` 和球 `AfterTurnStart` 都按同一顺序执行；`Selector == null` 的可见准备页在第一次选择处暂停，普通 EndTurn 的立即选择不暂停 [GAME CombatManager.cs:777-830]。
-4. 本回合失血标记：原引擎的 `AdvancePlayerTurn` 只清空 `_unblockedDamageThisTurn` 缓存，之后从不可变的根历史重算 `HasLostHpThisTurn`。Sts2Solver 在额外回合用 `Rules.RootLostHpMask`（根捕获时每个 owner 的答案）恢复这些标记；普通回合换轮时全部清零。根历史之外的预测期伤害不计入，与原引擎一致。
+1. 在固定的监听快照上跑 `AfterTakingExtraTurnPass`：Ambergris 自减一层，PaelsEye 置已用。
+2. 跳过敌方回合和 `PrepareMonsterMovesForNextRound`，进入 `AdvanceRoundPlayerStart(takingExtraTurn: true)`。轮次保持不变，玩家回合数加一。
+3. `AfterRelicRoundPass` 将 EmotionChip 的伤害记录移到上一玩家回合，随后清空本回合失血标记。
+4. 额外回合跳过 `TriggerSideTurnStart` 的 Rampart。随后的 `StartTurn` 与普通回合走同一个 `SetupPlayerTurn`：额外回合只把起始生物限定为 `PlayersTakingExtraTurn`，并跳过敌方 `PrepareForNextTurn` [GAME CombatManager.cs:701-706, 725-733]；抽牌、`AfterPlayerTurnStart` 的选择、`AfterSideTurnStart` 和球 `AfterTurnStart` 都按同一顺序执行；`Selector == null` 的可见准备页在第一次选择处暂停，普通 EndTurn 的立即选择不暂停 [GAME CombatManager.cs:777-830]。
 
 ### 7.1.1 准备暂停处的侧回合开始与球
 

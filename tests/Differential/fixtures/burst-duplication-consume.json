@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "INTERACTIONFIXED",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "scenarioId": "burst-duplication-consume",
+  "characterId": "SILENT",
+  "cards": [
+    {
+      "cardId": "BURST",
+      "pile": "Hand",
+      "upgradeLevels": 1
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "BURST_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "DUPLICATOR"
+    }
+  ]
+}

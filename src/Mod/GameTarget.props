@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <SolverGameTarget>game-public-beta</SolverGameTarget>
-    <SolverGameVersion>0.113.1</SolverGameVersion>
-    <RitsuLibReferenceTarget>0.113.0</RitsuLibReferenceTarget>
+    <SolverGameTarget>game-public</SolverGameTarget>
+    <SolverGameVersion>0.111.1</SolverGameVersion>
+    <RitsuLibReferenceTarget>0.111.0</RitsuLibReferenceTarget>
   </PropertyGroup>
 </Project>

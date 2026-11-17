@@ -336,6 +336,9 @@ public enum HookMaskExt : ulong
     /// </summary>
     AfterGoldGained = 1UL << 35,
 
+    /// <summary>Native AfterPotionProcured after a potion enters an empty slot.</summary>
+    AfterPotionProcured = 1UL << 36,
+
     /// <summary>
     /// Native <c>Hook.ModifyPowerAmountGiven</c>: a pure query over the combat listeners before the
     /// received-side pass and the Artifact check (<c>PersistentRelicSupport.ModifyPowerAmountGiven</c>,
@@ -1002,6 +1005,11 @@ public abstract class ListenerDef : ContentDef
     /// after the potion effect and before <c>ResolvePowerAmountChanges</c> (ReptileTrinket).
     /// </summary>
     public virtual void AfterPotionUsed(ref Exec x, Listener self, ushort potionId)
+    {
+    }
+
+    /// <summary>Native AfterPotionProcured, after the potion has been added to the inventory.</summary>
+    public virtual void AfterPotionProcured(ref Exec x, Listener self, ushort potionId)
     {
     }
 

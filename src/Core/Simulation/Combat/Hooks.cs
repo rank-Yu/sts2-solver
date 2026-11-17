@@ -478,6 +478,30 @@ public static partial class HookDispatch
         }
     }
 
+    /// <summary>Native potion-procurement listener pass, after inventory insertion.</summary>
+    public static void AfterPotionProcured(ref Exec x, ushort potionId)
+    {
+        if ((Registry.AnyHooksExt & HookMaskExt.AfterPotionProcured) == 0)
+            return;
+        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
+        int count = CollectListeners(x.B, x.R, HookMaskExt.AfterPotionProcured, listeners);
+        if (count == 0)
+            return;
+        Span<SnapshotEntry> snapshot = stackalloc SnapshotEntry[count];
+        for (int index = 0; index < count; index++)
+            snapshot[index] = Snapshot(x.B, x.R, listeners[index]);
+        for (int index = 0; index < count; index++)
+        {
+            if (!TryResolve(x.B, x.R, snapshot[index], out Listener current))
+                continue;
+            int instances = CountSnapshotPower(x.B, snapshot[index]);
+            Definition(x.B, x.R, current).AfterPotionProcured(ref x, current, potionId);
+            AdvancePowerSnapshot(x.B, snapshot, index, instances);
+            if (x.NeedsChoice)
+                return;
+        }
+    }
+
     /// <summary>Mirrors <c>Hook.ModifyXValue</c>: every combat listener in order, skipped while the combat is over/ending.</summary>
     public static int ModifyXValue(in Battle battle, Rules rules, in Card card, int value)
     {

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "toric-subunit-block",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "TORICFRACTION",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 20,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "TORIC_TOUGHNESS",
+      "pile": "Hand",
+      "count": 2,
+      "dynamicVars": {
+        "Block": 1
+      }
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "FRAIL_POWER",
+      "target": "Player",
+      "amount": 5
+    },
+    {
+      "powerId": "JUGGERNAUT_POWER",
+      "target": "Player",
+      "amount": 5
+    }
+  ]
+}

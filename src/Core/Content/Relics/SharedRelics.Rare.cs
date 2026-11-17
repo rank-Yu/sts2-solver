@@ -43,9 +43,11 @@ public sealed class EmotionChip : RelicDef
 {
     public override bool HasCombatState => true;
 
-    public override void AfterDamageReceived(ref Exec x, Listener self, in DamageResult result, byte dealer)
+    // Track the native DamageReceivedEntry predicate, including zero HP loss and lethal hits.
+    // The given pass also runs when the receiver died; AfterDamageReceived does not.
+    public override void AfterDamageGiven(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
-        if (result.Receiver == Limits.PlayerOwner && result.UnblockedDamage > 0)
+        if (result.Receiver == Limits.PlayerOwner && !result.WasFullyBlocked)
             x.B.RelicState(x.R, self.Index).Aux = 1;
     }
 

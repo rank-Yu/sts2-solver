@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "burning-sticks-free-skill",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "BURNINGFREESKILL",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "BURNING_STICKS",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "CORRUPTION_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "SKILL_POTION"
+    }
+  ]
+}

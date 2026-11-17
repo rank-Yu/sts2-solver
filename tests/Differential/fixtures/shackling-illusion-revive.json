@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "shackling-illusion-revive",
+  "characterId": "IRONCLAD",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "SHACKLEILLUSION",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 200,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw",
+      "count": 5
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "SHACKLING_POTION"
+    }
+  ]
+}

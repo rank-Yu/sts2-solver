@@ -293,7 +293,7 @@ public sealed class ToricToughness : CardDef
     public override IReadOnlyList<string> VarNames => ["Turns", "Block"];
 
     // CorePowerSupport.ApplyCardPowers.ToricToughness: gain the Block variable's block, then add an
-    // instanced ToricToughnessPower with Turns and store the settled block amount on that instance.
+    // instanced ToricToughnessPower with Turns and store the unrounded block amount on that instance.
     public override void OnPlay(ref Exec x)
     {
         decimal gained = Kernel.GainBlock(ref x, Limits.PlayerOwner,
@@ -308,7 +308,7 @@ public sealed class ToricToughness : CardDef
         int index = Kernel.FindLastPower(x.B, Limits.PlayerOwner, id);
         if (index < 0)
             return;
-        Kernel.SetInstanceBlockValue(ref x.B, index, gained);
+        Kernel.SetInstanceBlockValue(ref x.B.Powers[index], gained);
     }
 }
 

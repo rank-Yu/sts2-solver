@@ -363,8 +363,7 @@ public sealed partial class BurningSticks : RelicDef
 /// <summary>
 /// <c>BeltBuckle</c>: applies 2 Dexterity when the owner has no potions. The pre-combat application
 /// is already in the captured root; <c>AfterPotionUsed</c> reapplies it once when the last potion is
-/// used (<c>SimulatedCombatState.TriggerRelicsAfterPotionUsed</c>, gated by the relic's
-/// StatefulRelicState.Current flag).
+/// used. Native AfterPotionProcured removes that bonus when a new potion is obtained.
 /// </summary>
 [ContentId("BELT_BUCKLE")]
 public sealed partial class BeltBuckle : RelicDef
@@ -380,6 +379,15 @@ public sealed partial class BeltBuckle : RelicDef
         x.B.RelicState(x.R, self.Index).Counter = 1;
         Kernel.ApplyPower(ref x, Limits.PlayerOwner,
             Registry.PowerId<Powers.DexterityPower>(), (int)x.R.RelicVar(Id, 0), Limits.NoOwner);
+    }
+
+    public override void AfterPotionProcured(ref Exec x, Listener self, ushort potionId)
+    {
+        if (x.B.RelicState(x.R, self.Index).Counter == 0 || !HasAvailablePotion(x.B))
+            return;
+        x.B.RelicState(x.R, self.Index).Counter = 0;
+        Kernel.ApplyPower(ref x, Limits.PlayerOwner,
+            Registry.PowerId<Powers.DexterityPower>(), -(int)x.R.RelicVar(Id, 0), Limits.NoOwner);
     }
 
     private static bool HasAvailablePotion(in Battle battle)

@@ -389,7 +389,7 @@ public sealed class TrackingPower : PowerDef
 /// <c>StranglePower</c>: <c>BeforeCardPlayed</c> snapshots the amount for the applier's card plays and
 /// <c>AfterCardPlayed</c> deals it to the owner (the power's own application happens after its play's
 /// snapshot, so it never triggers on itself). <c>AfterSideTurnEnd</c> removes it when the owner
-/// participates (<c>EndTurnPowerSupport.TriggerBatch048</c>).
+/// participates (<c>PowerModel.AfterSideTurnEnd</c>).
 /// </summary>
 [ContentId("STRANGLE_POWER")]
 public sealed class StranglePower : PowerDef
@@ -420,7 +420,7 @@ public sealed class StranglePower : PowerDef
             hasCardSource: false, default);
     }
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
             Kernel.SetPowerAmount(ref x.B, self.Owner, x.B.Powers[self.Index].Id, 0);

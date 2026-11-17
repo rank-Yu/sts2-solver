@@ -13,7 +13,7 @@
 | 放在哪里 | 放什么 |
 | --- | --- |
 | `Battle` | 会随分支变化、而且影响之后合法动作或结算的值。下限是原引擎状态键（`BuildStateKey`、`SimulatedCombatState.AppendFingerprint`）覆盖的内容；原引擎状态键漏掉但影响未来结算的值（例如回合数、Power 的 `AmountOnTurnStart`）也放进来。 |
-| `Rules` | 根导入时冻结、整场搜索不变的值：卡牌各升级等级的基础数值与费用、怪物行动的静态参数和编译后的状态机、可生成怪物的闭包、遭遇槽名、根监听前缀顺序、最大能量基础值、手牌上限、药水槽数、根药水（用来区分生成药水和根药水）、战斗内外的随机药水池、卡牌洗牌排序键、角色基础球槽数、固定遗物清单和遗物槽位映射等。`Rules` 是不可变引用类型，所有分支共享。完整字段见 [原生导入](import.md#41-32-个字段)。 |
+| `Rules` | 根导入时冻结、整场搜索不变的值：卡牌各升级等级的基础数值与费用、怪物行动的静态参数和编译后的状态机、可生成怪物的闭包、遭遇槽名、根监听前缀顺序、最大能量基础值、手牌上限、药水槽数、根药水（用来区分生成药水和根药水）、战斗内外的随机药水池、卡牌洗牌排序键、角色基础球槽数、固定遗物清单和遗物槽位映射等。`Rules` 是不可变引用类型，所有分支共享。完整字段见 [原生导入](import.md#41-31-个字段)。 |
 | `Exec` | 一个动作执行期间的临时值，放在栈上，动作结束前排空，稳定边界上不存在（见第 4 节）。 |
 | 都不放 | 纯 UI、日志、显示名、派生启发式值。历史日志只保留会影响结算的计数器。 |
 
@@ -207,7 +207,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 **`TransientMark`。** 原引擎拿着 `CardModel` 对象跟踪“同一张牌”，即使它在一次动作里被抽走、洗进牌堆、换了位置。Sts2Solver 的牌没有对象身份，就在动作内给要跟踪的牌写一个标记字节，按标记重新找牌：
 
 - 1..63 归 BeatDown：选中的牌按序号 + 1 标记，`finally` 清零，只清自己的区间。
-- 64..255 是共享的动态区间，由栈上的 `Exec.TransientMarkBase` 给嵌套批次分配互不重叠的子区间：Sly 弃牌后的自动打出、`DecisionsDecisions` 的重复自动打出、Mayhem 的自动预打出队列、Scrape 抽到后待弃的牌都从这里取。Scrape 按最大抽牌数预留连续字节，每张实际抽到的牌在 `AfterCardDrawn` 之前拿到 `markStart + 抽牌序号`；同一张牌在本批里被自动打出、洗回抽牌堆后再次抽到时复用已有字节，并按出现次数各处理一次。嵌套批次弃掉一张已带外层标记的牌时，内层在 `finally` 中把外层标记写回，让卡值带着它移动。
+- 64..255 是共享的动态区间，由栈上的 `Exec.TransientMarkBase` 给嵌套批次分配互不重叠的子区间：动作回调中的卡牌及其附加监听、KnifeTrap 消耗堆飞刀、Sly 弃牌后的自动打出、`DecisionsDecisions` 的重复自动打出、Mayhem 的自动预打出队列、Scrape 抽到后待弃的牌都从这里取。Scrape 按最大抽牌数预留连续字节，每张实际抽到的牌在 `AfterCardDrawn` 之前拿到 `markStart + 抽牌序号`；同一张牌在本批里被自动打出、洗回抽牌堆后再次抽到时复用已有字节，并按出现次数各处理一次。嵌套批次弃掉一张已带外层标记的牌时，内层在 `finally` 中把外层标记写回，让卡值带着它移动。
 - 0 表示未标记。标记在动作结束前清除，稳定边界恒为 0；克隆和生成的卡从 0 开始。
 - 同一标记出现两次或标记丢失，抛 `UnsupportedException`；确认牌已离开战斗牌堆时，自动打出走无牌堆分支；区间耗尽抛 `CapacityException`。BeatDown 恰好选中一张已带 Sly 标记的牌时，覆盖后的标记按显式未支持处理。
 
@@ -277,7 +277,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 
 ### 4.1 规则表里的根级字段
 
-`Rules` 里有一些按根求值、整场不变的布尔或下标，用来让热路径在根不含相关内容时直接跳过：`HasIdentityContent`、`HasDecimalCardVars`、`HasTheftContent`、`HasHistoryCourse`、`HasPaelsLegion`（`GainBlock` 是否需要收集变化监听者列表）、`FurCoatSpawnHpOne`（命中的生成敌人当前生命设为 1）、`RootLostHpMask`（根捕获时每个 owner 的“本回合已失血”，额外回合恢复用）、`PenNibRelicIndex`、`RootSwordSageAmount` 等。怪物规则里的 `MonsterRules.InitialMoveLogged` 表示状态机构造器已经把初始行动记进日志，敌方回合内生成的召唤物要在生成时立即记录该行动。完整列表见 [原生导入](import.md#41-32-个字段)。
+`Rules` 里有一些按根求值、整场不变的布尔或下标，用来让热路径在根不含相关内容时直接跳过：`HasIdentityContent`、`HasDecimalCardVars`、`HasTheftContent`、`HasHistoryCourse`、`HasPaelsLegion`（`GainBlock` 是否需要收集变化监听者列表）、`FurCoatSpawnHpOne`（命中的生成敌人当前生命设为 1）、`PenNibRelicIndex`、`RootSwordSageAmount` 等。怪物规则里的 `MonsterRules.InitialMoveLogged` 表示状态机构造器已经把初始行动记进日志，敌方回合内生成的召唤物要在生成时立即记录该行动。完整列表见 [原生导入](import.md#41-31-个字段)。
 
 生成候选池、随机药水池、按原卡展开的变化池也只在 `Rules` 里。
 

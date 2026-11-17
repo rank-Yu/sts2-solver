@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "quality-NECROBINDER-005",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/NECROBINDER-005/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/NECROBINDER-005/request.json\u0022}",
-  "rulesSha256": "3b521e4db8edd2d675341fb2c97c17126af28d86725aaa2c6849896e18011904",
+  "rulesSha256": "e927627f9084ee171a94157f0045a9f1e05b279f31f233e0202d491e4b63a0dd",
   "counts": {
     "roots": 1,
     "k1": 7,

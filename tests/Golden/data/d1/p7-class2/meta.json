@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p7-class2",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p7-class2.json\u0022}",
-  "rulesSha256": "d9d20b5c1397ead01bd7bc507620825802e2b88c35c110562e2c5d2c027b32b3",
+  "rulesSha256": "1e1d67a4f1f0c7714750efbac1331588a1e2e2eadb80fb83e5a7c03fd0d0f2de",
   "counts": {
     "roots": 1,
     "k1": 14,

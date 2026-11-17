@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "sk-d-simple",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-d-simple.json\u0022}",
-  "rulesSha256": "235b7bc2ed748f23fd6e409ea6470efae9da31d39c78685f301b771e218b1292",
+  "rulesSha256": "141dcb3557368c5b8f09f0f72a2967606d5fbc5db2dd88d056dd151fc62b8bca",
   "counts": {
     "roots": 1,
     "k1": 17,

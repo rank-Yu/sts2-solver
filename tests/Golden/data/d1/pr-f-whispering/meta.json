@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "pr-f-whispering",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-f-whispering.json\u0022}",
-  "rulesSha256": "5d4ac10626da9cac877e698d84319b18e77539af47b4320e9bc849aba8a09493",
+  "rulesSha256": "bd4d3d5917be9da4cc8994a479b585e6e4ccad4f926f20f8be51c64acfb54c7c",
   "counts": {
     "roots": 1,
     "k1": 1,

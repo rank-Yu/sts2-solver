@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "card-listener-generated-hand",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/card-listener-generated-hand.spec.json"
+}

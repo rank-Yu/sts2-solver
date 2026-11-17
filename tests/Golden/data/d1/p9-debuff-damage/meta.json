@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p9-debuff-damage",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-debuff-damage.json\u0022}",
-  "rulesSha256": "2bef10ac70cc8becddf3f8fdf8c0bff7268547883fa91ca1f344c6081656fcd2",
+  "rulesSha256": "7ab4f83a72ebb17ab1e3591ace36193243fcdcea2f1c5b716f13a439c7270db1",
   "counts": {
     "roots": 1,
     "k1": 9,

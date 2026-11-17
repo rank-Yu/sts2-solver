@@ -52,6 +52,9 @@ public sealed class SovereignBlade : CardDef
 
     public override bool UsesIdentityLedger => true;
 
+    // Native AfterDowngraded restores CurrentDamage, including every Forge gain.
+    public override bool PreservesVar0OnDowngrade => true;
+
     public override TargetType ResolveTargetType(in Battle battle, Rules rules, in Card card)
         => RegentContent.HasSeekingEdge(battle) ? TargetType.AllEnemies : TargetType.AnyEnemy;
 

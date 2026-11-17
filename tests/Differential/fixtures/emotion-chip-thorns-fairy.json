@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "emotion-chip-thorns-fairy",
+  "characterId": "IRONCLAD",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "EMOTIONHISTORY",
+  "initialPlayerHp": 1,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "THORNS_POWER",
+      "target": "Player",
+      "amount": 3
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "FAIRY_IN_A_BOTTLE"
+    }
+  ]
+}

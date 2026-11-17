@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "characterId": "NECROBINDER",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "EMOTIONWINDOWS",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BODYGUARD",
+      "pile": "Hand"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "scenarioId": "emotion-chip-hp-trigger-terminal",
+  "powers": [
+    {
+      "powerId": "NECRO_MASTERY_POWER",
+      "target": "Player",
+      "amount": 10
+    }
+  ]
+}

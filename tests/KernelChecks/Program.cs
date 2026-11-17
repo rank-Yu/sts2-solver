@@ -253,7 +253,7 @@ static void CheckCardPoolContracts()
         .Select(static field => (string?)field.GetRawConstantValue()
             ?? throw new InvalidOperationException($"卡池常量 {field.Name} 没有值。"))
         .Order(StringComparer.Ordinal)];
-    Check(known.Length == 17, $"CardPools 常量应为 17 个，实际 {known.Length}");
+    Check(known.Length == 22, $"CardPools 常量应为 22，实际 {known.Length}");
     HashSet<string> knownSet = [.. known];
     HashSet<string> declared = new(StringComparer.Ordinal);
     void Declare(ContentDef def)
@@ -1489,11 +1489,11 @@ static void CheckIdKernel(Rules rules)
         "Monologue 应在出牌后施加两个实例的 Strength");
     Check(monologueBattle.Powers[0].Aux1 == 3 && monologueBattle.Powers[1].Aux1 == 5,
         "Monologue 的 StrengthApplied 应按实例累计");
-    // EndTurnPowerSupport.Batch048 visits each instance; removing the first shifts the second to row 0.
+    // The side-turn-end pass visits each instance; removing the first shifts the second to row 0.
     PowerDef monologueDef = Registry.Power(monologue);
-    monologueDef.EndTurnBatch048(ref monologueExec, new Listener(ListenerKind.Power, 0,
+    monologueDef.EndTurnRegular(ref monologueExec, new Listener(ListenerKind.Power, 0,
         Limits.PlayerOwner), Side.Player, participates: true);
-    monologueDef.EndTurnBatch048(ref monologueExec, new Listener(ListenerKind.Power, 0,
+    monologueDef.EndTurnRegular(ref monologueExec, new Listener(ListenerKind.Power, 0,
         Limits.PlayerOwner), Side.Player, participates: true);
     Check(Kernel.GetAmount(monologueBattle, Limits.PlayerOwner, monologue) == 0
           && Kernel.GetAmount(monologueBattle, Limits.PlayerOwner, strength) == 0,

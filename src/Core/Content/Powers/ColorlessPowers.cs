@@ -195,7 +195,7 @@ public sealed class PanachePower : PowerDef
         x.B.Powers[row].Aux0 = 5;
     }
 
-    public override void EndTurnBatch048(ref Exec x, Listener self, Side side, bool participates)
+    public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)
             x.B.Powers[self.Index].Aux0 = 5;
@@ -367,7 +367,8 @@ public sealed class EntropyPower : PowerDef
     public override PowerStackType StackType => PowerStackType.Counter;
 
     public override IReadOnlyList<string> GeneratedCardPools =>
-        [CardPools.CharacterAll, CardPools.ColorlessAll, CardPools.StatusAll, CardPools.CurseAll];
+        [CardPools.IroncladAll, CardPools.SilentAll, CardPools.DefectAll, CardPools.NecrobinderAll, CardPools.RegentAll,
+         CardPools.ColorlessAll, CardPools.StatusAll, CardPools.CurseAll];
 
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
@@ -398,7 +399,7 @@ public sealed class EntropyPower : PowerDef
     {
         CardStats stats = x.R.Card(original.Id, original.Upgrade);
         // CardFactory.GetDefaultTransformationOptions picks original.Pool unless the card is a
-        // Quest/Event/Ancient/Token card (then the colorless pool). CharacterAll excludes Basic cards
+        // Quest/Event/Ancient/Token card (then the colorless pool). Generated pools exclude Basic cards
         // (FilterForCombat), so a starter card still belongs to the character pool.
         // CardFactory.GetDefaultTransformationOptions: a Quest/Event/Ancient/Token card uses the
         // colorless pool; every other card uses its canonical pool (character, colorless, status or
@@ -411,7 +412,12 @@ public sealed class EntropyPower : PowerDef
                 TransformPool.Status => CardPools.StatusAll,
                 TransformPool.Curse => CardPools.CurseAll,
                 TransformPool.Colorless => CardPools.ColorlessAll,
-                _ => CardPools.CharacterAll,
+                TransformPool.Ironclad => CardPools.IroncladAll,
+                TransformPool.Silent => CardPools.SilentAll,
+                TransformPool.Defect => CardPools.DefectAll,
+                TransformPool.Necrobinder => CardPools.NecrobinderAll,
+                TransformPool.Regent => CardPools.RegentAll,
+                _ => throw new UnsupportedException($"未知变牌卡池 {stats.Pool}。"),
             };
         ReadOnlySpan<ushort> pool = x.R.CardPool(poolKey).Cards;
         Span<ushort> candidates = stackalloc ushort[pool.Length];

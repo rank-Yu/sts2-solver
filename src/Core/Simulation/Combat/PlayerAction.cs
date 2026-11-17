@@ -396,6 +396,9 @@ public ref struct Exec
     /// <summary>Nesting depth of <c>Kernel.Damage</c>; only the outermost call belongs to an attack context.</summary>
     internal int DamageCallDepth;
 
+    /// <summary>Enemies whose death callbacks belong to an enclosing damage/kill batch.</summary>
+    internal ushort PendingEnemyDeaths;
+
     /// <summary>Number of carried choices already consumed (the pending request's index).</summary>
     public readonly int ChoicesTaken => _choicesTaken;
 
@@ -569,6 +572,8 @@ public ref struct Exec
             throw new InvalidOperationException("EndTurn 前缀已经消费了选择。");
         if (EffectDepth != 0)
             throw new InvalidOperationException($"EndTurn 前缀的 EffectDepth={EffectDepth} 非零。");
+        if (PendingEnemyDeaths != 0)
+            throw new InvalidOperationException("EndTurn 前缀仍有伤害批次等待死亡结算。");
         if (TransientMarkBase != 0)
             throw new InvalidOperationException($"EndTurn 前缀的 TransientMarkBase={TransientMarkBase} 非零。");
         if (TakingExtraTurn)

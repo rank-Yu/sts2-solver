@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "energy-reset-after-terminal-block",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/energy-reset-after-terminal-block.spec.json"
+}

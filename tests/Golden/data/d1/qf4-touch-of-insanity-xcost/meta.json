@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "qf4-touch-of-insanity-xcost",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf4-touch-of-insanity-xcost.json\u0022}",
-  "rulesSha256": "708c4d18739f54bbf379045650217654405134ebf15f3c2785bb3e56ec3f72fe",
+  "rulesSha256": "05a3b3a52682ec04228d8bde44d4b3b89fcf594b3def93801c05335e73737dd6",
   "counts": {
     "roots": 1,
     "k1": 7,

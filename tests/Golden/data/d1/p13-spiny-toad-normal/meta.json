@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p13-spiny-toad-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-spiny-toad-normal.json\u0022}",
-  "rulesSha256": "c947248e439ba7a6a169189d1b07a98d4f465217633cc16cf0200cf709b201c8",
+  "rulesSha256": "cf3f56ba380a9549eea869f3737efb612a865bde14d3924e597b2cf91c751ebe",
   "counts": {
     "roots": 1,
     "k1": 7,

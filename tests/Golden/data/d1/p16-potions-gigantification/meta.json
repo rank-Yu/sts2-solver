@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p16-potions-gigantification",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-potions-gigantification.json\u0022}",
-  "rulesSha256": "6b53390b4ac59f188afe480fdf1109d111d8ea5a874831739615a91915b5bbcc",
+  "rulesSha256": "0385029f2041c2a103315649fd897cf64c75037f1d6da4b04bc320297b7426e4",
   "counts": {
     "roots": 1,
     "k1": 12,

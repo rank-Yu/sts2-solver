@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "nb-d-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-d-powers.json\u0022}",
-  "rulesSha256": "8de6183553e09e16de4888f9eb7b3627da789f97ba934a686165b8bc33d68be4",
+  "rulesSha256": "97da3a494baf926cbe55ff6b3a6abae91152bb7331150edefa5344d9c91ecbff",
   "counts": {
     "roots": 1,
     "k1": 13,

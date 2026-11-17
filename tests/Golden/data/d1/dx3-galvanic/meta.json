@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "dx3-galvanic",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-galvanic.json\u0022}",
-  "rulesSha256": "3df779464c6c9c7d78da88b7ee27cb487ea43a25bfb212e909380f25d45d495d",
+  "rulesSha256": "ba18ec13e100238c9ee3f33037beb65ab327562d168b19d5739d0a253bf5cae7",
   "counts": {
     "roots": 1,
     "k1": 9,

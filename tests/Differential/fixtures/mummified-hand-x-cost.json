@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "INTERACTIONFIXED",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "scenarioId": "mummified-hand-x-cost",
+  "characterId": "NECROBINDER",
+  "cards": [
+    {
+      "cardId": "PAGESTORM",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "ERADICATE",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "DEFEND_NECROBINDER",
+      "pile": "Hand"
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "CORRUPTION_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "MUMMIFIED_HAND",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

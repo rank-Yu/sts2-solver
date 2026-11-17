@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "INTERACTIONROUND6",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "characterId": "IRONCLAD",
+  "scenarioId": "ashwater-unceasing-top",
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Hand"
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Draw"
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "ASHWATER"
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "UNCEASING_TOP",
+      "addWithoutObtainedEffects": true
+    }
+  ]
+}

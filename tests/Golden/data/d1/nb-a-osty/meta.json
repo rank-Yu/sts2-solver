@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "nb-a-osty",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-a-osty.json\u0022}",
-  "rulesSha256": "04a371ce01b33dc1a08b975480ab357db781eedab9c23a7e3f79538a45dafe97",
+  "rulesSha256": "ed74d28795779690c89e7a5449a0a9d90981e261a5ef8be8a21b187684ce8285",
   "counts": {
     "roots": 1,
     "k1": 19,

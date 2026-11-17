@@ -235,7 +235,7 @@
 
 **RampartPower（Turret Operator）。** 原引擎 `PersistentPowerSupport.TriggerRampart` 遍历 `EffectivePowers()`，只按数量过滤；Living Shield 已经离开名单时，它的 Rampart 行仍会派发。`RampartPass` 因此直接按 Power 表的行顺序遍历，不用会跳过离场 owner 的 `CollectListeners`。
 
-**HellraiserPower。** 本回合的无限自动打出计数（`InfiniteAutoPlaysThisTurn`）存在 `Power.Aux0`，导入时状态条目优先，没有时取模型内部数据。`HittableEnemies.All(HpDisplay.IsInfinite())` 先按原生 `IsHittable` 排除已死/正在复活的敌人（TestSubject 的复活窗口因此得到空集合，`All` 为真）；非空时，Waterfall Giant 的蒸汽爆发或 `HardenedShellPower` 本回合累计伤害达到层数都会让 `HpDisplay` 成为无限。计数达到 9 后不再自动打出但仍然自增，有限分支清零，`EndTurnBatch048` 在 owner 参与时清零。
+**HellraiserPower。** 本回合的无限自动打出计数（`InfiniteAutoPlaysThisTurn`）存在 `Power.Aux0`，导入时状态条目优先，没有时取模型内部数据。`HittableEnemies.All(HpDisplay.IsInfinite())` 先按原生 `IsHittable` 排除已死/正在复活的敌人（TestSubject 的复活窗口因此得到空集合，`All` 为真）；非空时，Waterfall Giant 的蒸汽爆发或 `HardenedShellPower` 本回合累计伤害达到层数都会让 `HpDisplay` 成为无限。计数达到 9 后不再自动打出但仍然自增，有限分支清零，`EndTurnRegular` 在 owner 参与时清零。
 
 **GigantificationPower。** 原引擎的 `PowerAmountPredictionState` 在动作边界把数量写回模型；玩家在同一次动作中死亡时，`BeforeAttack` 已登记的层数会把被死亡清理清零的 Power 恢复回来。Sts2Solver 在 `BeforeAttack` 标记 `PowerFlags.PendingAmountState`，`HandlePlayerDeath`、`RemovePowersAfterDeath` 保留带这个标记的行，`Kernel.Step` 在稳定边界清除标记。
 

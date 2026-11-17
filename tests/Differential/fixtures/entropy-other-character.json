@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "entropy-other-character",
+  "cards": [],
+  "generatedScenarioPath": "tests/Differential/fixtures/entropy-other-character.spec.json"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "omnislice-repeat-dead-target",
+  "characterId": "IRONCLAD",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "OMNISLICEREPEAT",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "initialEnemyCurrentHps": [
+    1,
+    50
+  ],
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "OMNISLICE",
+      "pile": "Hand"
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "DUPLICATOR"
+    }
+  ],
+  "clearAllPowers": true
+}

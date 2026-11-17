@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "ls-b-silent-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-b-silent-powers.json\u0022}",
-  "rulesSha256": "bd71278600e913a2865306cff5f9ec17b17d9d29082dc8050ae85c3ff7cda242",
+  "rulesSha256": "844a51d39c5c868596e80a8f5ae360c6474c67749bc332bd86cf04d245c2ae19",
   "counts": {
     "roots": 1,
     "k1": 11,

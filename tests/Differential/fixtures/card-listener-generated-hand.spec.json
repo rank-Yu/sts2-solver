@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION13-beta-SILENT-Blitz-act2-13",
+  "characterId": "SILENT",
+  "ascension": 5,
+  "actIndex": 2,
+  "encounterKind": "Boss",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 1,
+    "ids": [
+      "BURST",
+      "NIGHTMARE"
+    ]
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 1,
+    "ids": [
+      "SECRET_TECHNIQUE",
+      "SECRET_WEAPON"
+    ]
+  },
+  "relics": {
+    "count": 8,
+    "ids": [
+      "BURNING_STICKS"
+    ]
+  },
+  "potions": {
+    "count": 2,
+    "ids": [
+      "LIQUID_MEMORIES",
+      "DUPLICATOR"
+    ]
+  },
+  "mode": "Setup"
+}

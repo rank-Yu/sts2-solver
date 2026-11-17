@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p9-card-flow",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-card-flow.json\u0022}",
-  "rulesSha256": "cc554e78a92be8db9fa4e0f6721bb33f8c5149e8a14920a0f566df61315f973f",
+  "rulesSha256": "4e4cdc468f069b08eb0aaa5f306aa633e5ba925273ed3e2dea91a3d4e399623f",
   "counts": {
     "roots": 1,
     "k1": 13,

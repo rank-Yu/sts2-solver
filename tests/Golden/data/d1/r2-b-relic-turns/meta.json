@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "r2-b-relic-turns",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r2-b-relic-turns.json\u0022}",
-  "rulesSha256": "d062280b2f3f4f25ce1154dc45b265ad46151956b87b58afcce629d1f0be836d",
+  "rulesSha256": "a896ef3706f0c21e9e29f385f7370db53c9173cd53a863883d76b774469ea333",
   "counts": {
     "roots": 1,
     "k1": 16,

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "dx3-hellraiser-revive",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-hellraiser-revive.json\u0022}",
-  "rulesSha256": "8f9a787f43bbdd664598ac04fca4cd2aa784db2a49d5d7b6ba185eee43819d89",
+  "rulesSha256": "52380ba32d211548a840d2a54db51eabdd7914d48b0680f5f1f8da0187987a3b",
   "counts": {
     "roots": 1,
     "k1": 10,

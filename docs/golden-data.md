@@ -31,12 +31,12 @@ tests/Golden/data/
 - `manifest.json` 里的 `sha256` 是对压缩后的文件字节计算的；校验器逐文件比较大小和 SHA-256。
 - 状态哈希是打包前缀（`Fingerprint.Bytes`）的 SHA-256 截断到 64 位（`Codec.BattleHash`）。搜索里的指纹只用于分桶；去重在指纹命中后仍比较打包前缀，不允许只凭哈希合并。
 - `SREQ` 请求按完整请求字节的 SHA-256 去重，`RULE` 按完整规则字节的 SHA-256 去重。规则对象和请求的文件名就是内容的 SHA-256，期望结果沿用对应请求的哈希作文件名；格式字节变化会改变这些名字。
-- `BATL`、`RULE`、`GOLD` 使用版本 15（`Codec.FormatVersion`）；`SREQ` 使用请求版本 12，`SRES` 使用结果版本 6。内容编号表包含 Byrdpip、Byrdine、Wuppy 等遗物及对应的卡牌和能力；新增内容导致编号变化时也必须升级格式，避免读取成另一件遗物。读取器只接受对应的当前版本，其它版本显式抛 `InvalidDataException`。
+- `BATL`、`RULE`、`GOLD` 使用版本 16（`Codec.FormatVersion`）；`SREQ` 使用请求版本 12，`SRES` 使用结果版本 6。内容编号表包含 Byrdpip、Byrdine、Wuppy 等遗物及对应的卡牌和能力；新增内容导致编号变化时也必须升级格式，避免读取成另一件遗物。读取器只接受对应的当前版本，其它版本显式抛 `InvalidDataException`。
 
 ## 3. `BATL`：Battle
 
 ```text
-u32 magic="BATL" | u16 version=10 | i32 payloadLength
+u32 magic="BATL" | u16 version=16 | i32 payloadLength
 i32 packedSize | 当前 Battle 打包前缀
 u16 relicCount | relicCount × 12 字节固定 Relic 行
 ```
@@ -52,20 +52,20 @@ RULE 是内容规则表；根清单由 BATL 携带。SREQ 解码先绑定第一�
 ## 4. `RULE`：Rules
 
 ```text
-u32 magic="RULE" | u16 version=10 | i32 fieldCount=32 | 32 个字段，按固定顺序
+u32 magic="RULE" | u16 version=16 | i32 fieldCount=31 | 31 个字段，按固定顺序
 ```
 
-魔数常量是 `0x454C5552`（`RULE`）。32 个字段的含义和顺序见 [原生导入](import.md#41-32-个字段)。
+魔数常量是 `0x454C5552`（`RULE`）。31 个字段的含义和顺序见 [原生导入](import.md#41-31-个字段)。
 
 - 卡牌数组按内部 Id 保存每个升级等级的 `CardStats`；Power、遗物变量按内部 Id 保存 `decimal` 数组；药水、怪物以“存在位 + 完整值”保存。
 - 生成规则与卡池按键排序。`fieldCount` 必须同时等于 `Rules.SchemaFieldCount` 与 `RulesCodec.EncodedFieldCount`。
 - `decimal` 写成 4 个 `int`（`decimal.GetBits`），保留 scale 和精确值；字符串用 UTF-8 字节长度做前缀。
-- K0 合同对 32 个字段逐个变异，任何一个字段没写进字节都会失败；`decode → encode` 必须字节相同。
+- K0 合同对 31 个字段逐个变异，任何一个字段没写进字节都会失败；`decode → encode` 必须字节相同。
 
 ## 5. `GOLD`：模拟回归文件
 
 ```text
-u32 magic="GOLD" | u16 version=10
+u32 magic="GOLD" | u16 version=16
 string inputJson | string rulesSha256
 rootCount | 每个根：i32 BATL 长度 + BATL 字节 + string choices
           + u64 scoreHash + u8 boundStatus + u64 boundHash
@@ -88,7 +88,7 @@ walkCount | 每条游走：i32 rootIndex + i32 seed + stateCount
 - 选择请求编码：`Kind, Effect, Timing, Source, SourceIsNone, OptionsAreGenerated, OptionCount(u16), MinCount, MaxCount, IndexSelection(bool), OptionCount × 选项(u16)`；生成卡选项再写 `OptionCount × Card` 的原始 46 字节。`OptionCount` 和选项位置/选项值都是 2 字节；`IndexSelection` 用于总牌数超过 255、单选选项超过 64 的请求。
 - `immediateStatus`：0 = 动作不需要选择；1 = 需要，并行的请求有效；2 = 内核边界（`UnsupportedException` 或 `CapacityException`）。
 - K4 哈希：`scoreHash` 是 `ScoreFeatures` 全部当前字段的确定性 SHA-256 截断；`boundHash` 是 `BoundValues`；`traitHash` 是 `SearchRouteTraits + pure + declined + pocketwatch threshold/played`。模拟回归只验证内核能复现的部分（K1、K2 和这些哈希）。
-- `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 15、`battleSize` 32,376；校验只接受这一组值。
+- `meta.json` 记录 `formatVersion`、`battleSize`、`root`、`input`、`rulesSha256`，以及根、K1、游走、游走状态、转移的计数。当前版本 16、`battleSize` 32,376；校验只接受这一组值。
 
 ## 6. `SREQ` / `SRES`：搜索回归的请求与结果
 
@@ -219,4 +219,4 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 ## 12. 旧版本
 
-读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 15，`SREQ` 为 12，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。
+读取器只接受当前版本：`BATL`、`GOLD`、`RULE` 为 16，`SREQ` 为 12，`SRES` 为 6。更早的 `BATL`、`GOLD`、`SREQ`、`SRES`、`RULE` 都不再支持，旧格式会因版本号不符显式抛 `InvalidDataException`。格式迁移规则由 [重录与重冻](#9-重录与重冻会改什么) 和 `provenance.formatMigration` 记录。

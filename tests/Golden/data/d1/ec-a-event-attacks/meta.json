@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "ec-a-event-attacks",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-a-event-attacks.json\u0022}",
-  "rulesSha256": "1b77691111f7d97fa15ce59ceb4b1aafa0274dfaaa7d36507d90b5161e038b9d",
+  "rulesSha256": "1477aa00db9872ae5834da6db1b83223b7c105cbc7b73a1240fb866ccbdf9784",
   "counts": {
     "roots": 1,
     "k1": 13,

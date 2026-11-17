@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "pr-c-relics",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-c-relics.json\u0022}",
-  "rulesSha256": "3db54f7060f0097d5b3d3ef69ea262f148236b8ea2e689f06fb99f3d4f9a3c82",
+  "rulesSha256": "d1baa6733e952250dc8e844b086562fc2f6369fa07983e5af52d9ada91059dd4",
   "counts": {
     "roots": 1,
     "k1": 21,

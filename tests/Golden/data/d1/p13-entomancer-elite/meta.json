@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p13-entomancer-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-entomancer-elite.json\u0022}",
-  "rulesSha256": "6a35f48858eeae1a53deaa5dde1a7bd5a09d838669c43024ac6cf14ce9cd3de3",
+  "rulesSha256": "92521c45c2a84ae8fb2648ac2bbf18ac156d10d33c52331222607eab23e33fc1",
   "counts": {
     "roots": 1,
     "k1": 7,

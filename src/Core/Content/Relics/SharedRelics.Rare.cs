@@ -34,9 +34,8 @@ public sealed class Bookmark : RelicDef
 
 /// <summary>
 /// <c>EmotionChip</c>: trigger every orb's passive at the player turn start when its owner took
-/// unblocked damage in the previous turn. The two counters are the existing
-/// <c>StatefulRelicState</c> Current/Previous pair and rotate in
-/// <c>SimulatedCombatState.RecordRelicRoundDamage</c>.
+/// unblocked damage in the previous player turn. Counter/Aux track the previous/current
+/// player-turn-number windows; both sides' damage belongs to the same window.
 /// </summary>
 [ContentId("EMOTION_CHIP")]
 public sealed class EmotionChip : RelicDef
@@ -47,7 +46,9 @@ public sealed class EmotionChip : RelicDef
     // The given pass also runs when the receiver died; AfterDamageReceived does not.
     public override void AfterDamageGiven(ref Exec x, Listener self, in DamageResult result, byte dealer)
     {
-        if (result.Receiver == Limits.PlayerOwner && !result.WasFullyBlocked)
+        // History is recorded before HP-change callbacks, which can themselves end combat.
+        if (result.Receiver == Limits.PlayerOwner && !result.WasFullyBlocked
+            && result.RecordedInHistory)
             x.B.RelicState(x.R, self.Index).Aux = 1;
     }
 
@@ -378,8 +379,10 @@ public sealed class MummifiedHand : RelicDef
         if (!costsResources)
             return true;
         ref readonly Card card = ref x.B.Cards[index];
-        return Kernel.EnergyCostWithModifiers(x.B, x.R, card, Pile.Hand) > 0
-            || Kernel.StarCostWithModifiers(x.B, x.R, card, Pile.Hand) > 0;
+        CardStats stats = x.R.Card(card.Id, card.Upgrade);
+        // Native CostsEnergyOrStars excludes X costs even when the player has resources.
+        return !stats.CostsX && Kernel.EnergyCostWithModifiers(x.B, x.R, card, Pile.Hand) > 0
+            || !stats.StarCostsX && Kernel.StarCostWithModifiers(x.B, x.R, card, Pile.Hand) > 0;
     }
 
     /// <summary>

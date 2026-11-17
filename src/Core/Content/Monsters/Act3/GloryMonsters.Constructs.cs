@@ -292,7 +292,6 @@ public sealed partial class Axebot : MonsterDef
 {
     private const int BootUpBlockStat = 0;
     private const int BootUpStrengthStat = 1;
-    private const int StockPerRespawnHp = 10;
 
     public override IReadOnlyList<string> StaticIntNames => ["BootUpBlock", "BootUpStrGain"];
 
@@ -307,7 +306,7 @@ public sealed partial class Axebot : MonsterDef
         int newStock = Kernel.GetAmount(x.B, source, stock) - 1;
         if (newStock < 0)
             newStock = 0;
-        // The HP roll already used the replacement's RespawnCount (see AfterDeath); the entrance only
+        // The HP roll already used the replacement's RespawnCount (see StockPower.AfterDeath); the entrance only
         // applies the remaining StockPower (native ApplyNativeEntrancePowers).
         if (newStock > 0)
             Kernel.ApplyPower(ref x, owner, stock, newStock, Limits.NoOwner);
@@ -336,29 +335,7 @@ public sealed partial class Axebot : MonsterDef
         }
     }
 
-    public override void AfterDeath(ref Exec x, Listener self, byte creature, bool wasRemovalPrevented,
-        bool hasCardSource, in Card cardSource)
-    {
-        if (wasRemovalPrevented || creature != self.Owner
-            || !Registry.TryPower("STOCK_POWER", out ushort stock)
-            || Kernel.GetAmount(x.B, self.Owner, stock) <= 0)
-        {
-            return;
-        }
-        if (!Registry.TryMonster("AXEBOT", out ushort monsterId)
-            || !x.R.TrySpawnRulesId(monsterId, out int rulesId))
-        {
-            throw new UnsupportedException("Axebot 补货没有生成规则条目。");
-        }
-        int newStock = Kernel.GetAmount(x.B, self.Owner, stock) - 1;
-        if (newStock < 0)
-            newStock = 0;
-        // The compiled rule is the StockAmount-1 variant (RespawnCount 1, +10 HP range); missing
-        // further stock shifts the whole range by another RespawnMaxHpBonus (native RespawnCount =
-        // 2 - StockAmount feeds MinInitialHp/MaxInitialHp before CreatePredictedMonster rolls).
-        Kernel.SpawnMonster(ref x, self.Owner, rulesId, x.B.Enemy(self.Owner).Slot, minion: false,
-            hpRangeShift: (1 - newStock) * StockPerRespawnHp);
-    }
+
 }
 
 /// <summary>

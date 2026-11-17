@@ -355,3 +355,69 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/burning-sticks-free-skill.json random:7:12
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/parrying-shield-doom-loss.json end
+
+### 回合边界与组合效果
+
+情感芯片的历史按玩家回合编号滚动，覆盖敌方回合结束战斗、灾厄结束战斗，以及荆棘击杀最后敌人后精灵药水复活的情况：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-enemy-side-terminal.json play:0:255 end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-doom-terminal.json play:0:255 end potion:0:2 end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-thorns-fairy.json end end
+
+已有灾厄收到零层数施加时仍记录施加事件；人工制品抵消该事件时同样记录，没有灾厄的目标则不新增零层能力：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/blight-zero-existing-doom.json play:0:2 play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/blight-zero-doom-artifact.json play:0:2 play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/blight-zero-new-doom.json play:0:2 play:0:255
+
+敌方回合内自动出牌产生的临时费用在该回合末清除；独白与仪式按能力顺序结算，核对力量能力的移除和重新加入：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/enemy-turn-autoplay-cost-cleanup.json end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/monologue-ritual-order.json play:0:255 play:0:255 potion:0:255 end
+
+反向获得仪式，以及同时存在两个独白实例时，分别核对能力顺序和各实例的临时力量：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/monologue-ritual-order.json potion:0:255 play:0:255 play:0:255 end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/monologue-instances-ritual.json play:0:255 play:0:255 play:0:255 potion:0:255 end
+
+重复出牌效果依次消耗后，后续能力仍应被正确找到；木乃伊之手的耗资源候选不包括 X 费牌；君主之剑被降级时保留锻造伤害：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/burst-duplication-consume.json potion:0:255 play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/mummified-hand-x-cost.json play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/sovereign-blade-dampen.json play:0:255 end
+
+CrushUnder 和 DyingStar 在伤害前记录减力量的目标，死亡后新生成的敌人不受该次减力量影响：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/crush-under-death-spawn.json play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/dying-star-death-spawn.json play:0:255
+
+随机原版游走遇到状态容量边界时输出 `NATIVE_WALK_LIMIT`，随后报告已经核对的动作数；该记录只表示通过的前缀，不能计作完整战斗通过。
+
+药水耗尽手牌后触发无尽陀螺；额外回合清空当前回合失血记录；奥斯提反击结束战斗时保留此前的伤害历史：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/ashwater-unceasing-top.json potion:0:255:1
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/extra-turn-hp-history.json play:0:2 recapture end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-hp-trigger-terminal.json play:0:255 end
+
+熵按原卡的角色卡池变牌；自动出牌杀死 Dampen 施加者后，Catastrophe 使用恢复升级后的次数；复制牌不继承原牌的出牌历史；KnifeTrap 在飞刀被阻止时继续处理其余飞刀：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/entropy-other-character.json random:800297:100
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/catastrophe-dampen-autoplay.json random:800997:100
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/clone-return-history.json random:900104:100
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/knife-trap-blocked-autoplay.json random:900245:100
+
+临时属性的 BeforeApplied 引发死亡后，不再给已死亡的幻象补入临时能力：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/temporary-stat-death-before-apply.json random:1000555:100
+
+Omnislice 重复打出时，已死亡的原目标不产生新伤害，也不重复复制上次伤害：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/omnislice-repeat-dead-target.json potion:0:255 play:0:2
+
+回合开始的加格挡触发势不可挡并结束战斗后，不再进入能量重置回调；ArtOfWar 保留上一回合记录：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/energy-reset-after-terminal-block.json random:1200012:100
+
+出牌回调生成手牌后，同名卡监听仍按原实例各结算一次；WitheringPresence 不能让两张 Pinpoint 的减费串到同一张上：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/card-listener-generated-hand.json random:1300285:100

@@ -86,7 +86,6 @@ public static partial class Kernel
         GlobalAfterSideTurnStart,
         AfterBlockCleared,
         EndTurnRegular,
-        EndTurnBatch048,
         PlayerSideTurnEnd,
         EnemySideTurnEnd,
         AfterEnergyReset,
@@ -112,7 +111,6 @@ public static partial class Kernel
                 case PowerPhase.GlobalAfterSideTurnStart: def.GlobalAfterSideTurnStart(ref x, self, side, participates); break;
                 case PowerPhase.AfterBlockCleared: def.AfterBlockCleared(ref x, self); break;
                 case PowerPhase.EndTurnRegular: def.EndTurnRegular(ref x, self, side, participates); break;
-                case PowerPhase.EndTurnBatch048: def.EndTurnBatch048(ref x, self, side, participates); break;
                 case PowerPhase.PlayerSideTurnEnd: def.PlayerSideTurnEnd(ref x, self); break;
                 case PowerPhase.EnemySideTurnEnd: def.EnemySideTurnEnd(ref x, self); break;
                 case PowerPhase.AfterEnergyReset: def.AfterEnergyReset(ref x, self); break;
@@ -543,7 +541,7 @@ public static partial class Kernel
         PowerTypeSequence(ref x, PowerPhase.PlayerSideTurnEnd, Limits.PlayerOwner, PlayerSideTurnEndIds.Value, Side.Player, participates: true);
         if (x.NeedsChoice || x.B.Player.IsDead)
             return;
-        EndTurnRegularAndBatch(ref x, Side.Player, participants);
+        EndTurnPowers(ref x, Side.Player, participants);
         if (x.NeedsChoice || x.B.Player.IsDead)
             return;
         ResolvePowerAmountChanges(ref x);
@@ -586,13 +584,17 @@ public static partial class Kernel
         TriggerEnemyDoom(ref x, enemies);
         if (x.NeedsChoice)
             return;
+        // Native EndEnemyTurnInternal cleans every player's combat cards between the before/after
+        // side-turn-end hooks. Enemy-turn draws and auto-plays can create new temporary costs.
+        for (int position = 0; position < x.B.CardCount; position++)
+            EndOfTurnCleanup(ref x.B.Cards[position]);
         foreach (byte owner in enemies)
         {
             PowerTypeSequence(ref x, PowerPhase.EnemySideTurnEnd, owner, EnemySideTurnEndIds.Value, Side.Enemy, participates: true);
             if (x.NeedsChoice)
                 return;
         }
-        EndTurnRegularAndBatch(ref x, Side.Enemy, enemies);
+        EndTurnPowers(ref x, Side.Enemy, enemies);
         if (x.NeedsChoice)
             return;
         ResolvePowerAmountChanges(ref x);
@@ -643,11 +645,8 @@ public static partial class Kernel
             DoomKill(ref x, doomed[..count]);
     }
 
-    /// <summary>
-    /// <c>EndTurnPowerSupport.TriggerRegular</c>: its listener-order pass, <c>ResetPowerLifecycleTurn</c>
-    /// (no supported per-turn power state yet), then the <c>TriggerBatch048</c> pass.
-    /// </summary>
-    private static void EndTurnRegularAndBatch(ref Exec x, Side side, scoped ReadOnlySpan<byte> participants)
+    /// <summary>Runs power AfterSideTurnEnd effects in native listener order, then resets turn bookkeeping.</summary>
+    private static void EndTurnPowers(ref Exec x, Side side, scoped ReadOnlySpan<byte> participants)
     {
         PowerListenerPass(ref x, PowerPhase.EndTurnRegular, side, participants, Limits.NoOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
         if (x.NeedsChoice)
@@ -658,7 +657,6 @@ public static partial class Kernel
             if (owner == Limits.PlayerOwner)
                 x.B.SetCounter(Counter.SkillPlayedThisSideTurn, 0);
         }
-        PowerListenerPass(ref x, PowerPhase.EndTurnBatch048, side, participants, Limits.NoOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
     }
 
     /// <summary><c>CorePowerSupport.TriggerTransientSideTurnEndPowers</c>.</summary>
@@ -689,9 +687,21 @@ public static partial class Kernel
         }
     }
 
-    /// <summary><c>PersistentPowerSupport.TriggerAfterEnergyReset</c>: the player's positive powers in listener order.</summary>
-    internal static void PowersAfterEnergyReset(ref Exec x)
-        => PowerListenerPass(ref x, PowerPhase.AfterEnergyReset, Side.Player, default, Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
+    /// <summary>Native Hook.AfterEnergyReset starts separate normal and late listener passes.</summary>
+    private static void AfterEnergyReset(ref Exec x)
+    {
+        if (IsOverOrEnding(x.B))
+            return;
+        PowerListenerPass(ref x, PowerPhase.AfterEnergyReset, Side.Player, default,
+            Limits.PlayerOwner, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue);
+        if (x.NeedsChoice)
+            return;
+        // Powers and relics share one native pass, so a power ending combat does not cut it short.
+        RelicPass(ref x, RelicPhase.AfterEnergyReset, Side.Player);
+        if (x.NeedsChoice || IsOverOrEnding(x.B))
+            return;
+        RelicPass(ref x, RelicPhase.AfterEnergyResetLate, Side.Player);
+    }
 
     /// <summary><c>TurnStartPowerSupport.TriggerBeforeHandDraw</c>.</summary>
     internal static void PowerBeforeHandDraw(ref Exec x)

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-queen-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-queen-boss.json\u0022}",
-  "rulesSha256": "6603ad46858f4041b752d1ad9ce868d193e1a4ad82cff551d45b2c4632c82dea",
+  "rulesSha256": "b2a92a5108e33d91f6db4a8a2916810cfc46f8701ff2680bb1402375bd55cd92",
   "counts": {
     "roots": 1,
     "k1": 10,

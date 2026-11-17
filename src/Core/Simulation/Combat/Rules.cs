@@ -28,10 +28,14 @@ public enum TargetType : byte
 /// <summary>The canonical card pool a card belongs to, used by transformation's pool choice.</summary>
 public enum TransformPool : byte
 {
-    Character = 0,
+    Ironclad = 0,
     Colorless = 1,
     Status = 2,
     Curse = 3,
+    Silent = 4,
+    Defect = 5,
+    Necrobinder = 6,
+    Regent = 7,
 }
 
 public enum CardRarity : byte
@@ -72,8 +76,8 @@ public sealed class CardStats
     public required TargetType Target { get; init; }
     public required CardRarity Rarity { get; init; }
 
-    /// <summary><c>CardModel.Pool</c> category for transformation; defaults to the character pool.</summary>
-    public TransformPool Pool { get; init; } = TransformPool.Character;
+    /// <summary><c>CardModel.Pool</c> used for transformation, including each individual character pool.</summary>
+    public TransformPool Pool { get; init; } = TransformPool.Ironclad;
     public required int EnergyCost { get; init; }
     public required bool CostsX { get; init; }
     public required int StarCost { get; init; }
@@ -298,7 +302,7 @@ public sealed class Rules
     /// Number of constructor inputs that form the serialized schema. The K0 codec contract checks
     /// this against the writer's field count and mutates each field to prove it reaches the bytes.
     /// </summary>
-    public const int SchemaFieldCount = 32;
+    public const int SchemaFieldCount = 31;
 
     private readonly CardStats?[][] _cards;
     private readonly decimal[][] _powerVars;
@@ -341,7 +345,6 @@ public sealed class Rules
         bool hasInfiniteHpDisplayMonster,
         bool hasPaelsLegion,
         bool furCoatSpawnHpOne,
-        ushort rootLostHpMask,
         bool hasHistoryCourse,
         int totalFloor = 0, DominionRules dominion = default, CombatMode mode = CombatMode.Standard)
     {
@@ -392,7 +395,6 @@ public sealed class Rules
         HasInfiniteHpDisplayMonster = hasInfiniteHpDisplayMonster;
         HasPaelsLegion = hasPaelsLegion;
         FurCoatSpawnHpOne = furCoatSpawnHpOne;
-        RootLostHpMask = rootLostHpMask;
         HasHistoryCourse = hasHistoryCourse;
         TotalFloor = totalFloor;
         Dominion = dominion;
@@ -487,15 +489,6 @@ public sealed class Rules
     /// combat starts at 1 current HP (<c>MonsterSpawnSupport.ApplyCreatureAddedRelics</c>).
     /// </summary>
     public bool FurCoatSpawnHpOne { get; }
-
-    /// <summary>
-    /// Creatures whose <c>HasLostHpThisTurn</c> was true at root capture, one bit per owner
-    /// (<see cref="Limits.PlayerOwner"/>, <see cref="Limits.OstyOwner"/> and enemy owners
-    /// 2..). The engine's history query after <c>AdvancePlayerTurn</c> falls back to the immutable root
-    /// history (prediction-time damage lives only in the cleared cache), so an extra turn restores
-    /// exactly these flags; a normal turn advances the round and clears them.
-    /// </summary>
-    public ushort RootLostHpMask { get; }
 
     /// <summary>
     /// The root owns a non-melted <c>HistoryCourse</c>. Only such roots record the per-turn last attack
@@ -676,8 +669,6 @@ public sealed class RulesDraft
     public DominionRules Dominion { get; set; }
     public CombatMode Mode { get; set; }
 
-    public ushort RootLostHpMask { get; set; }
-
     public void SetCard(ushort id, int upgrade, CardStats stats)
     {
         List<CardStats?> levels = _cards[id] ??= [];
@@ -772,7 +763,7 @@ public sealed class RulesDraft
             HasEncounter, EncounterSlots, RootEnemyCount, BaseMaxEnergy, PlayerSlotIndex, BaseOrbSlotCount,
             RootSwordSageAmount, UnsettlingLampRelicId, HasIdentityContent, HasShuffleOrderEnchantment,
             HasBeforeFlushEnchantment, HasTheftContent, HasDecimalCardVars, HasInfiniteHpDisplayMonster,
-            HasPaelsLegion, FurCoatSpawnHpOne, RootLostHpMask, HasHistoryCourse, TotalFloor, Dominion, Mode);
+            HasPaelsLegion, FurCoatSpawnHpOne, HasHistoryCourse, TotalFloor, Dominion, Mode);
     }
 
     private static bool SameStats(CardStats left, CardStats right)

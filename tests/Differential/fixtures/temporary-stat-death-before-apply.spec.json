@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "seed": "NOV17INTERACTION10-beta-NECROBINDER-Blitz-act1-11",
+  "characterId": "NECROBINDER",
+  "ascension": 5,
+  "actIndex": 1,
+  "encounterKind": "Monster",
+  "includeStartingDeck": true,
+  "includeStartingRelics": true,
+  "applyRelicObtainEffects": false,
+  "characterCards": {
+    "count": 10,
+    "upgradeLevels": 1
+  },
+  "colorlessCards": {
+    "count": 3,
+    "upgradeLevels": 1
+  },
+  "relics": {
+    "count": 8,
+    "ids": [
+      "EMOTION_CHIP",
+      "PARRYING_SHIELD"
+    ]
+  },
+  "potions": {
+    "count": 2,
+    "ids": [
+      "FAIRY_IN_A_BOTTLE",
+      "SHACKLING_POTION"
+    ]
+  },
+  "mode": "Setup",
+  "playerCurrentHp": 20
+}

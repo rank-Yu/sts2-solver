@@ -90,9 +90,9 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 
 已知敌人的静态参数与初始 AI 寄存器由 `NativeAccess.MonsterInt` 读取。召唤物在一个私有的临时 `CombatState` 里通过 `ToMutable` + `SetUpForCombat` 创建，所以它的状态机、初始节点和静态值不依赖根上的同类型敌人。召唤闭包保持原生的 BFS 顺序。
 
-### 4.1 32 个字段
+### 4.1 31 个字段
 
-`Rules` 有 32 个构造字段，编码时全部写入（`RulesCodec`）：
+`Rules` 有 31 个构造字段，编码时全部写入（`RulesCodec`）：
 
 | # | 字段 | 实现 |
 | ---: | --- | --- |
@@ -115,7 +115,7 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | 17 | `BaseOrbSlotCount` | `Player.Character.BaseOrbSlotCount` |
 | 18 | `RootSwordSageAmount` | 玩家 `SwordSagePower` 的当前层数 |
 | 19 | `UnsettlingLampRelicId` | 遗物顺序中第一个 `UnsettlingLamp` 的规则 id |
-| 20 | `HasIdentityContent` | 角色类型 + SwordSage + 根上卡牌、Power、遗物的身份标记 |
+| 20 | `HasIdentityContent` | 角色类型、SwordSage、根上内容及生成闭包中卡牌和能力的身份标记 |
 | 21 | `HasShuffleOrderEnchantment` | 根卡附魔的 `HookMaskExt.ModifyShuffleOrder` |
 | 22 | `HasBeforeFlushEnchantment` | 根卡附魔的 `HookMaskExt.BeforeFlush` |
 | 23 | `HasTheftContent` | 两个盗贼遭遇、盗贼怪物，或根上的盗贼 Power |
@@ -123,11 +123,10 @@ Battle battle = BattleImporter.Import(combatState, player, rules, options);
 | 25 | `HasInfiniteHpDisplayMonster` | 已知敌人或召唤闭包中有任一 `HasInfiniteHpDisplay` |
 | 26 | `HasPaelsLegion` | 未熔化的遗物中有 `PaelsLegion` |
 | 27 | `FurCoatSpawnHpOne` | 未熔化 `FurCoat` 的标记坐标包含当前地图坐标 |
-| 28 | `RootLostHpMask` | 原生 History 的本回合未格挡伤害，玩家、Osty、每个敌人各一位 |
-| 29 | `HasHistoryCourse` | 未熔化的遗物中有 `HistoryCourse` |
-| 30 | `TotalFloor` | 根所在总楼层，用于领域数值 |
-| 31 | `Dominion` | 恐惧领域类型、能力 id 与原生数值 |
-| 32 | `Mode` | 标准、恐惧或极速模式，影响内容及怪物行为 |
+| 28 | `HasHistoryCourse` | 未熔化的遗物中有 `HistoryCourse` |
+| 29 | `TotalFloor` | 根所在总楼层，用于领域数值 |
+| 30 | `Dominion` | 恐惧领域类型、能力 id 与原生数值 |
+| 31 | `Mode` | 标准、恐惧或极速模式，影响内容及怪物行为 |
 
 笔尖下标由共享遗物清单在创建时派生，取最后一个未熔化实例，不重复写入规则。
 

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "kg2-m-thrash",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-m-thrash.json\u0022}",
-  "rulesSha256": "79f40577fee625c13de2b48a8e411dcd82746a4a93bd01d08bc0487695377fab",
+  "rulesSha256": "b0dd5b7b13f7e91e48e68215f2c35f85acccb29edc9242199e5aaed74c0b66a3",
   "counts": {
     "roots": 1,
     "k1": 13,

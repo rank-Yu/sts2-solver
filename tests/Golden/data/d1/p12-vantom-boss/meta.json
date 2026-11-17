@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p12-vantom-boss",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p12-vantom-boss.json\u0022}",
-  "rulesSha256": "9e0b35049c83aea18e67e05a9af5be3b498e32581dcc8750a6469c7532e3d4a6",
+  "rulesSha256": "8187b420b9ccbf6da3c620c98f659111c2bfb99222f1cdad451c25dad72b8dea",
   "counts": {
     "roots": 1,
     "k1": 7,

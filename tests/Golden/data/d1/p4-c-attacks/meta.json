@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p4-c-attacks",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p4-c-attacks.json\u0022}",
-  "rulesSha256": "a43e6fe8bfb20b9536c0af87f060414c2066c52fb4cbbdffb1200eca197f8bae",
+  "rulesSha256": "f58ae269088fe67d0f1e4a9b6decd620aeb5fc33a9a55a4dfc82a7d726f31ec9",
   "counts": {
     "roots": 1,
     "k1": 13,

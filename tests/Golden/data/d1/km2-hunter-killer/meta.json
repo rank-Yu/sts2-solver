@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "km2-hunter-killer",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-hunter-killer.json\u0022}",
-  "rulesSha256": "8b0f73e85074027f8c5d70209bc8eb382c40bbe5abdbbe24d1420022b42991bd",
+  "rulesSha256": "6993b57b38b216daf81fa140e0f6ae3aeefebb3b9d5d1863a1c7e3acfb1e185e",
   "counts": {
     "roots": 1,
     "k1": 7,

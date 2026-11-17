@@ -25,9 +25,8 @@ public sealed class BlightStrike : CardDef
             return;
         if (x.Target == Limits.NoOwner)
             return;
-        if (damage > 0)
-            Kernel.ApplyPower(ref x, x.Target, Registry.PowerId<Powers.DoomPower>(), damage,
-                Limits.PlayerOwner);
+        Kernel.ApplyPower(ref x, x.Target, Registry.PowerId<Powers.DoomPower>(), damage,
+            Limits.PlayerOwner);
     }
 }
 

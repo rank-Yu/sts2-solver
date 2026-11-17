@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "crush-under-death-spawn",
+  "characterId": "REGENT",
+  "encounterId": "PHROG_PARASITE_ELITE",
+  "seed": "CRUSHUNDERSPAWN",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerEnergy": 10,
+  "enemyCurrentHp": 1,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "CRUSH_UNDER",
+      "pile": "Hand"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p16-a-damage-history",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-a-damage-history.json\u0022}",
-  "rulesSha256": "3fd3b88cf4c9bcb3a0f29850d016b3c928b28103b622133290d08e1dc0dcd7ec",
+  "rulesSha256": "691c3773c433379529e58822e236fa04961f1b6cafdc335ae9e86faca7c31c40",
   "counts": {
     "roots": 1,
     "k1": 17,

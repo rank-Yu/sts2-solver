@@ -80,7 +80,7 @@ public static partial class Kernel
         x.EffectDepth--;
         if (x.NeedsChoice)
             return;
-        // Complete: potion choices are not supported yet. AfterPotionUsed runs while the player lives,
+        // Complete: AfterPotionUsed runs while the player lives,
         // before the power-amount resolution and the enemy-death pass (PotionExecutionSupport.Complete).
         if (x.B.Player.IsAlive)
         {
@@ -95,7 +95,10 @@ public static partial class Kernel
         ApplyEnemyDeathPowers(ref x);
         if (x.NeedsChoice)
             return;
-        // SettleReplayActionBoundary: no supported power reactions or normalizations.
+        // CombatManager checks the empty hand after the outermost potion action completes.
+        AfterHandEmptied(ref x);
+        if (x.NeedsChoice)
+            return;
         CheckWinCondition(ref x.B);
         AdvanceForcedTurnEnds(ref x);
     }

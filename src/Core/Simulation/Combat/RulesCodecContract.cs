@@ -11,7 +11,7 @@ public static class RulesCodecContract
 {
     public static void Run()
     {
-        if (Rules.SchemaFieldCount != 32 || RulesCodec.EncodedFieldCount != 32)
+        if (Rules.SchemaFieldCount != 31 || RulesCodec.EncodedFieldCount != 31)
             throw new InvalidOperationException(
                 $"Rules K0 字段数不一致：owner={Rules.SchemaFieldCount} codec={RulesCodec.EncodedFieldCount}。");
         Spec spec = Spec.Create();
@@ -61,7 +61,6 @@ public static class RulesCodecContract
         Field("hasInfiniteHpDisplayMonster", value => value.HasInfiniteHpDisplayMonster = true);
         Field("hasPaelsLegion", value => value.HasPaelsLegion = true);
         Field("furCoatSpawnHpOne", value => value.FurCoatSpawnHpOne = true);
-        Field("rootLostHpMask", value => value.RootLostHpMask = 0x1234);
         Field("hasHistoryCourse", value => value.HasHistoryCourse = true);
         Field("totalFloor", value => value.TotalFloor = 23);
         Field("dominion.kind", value => value.Dominion = value.Dominion with { Kind = DominionKind.WaterfallGiant });
@@ -125,7 +124,6 @@ public static class RulesCodecContract
         public bool HasInfiniteHpDisplayMonster;
         public bool HasPaelsLegion;
         public bool FurCoatSpawnHpOne;
-        public ushort RootLostHpMask = 0x0102;
         public bool HasHistoryCourse;
         public int TotalFloor = 17;
         public DominionRules Dominion = new(DominionKind.TestSubject, 4, 3);
@@ -142,7 +140,7 @@ public static class RulesCodecContract
                 Type = CardType,
                 Target = TargetType.AnyEnemy,
                 Rarity = CardRarity.Common,
-                Pool = TransformPool.Character,
+                Pool = TransformPool.Ironclad,
                 EnergyCost = 1,
                 CostsX = false,
                 StarCost = 0,
@@ -201,7 +199,7 @@ public static class RulesCodecContract
                 BaseOrbSlotCount, RootSwordSageAmount, UnsettlingLampRelicId, HasIdentityContent,
                 HasShuffleOrderEnchantment, HasBeforeFlushEnchantment, HasTheftContent,
                 HasDecimalCardVars, HasInfiniteHpDisplayMonster, HasPaelsLegion, FurCoatSpawnHpOne,
-                RootLostHpMask, HasHistoryCourse, TotalFloor, Dominion, Mode);
+                HasHistoryCourse, TotalFloor, Dominion, Mode);
         }
     }
 }

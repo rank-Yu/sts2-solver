@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "a3-owl-magistrate-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-owl-magistrate-normal.json\u0022}",
-  "rulesSha256": "cdd7ffcda9ec8d6ca581ed2437625ae64c4da6b7835780d8bdad61b0ecbac3a4",
+  "rulesSha256": "d00b8cb71f8fbab90d60ecd50a0330fcf6b78999d89bf670436d615d031b9b5e",
   "counts": {
     "roots": 1,
     "k1": 7,

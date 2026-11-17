@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "characterId": "IRONCLAD",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "EMOTIONWINDOWS",
+  "initialPlayerHp": 100,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 20,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "BLOODLETTING",
+      "pile": "Hand",
+      "count": 1
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "scenarioId": "emotion-chip-enemy-side-terminal",
+  "powers": [
+    {
+      "powerId": "POISON_POWER",
+      "target": "Enemy",
+      "amount": 30
+    }
+  ]
+}

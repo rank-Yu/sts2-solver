@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "dx3-hellraiser-infinite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-hellraiser-infinite.json\u0022}",
-  "rulesSha256": "c3803eb30120722bbce937e214ef265da6381b33da18793352cb042ef1dfb08f",
+  "rulesSha256": "a4a9bf439c03c406dc9b3edfdbd5b5cf8fc9b4c89b815b83d1a2f5ecadfb2ca9",
   "counts": {
     "roots": 1,
     "k1": 11,

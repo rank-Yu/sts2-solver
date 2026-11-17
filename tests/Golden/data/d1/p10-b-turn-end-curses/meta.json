@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "p10-b-turn-end-curses",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-b-turn-end-curses.json\u0022}",
-  "rulesSha256": "3a14b18ba71940831d7fa2fd17242c0c28833fdb1f49d000175bae02ac76ee11",
+  "rulesSha256": "610678b44e9ecbbce96dd3a42584007acbbe74caf42d764620a4d050c666d713",
   "counts": {
     "roots": 1,
     "k1": 1,

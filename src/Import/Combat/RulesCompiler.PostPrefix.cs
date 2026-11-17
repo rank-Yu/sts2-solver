@@ -151,23 +151,6 @@ public static partial class RulesCompiler
         if (root.EnemyCount > Limits.Enemies)
             throw new UnsupportedImportException(ImportReason.Capacity, $"敌人数 {root.EnemyCount}");
 
-        ushort rootLostHpMask = 0;
-        if ((root.Player.Flags & CreatureFlags.LostHpThisTurn) != 0)
-            rootLostHpMask |= 1 << Limits.PlayerOwner;
-        if ((root.Flags & BattleFlags.OstyPresent) != 0
-            && (root.Osty.Flags & CreatureFlags.LostHpThisTurn) != 0)
-        {
-            rootLostHpMask |= 1 << Limits.OstyOwner;
-        }
-        for (int index = 0; index < root.EnemyCount; index++)
-        {
-            if ((root.Enemies[index].Creature.Flags & CreatureFlags.LostHpThisTurn) != 0)
-                rootLostHpMask |= (ushort)(1 << (Limits.FirstEnemyOwner + index));
-        }
-        if ((root.Wuppy.Flags & CreatureFlags.LostHpThisTurn) != 0)
-            rootLostHpMask |= 1 << Limits.WuppyOwner;
-        builder.RootLostHpMask = rootLostHpMask;
-
         List<ushort> spawnClosure = SpawnClosure(root);
         if (root.EnemyCount + spawnClosure.Count > Limits.MonsterRules)
             throw new UnsupportedImportException(ImportReason.Capacity,
@@ -368,15 +351,13 @@ public static partial class RulesCompiler
         ushort[]? outOfCombatPotionPool = null;
         bool needsPotionPool = false;
         bool needsOutOfCombatPotionPool = false;
-        // The root scan above only sees content that already exists. A generated identity-ledger
-        // card (Forge's Sovereign Blade) requires the same scans. Only the card that owns a
-        // per-object ledger counts here: whether a generated pool contains some card that could
-        // generate identity content is not enough (Entropy's pools do), and the root flag is part
-        // of the frozen rules encoding.
+        // Generated cards and powers need the same identity-aware hooks as root content.
+        // Declare traverses the actual generation closure, including potion card pools.
         bool generatedIdentityContent = false;
         void Declare(ContentDef def)
         {
-            generatedIdentityContent |= def is CardDef { UsesIdentityLedger: true };
+            generatedIdentityContent |= def is CardDef { IsIdentityContent: true }
+                or CardDef { UsesIdentityLedger: true } or PowerDef { IsIdentityContent: true };
             needsPotionPool |= def.GeneratesRandomPotion;
             needsOutOfCombatPotionPool |= def.GeneratesOutOfCombatPotion;
             if (def is PotionDef && !seenPotionDefs.Add(def.Id))

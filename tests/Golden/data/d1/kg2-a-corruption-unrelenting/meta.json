@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "kg2-a-corruption-unrelenting",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-a-corruption-unrelenting.json\u0022}",
-  "rulesSha256": "3195c81ac6d657eba5619ab55e4c5798bea3d3159cc70c160294de02960833da",
+  "rulesSha256": "8e517bd73023d359d055c821377fa6e263488c657a633dc739b95f070afd0d6b",
   "counts": {
     "roots": 1,
     "k1": 12,

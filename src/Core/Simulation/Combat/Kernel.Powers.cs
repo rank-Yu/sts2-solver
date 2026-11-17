@@ -134,9 +134,12 @@ public static partial class Kernel
         // PowerCmd.Apply refuses while CombatManager.IsEnding is true: CombatManager.IsCombatEnding
         // covers both PendingLoss (the player died) and no living primary enemy with no
         // ShouldStopCombatFromEnding listener. Kernel.IsEnding is the same predicate.
-        if (IsEnding(x.B) || amount == 0 || !CanReceivePowers(x.B, target))
+        if (IsEnding(x.B) || !CanReceivePowers(x.B, target))
             return 0;
         PowerDef def = Registry.Power(powerId);
+        // Generic PowerCmd.Apply still modifies an existing stack when its input is zero.
+        if (amount == 0 && (def.IsInstanced || FindPower(x.B, target, powerId) < 0))
+            return 0;
         // SimulatedCombatState.ModifyPowerAmountForRelics: ObserveUnsettlingLamp (the native
         // BeforePowerAmountChanged pass), the additive given pass (SneckoSkull), the multiplicative
         // given pass (UnsettlingLamp), then the received pass (Ruined Helmet), all before Artifact.
@@ -166,7 +169,13 @@ public static partial class Kernel
                 return 0;
         }
         if (def.TypeForAmount(amount) == PowerType.Debuff && ConsumeArtifact(ref x.B, target))
+        {
+            // ModifyAmount records the received event even when Artifact reduces its delta to zero.
+            if (applier == Limits.PlayerOwner && Registry.TryPower("DOOM_POWER", out ushort doomId)
+                && powerId == doomId && FindPower(x.B, target, powerId) >= 0)
+                x.B.SetCounter(Counter.DoomAppliedThisTurn, 1);
             return 0;
+        }
         if (def.InternallyAppliedPowerId == "THORNS_POWER")
         {
             ushort thorns = PowerIdOrMax("THORNS_POWER");
@@ -244,7 +253,13 @@ public static partial class Kernel
             ? id
             : throw new UnsupportedException("临时力量需要力量的 Sts2Solver 定义。");
         if (def.IsInstanced || GetAmount(x.B, target, temporaryId) == 0)
+        {
             ApplyPower(ref x, target, strength, sign * amount, applier);
+            ResolvePowerAmountChanges(ref x);
+            // BeforeApplied can kill the target; native Apply rechecks it before inserting the row.
+            if (x.NeedsChoice || !CanReceivePowers(x.B, target))
+                return 0;
+        }
         int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out int resulting,
             powerTarget);
         if (amount != resulting)
@@ -280,7 +295,13 @@ public static partial class Kernel
             : throw new UnsupportedException("临时集中需要集中的 Sts2Solver 定义。");
         bool alreadyApplied = GetAmount(x.B, target, temporaryId) != 0;
         if (def.IsInstanced || !alreadyApplied)
+        {
             ApplyPower(ref x, target, focus, sign * amount, applier);
+            ResolvePowerAmountChanges(ref x);
+            // BeforeApplied can kill the target; native Apply rechecks it before inserting the row.
+            if (x.NeedsChoice || !CanReceivePowers(x.B, target))
+                return 0;
+        }
         int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out _);
         if (alreadyApplied && applied != 0)
             ApplyPower(ref x, target, focus, sign * applied, applier);
@@ -334,7 +355,13 @@ public static partial class Kernel
             : throw new UnsupportedException("临时敏捷需要敏捷的 Sts2Solver 定义。");
         bool alreadyApplied = GetAmount(x.B, target, temporaryId) != 0;
         if (def.IsInstanced || !alreadyApplied)
+        {
             ApplyPower(ref x, target, dexterity, sign * amount, applier);
+            ResolvePowerAmountChanges(ref x);
+            // BeforeApplied can kill the target; native Apply rechecks it before inserting the row.
+            if (x.NeedsChoice || !CanReceivePowers(x.B, target))
+                return 0;
+        }
         int applied = AddPowerAmount(ref x, target, temporaryId, def, amount, applier, out _,
             powerTarget);
         if (alreadyApplied && applied != 0)
@@ -405,9 +432,9 @@ public static partial class Kernel
         resulting = power.Amount;
         if (def.MarksJustAppliedByEnemy && previous <= 0 && power.Amount > 0 && IsEnemyOwner(target))
             power.Flags |= PowerFlags.WasJustAppliedByEnemy;
-        // SimulatedCombatState.ApplyWithBeforeApplied records every positive Doom application by the
-        // player for DeathsDoor's WasDoomAppliedThisTurn.
-        if (applied > 0 && applier == Limits.PlayerOwner
+        // Native ModifyAmount records even zero changes to an existing Doom stack.
+        // A newly applied instance only records a nonzero amount.
+        if ((previous != 0 || applied != 0) && applier == Limits.PlayerOwner
             && Registry.TryPower("DOOM_POWER", out ushort doomId) && powerId == doomId)
         {
             battle.SetCounter(Counter.DoomAppliedThisTurn, 1);

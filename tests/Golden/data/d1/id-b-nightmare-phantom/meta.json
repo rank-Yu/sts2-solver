@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "id-b-nightmare-phantom",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-b-nightmare-phantom.json\u0022}",
-  "rulesSha256": "9b06d20a465691e14f605413d524afaf8277e37d0065e87db4808a29a3284f5b",
+  "rulesSha256": "d4053ebee585b2393a282fae3228d79eeab901e360953a4b759b86d13ccae663",
   "counts": {
     "roots": 1,
     "k1": 18,

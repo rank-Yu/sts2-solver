@@ -1,9 +1,9 @@
 {
-  "formatVersion": 15,
+  "formatVersion": 16,
   "battleSize": 32376,
   "root": "quality-IRONCLAD-021",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/IRONCLAD-021/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/IRONCLAD-021/request.json\u0022}",
-  "rulesSha256": "fb36ca2d0026f1caaaf93f22b51d3ce4428501523d6c5078141d25f5cb85c2e2",
+  "rulesSha256": "fa17711ddc838fe1d17ca6e41a9c5ba875f8c57261677833f75353e68aaf193c",
   "counts": {
     "roots": 1,
     "k1": 7,

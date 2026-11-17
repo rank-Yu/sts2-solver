@@ -34,7 +34,7 @@ Content ──→ Simulation.Combat（经注册表提供内容行为）
 | `tools/testing` | 本地验证与无头实机测试脚本 |
 | `tools/sts2-sim-export` | 用 sts2-sim 跑整局并导出 `OfflineRequest` 的本地工具 |
 
-`Sts2Solver.sln` 只包含不需要游戏文件的 Core、KernelChecks、Golden 和 Architecture；Import、Mod、TestHost、Differential 单独构建。游戏先加载 `Sts2Solver.dll`，再由这个共用入口选择对应游戏版本的 `Sts2Solver.Runtime.dll`。Core 与 Import 的源码直接编入 Runtime，测试构建额外编入 TestHost；分支与发布包结构见 [Mod 安装与构建](mod.md#双分支打包)。
+`Sts2Solver.sln` 只包含不需要游戏文件的 Core、KernelChecks、Golden 和 Architecture；Loader、Import、Mod、TestHost、Differential 单独构建。游戏先加载 `Sts2Solver.dll`，再由这个共用入口选择对应游戏版本的 `Sts2Solver.Runtime.dll`。Core 与 Import 的源码直接编入 Runtime，测试构建额外编入 TestHost；分支与发布包结构见 [Mod 安装与构建](mod.md#双分支打包)。
 
 ## 设计约束
 

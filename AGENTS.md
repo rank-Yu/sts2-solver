@@ -12,13 +12,14 @@
 - `src/Core/Content`、`src/Core/Ai/Combat`：内容与搜索，各自只依赖 Simulation；Ai 不引用 Content。
 - `src/Core/Autoplay`：`CombatPilot`，通过宿主接口驱动整场战斗；依赖 Simulation 与 Ai。
 - `src/Import/Combat`：只读游戏模型和私有字段，生成 `Battle`、`Rules` 与搜索配置。
+- `src/Loader`：按实际游戏版本加载一个 Runtime，登记程序集并调用入口；不放战斗规则。
 - `src/Mod`：主线程捕获、执行、核对，后台搜索；战斗面板只读 UI 快照，操作经 `CombatUiCommands`。
 - `src/TestHost/Combat`：战斗测试场景、注入与转储。`src/TestHost/ModTesting`：测试版 Mod 专用的入口与补丁。
 - `tests/Differential`：原版差分与离线评测；不包含局外执行。
 
 构建边界：
 
-- 正式 Mod 只编入 Core、Import 与 Mod 的源码。加 `-p:EnableModTesting=true` 才编入 TestHost；两种构建的中间文件和包目录分开。
+- 正式 Runtime 只编入 Core、Import 与 Mod 的源码；共用加载器单独编译。加 `-p:EnableModTesting=true` 才编入 TestHost；两种构建的中间文件和包目录分开。
 - 生产代码不得依赖测试 DTO 或测试宿主。
 
 ## 2. 硬约束

@@ -8,7 +8,7 @@
   "ui.export_failed": "匯出失敗：{0}",
   "ui.exported": "已匯出 {0}",
   "ui.exported_open": "已匯出，請開啟：{0}",
-  "app.title": "尖塔求解器",
+  "app.title": "尖塔求解",
   "settings.title": "設定",
   "ui.low": "低",
   "ui.medium": "中",

@@ -9,8 +9,8 @@ namespace Sts2Solver;
 public static class ModEntry
 {
     public const string ModId = "Sts2Solver";
-    public const string DisplayName = "尖塔求解器";
-    public const string EnglishName = "STS2 Solver";
+    public const string DisplayName = "尖塔求解";
+    public const string EnglishName = "Spire Solver";
     public static string Version => typeof(ModEntry).Assembly.GetName().Version!.ToString(3);
 
     public static bool Enabled { get; private set; }

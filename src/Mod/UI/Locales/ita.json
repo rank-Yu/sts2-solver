@@ -8,7 +8,7 @@
   "ui.export_failed": "Esportazione fallita: {0}",
   "ui.exported": "File esportato: {0}",
   "ui.exported_open": "File esportato. Aperto: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Risolutore della Guglia",
   "settings.title": "Impostazioni",
   "ui.low": "Basso",
   "ui.medium": "Medio",

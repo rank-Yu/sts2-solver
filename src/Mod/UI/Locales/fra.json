@@ -8,7 +8,7 @@
   "ui.export_failed": "Échec de l’exportation : {0}",
   "ui.exported": "Fichier exporté : {0}",
   "ui.exported_open": "Fichier exporté. Ouvert : {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Solveur de la Tour",
   "settings.title": "Paramètres",
   "ui.low": "Faible",
   "ui.medium": "Moyen",

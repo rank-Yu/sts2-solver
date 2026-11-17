@@ -8,7 +8,7 @@
   "ui.export_failed": "Не удалось выполнить экспорт: {0}",
   "ui.exported": "Экспортированный файл: {0}",
   "ui.exported_open": "Файл экспортирован. Открыто: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Решатель Шпиля",
   "settings.title": "Настройки",
   "ui.low": "Низкий",
   "ui.medium": "Средний",

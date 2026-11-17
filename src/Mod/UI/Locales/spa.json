@@ -8,7 +8,7 @@
   "ui.export_failed": "Exportación fallida: {0}",
   "ui.exported": "Archivo exportado: {0}",
   "ui.exported_open": "Archivo exportado. Abierto: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Solucionador de la Torre",
   "settings.title": "Ajustes",
   "ui.low": "Bajo",
   "ui.medium": "Medio",

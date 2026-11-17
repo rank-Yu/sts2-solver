@@ -8,7 +8,7 @@
   "ui.export_failed": "エクスポートに失敗しました: {0}",
   "ui.exported": "出力済み: {0}",
   "ui.exported_open": "出力しました。保存先: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "スパイアソルバー",
   "settings.title": "設定",
   "ui.low": "低",
   "ui.medium": "中",

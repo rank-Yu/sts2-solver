@@ -8,7 +8,7 @@
   "ui.export_failed": "Ekspor gagal: {0}",
   "ui.exported": "File yang diekspor: {0}",
   "ui.exported_open": "Berkas diekspor. Buka: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Pencari Solusi Menara",
   "settings.title": "Pengaturan",
   "ui.low": "Rendah",
   "ui.medium": "Sedang",

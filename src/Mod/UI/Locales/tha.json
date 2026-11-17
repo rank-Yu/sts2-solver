@@ -8,7 +8,7 @@
   "ui.export_failed": "การส่งออกล้มเหลว: {0}",
   "ui.exported": "ไฟล์ที่ส่งออก: {0}",
   "ui.exported_open": "ไฟล์ถูกส่งออก เปิด: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "ตัวช่วยวางแผนในสไปร์",
   "settings.title": "การตั้งค่า",
   "ui.low": "ต่ำ",
   "ui.medium": "ปานกลาง",

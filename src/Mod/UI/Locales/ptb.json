@@ -8,7 +8,7 @@
   "ui.export_failed": "Falha na exportação: {0}",
   "ui.exported": "Arquivo exportado: {0}",
   "ui.exported_open": "Arquivo exportado. Aberto: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Solucionador do Pináculo",
   "settings.title": "Configurações",
   "ui.low": "Baixo",
   "ui.medium": "Médio",

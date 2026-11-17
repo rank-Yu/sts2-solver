@@ -8,7 +8,7 @@
   "ui.export_failed": "导出失败：{0}",
   "ui.exported": "已导出 {0}",
   "ui.exported_open": "已导出，请打开：{0}",
-  "app.title": "尖塔求解器",
+  "app.title": "尖塔求解",
   "settings.title": "设置",
   "ui.low": "低档",
   "ui.medium": "中档",

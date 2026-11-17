@@ -8,7 +8,7 @@
   "ui.export_failed": "Export fehlgeschlagen: {0}",
   "ui.exported": "Exportierte Datei: {0}",
   "ui.exported_open": "Datei exportiert. Geöffnet: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Spire-Löser",
   "settings.title": "Einstellungen",
   "ui.low": "Niedrig",
   "ui.medium": "Mittel",

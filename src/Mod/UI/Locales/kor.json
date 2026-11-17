@@ -8,7 +8,7 @@
   "ui.export_failed": "내보내기 실패: {0}",
   "ui.exported": "내보낸 파일 : {0}",
   "ui.exported_open": "내보낸 파일. 열림: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "첨탑 솔버",
   "settings.title": "설정",
   "ui.low": "낮음",
   "ui.medium": "보통",

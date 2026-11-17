@@ -8,7 +8,7 @@
   "ui.export_failed": "Export failed: {0}",
   "ui.exported": "Exported {0}",
   "ui.exported_open": "Exported. Open: {0}",
-  "app.title": "STS2 Solver",
+  "app.title": "Spire Solver",
   "settings.title": "Settings",
   "ui.low": "Low",
   "ui.medium": "Medium",

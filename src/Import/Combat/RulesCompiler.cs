@@ -1189,6 +1189,9 @@ public static partial class RulesCompiler
             rows[i] = new Relic { Id = id, Flags = native.IsMelted ? RelicFlags.Melted : RelicFlags.None };
             if (native is PhilosophersStone stone) rows[i].Aux = stone.DynamicVars["StrengthPower"].IntValue;
             if (native is PumpkinCandle candle) rows[i].Counter = candle.KindleCount;
+            if (native is BoomingConch)
+                rows[i].Aux = player.RunState.CurrentRoom?.RoomType
+                    == MegaCrit.Sts2.Core.Rooms.RoomType.Elite ? 1 : 0;
         }
         // Melted rows retain imported private values too. The importer supplies their full snapshot.
         // Keep declared state slots even for melted rows so fixed metadata does not need live counters.

@@ -57,6 +57,15 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/thumbscrew-x2.json play:0:255 end
 ```
 
+## 精英房遗物导入
+
+BoomingConch 的精英房标志在共享遗物清单和战斗导入中保持一致。用真实精英遭遇与普通遭遇分别验证建根、出牌和跨回合重导入：
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/relic-room-conch-elite.json play:0:255 end end
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/relic-room-conch-monster.json play:0:255 end end
+```
+
 ## 用药时机与遗物
 
 以下用例核对第二回合用药获得临时力量，以及先让燃烧获得的力量触发头盔翻倍、再喝力量药、鱼油或玛扎雷斯的馈赠的结算。搜索回归在 KernelChecks 中验证这些后续回合的用药路线能被找到，并覆盖已熔化遗物。

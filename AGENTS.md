@@ -4,7 +4,7 @@
 
 ## 1. 边界
 
-主分支是原版单人、同种子 SL 模式的战斗求解 Mod。局外代码在 `dev/full-run` 分支，不属于主分支的发布范围。
+主分支是原版单人、同种子 SL 模式的战斗求解 Mod。`main` 对应游戏 `public-beta`，`game-public` 对应游戏 `public`；各分支按 `src/Mod/GameTarget.props` 指定的游戏版本维护战斗规则，共用加载器与打包流程见 [docs/mod.md](docs/mod.md#双分支打包)。局外代码在 `dev/full-run` 分支，不属于主分支的发布范围。
 
 分层与依赖（详见 [docs/README.md](docs/README.md#分层)）：
 

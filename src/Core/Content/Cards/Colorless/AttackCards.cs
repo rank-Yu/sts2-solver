@@ -242,8 +242,8 @@ public sealed class Omnislice : CardDef
             return;
         }
         Kernel.Damage(ref x, targets[..count], amount,
-            ValueProps.Move, Limits.PlayerOwner,
-            hasCardSource: true, x.Card, capOnly: true);
+            ValueProps.Unpowered | ValueProps.Move, Limits.PlayerOwner,
+            hasCardSource: true, x.Card);
         if (x.NeedsChoice)
             return;
         Kernel.ApplyEnemyDeathPowersInRoster(ref x);
@@ -274,7 +274,7 @@ public sealed class SeekerStrike : CardDef
         for (int index = 0; index < draw; index++)
             origins[index] = index;
         CardSort.SortWithOrigins(order, origins, x.R, in x.B, Pile.Draw);
-        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int n = draw; n > 1;)
         {
             n--;

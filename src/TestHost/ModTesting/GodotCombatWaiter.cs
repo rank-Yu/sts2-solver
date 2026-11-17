@@ -18,35 +18,13 @@ internal sealed class GodotCombatWaiter(NGame host) : ICombatHost
     {
         await host.GameStartupComplete;
         TestHostLog.Trace("run.startup_complete");
-        if (gameMode == GameMode.Blitz)
-        {
-            // The seed profile predates Neow's new epoch. Blitz requires its starting ancient,
-            // even in a fixture which immediately enters a specified combat.
-            var saved = MegaCrit.Sts2.Core.Saves.SaveManager.Instance.GenerateUnlockStateFromProgress();
-            var unlocks = new MegaCrit.Sts2.Core.Unlocks.UnlockState([
-                saved,
-                new MegaCrit.Sts2.Core.Unlocks.UnlockState([
-                    MegaCrit.Sts2.Core.Timeline.EpochModel.GetId<MegaCrit.Sts2.Core.Timeline.Epochs.NeowEpoch>()
-                ], [], 0)
-            ]);
-            RunState run = RunState.CreateForNewRun(
-                [Player.CreateForNewRun(character, unlocks, 1uL)],
-                ActModel.GetDefaultList().Select(act => act.ToMutable()).ToList(),
-                [], gameMode, false, ascension, seed);
-            RunManager.Instance.SetUpNewSingleplayer(run, shouldSave: false);
-            using (RunManager.Instance.CardSelectorStack.UseLocalSelector(new FirstChoiceCardSelector()))
-                await host.StartRun(run);
-            return run;
-        }
         return await host.StartNewSingleplayerRun(
-            Player.CreateForNewRun(character,
-                MegaCrit.Sts2.Core.Saves.SaveManager.Instance.GenerateUnlockStateFromProgress(), 1uL),
+            character,
             shouldSave: false,
             ActModel.GetDefaultList(),
             [],
             seed,
             gameMode,
-            isCustomGame: false,
             ascension);
     }
 

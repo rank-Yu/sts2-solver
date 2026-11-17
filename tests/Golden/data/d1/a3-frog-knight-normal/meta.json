@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "a3-frog-knight-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-frog-knight-normal.json\u0022}",
-  "rulesSha256": "c4787914bbc7b8d85949ee016087822b83c548c3037d526fe51af882d5197925",
+  "rulesSha256": "81d3f0b722d19f9447c83bdadcb5bb6cc67412e939625004281058390f01e799",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1915,
-    "transitions": 1914
+    "walkStates": 1917,
+    "transitions": 1915
   }
 }

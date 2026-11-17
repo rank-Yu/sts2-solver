@@ -3,7 +3,7 @@
   "battleSize": 32376,
   "root": "qt2-art-of-war-endturn",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qt2-art-of-war-endturn.json\u0022}",
-  "rulesSha256": "e16a8837b2781e6cfa2e164b4be0c7256c937dfe2b2afe3917e3d9aa5701e5d7",
+  "rulesSha256": "fb2b5ba23a860e6dd8ce245c4197f9ea72fdede9752d2d2abb9bd4d3ff7354c8",
   "counts": {
     "roots": 1,
     "k1": 2,

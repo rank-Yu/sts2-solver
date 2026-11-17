@@ -391,13 +391,13 @@ public enum HookMaskExt : ulong
 
     /// <summary>
     /// Native <c>AbstractModel.ShouldTakeExtraTurn</c> (<c>HookMirrors.ShouldTakeExtraTurn</c>, after the
-    /// player turn-end phases and before the enemy turn; ExtraTurnPower and PaelsEye). Uses bits 3-15.
+    /// player turn-end phases and before the enemy turn; AmbergrisPower and PaelsEye). Uses bits 3-15.
     /// </summary>
     ShouldTakeExtraTurn = 1UL << 4,
 
     /// <summary>
     /// Native <c>AbstractModel.AfterTakingExtraTurn</c> (<c>HookMirrors.AfterTakingExtraTurn</c>, before
-    /// the extra player turn starts; ExtraTurnPower decrements, PaelsEye marks itself used). Bits 3-15.
+    /// the extra player turn starts; AmbergrisPower decrements, PaelsEye marks itself used). Bits 3-15.
     /// </summary>
     AfterTakingExtraTurn = 1UL << 5,
 
@@ -1294,7 +1294,7 @@ public abstract class PowerDef : ListenerDef
 
     /// <summary>
     /// Native <c>PowerModel.IsVisible</c>. The single-player visibility test reduces to the hidden
-    /// internal override (only <c>ExtraTurnPower</c> sets <c>IsVisibleInternal=false</c>); all visible
+    /// internal override (only <c>AmbergrisPower</c> sets <c>IsVisibleInternal=false</c>); all visible
     /// powers here return true.
     /// </summary>
     public virtual bool IsVisible => true;

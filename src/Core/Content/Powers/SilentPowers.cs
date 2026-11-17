@@ -79,7 +79,7 @@ public sealed class DrawCardsNextTurnPower : PowerDef
         return amount;
     }
 
-    public override void AfterModifyingHandDraw(ref Exec x, Listener self)
+    public override void BaseSideTurnStart(ref Exec x, Listener self, bool decrementPlating)
     {
         ref readonly Power power = ref x.B.Powers[self.Index];
         if (power.Amount > 0)

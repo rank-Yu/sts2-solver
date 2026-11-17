@@ -143,6 +143,10 @@ public static partial class BattleImporter
 
         battle.Player = Vitals(player.Creature, history.HasLostHpThisTurn(player.Creature));
         Creature? osty = player.Osty;
+        Creature? retainedOsty = state.Allies.FirstOrDefault(ally =>
+            ally.Monster is MegaCrit.Sts2.Core.Models.Monsters.Osty && ally.PetOwner == player);
+        if (retainedOsty != null)
+            battle.Flags |= BattleFlags.OstyEverPresent;
         if (osty != null)
         {
             NativeAccess.RequireOriginalType(osty.GetType());
@@ -153,10 +157,7 @@ public static partial class BattleImporter
             battle.Flags |= BattleFlags.OstyEverPresent;
         }
 
-        Creature? wuppy = playerState.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy);
-        if (wuppy != null)
-            battle.Wuppy = Vitals(wuppy, history.HasLostHpThisTurn(wuppy));
-        ImportCounters(ref battle, state, player, known, osty, history, options);
+        ImportCounters(ref battle, state, player, known, retainedOsty, history, options);
         ImportRng(ref battle, state.RunState.Rng, player);
         ImportEnemies(ref battle, state, player, known, rules, history, projections, options);
         ImportPowers(ref battle, player, known, osty, rules, history, projections);
@@ -165,8 +166,6 @@ public static partial class BattleImporter
         ImportRelics(ref battle, player, projections, rules);
         ImportPotions(ref battle, player, rules);
         ImportOrbs(ref battle, playerState);
-        if (rules.HasFoolMechanics || playerState.Arrows.Count > 0)
-            ImportFool(ref battle, state, player, known, rules);
         if (rules.HasDecimalCardVars && !DecimalVars.TryCanonicalize(ref battle, out _))
             throw new UnsupportedImportException(ImportReason.Capacity, "卡牌小数变量表");
         projections.RequireAllMonsterIntsClaimed([]);
@@ -321,7 +320,6 @@ public static partial class BattleImporter
         Set(ref battle, RngStream.CombatOrbGeneration, rng.CombatOrbGeneration);
         Set(ref battle, RngStream.MonsterAi, rng.MonsterAi);
         Set(ref battle, RngStream.Niche, rng.Niche);
-        Set(ref battle, RngStream.NonCombatGeneration, player.PlayerRng.NonCombatGeneration);
 
         static void Set(ref Battle target, RngStream stream, MegaCrit.Sts2.Core.Random.Rng source)
         {
@@ -522,8 +520,6 @@ public static partial class BattleImporter
         AddPowers(ordered, player.Creature, Limits.PlayerOwner);
         if (osty != null)
             AddPowers(ordered, osty, Limits.OstyOwner);
-        Creature? wuppy = player.PlayerCombatState!.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy);
-        if (wuppy != null) AddPowers(ordered, wuppy, Limits.WuppyOwner);
         for (int index = 0; index < known.Count; index++)
             AddPowers(ordered, known[index], checked((byte)(Limits.FirstEnemyOwner + index)));
         ordered.Sort((left, right) => left.Owner != right.Owner
@@ -730,8 +726,6 @@ public static partial class BattleImporter
             // lazy query in Sts2Solver and must not be written into the card row, or it survives after
             // HexPower/Hexed is gone and is counted twice by Kernel.HasKeyword.
             Keywords = MapKeywords(card.GetKeywordsWithSources(KeywordSources.Local)),
-            KeywordsAddedFromOutside = MapKeywords(card._keywordsAddedFromOutside),
-            KeywordsRemovedFromOutside = MapKeywords(card._keywordsRemovedFromOutside),
             BaseCost = checked((sbyte)card.EnergyCost._base),
             BaseStarCost = checked((sbyte)card.BaseStarCost),
             ReplayCount = checked((byte)card.BaseReplayCount),
@@ -741,13 +735,6 @@ public static partial class BattleImporter
         };
         if (def.UsesIdentityLedger)
             result.Private = Limits.UninitializedLedger;
-        if (card is MegaCrit.Sts2.Core.Models.Cards.TheShot shot)
-        {
-            decimal exhausted = shot._cardsExhaustedByFlorescence;
-            if (exhausted != decimal.Truncate(exhausted) || exhausted < 0 || exhausted > short.MaxValue)
-                throw new UnsupportedImportException(ImportReason.Unrepresentable, $"TheShot 花开计数 {exhausted}");
-            result.Private = (short)exhausted;
-        }
         if (dampenOriginalUpgrade >= byte.MaxValue)
             throw new UnsupportedImportException(ImportReason.Unrepresentable,
                 $"{card.Id.Entry} 压制前升级等级 {dampenOriginalUpgrade}");
@@ -773,6 +760,9 @@ public static partial class BattleImporter
             result.EnchantmentStatus = (byte)enchantment.Status;
             switch (enchantment)
             {
+                case Glam glam:
+                    result.EnchantmentPrivate = (short)(glam._usedThisCombat ? 1 : 0);
+                    break;
                 case Momentum momentum:
                     result.EnchantmentPrivate = checked((short)momentum._extraDamage);
                     break;
@@ -1026,8 +1016,6 @@ public static partial class BattleImporter
             return Limits.PlayerOwner;
         if (osty != null && ReferenceEquals(creature, osty))
             return Limits.OstyOwner;
-        if (creature.PetOwner == player && creature.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy)
-            return Limits.WuppyOwner;
         int index = IndexOf(known, creature);
         return index >= 0
             ? checked((byte)(Limits.FirstEnemyOwner + index))

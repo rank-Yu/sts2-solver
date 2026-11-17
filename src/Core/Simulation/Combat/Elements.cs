@@ -188,15 +188,11 @@ public struct Card
     public void AddKeyword(Keywords keywords)
     {
         Keywords |= keywords;
-        KeywordsAddedFromOutside |= keywords;
-        KeywordsRemovedFromOutside &= ~keywords;
     }
 
     public void RemoveKeyword(Keywords keywords)
     {
         Keywords &= ~keywords;
-        KeywordsRemovedFromOutside |= keywords;
-        KeywordsAddedFromOutside &= ~keywords;
     }
 
 

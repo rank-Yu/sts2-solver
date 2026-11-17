@@ -87,14 +87,14 @@ public sealed class Judgement : CardDef
 public sealed class TheHangedMan : CardDef
 {
     public override IReadOnlyList<string> VarNames => ["HpLoss"];
-    public override IReadOnlyList<string> AppliedPowers => ["EXTRA_TURN_POWER"];
+    public override IReadOnlyList<string> AppliedPowers => ["AMBERGRIS_POWER"];
     public override void OnPlay(ref Exec x)
     {
         Span<byte> targets = stackalloc byte[1] { Limits.PlayerOwner };
         Kernel.Damage(ref x, targets, FoolEffects.Var(ref x, 0),
             ValueProps.Unblockable | ValueProps.Unpowered | ValueProps.Move, Limits.PlayerOwner, true, x.Card);
         if (!x.NeedsChoice) Kernel.ApplyPowerWithoutCardSource(ref x, Limits.PlayerOwner,
-            Registry.PowerId<ExtraTurnPower>(), 1, Limits.PlayerOwner);
+            Registry.PowerId<AmbergrisPower>(), 1, Limits.PlayerOwner);
     }
 }
 
@@ -189,7 +189,7 @@ public sealed class TheWorld : CardDef
         int count = x.B.DiscardCount;
         Span<int> order = stackalloc int[count];
         for (int i = 0; i < count; i++) order[i] = i;
-        var rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int i = count - 1; i > 0; i--)
         {
             int pick = rng.NextInt(i + 1);
@@ -229,7 +229,7 @@ public sealed class TheFool : CardDef
     private static int Shuffle(ref Exec x, scoped Span<Card> cards, scoped Span<int> order)
     {
         CardSort.SortWithOrigins(cards, order, x.R, x.B, Pile.Hand);
-        var rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int i = order.Length - 1; i > 0; i--)
         {
             int pick = rng.NextInt(i + 1);

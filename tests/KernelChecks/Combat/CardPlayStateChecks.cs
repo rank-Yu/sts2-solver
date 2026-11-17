@@ -59,7 +59,7 @@ internal static class CardPlayStateChecks
     }
 
     /// <summary>
-    /// Juggling clones the third attack at its AfterCardPlayed. A Glam card's replay is that third
+    /// Juggling clones the third attack at its BeforeCardPlayed. A Glam card's replay is that third
     /// start here; Glam disabled itself in the first play's AfterCardPlayed, so the clone copies the
     /// used, disabled enchantment.
     /// </summary>
@@ -84,7 +84,7 @@ internal static class CardPlayStateChecks
         Assert(battle.HandCount == 1, "Juggling must add one clone to the hand");
         ref Card clone = ref Piles.At(ref battle, Pile.Hand, 0);
         Assert(clone.IsClone && clone.EnchantmentId == glam + 1, "the hand card must be the Glam clone");
-        Assert(clone.EnchantmentPrivate == 0 && clone.EnchantmentStatus == 1,
+        Assert(clone.EnchantmentPrivate == 1 && clone.EnchantmentStatus == 1,
             "the clone must copy the Glam state the first play already used and disabled");
     }
 

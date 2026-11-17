@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p13-entomancer-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-entomancer-elite.json\u0022}",
-  "rulesSha256": "a5f8a58274ee2dc6beea11dd40955cedf62f988a67d64c8dfc1c4ba4d01f6f8e",
+  "rulesSha256": "6a35f48858eeae1a53deaa5dde1a7bd5a09d838669c43024ac6cf14ce9cd3de3",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1221,
-    "transitions": 1189
+    "walkStates": 1241,
+    "transitions": 1209
   }
 }

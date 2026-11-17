@@ -240,7 +240,7 @@ internal static class UiPanelChecks
         Vector2 originalSize = panel.PanelForTest!.Size;
         try
         {
-            foreach (string language in LocManager.Languages.Where(l => !LocManager.IsHiddenLanguage(l)))
+            foreach (string language in LocManager.Languages)
             {
                 LocManager.Instance.SetLanguage(language);
                 await Frames(host, 4);

@@ -4,14 +4,14 @@
 
 [中文](README.md) | **English**
 
-[![STS2 v0.113.1](https://img.shields.io/badge/game-STS2%20v0.113.1-8B0000)](#)
+[![STS2 v0.111.1 / v0.113.1](https://img.shields.io/badge/game-v0.111.1%20%2F%20v0.113.1-8B0000)](#)
 [![RitsuLib 0.6.11+](https://img.shields.io/badge/RitsuLib-0.6.11%2B-6A5ACD)](#)
 [![License: MIT](https://img.shields.io/github/license/rank-Yu/sts2-solver?color=green)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/rank-Yu/sts2-solver?style=flat&logo=github)](https://github.com/rank-Yu/sts2-solver/stargazers)
 
 </div>
 
-STS2 Solver is a combat solver Mod for Slay the Spire 2, for single-player Standard, Dread and Blitz, including the Fool. When a fight starts it reads the current combat and the real random-number state, searches the card-play line for the whole fight, and plays cards and potions in the game automatically.
+STS2 Solver is a single-player combat solver Mod for Slay the Spire 2, supporting public v0.111.1 and public-beta v0.113.1. The public version supports five characters in Standard mode; the beta supports six characters, including the Fool, in Standard, Dread and Blitz. When a fight starts it reads the current combat and the real random-number state, searches the card-play line for the whole fight, and plays cards and potions in the game automatically.
 
 In Slay the Spire 2, quitting and re-entering restarts the fight with the same random outcomes; this is the save-and-load (SL) trick, and the solver relies on it to predict each step. Cards and potions are played through the game's own actions.
 
@@ -59,8 +59,8 @@ STS2 Solver searches faster in 118 of the 126 combats. Opening searches take 373
 
 ## Installation
 
-1. In your Steam library, right-click Slay the Spire 2, open Properties → Betas, and choose `public-beta` to update the game to v0.113.1.
-2. Subscribe to STS2 Solver on the Steam Workshop; Steam offers to subscribe to the required RitsuLib Mod along with it.
+1. Use public v0.111.1 (choose “None” under Steam Properties → Betas) or `public-beta` v0.113.1.
+2. Subscribe to STS2 Solver on the Steam Workshop; Steam offers to subscribe to the required RitsuLib Mod along with it. One subscription supports both game branches and loads the matching runtime automatically.
 3. Start the game. The first time it loads Mods it asks for confirmation; agree, then restart the game.
 
 ## Usage
@@ -72,7 +72,6 @@ STS2 Solver searches faster in 118 of the 126 combats. Opening searches take 373
 - Unsupported content (for example cards added by other Mods) is rejected instead of being played blindly.
 - It can be installed together with CombatSolver, but let only one of them execute each turn, or they get in each other's way.
 - **Settings** holds play speed, search tier, search parallelism and more; **Potions** sets how each potion is used, and **Growth** sets how much extra HP the solver may spend for each long-term gain outside the fight (for example Feed or Genetic Algorithm).
-- The panel follows the game language: Chinese for Simplified or Traditional Chinese, English otherwise.
 
 ## Feedback
 

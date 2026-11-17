@@ -31,7 +31,7 @@ internal static partial class CombatControllerChecks
         check("deployment_released", !paused.IsDeploying);
         check("one_failure", paused.DeploymentFailures == 1, paused.DeploymentFailures.ToString());
         check("no_deviation", paused.Deviations == 0);
-        check("selector_released", RunManager.Instance.CardSelectorStack.GetSelector(request!.Player) == null);
+        check("selector_released", MegaCrit.Sts2.Core.Commands.CardSelectCmd.Selector == null);
         check("manual_pending", !request!.Completion!.IsCompleted);
         await Frames(host, 30);
         check("no_automatic_answer", !request.Completion.IsCompleted);

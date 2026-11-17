@@ -137,7 +137,7 @@ public static partial class Kernel
     /// shared pool frozen at admission (potions that cannot be generated in combat are included).
     /// </summary>
     public static ushort GenerateRandomPotionOutOfCombat(ref Battle battle, Rules rules)
-        => GenerateRandomPotionFromPool(ref battle, rules, rules.OutOfCombatPotionPool, RngStream.NonCombatGeneration);
+        => GenerateRandomPotionFromPool(ref battle, rules, rules.OutOfCombatPotionPool, RngStream.CombatPotionGeneration);
 
     private static ushort GenerateRandomPotionFromPool(ref Battle battle, Rules rules,
         IReadOnlyList<ushort> pool, RngStream stream)

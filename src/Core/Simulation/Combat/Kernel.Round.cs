@@ -78,7 +78,7 @@ public static partial class Kernel
         ApplyEnemyDeathPowers(ref x);
 
         // HookMirrors.ShouldTakeExtraTurn after the player turn-end phases, before the enemy turn.
-        bool extraTurn = ShouldTakeExtraTurnPass(ref x, out Listener extraTurnSource);
+        bool extraTurn = ShouldTakeExtraTurnPass(ref x);
         if (x.NeedsChoice)
             return false;
         if (extraTurn)
@@ -88,7 +88,7 @@ public static partial class Kernel
             AfterRelicRoundPass(ref x);
             if (x.NeedsChoice)
                 return false;
-            AfterTakingExtraTurnPass(ref x, extraTurnSource);
+            AfterTakingExtraTurnPass(ref x);
             if (x.NeedsChoice)
                 return false;
         }
@@ -240,6 +240,8 @@ public static partial class Kernel
         if (x.B.Outcome == Outcome.EventDefeat)
             return;
         ApplyEnemyDeathPowers(ref x);
+        // Native starts the next player turn by rolling enemy intents, before player poison.
+        PrepareMonsterMovesForNextRound(ref x);
         // CorePowerSupport.TriggerPoison over the player, then ClearNoDraw (no supported sources).
         Span<byte> players = stackalloc byte[1];
         players[0] = Limits.PlayerOwner;
@@ -252,7 +254,6 @@ public static partial class Kernel
             return;
         if (CheckWinCondition(ref x.B))
             return;
-        PrepareMonsterMovesForNextRound(ref x);
     }
 
     /// <summary>Mirrors <c>HookMirrors.BeforeSideTurnEnd</c>: the VeryEarly, Early and normal passes.</summary>
@@ -327,9 +328,8 @@ public static partial class Kernel
             battle.SetCounter(counter, 0);
         // BeginSideTurn's ResetTurnCounter(_starsGainedThisTurn) for the player.
         battle.SetCounter(Counter.StarsGainedThisTurn, 0);
-        // SimulatedCombatState.BeginSideTurn(player): Osty's per-turn counters are reset through the
-        // native `ownerPlayer.Osty` pet field. DieForYouPower keeps the pet object there after death,
-        // and a pet summoned during the search is present as soon as the summon completes.
+        // Native attack history belongs to the retained Osty object even after sacrifice removes
+        // it from the pet list. Preserve that count for revival, then reset it at the next turn.
         if ((battle.Flags & BattleFlags.OstyEverPresent) != 0)
             battle.SetCounter(Counter.OstyAttacksThisTurn, 0);
         battle.SetCounter(Counter.DoomAppliedThisTurn, 0);
@@ -1008,36 +1008,38 @@ internal static void AfterFlushPass(ref Exec x)
 }
 
 /// <summary><c>HookMirrors.ShouldTakeExtraTurn</c>: the first listener answering true wins.</summary>
-internal static bool ShouldTakeExtraTurnPass(ref Exec x, out Listener source)
+internal static bool ShouldTakeExtraTurnPass(ref Exec x)
 {
-    source = default;
     if ((Registry.AnyHooksExt & HookMaskExt.ShouldTakeExtraTurn) == 0)
         return false;
     Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
     int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.ShouldTakeExtraTurn, listeners);
-    // 0.113 checks early sources first and consumes only the source which grants the turn.
-    for (int pass = 0; pass < 2; pass++)
+    for (int index = 0; index < count; index++)
     {
-        for (int index = 0; index < count; index++)
-        {
-            Listener self = listeners[index];
-            var definition = HookDispatch.Definition(x.B, x.R, self);
-            if (definition.ExtraTurnPriority != (pass == 0))
-                continue;
-            if (definition.ShouldTakeExtraTurn(ref x, self))
-            {
-                source = self;
-                return true;
-            }
-            if (x.NeedsChoice)
-                return false;
-        }
+        Listener self = listeners[index];
+        if (HookDispatch.Definition(x.B, x.R, self).ShouldTakeExtraTurn(ref x, self))
+            return true;
+        if (x.NeedsChoice)
+            return false;
     }
     return false;
 }
 
-internal static void AfterTakingExtraTurnPass(ref Exec x, Listener source)
-    => HookDispatch.Definition(x.B, x.R, source).AfterTakingExtraTurn(ref x, source);
+/// <summary>正式版的额外回合通知会发送给全部监听器。</summary>
+internal static void AfterTakingExtraTurnPass(ref Exec x)
+{
+    if ((Registry.AnyHooksExt & HookMaskExt.AfterTakingExtraTurn) == 0)
+        return;
+    Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
+    int count = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.AfterTakingExtraTurn, listeners);
+    for (int index = 0; index < count; index++)
+    {
+        Listener self = listeners[index];
+        HookDispatch.Definition(x.B, x.R, self).AfterTakingExtraTurn(ref x, self);
+        if (x.NeedsChoice)
+            return;
+    }
+}
 
 /// <summary><c>SimulatedCombatState.RecordRelicRoundDamage</c>: the per-round relic bookkeeping.</summary>
 internal static void AfterRelicRoundPass(ref Exec x)

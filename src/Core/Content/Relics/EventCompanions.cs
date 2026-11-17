@@ -5,17 +5,7 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Content.Relics;
 
 [ContentId("BYRDPIP")]
-public sealed class Byrdpip : RelicDef
-{
-    public override bool HasCombatState => true;
-    public override IReadOnlyList<string> VarNames => ["Repeat"];
-    public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
-    {
-        if (Registry.Card(play.Card.Id).NativeId != "BYRD_SWOOP") return;
-        ref RelicState state = ref x.B.RelicState(x.R, self.Index);
-        state.Counter = Math.Min(state.Counter + 1, (int)x.R.RelicVar(Id, 0));
-    }
-}
+public sealed class Byrdpip : RelicDef;
 
 // These pets are non-interactable animation actors. Attacks and powers belong to the player.
 [ContentId("BYRDINE")]

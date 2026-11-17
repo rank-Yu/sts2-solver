@@ -3,10 +3,10 @@
   "battleSize": 32376,
   "root": "hs-chains-turn-reset",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-hs-chains-turn-reset.json\u0022}",
-  "rulesSha256": "c76ff92d492bf74e0d5d7e18b8dbac9620c4dd5dfb579e133f5ed2175d3db0bd",
+  "rulesSha256": "e57af7c92fcb17f3729aa27189c62f760ce46233d46ac38c030067c8552eef48",
   "counts": {
     "roots": 1,
-    "k1": 6,
+    "k1": 7,
     "walks": 32,
     "walkStates": 1920,
     "transitions": 1920

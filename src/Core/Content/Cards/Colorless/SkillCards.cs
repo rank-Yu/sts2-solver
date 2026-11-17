@@ -304,7 +304,7 @@ public sealed class Anointed : CardDef
                 rares[rareCount++] = index;
         }
         rares = rares[..rareCount];
-        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int n = rares.Length; n > 1;)
         {
             n--;

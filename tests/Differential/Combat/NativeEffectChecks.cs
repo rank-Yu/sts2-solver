@@ -64,14 +64,6 @@ internal static class NativeEffectChecks
                     Console.WriteLine($"NATIVE_WALK_CARD {entry.Key}={entry.Count}");
                 Console.WriteLine($"NATIVE_WALK_OK scenario={request.ScenarioId} seed={seed} actions={executed} outcome={current.Outcome}");
             }
-            else if (fields is [("generate" or "replace" or "transform"), var cardId])
-            {
-                CheckArrowEntry(loop, state, player, rules, current, fields[0], cardId);
-                rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
-                tracker = new(state);
-                current = tracker.ImportRoot(state, player, rules);
-                tracker.Observe(current);
-            }
             else
             {
                 PlayerAction action = fields[0] switch
@@ -92,7 +84,7 @@ internal static class NativeEffectChecks
                     after.Outcome == Outcome.Victory).Actions[0];
                 Execute(planned);
             }
-            Console.WriteLine($"NATIVE_EFFECT_OK scenario={request.ScenarioId} command={command} arrows={current.Fool.ArrowCount}");
+            Console.WriteLine($"NATIVE_EFFECT_OK scenario={request.ScenarioId} command={command}");
         }
         return 0;
 
@@ -122,48 +114,4 @@ internal static class NativeEffectChecks
         }
     }
 
-    private static void CheckArrowEntry(MainLoopContext loop, CombatState state, NativePlayer player,
-        Rules originalRules, Battle before, string kind, string cardId)
-    {
-        CardModel native = state.CreateCard(
-            NativeLookup.ResolveUnique(ModelDb.AllCards, cardId, "card"), player);
-        Task add = kind == "generate"
-            ? CardPileCmd.AddGeneratedCardToCombat(native, PileType.Hand, player)
-            : CardCmd.Transform(player.PlayerCombatState!.Hand.Cards[0], native);
-        loop.RunUntilCompleted(add, TimeSpan.FromSeconds(10), "enter shoot card");
-        add.GetAwaiter().GetResult();
-        Rules rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
-        if (!originalRules.Relics.Equivalent(rules.Relics))
-            throw new InvalidDataException("generation changed the immutable relic roster");
-        if (!Registry.TryCard(cardId, out ushort id))
-            throw new InvalidDataException($"Unregistered card: {cardId}");
-        Card card = Kernel.CreateCard(rules, id);
-        Battle simulated = before;
-        Exec x = new(ref simulated, rules, PlayerAction.EndTurn());
-        switch (kind)
-        {
-            case "generate":
-                if (!Kernel.AddGeneratedCard(ref x, card, Pile.Hand))
-                    throw new InvalidDataException("kernel generation rejected");
-                break;
-            case "replace": Kernel.ReplaceCard(ref x, Pile.Hand, 0, card); break;
-            case "transform": Kernel.TransformCards(ref x, Pile.Hand, [0], card, 0); break;
-        }
-        if (x.NeedsChoice)
-            throw new InvalidDataException("card entry unexpectedly requested a choice");
-        int expected = player.PlayerCombatState!.Arrows.Count;
-        if (simulated.Fool.ArrowCount != expected)
-            throw new InvalidDataException($"generated arrow count: native={expected} kernel={simulated.Fool.ArrowCount}");
-        for (int i = 0; i < expected; i++)
-        {
-            var arrow = player.PlayerCombatState.Arrows[i];
-            byte flags = (byte)((int)arrow.Status | (arrow.DestroyAfterImpaled ? 4 : 0));
-            if (simulated.Fool.Arrows[i].Flags != flags)
-                throw new InvalidDataException($"arrow {i}: native flags={flags}, kernel={simulated.Fool.Arrows[i].Flags}");
-        }
-        if (before.Fool.ArrowCount == 0 && simulated.Fool.ArrowCount != 1)
-            throw new InvalidDataException("first Shoot card must add one arrow slot");
-        if (before.Fool.ArrowCount > 0 && simulated.Fool.ArrowCount != before.Fool.ArrowCount)
-            throw new InvalidDataException("existing arrow slots must be preserved");
-    }
 }

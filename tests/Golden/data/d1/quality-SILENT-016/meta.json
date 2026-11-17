@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "quality-SILENT-016",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/SILENT-016/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/SILENT-016/request.json\u0022}",
-  "rulesSha256": "284a69c66d520b9777633a45be3ec31ff6598247eac9629b251fc472f006a9f8",
+  "rulesSha256": "050dcecfa31317cc4d51c7778eecd04c9525e48982154dd12ecd24def824041b",
   "counts": {
     "roots": 1,
-    "k1": 20,
+    "k1": 18,
     "walks": 48,
-    "walkStates": 667,
-    "transitions": 619
+    "walkStates": 623,
+    "transitions": 575
   }
 }

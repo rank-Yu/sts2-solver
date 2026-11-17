@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "nb-g-utility2",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-nb-g-utility2.json\u0022}",
-  "rulesSha256": "d7ee0554e72f568f54548f2c7d7ac217d420cff73521316563e333bc19dd2038",
+  "rulesSha256": "023a5b141f47310b36eb211586bbb803d8b526a74bb6be532541eea1c68fce29",
   "counts": {
     "roots": 1,
     "k1": 10,
     "walks": 32,
-    "walkStates": 1375,
-    "transitions": 1344
+    "walkStates": 1425,
+    "transitions": 1393
   }
 }

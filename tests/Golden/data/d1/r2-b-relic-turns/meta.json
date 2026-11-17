@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "r2-b-relic-turns",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-r2-b-relic-turns.json\u0022}",
-  "rulesSha256": "2261ff4b742a530d9b5b1475beb7738ca267dd3b5a141b9d4a4d279de6b670db",
+  "rulesSha256": "d062280b2f3f4f25ce1154dc45b265ad46151956b87b58afcce629d1f0be836d",
   "counts": {
     "roots": 1,
     "k1": 16,
     "walks": 32,
-    "walkStates": 635,
-    "transitions": 603
+    "walkStates": 637,
+    "transitions": 605
   }
 }

@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p16-b-selection-random",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p16-b-selection-random.json\u0022}",
-  "rulesSha256": "10709763ee4daf3d891d4452ca173cdd0a7ab321015e8c84cff9e9b9309389de",
+  "rulesSha256": "70f6d06e90f20366f500370f3c6b722a1c092a9e6550f640c08f8333634b3fd5",
   "counts": {
     "roots": 1,
     "k1": 25,
     "walks": 32,
-    "walkStates": 649,
-    "transitions": 617
+    "walkStates": 690,
+    "transitions": 658
   }
 }

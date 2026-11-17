@@ -525,7 +525,7 @@ public sealed class PaelsLegion : RelicDef
         if ((block.Props & ValueProps.Move) == 0 || !block.HasCardSource)
             return 1m;
         Relic relic = x.B.GetRelic(x.R, self.Index);
-        return relic.Counter <= 0 && (relic.Aux == 0 || relic.Aux == x.PlayIdentity) ? 2m : 1m;
+        return relic.Counter <= 0 ? 2m : 1m;
     }
 
     public override void AfterModifyingBlockAmount(ref Exec x, Listener self, decimal modified,
@@ -954,7 +954,7 @@ public sealed class JeweledMask : RelicDef
         int pick = x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count);
         int position = candidates[pick];
         ref Card selected = ref x.B.Cards[drawStart + position];
-        Kernel.MakeFreeThisCombat(x.R, ref selected);
+        Kernel.MakeFreeThisTurn(x.R, ref selected);
         Kernel.MoveCard(ref x.B, Pile.Draw, position, Pile.Hand, PilePosition.Bottom);
     }
 }

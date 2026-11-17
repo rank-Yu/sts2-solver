@@ -398,13 +398,12 @@ public static partial class Kernel
         ref Power power = ref battle.Powers[index];
         int previous = power.Amount;
         power.Amount = Clamp((long)previous + amount);
-        if (previous == 0 && power.Amount != 0 && IsPlayerSide(target) && battle.Side == Side.Enemy
+        if (previous == 0 && power.Amount != 0 && IsPlayerSide(target)
             && def.UsesNativeDurationSkip && def.TypeForAmount(power.Amount) == PowerType.Debuff)
             power.Flags |= PowerFlags.SkipNextDurationTick;
         int applied = power.Amount - previous;
         resulting = power.Amount;
-        if (def.MarksJustAppliedByEnemy && previous <= 0 && power.Amount > 0 && IsEnemyOwner(target)
-            && x.B.Side == Side.Enemy)
+        if (def.MarksJustAppliedByEnemy && previous <= 0 && power.Amount > 0 && IsEnemyOwner(target))
             power.Flags |= PowerFlags.WasJustAppliedByEnemy;
         // SimulatedCombatState.ApplyWithBeforeApplied records every positive Doom application by the
         // player for DeathsDoor's WasDoomAppliedThisTurn.

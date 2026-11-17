@@ -3,12 +3,12 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Content.Powers;
 
 /// <summary>
-/// <c>ExtraTurnPower</c>: while its amount is positive its owner takes another player turn instead of
+/// <c>AmbergrisPower</c>: while its amount is positive its owner takes another player turn instead of
 /// the enemy turn; <c>AfterTakingExtraTurn</c> decrements it
 /// (<c>ExtraTurnMirrors</c> registers both callbacks).
 /// </summary>
-[ContentId("EXTRA_TURN_POWER")]
-public sealed class ExtraTurnPower : PowerDef
+[ContentId("AMBERGRIS_POWER")]
+public sealed class AmbergrisPower : PowerDef
 {
     public override PowerType Type => PowerType.Buff;
 

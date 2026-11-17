@@ -229,19 +229,9 @@ public sealed class JugglingPower : PowerDef
             return;
         ref Power power = ref x.B.Powers[self.Index];
         power.Aux0++;
-        if (power.Aux0 == 3)
-            power.Aux1 = play.Position - Piles.Start(x.B, Pile.Play) + 1;
-    }
-
-    public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
-    {
-        ref Power power = ref x.B.Powers[self.Index];
-        int position = play.Position - Piles.Start(x.B, Pile.Play) + 1;
-        if (power.Aux1 == 0 || power.Aux1 != position)
+        if (power.Aux0 != 3)
             return;
-        power.Aux1 = 0;
-        int copies = power.Amount;
-        for (int index = 0; index < copies; index++)
+        for (int index = 0; index < power.Amount; index++)
         {
             if (!Kernel.AddGeneratedCard(ref x, Kernel.CloneCard(play.Card), Pile.Hand))
                 return;
@@ -387,7 +377,7 @@ public sealed class AggressionPower : PowerDef
                 order[candidates++] = index;
         }
         // ListExtensions.UnstableShuffle: Fisher-Yates from the end over the discard-order list.
-        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int n = candidates; n > 1;)
         {
             n--;
@@ -635,7 +625,7 @@ public sealed class StampedePower : PowerDef
             }
             if (count == 0)
                 return;
-            int selected = x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count);
+            int selected = x.B.RngStream(RngStream.Shuffle).NextInt(0, count);
             for (int hand = 0; hand < x.B.HandCount; hand++)
             {
                 Card card = x.B.Cards[hand];

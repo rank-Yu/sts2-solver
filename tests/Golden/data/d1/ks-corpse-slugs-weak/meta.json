@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "ks-corpse-slugs-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ks-corpse-slugs-weak.json\u0022}",
-  "rulesSha256": "af8da35ef35d623ab5b77cda67e92452ba91f4226854e19049aaa79c2bcc26ee",
+  "rulesSha256": "dd4d40c2c3b78c676011cfed05f0d83965d328c3bbd1fd9fe555bfb8fb013edd",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 623,
-    "transitions": 591
+    "walkStates": 607,
+    "transitions": 575
   }
 }

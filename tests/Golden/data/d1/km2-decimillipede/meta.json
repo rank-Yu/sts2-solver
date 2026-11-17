@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "km2-decimillipede",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km2-decimillipede.json\u0022}",
-  "rulesSha256": "bcb7e9b8d9c36d98bb9ff9bc058161910f4024f75129c1f0a5f9ba3d018502e0",
+  "rulesSha256": "2ed06a177f3b87d601b4bcf3323ed5275d1f913ccbf7d6cc83ccb9cea96f694e",
   "counts": {
     "roots": 1,
     "k1": 15,
     "walks": 32,
-    "walkStates": 1660,
-    "transitions": 1650
+    "walkStates": 1717,
+    "transitions": 1707
   }
 }

@@ -4,14 +4,14 @@
 
 **中文** | [English](README.en.md)
 
-[![STS2 v0.113.1](https://img.shields.io/badge/%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC-STS2%20v0.113.1-8B0000)](#)
+[![STS2 v0.111.1 / v0.113.1](https://img.shields.io/badge/%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC-v0.111.1%20%2F%20v0.113.1-8B0000)](#)
 [![RitsuLib 0.6.11+](https://img.shields.io/badge/RitsuLib-0.6.11%2B-6A5ACD)](#)
 [![License: MIT](https://img.shields.io/github/license/rank-Yu/sts2-solver?color=green)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/rank-Yu/sts2-solver?style=flat&logo=github)](https://github.com/rank-Yu/sts2-solver/stargazers)
 
 </div>
 
-尖塔求解器是一款《杀戮尖塔 2》的战斗求解 Mod，面向单人标准、恐惧和极速模式，包含愚者。进入战斗后，它读取当前局面和真实的随机数状态，搜索整场战斗的出牌世界线，并在游戏中自动出牌、用药。
+尖塔求解器是一款《杀戮尖塔 2》的单人战斗求解 Mod，支持正式版 v0.111.1 和测试版 v0.113.1。正式版支持五个角色的标准模式；测试版支持六个角色（包括愚者）及标准、恐惧和极速模式。进入战斗后，它读取当前局面和真实的随机数状态，搜索整场战斗的出牌世界线，并在游戏中自动出牌、用药。
 
 《杀戮尖塔 2》里退出重进会从头重打这场战斗，战斗内的随机结果是确定的，也就是 SL（Save & Load）玩法。求解器正是靠这一点预测每一步。出牌、用药都走游戏自己的操作入口。
 
@@ -59,8 +59,8 @@ CombatSolver 赢下的 102 场，本 Mod 全部赢下，并额外赢下 1 场。
 
 ## 安装
 
-1. 在 Steam 库里右键《杀戮尖塔 2》，打开“属性 → 测试版”，选择 `public-beta`，把游戏更新到 v0.113.1。
-2. 在 Steam 创意工坊订阅尖塔求解器，Steam 会提示同时订阅前置 Mod RitsuLib。
+1. 游戏可使用正式版 v0.111.1（Steam 测试版选项为“无”）或 `public-beta` 测试版 v0.113.1。
+2. 在 Steam 创意工坊订阅尖塔求解器，Steam 会提示同时订阅前置 Mod RitsuLib。同一个订阅支持两个游戏分支，启动时自动加载对应版本。
 3. 启动游戏。第一次加载 Mod 时游戏会弹窗确认，同意后重启游戏即可。
 
 ## 使用

@@ -99,14 +99,13 @@ public static partial class Kernel
             selectedPriority = priority;
             break;
         }
-        int chosen = x.B.RngStream(RngStream.CombatCardSelection).NextInt(0, count);
+        int chosen = x.B.RngStream(RngStream.CombatCardGeneration).NextInt(0, count);
         Pile pile = Pile.Draw;
         int position = -1;
         for (int absolute = x.B.HandCount; absolute < x.B.HandCount + x.B.DrawCount + x.B.DiscardCount; absolute++)
         {
             ref readonly Card card = ref x.B.Cards[absolute];
-            if ((card.Flags & CardFlags.DeckCard) == 0
-                || x.R.Card(card.Id, card.Upgrade).Rarity == CardRarity.Quest)
+            if ((card.Flags & CardFlags.DeckCard) == 0)
                 continue;
             if (!MatchesThieveryPriority(card, x.R, selectedPriority, imbued))
                 continue;
@@ -148,8 +147,7 @@ public static partial class Kernel
         for (int index = battle.HandCount; index < end; index++)
         {
             ref readonly Card card = ref battle.Cards[index];
-            if ((card.Flags & CardFlags.DeckCard) == 0
-                || rules.Card(card.Id, card.Upgrade).Rarity == CardRarity.Quest)
+            if ((card.Flags & CardFlags.DeckCard) == 0)
                 continue;
             if (priority < 0 || MatchesThieveryPriority(card, rules, priority, imbued))
                 count++;
@@ -159,7 +157,7 @@ public static partial class Kernel
 
     private static bool MatchesThieveryPriority(in Card card, Rules rules, int priority, ushort imbued)
     {
-        // ThievingHopper._stealPriorities: Uncommon; Common/Rare/Event; Basic; Ancient or Imbued. Quest cards are excluded.
+        // ThievingHopper._stealPriorities: Uncommon; Common/Rare/Event; Basic/Quest; Ancient or Imbued.
         // The first three exclude Imbued cards; the last selects them.
         bool isImbued = imbued != 0 && card.EnchantmentId == imbued;
         CardRarity rarity = rules.Card(card.Id, card.Upgrade).Rarity;
@@ -167,7 +165,7 @@ public static partial class Kernel
         {
             0 => !isImbued && rarity == CardRarity.Uncommon,
             1 => !isImbued && rarity is CardRarity.Common or CardRarity.Rare or CardRarity.Event,
-            2 => !isImbued && rarity == CardRarity.Basic,
+            2 => !isImbued && rarity is CardRarity.Basic or CardRarity.Quest,
             3 => rarity == CardRarity.Ancient || isImbued,
             _ => true,
         };

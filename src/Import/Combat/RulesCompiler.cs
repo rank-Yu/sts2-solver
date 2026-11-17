@@ -206,10 +206,12 @@ public static partial class RulesCompiler
             builder.SetPowerDeathHistoryRisk(id,
                 MirrorRiskTables.PowerRecordsDeathHistoryRisk(nativePower));
         }
-        for (ushort id = 0; id < Registry.PotionCount; id++)
-            AddPotionStats(builder, id);
-        for (ushort id = 0; id < Registry.RelicCount; id++)
-            AddRelicVars(builder, id);
+        foreach (string nativeId in CanonicalPotions.Value.Keys)
+            if (Registry.TryPotion(nativeId, out ushort potionId))
+                AddPotionStats(builder, potionId);
+        foreach (string nativeId in CanonicalRelics.Value.Keys)
+            if (Registry.TryRelic(nativeId, out ushort relicId))
+                AddRelicVars(builder, relicId);
         if (known.Count > Limits.Enemies)
             throw new UnsupportedImportException(ImportReason.Capacity, $"敌人数 {known.Count}");
 
@@ -223,9 +225,6 @@ public static partial class RulesCompiler
             if (history.HasLostHpThisTurn(known[index]))
                 rootLostHpMask |= (ushort)(1 << (Limits.FirstEnemyOwner + index));
         }
-        if (player.PlayerCombatState!.Pets.FirstOrDefault(p => p.Monster is MegaCrit.Sts2.Core.Models.Monsters.Wuppy) is { } wuppy
-            && history.HasLostHpThisTurn(wuppy))
-            rootLostHpMask |= 1 << Limits.WuppyOwner;
         builder.RootLostHpMask = rootLostHpMask;
 
         List<ushort> spawnClosure = SpawnClosure(known);
@@ -246,7 +245,6 @@ public static partial class RulesCompiler
                 detachedCards.Add((stolen.Id.Entry, stolen.CurrentUpgradeLevel));
             }
         }
-        builder.Dominion = CompileDominion(state);
         AddGeneratedCardClosure(builder, state, player, playerState, known, spawnClosure, detachedCards);
         builder.HasInfiniteHpDisplayMonster = HasInfiniteHpDisplayMonster(known, spawnClosure);
         builder.RootEnemyCount = known.Count;
@@ -254,8 +252,6 @@ public static partial class RulesCompiler
         builder.Mode = player.RunState.GameMode switch
         {
             GameMode.Standard => CombatMode.Standard,
-            GameMode.Dread => CombatMode.Dread,
-            GameMode.Blitz => CombatMode.Blitz,
             _ => throw new UnsupportedException($"未知游戏模式 {player.RunState.GameMode}。"),
         };
         builder.HasEncounter = state.Encounter != null;
@@ -441,15 +437,6 @@ public static partial class RulesCompiler
         CardModel canonical, Player player)
     {
         builder.HasDecimalCardVars |= Registry.Card(id).UsesDecimalDamageVar;
-        // Dingy Dagger can be upgraded repeatedly in combat. Freeze every representable level,
-        // only for roots whose content closure includes it.
-        if (canonical is DingyDagger)
-        {
-            for (int level = 0; level <= byte.MaxValue; level++)
-                if (!builder.HasCard(id, level))
-                    builder.SetCard(id, level, CanonicalStats(canonical, level, player));
-            return;
-        }
         if (upgrade > 0 && !builder.HasCard(id, 0))
             builder.SetCard(id, 0, CanonicalStats(canonical, 0, player));
         if (!builder.HasCard(id, upgrade))
@@ -712,21 +699,9 @@ public static partial class RulesCompiler
         CardMultiplayerConstraint constraint = player.RunState.CardMultiplayerConstraint;
         IEnumerable<CardModel> cards = poolKey switch
         {
-            CardPools.Tarot => TarotCards.All.Where(card => card.IsAllowedInRun(player.RunState)),
             CardPools.OtherCharacterCards => player.UnlockState.CharacterCardPools
                 .Where(pool => player.UnlockState.CharacterCardPools.Count() <= 1 || pool != player.Character.CardPool)
                 .SelectMany(pool => pool.GetUnlockedCards(player.UnlockState, constraint)),
-            CardPools.CharacterShots => player.Character.CardPool
-                .GetUnlockedCards(player.UnlockState, constraint)
-                .Where(static card => card.Tags.Contains(MegaCrit.Sts2.Core.Entities.Cards.CardTag.Shoot)),
-            CardPools.Melodies or CardPools.Wah or CardPools.Cho or CardPools.Ki => player.UnlockState.CharacterCardPools
-                .SelectMany(pool => pool.GetUnlockedCards(player.UnlockState, constraint))
-                .Where(card => poolKey == CardPools.Melodies
-                    ? card.Tags.Any(tag => tag is MegaCrit.Sts2.Core.Entities.Cards.CardTag.Wah
-                        or MegaCrit.Sts2.Core.Entities.Cards.CardTag.Cho or MegaCrit.Sts2.Core.Entities.Cards.CardTag.Ki)
-                    : card.Tags.Contains(poolKey == CardPools.Wah ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Wah
-                        : poolKey == CardPools.Cho ? MegaCrit.Sts2.Core.Entities.Cards.CardTag.Cho
-                        : MegaCrit.Sts2.Core.Entities.Cards.CardTag.Ki)),
             CardPools.CharacterAll => player.Character.CardPool
                 .GetUnlockedCards(player.UnlockState, constraint),
             CardPools.CharacterAttacks => player.Character.CardPool
@@ -754,8 +729,7 @@ public static partial class RulesCompiler
             _ => throw new UnsupportedImportException(ImportReason.UnsupportedClosure,
                 $"未知卡池 {poolKey}"),
         };
-        List<CardModel> candidates = (poolKey == CardPools.Tarot ? cards : FilterForCombatAndPlayerCount(cards, constraint))
-            .Where(card => card.IsAllowedInRun(player.RunState)).ToList();
+        List<CardModel> candidates = FilterForCombatAndPlayerCount(cards, constraint).ToList();
         ushort[] ids = new ushort[candidates.Count];
         for (int index = 0; index < candidates.Count; index++)
         {
@@ -793,7 +767,7 @@ public static partial class RulesCompiler
         for (ushort id = 0; id < Registry.PowerCount; id++)
         {
             PowerDef def = Registry.Power(id);
-            if (def.VarNames.Count > 0)
+            if (def.VarNames.Count > 0 && CanonicalPowers.Value.ContainsKey(def.NativeId))
                 yield return def.NativeId;
         }
     }
@@ -1196,10 +1170,6 @@ public static partial class RulesCompiler
                 NativeCardTag.Minion => EngineCardTag.Minion,
                 NativeCardTag.OstyAttack => EngineCardTag.OstyAttack,
                 NativeCardTag.Shiv => EngineCardTag.Shiv,
-                NativeCardTag.Shoot => EngineCardTag.Shoot,
-                NativeCardTag.Wah => EngineCardTag.Wah,
-                NativeCardTag.Cho => EngineCardTag.Cho,
-                NativeCardTag.Ki => EngineCardTag.Ki,
                 _ => throw new UnsupportedImportException(ImportReason.UnsupportedCard,
                     $"卡牌标签 {tag}"),
             };

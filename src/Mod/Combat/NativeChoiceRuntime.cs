@@ -151,7 +151,7 @@ internal static class NativeChoiceRuntime
         string sourceId,
         Func<CardModel, bool>? filter)
     {
-        if (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) != null || MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.LocalSelector != null)
+        if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
             return null;
         NativeChoiceSession? session = _session;
         if (session != null)

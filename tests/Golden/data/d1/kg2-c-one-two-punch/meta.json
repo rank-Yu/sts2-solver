@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "kg2-c-one-two-punch",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-c-one-two-punch.json\u0022}",
-  "rulesSha256": "dc941bd3601cad4304363accc7f36945f6fc72768e93a728f9346b3ff50a858e",
+  "rulesSha256": "36bdd23a5f4ca243781baab7d632aa6c845de40de41e7b4f0671d7e8d14ace08",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 859,
-    "transitions": 827
+    "walkStates": 924,
+    "transitions": 892
   }
 }

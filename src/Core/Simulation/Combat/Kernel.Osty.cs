@@ -14,14 +14,15 @@ public static partial class Kernel
             return;
         if (!Registry.TryPower("DIE_FOR_YOU_POWER", out ushort dieForYou))
             throw new UnsupportedException("Osty 需要 DieForYouPower 的 Sts2Solver 定义。");
-        bool created = (x.B.Flags & BattleFlags.OstyPresent) == 0;
-        if (created)
+        bool created = (x.B.Flags & BattleFlags.OstyEverPresent) == 0;
+        if ((x.B.Flags & BattleFlags.OstyPresent) == 0)
         {
             // CreatePredictedMonster consumes one CombatId before any HP is assigned. The native model
             // starts at 1/1 HP; the existing engine overwrites both before anything can observe them
             // (the DieForYouPower application has no HP reader), so Sts2Solver initializes the target HP
             // directly instead of hard-coding the model's initial value.
-            x.B.NextCombatId = unchecked(x.B.NextCombatId + 1);
+            if (created)
+                x.B.NextCombatId = unchecked(x.B.NextCombatId + 1);
             x.B.Flags |= BattleFlags.OstyPresent | BattleFlags.OstyEverPresent;
             x.B.Osty = new Creature
             {
@@ -31,7 +32,8 @@ public static partial class Kernel
             };
             // OstyCmd.Summon applies DieForYouPower 1 with no applier for a fresh pet, after AddPet and
             // before SetMaxHp(amount).
-            ApplyPower(ref x, Limits.OstyOwner, dieForYou, 1, Limits.NoOwner);
+            if (created)
+                ApplyPower(ref x, Limits.OstyOwner, dieForYou, 1, Limits.NoOwner);
             if (x.NeedsChoice)
                 return;
             return;

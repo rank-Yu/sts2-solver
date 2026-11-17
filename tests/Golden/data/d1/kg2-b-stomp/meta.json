@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "kg2-b-stomp",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-b-stomp.json\u0022}",
-  "rulesSha256": "53e09effdea3c2d2d839ce01ac83465108208182cb387a5f098f1599365ac45e",
+  "rulesSha256": "0633ee2edf657b65461b4b58e2736ed5d68f9a64fbe237fb2bb78af996afa2b3",
   "counts": {
     "roots": 1,
     "k1": 13,
     "walks": 32,
-    "walkStates": 405,
-    "transitions": 373
+    "walkStates": 439,
+    "transitions": 407
   }
 }

@@ -3,7 +3,7 @@
   "battleSize": 32376,
   "root": "qf3-seeking-edge-order",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf3-seeking-edge-order.json\u0022}",
-  "rulesSha256": "e70fe786f5c84c4115567362b0147959294b4ac6a1f21c5a6b85e4733e30c724",
+  "rulesSha256": "92df86959039bfab10df708fff4ffbcc63b9712cca022b86403e048408e52e3c",
   "counts": {
     "roots": 1,
     "k1": 2,

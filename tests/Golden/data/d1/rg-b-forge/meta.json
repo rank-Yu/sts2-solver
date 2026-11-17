@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "rg-b-forge",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-b-forge.json\u0022}",
-  "rulesSha256": "db49c43bd57a67ee6036082168bb15cb1be16d9a76f6f0485e810564d1463ebd",
+  "rulesSha256": "3008689851aeaf9035d906edaf7a524e71c6a4c88d01696379fc253953b35842",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 328,
-    "transitions": 296
+    "walkStates": 332,
+    "transitions": 300
   }
 }

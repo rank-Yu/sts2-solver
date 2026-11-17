@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "quality-DEFECT-002",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/DEFECT-002/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/DEFECT-002/request.json\u0022}",
-  "rulesSha256": "b23682c10ad47f8aa464f17c3e0b365aa5683db4b0c7c005be873b8cee3b035b",
+  "rulesSha256": "0b2aa4342c7dd345cdac45027723d5866e1b93f49aa4e0aee54e900fd083656d",
   "counts": {
     "roots": 1,
-    "k1": 5,
+    "k1": 6,
     "walks": 48,
-    "walkStates": 1684,
-    "transitions": 1636
+    "walkStates": 1571,
+    "transitions": 1523
   }
 }

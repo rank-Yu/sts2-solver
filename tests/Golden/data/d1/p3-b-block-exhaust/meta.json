@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p3-b-block-exhaust",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p3-b-block-exhaust.json\u0022}",
-  "rulesSha256": "fb52397e08e5a13336bd3606e4148e6170e315fb5db73e8ac004c5bd93573134",
+  "rulesSha256": "e3da7d3ae6360dfbc70c3a2e75ae85d8b04b7ecbfc7a437203e843acd48992b4",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 114,
-    "transitions": 82
+    "walkStates": 118,
+    "transitions": 86
   }
 }

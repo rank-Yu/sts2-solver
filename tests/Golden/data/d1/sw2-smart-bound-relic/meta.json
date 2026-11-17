@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "sw2-smart-bound-relic",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sw2-smart-bound-relic.json\u0022}",
-  "rulesSha256": "6df4a330cab266610a1dc6b4fe2569eb0859d946f40a2e2aba65bdf51ba23c3a",
+  "rulesSha256": "a7031183bce11059836e5c5f052e3ae238ae609170ce10ff75777f7eafd74574",
   "counts": {
     "roots": 1,
     "k1": 13,
     "walks": 32,
-    "walkStates": 1656,
-    "transitions": 1624
+    "walkStates": 1636,
+    "transitions": 1604
   }
 }

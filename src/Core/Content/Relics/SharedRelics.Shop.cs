@@ -114,10 +114,13 @@ public sealed class Brimstone : RelicDef
 }
 
 /// <summary>
-/// Native v0.113.1 applies RetainHandPower when entering the room, before the captured root.
+/// Native v0.111.1 keeps the first player turn's hand through the flush hook.
 /// </summary>
 [ContentId("RINGING_TRIANGLE")]
-public sealed class RingingTriangle : RelicDef;
+public sealed class RingingTriangle : RelicDef
+{
+    public override bool ShouldFlush(ref Exec x, Listener self) => x.B.PlayerTurn > 1;
+}
 
 /// <summary>
 /// <c>TheAbacus</c>: <c>AfterShuffle</c> gains its unpowered block when the shuffling player is its

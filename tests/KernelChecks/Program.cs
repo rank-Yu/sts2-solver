@@ -85,7 +85,7 @@ PowerCapacityChecks.Run();
 CheckRng();
 CheckGrowthRewards();
 Rules rules = SliceRules();
-CheckVersion113State(rules);
+CheckCardState(rules);
 SearchChecks.Check();
 IncumbentAndLoopChecks.Check(rules);
 GoldHookChecks.Check();
@@ -208,7 +208,7 @@ static void CheckHookDeactivation(Rules rules)
     Check(revived.RelicState(rules, 0).Counter == 1, "死亡被阻止后 LavaLamp 仍应收到后续伤害回调");
 }
 
-static void CheckVersion113State(Rules rules)
+static void CheckCardState(Rules rules)
 {
     foreach (CostType type in new[] { CostType.None, CostType.Absolute, CostType.Relative })
         foreach (CostExpiration expiry in new[] { CostExpiration.EndOfCombat, CostExpiration.EndOfTurn,
@@ -228,7 +228,7 @@ static void CheckVersion113State(Rules rules)
     Piles.Append(ref battle, Pile.Hand, card);
     Exec x = new(ref battle, rules, default);
     Kernel.DowngradeCard(ref x, 0);
-    Check(battle.Cards[0].HasKeyword(Keywords.Ethereal), "压制降级应保留外部虚无");
+    Check(!battle.Cards[0].HasKeyword(Keywords.Ethereal), "正式版压制降级按原牌重建关键词");
     battle.Cards[0].RemoveKeyword(Keywords.Ethereal);
     Kernel.RestoreDampenedCards(ref x);
     Kernel.DowngradeCard(ref x, 0);
@@ -1180,7 +1180,7 @@ static void CheckMbKernel(Rules battleRules)
     potionBattle.PotionSlotCount = 1;
     potionBattle.Potions[0] = (ushort)(brew + 1);
     // The pool has a single Common potion; this recorded state's first rarity roll is 0.875.
-    potionBattle.RngStream(RngStream.NonCombatGeneration) = RngState.FromSerializable(
+    potionBattle.RngStream(RngStream.CombatPotionGeneration) = RngState.FromSerializable(
         0, 0x161922C645CE50E8, 0xAD760CAFA1697B60, 0x3501FF44902CA50D, 0x417CB9A826D831DF);
     Kernel.Step(ref potionBattle, PlayerAction.UsePotion(0, Limits.NoOwner), rules, out _);
     Check(potionBattle.Potions[0] == (ushort)(fire + 1) && potionBattle.Potions[0] != brew + 1,
@@ -2789,7 +2789,7 @@ static void CheckGenerationAndAutoPlay()
     battle.RngStream(RngStream.Shuffle) = RngState.FromSerializable(1, 11, 22, 33, 44);
     Span<Card> selected = stackalloc Card[4];
     RngState parentReference = battle.RngStream(RngStream.Shuffle);
-    RngState reference = parentReference.CreateShuffleRng();
+    RngState reference = parentReference;
     int distinctCount = Kernel.SampleCardPool(ref battle, rules, "test.pool", 1, distinct: true,
         RngStream.Shuffle, selected);
     Check(distinctCount == 1, "distinct 取样数量应为 1");
@@ -2803,8 +2803,8 @@ static void CheckGenerationAndAutoPlay()
         (expected[k], expected[n]) = (expected[n], expected[k]);
     }
     Check(selected[0].Id == expected[0], "distinct 取样顺序与 UnstableShuffle 不一致");
-    Check(battle.RngStream(RngStream.Shuffle).Counter == 2, "distinct 取样应消耗 1 次 Shuffle");
-    Check(battle.RngStream(RngStream.Shuffle).Counter == parentReference.Counter,
+    Check(battle.RngStream(RngStream.Shuffle).Counter == 4, "distinct 取样应消耗 3 次 Shuffle");
+    Check(battle.RngStream(RngStream.Shuffle).Counter == reference.Counter,
         "distinct 取样参考计数器不一致");
 
     Battle replacement = NewBattle();
@@ -3815,6 +3815,7 @@ static void CheckKaAttachments()
     glam.EnchantmentId = checked((byte)(Registry.EnchantmentId<Glam>() + 1));
     Check(Kernel.EnchantedReplayCount(glam) == 1, "Glam 首次应加 1 次重放");
     glam.EnchantmentStatus = 1;
+    glam.EnchantmentPrivate = 1;
     Check(Kernel.EnchantedReplayCount(glam) == 0, "Glam 已用后不应再加重放");
     Card spiral = Kernel.CreateCard(rules, strike);
     spiral.EnchantmentId = checked((byte)(Registry.EnchantmentId<Spiral>() + 1));
@@ -4459,10 +4460,10 @@ static void CheckLrKernel(Rules rules)
     foregonePauseReplay.Flags |= BattleFlags.TurnStartChoicePauses;
     Check(Kernel.Step(ref foregonePauseReplay, foregoneDrawEnd.WithChoice(0b11UL), rules, out _)
         == StepResult.Completed, "LR 准备页暂停时先见之明+下回合抽牌选择后回合应完成");
-    Check(foregonePauseReplay.HandCount == 9,
-        $"LR 准备页暂停后仍应增加下回合抽牌，实际手牌 {foregonePauseReplay.HandCount}");
-    Check(foregonePauseReplay.DrawCount == 6,
-        $"LR 准备页暂停时应剩 6 张抽牌堆，实际 {foregonePauseReplay.DrawCount}");
+    Check(foregonePauseReplay.HandCount == 7,
+        $"LR 正式版准备页暂停会先清除下回合抽牌，实际手牌 {foregonePauseReplay.HandCount}");
+    Check(foregonePauseReplay.DrawCount == 8,
+        $"LR 准备页暂停时应剩 8 张抽牌堆，实际 {foregonePauseReplay.DrawCount}");
     Check((foregonePauseReplay.Flags & BattleFlags.TurnStartChoicePauses) != 0,
         "LR 结束回合后应保留准备页暂停标志");
 }

@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "sk-e-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-sk-e-powers.json\u0022}",
-  "rulesSha256": "60061f738183369da39946c63f5392c5c782b46640b4f1247c8effada1b7a311",
+  "rulesSha256": "faf45ccce2109c2c2e2edcebb36797bfaa0822c91497234a66437471aa0fc778",
   "counts": {
     "roots": 1,
     "k1": 21,
     "walks": 32,
-    "walkStates": 1180,
-    "transitions": 1148
+    "walkStates": 1228,
+    "transitions": 1196
   }
 }

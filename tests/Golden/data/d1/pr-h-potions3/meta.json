@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "pr-h-potions3",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-pr-h-potions3.json\u0022}",
-  "rulesSha256": "3f7dd5f2e71f97295a27e73ac8b49f23f04f35789cab58e3c67a8faae427542c",
+  "rulesSha256": "21eaa5d10d2c693ef8dcf36ee236e9e5fab634c23e96f04c199b863d4cf2c854",
   "counts": {
     "roots": 1,
     "k1": 17,
     "walks": 32,
-    "walkStates": 732,
-    "transitions": 700
+    "walkStates": 745,
+    "transitions": 713
   }
 }

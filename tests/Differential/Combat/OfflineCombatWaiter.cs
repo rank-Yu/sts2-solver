@@ -24,7 +24,6 @@ internal sealed class OfflineCombatWaiter(MainLoopContext loop) : ICombatHost
             ActModel.GetDefaultList().Select(act => act.ToMutable()).ToList(),
             [],
             gameMode,
-            false,
             ascension,
             seed);
         RunManager.Instance.SetUpNewSingleplayer(runState, shouldSave: false);
@@ -33,15 +32,7 @@ internal sealed class OfflineCombatWaiter(MainLoopContext loop) : ICombatHost
         TestHostLog.Trace("run.relics");
         RunManager.Instance.Launch();
         TestHostLog.Trace("run.launch");
-        // TestMode skips the ancient room setup. Blitz always enters that room in EnterAct;
-        // the combat harness sets the native act directly, then ScenarioBuilder enters its fixture.
-        if (gameMode == GameMode.Blitz)
-        {
-            await RunManager.Instance.SetActInternal(0);
-            await MegaCrit.Sts2.Core.Hooks.Hook.AfterActEntered(runState);
-        }
-        else
-            await RunManager.Instance.EnterAct(0, doTransition: false);
+        await RunManager.Instance.EnterAct(0, doTransition: false);
         TestHostLog.Trace("run.act0");
         return runState;
     }

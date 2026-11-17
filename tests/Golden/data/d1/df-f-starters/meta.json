@@ -3,7 +3,7 @@
   "battleSize": 32376,
   "root": "df-f-starters",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-df-f-starters.json\u0022}",
-  "rulesSha256": "cde71b4f5178dd2b3db696eb67c47d135b8bd56f8b63c0dced9686d35860234c",
+  "rulesSha256": "3c74d9c1e0a338c17f1d900a5ae9f38c1ee9ab036d85dcaad30f71467327fa57",
   "counts": {
     "roots": 1,
     "k1": 7,

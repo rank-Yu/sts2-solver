@@ -65,7 +65,7 @@ internal static class RulesTableCheck
             Console.Error.WriteLine($"extra-power {id}");
         foreach (string id in registryMissing.Take(8))
             Console.Error.WriteLine($"registry-missing {id}");
-        return extraCards.Count == 0 && extraPowers.Count == 0
+        return missingCards.Count == 0 && missingPowers.Count == 0
             && registryMissing.Count == 0 && unsupported.Count == 0 ? 0 : 1;
     }
 }

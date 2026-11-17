@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "km-fogmog-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-km-fogmog-normal.json\u0022}",
-  "rulesSha256": "89da3fa947a5b3284b4066f78b503e7c717cefb76eec95526c7e4ddb783e0199",
+  "rulesSha256": "921a36c36d099d560cf78874e16975150f6a2f9a4dfc2cfe94df14ef729a0175",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 620,
-    "transitions": 588
+    "walkStates": 642,
+    "transitions": 610
   }
 }

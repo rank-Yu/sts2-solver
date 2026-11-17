@@ -101,7 +101,7 @@ public sealed class PunchOfJoy : CardDef
             { candidates[count] = x.B.Cards[i]; origins[count++] = i; }
         if (count == 0) return;
         CardSort.SortWithOrigins(candidates[..count], origins[..count], x.R, x.B, Pile.Hand);
-        var rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int i = count - 1; i > 0; i--)
         {
             int pick = rng.NextInt(i + 1);

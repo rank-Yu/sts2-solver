@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "ts-b-toolbox",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ts-b-toolbox.json\u0022}",
-  "rulesSha256": "99cf985741464cfb3483a45fb05e3cbd960fbc9afd4cc525be046403d63756f8",
+  "rulesSha256": "961bb576dd6305cd84173a43c04bdaf90570c1c72bf87b41a5793a7abed9ae6a",
   "counts": {
     "roots": 3,
-    "k1": 42,
+    "k1": 39,
     "walks": 96,
-    "walkStates": 1985,
-    "transitions": 1889
+    "walkStates": 2368,
+    "transitions": 2272
   }
 }

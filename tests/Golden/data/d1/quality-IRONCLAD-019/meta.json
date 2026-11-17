@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "quality-IRONCLAD-019",
   "input": "{\u0022kind\u0022:\u0022quality\u0022,\u0022spec\u0022:\u0022coverage/corpora/flash-quality/IRONCLAD-019/spec.json\u0022,\u0022request\u0022:\u0022coverage/corpora/flash-quality/IRONCLAD-019/request.json\u0022}",
-  "rulesSha256": "01ad5dbecf6269b9ea07b37606502caaf3b2257fff7e6f1ae83110caeec423d2",
+  "rulesSha256": "afae34eed760086ef7703fb2b44992c1dfda5ff0d4d5bb6f2cd64e6ce9a73b94",
   "counts": {
     "roots": 1,
-    "k1": 9,
+    "k1": 8,
     "walks": 48,
-    "walkStates": 773,
-    "transitions": 725
+    "walkStates": 711,
+    "transitions": 663
   }
 }

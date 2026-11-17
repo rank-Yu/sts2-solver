@@ -142,10 +142,12 @@ public static partial class RulesCompiler
             builder.SetPowerDeathHistoryRisk(id,
                 MirrorRiskTables.PowerRecordsDeathHistoryRisk(nativePower));
         }
-        for (ushort id = 0; id < Registry.PotionCount; id++)
-            AddPotionStats(builder, id);
-        for (ushort id = 0; id < Registry.RelicCount; id++)
-            AddRelicVars(builder, id);
+        foreach (string nativeId in CanonicalPotions.Value.Keys)
+            if (Registry.TryPotion(nativeId, out ushort potionId))
+                AddPotionStats(builder, potionId);
+        foreach (string nativeId in CanonicalRelics.Value.Keys)
+            if (Registry.TryRelic(nativeId, out ushort relicId))
+                AddRelicVars(builder, relicId);
         if (root.EnemyCount > Limits.Enemies)
             throw new UnsupportedImportException(ImportReason.Capacity, $"敌人数 {root.EnemyCount}");
 

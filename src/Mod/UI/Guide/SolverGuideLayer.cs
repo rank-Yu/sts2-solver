@@ -173,7 +173,7 @@ internal sealed partial class SolverGuideLayer : CanvasLayer
     {
         if (step.PotionSlot < 0 || NRun.Instance?.GlobalUi?.TopBar?.PotionContainer is not { } container)
             return null;
-        NPotionHolder? holder = container.Holders
+        NPotionHolder? holder = container._holders
             .FirstOrDefault(candidate => candidate.IsVisibleInTree()
                 && candidate.Potion?.Model is { } model
                 && ReferenceEquals(model, player.GetPotionAtSlotIndex(step.PotionSlot)));

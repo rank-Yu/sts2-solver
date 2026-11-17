@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p9-replay-select",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-replay-select.json\u0022}",
-  "rulesSha256": "c2aa226742a01e75c806353e5567f1f5badb959a272b9003c00f707868a188dc",
+  "rulesSha256": "9cd6f76e9e5a345887a59a1b8e323f9286145165c973d57089149b630d303718",
   "counts": {
     "roots": 1,
-    "k1": 18,
+    "k1": 19,
     "walks": 32,
-    "walkStates": 1908,
-    "transitions": 1895
+    "walkStates": 1905,
+    "transitions": 1897
   }
 }

@@ -298,7 +298,7 @@ public static partial class Kernel
 
         // ListExtensions.StableShuffle: sort, then UnstableShuffle (Fisher-Yates from the end).
         CardSort.Sort(list, x.R, in x.B, Pile.Draw);
-        RngState rng = x.B.RngStream(RngStream.Shuffle).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.Shuffle);
         for (int n = total; n > 1;)
         {
             n--;

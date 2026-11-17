@@ -40,13 +40,6 @@ public struct RngState
     public static RngState FromSerializable(int counter, ulong s0, ulong s1, ulong s2, ulong s3)
         => new() { Counter = counter, S0 = s0, S1 = s1, S2 = s2, S3 = s3 };
 
-    /// <summary>0.113 ListExtensions.UnstableShuffle consumes one seed from its parent stream.</summary>
-    public RngState CreateShuffleRng()
-    {
-        Counter++;
-        return FromSeed(NextULongInner());
-    }
-
     public static RngState FromSeed(ulong seed)
         => new() { S0 = SplitMix(ref seed), S1 = SplitMix(ref seed),
             S2 = SplitMix(ref seed), S3 = SplitMix(ref seed) };

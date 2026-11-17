@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "ec-b-event-skills",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ec-b-event-skills.json\u0022}",
-  "rulesSha256": "5a2958235d0d17e2aff87b481591d5e7825377fde61b23de8baa91097e2d5ba7",
+  "rulesSha256": "1679db3b84be96b82655e577f9374b1a1af862185e812b14fe08182769c39b7e",
   "counts": {
     "roots": 1,
     "k1": 12,
     "walks": 32,
-    "walkStates": 982,
-    "transitions": 950
+    "walkStates": 976,
+    "transitions": 944
   }
 }

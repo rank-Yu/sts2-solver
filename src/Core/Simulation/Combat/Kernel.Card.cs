@@ -55,9 +55,6 @@ public static partial class Kernel
     {
         if (card.HasKeyword(keyword))
             return true;
-        if (keyword == Keywords.Retain && Registry.Card(card.Id).NativeId == "SHIV"
-            && Registry.TryPower("PHANTOM_BLADES_POWER", out ushort phantom))
-            return GetAmount(battle, Limits.PlayerOwner, phantom) > 0;
         if (keyword != Keywords.Ethereal
             || !Registry.TryAffliction("HEXED", out ushort hexed)
             || !Registry.TryPower("HEX_POWER", out ushort hex)

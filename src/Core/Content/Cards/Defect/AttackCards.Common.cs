@@ -198,13 +198,13 @@ public sealed class CompileDriver : CardDef
 [ContentId("UPROAR")]
 public sealed class Uproar : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
+    public override IReadOnlyList<string> VarNames => ["Damage"];
 
     public override void OnPlay(ref Exec x)
     {
         // CardSelectionCardMirrors.UproarOnPlay: two hits, then auto-play the first attack of a stable
         // shuffle of the draw pile (playable attacks first, then every attack).
-        CardEffects.Attack(ref x, CardEffects.Var(x, 0), (int)CardEffects.Var(x, 1));
+        CardEffects.Attack(ref x, CardEffects.Var(x, 0), 2);
         if (x.NeedsChoice)
             return;
         // DamageCmd.Attack.Execute returns after the killed enemies' death powers have resolved.
@@ -214,6 +214,8 @@ public sealed class Uproar : CardDef
         if (x.NeedsChoice)
             return;
         int drawCount = x.B.DrawCount;
+        if (drawCount == 0)
+            return;
         Span<Card> buffer = stackalloc Card[drawCount];
         Span<int> origins = stackalloc int[drawCount];
         int eligible = 0;
@@ -231,7 +233,6 @@ public sealed class Uproar : CardDef
         int count = eligible;
         if (count == 0)
         {
-            x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
             for (int index = 0; index < drawCount; index++)
             {
                 Card card = x.B.Cards[x.B.HandCount + index];
@@ -242,10 +243,10 @@ public sealed class Uproar : CardDef
                 count++;
             }
         }
-        CardSort.SortWithOrigins(buffer[..count], origins[..count], x.R, in x.B, Pile.Draw);
-        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
         if (count == 0)
             return;
+        CardSort.SortWithOrigins(buffer[..count], origins[..count], x.R, in x.B, Pile.Draw);
+        ref RngState rng = ref x.B.RngStream(RngStream.Shuffle);
         for (int n = count; n > 1;)
         {
             n--;
@@ -266,7 +267,7 @@ public sealed class Uproar : CardDef
 [ContentId("GUNK_UP")]
 public sealed class GunkUp : CardDef
 {
-    public override IReadOnlyList<string> VarNames => ["Damage", "HitCount"];
+    public override IReadOnlyList<string> VarNames => ["Damage", "Repeat"];
 
     public override IReadOnlyList<(string CardId, int Upgrade)> GeneratedCards => [("SLIMED", 0)];
 

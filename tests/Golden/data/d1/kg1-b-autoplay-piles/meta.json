@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "kg1-b-autoplay-piles",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg1-b-autoplay-piles.json\u0022}",
-  "rulesSha256": "5456fc54480d8030d2a5e70675487cc19cde4515f0116fc20f6a8cba2138ca61",
+  "rulesSha256": "e0f13256c115ffc34d2d0bdb68a847060b325dad7dc0185a91604c94c88ac28f",
   "counts": {
     "roots": 1,
     "k1": 8,
     "walks": 32,
-    "walkStates": 593,
-    "transitions": 561
+    "walkStates": 630,
+    "transitions": 598
   }
 }

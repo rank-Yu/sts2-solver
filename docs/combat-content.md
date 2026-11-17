@@ -176,7 +176,7 @@
 
 **代受伤害。** 格挡按宠物的主人取（Osty 被打时消耗玩家的格挡）。先跑 Osty 之前的 `ModifyHpLost`，再由 `ModifyUnblockedDamageTarget` 链式选接收者（`DieForYouPower` 在 Osty 存活、目标是主人、强化攻击时返回 Osty），然后对接收者跑 Osty 之后的修正。接收者变了时产生两个 `DamageResult`：Osty 先承受，溢出的 `OverkillDamage` 经 Osty 之后的修正再打给原目标；两者的格挡字段都取自原目标。怪物行动的攻击在 `Damage` 之前临时清零“已死 Osty 的 DieForYou”，之后恢复（等价原引擎 `MonsterMoveSemantics.DamagePlayer`）；非攻击伤害不重定向。
 
-**Osty 攻击。** 带 `CardTag.OstyAttack` 的牌以 `OstyOwner` 为攻击者调用 `CardAttack`，力量、虚弱和攻击历史都归宠物；宠物已死时直接返回。攻击结束后 `OstyAttacksThisTurn` 加一；这个计数在 `OstyEverPresent` 时于玩家回合开始清零（原引擎 `BeginSideTurn(player)` 走原生 `ownerPlayer.Osty`，搜索中召唤的宠物同样会出现在该字段）。
+**Osty 攻击。** 带 `CardTag.OstyAttack` 的牌以 `OstyOwner` 为攻击者调用 `CardAttack`，力量、虚弱和攻击历史都归宠物；宠物已死时直接返回。攻击结束后 `OstyAttacksThisTurn` 加一；这个计数在 `OstyEverPresent` 时于玩家回合开始清零；失去代受能力并被献祭移出宠物列表时，保留历史供重新召唤使用，卡牌读取时按奥斯提是否在场判断。
 
 **伤害来源归属。** 原版判断“是不是玩家造成的”时并不总是比较 `dealer == 玩家`：部分钩子还把 `dealer.PetOwner`（Osty）算进来，或只看卡牌来源的持有者。内核按同一条条件实现：SkittishPower 在攻击上下文的 `AfterAttack` 里读该敌人的第一条伤害结果（Osty 攻击也触发）；PenNib、TheBoot、HandDrill 的 dealer/breaker 条件接受 `Owner.Creature || Owner.Osty`；StrikeDummy/FakeStrikeDummy/MiniatureCannon 只看卡来源是否属于玩家；GigantificationPower 按卡来源的 owner 加伤并消耗，Osty 攻击同样命中；VulnerablePower 的 Cruelty 修正回退到 dealer 的 PetOwner。PaperPhrog 的原版查询走 `dealer.Player`，因此 Osty 攻击不吃 PaperPhrog，内核保持这一差别。
 

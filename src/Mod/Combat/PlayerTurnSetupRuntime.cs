@@ -10,7 +10,6 @@ using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
-using MegaCrit.Sts2.Core.Models.Dread.Dominions;
 using MegaCrit.Sts2.Core.Models.Enchantments;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Relics;
@@ -119,7 +118,7 @@ internal static class PlayerTurnSetupRuntime
             return false;
         }
         ActionDeployer.ReleaseEndTurnSelectorForSetup();
-        if (MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) != null || MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.LocalSelector != null)
+        if (CardSelectCmd.Selector != null || CardSelectCmd.LocalSelector != null)
         {
             ModLog.Info("[Sts2Solver] TURN_SETUP_SKIP reason=selector_active");
             return false;
@@ -338,7 +337,7 @@ internal static class PlayerTurnSetupRuntime
         TestInterceptCount++;
         TestLastInterceptTurn = setupTurn;
         TestLastInterceptTakingExtraTurn = takingExtraTurn;
-        TestSelectorNullAtLastIntercept = MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.GetSelector(player) == null;
+        TestSelectorNullAtLastIntercept = CardSelectCmd.Selector == null;
         TestLastSetupSearchOnly = searchOnly;
 #endif
         if (searchOnly)
@@ -1522,8 +1521,6 @@ internal static class PlayerTurnSetupRuntime
 
     private static bool RequiresSolverChoice(Player player, int turn)
     {
-        if (turn <= 1 && player.Creature.CombatState is CombatState { Dominion: KnowledgeDemonDominion })
-            return true;
         if (player.Relics.Any(relic => !relic.IsMelted
                 && (relic is ToastyMittens
                     || turn <= 1 && relic is Toolbox or ChoicesParadox or GamblingChip

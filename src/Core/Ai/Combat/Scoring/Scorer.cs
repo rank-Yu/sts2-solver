@@ -194,7 +194,8 @@ internal sealed class Scorer
                     && battle.Osty.IsAlive ? battle.Osty.CurrentHp : 0,
                 CalculatedKind.OstyMaxHp => (battle.Flags & BattleFlags.OstyPresent) != 0
                     && battle.Osty.IsAlive ? battle.Osty.MaxHp : 0,
-                CalculatedKind.OstyAttacksPlusOne => 1 + battle.Counter(Counter.OstyAttacksThisTurn),
+                CalculatedKind.OstyAttacksPlusOne => 1 + ((battle.Flags & BattleFlags.OstyPresent) != 0
+                    ? battle.Counter(Counter.OstyAttacksThisTurn) : 0),
                 CalculatedKind.OstyAttackCardsMinusSelf => CountCardsWithTag(battle, CardTag.OstyAttack)
                     - ((stats.Tags & CardTag.OstyAttack) != 0 ? 1 : 0),
                 CalculatedKind.ExhaustSoulCount => CountExhaustSoulCards(battle),
@@ -1199,7 +1200,7 @@ internal sealed class Scorer
         ref Battle mutable = ref Unsafe.AsRef(in battle);
         RngState parentShuffle = mutable.RngStream(RngStream.Shuffle);
         int shuffleCounter = parentShuffle.Counter;
-        RngState shuffle = parentShuffle.CreateShuffleRng();
+        RngState shuffle = parentShuffle;
         for (int n = total; n > 1;)
         {
             n--;

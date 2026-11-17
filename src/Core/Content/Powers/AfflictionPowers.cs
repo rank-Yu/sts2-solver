@@ -48,9 +48,6 @@ public sealed class PlowPower : PowerDef
         {
             MonsterRules rules = Kernel.MonsterRules(ref x, self.Owner);
             nextNode = rules.NodeIndex("BEAST_CRY_MOVE");
-            if (rules.StaticInts[3] > 0)
-                Kernel.ApplyPowerWithoutCardSource(ref x, self.Owner,
-                    Registry.PowerId<RitualPower>(), rules.StaticInts[3], self.Owner);
         }
         Kernel.ForceStunnedMove(ref x, self.Owner, nextNode);
         Kernel.SetPowerAmount(ref x.B, self.Owner, Id, 0);

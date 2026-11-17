@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p14-a-power-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p14-a-power-cards.json\u0022}",
-  "rulesSha256": "85285491cd9fbb7a929ef2d998f02cdc44b2983da05c6b9281edd867df65b96a",
+  "rulesSha256": "4ed138d4a88375081899f0da3e778c721b6aad24b5bcaa1d90fb89f82909c0e6",
   "counts": {
     "roots": 1,
     "k1": 9,
     "walks": 32,
-    "walkStates": 1915,
-    "transitions": 1914
+    "walkStates": 1920,
+    "transitions": 1920
   }
 }

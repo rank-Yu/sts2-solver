@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "id-g-callofthevoid",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-id-g-callofthevoid.json\u0022}",
-  "rulesSha256": "8116102b4899cc9fb25d088c72fed64c1dfdda2bc123dbbaeecbbf89db223dc6",
+  "rulesSha256": "628566f2e51a26efb3d19be6a69be9ad01d710fff7adde5ae5a884ebb27cb199",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 742,
-    "transitions": 710
+    "walkStates": 729,
+    "transitions": 697
   }
 }

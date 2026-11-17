@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "kg2-j-ghost-seed",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-kg2-j-ghost-seed.json\u0022}",
-  "rulesSha256": "cb13fb68b749b50816b7f9270e2bd2eb9eb109a256bca491b5201663dbfe3409",
+  "rulesSha256": "bcfe77e0c8eac71c61283f6608dc4bf4868e1260879207a51fb46f8ca694ae81",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 645,
-    "transitions": 613
+    "walkStates": 867,
+    "transitions": 835
   }
 }

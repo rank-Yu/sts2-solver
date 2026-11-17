@@ -195,7 +195,7 @@ internal static class BoundCompiler
         if (state.Players.Count != 1 || state.Modifiers.Count != 0)
             return false;
         if (player.Character is not (Ironclad or Silent or Regent or Necrobinder
-            or MegaCrit.Sts2.Core.Models.Characters.Defect or Fool))
+            or MegaCrit.Sts2.Core.Models.Characters.Defect))
         {
             return false;
         }
@@ -295,8 +295,7 @@ internal static class BoundCompiler
                 && !UnsafeMonsters[monsterId],
             PotionModel potion => Registry.TryPotion(potion.Id.Entry, out ushort potionId)
                 && !UnsafePotions[potionId],
-            CccComboModel or DebufferModel or MultiplayerScalingModel => true,
-            _ when HealingSourceAudit.IsNonHealingModeSource(source) => true,
+            CccComboModel or DebufferModel => true,
             _ when !NativeAccess.IsOriginal(source) => true,
             _ => false,
         };

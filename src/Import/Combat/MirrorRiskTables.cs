@@ -824,7 +824,7 @@ internal static class MirrorRiskTables
         ["ESCAPE_ARTIST_POWER"] = false,
         ["EXPLOSIVE_ARROWS_POWER"] = false,
         ["EXPLOSIVE_POWER"] = false,
-        ["EXTRA_TURN_POWER"] = false,
+        ["AMBERGRIS_POWER"] = false,
         ["FADE_POWER"] = false,
         ["FAN_OF_KNIVES_POWER"] = false,
         ["FASTEN_POWER"] = false,

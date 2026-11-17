@@ -282,9 +282,7 @@ public sealed class BufferPower : PowerDef
 
     public override decimal ModifyHpLostAfterOstyLate(ref Exec x, Listener self, in HpLossContext loss,
         decimal amount)
-        => loss.Target == self.Owner
-            && !(loss.HasCardSource && Registry.Card(loss.CardSource.Id).NativeId == "BRIGHTEST_FLAME")
-                ? 0m : amount;
+        => loss.Target == self.Owner ? 0m : amount;
 
     public override void AfterModifyingHpLostAfterOsty(ref Exec x, Listener self)
         => Kernel.ModifyPowerAmount(ref x.B, self.Owner, Id, Math.Max(0, x.B.Powers[self.Index].Amount - 1));

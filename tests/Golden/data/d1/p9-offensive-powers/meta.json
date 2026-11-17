@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p9-offensive-powers",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-offensive-powers.json\u0022}",
-  "rulesSha256": "fced1c829491a63f9a03d86ce8928487335ad056847fd5e8217c682489f791d5",
+  "rulesSha256": "a77acc040ecd5f83fd1d28fe7ac199da259c82f9b195aeafb386fd20dd8ed120",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1755,
-    "transitions": 1723
+    "walkStates": 1782,
+    "transitions": 1751
   }
 }

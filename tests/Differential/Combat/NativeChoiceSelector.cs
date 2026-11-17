@@ -36,7 +36,7 @@ internal sealed class NativeChoiceSelector(
     internal int PendingCount => choices.Count - _index;
 
     internal static IDisposable Activate(NativeChoiceSelector selector)
-        => MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.PushSelector(selector.OwnerPlayer, selector);
+        => MegaCrit.Sts2.Core.Commands.CardSelectCmd.PushSelector(selector);
 
     internal void AssertConsumed()
     {

@@ -3,7 +3,7 @@
   "battleSize": 32376,
   "root": "ka-vine-shambler-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ka-vine-shambler-normal.json\u0022}",
-  "rulesSha256": "bd0607c70b20d3b69b17e2a363ed854dcf879ac2bfe94f926ee29e5a35daf61d",
+  "rulesSha256": "45cc2aa8414f1f9c6c205916c3eb4d9e107f5859e4168c92a062152d5b0942a2",
   "counts": {
     "roots": 1,
     "k1": 7,

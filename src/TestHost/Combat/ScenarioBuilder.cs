@@ -84,15 +84,9 @@ internal static class ScenarioBuilder
         TestHostLog.Trace("scenario.start_run");
         RunState runState = await waiter.StartRunAsync(character, request.Ascension, request.Seed, request.GameModeForTest);
         TestHostLog.Trace("scenario.run_started");
-        if (request.DominionForTest is { } dominionId)
-        {
-            if (request.GameModeForTest != GameMode.Dread)
-                throw new InvalidOperationException("领域测试必须使用恐惧模式。");
-            runState.SetDominion(NativeLookup.ResolveUnique(
-                ModelDb.All.OfType<MegaCrit.Sts2.Core.Models.Dread.DominionModel>(), dominionId, "领域"));
-        }
+        if (request.DominionForTest != null)
+            throw new NotSupportedException("正式版游戏没有领域。");
 
-        // 0.113 creates a per-run selector stack when the run starts.
         ICardSelector? localSelector = generatedSelector;
         if (turnSetupSelector != null)
             localSelector = turnSetupSelector;
@@ -100,14 +94,11 @@ internal static class ScenarioBuilder
             localSelector = new FirstChoiceCardSelector();
         else if (buildSelector != null)
             localSelector = buildSelector;
-        else if (localSelector == null && !waitForTurnSetupPage
-            && request.GameModeForTest == GameMode.Dread)
-            localSelector = new FirstChoiceCardSelector();
         if (generatedSelector == null
             && request.ScenarioId.StartsWith("FLASH-PR-", StringComparison.Ordinal))
             localSelector = new FirstChoiceCardSelector();
         if (localSelector != null)
-            scopes.Add(RunManager.Instance.CardSelectorStack.UseLocalSelector(localSelector));
+            scopes.Add(CardSelectCmd.UseSelector(localSelector, localOnly: true));
 
         if (request.ActIndexForTest != 0)
         {

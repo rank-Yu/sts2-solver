@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p9-card-flow",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p9-card-flow.json\u0022}",
-  "rulesSha256": "9cc00f8de44a5dfacb8c3377406712f212674be157eeb127b3392eacb1d5a52e",
+  "rulesSha256": "cc554e78a92be8db9fa4e0f6721bb33f8c5149e8a14920a0f566df61315f973f",
   "counts": {
     "roots": 1,
-    "k1": 14,
+    "k1": 13,
     "walks": 32,
-    "walkStates": 1766,
-    "transitions": 1737
+    "walkStates": 1733,
+    "transitions": 1705
   }
 }

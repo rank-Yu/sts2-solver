@@ -98,7 +98,7 @@ public sealed class Flatten : CardDef
     // Osty attacked this turn gets the same zero-cost modifier.
     public override void AfterEnteredCombat(ref Exec x, Pile pile, int index)
     {
-        if (x.B.Counter(Counter.OstyAttacksThisTurn) <= 0)
+        if ((x.B.Flags & BattleFlags.OstyPresent) == 0 || x.B.Counter(Counter.OstyAttacksThisTurn) <= 0)
             return;
         ref Card card = ref Piles.At(ref x.B, pile, index);
         Kernel.AddEnergyCostModifier(ref card, 0, CostType.Absolute, CostExpiration.EndOfTurn,
@@ -264,7 +264,7 @@ public sealed class DrainPower : CardDef
             if (card.Upgrade < stats.MaxUpgradeLevel)
                 order[candidates++] = index;
         }
-        RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
         for (int n = candidates; n > 1;)
         {
             n--;

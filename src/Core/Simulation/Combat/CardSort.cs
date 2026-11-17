@@ -7,7 +7,7 @@ namespace Sts2Solver.Simulation.Combat;
 /// <c>List&lt;T&gt;.Sort()</c>. The native shuffle sorts with this unstable algorithm before its
 /// Fisher-Yates pass, so cards that compare equal but differ in state must be permuted exactly
 /// the same way. Comparison follows native <c>CardModel.CompareTo</c>: model id (ordinal), then
-/// upgrade level, attachments, resolved cost, replay count and mutable variables.
+/// upgrade level.
 /// </summary>
 public static class CardSort
 {
@@ -35,32 +35,7 @@ public static class CardSort
         int rank = rules.CardSortRank(left.Id).CompareTo(rules.CardSortRank(right.Id));
         if (rank != 0)
             return rank;
-        rank = left.Upgrade.CompareTo(right.Upgrade);
-        if (rank != 0) return rank;
-        rank = left.EnchantmentId.CompareTo(right.EnchantmentId);
-        if (rank != 0) return rank;
-        rank = left.AfflictionId.CompareTo(right.AfflictionId);
-        if (rank != 0) return rank;
-        int leftCost = (left.Flags & CardFlags.CostsX) != 0 ? left.CapturedEnergy
-            : Kernel.EnergyCostWithModifiers(battle, rules, left, pile);
-        int rightCost = (right.Flags & CardFlags.CostsX) != 0 ? right.CapturedEnergy
-            : Kernel.EnergyCostWithModifiers(battle, rules, right, pile);
-        rank = leftCost.CompareTo(rightCost);
-        if (rank != 0) return rank;
-        rank = left.ReplayCount.CompareTo(right.ReplayCount);
-        if (rank != 0) return rank;
-        // Only the first two variables can differ from the canonical row. The remaining
-        // variables are identical for two cards with the same ID and upgrade level.
-        var def = Registry.Card(left.Id);
-        int first = def.FirstMutableVarInSort;
-        for (int step = 0; step < def.MutableVarCount; step++)
-        {
-            int variable = step == 0 ? first : 1 - first;
-            rank = DecimalVars.Delta(battle, left, variable).CompareTo(
-                DecimalVars.Delta(battle, right, variable));
-            if (rank != 0) return rank;
-        }
-        return 0;
+        return left.Upgrade.CompareTo(right.Upgrade);
     }
 
     private static void IntroSort(Span<Card> keys, int depthLimit, Rules rules, in Battle battle, Pile pile)

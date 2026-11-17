@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p11-f-enthralled",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-f-enthralled.json\u0022}",
-  "rulesSha256": "a82b84c6e4536a93864d2a6b06d3b3d00356215f1ecb36a208242e667c145d04",
+  "rulesSha256": "c8f50e493ac69a8fe8da1abcbae5831381318c1f2ba09895f0f18126f1944022",
   "counts": {
     "roots": 1,
     "k1": 2,
     "walks": 32,
-    "walkStates": 1597,
-    "transitions": 1570
+    "walkStates": 1681,
+    "transitions": 1653
   }
 }

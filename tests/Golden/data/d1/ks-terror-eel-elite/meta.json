@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "ks-terror-eel-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ks-terror-eel-elite.json\u0022}",
-  "rulesSha256": "963a36cacc1b6e3780eeb1c74c3dd386de74dc5a51b5afc7e28eeb5de8516e58",
+  "rulesSha256": "887649692605a479cab3cea1a61f0aad6ffb5b03f0ef792f91db0dc7d1ebf4af",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1438,
-    "transitions": 1407
+    "walkStates": 1546,
+    "transitions": 1515
   }
 }

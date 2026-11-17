@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "a3-mecha-knight-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-mecha-knight-elite.json\u0022}",
-  "rulesSha256": "a7d80c9596c234d0916a5f8d48690b552df78987a5e60b50c8da8ce89b23afa1",
+  "rulesSha256": "3fc96953a263c9c3d89f65f8b1a756de03b61667c52ae35fbf8bf61e215d28c2",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 1919,
-    "transitions": 1918
+    "walkStates": 1920,
+    "transitions": 1920
   }
 }

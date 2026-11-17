@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p10-d-empty-curses",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p10-d-empty-curses.json\u0022}",
-  "rulesSha256": "ebe3f0ba03fbbb9c3209fbfabf1bdc3d568b2f679889adcc690d99401bd8aa9d",
+  "rulesSha256": "ad0638472827059e56419e7a6ae53aacb9c5595bf44b775004bcde0c24ebf37e",
   "counts": {
     "roots": 1,
     "k1": 2,
     "walks": 32,
-    "walkStates": 1667,
-    "transitions": 1635
+    "walkStates": 1795,
+    "transitions": 1770
   }
 }

@@ -361,8 +361,7 @@ public static partial class Kernel
         card.Var1 = 0;
         card.BaseCost = checked((sbyte)stats.EnergyCost);
         card.BaseStarCost = checked((sbyte)stats.StarCost);
-        card.Keywords = ((stats.Keywords | card.KeywordsAddedFromOutside)
-            & ~card.KeywordsRemovedFromOutside) | (card.Keywords & Keywords.CreatedAfterRoot);
+        card.Keywords = stats.Keywords | (card.Keywords & Keywords.CreatedAfterRoot);
         // CardModel.DowngradeInternal calls Enchantment?.ModifyCard() after resetting local
         // keywords, so an enchantment that removes a keyword (SoulsPower) applies it again.
         if (card.EnchantmentId != 0)

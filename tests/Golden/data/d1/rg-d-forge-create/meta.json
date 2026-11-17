@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "rg-d-forge-create",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-rg-d-forge-create.json\u0022}",
-  "rulesSha256": "e9123e26277acc22dadddef8c53951de248aed2004292f38f47c2155abe836ae",
+  "rulesSha256": "c17d4f79511d2c4dac5692709bd610c93fffa4592090b3b969bb6506eb233658",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 777,
-    "transitions": 745
+    "walkStates": 662,
+    "transitions": 630
   }
 }

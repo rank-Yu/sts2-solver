@@ -271,7 +271,7 @@ public static class CardEffects
             order[eligible++] = id;
         }
         order = order[..eligible];
-        RngState rng = battle.RngStream(RngStream.CombatCardGeneration).CreateShuffleRng();
+        ref RngState rng = ref battle.RngStream(RngStream.CombatCardGeneration);
         for (int n = order.Length; n > 1;)
         {
             n--;

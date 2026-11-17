@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "a3-knights-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-knights-elite.json\u0022}",
-  "rulesSha256": "3dcacf56705e54086486db6e8b4575e0424e78d67923ba76f681b5c8c1cc8b47",
+  "rulesSha256": "1ceafd040a6d9c847ead4f19631c423044a852fe88d22f014309f3ee07a6531f",
   "counts": {
     "roots": 1,
     "k1": 15,
     "walks": 32,
-    "walkStates": 1871,
-    "transitions": 1865
+    "walkStates": 1860,
+    "transitions": 1849
   }
 }

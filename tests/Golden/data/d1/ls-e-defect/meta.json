@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "ls-e-defect",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-ls-e-defect.json\u0022}",
-  "rulesSha256": "3f44639abafc7cb78a662cfd6e6988cc3dd91a96319573c8ad8a19ddac12c16f",
+  "rulesSha256": "5e6a3b84475fb154dbdbcc3e00a73bf5cd5d52bfc5b110da2d7a36b8efb9f40f",
   "counts": {
     "roots": 1,
     "k1": 9,
     "walks": 32,
-    "walkStates": 352,
-    "transitions": 320
+    "walkStates": 360,
+    "transitions": 328
   }
 }

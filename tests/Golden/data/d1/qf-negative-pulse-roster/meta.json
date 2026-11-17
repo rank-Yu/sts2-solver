@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "qf-negative-pulse-roster",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-negative-pulse-roster.json\u0022}",
-  "rulesSha256": "81c90bcd8fdc340ac8bb2db318d398a878fc8357f26b36890aaeef10048c4a5c",
+  "rulesSha256": "74ac4068ef64121aa794f8513656e23b31c1ace668e2a48716f7bc16f00b969a",
   "counts": {
     "roots": 1,
     "k1": 2,
     "walks": 32,
-    "walkStates": 1809,
-    "transitions": 1788
+    "walkStates": 1805,
+    "transitions": 1784
   }
 }

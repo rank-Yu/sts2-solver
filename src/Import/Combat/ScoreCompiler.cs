@@ -190,9 +190,7 @@ internal static class ScoreCompiler
             CardDef def = Registry.Card(id);
             if (!RulesCompiler.CanonicalCardModels.TryGetValue(def.NativeId, out CardModel? canonical))
                 continue;
-            int maxUpgrade = canonical is DingyDagger
-                ? Math.Max(0, rules.CardTable[id].Length - 1)
-                : canonical.MaxUpgradeLevel;
+            int maxUpgrade = canonical.MaxUpgradeLevel;
             CardScore?[] levels = new CardScore?[maxUpgrade + 1];
             for (int upgrade = 0; upgrade <= maxUpgrade; upgrade++)
             {
@@ -344,14 +342,10 @@ internal static class ScoreCompiler
     private static PowerScore[] CompilePowers(bool act3BossStrategy)
     {
         PowerScore[] result = new PowerScore[Registry.PowerCount];
-        for (ushort id = 0; id < Registry.PowerCount; id++)
+        foreach (PowerModel model in RulesCompiler.CanonicalPowerModels.Values)
         {
-            PowerDef def = Registry.Power(id);
-            PowerModel model = RulesCompiler.CanonicalPowerModels.TryGetValue(def.NativeId,
-                out PowerModel? canonical)
-                ? canonical
-                : throw new UnsupportedImportException(ImportReason.UnsupportedPower,
-                    $"原版没有 Power {def.NativeId}");
+            if (!Registry.TryPower(model.Id.Entry, out ushort id))
+                continue;
             result[id] = new PowerScore
             {
                 Kind = StrategicKindOf(model, act3BossStrategy),
@@ -463,15 +457,11 @@ internal static class ScoreCompiler
         bool renewablePotionShapedRock = player.Relics
             .OfType<PetrifiedToad>().Any(static relic => !relic.IsMelted);
         int[] costs = new int[Registry.PotionCount];
-        for (ushort id = 0; id < Registry.PotionCount; id++)
+        foreach (PotionModel model in RulesCompiler.CanonicalPotionModels.Values)
         {
-            PotionDef def = Registry.Potion(id);
-            PotionModel potion = RulesCompiler.CanonicalPotionModels.TryGetValue(def.NativeId,
-                out PotionModel? canonical)
-                ? canonical
-                : throw new UnsupportedImportException(ImportReason.UnsupportedPotion,
-                    $"原版没有药水 {def.NativeId}");
-            costs[id] = StrategicCost(potion, renewablePotionShapedRock);
+            if (!Registry.TryPotion(model.Id.Entry, out ushort id))
+                continue;
+            costs[id] = StrategicCost(model, renewablePotionShapedRock);
         }
         return costs;
     }

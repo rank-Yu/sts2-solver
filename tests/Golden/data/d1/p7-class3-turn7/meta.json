@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p7-class3-turn7",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p7-class3-turn7.json\u0022}",
-  "rulesSha256": "1a10e78414d54f75ba4bf0d54f5bf01a95b35612012b8894bf57f160efde4aeb",
+  "rulesSha256": "0d230e62ecee3d62bbe661b3cfa36bf1dd7279035849b4fcbd96a879b64e9865",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 140,
-    "transitions": 108
+    "walkStates": 154,
+    "transitions": 122
   }
 }

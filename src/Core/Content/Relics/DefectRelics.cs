@@ -57,40 +57,32 @@ public sealed class PowerCell : RelicDef
     public override void BeforeSideTurnStart(ref Exec x, Listener self, Side side)
     {
         if (side != Side.Player || x.B.PlayerTurn > 1) return;
-        Span<int> picks = stackalloc int[x.B.DrawCount];
-        int total = 0;
         Span<Card> cards = stackalloc Card[x.B.DrawCount];
         Span<int> positions = stackalloc int[x.B.DrawCount];
-        // Both StableShuffle calls execute even when a group is empty.
-        for (int group = 0; group < 2; group++)
+        int count = 0;
+        for (int i = 0; i < x.B.DrawCount; i++)
         {
-            int count = 0;
-            for (int i = 0; i < x.B.DrawCount; i++)
-            {
-                Card card = Piles.At(ref x.B, Pile.Draw, i);
-                if ((card.Flags & CardFlags.CostsX) != 0
-                    || Kernel.EnergyCostWithLocalModifiers(x.B, card) != 0
-                    || ((card.Keywords & Keywords.Innate) != 0) != (group == 1)) continue;
-                cards[count] = card;
-                positions[count++] = i;
-            }
-            CardSort.SortWithOrigins(cards[..count], positions[..count], x.R, x.B, Pile.Draw);
-            RngState rng = x.B.RngStream(RngStream.CombatCardSelection).CreateShuffleRng();
-            for (int i = count - 1; i > 0; i--)
-            {
-                int other = rng.NextInt(i + 1);
-                (positions[i], positions[other]) = (positions[other], positions[i]);
-            }
-            positions[..count].CopyTo(picks[total..]);
-            total += count;
+            Card card = Piles.At(ref x.B, Pile.Draw, i);
+            if ((card.Flags & CardFlags.CostsX) != 0
+                || Kernel.EnergyCostWithLocalModifiers(x.B, card) != 0)
+                continue;
+            cards[count] = card;
+            positions[count++] = i;
         }
-        int take = Math.Min(total, (int)x.R.RelicVar(Id, 0));
+        CardSort.SortWithOrigins(cards[..count], positions[..count], x.R, x.B, Pile.Draw);
+        ref RngState rng = ref x.B.RngStream(RngStream.CombatCardSelection);
+        for (int i = count - 1; i > 0; i--)
+        {
+            int other = rng.NextInt(i + 1);
+            (positions[i], positions[other]) = (positions[other], positions[i]);
+        }
+        int take = Math.Min(count, (int)x.R.RelicVar(Id, 0));
         for (int i = 0; i < take; i++)
         {
-            int index = picks[i];
+            int index = positions[i];
             Kernel.MoveCard(ref x.B, Pile.Draw, index, Pile.Hand, PilePosition.Bottom);
             for (int j = i + 1; j < take; j++)
-                if (picks[j] > index) picks[j]--;
+                if (positions[j] > index) positions[j]--;
         }
     }
 }

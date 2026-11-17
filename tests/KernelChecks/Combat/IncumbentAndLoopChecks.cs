@@ -357,7 +357,7 @@ internal static class IncumbentAndLoopChecks
             Battle root = NewBattle(10, 100, 100, 3);
             root.PotionSlotCount = 3;
             root.Potions[0] = (ushort)(brew + 1);
-            root.RngStream(RngStream.NonCombatGeneration) = RngState.FromSeed(seed);
+            root.RngStream(RngStream.CombatPotionGeneration) = RngState.FromSeed(seed);
             Battle original = root;
             Assert(bound.TryVictoryHealing(root, rules, out long predicted, out long gain), "Entropic has a finite current-RNG healing estimate");
             Assert(BattleCodec.Encode(root, rules.Relics).AsSpan().SequenceEqual(BattleCodec.Encode(original, rules.Relics)),

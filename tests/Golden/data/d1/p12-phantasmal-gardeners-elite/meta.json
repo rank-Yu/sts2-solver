@@ -3,10 +3,10 @@
   "battleSize": 32376,
   "root": "p12-phantasmal-gardeners-elite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p12-phantasmal-gardeners-elite.json\u0022}",
-  "rulesSha256": "b092ccd3ea15d1e331d43fd87d62ed5699b30dfbb8c70c2eb70724d4b9e9040c",
+  "rulesSha256": "1ee9502a1e647258aecb7467188a58e96671dadb2065181f51f756ababf9b0a6",
   "counts": {
     "roots": 1,
-    "k1": 19,
+    "k1": 22,
     "walks": 32,
     "walkStates": 1336,
     "transitions": 1304

@@ -3,7 +3,7 @@
   "battleSize": 32376,
   "root": "qf-misery-roster",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qf-misery-roster.json\u0022}",
-  "rulesSha256": "0dd57044b5240076651574f4b9d783b9984732c8fda89bb55d7ee8d9ad35f4d0",
+  "rulesSha256": "a1c1ae93892841a760501b2f81584a4c4ee2120b9ef7d2718f626fa9aef2dcb1",
   "counts": {
     "roots": 1,
     "k1": 11,

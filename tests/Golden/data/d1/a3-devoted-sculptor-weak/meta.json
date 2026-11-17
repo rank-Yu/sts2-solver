@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "a3-devoted-sculptor-weak",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-a3-devoted-sculptor-weak.json\u0022}",
-  "rulesSha256": "cae022a30272b1d62b82c52f95b49fc52cabaf2f3175a8af6a219c36a213636e",
+  "rulesSha256": "9ee37b28a4eb24021fb834db4633bf0a338d18725d6b571408af20b3be5ee057",
   "counts": {
     "roots": 1,
     "k1": 7,
     "walks": 32,
-    "walkStates": 910,
-    "transitions": 878
+    "walkStates": 897,
+    "transitions": 865
   }
 }

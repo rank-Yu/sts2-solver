@@ -39,12 +39,12 @@ internal static class RelicCounterContracts
         Assert(free.Targeted.Deficit == free.Plain.Deficit, "free goal costs no HP");
         Assert(free.Plain.Goals == 0 && free.Targeted.Goals == 1, "Happy Flower ends on its goal for free");
 
-        Outcome pair = Solve(WithCounter(Load(PenNibJossPaper), "PEN_NIB", 1), 0);
+        Outcome pair = Solve(WithCounter(Load(PenNibJossPaper), "PEN_NIB", 3), 0);
         Assert(pair.Targeted.Deficit == pair.Plain.Deficit && pair.Targeted.Lost <= pair.Plain.Lost,
             "Pen Nib + Joss Paper goal costs no HP");
         Assert(pair.Plain.Goals == 0 && pair.Targeted.Goals == 1, "one of two counters aligned for free");
 
-        SearchCase pendulum = WithCounter(Load(Pendulum), "PENDULUM", 0);
+        SearchCase pendulum = WithCounter(Load(Pendulum), "PENDULUM", 1);
         Outcome kept = Solve(pendulum, 0);
         Assert(kept.Targeted.Lost == kept.Plain.Lost && kept.Targeted.Goals == 0,
             "allowance 0 never pays HP for the goal");

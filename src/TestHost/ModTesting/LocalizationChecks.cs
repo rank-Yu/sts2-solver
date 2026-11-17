@@ -11,7 +11,7 @@ internal static class LocalizationChecks
         string original = LocManager.Instance.Language;
         try
         {
-            string[] selectable = LocManager.Languages.Where(l => !LocManager.IsHiddenLanguage(l)).ToArray();
+            string[] selectable = LocManager.Languages.ToArray();
             Require(selectable.Order().SequenceEqual(SolverText.CatalogsForTesting.Keys.Order()), "selectable_languages");
             foreach (string language in selectable)
             {

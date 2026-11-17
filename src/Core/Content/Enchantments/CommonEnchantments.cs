@@ -239,13 +239,14 @@ public sealed class Glam : EnchantmentDef
     private const int Times = 1;
 
     public override int EnchantPlayCount(in Card card, int replayCount)
-        => card.EnchantmentStatus == 0 ? replayCount + Times : replayCount;
+        => card.EnchantmentPrivate == 0 ? replayCount + Times : replayCount;
 
     public override void AfterCardPlayed(ref Exec x, Listener self, in CardPlayInfo play)
     {
         if (play.Position != self.Index)
             return;
         ref Card card = ref x.B.Cards[self.Index];
+        card.EnchantmentPrivate = 1;
         card.EnchantmentStatus = 1;
     }
 }

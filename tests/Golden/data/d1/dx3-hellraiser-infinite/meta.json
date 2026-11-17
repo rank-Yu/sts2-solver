@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "dx3-hellraiser-infinite",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-dx3-hellraiser-infinite.json\u0022}",
-  "rulesSha256": "3ef2e5455f48506e22deb08b27c64e450fb5ee035e1dfa1925f38baf43815cd4",
+  "rulesSha256": "c3803eb30120722bbce937e214ef265da6381b33da18793352cb042ef1dfb08f",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 149,
-    "transitions": 117
+    "walkStates": 119,
+    "transitions": 87
   }
 }

@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "qp1-touch-of-insanity",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-qp1-touch-of-insanity.json\u0022}",
-  "rulesSha256": "915fc90913756fac97e930f134382b09a186489d18178c1684c31027ad9662ec",
+  "rulesSha256": "3cc772036b98aa82919a15e3b1e1887390c82221212fb71d007ee79b92479f31",
   "counts": {
     "roots": 1,
     "k1": 16,
     "walks": 32,
-    "walkStates": 1872,
-    "transitions": 1855
+    "walkStates": 1877,
+    "transitions": 1861
   }
 }

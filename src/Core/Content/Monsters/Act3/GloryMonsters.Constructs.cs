@@ -100,8 +100,7 @@ public sealed partial class Aeonglass : MonsterDef
                 {
                     Kernel.AddGeneratedCard(ref x,
                         Kernel.CreateCard(x.R, Registry.CardId<Cards.Status.Wither>()),
-                        x.R.Mode == CombatMode.Dread ? Pile.Draw : Pile.Discard,
-                        PilePosition.Random, creator: Limits.NoOwner);
+                        Pile.Discard, creator: Limits.NoOwner);
                 }
                 int strength = rules.StaticInts[IncreasingIntensityBaseStrengthStat]
                     + x.B.Enemy(owner).Ai[AdditionalStrengthRegister];

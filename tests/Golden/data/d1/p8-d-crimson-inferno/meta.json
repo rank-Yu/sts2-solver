@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p8-d-crimson-inferno",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p8-d-crimson-inferno.json\u0022}",
-  "rulesSha256": "f741638faec944c88015d9f54827107c9a4b15cd7c410db9b2e25abbdde2a15d",
+  "rulesSha256": "9b4e05b356f9a18621eccd23db23120d0ba02c8800f33b29248d96324ff8d11d",
   "counts": {
     "roots": 1,
     "k1": 14,
     "walks": 32,
-    "walkStates": 407,
-    "transitions": 375
+    "walkStates": 408,
+    "transitions": 376
   }
 }

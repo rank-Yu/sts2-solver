@@ -17,6 +17,8 @@ public sealed class DieForYouPower : PowerDef
 
     public override bool ShouldPowerBeRemovedAfterOwnerDeath => false;
 
+    public override bool PreventsRemovalAfterDeath => true;
+
     public override byte ModifyUnblockedDamageTarget(ref Exec x, Listener self, byte target,
         decimal amount, ValueProps props, byte dealer)
     {

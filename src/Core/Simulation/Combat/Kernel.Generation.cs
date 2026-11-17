@@ -48,7 +48,7 @@ public static partial class Kernel
         ref RngState rng = ref battle.RngStream(stream);
         if (distinct)
         {
-            RngState shuffled = rng.CreateShuffleRng();
+            ref RngState shuffled = ref rng;
             Span<ushort> order = stackalloc ushort[pool.Cards.Length];
             pool.Cards.AsSpan().CopyTo(order);
             for (int n = order.Length; n > 1;)

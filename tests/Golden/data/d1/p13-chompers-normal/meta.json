@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p13-chompers-normal",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p13-chompers-normal.json\u0022}",
-  "rulesSha256": "1b372286fc4bda7a077177e597caeb470e6af5334f3ce69f967bed287fe4477c",
+  "rulesSha256": "545ba3ea51f44e218e7158b30a26b68c09a8ad6b7f5eba93bb181ad8c043f73b",
   "counts": {
     "roots": 1,
     "k1": 11,
     "walks": 32,
-    "walkStates": 1320,
-    "transitions": 1288
+    "walkStates": 1439,
+    "transitions": 1407
   }
 }

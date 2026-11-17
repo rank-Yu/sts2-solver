@@ -3,12 +3,12 @@
   "battleSize": 32376,
   "root": "p11-e-status-cards",
   "input": "{\u0022kind\u0022:\u0022fixture\u0022,\u0022fixture\u0022:\u0022coverage/fixtures/cards/flash-p11-e-status-cards.json\u0022}",
-  "rulesSha256": "bc3728715e126e6f280f989340654058089e50a140781c3efa9eb50dbbb2b53b",
+  "rulesSha256": "944133e7454e9ade7cf26917d1071bbe1939fa71fcba6b70e9f5fa2710688f57",
   "counts": {
     "roots": 1,
     "k1": 5,
     "walks": 32,
-    "walkStates": 1508,
-    "transitions": 1477
+    "walkStates": 1503,
+    "transitions": 1472
   }
 }

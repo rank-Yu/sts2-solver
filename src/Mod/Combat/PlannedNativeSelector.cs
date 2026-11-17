@@ -30,8 +30,6 @@ internal sealed class PlannedNativeSelector(
     private readonly TaskCompletionSource<string> _failure =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private Player OwnerPlayer => player;
-
     internal int PendingCount => _choices.Count - _index;
 
     internal Task<string> Failure => _failure.Task;
@@ -39,7 +37,7 @@ internal sealed class PlannedNativeSelector(
     internal string? FailureDetail => Failure.IsCompletedSuccessfully ? Failure.Result : null;
 
     internal static IDisposable Activate(PlannedNativeSelector selector)
-        => MegaCrit.Sts2.Core.Runs.RunManager.Instance.CardSelectorStack.PushSelector(selector.OwnerPlayer, selector);
+        => CardSelectCmd.PushSelector(selector);
 
     /// <summary>Returns the unused-plan diagnostic, or null when every planned choice was consumed.</summary>
     internal string? UnconsumedDetail()

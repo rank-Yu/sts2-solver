@@ -3232,7 +3232,7 @@ static void CheckPrKernel()
 }
 
 // EC: contracts for the event-card kernel helpers. SetInstanceBlockValue backs ToricToughnessPower's
-// block amount (an integer in the settled card block; a fractional value is an explicit boundary), and
+// unrounded block amount, including Frail quarter units, and
 // MakeFreeThisCombat mirrors CardModel.SetToFreeThisCombat's energy and star-cost modifiers.
 static void CheckEcKernel(Rules rules)
 {
@@ -3257,18 +3257,15 @@ static void CheckEcKernel(Rules rules)
         Owner = Limits.PlayerOwner,
         Amount = 2,
     };
-    Kernel.SetInstanceBlockValue(ref battle, 0, 7m);
-    Check(battle.Powers[0].Aux0 == 7, "实例格挡值应写入 Aux0");
-    bool rejected = false;
-    try
+    foreach (decimal value in new[] { 0m, 0.25m, 0.5m, 0.75m, 4.5m, 7m, 7.75m })
     {
-        Kernel.SetInstanceBlockValue(ref battle, 0, 7.5m);
+        Kernel.SetInstanceBlockValue(ref battle.Powers[0], value);
+        Check(Kernel.InstanceBlockValue(battle.Powers[0]) == value,
+            $"实例格挡值 {value} 应精确保留");
+        Check(battle.Powers[0].Aux0 == (int)value
+            && battle.Powers[0].Aux1 == (int)((value - (int)value) * 4m),
+            "实例格挡应拆成整数和四分之一格挡");
     }
-    catch (UnsupportedException)
-    {
-        rejected = true;
-    }
-    Check(rejected, "小数格挡量应抛 UnsupportedException");
 }
 
 static Battle NewBattle()

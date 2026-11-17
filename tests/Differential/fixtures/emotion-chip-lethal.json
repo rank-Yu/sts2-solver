@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "emotion-chip-lethal",
+  "characterId": "DEFECT",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "EMOTIONHISTORY",
+  "initialPlayerHp": 1,
+  "initialPlayerMaxHp": 100,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "EMOTION_CHIP",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "powers": []
+}

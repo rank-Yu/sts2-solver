@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "parrying-shield-doom-loss",
+  "characterId": "NECROBINDER",
+  "encounterId": "FOGMOG_NORMAL",
+  "seed": "PARRYDOOMLOSS",
+  "initialPlayerHp": 1,
+  "initialPlayerMaxHp": 100,
+  "initialPlayerBlock": 20,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "relics": [
+    {
+      "relicId": "PARRYING_SHIELD",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "DOOM_POWER",
+      "target": "Player",
+      "amount": 1
+    }
+  ]
+}

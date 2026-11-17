@@ -61,6 +61,10 @@ public sealed class ShacklingPotionPower : PowerDef
 
     public override PowerStackType StackType => PowerStackType.Counter;
 
+    public override string? InternallyAppliedPowerId => "STRENGTH_POWER";
+
+    public override bool IsTemporaryPower => true;
+
     public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)
     {
         if (participates)

@@ -155,14 +155,8 @@ internal sealed class BattleProjections(NativeHistory history, PrivateStateLedge
                 target.Aux0 = bomb.DynamicVars.Damage.IntValue;
                 break;
             case ToricToughnessPower toric:
-            {
-                decimal block = toric.DynamicVars.Block.BaseValue;
-                if (block != decimal.Truncate(block) || block < 0m || block > int.MaxValue)
-                    throw new UnsupportedImportException(ImportReason.Unrepresentable,
-                        $"ToricToughness 格挡量 {block} 不是可表示的整数");
-                target.Aux0 = (int)block;
+                Kernel.SetInstanceBlockValue(ref target, toric.DynamicVars.Block.BaseValue);
                 break;
-            }
             case RollingBoulderPower:
                 break;
             case MonologuePower monologue:

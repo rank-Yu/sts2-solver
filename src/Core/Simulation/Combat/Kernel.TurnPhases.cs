@@ -541,15 +541,18 @@ public static partial class Kernel
         Span<byte> participants = stackalloc byte[1];
         participants[0] = Limits.PlayerOwner;
         PowerTypeSequence(ref x, PowerPhase.PlayerSideTurnEnd, Limits.PlayerOwner, PlayerSideTurnEndIds.Value, Side.Player, participates: true);
-        if (x.NeedsChoice)
+        if (x.NeedsChoice || x.B.Player.IsDead)
             return;
         EndTurnRegularAndBatch(ref x, Side.Player, participants);
-        if (x.NeedsChoice)
+        if (x.NeedsChoice || x.B.Player.IsDead)
             return;
         ResolvePowerAmountChanges(ref x);
-        if (x.NeedsChoice)
+        if (x.NeedsChoice || x.B.Player.IsDead)
             return;
         TriggerTransientSideTurnEndPowers(ref x, Side.Player, participants);
+        // Native ProcessPendingLoss captures defeat before later relic listeners run.
+        if (x.NeedsChoice || x.B.Player.IsDead)
+            return;
         // Native Hook.AfterSideTurnEnd iterates combat listeners, and IsOverOrEnding makes that
         // iterator empty before the pass starts. The check is therefore at the phase entry: a
         // listener that kills the last enemy later in the same pass still lets the remaining

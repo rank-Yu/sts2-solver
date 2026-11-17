@@ -283,7 +283,7 @@ public sealed class Alchemize : CardDef
     public override void OnPlay(ref Exec x)
     {
         ushort potion = Kernel.GenerateRandomPotion(ref x.B, x.R);
-        if (Kernel.TryProcurePotion(ref x.B, x.R, potion))
+        if (Kernel.TryProcurePotion(ref x, potion))
         {
             // SimulatedCombatState.RecordLongTermResource(20) after a successful procure.
             x.B.AddCounter(Counter.LongTermResourceValue, 20);

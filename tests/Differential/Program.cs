@@ -60,6 +60,8 @@ internal static class Program
             return HealingBoundChecks.Run(healingRequest, expectedHealing, null);
         if (args is ["--healing-bound-check", var loadoutRequest, var loadoutHealing, var loadoutPath])
             return HealingBoundChecks.Run(loadoutRequest, loadoutHealing, loadoutPath);
+        if (args is ["--relic-import-audit", var relicRequest])
+            return RelicImportChecks.Run(relicRequest);
         if (args.Length >= 3 && args[0] == "--native-effect-check")
             return NativeEffectChecks.Run(args[1], args[2..]);
         if (args.Length > 0 && args[0] == "--combat-pilot-compare")

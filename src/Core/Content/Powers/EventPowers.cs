@@ -101,7 +101,7 @@ public sealed class ReboundPower : PowerDef
 /// <summary>
 /// Native <c>ToricToughnessPower</c> (instanced): <c>AfterBlockCleared</c> gains the block value
 /// stored by <c>SetBlock</c> as unpowered block, then decrements the turn count. Sts2Solver stores the
-/// block value in <see cref="Power.Aux0"/> (Amount is the turn count).
+/// whole block in <see cref="Power.Aux0"/> and quarter units in <see cref="Power.Aux1"/>.
 /// </summary>
 [ContentId("TORIC_TOUGHNESS_POWER")]
 public sealed class ToricToughnessPower : PowerDef
@@ -119,7 +119,7 @@ public sealed class ToricToughnessPower : PowerDef
     public override void AfterBlockCleared(ref Exec x, Listener self)
     {
         ref Power power = ref x.B.Powers[self.Index];
-        int block = power.Aux0;
+        decimal block = Kernel.InstanceBlockValue(power);
         if (block > 0)
         {
             Kernel.GainBlock(ref x, self.Owner, block, ValueProps.Unpowered, fromCard: false);

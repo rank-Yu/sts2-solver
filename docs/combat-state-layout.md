@@ -123,7 +123,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | `HellraiserPower` | — | 本回合无限自动打出计数 | — |
 | `VoidFormPower` | — | 本回合已打出数 | — |
 | `ChainsOfBindingPower` | — | — | 本玩家回合的 `CardAfflictedEntry` 数 |
-| `ToricToughnessPower` | 剩余回合 | 格挡清零时提供的格挡量 | — |
+| `ToricToughnessPower` | 剩余回合 | 格挡量的整数部分 | 小数部分，以 1/4 格挡为单位 |
 | `AutomationPower`、`PanachePower`、`TheBombPower` | — | 沿用原引擎的投影 | 同左 |
 
 **标志 `PowerFlags`。** 跳过下次衰减、刚由敌人施加等。`PendingAmountState`（bit 3）是瞬态标志：本动作里读过这个 Power 的原生 `PowerAmountPredictionState`（目前只有 GigantificationPower 的 `BeforeAttack`）；玩家死亡清理时带这个标志的行保留，`Kernel.Step` 在稳定边界统一清除。

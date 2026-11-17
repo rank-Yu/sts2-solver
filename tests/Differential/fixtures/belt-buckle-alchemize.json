@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "belt-buckle-alchemize",
+  "characterId": "SILENT",
+  "encounterId": "NIBBITS_NORMAL",
+  "seed": "BELTPROCURE",
+  "initialPlayerHp": 500,
+  "initialPlayerMaxHp": 500,
+  "initialPlayerEnergy": 20,
+  "enemyCurrentHp": 500,
+  "clearPlayerHand": true,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "ALCHEMIZE",
+      "pile": "Hand",
+      "count": 2
+    }
+  ],
+  "relics": [
+    {
+      "relicId": "BELT_BUCKLE",
+      "addWithoutObtainedEffects": true
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "ENERGY_POTION"
+    }
+  ]
+}

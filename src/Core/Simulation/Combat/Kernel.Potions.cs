@@ -161,16 +161,25 @@ public static partial class Kernel
         return candidates[rng.NextInt(0, count)];
     }
 
+    /// <summary>Procures a potion and runs the native AfterPotionProcured reactions.</summary>
+    public static bool TryProcurePotion(ref Exec x, ushort potionId, bool freeFromEntropic = false)
+    {
+        if (!TryProcurePotion(ref x.B, x.R, potionId, freeFromEntropic))
+            return false;
+        HookDispatch.AfterPotionProcured(ref x, potionId);
+        return true;
+    }
+
     /// <summary>
-    /// Mirrors <c>SimulatedCombatState.TryProcurePotion</c> for a supported root: the first empty slot
+    /// Inventory-only insertion used by potion previews: the first empty slot
     /// receives the potion. <c>ShouldProcurePotion</c> listeners (Sozu) are consulted first;
-    /// <c>AfterPotionProcured</c> reactions are outside this effect's scope.
+    /// actual execution uses the Exec overload to dispatch <c>AfterPotionProcured</c>.
     /// </summary>
     public static bool TryProcurePotion(ref Battle battle, Rules rules, ushort potionId)
         => TryProcurePotion(ref battle, rules, potionId, freeFromEntropic: false);
 
     /// <summary>
-    /// <see cref="TryProcurePotion(ref Battle, ushort)"/> with the native <c>freeFromEntropic</c>
+    /// <see cref="TryProcurePotion(ref Battle, Rules, ushort)"/> with the native <c>freeFromEntropic</c>
     /// flag: the slot is marked in <see cref="Counter.EntropicFreePotionMask"/> so a later use
     /// records zero strategic cost.
     /// </summary>

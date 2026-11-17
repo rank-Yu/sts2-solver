@@ -420,3 +420,33 @@ dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/osty-sacrifice-revive.json play:0:2 play:0:255 play:0:255 play:0:2 end
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/osty-unretained-revive.json play:0:2 play:0:255 play:0:255 play:0:2 end
 ```
+
+
+### 遗物导入与小数格挡检查
+
+逐一检查当前游戏全部已注册遗物的初始、熔化及投影字段非零状态，核对共享清单、原生投影和快照往返：
+
+    dotnet run --project tests/Differential -c Release -- --relic-import-audit tests/Differential/fixtures/relic-room-conch-elite.json
+
+坚韧之环在脆弱和敏捷下保存 4.5 点格挡，连续打出两张后逐回合与原引擎核对：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/toric-fractional-block.json play:0:255 play:0:255 end end end
+
+
+小于 1 点的格挡仍应触发势不可当；药水重新入包应撤销腰带扣的敏捷；幻象复活后应正确恢复临时降低的力量：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/toric-subunit-block.json play:0:255 play:0:255 end end end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/belt-buckle-alchemize.json potion:0:255 play:0:255 play:0:255 end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/shackling-illusion-revive.json end potion:0:255 play:0:3 end end
+
+
+情感芯片按原生伤害历史判断，缓冲抵消的伤害和致命伤害都应保留记录：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-buffer.json end end end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/emotion-chip-lethal.json end end
+
+
+消耗牌的复制品保留复制时的免费效果；玩家因灾厄死亡后不再结算招架盾，随机数也不再推进：
+
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/burning-sticks-free-skill.json random:7:12
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/parrying-shield-doom-loss.json end

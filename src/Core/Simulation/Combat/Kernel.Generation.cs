@@ -100,19 +100,22 @@ public static partial class Kernel
     }
 
     /// <summary>
-    /// Stores the block an instanced power grants when its owner's block is cleared
-    /// (<c>ToricToughnessPower.SetBlock</c>): the native field is a decimal, but the observed value
-    /// is the settled card block gain, an integer. A fractional value cannot be represented in
-    /// <see cref="Power.Aux0"/> and is rejected as an explicit boundary.
+    /// ToricToughness stores GainBlock's unrounded return value. Native card block starts integral;
+    /// Frail multiplies it by 0.75 and the other multipliers double it. Keep the whole part in Aux0
+    /// and quarter units in Aux1, including positive fractions below one for AfterBlockGained hooks.
     /// </summary>
-    public static void SetInstanceBlockValue(ref Battle battle, int index, decimal block)
+    public static void SetInstanceBlockValue(ref Power power, decimal block)
     {
-        if ((uint)index >= (uint)battle.PowerCount)
-            throw new ArgumentOutOfRangeException(nameof(index), index, "Power 行越界。");
-        if (block != decimal.Truncate(block) || block < 0m || block > int.MaxValue)
-            throw new UnsupportedException($"实例 Power 的格挡量 {block} 不是可表示的非负整数。");
-        battle.Powers[index].Aux0 = (int)block;
+        decimal whole = decimal.Truncate(block);
+        decimal quarters = (block - whole) * 4m;
+        if (block < 0m || whole > int.MaxValue || quarters != decimal.Truncate(quarters))
+            throw new UnsupportedException($"实例 Power 的格挡量 {block} 无法表示为四分之一格挡。");
+        power.Aux0 = (int)whole;
+        power.Aux1 = (int)quarters;
     }
+
+    public static decimal InstanceBlockValue(in Power power)
+        => power.Aux0 + power.Aux1 / 4m;
 
     /// <summary>
     /// Replaces the card at <paramref name="index"/> in <paramref name="pile"/> with

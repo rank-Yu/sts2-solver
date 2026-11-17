@@ -524,7 +524,7 @@ public static partial class Kernel
             return;
 
         // ContinueCardResultExecution: the card is still in the play pile at its position. The
-        // native cost cleanup touches only this card, so it runs before the move here. Content that
+        // native cost cleanup follows the result move and CheckForEmptyHand. Content that
         // removes an earlier play-pile card (SummonForth moving a queued Sovereign Blade) shifts the
         // live slot; PlayPosition is the adjusted identity, while the captured local can be stale.
         int resultSlot = playPosition;
@@ -533,34 +533,63 @@ public static partial class Kernel
         {
             resultSlot = x.PlayPosition;
         }
-        if (resultSlot < x.B.PlayCount)
+        bool cleanCosts = !removeFromCombat && resultSlot < x.B.PlayCount
+            && (Piles.At(ref x.B, Pile.Play, resultSlot).EnergyModifierCount != 0
+                || Piles.At(ref x.B, Pile.Play, resultSlot).HasTemporaryStarCost);
+        int cleanupBase = 0, cleanupStart = 0;
+        byte outerMark = 0;
+        if (cleanCosts)
         {
-            if (removeFromCombat)
+            cleanupBase = ReserveTransientMarks(ref x, 1, out cleanupStart);
+            ref Card played = ref Piles.At(ref x.B, Pile.Play, resultSlot);
+            outerMark = played.TransientMark;
+            played.TransientMark = (byte)cleanupStart;
+        }
+        try
+        {
+            if (resultSlot < x.B.PlayCount)
             {
-                Piles.RemoveAt(ref x.B, Pile.Play, resultSlot);
+                if (removeFromCombat)
+                {
+                    Piles.RemoveAt(ref x.B, Pile.Play, resultSlot);
+                }
+                else
+                {
+                    if (result == Pile.Exhaust)
+                    {
+                        int exhaustCount = x.B.ExhaustCount;
+                        Exhaust(ref x, Pile.Play, resultSlot);
+                        resultPile = Pile.Exhaust;
+                        resultIndex = exhaustCount;
+                    }
+                    else if (MoveCard(ref x.B, Pile.Play, resultSlot, result, resultPosition,
+                                 out Pile movedPile, out int movedIndex))
+                    {
+                        resultPile = movedPile;
+                        resultIndex = movedIndex;
+                    }
+                }
             }
-            else
+            // CombatManager.CheckForEmptyHand runs after the result-pile move. The existing engine
+            // special-cases UnceasingTop in SimulatedCombatState.TriggerRelicsAfterHandEmptied (there is no
+            // generic AfterHandEmptied listener), so the kernel does the same after the outermost effect.
+            AfterHandEmptied(ref x);
+            // Exhaust listeners clone the pre-cleanup cost. Locate the original after those hooks
+            // and empty-hand draws; clones receive a new identity and keep their own modifiers.
+            if (cleanCosts && !x.NeedsChoice
+                && TryFindUniqueTransientMark(x.B, (byte)cleanupStart, out Pile cleanupPile, out int cleanupIndex))
             {
-                AfterCardPlayedCleanup(ref Piles.At(ref x.B, Pile.Play, resultSlot));
-                if (result == Pile.Exhaust)
-                {
-                    int exhaustCount = x.B.ExhaustCount;
-                    Exhaust(ref x, Pile.Play, resultSlot);
-                    resultPile = Pile.Exhaust;
-                    resultIndex = exhaustCount;
-                }
-                else if (MoveCard(ref x.B, Pile.Play, resultSlot, result, resultPosition,
-                             out Pile movedPile, out int movedIndex))
-                {
-                    resultPile = movedPile;
-                    resultIndex = movedIndex;
-                }
+                AfterCardPlayedCleanup(ref Piles.At(ref x.B, cleanupPile, cleanupIndex));
             }
         }
-        // CombatManager.CheckForEmptyHand runs after the result-pile move. The existing engine
-        // special-cases UnceasingTop in SimulatedCombatState.TriggerRelicsAfterHandEmptied (there is no
-        // generic AfterHandEmptied listener), so the kernel does the same after the outermost effect.
-        AfterHandEmptied(ref x);
+        finally
+        {
+            if (cleanCosts)
+            {
+                RestoreTransientMark(ref x.B, (byte)cleanupStart, outerMark);
+                ReleaseTransientMarks(ref x, cleanupBase, cleanupStart, 1);
+            }
+        }
     }
 
     /// <summary>

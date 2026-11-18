@@ -1288,8 +1288,7 @@ internal sealed partial class BeamSolver
 
     private RouteKey Key(in Battle state, in ScoreFeatures features, int actionCount)
     {
-        bool won = InterimResultOrdering.IsCompleteVictory(
-            actionCount, features.AllEnemiesDead, features.PlayerDead, features.ProjectedPlayerHp);
+        bool won = actionCount > 0 && features.AllEnemiesDead;
         int relicHeal = ActEndingBossPolicy.RankedPostCombatRelicHeal(
             _ordering.PostCombatRelicHeal, won, features.PlayerHp, features.PlayerMaxHp);
         int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
@@ -1303,7 +1302,7 @@ internal sealed partial class BeamSolver
         int potionHpCost = PotionHpCost(potionPrice);
         return new RouteKey(
             won,
-            !features.PlayerDead && features.ProjectedPlayerHp > 0,
+            !features.PlayerDead,
             features.ProjectedDeathSaveUseCount,
             _theftPolicy == TheftPolicy.PreserveResources ? features.OutstandingStolenResource : 0,
             strategicHpDeficit,

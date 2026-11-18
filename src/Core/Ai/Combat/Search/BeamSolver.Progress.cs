@@ -170,9 +170,9 @@ internal sealed partial class BeamSolver
                 continue;
             ref readonly Battle state = ref retained.State(slot);
             ScoreFeatures features = ProgressFeatures(in state, depth);
-            if (!features.PlayerDead && features.ProjectedPlayerHp > 0)
-                onlyDeathRoutes = false;
             RouteKey key = Key(in state, features, depth);
+            if (key.Survives)
+                onlyDeathRoutes = false;
             int comparison = bestSlot < 0 ? -1 : CompareRoutes(key, bestKey);
             if (comparison < 0 || comparison == 0 && node < bestNode)
             {

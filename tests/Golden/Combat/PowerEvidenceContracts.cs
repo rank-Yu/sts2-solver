@@ -312,8 +312,19 @@ internal static class PowerEvidenceContracts
                 Battle root = item.Battles[0];
                 Scorer plain = item.Options.Scorer!;
                 Scorer setup = new(plain.RulesForCodec, setup: SetupSearchPolicy.Capture(root, item.Rules));
+                // Compare the activation reward at the same health valuation.
+                double RealizedHpScore(in Battle state, int depth)
+                {
+                    ScoreFeatures ordinary = plain.Features(state, depth);
+                    var threat = plain.ProjectHpAfterThreat(state);
+                    int restored = ordinary.DeathSaveHpRestored;
+                    int hpDelta = ordinary.PlayerHp - ordinary.ProjectedPlayerHp
+                        + ActEndingBossPolicy.DeathSaveBeamCost(restored + threat.DeathSaveHpRestored)
+                        - ActEndingBossPolicy.DeathSaveBeamCost(restored);
+                    return ordinary.Score + hpDelta * ScoreWeights.Hp;
+                }
                 ScoreFeatures start = setup.Features(root, 0);
-                Assert(start.SetupPotentialHp == 0 && start.Score == plain.Features(root, 0).Score,
+                Assert(start.SetupPotentialHp == 0 && start.Score == RealizedHpScore(root, 0),
                     character + " starting buffs do not earn setup reward");
                 for (int i = 0; i < root.HandCount && !foundGain; i++)
                 {
@@ -328,7 +339,7 @@ internal static class PowerEvidenceContracts
                             || child.Outcome != Outcome.None) continue;
                         ScoreFeatures gain = setup.Features(child, 1);
                         if (gain.SetupPotentialHp <= 0) continue;
-                        Assert(gain.Score > plain.Features(child, 1).Score, character + " effective power changes candidate ordering");
+                        Assert(gain.Score > RealizedHpScore(child, 1), character + " effective power changes candidate ordering");
                         SearchCase encoded = item with { Options = item.Options with { Scorer = setup } };
                         Scorer restored = SearchCodec.DecodeRequest(SearchCodec.EncodeRequest(encoded)).Options.Scorer!;
                         Assert(restored.Features(child, 1).Score == gain.Score

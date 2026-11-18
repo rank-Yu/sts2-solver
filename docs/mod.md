@@ -70,7 +70,7 @@ python3 tools/release/build-bundle.py \
   --public-game /path/to/sts2-public \
   --beta-game /path/to/sts2-public-beta \
   --ritsu-root /path/to/RitsuLib \
-  --output artifacts/bundles/v0.2.11
+  --output artifacts/bundles/v0.2.12
 ```
 
 `--public-ref` 和 `--beta-ref` 也可以直接传提交号。脚本在启动时固定两个提交，导出到临时目录，分别构建正式 Runtime，再打包成一个 ZIP；不包含工作区未提交的改动，也不改玩家安装目录。根加载器使用正式版游戏引用构建，两边的加载器源码必须一致。输出目录必须是新目录，内含安装目录、ZIP、SHA256 和两份构建日志。`build-info.json` 记录各 Runtime 的代码提交、游戏版本、游戏提交及包内文件校验值。临时源码和编译目录在结束时清理。

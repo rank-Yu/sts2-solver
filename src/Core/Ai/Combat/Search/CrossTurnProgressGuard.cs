@@ -102,21 +102,21 @@ internal sealed partial class BeamSolver
         int EnemyHp, int EnemyBlock, int AliveEnemyCount, int OffensiveProgressValue,
         int PersistentBuffValue, int StrategicRetentionValue, int FutureResourceValue,
         int DelayedDamageValue, int ReplayPotentialValue, int RetainedAttackValue, int PlayerMaxHp,
-        int LongTermResourceValue, int PlayerHp, int ProjectedPlayerHp, int OstyHp, int OstyMaxHp,
+        int LongTermResourceValue, int NetHpChange, int ProjectedNetHpChange, int OstyHp, int OstyMaxHp,
         int LiveDeckClutter, int LiveDeckSize, int OutstandingStolenResource, int SandpitRemaining)
     {
         internal static CrossTurnInputs Of(in ScoreFeatures f) => new(
             f.EnemyHp, f.EnemyBlock, f.AliveEnemyCount, f.OffensiveProgressValue, f.PersistentBuffValue,
             f.StrategicRetentionValue, f.FutureResourceValue, f.DelayedDamageValue,
             f.ReplayPotentialValue, f.RetainedAttackValue, f.PlayerMaxHp, f.LongTermResourceValue,
-            f.PlayerHp, f.ProjectedPlayerHp, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
+            f.NetHpChange, f.ProjectedNetHpChange, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
             f.OutstandingStolenResource, f.SandpitRemaining);
 
         internal static CrossTurnInputs Of(in RetentionFacts f) => new(
             f.EnemyHp, f.EnemyBlock, f.AliveEnemyCount, f.OffensiveProgressValue, f.PersistentBuffValue,
             f.StrategicRetentionValue, f.FutureResourceValue, f.DelayedDamageValue,
             f.ReplayPotentialValue, f.RetainedAttackValue, f.PlayerMaxHp, f.LongTermResourceValue,
-            f.PlayerHp, f.ProjectedPlayerHp, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
+            f.NetHpChange, f.ProjectedNetHpChange, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
             f.OutstandingStolenResource, f.SandpitRemaining);
     }
 
@@ -142,9 +142,9 @@ internal sealed partial class BeamSolver
             RetainedAttackValue = features.RetainedAttackValue,
             PlayerMaxHp = features.PlayerMaxHp,
             LongTermResourceValue = features.LongTermResourceValue,
-            LowestPlayerHp = features.PlayerHp,
+            LowestPlayerHp = features.NetHpChange,
             BestPlayerHpRecovery = 0,
-            LowestProjectedPlayerHp = features.ProjectedPlayerHp,
+            LowestProjectedPlayerHp = features.ProjectedNetHpChange,
             BestProjectedPlayerHpRecovery = 0,
             EnemyStrengthSuppression = suppression,
             EnemyWeakTurns = weak,
@@ -173,11 +173,11 @@ internal sealed partial class BeamSolver
         in Battle battle, in CrossTurnInputs features)
     {
         long enemyDurability = (long)features.EnemyHp + features.EnemyBlock;
-        int lowestPlayerHp = Math.Min(prior.LowestPlayerHp, features.PlayerHp);
-        int playerHpRecovery = features.PlayerHp - lowestPlayerHp;
+        int lowestPlayerHp = Math.Min(prior.LowestPlayerHp, features.NetHpChange);
+        int playerHpRecovery = features.NetHpChange - lowestPlayerHp;
         int lowestProjectedPlayerHp = Math.Min(prior.LowestProjectedPlayerHp,
-            features.ProjectedPlayerHp);
-        int projectedPlayerHpRecovery = features.ProjectedPlayerHp - lowestProjectedPlayerHp;
+            features.ProjectedNetHpChange);
+        int projectedPlayerHpRecovery = features.ProjectedNetHpChange - lowestProjectedPlayerHp;
         int processedEnemyDeaths = ProcessedEnemyDeaths(in battle);
         (int weak, int vulnerable, int suppression) = CappedEnemyDebuffs(in battle);
 

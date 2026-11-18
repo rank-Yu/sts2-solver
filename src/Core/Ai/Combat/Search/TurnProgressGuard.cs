@@ -266,14 +266,12 @@ internal sealed partial class BeamSolver
             }
         }
 
-        int playerHp = child.Player.CurrentHp;
-        ushort playerHpValue = NarrowHigh(playerHp);
+        ushort playerHpValue = NarrowHigh(child.Player.CurrentHp);
         ushort playerHpHigh = parentProgress.PlayerHpHigh;
         if (playerHpValue > playerHpHigh)
         {
             playerHpHigh = playerHpValue;
-            if (playerHp < child.Player.MaxHp)
-                progress = true;
+            progress = true;
         }
 
         int consecutive = progress

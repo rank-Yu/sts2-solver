@@ -93,7 +93,7 @@ internal static class ColorlessPowerOpeningContracts
         return features with
         {
             PlayerHp = battle.Player.CurrentHp,
-            ProjectedPlayerHp = battle.Player.CurrentHp - incoming,
+            IncomingDamage = incoming,
             EnemyHp = 1_000_000,
             RetainedAttackValue = 1,
             LiveDeckSize = 1,
@@ -152,7 +152,7 @@ internal static class ColorlessPowerOpeningContracts
                 $"{card.Id} secondary power increment");
         int raw = Expected(card, view);
         int actual = PowerEvidence.ProjectionPotential(uncapped.CardId, view, uncapped.Parent,
-            uncapped.ParentFeatures.ProjectedPlayerHp);
+            uncapped.ParentFeatures.ProjectedNetHpChange);
         Assert(actual == raw, $"{card.Id} projection expected {raw}, got {actual}");
 
         Setup capped = new();
@@ -163,7 +163,7 @@ internal static class ColorlessPowerOpeningContracts
             $"{card.Id} remaining enemy HP expected 3, got {cappedView.RemainingEnemyHp()}");
         int cappedExpected = Expected(card, cappedView);
         int cappedActual = PowerEvidence.ProjectionPotential(capped.CardId, cappedView,
-            capped.Parent, capped.ParentFeatures.ProjectedPlayerHp);
+            capped.Parent, capped.ParentFeatures.ProjectedNetHpChange);
         Assert(cappedActual == cappedExpected,
             $"{card.Id} capped projection expected {cappedExpected}, got {cappedActual}");
         if (card.DamageCapped)
@@ -206,7 +206,7 @@ internal static class ColorlessPowerOpeningContracts
             child, setup.ChildFeatures, setup.Rules, setup.Scorer);
         Assert(view.RemainingEnemyHp() == 3, card.Id + " single-enemy cap");
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Math.Min(3, raw),
+                setup.ParentFeatures.ProjectedNetHpChange) == Math.Min(3, raw),
             card.Id + " single-enemy capped projection");
 
         child.EnemyCount = 2;
@@ -217,7 +217,7 @@ internal static class ColorlessPowerOpeningContracts
         child.Enemies[1].Creature.Block = 0;
         Assert(view.RemainingEnemyHp() == 7, card.Id + " summed-enemy cap");
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Math.Min(7, raw),
+                setup.ParentFeatures.ProjectedNetHpChange) == Math.Min(7, raw),
             card.Id + " summed living cap");
 
         child.Enemies[0].Creature.Block = 50;
@@ -227,7 +227,7 @@ internal static class ColorlessPowerOpeningContracts
         child.Enemies[0].DeathPhase = DeathPhase.Reviving;
         Assert(view.RemainingEnemyHp() == 4, card.Id + " cap ignores reviving current HP");
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Math.Min(4, raw),
+                setup.ParentFeatures.ProjectedNetHpChange) == Math.Min(4, raw),
             card.Id + " reviving-enemy cap");
     }
 
@@ -246,9 +246,9 @@ internal static class ColorlessPowerOpeningContracts
         PowerEvidence.View view = new(
             child, setup.ChildFeatures, setup.Rules, setup.Scorer);
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Expected(card, view)
+                setup.ParentFeatures.ProjectedNetHpChange) == Expected(card, view)
             && PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) < raw,
+                setup.ParentFeatures.ProjectedNetHpChange) < raw,
             card.Id + " mixed single-enemy cap");
 
         child.EnemyCount = 2;
@@ -258,16 +258,16 @@ internal static class ColorlessPowerOpeningContracts
         child.Enemies[1].Creature.CurrentHp = 4;
         child.Enemies[1].Creature.Block = 0;
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Expected(card, view),
+                setup.ParentFeatures.ProjectedNetHpChange) == Expected(card, view),
             card.Id + " mixed summed living cap");
         child.Enemies[0].Creature.Block = 50;
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Expected(card, view),
+                setup.ParentFeatures.ProjectedNetHpChange) == Expected(card, view),
             card.Id + " mixed cap ignores enemy block");
         child.Enemies[0].Creature.CurrentHp = 0;
         child.Enemies[0].DeathPhase = DeathPhase.Reviving;
         Assert(PowerEvidence.ProjectionPotential(setup.CardId, view, setup.Parent,
-                setup.ParentFeatures.ProjectedPlayerHp) == Expected(card, view),
+                setup.ParentFeatures.ProjectedNetHpChange) == Expected(card, view),
             card.Id + " mixed reviving-enemy cap");
     }
 

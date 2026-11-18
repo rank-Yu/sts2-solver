@@ -73,18 +73,16 @@ internal static class SilentPowerProjectionContracts
     private static ScoreFeatures Features(Scorer scorer, in Battle battle, int incomingDamage)
         => scorer.Features(battle, 0) with
         {
-            ProjectedPlayerHp = battle.Player.CurrentHp - incomingDamage,
+            IncomingDamage = incomingDamage,
         };
 
     private static int Project(SearchCase item, Scorer scorer, string card,
         in Battle parent, in Battle child, in ScoreFeatures parentFeatures,
-        in ScoreFeatures childFeatures, int parentProjectedPlayerHp = 0)
+        in ScoreFeatures childFeatures)
     {
         PowerEvidence.View view = new(child, childFeatures, item.Rules, scorer);
         return PowerEvidence.ProjectionPotential(
-            Card(card), view, parent, parentProjectedPlayerHp == 0
-                ? parentFeatures.ProjectedPlayerHp
-                : parentProjectedPlayerHp);
+            Card(card), view, parent, parentFeatures.ProjectedNetHpChange);
     }
 
     private static void AddSecondEnemy(ref Battle battle)
@@ -244,7 +242,7 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.InfiniteBlades, 1);
             ScoreFeatures features = scorer.Features(child, 0) with
             {
-                ProjectedPlayerHp = child.Player.CurrentHp,
+                IncomingDamage = 0,
                 EnemyHp = 2,
                 LiveDeckSize = 1,
             };
@@ -297,7 +295,7 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.SerpentForm, 5);
             ScoreFeatures features = scorer.Features(child, 0) with
             {
-                ProjectedPlayerHp = child.Player.CurrentHp,
+                IncomingDamage = 0,
                 EnemyHp = 600,
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
@@ -341,7 +339,7 @@ internal static class SilentPowerProjectionContracts
                 "STRIKE_SILENT", "ACROBATICS", "SURVIVOR", "SURVIVOR");
             ScoreFeatures features = scorer.Features(child, 0) with
             {
-                ProjectedPlayerHp = child.Player.CurrentHp,
+                IncomingDamage = 0,
                 EnemyHp = 2000,
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
@@ -358,7 +356,7 @@ internal static class SilentPowerProjectionContracts
             SetPower(ref child, PowerEvidenceIds.ToolsOfTheTrade, 1);
             ScoreFeatures features = scorer.Features(child, 0) with
             {
-                ProjectedPlayerHp = child.Player.CurrentHp,
+                IncomingDamage = 0,
                 EnemyHp = 6000,
                 RetainedAttackValue = 100,
                 LiveDeckSize = 1,
@@ -395,7 +393,7 @@ internal static class SilentPowerProjectionContracts
                 "Well Laid Plans retained-hand transition");
         }
 
-        // Wraith Form: the constructed child projects 20 HP against a parent projection of 10, so
+        // Wraith Form: the constructed child takes 10 incoming damage instead of 20, so
         // the saved 10 HP is worth 8 each. One Defend in hand loses one block per Wraith Form
         // Dexterity tick, i.e. 8 score units.
         {
@@ -403,8 +401,9 @@ internal static class SilentPowerProjectionContracts
             Battle child = parent;
             SetPower(ref child, PowerEvidenceIds.Intangible, 1);
             SetPower(ref child, PowerEvidenceIds.WraithForm, 1);
-            ScoreFeatures cf = scorer.Features(child, 0) with { ProjectedPlayerHp = 20 };
-            Assert(Project(item, scorer, "WRAITH_FORM", parent, child, cf, cf, 10) == 72,
+            ScoreFeatures pf = Features(scorer, parent, 20);
+            ScoreFeatures cf = Features(scorer, child, 10);
+            Assert(Project(item, scorer, "WRAITH_FORM", parent, child, pf, cf) == 72,
                 "Wraith Form projected HP prevention minus Dexterity cost");
         }
 

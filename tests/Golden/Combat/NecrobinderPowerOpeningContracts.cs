@@ -65,7 +65,7 @@ internal static class NecrobinderPowerOpeningContracts
         => new()
         {
             PlayerHp = 70,
-            ProjectedPlayerHp = 70 - incomingDamage,
+            IncomingDamage = incomingDamage,
             EnemyHp = 1_000_000,
             RetainedAttackValue = 1,
             LiveDeckSize = 1,
@@ -83,7 +83,7 @@ internal static class NecrobinderPowerOpeningContracts
         ScoreFeatures childFeatures = Features(child, incomingDamage);
         PowerEvidence.View view = new(child, childFeatures, item.Rules, scorer);
         return PowerEvidence.ProjectionPotential(
-            Card(card), view, parent, parentFeatures.ProjectedPlayerHp);
+            Card(card), view, parent, parentFeatures.ProjectedNetHpChange);
     }
 
     private static int ProjectCapped(SearchCase item, Scorer scorer, string card,
@@ -283,7 +283,7 @@ internal static class NecrobinderPowerOpeningContracts
         }
 
         // NEUROSURGE: the immediate energy/draw value stays, but each turn adds its amount of
-        // Doom to the player; subtract the accumulated Doom threat, capped by player HP.
+        // Doom to the player; subtract the accumulated Doom over the remaining turns.
         {
             Battle parent = State(item, ["STRIKE_NECROBINDER"]);
             SetVar(ref parent, 0, 4);
@@ -291,8 +291,7 @@ internal static class NecrobinderPowerOpeningContracts
             SetPower(ref child, PowerEvidenceIds.Neurosurge, 2);
             PowerEvidence.View view = new(child, Features(child, 8), item.Rules, scorer);
             int benefit = 2 * 10;
-            long doom = 2L * view.RemainingTurns();
-            int cost = (int)Math.Min(70L, doom * doom / 70L);
+            int cost = 2 * view.RemainingTurns();
             Assert(Project(item, scorer, "NEUROSURGE", parent, child)
                 == Math.Max(0, benefit - cost),
                 "Neurosurge resource subtracts self-Doom threat");

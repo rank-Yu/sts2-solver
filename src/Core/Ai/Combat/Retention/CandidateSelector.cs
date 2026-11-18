@@ -456,8 +456,8 @@ internal sealed partial class BeamSolver
                 return a.OpenedActionCount < b.OpenedActionCount;
             if (a.RoundTransitions != b.RoundTransitions)
                 return a.RoundTransitions < b.RoundTransitions;
-            if (_facts[candidate].ProjectedPlayerHp != _facts[current].ProjectedPlayerHp)
-                return _facts[candidate].ProjectedPlayerHp > _facts[current].ProjectedPlayerHp;
+            if (_facts[candidate].ProjectedNetHpChange != _facts[current].ProjectedNetHpChange)
+                return _facts[candidate].ProjectedNetHpChange > _facts[current].ProjectedNetHpChange;
             if (_facts[candidate].OffensiveProgressValue != _facts[current].OffensiveProgressValue)
                 return _facts[candidate].OffensiveProgressValue > _facts[current].OffensiveProgressValue;
             if (_scores[candidate] != _scores[current])
@@ -495,8 +495,8 @@ internal sealed partial class BeamSolver
                 if (comparison != 0) return comparison;
                 comparison = a.RoundTransitions.CompareTo(b.RoundTransitions);
                 if (comparison != 0) return comparison;
-                comparison = _pool._facts[rightWinner].ProjectedPlayerHp
-                    .CompareTo(_pool._facts[leftWinner].ProjectedPlayerHp);
+                comparison = _pool._facts[rightWinner].ProjectedNetHpChange
+                    .CompareTo(_pool._facts[leftWinner].ProjectedNetHpChange);
                 if (comparison != 0) return comparison;
                 comparison = _pool._scores[rightWinner].CompareTo(_pool._scores[leftWinner]);
                 if (comparison != 0) return comparison;
@@ -1556,7 +1556,7 @@ internal sealed partial class BeamSolver
                     || route.Action.Kind != PlayerActionKind.PlayCard
                     || facts.Turn != route.ParentTurn
                     || facts.Depth - route.RoutingChoiceDepth < 1
-                    || facts.ProjectedPlayerHp < facts.PlayerHp)
+                    || facts.ProjectedNetHpChange < facts.NetHpChange)
                 {
                     continue;
                 }
@@ -1566,8 +1566,8 @@ internal sealed partial class BeamSolver
                     continue;
                 }
                 RetentionFacts current = _facts[best];
-                if (facts.ProjectedPlayerHp > current.ProjectedPlayerHp
-                    || facts.ProjectedPlayerHp == current.ProjectedPlayerHp
+                if (facts.ProjectedNetHpChange > current.ProjectedNetHpChange
+                    || facts.ProjectedNetHpChange == current.ProjectedNetHpChange
                         && (facts.OffensiveProgressValue > current.OffensiveProgressValue
                             || facts.OffensiveProgressValue == current.OffensiveProgressValue
                                 && (facts.ReachableHandValue > current.ReachableHandValue
@@ -1715,7 +1715,7 @@ internal sealed partial class BeamSolver
                 return false;
             RetentionFacts a = _facts[left];
             RetentionFacts b = _facts[right];
-            bool noWorse = a.ProjectedPlayerHp >= b.ProjectedPlayerHp
+            bool noWorse = a.ProjectedNetHpChange >= b.ProjectedNetHpChange
                 && a.PlayerMaxHp >= b.PlayerMaxHp
                 && a.CumulativePlayerHpLost <= b.CumulativePlayerHpLost
                 && a.LongTermResourceValue >= b.LongTermResourceValue
@@ -1752,7 +1752,7 @@ internal sealed partial class BeamSolver
                 && a.Depth <= b.Depth;
             if (!noWorse)
                 return false;
-            return a.ProjectedPlayerHp > b.ProjectedPlayerHp
+            return a.ProjectedNetHpChange > b.ProjectedNetHpChange
                 || a.PlayerMaxHp > b.PlayerMaxHp
                 || a.CumulativePlayerHpLost < b.CumulativePlayerHpLost
                 || a.LongTermResourceValue > b.LongTermResourceValue
@@ -1976,7 +1976,7 @@ internal sealed partial class BeamSolver
                 return new StandPatEvaluation(
                     features.AllEnemiesDead,
                     Math.Max(0, before.EnemyHp - features.EnemyHp),
-                    features.ProjectedPlayerHp,
+                    features.ProjectedNetHpChange,
                     features.Energy * 16
                         + features.Stars * 8
                         + features.HandCount
@@ -2053,8 +2053,8 @@ internal sealed partial class BeamSolver
                 if (best < 0
                     || evaluation.AllEnemiesDead && !bestEvaluation.AllEnemiesDead
                     || evaluation.AllEnemiesDead == bestEvaluation.AllEnemiesDead
-                        && (evaluation.ProjectedPlayerHp > bestEvaluation.ProjectedPlayerHp
-                            || evaluation.ProjectedPlayerHp == bestEvaluation.ProjectedPlayerHp
+                        && (evaluation.ProjectedNetHpChange > bestEvaluation.ProjectedNetHpChange
+                            || evaluation.ProjectedNetHpChange == bestEvaluation.ProjectedNetHpChange
                                 && (evaluation.ResourceValue > bestEvaluation.ResourceValue
                                     || evaluation.ResourceValue == bestEvaluation.ResourceValue
                                         && facts.CumulativePlayerHpLost < _facts[best].CumulativePlayerHpLost
@@ -2075,7 +2075,7 @@ internal sealed partial class BeamSolver
             const int limit = 8;
             // The old loop rescanned the whole group once per seat and removed the winner. Keeping
             // the top eight in one pass is the same sequence: IsBetterStandPatProbe is a strict
-            // lexicographic order on (ProjectedPlayerHp, lane value, Score), and an equal later node
+            // lexicographic order on (ProjectedNetHpChange, lane value, Score), and an equal later node
             // never displaces the earlier one. Insertions shift the previous seat down exactly like
             // the repeated-removal loop.
             int probeCount = 0;
@@ -2139,7 +2139,7 @@ internal sealed partial class BeamSolver
                         continue;
                     RetentionFacts facts = _facts[node];
                     _trace.StandPatProbe(node, selected: false, available: true,
-                        facts.AllEnemiesDead, facts.DelayedDamageValue, facts.ProjectedPlayerHp,
+                        facts.AllEnemiesDead, facts.DelayedDamageValue, facts.ProjectedNetHpChange,
                         LaneValue(facts, SearchRouteTraits.Resource),
                         LaneValue(facts, trait), facts.Score, chosen: false);
                 }
@@ -2159,8 +2159,8 @@ internal sealed partial class BeamSolver
                 if (bestNode < 0
                     || evaluation.AllEnemiesDead && !bestEvaluation.AllEnemiesDead
                     || evaluation.AllEnemiesDead == bestEvaluation.AllEnemiesDead
-                        && (evaluation.ProjectedPlayerHp > bestEvaluation.ProjectedPlayerHp
-                            || evaluation.ProjectedPlayerHp == bestEvaluation.ProjectedPlayerHp
+                        && (evaluation.ProjectedNetHpChange > bestEvaluation.ProjectedNetHpChange
+                            || evaluation.ProjectedNetHpChange == bestEvaluation.ProjectedNetHpChange
                                 && (evaluationValue > bestValue
                                     || evaluationValue == bestValue
                                         && _facts[node].Score > _facts[bestNode].Score)))
@@ -2178,7 +2178,7 @@ internal sealed partial class BeamSolver
                         continue;
                     StandPatEvaluation evaluation = EvaluateStandPat(node);
                     _trace.StandPatProbe(node, selected: true, evaluation.Available,
-                        evaluation.AllEnemiesDead, evaluation.DelayedDamage, evaluation.ProjectedPlayerHp,
+                        evaluation.AllEnemiesDead, evaluation.DelayedDamage, evaluation.ProjectedNetHpChange,
                         evaluation.ResourceValue, LaneValue(_facts[node], trait), _facts[node].Score,
                         node == bestNode);
                 }
@@ -2199,8 +2199,8 @@ internal sealed partial class BeamSolver
         private static bool IsBetterStandPatProbe(in RetentionFacts candidate,
             in RetentionFacts current, SearchRouteTraits trait)
         {
-            if (candidate.ProjectedPlayerHp != current.ProjectedPlayerHp)
-                return candidate.ProjectedPlayerHp > current.ProjectedPlayerHp;
+            if (candidate.ProjectedNetHpChange != current.ProjectedNetHpChange)
+                return candidate.ProjectedNetHpChange > current.ProjectedNetHpChange;
             int candidateLane = LaneValue(candidate, trait);
             int currentLane = LaneValue(current, trait);
             if (candidateLane != currentLane)
@@ -2213,8 +2213,8 @@ internal sealed partial class BeamSolver
         {
             if (candidate.CumulativePlayerHpLost != current.CumulativePlayerHpLost)
                 return candidate.CumulativePlayerHpLost < current.CumulativePlayerHpLost;
-            if (candidate.PlayerHp != current.PlayerHp)
-                return candidate.PlayerHp > current.PlayerHp;
+            if (candidate.NetHpChange != current.NetHpChange)
+                return candidate.NetHpChange > current.NetHpChange;
             if (candidate.EnemyHp != current.EnemyHp)
                 return candidate.EnemyHp < current.EnemyHp;
             return candidate.Score > current.Score;
@@ -2226,8 +2226,8 @@ internal sealed partial class BeamSolver
         /// for a ranked pool (a pool is one turn layer), so they add no grouping distinction here.
         /// </summary>
         private readonly record struct OrderedPileTacticalKey(
-            int Turn, int PotionCount, int PotionCost, int FutureSoldHp, int PlayerHp,
-            int ProjectedPlayerHp, int PlayerBlock, int EnemyHp, int RawEnemyHp, int MaxCurrentEnemyHp,
+            int Turn, int PotionCount, int PotionCost, int FutureSoldHp, int NetHpChange,
+            int ProjectedNetHpChange, int PlayerBlock, int EnemyHp, int RawEnemyHp, int MaxCurrentEnemyHp,
             ulong EnemyCombatFirst, ulong EnemyCombatSecond, ulong AliveEnemyMask, int RevivingEnemyCount,
             uint? FocusTarget, int PersistentBuffValue, PersistentSetupTraits StrategySetupTraits,
             int FutureResourceValue, int DelayedDamageValue, int EnemyStrengthSuppression,
@@ -2241,7 +2241,7 @@ internal sealed partial class BeamSolver
         {
             RetentionFacts f = _facts[slot];
             return new OrderedPileTacticalKey(f.Turn, f.PotionCount, f.PotionStrategicCost,
-                f.FutureSoldHp, f.PlayerHp, f.ProjectedPlayerHp, f.PlayerBlock, f.EnemyHp, f.RawEnemyHp,
+                f.FutureSoldHp, f.NetHpChange, f.ProjectedNetHpChange, f.PlayerBlock, f.EnemyHp, f.RawEnemyHp,
                 f.MaxCurrentEnemyHp, f.EnemyCombatDistributionFirst, f.EnemyCombatDistributionSecond,
                 f.AliveEnemyMask, f.RevivingEnemyCount, f.FocusTargetCombatId, f.PersistentBuffValue,
                 f.StrategySetupTraits, f.FutureResourceValue, f.DelayedDamageValue,
@@ -2467,7 +2467,7 @@ internal sealed partial class BeamSolver
             List<OrderedPileTacticalGroup> candidates = new();
             AddTacticalGroup(candidates, bucket.Groups[0]);
             AddTacticalGroup(candidates, BestTacticalGroupBy(bucket,
-                slot => _facts[slot].ProjectedPlayerHp, descending: true));
+                slot => _facts[slot].ProjectedNetHpChange, descending: true));
             AddTacticalGroup(candidates, BestTacticalGroupBy(bucket,
                 slot => _facts[slot].EnemyHp, descending: false));
             AddTacticalGroup(candidates, BestTacticalGroupBy(bucket,
@@ -2807,8 +2807,8 @@ internal sealed partial class BeamSolver
                 RetentionFacts current = _facts[best];
                 if (facts.AllEnemiesDead && !current.AllEnemiesDead
                     || facts.AllEnemiesDead == current.AllEnemiesDead
-                        && (facts.ProjectedPlayerHp > current.ProjectedPlayerHp
-                            || facts.ProjectedPlayerHp == current.ProjectedPlayerHp
+                        && (facts.ProjectedNetHpChange > current.ProjectedNetHpChange
+                            || facts.ProjectedNetHpChange == current.ProjectedNetHpChange
                                 && (facts.EnemyHp < current.EnemyHp
                                     || facts.EnemyHp == current.EnemyHp
                                         && facts.Score > current.Score)))
@@ -2826,8 +2826,8 @@ internal sealed partial class BeamSolver
         private static bool IsBetterResourcePreserving(in RetentionFacts candidate, in RetentionFacts current)
             => candidate.OutstandingStolenResource < current.OutstandingStolenResource
                 || candidate.OutstandingStolenResource == current.OutstandingStolenResource
-                    && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                        || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                    && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                        || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                             && candidate.Score > current.Score);
 
         private readonly struct RankOrderComparer : IComparer<int>

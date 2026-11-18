@@ -669,7 +669,7 @@ internal static class PowerEvidence
         }
 
         public int IncomingDamage()
-            => Math.Max(0, _features.PlayerHp - _features.ProjectedPlayerHp);
+            => _features.IncomingDamage;
 
         /// <summary>
         /// Attack damage of the known deterministic move <paramref name="turnOffset"/> rounds ahead.
@@ -1142,7 +1142,7 @@ internal static class PowerEvidence
         {
             int intangible = PowerAmountGain(parent, PowerEvidenceIds.Intangible);
             return intangible > 0
-                && ( _features.ProjectedPlayerHp <= 0
+                && (IncomingDamage() > 0
                     || RemainingTurns() <= intangible + 1);
         }
     }
@@ -1183,7 +1183,7 @@ internal static class PowerEvidence
                 && remainingTurns > 1,
 
             // Silent.
-            "ABRASIVE" => hasBlockSkill || view.Features.ProjectedPlayerHp < view.Features.PlayerHp,
+            "ABRASIVE" => hasBlockSkill || view.IncomingDamage() > 0,
             "ACCELERANT" => view.CountVar("Poison") > 0 || view.EnemyHasPower(PowerEvidenceIds.Poison),
             "ACCURACY" => view.CountShiv() > 0,
             "AFTERIMAGE" => view.ReachableCardPlays() >= 5,
@@ -1331,7 +1331,7 @@ internal static class PowerEvidence
     /// <summary><c>*PowerOpeningProjectionPotential</c>; the frontier-based terms use the bounded
     /// attack/block/turn estimate below.</summary>
     public static int ProjectionPotential(ushort cardId, scoped in View view, in Battle parent,
-        int parentProjectedPlayerHp)
+        int parentProjectedNetHpChange)
     {
         string id = Registry.Card(cardId).NativeId;
         int turns = Math.Max(0, view.RemainingTurns() - 1);
@@ -1407,7 +1407,7 @@ internal static class PowerEvidence
             "TRACKING" => TrackingProjectionPotential(view, parent),
             "WELL_LAID_PLANS" => WellLaidPlansProjectionPotential(view, parent),
             "WRAITH_FORM" => WraithFormProjectionPotential(
-                view, parent, parentProjectedPlayerHp),
+                view, parent, parentProjectedNetHpChange),
 
             // Necrobinder: the upstream opening projections with the remaining-to-kill HP cap on
             // every damage term. The power amount is part of the trigger count for stack-scaling
@@ -2029,13 +2029,13 @@ internal static class PowerEvidence
     /// against the parent state. Intangible is already part of the scored threat projection.
     /// </summary>
     private static int WraithFormProjectionPotential(scoped in View view, in Battle parent,
-        int parentProjectedPlayerHp)
+        int parentProjectedNetHpChange)
     {
         int intangible = view.PowerAmountGain(parent, PowerEvidenceIds.Intangible);
         if (intangible == 0)
             return 0;
         long prevented = Math.Max(
-            0, (long)view.Features.ProjectedPlayerHp - parentProjectedPlayerHp);
+            0, (long)view.Features.ProjectedNetHpChange - parentProjectedNetHpChange);
         long value = prevented * 8;
         // Wraith Form loses Dexterity every turn. Each lost point removes one block per block
         // card played; value that lost prevention on the same 8-per-HP scale.
@@ -2338,18 +2338,14 @@ internal static class PowerEvidence
 
     /// <summary>
     /// <c>Neurosurge</c>: the immediate energy/draw value stays; each turn the power adds its
-    /// amount of Doom to the player, so subtract the accumulated Doom threat (capped by player HP).
+    /// amount of Doom to the player, so charge the stacks accumulated over the remaining turns.
     /// </summary>
     private static int NeurosurgeProjectionPotential(scoped in View view, int gain)
     {
         int benefit = PerTriggerResource(
             SaturatingMul(gain, Math.Max(1, view.EnergyUnit())), 1);
-        long doom = (long)gain * view.RemainingTurns();
-        int playerHp = Math.Max(0, view.Features.PlayerHp);
-        int cost = playerHp == 0
-            ? (int)Math.Min(int.MaxValue, doom)
-            : (int)Math.Min(playerHp, doom * doom / playerHp);
-        return Math.Max(0, benefit - cost);
+        int doom = SaturatingMul(gain, view.RemainingTurns());
+        return Math.Max(0, benefit - doom);
     }
 
     private static int SimpleProjection(scoped in View view, in Battle parent,

@@ -45,6 +45,9 @@ internal static class PowerCatalogBuilder
         if (family != PowerCommitmentFamily.None) return (family, RegentPowerRoutePolicy.For(id));
         family = NecrobinderPowerRoutePolicy.FamilyFor(id);
         if (family != PowerCommitmentFamily.None) return (family, NecrobinderPowerRoutePolicy.For(id));
+        family = FoolPowerRoutePolicy.Lookup(id).Family;
+        if (family != PowerCommitmentFamily.None)
+            return (family, new(PowerRoutePriority.Strong, RequirePositiveProjection: true));
         family = ColorlessPowerRoutePolicy.FamilyFor(id);
         return (family, ColorlessPowerRoutePolicy.For(id));
     }

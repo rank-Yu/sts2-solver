@@ -1735,7 +1735,7 @@ internal sealed partial class BeamSolver
     /// <summary>
     /// A route node's power-commitment metadata: the ported <c>PowerCommitment</c> without its string
     /// card list. Registered cards are indexed by the power-commitment catalog, so the played set is an exact
-    /// 128-bit mask (87 registered powers today). This is route history and never enters
+    /// 128-bit mask. This is route history and never enters
     /// <see cref="Battle"/>, the fingerprint or the state key.
     /// </summary>
     /// <summary>
@@ -1796,13 +1796,14 @@ internal sealed partial class BeamSolver
             int setupGain = PowerCommitmentSetupGain(parentFacts, childFeatures);
             int projectedPotential = PowerEvidence.ProjectionPotential(
                 playedCardId, childView, parent, parentFacts.ProjectedNetHpChange);
-            int triggerFloor = PowerEvidence.TriggerProjectionFloor(playedCardId, childView);
+            int triggerFloor = rule.Admission.AllowTriggerBackedProjectionFloor
+                ? PowerEvidence.TriggerProjectionFloor(playedCardId, childView) : 0;
             PowerRouteAdmissionResult admission = PowerRouteAdmission.Evaluate(new(
                 CardId: Registry.Card(playedCardId).NativeId,
                 IsAutoPlay: false,
                 SpentEnergy: spentEnergy,
                 RemainingEnergy: childFeatures.Energy,
-                HasTriggerEvidence: PowerEvidence.HasTriggerEvidence(playedCardId, parent, childView),
+                HasTriggerEvidence: PowerEvidence.HasTriggerEvidence(playedCardId, parent, childView, projectedPotential),
                 ImmediateDefenseGain: Math.Max(0,
                     childFeatures.ProjectedNetHpChange - parentFacts.ProjectedNetHpChange),
                 SetupGain: setupGain,

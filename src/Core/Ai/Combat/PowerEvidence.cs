@@ -50,6 +50,14 @@ internal static class PowerEvidence
             _scorer = scorer;
         }
 
+        public int FoolOpeningPotential(string cardId, string powerName, in Battle parent)
+        {
+            if (!Registry.TryPower(powerName, out ushort id))
+                throw new UnsupportedException($"能力证据缺少状态 {powerName}。");
+            int gain = PowerAmountGain(parent, id);
+            return gain > 0 ? _scorer.FoolOpeningPotential(cardId, id, gain, this) : 0;
+        }
+
         public int LiveCount => _battle.HandCount + _battle.DrawCount + _battle.DiscardCount;
         public int HandCount => _battle.HandCount;
         public ScoreFeatures Features => _features;
@@ -1148,9 +1156,12 @@ internal static class PowerEvidence
     }
 
     /// <summary><c>*PowerHasTriggerEvidence</c> over the child state.</summary>
-    public static bool HasTriggerEvidence(ushort cardId, in Battle parent, scoped in View view)
+    public static bool HasTriggerEvidence(ushort cardId, in Battle parent, scoped in View view,
+        int? projectedPotential = null)
     {
         string id = Registry.Card(cardId).NativeId;
+        if (FoolPowerRoutePolicy.Lookup(id).Power is { } power)
+            return (projectedPotential ?? view.FoolOpeningPotential(id, power, parent)) > 0;
         int remainingTurns = view.RemainingTurns();
         bool hasAttack = view.CountType(CardType.Attack) > 0;
         bool hasSkill = view.CountType(CardType.Skill) > 0;
@@ -1334,6 +1345,8 @@ internal static class PowerEvidence
         int parentProjectedNetHpChange)
     {
         string id = Registry.Card(cardId).NativeId;
+        if (FoolPowerRoutePolicy.Lookup(id).Power is { } power)
+            return view.FoolOpeningPotential(id, power, parent);
         int turns = Math.Max(0, view.RemainingTurns() - 1);
         int incoming = view.IncomingDamage();
         int attacks = view.CountType(CardType.Attack);

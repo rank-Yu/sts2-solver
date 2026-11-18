@@ -75,6 +75,7 @@ internal static class PowerEvidenceContracts
         CheckActualGains();
         IroncladPowerOpeningContracts.Run();
         ColorlessPowerOpeningContracts.Run();
+        FoolPowerContracts.Run();
         RemainingEnemyHpContracts.Run();
         DefectPowerOpeningContracts.Run();
         CheckTwoStatAndWraith();

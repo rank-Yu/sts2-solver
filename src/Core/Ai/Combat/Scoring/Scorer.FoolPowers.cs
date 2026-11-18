@@ -6,7 +6,11 @@ namespace Sts2Solver.Ai.Combat.Scoring;
 internal sealed partial class Scorer
 {
     private readonly record struct FoolPowerWindow(int ShotDamage, bool CanImpale,
-        int NewMelodies, int MelodyPlays, bool CanComplete, bool CanFinishWithKi);
+        int NewMelodies, int MelodyPlays, bool CanComplete, bool CanFinishWithKi)
+    {
+        internal int Draws(in Battle battle, int amount) => Math.Min(amount * NewMelodies,
+            Math.Min(battle.DrawCount + battle.DiscardCount, Math.Max(0, battle.MaxHandSize - battle.HandCount + MelodyPlays)));
+    }
 
     // Price the next shot and the melodies payable from this hand. A multi-tag card
     // pays once, and melodies already played this turn do not trigger Motif again.
@@ -78,18 +82,9 @@ internal sealed partial class Scorer
             case StrategicKind.Honing:
                 return Damage((int)((long)window.ShotDamage * amount / 100), context.EnemyHp);
             case StrategicKind.ExplosiveArrows when window.CanImpale:
-                int damage = 0;
-                for (int i = 0; i < battle.RosterCount; i++)
-                {
-                    byte owner = Kernel.EnemyOwner(battle.Roster[i]);
-                    if (Kernel.IsHittable(battle, owner))
-                        damage += Math.Min(amount, battle.Creature(owner).CurrentHp);
-                }
-                return Damage(damage, context.EnemyHp);
+                return Damage(DamageAcrossTargets(battle, amount), context.EnemyHp);
             case StrategicKind.Motif:
-                int draws = Math.Min(amount * window.NewMelodies, battle.DrawCount + battle.DiscardCount);
-                draws = Math.Min(draws, Math.Max(0, battle.MaxHandSize - battle.HandCount + window.MelodyPlays));
-                return CardAccess(draws * context.AverageCardValue);
+                return CardAccess(window.Draws(battle, amount) * context.AverageCardValue);
             case StrategicKind.Lullaby when power.Aux0 == 0 && window.CanComplete:
                 return new(0, (int)Math.Clamp(openBlockableDamage, 0, amount), 0, 0, 0);
             case StrategicKind.Tune when window.CanFinishWithKi:
@@ -125,5 +120,57 @@ internal sealed partial class Scorer
         for (int i = 0; i < Math.Min(count, freePlays); i++)
             saved += costs[count - 1 - i];
         return saved;
+    }
+
+    // The opening projection prices only the effect gained by playing this copy.
+    internal int FoolOpeningPotential(string cardId, ushort powerId, int gain, scoped in PowerEvidence.View view)
+    {
+        ref readonly Battle battle = ref view.Battle;
+        switch (cardId)
+        {
+            case "MYTHIC_FORM":
+                return Math.Clamp(view.RemainingTurns() - 1, 0, 2) * gain * view.EnergyUnit();
+            case "HIDDEN_ROOTS":
+                return view.MaxBlock() > 0 ? Math.Clamp(view.RemainingTurns() - 1, 0, 2) * gain : 0;
+            case "MOTIF":
+                return CaptureFoolPowerWindow(battle).Draws(battle, gain) * view.EnergyUnit();
+            case "LULLABY":
+                int slot = Kernel.FindPower(battle, Limits.PlayerOwner, powerId);
+                if (battle.Powers[slot].Aux0 != 0 || !CaptureFoolPowerWindow(battle).CanComplete) return 0;
+                break;
+            case "SONG_PATH":
+                if (!CanGainMelody(battle, CardTag.Cho)) return 0;
+                break;
+            case "VIOLENT_CHORD":
+                return CanGainMelody(battle, CardTag.Wah) ? DamageAcrossTargets(battle, gain) : 0;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(cardId));
+        }
+        var threat = ProjectHpAfterThreat(battle);
+        return (int)Math.Clamp(threat.BlockableDamage - threat.BlockConsumed, 0L, gain);
+    }
+
+    private bool CanGainMelody(in Battle battle, CardTag tag)
+    {
+        if (Kernel.PlayedMelody(battle, tag)) return false;
+        for (int i = 0; i < battle.HandCount; i++)
+        {
+            ref readonly Card card = ref battle.Cards[i];
+            if ((Rules.Card(card.Id, card.Upgrade).Tags & tag) != 0 && Kernel.CanPlayCard(battle, Rules, i))
+                return true;
+        }
+        return false;
+    }
+
+    private static int DamageAcrossTargets(in Battle battle, int amount)
+    {
+        int damage = 0;
+        for (int i = 0; i < battle.RosterCount; i++)
+        {
+            byte owner = Kernel.EnemyOwner(battle.Roster[i]);
+            if (Kernel.IsHittable(battle, owner))
+                damage += Math.Min(amount, battle.Creature(owner).CurrentHp);
+        }
+        return damage;
     }
 }

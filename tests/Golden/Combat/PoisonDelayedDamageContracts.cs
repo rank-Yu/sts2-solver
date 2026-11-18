@@ -6,10 +6,7 @@ using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Golden;
 
 /// <summary>
-/// Minimal contract for the delayed poison value: one trigger when the player is projected to die
-/// this turn, otherwise each enemy's kill-order life (at least two ticks, at most the shared
-/// remaining-turn estimate, which a single enemy uses unchanged); every trigger decrements one
-/// stack, Accelerant adds hits, and the per-enemy current-HP cap stays in force.
+/// Poison value follows enemy life and available triggers while the fight is ongoing.
 /// </summary>
 internal static class PoisonDelayedDamageContracts
 {
@@ -127,16 +124,23 @@ internal static class PoisonDelayedDamageContracts
         Battle lethal = fiveTicks;
         lethal.Player.CurrentHp = 1;
         Assert(scorer.ProjectHpAfterThreat(lethal).Hp <= 0, "low-HP fixture is projected to die");
-        Assert(Value(lethal) == 5, "a lethal turn counts only the first poison trigger");
+        Assert(Value(lethal) == Value(fiveTicks), "projected lethal damage preserves future poison ticks");
 
         Battle lethalAccelerated = accelerated;
         lethalAccelerated.Player.CurrentHp = 1;
-        Assert(scorer.ProjectHpAfterThreat(lethalAccelerated).Hp <= 0,
-            "low-HP Accelerant fixture is projected to die");
-        Assert(Value(lethalAccelerated) == 12,
-            "a lethal Accelerant turn counts only the first trigger's 3 hits (5+4+3)");
+        Assert(Value(lethalAccelerated) == Value(accelerated), "low HP preserves Accelerant triggers");
 
-        Console.WriteLine("POISON_DELAYED_DAMAGE oneTick=5 fiveTicks=15 capped=3 "
-            + "accelerantTwoTicks=15 accelerantOneTick=12 killOrder=32");
+        Battle atThreshold = fiveTicks;
+        atThreshold.Player.CurrentHp -= scorer.ProjectHpAfterThreat(atThreshold).Hp;
+        var atZero = scorer.Features(atThreshold, 0);
+        atThreshold.Player.CurrentHp++;
+        var aboveZero = scorer.Features(atThreshold, 0);
+        Assert(atZero.ProjectedPlayerHp == 0 && aboveZero.ProjectedPlayerHp == 1
+            && aboveZero.Score - atZero.Score == ScoreWeights.Hp, "projected zero HP has a linear score");
+
+        lethal.Player.CurrentHp = 0;
+        lethal.Outcome = Outcome.Defeat;
+        Assert(Value(lethal) == 0, "a finished defeat has no future poison ticks");
+        Console.WriteLine("POISON_DELAYED_DAMAGE fiveTicks=15 capped=3 accelerant=15 killOrder=32 projectedZero=linear");
     }
 }

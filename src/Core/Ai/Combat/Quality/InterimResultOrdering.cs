@@ -3,16 +3,6 @@ namespace Sts2Solver.Ai.Combat.Quality;
 
 internal static class InterimResultOrdering
 {
-    public static bool IsCompleteVictory(
-        int actionCount,
-        bool allEnemiesDead,
-        bool playerDead,
-        int projectedPlayerHp)
-        => actionCount > 0
-            && allEnemiesDead
-            && !playerDead
-            && projectedPlayerHp > 0;
-
     /// <summary>
     /// Compares the result-quality prefix shared by in-session selection, final candidate
     /// retention, and cross-session audits. A negative value means <paramref name="candidate"/>

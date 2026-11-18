@@ -528,13 +528,14 @@ internal sealed class Scorer
             + battle.Counter(Counter.DeathSavePotionHpRestored);
         int deathSaveUseCount = battle.Counter(Counter.DeathSaveUseCount);
         double hpWeight = ScoreWeights.Hp;
-        double score = dead || projectedHp <= 0
-            ? ScoreWeights.DeathPenalty
-            : projectedHp * hpWeight;
+        // The activation member prices damage and revives once they actually resolve.
+        bool activation = SetupPolicy is { Continuous: false };
+        int rankingHp = activation ? battle.Player.CurrentHp : projectedHp;
+        double score = dead ? ScoreWeights.DeathPenalty : rankingHp * hpWeight;
         score += (battle.Player.MaxHp - _score.InitialPlayerMaxHp) * hpWeight;
         score -= cumulativePlayerHpLost * hpWeight;
         score -= ActEndingBossPolicy.DeathSaveBeamCost(
-            deathSaveHpRestored + projectedDeathSaveHpRestored) * hpWeight;
+            deathSaveHpRestored + (activation ? 0 : projectedDeathSaveHpRestored)) * hpWeight;
 
         int realizedLongTermResourceValue = _score.IgnoreGrowthRewards
             ? 0
@@ -839,15 +840,9 @@ internal sealed class Scorer
             + FreeCardOpportunityValue(battle, CardType.Power, _score.FreePowerPowerId)
             + VoidFormOpportunityValue(battle);
 
-        // A poison tick applies the current stacks and decrements once per hit. A lethal turn
-        // resolves only the single tick before the player dies. Otherwise an enemy's poison ticks
-        // while that enemy lives: enemies are assumed to die in ascending effective-HP order under
-        // the shared damage model (next turn's damage plus linear growth), so enemy e lives the
-        // turns needed to deal the HP of the enemies killed before it plus its own, at most the
-        // shared remaining-turn estimate R (the last enemy) and counted as at least two ticks.
+        // Future poison ticks depend on each enemy's remaining life in an ongoing fight.
         int poisonTriggers = 0;
         bool poisonPrepared = false;
-        bool poisonLethal = false;
         Span<int> enemyLife = stackalloc int[battle.EnemyCount];
         int delayedDamageValue = 0;
         for (int index = 0; index < battle.EnemyCount; index++)
@@ -861,30 +856,24 @@ internal sealed class Scorer
             int doom = Math.Max(0, GetAmount(battle, _score.DoomPowerId, owner));
             int currentHp = Math.Max(0, enemy.Creature.CurrentHp);
             int poisonValue = 0;
-            if (poison > 0)
+            if (poison > 0 && !dead && battle.Outcome == Outcome.None)
             {
                 if (!poisonPrepared)
                 {
                     poisonTriggers = PoisonTriggersPerTurn(battle);
-                    poisonLethal = projectedHp <= 0;
-                    if (!poisonLethal)
+                    ScoreFeatures turnFeatures = new()
                     {
-                        ScoreFeatures turnFeatures = new()
-                        {
-                            RetainedAttackValue = retainedAttackValue,
-                            LiveDeckSize = liveCardCount,
-                            EnemyHp = enemyHp,
-                            AliveEnemyCount = aliveEnemyCount,
-                        };
-                        PowerEvidence.View turnView = new(
-                            battle, turnFeatures, Rules, this);
-                        turnView.FillEnemyLifeTurns(enemyLife);
-                    }
+                        RetainedAttackValue = retainedAttackValue,
+                        LiveDeckSize = liveCardCount,
+                        EnemyHp = enemyHp,
+                        AliveEnemyCount = aliveEnemyCount,
+                    };
+                    PowerEvidence.View turnView = new(
+                        battle, turnFeatures, Rules, this);
+                    turnView.FillEnemyLifeTurns(enemyLife);
                     poisonPrepared = true;
                 }
-                int poisonTurns = poisonLethal
-                    ? 1
-                    : Math.Max(2, enemyLife[index]);
+                int poisonTurns = Math.Max(2, enemyLife[index]);
                 poisonValue = PoisonStackProjection.DelayedStackDamage(
                     poison, poisonTriggers, poisonTurns, currentHp);
             }

@@ -398,6 +398,11 @@ internal static class ScoreCompiler
         LightningRodPower => StrategicKind.LightningRod,
         AutomationPower => StrategicKind.RecurringEnergy,
         OrbitPower => StrategicKind.OrbitEnergy,
+        HoningPower => StrategicKind.Honing,
+        ExplosiveArrowsPower => StrategicKind.ExplosiveArrows,
+        MotifPower => StrategicKind.Motif,
+        TunePower => StrategicKind.Tune,
+        LullabyPower => StrategicKind.Lullaby,
         _ => StrategicKind.Scaling,
     };
 
@@ -407,6 +412,7 @@ internal static class ScoreCompiler
             AfterimagePower => StrategicRequirements.UsefulCardPlays,
             MegaCrit.Sts2.Core.Models.Powers.BufferPower => StrategicRequirements.RemainingTurns,
             FeelNoPainPower => StrategicRequirements.ExhaustPlays,
+            MotifPower or TunePower => StrategicRequirements.AverageCardValue,
             DarkEmbracePower => StrategicRequirements.ExhaustPlays
                 | StrategicRequirements.AverageCardValue,
             EchoFormPower => StrategicRequirements.UsefulCardPlays

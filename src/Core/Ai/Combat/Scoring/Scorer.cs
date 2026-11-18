@@ -19,7 +19,7 @@ namespace Sts2Solver.Ai.Combat.Scoring;
 /// It allocates nothing on the hot path.
 /// </remarks>
 [System.Runtime.CompilerServices.SkipLocalsInit]
-internal sealed class Scorer
+internal sealed partial class Scorer
 {
     private readonly ScoreRules _score;
 
@@ -512,12 +512,14 @@ internal sealed class Scorer
         int incomingDamage = 0;
         int projectedDeathSaveUseCount = 0;
         int blockConsumed = 0;
+        long blockableDamage = 0;
         if (!won && !eventDefeat)
         {
             ThreatProjection threat = ProjectHpAfterThreat(battle);
             incomingDamage = threat.IncomingDamage;
             projectedDeathSaveUseCount = threat.DeathSaveUseCount;
             blockConsumed = threat.BlockConsumed;
+            blockableDamage = threat.BlockableDamage;
         }
         int cumulativePlayerHpLost = battle.Counter(Counter.CumulativeHpLost);
         int recoveredPlayerHp = battle.Counter(Counter.RecoveredHp);
@@ -698,6 +700,7 @@ internal sealed class Scorer
         // the same battle throughout, so the first probe's result serves every branch below.
         int modifiedMaxEnergy = -1;
         int modifiedHandDraw = -1;
+        FoolPowerWindow? foolWindow = null;
         for (int index = 0; index < battle.PowerCount; index++)
         {
             ref readonly Power power = ref battle.Powers[index];
@@ -768,7 +771,16 @@ internal sealed class Scorer
                 refundCapacity -= gain;
                 effectContext = effectContext with { RecurringEnergyGain = gain };
             }
-            StrategicEffectVector effect = EvaluateStrategic(rules.Kind, power.Amount, effectContext);
+            StrategicEffectVector effect;
+            if (rules.Kind is StrategicKind.Honing or StrategicKind.ExplosiveArrows
+                or StrategicKind.Motif or StrategicKind.Tune or StrategicKind.Lullaby)
+            {
+                foolWindow ??= CaptureFoolPowerWindow(battle);
+                effect = EvaluateFoolPower(battle, power, rules.Kind, foolWindow.Value,
+                    effectContext, blockableDamage - blockConsumed, ref modifiedHandDraw);
+            }
+            else
+                effect = EvaluateStrategic(rules.Kind, power.Amount, effectContext);
             strategicEffects += effect;
             if (SetupPolicy is { } setup)
                 setupPotentialHp += setup.PreferenceHp(power, effect.RetentionValue);

@@ -49,6 +49,11 @@ internal enum StrategicKind : byte
 
     /// <summary>Orbit: recurring energy from the refund window's energy spend plus the remainder.</summary>
     OrbitEnergy,
+    Honing,
+    ExplosiveArrows,
+    Motif,
+    Tune,
+    Lullaby,
 }
 
 /// <summary>Port of <c>StrategicEffectRequirements</c>; bit values must match the existing enum.</summary>

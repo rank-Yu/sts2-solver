@@ -27,7 +27,11 @@ internal readonly record struct ScoreFeatures
     public int DeathSaveHpRestored { get; init; }
     public int DeathSaveUseCount { get; init; }
     public int ProjectedDeathSaveUseCount { get; init; }
-    public int ProjectedPlayerHp { get; init; }
+    public int IncomingDamage { get; init; }
+    // Diagnostic snapshot value before any projected death save.
+    public int ProjectedPlayerHp => PlayerHp - IncomingDamage;
+    public int NetHpChange => RecoveredPlayerHp - CumulativePlayerHpLost;
+    public int ProjectedNetHpChange => NetHpChange - IncomingDamage;
     public int DefensiveBlockValue { get; init; }
     public int LongTermResourceValue { get; init; }
     public int GrowthHpCredit { get; init; }

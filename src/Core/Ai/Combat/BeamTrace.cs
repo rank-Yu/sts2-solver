@@ -24,7 +24,7 @@ internal readonly record struct TraceRouteInfo(
     int SetupValue,
     int SetupComboValue,
     int EnemyHp,
-    int ProjectedPlayerHp,
+    int ProjectedNetHpChange,
     int Turn,
     int Depth);
 
@@ -37,7 +37,7 @@ internal readonly record struct TraceSetupLeader(
     int SetupValue,
     int SetupComboValue,
     int RetainedAttackValue,
-    int ProjectedPlayerHp,
+    int ProjectedNetHpChange,
     double Score,
     int RankPosition,
     bool Required);
@@ -100,7 +100,7 @@ internal abstract class BeamTrace
 
     /// <summary>One offline stand-pat probe label (only for watched route nodes).</summary>
     internal abstract void StandPatProbe(int node, bool selected, bool available, bool allEnemiesDead,
-        int delayedDamage, int projectedHp, int resourceValue, int laneValue, double score,
+        int delayedDamage, int projectedNetHpChange, int resourceValue, int laneValue, double score,
         bool chosen);
 
     /// <summary>The solve ended before or after consuming the target route.</summary>

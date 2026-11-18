@@ -630,8 +630,9 @@ internal sealed partial class BeamSolver
             throw new ArgumentOutOfRangeException(nameof(options),
                 options.InitialBrightestFlameMaxHpSpent,
                 "根上已消耗的最大生命不能为负。");
-        _scorer = options.Scorer
+        Scorer scorer = options.Scorer
             ?? throw new InvalidOperationException("BeamOptions.Scorer 未设置。");
+        _scorer = options.AuditPotionPolicy ? scorer.ForPotionAudit() : scorer;
         _zeroGrowthBudget = _scorer.RulesForCodec.GrowthBudgets.Total == 0;
         _relicCreditCeiling = _scorer.RelicCreditCeiling;
         _hasRelicTargets = _scorer.RelicTargetCount != 0;
@@ -1303,7 +1304,7 @@ internal sealed partial class BeamSolver
         return new RouteKey(
             won,
             !features.PlayerDead,
-            features.ProjectedDeathSaveUseCount,
+            features.DeathSaveUseCount,
             _theftPolicy == TheftPolicy.PreserveResources ? features.OutstandingStolenResource : 0,
             strategicHpDeficit,
             features.StrategyGoalHpCredit,
@@ -1772,8 +1773,8 @@ internal sealed partial class BeamSolver
             PowerEvidence.View parentView = new(parent, default, _rules, _scorer);
             progress = PowerEvidence.SilentProgress(parentState, parentView, childView);
             int specialized = PowerEvidence.SilentRealized(parentState,
-                parentFacts.PlayerBlock, parentFacts.ProjectedPlayerHp, parentFacts.ReachableHandValue,
-                parentFacts.Turn, childFacts.PlayerBlock, childFacts.ProjectedPlayerHp,
+                parentFacts.PlayerBlock, parentFacts.ProjectedNetHpChange, parentFacts.ReachableHandValue,
+                parentFacts.Turn, childFacts.PlayerBlock, childFacts.ProjectedNetHpChange,
                 childFacts.ReachableHandValue, childFacts.Turn, childFacts.AliveEnemyCount,
                 parent, child, playedCardId, action.Kind == PlayerActionKind.PlayCard,
                 childView, out bool handled);
@@ -1794,7 +1795,7 @@ internal sealed partial class BeamSolver
                 Math.Max(0, childFeatures.CumulativePlayerHpLost - parentFacts.CumulativePlayerHpLost));
             int setupGain = PowerCommitmentSetupGain(parentFacts, childFeatures);
             int projectedPotential = PowerEvidence.ProjectionPotential(
-                playedCardId, childView, parent, parentFacts.ProjectedPlayerHp);
+                playedCardId, childView, parent, parentFacts.ProjectedNetHpChange);
             int triggerFloor = PowerEvidence.TriggerProjectionFloor(playedCardId, childView);
             PowerRouteAdmissionResult admission = PowerRouteAdmission.Evaluate(new(
                 CardId: Registry.Card(playedCardId).NativeId,
@@ -1803,7 +1804,7 @@ internal sealed partial class BeamSolver
                 RemainingEnergy: childFeatures.Energy,
                 HasTriggerEvidence: PowerEvidence.HasTriggerEvidence(playedCardId, parent, childView),
                 ImmediateDefenseGain: Math.Max(0,
-                    childFeatures.ProjectedPlayerHp - parentFacts.ProjectedPlayerHp),
+                    childFeatures.ProjectedNetHpChange - parentFacts.ProjectedNetHpChange),
                 SetupGain: setupGain,
                 ProjectedPotential: projectedPotential,
                 TriggerProjectionFloor: triggerFloor,
@@ -1932,7 +1933,7 @@ internal sealed partial class BeamSolver
             (long)Math.Max(0, after.OffensiveProgressValue - before.OffensiveProgressValue)
             + Math.Max(0, after.ReachableHandValue - before.ReachableHandValue)
             + Math.Max(0, after.ZeroCostPlayableCount - before.ZeroCostPlayableCount) * 4L
-            + Math.Max(0, after.ProjectedPlayerHp - before.ProjectedPlayerHp));
+            + Math.Max(0, after.ProjectedNetHpChange - before.ProjectedNetHpChange));
 
     /// <summary><c>GenericPowerCommitmentEvidence</c>, also used as the realized signal.</summary>
     private static int GenericPowerCommitmentRealized(in RetentionFacts before, in RetentionFacts after)
@@ -1949,7 +1950,7 @@ internal sealed partial class BeamSolver
     private readonly record struct RetentionFacts(
         int Depth,
         int PotionCount,
-        int ProjectedPlayerHp,
+        int ProjectedNetHpChange,
         int PlayerBlock,
         int OstyHp,
         int OstyMaxHp,
@@ -1997,7 +1998,7 @@ internal sealed partial class BeamSolver
         int CumulativePlayerHpLost,
         int PotionStrategicCost,
         double Score,
-        int PlayerHp,
+        int NetHpChange,
         int PlayerMaxHp,
         ulong AliveEnemyMask,
         bool AllEnemiesDead,
@@ -2044,7 +2045,7 @@ internal sealed partial class BeamSolver
             in Scorer.RetentionValues retention = default) => new(
             depth,
             features.PotionUseCount,
-            features.ProjectedPlayerHp,
+            features.ProjectedNetHpChange,
             features.PlayerBlock,
             features.OstyHp,
             features.OstyMaxHp,
@@ -2092,7 +2093,7 @@ internal sealed partial class BeamSolver
             features.CumulativePlayerHpLost,
             features.PotionStrategicCost,
             features.Score,
-            features.PlayerHp,
+            features.NetHpChange,
             features.PlayerMaxHp,
             features.AliveEnemyMask,
             features.AllEnemiesDead,
@@ -2281,7 +2282,7 @@ internal sealed partial class BeamSolver
             }
             if (after.LongTermResourceValue > before.LongTermResourceValue)
                 traits |= SearchRouteTraits.LongTermResource;
-            if (after.PlayerHp < before.PlayerHp
+            if (after.NetHpChange < before.NetHpChange
                 || after.PlayerMaxHp < before.PlayerMaxHp
                 || after.CumulativePlayerHpLost > before.CumulativePlayerHpLost)
             {
@@ -2414,8 +2415,8 @@ internal sealed partial class BeamSolver
     // same tie order. The Osty terms are imported from the pet state (IsBetterDefensive and the Resource
     // lane), matching the existing engine's leader comparators.
     private static bool IsBetterDefensive(in RetentionFacts candidate, in RetentionFacts current)
-        => candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-            || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+        => candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+            || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                 && (candidate.OstyHp > current.OstyHp
                     || candidate.OstyHp == current.OstyHp
                         && (candidate.OstyMaxHp > current.OstyMaxHp
@@ -2431,8 +2432,8 @@ internal sealed partial class BeamSolver
                     || candidate.RawEnemyHp == current.RawEnemyHp
                         && (candidate.EnemyHp < current.EnemyHp
                             || candidate.EnemyHp == current.EnemyHp
-                                && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                                    || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                                && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                                    || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                                         && candidate.Score > current.Score)));
 
     private static bool IsBetterSetup(in RetentionFacts candidate, in RetentionFacts current)
@@ -2440,8 +2441,8 @@ internal sealed partial class BeamSolver
             || candidate.SetupValue == current.SetupValue
                 && (candidate.RetainedAttackValue > current.RetainedAttackValue
                     || candidate.RetainedAttackValue == current.RetainedAttackValue
-                        && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                            || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                        && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                            || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                                 && candidate.Score > current.Score));
 
     private static bool IsBetterSetupCombo(in RetentionFacts candidate, in RetentionFacts current)
@@ -2449,8 +2450,8 @@ internal sealed partial class BeamSolver
             || candidate.SetupComboValue == current.SetupComboValue
                 && (candidate.RetainedAttackValue > current.RetainedAttackValue
                     || candidate.RetainedAttackValue == current.RetainedAttackValue
-                        && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                            || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                        && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                            || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                                 && candidate.Score > current.Score));
 
     private static bool IsBetterDeckCuration(in RetentionFacts candidate, in RetentionFacts current)
@@ -2468,8 +2469,8 @@ internal sealed partial class BeamSolver
                         && IsBetterSetup(candidate, current));
 
     private static bool IsBetterUtilityDefensive(in RetentionFacts candidate, in RetentionFacts current)
-        => candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-            || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+        => candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+            || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                 && candidate.Score > current.Score;
 
     private static bool IsBetterEnemyStrengthControl(in RetentionFacts candidate, in RetentionFacts current)
@@ -2506,8 +2507,8 @@ internal sealed partial class BeamSolver
     /// size, reachable hand value and enemy HP at the turn boundary.
     /// </summary>
     private static bool IsBetterTurnBoundaryHand(in RetentionFacts candidate, in RetentionFacts current)
-        => candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-            || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+        => candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+            || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                 && (candidate.OstyHp > current.OstyHp
                     || candidate.OstyHp == current.OstyHp
                         && (candidate.HandCount > current.HandCount
@@ -2525,8 +2526,8 @@ internal sealed partial class BeamSolver
     private static bool IsBetterCuratedTurnBoundaryHand(in RetentionFacts candidate,
         in RetentionFacts current)
     {
-        if (candidate.ProjectedPlayerHp != current.ProjectedPlayerHp)
-            return candidate.ProjectedPlayerHp > current.ProjectedPlayerHp;
+        if (candidate.ProjectedNetHpChange != current.ProjectedNetHpChange)
+            return candidate.ProjectedNetHpChange > current.ProjectedNetHpChange;
         if (candidate.OstyHp != current.OstyHp)
             return candidate.OstyHp > current.OstyHp;
         if (candidate.ProjectedShuffleOrderValue != current.ProjectedShuffleOrderValue)
@@ -2548,8 +2549,8 @@ internal sealed partial class BeamSolver
                     || candidate.FocusTargetRemainingHp == current.FocusTargetRemainingHp
                         && (candidate.FocusTargetCurrentThreat > current.FocusTargetCurrentThreat
                             || candidate.FocusTargetCurrentThreat == current.FocusTargetCurrentThreat
-                                && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                                    || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                                && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                                    || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                                         && candidate.Score > current.Score)));
 
     /// <summary>FindBestTargetSetup: setup lane, then focus pressure, then safety.</summary>
@@ -2560,8 +2561,8 @@ internal sealed partial class BeamSolver
                     || candidate.RetainedAttackValue == current.RetainedAttackValue
                         && (candidate.FocusTargetPressure > current.FocusTargetPressure
                             || candidate.FocusTargetPressure == current.FocusTargetPressure
-                                && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                                    || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                                && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                                    || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                                         && candidate.Score > current.Score)));
 
     /// <summary>
@@ -2615,8 +2616,8 @@ internal sealed partial class BeamSolver
         int currentValue = LaneValue(current, trait);
         return candidateValue > currentValue
             || candidateValue == currentValue
-                && (candidate.ProjectedPlayerHp > current.ProjectedPlayerHp
-                    || candidate.ProjectedPlayerHp == current.ProjectedPlayerHp
+                && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
+                    || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                         && (candidate.AliveEnemyCount < current.AliveEnemyCount
                             || candidate.AliveEnemyCount == current.AliveEnemyCount
                                 && (candidate.EnemyHp < current.EnemyHp

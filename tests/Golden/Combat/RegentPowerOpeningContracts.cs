@@ -56,7 +56,7 @@ internal static class RegentPowerOpeningContracts
         => item.Options.Scorer!.Features(item.Battles[0], 0) with
         {
             PlayerHp = 100,
-            ProjectedPlayerHp = 100 - incoming,
+            IncomingDamage = incoming,
             EnemyHp = enemyHp,
             AliveEnemyCount = 1,
             RetainedAttackValue = 1,
@@ -70,7 +70,7 @@ internal static class RegentPowerOpeningContracts
         ScoreFeatures features = Features(item, incoming, enemyHp);
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
         return PowerEvidence.ProjectionPotential(CardId(nativeId), view, parent,
-            features.ProjectedPlayerHp);
+            features.ProjectedNetHpChange);
     }
 
     private static void AssertDamageCap(SearchCase item, string nativeId, Battle parent,
@@ -431,7 +431,7 @@ internal static class RegentPowerOpeningContracts
         PowerEvidence.View view = new(child, features, item.Rules, scorer);
         ushort cardId = CardId("ROYALTIES");
         Assert(PowerEvidence.ProjectionPotential(cardId, view, parent,
-            features.ProjectedPlayerHp) == 0
+            features.ProjectedNetHpChange) == 0
             && !PowerEvidence.HasTriggerEvidence(cardId, parent, view),
             "Royalties has no in-combat opening projection");
     }

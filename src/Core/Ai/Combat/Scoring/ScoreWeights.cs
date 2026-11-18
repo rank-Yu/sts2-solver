@@ -11,6 +11,7 @@ internal static class ScoreWeights
     // 稳健预设的 Beam 排序中，保住 1 HP 约等于造成 3 点即时伤害。
     // 最终路线不靠这个比例决定胜负，只用于避免保血长线在抵达终点前被即时输出挤掉。
     public const double Hp = 30_000d;
+    public const double PotionAuditSettledHp = 2 * Hp;
     public const double EnemyHp = -10_000d;
     public const double RiskPenalty = -2_000d;
     public const double ActionPenalty = -1d;

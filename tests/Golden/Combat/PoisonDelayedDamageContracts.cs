@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Sts2Solver.Ai.Combat;
 using Sts2Solver.Ai.Combat.Scoring;
+using Sts2Solver.Ai.Combat.Policy;
 using Sts2Solver.Simulation.Combat;
 
 namespace Sts2Solver.Golden;
@@ -136,11 +137,31 @@ internal static class PoisonDelayedDamageContracts
         atThreshold.Player.CurrentHp++;
         var aboveZero = scorer.Features(atThreshold, 0);
         Assert(atZero.ProjectedPlayerHp == 0 && aboveZero.ProjectedPlayerHp == 1
-            && aboveZero.Score - atZero.Score == ScoreWeights.Hp, "projected zero HP has a linear score");
+            && aboveZero.Score == atZero.Score, "equal damage gets the same score across projected zero HP");
+
+        Scorer setup = new(scorer.RulesForCodec, setup: SetupSearchPolicy.Capture(fiveTicks, item.Rules));
+        foreach ((Scorer member, double weight) in new[] { (scorer, ScoreWeights.Hp), (setup, ScoreWeights.Hp),
+            (scorer.ForPotionAudit(), ScoreWeights.PotionAuditSettledHp), (setup.ForPotionAudit(), ScoreWeights.PotionAuditSettledHp) })
+        {
+            Battle low = fiveTicks, high = fiveTicks;
+            low.Player.CurrentHp = 23;
+            high.Player.CurrentHp = 43;
+            double opening = member.Features(low, 0).Score;
+            Assert(opening == member.Features(high, 0).Score, "starting HP does not change rank");
+            low.Player.CurrentHp -= 6;
+            high.Player.CurrentHp -= 6;
+            low.AddCounter(Counter.CumulativeHpLost, 6);
+            high.AddCounter(Counter.CumulativeHpLost, 6);
+            var lowAfter = member.Features(low, 0);
+            var highAfter = member.Features(high, 0);
+            Assert(lowAfter.Score == highAfter.Score && lowAfter.Score == opening - 6 * weight
+                && lowAfter.ProjectedNetHpChange == highAfter.ProjectedNetHpChange,
+                "six damage is charged once at the member weight regardless of opening HP");
+        }
 
         lethal.Player.CurrentHp = 0;
         lethal.Outcome = Outcome.Defeat;
         Assert(Value(lethal) == 0, "a finished defeat has no future poison ticks");
-        Console.WriteLine("POISON_DELAYED_DAMAGE fiveTicks=15 capped=3 accelerant=15 killOrder=32 projectedZero=linear");
+        Console.WriteLine("POISON_DELAYED_DAMAGE fiveTicks=15 capped=3 accelerant=15 killOrder=32 projectedZero=equal");
     }
 }

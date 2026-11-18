@@ -132,7 +132,7 @@ internal sealed partial class BeamSolver
         private readonly List<int> _standPatGroup = new();
         private readonly Dictionary<int, List<int>> _standPatGroups = new();
         private readonly record struct StandPatEvaluation(
-            bool AllEnemiesDead, int DelayedDamage, int ProjectedPlayerHp, int ResourceValue,
+            bool AllEnemiesDead, int DelayedDamage, int ProjectedNetHpChange, int ResourceValue,
             bool Available);
         private readonly Dictionary<CommitmentGroupKey, CommitmentGroupLeader> _commitmentGroups = new();
         private readonly List<CommitmentGroupKey> _commitmentGroupOrder = new();
@@ -473,7 +473,7 @@ internal sealed partial class BeamSolver
                 label.PotionCount, label.PotionStrategicCost, label.FutureSoldHp,
                 label.CumulativePlayerHpLost, label.ActionCount, label.Score,
                 facts.SetupValue, facts.SetupComboValue,
-                facts.EnemyHp, facts.ProjectedPlayerHp, facts.Turn, facts.Depth);
+                facts.EnemyHp, facts.ProjectedNetHpChange, facts.Turn, facts.Depth);
         }
 
         private TraceRouteInfo TargetTraceInfo(int node, int potionCost, in ScoreFeatures features,
@@ -486,12 +486,12 @@ internal sealed partial class BeamSolver
                 label.PotionCount, label.PotionStrategicCost, label.FutureSoldHp,
                 label.CumulativePlayerHpLost, label.ActionCount, label.Score,
                 setupValue, setupCombo,
-                features.EnemyHp, features.ProjectedPlayerHp, features.Turn, depth);
+                features.EnemyHp, features.ProjectedNetHpChange, features.Turn, depth);
         }
 
         private TraceSetupLeader SetupLeaderInfo(int slot)
             => new(_nodes[slot], _facts[slot].SetupValue, _facts[slot].SetupComboValue,
-                _facts[slot].RetainedAttackValue, _facts[slot].ProjectedPlayerHp, _scores[slot],
+                _facts[slot].RetainedAttackValue, _facts[slot].ProjectedNetHpChange, _scores[slot],
                 _rankPosition[slot], _required[slot]);
 
         private void TraceSetupLeader(string lane, int leaderSlot)
@@ -558,7 +558,7 @@ internal sealed partial class BeamSolver
                             _trace.NodeInserted(node, added: false, existingNode, incomingWon: false,
                                 rank, _ranks[existing], score, _scores[existing], _facts[existing].PotionCount,
                                 _facts[existing].Turn, _facts[existing].Depth,
-                                _facts[existing].EnemyHp, _facts[existing].ProjectedPlayerHp,
+                                _facts[existing].EnemyHp, _facts[existing].ProjectedNetHpChange,
                                 targetInfo, existingInfo);
                         }
                         return false;
@@ -589,7 +589,7 @@ internal sealed partial class BeamSolver
                         _trace.NodeInserted(node, added: false, existingNode, incomingWon,
                             rank, _ranks[existing], score, _scores[existing], _facts[existing].PotionCount,
                             _facts[existing].Turn, _facts[existing].Depth,
-                            _facts[existing].EnemyHp, _facts[existing].ProjectedPlayerHp,
+                            _facts[existing].EnemyHp, _facts[existing].ProjectedNetHpChange,
                             targetInfo, existingInfo);
                     }
                     _states.DiscardReserved();

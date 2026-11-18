@@ -106,7 +106,7 @@ internal static class DefectPowerOpeningContracts
             {
                 PlayerHp = 60,
                 PlayerMaxHp = 60,
-                ProjectedPlayerHp = 52,
+                IncomingDamage = 8,
                 EnemyHp = 1_000_000,
                 RetainedAttackValue = 1,
                 LiveDeckSize = 1,
@@ -180,20 +180,20 @@ internal static class DefectPowerOpeningContracts
         Assert(incoming == 8, $"{card.Id} controlled incoming expected 8, got {incoming}");
         int raw = Expected(card, uncapped, view, turns, incoming, view.RemainingEnemyHp());
         int actual = PowerEvidence.ProjectionPotential(
-            uncapped.CardId, view, uncapped.Parent, uncapped.Features.ProjectedPlayerHp);
+            uncapped.CardId, view, uncapped.Parent, uncapped.Features.ProjectedNetHpChange);
         Assert(actual == raw, $"{card.Id} projection expected {raw}, got {actual}");
         Assert(actual > 0, $"{card.Id} projection must be positive");
         Assert(PowerEvidence.HasTriggerEvidence(uncapped.CardId, uncapped.Parent, view),
             $"{card.Id} constructed trigger evidence");
         int noGain = PowerEvidence.ProjectionPotential(
-            uncapped.CardId, view, uncapped.Child, uncapped.Features.ProjectedPlayerHp);
+            uncapped.CardId, view, uncapped.Child, uncapped.Features.ProjectedNetHpChange);
         Assert(noGain == 0, $"{card.Id} projection without an increment expected 0, got {noGain}");
 
         Setup capped = Create(source, scorer, card, enemyHp: 3);
         PowerEvidence.View cappedView = new(
             capped.Child, capped.Features, capped.Rules, capped.Scorer);
         int cappedActual = PowerEvidence.ProjectionPotential(
-            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedPlayerHp);
+            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedNetHpChange);
         int cappedExpected = Expected(
             card, capped, cappedView, turns, incoming, cappedView.RemainingEnemyHp());
         int singleEnemyCap = 3 * card.EnemyCount;
@@ -239,7 +239,7 @@ internal static class DefectPowerOpeningContracts
         capped.Child.Enemies[1].Creature.MaxHp = 4;
         Assert(cappedView.RemainingEnemyHp() == 7, $"{card.Id} cap sums remaining enemies");
         Assert(PowerEvidence.ProjectionPotential(
-            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedPlayerHp)
+            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedNetHpChange)
             == Math.Min(7, raw), $"{card.Id} projection uses the summed living cap");
         capped.Child.Enemies[0].Creature.Block = 50;
         Assert(cappedView.RemainingEnemyHp() == 7, $"{card.Id} cap ignores enemy block");
@@ -248,7 +248,7 @@ internal static class DefectPowerOpeningContracts
         Assert(cappedView.RemainingEnemyHp() == 4,
             $"{card.Id} cap ignores a dead enemy with no revive");
         Assert(PowerEvidence.ProjectionPotential(
-            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedPlayerHp)
+            capped.CardId, cappedView, capped.Parent, capped.Features.ProjectedNetHpChange)
             == Math.Min(4, raw), $"{card.Id} projection ignores reviving current HP");
     }
 
@@ -257,7 +257,7 @@ internal static class DefectPowerOpeningContracts
         PowerEvidence.View view = new(
             capped.Child, capped.Features, capped.Rules, capped.Scorer);
         int actual = PowerEvidence.ProjectionPotential(
-            capped.CardId, view, capped.Parent, capped.Features.ProjectedPlayerHp);
+            capped.CardId, view, capped.Parent, capped.Features.ProjectedNetHpChange);
         Assert(actual == Expected(card, capped, view,
                 Math.Max(0, view.RemainingTurns() - 1), view.IncomingDamage(),
                 view.RemainingEnemyHp()) && actual < raw,
@@ -272,14 +272,14 @@ internal static class DefectPowerOpeningContracts
         capped.Child.Enemies[1].Creature.Block = 0;
         Assert(view.RemainingEnemyHp() == 7, $"{card.Id} mixed cap sums remaining enemies");
         Assert(PowerEvidence.ProjectionPotential(
-            capped.CardId, view, capped.Parent, capped.Features.ProjectedPlayerHp)
+            capped.CardId, view, capped.Parent, capped.Features.ProjectedNetHpChange)
             == Expected(card, capped, view,
                 Math.Max(0, view.RemainingTurns() - 1), view.IncomingDamage(),
                 view.RemainingEnemyHp()), $"{card.Id} mixed summed living cap");
 
         capped.Child.Enemies[0].Creature.Block = 50;
         Assert(PowerEvidence.ProjectionPotential(
-            capped.CardId, view, capped.Parent, capped.Features.ProjectedPlayerHp)
+            capped.CardId, view, capped.Parent, capped.Features.ProjectedNetHpChange)
             == Expected(card, capped, view,
                 Math.Max(0, view.RemainingTurns() - 1), view.IncomingDamage(),
                 view.RemainingEnemyHp()), $"{card.Id} mixed cap ignores enemy block");
@@ -287,7 +287,7 @@ internal static class DefectPowerOpeningContracts
         capped.Child.Enemies[0].DeathPhase = DeathPhase.Reviving;
         Assert(view.RemainingEnemyHp() == 4, $"{card.Id} mixed cap ignores reviving HP");
         Assert(PowerEvidence.ProjectionPotential(
-            capped.CardId, view, capped.Parent, capped.Features.ProjectedPlayerHp)
+            capped.CardId, view, capped.Parent, capped.Features.ProjectedNetHpChange)
             == Expected(card, capped, view,
                 Math.Max(0, view.RemainingTurns() - 1), view.IncomingDamage(),
                 view.RemainingEnemyHp()), $"{card.Id} mixed reviving cap");

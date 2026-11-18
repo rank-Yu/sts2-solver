@@ -65,8 +65,8 @@ internal static class PowerEvidenceContracts
             + Math.Max(0, after.LatentSetupValue - before.LatentSetupValue);
         return PowerRouteAdmission.Evaluate(new(id, false, Math.Max(0, parent.Energy-child.Energy), child.Energy,
             PowerEvidence.HasTriggerEvidence(cardId, parent, view),
-            Math.Max(0, after.ProjectedPlayerHp-before.ProjectedPlayerHp), setup,
-            PowerEvidence.ProjectionPotential(cardId, view, parent, before.ProjectedPlayerHp), PowerEvidence.TriggerProjectionFloor(cardId, view), 0),
+            Math.Max(0, after.ProjectedNetHpChange - before.ProjectedNetHpChange), setup,
+            PowerEvidence.ProjectionPotential(cardId, view, parent, before.ProjectedNetHpChange), PowerEvidence.TriggerProjectionFloor(cardId, view), 0),
             catalog.Rules[cardId].Admission);
     }
 
@@ -136,18 +136,18 @@ internal static class PowerEvidenceContracts
         Assert(view.PowerAmountGain(parent, PowerEvidenceIds.Strength) == 1
             && view.PowerAmountGain(parent, PowerEvidenceIds.Dexterity) == 1,
             "Prowess applies the native strength and dexterity gains");
-        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, features.ProjectedPlayerHp) > 0
-            && PowerEvidence.ProjectionPotential(cardId, view, child, features.ProjectedPlayerHp) == 0,
+        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, features.ProjectedNetHpChange) > 0
+            && PowerEvidence.ProjectionPotential(cardId, view, child, features.ProjectedNetHpChange) == 0,
             "two-stat projection uses incremental effects");
         Battle wraithParent = parent, wraithChild = parent;
         Kernel.SetPowerAmount(ref wraithParent, Limits.PlayerOwner, PowerEvidenceIds.Intangible, 1);
         Kernel.SetPowerAmount(ref wraithChild, Limits.PlayerOwner, PowerEvidenceIds.Intangible, 3);
-        ScoreFeatures threatened = features with { ProjectedPlayerHp = 0 };
+        ScoreFeatures threatened = features with { IncomingDamage = 8 };
         PowerEvidence.View wraithView = new(wraithChild, threatened, item.Rules, scorer);
         Assert(wraithView.WraithTiming(wraithParent) && !wraithView.WraithTiming(wraithChild),
             "Wraith timing reads actual intangible delta");
         Assert(Registry.TryCard("SEEKING_EDGE", out ushort seeking), "Seeking Edge registered");
-        Assert(PowerEvidence.ProjectionPotential(seeking, view, parent, features.ProjectedPlayerHp) > 0,
+        Assert(PowerEvidence.ProjectionPotential(seeking, view, parent, features.ProjectedNetHpChange) > 0,
             "Seeking Edge uses existing energy-unit projection rather than unrelated status gain");
     }
 
@@ -156,7 +156,7 @@ internal static class PowerEvidenceContracts
         SearchCase item = Read("SILENT-014"); var (parent, child, cardId) = Play(item, "MASTER_PLANNER");
         Scorer scorer = item.Options.Scorer!; ScoreFeatures before = scorer.Features(parent, 0), after = scorer.Features(child, 1);
         PowerEvidence.View view = new(child, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, before.ProjectedPlayerHp) > 0
+        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, before.ProjectedNetHpChange) > 0
             && Admission(item, parent, child, cardId, view, before, after).Admitted,
             "Master Planner real playable source has admitted projection");
         Battle noWindows = child;
@@ -169,14 +169,14 @@ internal static class PowerEvidenceContracts
                 noWindows.Cards[i] = replacement;
         Kernel.SetPowerAmount(ref noWindows, Limits.PlayerOwner, PowerEvidenceIds.ToolsOfTheTrade, 0);
         PowerEvidence.View noWindowView = new(noWindows, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, noWindowView, parent, before.ProjectedPlayerHp) == 0
+        Assert(PowerEvidence.ProjectionPotential(cardId, noWindowView, parent, before.ProjectedNetHpChange) == 0
             && !Admission(item, parent, noWindows, cardId, noWindowView, before, after).Admitted, "no discard window is rejected");
         Battle allSly = child;
         for (int i = 0; i < view.LiveCount; i++)
             if (Kernel.ResolveCardType(allSly, item.Rules, allSly.Cards[i]) == CardType.Skill)
                 allSly.Cards[i].Flags |= CardFlags.SlyThisTurn;
         PowerEvidence.View slyView = new(allSly, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, slyView, parent, before.ProjectedPlayerHp) == 0
+        Assert(PowerEvidence.ProjectionPotential(cardId, slyView, parent, before.ProjectedNetHpChange) == 0
             && !Admission(item, parent, allSly, cardId, slyView, before, after).Admitted, "temporary Sly prevents projection");
         Battle expensive = child; expensive.Energy = 0;
         for (int i = 0; i < view.LiveCount; i++)
@@ -186,17 +186,17 @@ internal static class PowerEvidenceContracts
             expensive.Cards[i].ModifierCount = 0;
         }
         PowerEvidence.View expensiveView = new(expensive, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, expensiveView, parent, before.ProjectedPlayerHp) == 0
+        Assert(PowerEvidence.ProjectionPotential(cardId, expensiveView, parent, before.ProjectedNetHpChange) == 0
             && !Admission(item, parent, expensive, cardId, expensiveView, before, after).Admitted, "unpayable skills do not project");
         ScoreFeatures shortFight = after with { EnemyHp = 1, RetainedAttackValue = 100, LiveDeckSize = 1 };
         PowerEvidence.View lateView = new(child, shortFight, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, lateView, parent, before.ProjectedPlayerHp) == 0, "payoff after estimated fight does not project");
+        Assert(PowerEvidence.ProjectionPotential(cardId, lateView, parent, before.ProjectedNetHpChange) == 0, "payoff after estimated fight does not project");
         Battle noDraw = child;
         Assert(Registry.TryPower("MACHINE_LEARNING_POWER", out ushort drawId), "draw adjustment registered");
         Kernel.SetPowerAmount(ref noDraw, Limits.PlayerOwner, drawId, -100);
         PowerEvidence.View noDrawView = new(noDraw, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, noDrawView, parent, before.ProjectedPlayerHp) == 0, "zero future draw does not project");
-        Assert(PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedPlayerHp) == 0, "no actual Master Planner increment");
+        Assert(PowerEvidence.ProjectionPotential(cardId, noDrawView, parent, before.ProjectedNetHpChange) == 0, "zero future draw does not project");
+        Assert(PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedNetHpChange) == 0, "no actual Master Planner increment");
     }
 
     private static void CheckSubroutine()
@@ -204,7 +204,7 @@ internal static class PowerEvidenceContracts
         SearchCase item = Read("DEFECT-002"); var (parent, child, cardId) = Play(item, "SUBROUTINE", moveToHand: true);
         Scorer scorer = item.Options.Scorer!; ScoreFeatures before = scorer.Features(parent, 0), after = scorer.Features(child, 1);
         PowerEvidence.View view = new(child, after, item.Rules, scorer);
-        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, after.ProjectedPlayerHp) > 0
+        Assert(PowerEvidence.ProjectionPotential(cardId, view, parent, after.ProjectedNetHpChange) > 0
             && Admission(item, parent, child, cardId, view, before, after).Admitted, "Subroutine real playable power admitted");
         Battle unavailable = child;
         for (int i = 0; i < view.LiveCount; i++)
@@ -212,9 +212,9 @@ internal static class PowerEvidenceContracts
             { unavailable.Cards[i].BaseCost = 100; unavailable.Cards[i].Flags &= ~CardFlags.CostsX; unavailable.Cards[i].ModifierCount = 0; }
         PowerEvidence.View blocked = new(unavailable, after, item.Rules, scorer);
         Assert(!PowerEvidence.HasTriggerEvidence(cardId, parent, blocked)
-            && PowerEvidence.ProjectionPotential(cardId, blocked, parent, after.ProjectedPlayerHp) == 0
+            && PowerEvidence.ProjectionPotential(cardId, blocked, parent, after.ProjectedNetHpChange) == 0
             && !Admission(item, parent, unavailable, cardId, blocked, before, after).Admitted, "unpayable powers do not trigger Subroutine");
-        Assert(PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedPlayerHp) == 0, "no Subroutine increment");
+        Assert(PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedNetHpChange) == 0, "no Subroutine increment");
         Battle noDraw = child;
         Assert(Registry.TryPower("MACHINE_LEARNING_POWER", out ushort drawId), "draw adjustment registered");
         Kernel.SetPowerAmount(ref noDraw, Limits.PlayerOwner, drawId, -100);
@@ -222,7 +222,7 @@ internal static class PowerEvidenceContracts
             if (Kernel.ResolveCardType(noDraw, item.Rules, noDraw.Cards[i]) == CardType.Power)
             { noDraw.Cards[i].BaseCost = 100; noDraw.Cards[i].Flags &= ~CardFlags.CostsX; noDraw.Cards[i].ModifierCount = 0; }
         PowerEvidence.View noDrawView = new(noDraw, after, item.Rules, scorer);
-        Assert(noDrawView.PlayablePowerSources() == 0 && PowerEvidence.ProjectionPotential(cardId, noDrawView, parent, after.ProjectedPlayerHp) == 0,
+        Assert(noDrawView.PlayablePowerSources() == 0 && PowerEvidence.ProjectionPotential(cardId, noDrawView, parent, after.ProjectedNetHpChange) == 0,
             "zero draw excludes future Subroutine sources");
     }
 
@@ -239,17 +239,17 @@ internal static class PowerEvidenceContracts
             && Admission(item, parent, child, cardId, view, before, after).Admitted,
             "Buffer remains eligible when current attack damage is fully prevented");
         Assert(!PowerEvidence.HasTriggerEvidence(cardId, child, view)
-            && PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedPlayerHp) == 0, "no Buffer increment");
+            && PowerEvidence.ProjectionPotential(cardId, view, child, after.ProjectedNetHpChange) == 0, "no Buffer increment");
         Battle peaceful = child;
         for (int i = 0; i < peaceful.EnemyCount; i++) peaceful.Enemies[i].Flags |= EnemyFlags.SkipNextMove;
-        ScoreFeatures safe = after with { ProjectedPlayerHp = after.PlayerHp };
+        ScoreFeatures safe = after with { IncomingDamage = 0 };
         PowerEvidence.View quiet = new(peaceful, safe, item.Rules, scorer);
         Assert(!PowerEvidence.HasTriggerEvidence(cardId, parent, quiet)
-            && PowerEvidence.ProjectionPotential(cardId, quiet, parent, after.ProjectedPlayerHp) == 0, "no threat has no Buffer evidence");
+            && PowerEvidence.ProjectionPotential(cardId, quiet, parent, after.ProjectedNetHpChange) == 0, "no threat has no Buffer evidence");
         SearchCase future = Read("DEFECT-011"); Battle start = future.Battles[0], buffed = start;
         Kernel.SetPowerAmount(ref buffed, Limits.PlayerOwner, PowerEvidenceIds.Buffer, 1);
         Scorer futureScorer = future.Options.Scorer!; ScoreFeatures futureFeatures = futureScorer.Features(buffed, 0);
-        futureFeatures = futureFeatures with { ProjectedPlayerHp = futureFeatures.PlayerHp };
+        futureFeatures = futureFeatures with { IncomingDamage = 0 };
         PowerEvidence.View futureView = new(buffed, futureFeatures, future.Rules, futureScorer);
         Assert(futureView.IncomingAttackHits(false) == 0 && futureView.IncomingAttackHits(true) > 0
             && PowerEvidence.HasTriggerEvidence(cardId, start, futureView), "known successor supplies future attack evidence");
@@ -316,11 +316,7 @@ internal static class PowerEvidenceContracts
                 double RealizedHpScore(in Battle state, int depth)
                 {
                     ScoreFeatures ordinary = plain.Features(state, depth);
-                    var threat = plain.ProjectHpAfterThreat(state);
-                    int restored = ordinary.DeathSaveHpRestored;
-                    int hpDelta = ordinary.PlayerHp - ordinary.ProjectedPlayerHp
-                        + ActEndingBossPolicy.DeathSaveBeamCost(restored + threat.DeathSaveHpRestored)
-                        - ActEndingBossPolicy.DeathSaveBeamCost(restored);
+                    int hpDelta = ordinary.IncomingDamage;
                     return ordinary.Score + hpDelta * ScoreWeights.Hp;
                 }
                 ScoreFeatures start = setup.Features(root, 0);

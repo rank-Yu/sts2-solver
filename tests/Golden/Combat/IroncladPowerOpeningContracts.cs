@@ -76,7 +76,7 @@ internal static class IroncladPowerOpeningContracts
             Features = default(ScoreFeatures) with
             {
                 PlayerHp = 60,
-                ProjectedPlayerHp = 52,
+                IncomingDamage = 8,
                 EnemyHp = 1_000_000,
                 RetainedAttackValue = 1,
                 LiveDeckSize = 1,
@@ -143,14 +143,14 @@ internal static class IroncladPowerOpeningContracts
             $"{card.Id} controlled turns/incoming expected 15/8, got {turns}/{incoming}");
         int raw = Expected(card, uncapped, uncappedView, uncappedView.RemainingEnemyHp());
         int actual = PowerEvidence.ProjectionPotential(uncapped.CardId, uncappedView, uncapped.Parent,
-            uncapped.Features.ProjectedPlayerHp);
+            uncapped.Features.ProjectedNetHpChange);
         Assert(actual == raw, $"{card.Id} projection expected {raw}, got {actual}");
 
         Setup capped = Create(battleSource, scorer, card, enemyHp: 3);
         PowerEvidence.View cappedView = new(
             capped.Child, capped.Features, capped.Rules, capped.Scorer);
         int cappedActual = PowerEvidence.ProjectionPotential(capped.CardId, cappedView, capped.Parent,
-                capped.Features.ProjectedPlayerHp);
+                capped.Features.ProjectedNetHpChange);
         int cappedExpected = Expected(card, capped, cappedView, 3);
         Assert(cappedView.RemainingEnemyHp() == 3, $"{card.Id} remaining enemy cap");
         Assert(cappedExpected == (card.DamageCapped ? Math.Min(3, raw) : raw),
@@ -172,7 +172,7 @@ internal static class IroncladPowerOpeningContracts
             capped.Child.Enemies[1].Creature.MaxHp = 4;
             Assert(cappedView.RemainingEnemyHp() == 7, $"{card.Id} cap sums remaining enemies");
             Assert(PowerEvidence.ProjectionPotential(capped.CardId, cappedView, capped.Parent,
-                capped.Features.ProjectedPlayerHp)
+                capped.Features.ProjectedNetHpChange)
                 == Math.Min(7, raw), $"{card.Id} projection uses the summed living cap");
             capped.Child.Enemies[0].Creature.Block = 50;
             Assert(cappedView.RemainingEnemyHp() == 7, $"{card.Id} cap ignores enemy block");
@@ -180,7 +180,7 @@ internal static class IroncladPowerOpeningContracts
             capped.Child.Enemies[0].DeathPhase = DeathPhase.Reviving;
             Assert(cappedView.RemainingEnemyHp() == 4, $"{card.Id} cap ignores a dead enemy with no revive");
             Assert(PowerEvidence.ProjectionPotential(capped.CardId, cappedView, capped.Parent,
-                capped.Features.ProjectedPlayerHp)
+                capped.Features.ProjectedNetHpChange)
                 == Math.Min(4, raw), $"{card.Id} projection ignores reviving current HP");
         }
     }

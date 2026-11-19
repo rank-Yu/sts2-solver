@@ -1,6 +1,6 @@
 // Adapted from CombatSolver src/UI/SolverGrowthStrategyPanel.cs at 5c773caa
 // (MIT License, Copyright (c) 2026 Torch1230 and contributors).
-// The ten built-in sources with their card portraits and names (Goopy as the enchantment plus
+// The built-in sources with their card portraits and names (Goopy as the enchantment plus
 // Defend, Mad Science with the Improvement rider), the flame limit switch with its default of 2 and
 // the greyed budgets are the original ones. The original "ignore long-term rewards" switch at the top
 // is replaced by 考虑成长性卡牌收益 directly above the budgets: it covers only the growth cards
@@ -169,6 +169,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         GrowthSource.Goopy => ModelDb.Card<DefendIronclad>(),
         GrowthSource.ForbiddenGrimoire => ModelDb.Card<ForbiddenGrimoire>(),
         GrowthSource.MadScience => ImprovementMadScience(),
+        GrowthSource.ShowOff => ModelDb.Card<ShowOff>(),
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 
@@ -192,6 +193,7 @@ internal sealed partial class SolverGrowthStrategyPage : VBoxContainer, ISolverS
         GrowthSource.Goopy => budgets.Goopy,
         GrowthSource.ForbiddenGrimoire => budgets.ForbiddenGrimoire,
         GrowthSource.MadScience => budgets.MadScience,
+        GrowthSource.ShowOff => budgets.ShowOff,
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 

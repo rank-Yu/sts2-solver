@@ -311,6 +311,7 @@ internal sealed class LiveCombatTracker
 
     private static void CarryNonNative(ref Battle live, in Battle predicted)
     {
+        live.ShowOffRewards = predicted.ShowOffRewards;
         foreach (Counter counter in CarriedCounters)
             live.SetCounter(counter, predicted.Counter(counter));
         // ShuffleEventCount is an action-local kernel counter: the importer cannot recover it from
@@ -330,6 +331,7 @@ internal sealed class LiveCombatTracker
     /// </summary>
     internal static void CarryNonNativeForSetup(ref Battle live, in Battle predicted)
     {
+        live.ShowOffRewards = predicted.ShowOffRewards;
         foreach (Counter counter in CarriedCounters)
         {
             if (counter == Counter.VitalSparkNormalizedAmount)

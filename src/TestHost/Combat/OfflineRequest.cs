@@ -31,6 +31,10 @@ internal sealed record OfflineRequest
     public MegaCrit.Sts2.Core.Runs.GameMode GameModeForTest { get; init; } = MegaCrit.Sts2.Core.Runs.GameMode.Standard;
     public string? DominionForTest { get; init; }
     public string? GeneratedScenarioPath { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool AllUnlocksForTest { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool FullStartingHpForTest { get; init; }
     /// <summary>Upstream checkpoint archive path; this repository does not support checkpoint restore.</summary>
     public string? CheckpointArchivePath { get; init; }
     public string? EvidenceDirectory { get; init; }
@@ -207,13 +211,14 @@ internal sealed class OfflineGrowthBudgets
     public int Goopy { get; init; }
     public int ForbiddenGrimoire { get; init; }
     public int MadScience { get; init; }
+    public int ShowOff { get; init; }
 
     public SearchGrowthBudget ToPolicy()
     {
         foreach (int value in new[]
                  {
                      HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
-                     TheScythe, Goopy, ForbiddenGrimoire, MadScience,
+                     TheScythe, Goopy, ForbiddenGrimoire, MadScience, ShowOff,
                  })
         {
             if (value is < 0 or > 1000)
@@ -221,7 +226,7 @@ internal sealed class OfflineGrowthBudgets
                     $"成长预算 {value} 必须在 0..1000");
         }
         return new(HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
-            TheScythe, Goopy, ForbiddenGrimoire, MadScience);
+            TheScythe, Goopy, ForbiddenGrimoire, MadScience, ShowOff);
     }
 }
 

@@ -369,8 +369,8 @@ public struct Battle
     /// <summary>Wuppy is retained after death; its HP intercepts powered damage before block.</summary>
     public Creature Wuppy;
 
-    // Keep the card array aligned to 8 bytes after the final inline card.
-    private ushort _paddingBeforeHistoryCard;
+    /// <summary>Permanent Show Off gains realized on this route.</summary>
+    public ushort ShowOffRewards;
     public Card HistoryCourseCard;
 
     /// <summary>
@@ -605,7 +605,7 @@ public static class Piles
 }
 
 /// <summary>
-/// The ten built-in growth reward sources, in the order of the existing engine's
+/// The built-in growth reward sources, in the order of the existing engine's
 /// <c>GrowthSource</c> enum. The kernel cannot reference that enum; the bridge maps by index.
 /// </summary>
 public enum GrowthRewardSource : byte
@@ -620,22 +620,21 @@ public enum GrowthRewardSource : byte
     Goopy,
     ForbiddenGrimoire,
     MadScience,
+    ShowOff,
 }
 
 /// <summary>
-/// Accessors for <c>SimulatedCombatState._growthRewards</c> inside <see cref="Battle.Counters"/>.
-/// Each counter packs two 16-bit source counts so the ten sources fit in five of the existing
-/// counters; the counters array size (and therefore the state layout) does not change. The existing
-/// engine records at most one reward per resolved card effect, orders of magnitude below the 16-bit
-/// ceiling; a value that would overflow is an explicit capacity boundary, never truncated.
+/// Per-source counts of realized growth. Ten sources share five packed counters and
+/// Show Off occupies a 16-bit field in the battle header.
 /// </summary>
 public static class GrowthRewards
 {
-    public const int SourceCount = 10;
+    public const int SourceCount = 11;
     private const int Mask = 0xFFFF;
 
     public static int Get(in Battle battle, GrowthRewardSource source)
     {
+        if (source == GrowthRewardSource.ShowOff) return battle.ShowOffRewards;
         int packed = battle.Counter(CounterFor(source));
         return ((int)source & 1) == 0 ? packed & Mask : (int)((uint)packed >> 16) & Mask;
     }
@@ -652,6 +651,11 @@ public static class GrowthRewards
     {
         if ((uint)value > Mask)
             throw new CapacityException($"{nameof(GrowthRewards)}.{source}", Mask);
+        if (source == GrowthRewardSource.ShowOff)
+        {
+            battle.ShowOffRewards = (ushort)value;
+            return;
+        }
         Counter counter = CounterFor(source);
         int packed = battle.Counter(counter);
         packed = ((int)source & 1) == 0

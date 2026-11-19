@@ -77,6 +77,11 @@ internal static class ScoreCompiler
         ushort[] rootPotions = RootPotions(root);
         RelicCounterTarget[] relicTargets = CompileRelicTargets(state, player, root, rules, policy);
 
+        GremlinGoldReward gremlinGold = GremlinGoldReward.NotApplicable;
+        if (rules.Mode != CombatMode.Blitz && state.Encounter?.Id.Entry == "GREMLIN_MERC_NORMAL")
+            gremlinGold = state.EscapedCreatures.Any(c => c.Monster is MegaCrit.Sts2.Core.Models.Monsters.FatGremlin)
+                ? GremlinGoldReward.Reduced : GremlinGoldReward.AtRisk;
+
         ScoreRules Build(int persistent, int suppression, int weak, int retained,
             Rules? ruleTable = null) => new()
         {
@@ -98,6 +103,7 @@ internal static class ScoreCompiler
             IsActEndingBoss = bossHpRelief != BossHpRelief.None,
             Act3BossStrategy = policy.Act3BossStrategy,
             IgnoreGrowthRewards = policy.IgnoreGrowthRewards,
+            GremlinGoldReward = gremlinGold,
             TheftPolicy = policy.TheftPolicy is { } theft ? (TheftPolicy)(int)theft : null,
             InitialEnemyCount = state.Enemies.Count,
             InitialPersistentBuffValue = persistent,

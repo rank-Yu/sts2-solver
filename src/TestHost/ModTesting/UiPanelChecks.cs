@@ -78,6 +78,7 @@ internal static class UiPanelChecks
             panel.CollapseButtonForTest?.Text == SolverText.Get("panel.collapse"), Describe(panel));
 
         bool originalAutoSearch = SolverSettings.Current.Automation.AutoSearch;
+        bool originalAutoExecute = SolverSettings.Current.Automation.AutoExecute;
         await Toggle(host, panel.AutoSearchSwitchForTest, false);
         await WaitAutoSearchAsync(host, false, 30);
         session.Check("auto_search_off_saved",
@@ -91,6 +92,8 @@ internal static class UiPanelChecks
         if (SolverSettings.Current.Automation.AutoSearch != originalAutoSearch)
             CombatUiCommands.Instance.SetAutoSearch(originalAutoSearch);
         await WaitAutoSearchAsync(host, originalAutoSearch, 60);
+        if (originalAutoExecute)
+            session.Check("auto_execute_restored", CombatUiCommands.Instance.SetAutoExecute(true), null);
 
         session.Check("header_buttons", HeaderButtons(panel, out string header), header);
 
@@ -467,6 +470,15 @@ internal static class UiPanelChecks
         await Toggle(page.FlameLimitToggleForTest, false, "brightest_flame_limit");
         CheckRows("growth_flame_off", Strategy().BrightestFlameMaxHpLossLimit is null
             && !page.FlameLimitInputForTest.Editable);
+
+        LineEdit showOff = page.BudgetInputForTest(GrowthSource.ShowOff);
+        int savedShowOff = Strategy().GrowthBudgets.ShowOff;
+        int changedShowOff = savedShowOff == 3 ? 4 : 3;
+        await Submit(host, showOff, changedShowOff.ToString(CultureInfo.InvariantCulture));
+        CheckRows("growth_showoff_budget", Strategy().GrowthBudgets.ShowOff == changedShowOff);
+        await Submit(host, showOff, savedShowOff.ToString(CultureInfo.InvariantCulture));
+        showOff.ReleaseFocus();
+        CheckRows("growth_showoff_restore", Strategy().GrowthBudgets.ShowOff == savedShowOff);
 
         LineEdit feed = page.BudgetInputForTest(GrowthSource.Feed);
         await Submit(host, feed, "7");
@@ -905,6 +917,7 @@ internal static class UiPanelChecks
         GrowthSource.Goopy => budgets.Goopy,
         GrowthSource.ForbiddenGrimoire => budgets.ForbiddenGrimoire,
         GrowthSource.MadScience => budgets.MadScience,
+        GrowthSource.ShowOff => budgets.ShowOff,
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 

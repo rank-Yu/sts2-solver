@@ -748,7 +748,7 @@ public static partial class Kernel
     {
         bool killed = creature.CurrentHp > 0 && amount >= creature.CurrentHp;
         int previous = creature.CurrentHp;
-        int damage = (int)Math.Min(amount, 999_999_999m);
+        int damage = (int)Math.Clamp(amount, 0m, 999_999_999m);
         creature.CurrentHp = Math.Max(previous - damage, 0);
         return new DamageResult
         {

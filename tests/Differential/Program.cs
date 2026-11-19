@@ -850,7 +850,12 @@ internal static class Program
             }
             string spec = Path.Combine(directory, "spec.json");
             if (!File.Exists(spec)) throw new FileNotFoundException("质量语料缺少生成规格。", spec);
-            return quality with { GeneratedScenarioPath = spec };
+            return quality with
+            {
+                GeneratedScenarioPath = spec,
+                AllUnlocksForTest = true,
+                FullStartingHpForTest = true,
+            };
         }
         string metaPath = Path.Combine(data, "d1", root, "meta.json");
         if (!File.Exists(metaPath))

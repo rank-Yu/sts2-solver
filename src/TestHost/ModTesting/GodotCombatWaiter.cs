@@ -5,6 +5,10 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
+using MegaCrit.Sts2.Core.Saves;
+using MegaCrit.Sts2.Core.Timeline;
+using MegaCrit.Sts2.Core.Timeline.Epochs;
+using MegaCrit.Sts2.Core.Unlocks;
 using Sts2Solver.TestHost;
 
 namespace Sts2Solver;
@@ -14,21 +18,19 @@ internal sealed class GodotCombatWaiter(NGame host) : ICombatHost
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(180);
 
-    public async Task<RunState> StartRunAsync(CharacterModel character, int ascension, string seed, MegaCrit.Sts2.Core.Runs.GameMode gameMode = MegaCrit.Sts2.Core.Runs.GameMode.Standard)
+    public async Task<RunState> StartRunAsync(CharacterModel character, int ascension, string seed,
+        GameMode gameMode, bool allUnlocks)
     {
         await host.GameStartupComplete;
         TestHostLog.Trace("run.startup_complete");
+        UnlockState unlocks = allUnlocks
+            ? UnlockState.all
+            : SaveManager.Instance.GenerateUnlockStateFromProgress();
         if (gameMode == GameMode.Blitz)
         {
-            // The seed profile predates Neow's new epoch. Blitz requires its starting ancient,
-            // even in a fixture which immediately enters a specified combat.
-            var saved = MegaCrit.Sts2.Core.Saves.SaveManager.Instance.GenerateUnlockStateFromProgress();
-            var unlocks = new MegaCrit.Sts2.Core.Unlocks.UnlockState([
-                saved,
-                new MegaCrit.Sts2.Core.Unlocks.UnlockState([
-                    MegaCrit.Sts2.Core.Timeline.EpochModel.GetId<MegaCrit.Sts2.Core.Timeline.Epochs.NeowEpoch>()
-                ], [], 0)
-            ]);
+            // Blitz needs Neow even when the seed profile predates that epoch.
+            if (!allUnlocks)
+                unlocks = new UnlockState([unlocks, new UnlockState([EpochModel.GetId<NeowEpoch>()], [], 0)]);
             RunState run = RunState.CreateForNewRun(
                 [Player.CreateForNewRun(character, unlocks, 1uL)],
                 ActModel.GetDefaultList().Select(act => act.ToMutable()).ToList(),
@@ -39,8 +41,7 @@ internal sealed class GodotCombatWaiter(NGame host) : ICombatHost
             return run;
         }
         return await host.StartNewSingleplayerRun(
-            Player.CreateForNewRun(character,
-                MegaCrit.Sts2.Core.Saves.SaveManager.Instance.GenerateUnlockStateFromProgress(), 1uL),
+            Player.CreateForNewRun(character, unlocks, 1uL),
             shouldSave: false,
             ActModel.GetDefaultList(),
             [],

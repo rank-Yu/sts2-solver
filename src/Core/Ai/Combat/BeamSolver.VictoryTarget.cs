@@ -80,7 +80,7 @@ internal sealed partial class BeamSolver
             || features.ProjectedDeathSaveUseCount != 0
             || !_zeroGrowthBudget || _options.HasUnboundedGrowthTargets
             || !_scorer.GrowthTargetsSatisfied(features) || !_scorer.RelicGoalsMet(features)
-            || key.OutstandingStolenResource != 0
+            || key.TheftLossRank != 0
             || features.PlayerMaxHp < _scorer.RulesForCodec.InitialPlayerMaxHp
             || _options.Potions.ForceAllDisabled && features.ExplicitPotionUseCount != 0)
             return false;

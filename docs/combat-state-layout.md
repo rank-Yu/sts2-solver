@@ -66,7 +66,7 @@
 
 ### 3.2 生物与敌人
 
-Wuppy 占用头部偏移 2872 的 16 字节，之后的 2 字节显式填充使 HistoryCourseCard 后的 Cards 保持 8 字节对齐；Battle 总大小为 32376 字节，头部为 2936 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
+Wuppy 占用头部偏移 2872 的 16 字节，之后的 2 字节保存炫技的永久成长次数；Battle 总大小为 32376 字节，头部为 2936 字节。玩家 owner 为 0，Osty 为 1，敌人为 2–13，Wuppy 为 14。Wuppy 的生命、格挡和能力独立保存；护主伤害先转移给 Wuppy，再由玩家格挡与 Osty 分担剩余伤害。死亡后保留本体与 WuppysLoyaltyPower。
 
 Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理规则移除；再次召唤时不会带回已移除的力量。
 
@@ -241,7 +241,7 @@ Osty 死亡后保留本体和 DieForYouPower，其它能力按原版死亡清理
 | 药水 | `GeneratedPotionUseCount`：本场生成后又被使用的药水数（“生成”指使用时槽里的药水不是根药水；评分计入用药数）。`GeneratedPotionStrategicCost`：低 16 位是显式用药的战略成本，高 16 位是自动用药（Fairy in a Bottle）的成本。`EntropicFreePotionMask`：12 个槽位的免费位，第 i 位对应槽 i，使用该槽时清除，免费药水成本为 0 | — |
 | 偷窃 | `OutstandingStolenGold`（`ThieveryPower` 的金币账本加所有 `HeistPower` 层数）、`OutstandingStolenCards`（每个持有被偷卡的 `SwipePower` 一张） | — |
 | 其它 | `VitalSparkNormalizedAmount`（原引擎 `_lastNormalizedVitalSparkAmount`，`int.MinValue` 表示 null）；`DampenCasterMask`（MagiKnight 对玩家施加 DampenPower 的施法者位集，按敌人 owner 下标一位一个） | — |
-| 成长 | 5 个打包计数（`GrowthRewards`），每个装两个 16 位来源，十个原版成长来源共用 | — |
+| 成长 | 前十个来源共用五个打包计数，每个来源占 16 位；炫技使用头部的 `ShowOffRewards` | — |
 
 \* `OstyAttacksThisTurn` 保存奥斯提本回合的攻击历史，失去代受能力并被献祭移出宠物列表后仍保留，重新召唤时继续使用；玩家回合开始清零。
 

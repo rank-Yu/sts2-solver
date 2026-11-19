@@ -82,7 +82,8 @@ internal static class ScenarioBuilder
 
         List<IDisposable> scopes = [];
         TestHostLog.Trace("scenario.start_run");
-        RunState runState = await waiter.StartRunAsync(character, request.Ascension, request.Seed, request.GameModeForTest);
+        RunState runState = await waiter.StartRunAsync(character, request.Ascension, request.Seed,
+            request.GameModeForTest, request.AllUnlocksForTest);
         TestHostLog.Trace("scenario.run_started");
         if (request.DominionForTest is { } dominionId)
         {
@@ -146,6 +147,8 @@ internal static class ScenarioBuilder
             foreach (UnattendedPotionInjection injection in request.Potions)
                 InjectPotionForTest(player, injection.PotionId);
         }
+        if (request.FullStartingHpForTest)
+            player.Creature.SetCurrentHpInternal(player.Creature.MaxHp);
         CaptureGeneratedLoadout(runState, player, request, generated);
         return new PreparedRun(runState, player, request, encounter, setup, [.. scopes]);
     }

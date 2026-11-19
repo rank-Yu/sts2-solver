@@ -1,4 +1,5 @@
 // 对照游戏 0.113.0 (16ac0fe3) ShowOffPower。失去牌堆引用的原卡仍可给牌组版本增加永久成长。
+// 成长计数对照 CombatSolver src/Search/SimulatedCombatState.ShowOff.cs (c8f6f9ad, MIT)。
 using Sts2Solver.Simulation.Combat;
 namespace Sts2Solver.Content.Powers;
 
@@ -24,7 +25,11 @@ public sealed class ShowOffPower : FoolBuff
                 card.Private += (short)power.Amount;
                 break;
             }
-        if (power.Aux1 != 0) x.B.AddCounter(Counter.LongTermResourceValue, power.Amount);
+        if (power.Aux1 != 0)
+        {
+            x.B.AddCounter(Counter.LongTermResourceValue, power.Amount);
+            GrowthRewards.Add(ref x.B, GrowthRewardSource.ShowOff);
+        }
         Kernel.RemovePowerAt(ref x.B, self.Index);
     }
     public override void EndTurnRegular(ref Exec x, Listener self, Side side, bool participates)

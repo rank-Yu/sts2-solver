@@ -1722,7 +1722,7 @@ internal sealed partial class BeamSolver
                 && a.StrategicHpCredit >= b.StrategicHpCredit
                 && a.StrategyGoalCount >= b.StrategyGoalCount
                 && a.AngerCopiesGenerated <= b.AngerCopiesGenerated
-                && (!_preserveTheft || a.OutstandingStolenResource <= b.OutstandingStolenResource)
+                && (!_preserveTheft || a.TheftLossRank <= b.TheftLossRank)
                 && a.AliveEnemyCount <= b.AliveEnemyCount
                 && a.EnemyHp <= b.EnemyHp
                 && a.RawEnemyHp <= b.RawEnemyHp
@@ -1757,7 +1757,7 @@ internal sealed partial class BeamSolver
                 || a.CumulativePlayerHpLost < b.CumulativePlayerHpLost
                 || a.LongTermResourceValue > b.LongTermResourceValue
                 || a.AngerCopiesGenerated < b.AngerCopiesGenerated
-                || _preserveTheft && a.OutstandingStolenResource < b.OutstandingStolenResource
+                || _preserveTheft && a.TheftLossRank < b.TheftLossRank
                 || a.AliveEnemyCount < b.AliveEnemyCount
                 || a.EnemyHp < b.EnemyHp
                 || a.RawEnemyHp < b.RawEnemyHp
@@ -2233,7 +2233,7 @@ internal sealed partial class BeamSolver
             int FutureResourceValue, int DelayedDamageValue, int EnemyStrengthSuppression,
             int EnemyWeakTurns, int EnemyVulnerableTurns, int FocusTargetVulnerableTurns,
             ulong EnemyControlFirst, ulong EnemyControlSecond, int SandpitRemaining, int LiveDeckClutter,
-            int OutstandingStolenResource, int Energy, int Stars, int HandCount,
+            uint TheftLossRank, int Energy, int Stars, int HandCount,
             int PocketwatchCardsPlayedThisTurn, int PocketwatchCardsPlayedLastTurn,
             int PocketwatchCardThreshold, ulong UnorderedPileFirst, ulong UnorderedPileSecond);
 
@@ -2248,7 +2248,7 @@ internal sealed partial class BeamSolver
                 f.EnemyStrengthSuppression, f.EnemyWeakTurns, f.EnemyVulnerableTurns,
                 f.FocusTargetVulnerableTurns, f.EnemyControlDistributionFirst,
                 f.EnemyControlDistributionSecond, f.SandpitRemaining, f.LiveDeckClutter,
-                f.OutstandingStolenResource, f.Energy, f.Stars, f.HandCount,
+                f.TheftLossRank, f.Energy, f.Stars, f.HandCount,
                 f.PocketwatchCardsPlayedThisTurn, f.PocketwatchCardsPlayedLastTurn,
                 f.PocketwatchCardThreshold, f.UnorderedPileKeyFirst, f.UnorderedPileKeySecond);
         }
@@ -2824,8 +2824,8 @@ internal sealed partial class BeamSolver
         /// then higher projected HP, then a higher score.
         /// </summary>
         private static bool IsBetterResourcePreserving(in RetentionFacts candidate, in RetentionFacts current)
-            => candidate.OutstandingStolenResource < current.OutstandingStolenResource
-                || candidate.OutstandingStolenResource == current.OutstandingStolenResource
+            => candidate.TheftLossRank < current.TheftLossRank
+                || candidate.TheftLossRank == current.TheftLossRank
                     && (candidate.ProjectedNetHpChange > current.ProjectedNetHpChange
                         || candidate.ProjectedNetHpChange == current.ProjectedNetHpChange
                             && candidate.Score > current.Score);

@@ -1,5 +1,6 @@
 // Ported semantics from CombatSolver src/Search/SearchPolicySnapshot.cs and
 // src/Runtime/SolverController.cs (CaptureSearchPolicy) at commit a62f1850
+// and src/Search/GrowthOpportunityPolicy.cs (ShowOff) at c8f6f9ad
 // (MIT, Copyright (c) 2026 Torch1230 and contributors). Only the policy values the score, bound
 // and request compilers read are represented. The offline defaults are the fixed values the M0
 // harness installed (ModRuntime.ApplyFixedBudgetSettings + SolverSettings defaults); the in-game
@@ -55,7 +56,7 @@ public sealed record SearchPolicyConfiguration
 
     public SearchGrowthBudget GrowthBudgets { get; init; }
 
-    /// <summary>The ten growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
+    /// <summary>The growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
     public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null is unlimited.</summary>
@@ -82,7 +83,7 @@ public sealed record SearchPolicyConfiguration
     public IReadOnlyDictionary<string, int> RelicCounterAllowances { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
 }
 
-/// <summary>The ten built-in growth budgets, in <c>GrowthValues</c> order.</summary>
+/// <summary>The built-in growth budgets, in <c>GrowthValues</c> order.</summary>
 public readonly record struct SearchGrowthBudget(
     int HandOfGreed = 0,
     int TheHunt = 0,
@@ -93,19 +94,19 @@ public readonly record struct SearchGrowthBudget(
     int TheScythe = 0,
     int Goopy = 0,
     int ForbiddenGrimoire = 0,
-    int MadScience = 0)
+    int MadScience = 0, int ShowOff = 0)
 {
     public int Total => checked(HandOfGreed + TheHunt + Feed + Royalties + Alchemize
-        + GeneticAlgorithm + TheScythe + Goopy + ForbiddenGrimoire + MadScience);
+        + GeneticAlgorithm + TheScythe + Goopy + ForbiddenGrimoire + MadScience + ShowOff);
 
     internal GrowthValues ToCore() => new(
         HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
-        TheScythe, Goopy, ForbiddenGrimoire, MadScience);
+        TheScythe, Goopy, ForbiddenGrimoire, MadScience, ShowOff);
 
     internal static SearchGrowthBudget FromCore(GrowthValues value) => new(
         value.HandOfGreed, value.TheHunt, value.Feed, value.Royalties, value.Alchemize,
         value.GeneticAlgorithm, value.TheScythe, value.Goopy, value.ForbiddenGrimoire,
-        value.MadScience);
+        value.MadScience, value.ShowOff);
 }
 
 /// <summary>
@@ -134,7 +135,7 @@ public sealed record SearchPolicy
     public SearchBossHpStrategy FinalBossHpStrategy { get; init; }
         = SearchBossHpStrategy.ProgressionFirst;
 
-    /// <summary>The ten growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
+    /// <summary>The growth cards' rewards are not valued; relic counter goals do not depend on it.</summary>
     public bool IgnoreGrowthRewards { get; init; }
 
     /// <summary>Combat-cumulative BrightestFlame max HP limit; null leaves the default path.</summary>
@@ -347,7 +348,13 @@ internal readonly record struct GrowthTargets(GrowthValues Required, bool Unboun
         string? dynamicRisk = null;
         if (hasAnyTargets)
             dynamicRisk = DynamicRisk(state, available);
-        return CaptureTargets(available, state.Enemies.Count, dynamicRisk, madScienceCapacity);
+        GrowthTargets targets = CaptureTargets(available, state.Enemies.Count, dynamicRisk, madScienceCapacity);
+        int activeShowOff = state.Players.Single().Creature.Powers.OfType<ShowOffPower>()
+            .Count(static power => power.ShowOffInstance?.DeckVersion != null);
+        return targets with
+        {
+            Required = targets.Required with { ShowOff = checked(targets.Required.ShowOff + activeShowOff) },
+        };
     }
 
     private static GrowthTargets CaptureTargets(IReadOnlyList<CardModel> cards, int enemyCount,
@@ -395,7 +402,8 @@ internal readonly record struct GrowthTargets(GrowthValues Required, bool Unboun
             .With(GrowthSource.ForbiddenGrimoire, CountFixedPlays(cards,
                 static card => card is ForbiddenGrimoire))
             .With(GrowthSource.MadScience, Math.Min(madScienceCapacity,
-                CountFixedPlays(cards, static card => IsImprovementCard(card))));
+                CountFixedPlays(cards, static card => IsImprovementCard(card))))
+            .With(GrowthSource.ShowOff, CountFixedPlays(cards, static card => card is ShowOff && card.DeckVersion != null));
         return new GrowthTargets(required, unbounded);
     }
 
@@ -435,13 +443,14 @@ internal readonly record struct GrowthTargets(GrowthValues Required, bool Unboun
         GrowthSource.Goopy => card.DeckVersion != null && card.Enchantment is Goopy,
         GrowthSource.ForbiddenGrimoire => card is ForbiddenGrimoire,
         GrowthSource.MadScience => IsImprovementCard(card),
+        GrowthSource.ShowOff => card is ShowOff && card.DeckVersion != null,
         _ => throw new ArgumentOutOfRangeException(nameof(source)),
     };
 
     internal static bool HasGrowthTarget(CardModel card)
         => card is HandOfGreed or TheHunt or Feed or Royalties or Alchemize or ForbiddenGrimoire
             || IsImprovementCard(card)
-            || card.DeckVersion != null && (card is GeneticAlgorithm or TheScythe || card.Enchantment is Goopy);
+            || card.DeckVersion != null && (card is GeneticAlgorithm or TheScythe or ShowOff || card.Enchantment is Goopy);
 
     private static bool IsImprovementCard(CardModel card)
         => card is MadScience madScience

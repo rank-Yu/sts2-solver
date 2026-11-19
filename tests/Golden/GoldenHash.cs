@@ -156,7 +156,8 @@ internal static class GoldenHash
         writer.Write(value.TheScythe);
         writer.Write(value.Goopy);
         writer.Write(value.ForbiddenGrimoire);
-        writer.Write(value.MadScience);
+        writer.Write(checked((ushort)value.MadScience));
+        writer.Write(checked((ushort)value.ShowOff));
     }
 
     private static void WriteNullable(BinaryWriter writer, uint? value)

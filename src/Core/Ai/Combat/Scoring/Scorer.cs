@@ -409,7 +409,8 @@ internal sealed partial class Scorer
         GrowthRewards.Get(battle, GrowthRewardSource.TheScythe),
         GrowthRewards.Get(battle, GrowthRewardSource.Goopy),
         GrowthRewards.Get(battle, GrowthRewardSource.ForbiddenGrimoire),
-        GrowthRewards.Get(battle, GrowthRewardSource.MadScience));
+        GrowthRewards.Get(battle, GrowthRewardSource.MadScience),
+        GrowthRewards.Get(battle, GrowthRewardSource.ShowOff));
 
     // ---------------------------------------------------------------------------------------------
     // Snapshot.
@@ -648,8 +649,9 @@ internal sealed partial class Scorer
             outstandingStolenResource = Kernel.OutstandingStolenResource(battle);
             minimumOutstandingStolenResource = Kernel.MinimumOutstandingStolenResource(battle);
         }
+        bool losesEncounterGold = TheftEncounterStrategy.LosesEncounterGold(_score.GremlinGoldReward, battle);
         if (_score.TheftPolicy == TheftPolicy.PreserveResources)
-            score += outstandingStolenResource * ScoreWeights.OutstandingStolenResourcePenalty;
+            score += (outstandingStolenResource + (losesEncounterGold ? 0.5 : 0)) * ScoreWeights.OutstandingStolenResourcePenalty;
         ThreatFocus focus = BuildThreatFocus(battle);
 
         // Strategic effects over the powers that contribute (player-side buffs, positive amount, not
@@ -1006,6 +1008,7 @@ internal sealed partial class Scorer
             LiveDeckClutter = liveDeckClutter,
             LiveDeckSize = liveCardCount,
             OutstandingStolenResource = outstandingStolenResource,
+            LosesEncounterGold = losesEncounterGold,
             MinimumOutstandingStolenResource = minimumOutstandingStolenResource,
             RetainedAttackValue = retainedAttackValue,
             FocusTargetCombatId = focus.CombatId,

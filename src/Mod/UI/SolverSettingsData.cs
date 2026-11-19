@@ -164,9 +164,9 @@ internal sealed record SolverSearchSettings
 }
 
 /// <summary>
-/// The ten built-in growth budgets plus any third-party entries read from the settings file. The
+/// The built-in growth budgets plus any third-party entries read from the settings file. The
 /// third-party half is preserved verbatim so disabling a mod does not erase its budgets, but it is
-/// never sent to the solver: only the ten built-in fields are effective.
+/// never sent to the solver: only the built-in fields are effective.
 /// </summary>
 internal sealed record SolverGrowthBudgets
 {
@@ -190,12 +190,14 @@ internal sealed record SolverGrowthBudgets
 
     public int MadScience { get; init; }
 
+    public int ShowOff { get; init; }
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement> ThirdParty { get; init; } = new(StringComparer.Ordinal);
 
     internal SearchGrowthBudget ToPolicy() => new(
         HandOfGreed, TheHunt, Feed, Royalties, Alchemize, GeneticAlgorithm,
-        TheScythe, Goopy, ForbiddenGrimoire, MadScience);
+        TheScythe, Goopy, ForbiddenGrimoire, MadScience, ShowOff);
 
     internal SolverGrowthBudgets With(GrowthSource source, int value) => source switch
     {
@@ -209,6 +211,7 @@ internal sealed record SolverGrowthBudgets
         GrowthSource.Goopy => this with { Goopy = value },
         GrowthSource.ForbiddenGrimoire => this with { ForbiddenGrimoire = value },
         GrowthSource.MadScience => this with { MadScience = value },
+        GrowthSource.ShowOff => this with { ShowOff = value },
         _ => throw new ArgumentOutOfRangeException(nameof(source)),
     };
 
@@ -224,6 +227,7 @@ internal sealed record SolverGrowthBudgets
         GrowthSource.Goopy => Goopy,
         GrowthSource.ForbiddenGrimoire => ForbiddenGrimoire,
         GrowthSource.MadScience => MadScience,
+        GrowthSource.ShowOff => ShowOff,
         _ => throw new ArgumentOutOfRangeException(nameof(source)),
     };
 

@@ -44,6 +44,15 @@ dotnet artifacts/bin/Differential/release/Differential.dll --import-negative
 
 ## 原生效果定点对照
 
+胖地精用例比较原版金币比例与求解器的保钱目标，同时检验从逃跑后的状态重新开始搜索。两组用药用例都要求本回合击杀，并用禁药搜索验证药水是胜利所必需的。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fat-gremlin-reward.json hp-loss-clamp gremlin-gold:100 play:0:2 end end gremlin-gold:50
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fat-gremlin-reward.json gremlin-gold:100 end play:0:2 end end gremlin-gold:0
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/smart-cheaper.json potion-win:POTION_SHAPED_ROCK
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/smart-generated.json potion-win:ENTROPIC_BREW,FIRE_POTION
+```
+
 对非终局用例直接指定动作，逐步比较内核回放与原生动作的完整稳定状态，避免依赖搜索器是否选中待测牌：
 
 ```bash
@@ -222,7 +231,7 @@ dotnet artifacts/bin/Differential/release/Differential.dll --search-compare .loc
 
 ## 离线整场自动战斗
 
-质量目录本身就是集合：`--list-quality-roots` 枚举 `tests/corpora/quality/` 下带 `request.json` 的子目录，共 108 个，不启动战斗。`--offline-combat` 不写 `--root`/`--roots-file` 时使用同一组根；自定义 `--corpora` 目录同样按其中的 `request.json` 枚举。
+质量目录本身就是集合：`--list-quality-roots` 枚举 `tests/corpora/quality/` 下带 `request.json` 的子目录，共 129 个，不启动战斗。`--offline-combat` 不写 `--root`/`--roots-file` 时使用同一组根；自定义 `--corpora` 目录同样按其中的 `request.json` 枚举。
 
 ```bash
 dotnet artifacts/bin/Differential/release/Differential.dll --list-quality-roots
@@ -350,6 +359,13 @@ dotnet artifacts/bin/Differential/release/Differential.dll --healing-bound-check
 dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fool-melody-lethal.json play:0:2
 ```
 
+
+炫技成长用例同时持有牌组原卡和临时牌。打出两张后重新导入，击杀应兑现一次成长，直接结束回合应兑现零次。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fool-show-off-growth.json growth-target:ShowOff:1 play:0:255 play:0:255 recapture growth-target:ShowOff:1 growth-reward:ShowOff:0 play:0:2 growth-reward:ShowOff:1
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fool-show-off-growth.json play:0:255 play:0:255 end growth-target:ShowOff:0 growth-reward:ShowOff:0
+```
 
 ### 新模式组合回归
 

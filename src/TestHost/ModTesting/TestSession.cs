@@ -169,10 +169,10 @@ internal static class TestSession
                 // The build runs before any turn-setup transaction exists. Visible pre-play
                 // choices (Toolbox's first-turn colourless pick, ...) would otherwise open a
                 // modal and leave the native Start phase waiting for input. Full-combat builds
-                // answer them deterministically; the resulting card is part of the captured root.
+                // answer them deterministically. Generated scenarios supply their own selector.
                 FirstChoiceCardSelector? buildSelector =
                     request.FullCombatForTest && !request.FlashTurnSetupRootForTest
-                        && !turnSetupTakeover
+                        && !turnSetupTakeover && string.IsNullOrWhiteSpace(request.GeneratedScenarioPath)
                         ? new FirstChoiceCardSelector()
                         : null;
                 if (turnSetupWait || scenarioName == "turn_setup_manual")
@@ -205,10 +205,9 @@ internal static class TestSession
                 PlayerTurnSetupRuntime.ResetTestState();
                 CombatSessionController.ResetSetupTestState();
                 CombatControllerTestHooks.ResetSetupCarryForTest();
-                // 执行本场战斗 is never persisted: a request that runs the whole combat arms it when
-                // the controller begins the combat, as a press on the first turn would.
+                // Full-combat requests arm execution after the panel checks.
                 CombatControllerTestHooks.RunCombatFromStartForTest =
-                    request.FullCombatForTest || request.RunCombatForTest;
+                    request.RunCombatForTest && !request.FullCombatForTest;
                 if (request.FlashTurnSetupRootForTest)
                     TurnSetupRootCapture.BeginBuild();
                 stage = "build";
@@ -288,8 +287,7 @@ internal static class TestSession
                     // pending event until the setup transaction releases the page.
                     CombatSessionController.ResumeAutoSearchForTest();
                 }
-                else if ((request.FullCombatForTest || request.ControllerScenarioForTest != null)
-                    && !deferTurnStartResume)
+                else if (request.ControllerScenarioForTest != null && !deferTurnStartResume)
                 {
                     CombatSessionController.ResumeAutoSearchForTest();
                 }
@@ -709,14 +707,11 @@ internal static class TestSession
         try
         {
             SaveManager.Instance.PrefsSave.FastMode = instant;
-            // UI checks can outlast a one-action victory. BeginCombat clears the previous
-            // summary, so this combat's completed result also proves the controller started.
-            for (int frame = 0; frame < 120 && !CombatSessionController.IsActiveForTest
-                && CombatSessionController.LastCompletedResultForTesting == null; frame++)
+            for (int frame = 0; frame < 120 && !CombatSessionController.IsActiveForTest; frame++)
                 await CombatFrameWaiter.NextFrameAsync(host);
-            if (!CombatSessionController.IsActiveForTest
-                && CombatSessionController.LastCompletedResultForTesting == null)
+            if (!CombatSessionController.IsActiveForTest)
                 throw new TimeoutException("控制器没有进入战斗。");
+            CombatSessionController.ResumeAutoSearchForTest(runCombat: true);
             ModLog.Info(
                 $"[Sts2Solver] FULL_COMBAT_START root={root} fast_mode={instant} " +
                 $"tier={tier} auto_search={SolverSettings.Current.Automation.AutoSearch} " +

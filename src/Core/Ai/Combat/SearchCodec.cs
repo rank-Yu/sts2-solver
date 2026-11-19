@@ -374,8 +374,16 @@ internal static class SearchCodec
         writer.Write(rules.InitialPlayerMaxHp);
         writer.Write(rules.IsActEndingBoss);
         writer.Write(rules.Act3BossStrategy);
-        writer.Write(rules.IgnoreGrowthRewards);
-        writer.Write(rules.TheftPolicy != null);
+        GrowthFlags growthFlags = rules.IgnoreGrowthRewards ? GrowthFlags.Ignore : 0;
+        if (rules.GrowthBudgets.ShowOff != 0 || rules.RequiredGrowthRewards.ShowOff != 0)
+            growthFlags |= GrowthFlags.ShowOff;
+        writer.Write((byte)growthFlags);
+        if ((growthFlags & GrowthFlags.ShowOff) != 0)
+        {
+            writer.Write(rules.GrowthBudgets.ShowOff);
+            writer.Write(rules.RequiredGrowthRewards.ShowOff);
+        }
+        writer.Write((byte)(((int)rules.GremlinGoldReward << 1) | (rules.TheftPolicy.HasValue ? 1 : 0)));
         writer.Write((int)(rules.TheftPolicy ?? TheftPolicy.LetEscape));
         writer.Write(rules.InitialEnemyCount);
         writer.Write(rules.InitialPersistentBuffValue);
@@ -454,8 +462,18 @@ internal static class SearchCodec
         int initialMaxHp = reader.ReadInt32();
         bool actEnding = Codec.ReadBool(reader);
         bool act3 = Codec.ReadBool(reader);
-        bool ignoreGrowth = Codec.ReadBool(reader);
-        bool hasTheft = Codec.ReadBool(reader);
+        GrowthFlags growthFlags = (GrowthFlags)reader.ReadByte();
+        if ((growthFlags & ~(GrowthFlags.Ignore | GrowthFlags.ShowOff)) != 0)
+            throw new InvalidDataException($"Invalid growth flags: {growthFlags}.");
+        if ((growthFlags & GrowthFlags.ShowOff) != 0)
+        {
+            growth = growth with { ShowOff = reader.ReadInt32() };
+            required = required with { ShowOff = reader.ReadInt32() };
+        }
+        byte theftFlags = reader.ReadByte();
+        bool hasTheft = (theftFlags & 1) != 0;
+        GremlinGoldReward gremlinGold = (GremlinGoldReward)(theftFlags >> 1);
+        if (!Enum.IsDefined(gremlinGold)) throw new InvalidDataException($"Invalid gremlin gold reward: {gremlinGold}.");
         int theftValue = reader.ReadInt32();
         TheftPolicy? theft = hasTheft
             ? ReadEnumInt<TheftPolicy>(theftValue, "窃取政策") : null;
@@ -479,8 +497,9 @@ internal static class SearchCodec
             InitialPlayerMaxHp = initialMaxHp,
             IsActEndingBoss = actEnding,
             Act3BossStrategy = act3,
-            IgnoreGrowthRewards = ignoreGrowth,
+            IgnoreGrowthRewards = (growthFlags & GrowthFlags.Ignore) != 0,
             TheftPolicy = theft,
+            GremlinGoldReward = gremlinGold,
             InitialEnemyCount = enemyCount,
             InitialPersistentBuffValue = persistent,
             InitialEnemyStrengthSuppression = suppression,
@@ -685,6 +704,9 @@ internal static class SearchCodec
         };
         return config;
     }
+
+    [Flags]
+    private enum GrowthFlags : byte { Ignore = 1, ShowOff = 2 }
 
     private static void EncodeGrowthValues(BinaryWriter writer, GrowthValues values)
     {

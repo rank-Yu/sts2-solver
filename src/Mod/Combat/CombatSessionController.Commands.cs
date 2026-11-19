@@ -652,6 +652,10 @@ internal static partial class CombatSessionController
     /// </summary>
     private static void TrySearchOnAutoSearchSwitch()
     {
+#if STS2_SOLVER_TESTING
+        if (HoldAutoSearchForTest)
+            return;
+#endif
         if (!_combatActive || _runCombat || _search != null || HasBlockingDeployment
             || PlayerTurnSetupRuntime.HasActivePage || _automaticSearchPaused
             || _searchedTurn == CurrentTurn())

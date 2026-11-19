@@ -35,6 +35,13 @@ internal static class PotionStageContracts
             && quality.ComparePolicyResults(expensive, free) > 0,
             "potion cost chooses the winner in either discovery order");
 
+        var fullGold = paid.Key with { TheftLossRank = 0 };
+        var losesBaseGold = free.Key with { TheftLossRank = 1, StrategicHpDeficit = 0 };
+        var losesStolenGold = free.Key with { TheftLossRank = 2 };
+        Assert(BeamSolver.CompareRouteKeys(fullGold, losesBaseGold) < 0
+            && BeamSolver.CompareRouteKeys(losesBaseGold, losesStolenGold) < 0,
+            "preserve stolen loot first, then the encounter gold before HP cost");
+
         BeamSolver disabled = new(fixture.Rules, options with
         {
             Potions = options.Potions with { ForceAllDisabled = true },

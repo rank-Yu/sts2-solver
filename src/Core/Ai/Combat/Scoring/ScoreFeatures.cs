@@ -67,6 +67,9 @@ internal readonly record struct ScoreFeatures
     public int LiveDeckClutter { get; init; }
     public int LiveDeckSize { get; init; }
     public int OutstandingStolenResource { get; init; }
+    public bool LosesEncounterGold { get; init; }
+    // Stolen resources take priority. At equal counts, prefer the full encounter reward.
+    public uint TheftLossRank => ((uint)OutstandingStolenResource << 1) | (LosesEncounterGold ? 1u : 0u);
 
     /// <summary>
     /// <c>SimulatedCombatState.MinimumOutstandingStolenResource</c>: the part of the outstanding loot
@@ -247,6 +250,7 @@ internal readonly record struct ScoreFeatures
         Check(nameof(RevivingEnemyCount), expected.RevivingEnemyCount, actual.RevivingEnemyCount);
         Check(nameof(LiveDeckClutter), expected.LiveDeckClutter, actual.LiveDeckClutter);
         Check(nameof(LiveDeckSize), expected.LiveDeckSize, actual.LiveDeckSize);
+        Check(nameof(LosesEncounterGold), expected.LosesEncounterGold, actual.LosesEncounterGold);
         Check(nameof(OutstandingStolenResource), expected.OutstandingStolenResource, actual.OutstandingStolenResource);
         Check(nameof(MinimumOutstandingStolenResource), expected.MinimumOutstandingStolenResource,
             actual.MinimumOutstandingStolenResource);

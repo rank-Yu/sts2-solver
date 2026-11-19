@@ -1257,7 +1257,7 @@ internal sealed partial class BeamSolver
         bool Won,
         bool Survives,
         int DeathSaveUseCount,
-        int OutstandingStolenResource,
+        uint TheftLossRank,
         int StrategicHpDeficit,
         int StrategyGoalHpCredit,
         int StrategyGoalCount,
@@ -1305,7 +1305,7 @@ internal sealed partial class BeamSolver
             won,
             !features.PlayerDead,
             features.DeathSaveUseCount,
-            _theftPolicy == TheftPolicy.PreserveResources ? features.OutstandingStolenResource : 0,
+            _theftPolicy == TheftPolicy.PreserveResources ? features.TheftLossRank : 0,
             strategicHpDeficit,
             features.StrategyGoalHpCredit,
             features.StrategyGoalCount,
@@ -1341,7 +1341,7 @@ internal sealed partial class BeamSolver
         if (comparison != 0) return comparison;
         // TheftEncounterStrategy.CompareRecovery: only the preserve policy ranks the unrecovered loot;
         // Key leaves it zero otherwise.
-        comparison = left.OutstandingStolenResource.CompareTo(right.OutstandingStolenResource);
+        comparison = left.TheftLossRank.CompareTo(right.TheftLossRank);
         if (comparison != 0) return comparison;
         // Compare total HP-equivalent cost first; lower raw HP loss breaks an exact cost tie.
         comparison = left.EffectiveHpDeficit.CompareTo(right.EffectiveHpDeficit);
@@ -1573,7 +1573,7 @@ internal sealed partial class BeamSolver
     {
         if (_effectivePotionPolicy is not (PotionUseMode.Disabled or PotionUseMode.Smart))
             return;
-        if (_bound == null || !key.Won || features.ProjectedDeathSaveUseCount > 0)
+        if (_bound == null || !key.Won || key.TheftLossRank != 0 || features.ProjectedDeathSaveUseCount > 0)
             return;
         SearchIncumbent? candidate = _incumbent;
         if (IncumbentPolicy.TryTightenIncumbent(
@@ -1993,7 +1993,7 @@ internal sealed partial class BeamSolver
         PersistentSetupTraits StrategySetupTraits,
         int PersistentBuffValue,
         int OffensiveProgressValue,
-        int OutstandingStolenResource,
+        uint TheftLossRank,
         int Turn,
         int CumulativePlayerHpLost,
         int PotionStrategicCost,
@@ -2088,7 +2088,7 @@ internal sealed partial class BeamSolver
             (PersistentSetupTraits)features.StrategicSetupTraits,
             features.PersistentBuffValue,
             features.OffensiveProgressValue,
-            features.OutstandingStolenResource,
+            features.TheftLossRank,
             features.Turn,
             features.CumulativePlayerHpLost,
             features.PotionStrategicCost,

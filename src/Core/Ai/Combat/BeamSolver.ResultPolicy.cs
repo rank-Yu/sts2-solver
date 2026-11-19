@@ -82,7 +82,7 @@ internal sealed partial class BeamSolver
         ScoreFeatures features = _scorer.Features(end, actionCount, includeRetentionOnly: false);
         hpLost = features.CumulativePlayerHpLost;
         RouteKey key = Key(end, features, actionCount);
-        incumbent = _bound is not null && key.Won && features.ProjectedDeathSaveUseCount == 0
+        incumbent = _bound is not null && key.Won && key.TheftLossRank == 0 && features.ProjectedDeathSaveUseCount == 0
             && !_bound.HasRisk(end)
                 ? new SearchIncumbent(key.EffectiveHpDeficit, end.PlayerTurn, features.StrategyGoalHpCredit,
                     features.StrategyGoalCount, _scorer.RelicGoalsMet(features))

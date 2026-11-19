@@ -44,6 +44,15 @@ dotnet artifacts/bin/Differential/release/Differential.dll --import-negative
 
 ## 原生效果定点对照
 
+胖地精用例比较原版金币比例与求解器的保钱目标，同时检验从逃跑后的状态重新开始搜索。两组用药用例都要求本回合击杀，并用禁药搜索验证药水是胜利所必需的。
+
+```bash
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fat-gremlin-reward.json hp-loss-clamp gremlin-gold:100 play:0:2 end end gremlin-gold:50
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/fat-gremlin-reward.json gremlin-gold:100 end play:0:2 end end gremlin-gold:0
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/smart-cheaper.json potion-win:POTION_SHAPED_ROCK
+dotnet artifacts/bin/Differential/release/Differential.dll --native-effect-check tests/Differential/fixtures/smart-generated.json potion-win:ENTROPIC_BREW,FIRE_POTION
+```
+
 对非终局用例直接指定动作，逐步比较内核回放与原生动作的完整稳定状态，避免依赖搜索器是否选中待测牌：
 
 请求使用现有 `OfflineRequest` 格式。`play:<手牌下标>:<目标owner>[:选择位集]` 执行指定出牌，首个敌人 owner 为 2，无目标为 255；`end` 结束回合，`potion:<药水槽>:<目标owner>` 使用药水。

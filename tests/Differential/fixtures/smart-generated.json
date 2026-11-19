@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "smart-generated",
+  "characterId": "IRONCLAD",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "SMART5",
+  "enemyCurrentHp": 1,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "potions": [
+    {
+      "potionId": "ENTROPIC_BREW"
+    }
+  ]
+}

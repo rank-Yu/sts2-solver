@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "smart-cheaper",
+  "characterId": "IRONCLAD",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "SMART1",
+  "enemyCurrentHp": 1,
+  "clearPlayerPiles": true,
+  "cards": [],
+  "potions": [
+    {
+      "potionId": "FIRE_POTION"
+    },
+    {
+      "potionId": "POTION_SHAPED_ROCK"
+    }
+  ]
+}

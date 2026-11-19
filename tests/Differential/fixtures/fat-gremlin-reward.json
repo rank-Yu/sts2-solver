@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "fat-gremlin-reward",
+  "characterId": "IRONCLAD",
+  "encounterId": "GREMLIN_MERC_NORMAL",
+  "seed": "SMART1",
+  "enemyCurrentHp": 1,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand"
+    }
+  ],
+  "potions": []
+}

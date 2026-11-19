@@ -325,6 +325,7 @@ internal sealed class ScoreRules
     public required bool IgnoreGrowthRewards { get; init; }
 
     public required TheftPolicy? TheftPolicy { get; init; }
+    public GremlinGoldReward GremlinGoldReward { get; init; }
 
     public required int InitialEnemyCount { get; init; }
 

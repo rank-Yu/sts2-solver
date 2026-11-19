@@ -375,7 +375,7 @@ internal static class SearchCodec
         writer.Write(rules.IsActEndingBoss);
         writer.Write(rules.Act3BossStrategy);
         writer.Write(rules.IgnoreGrowthRewards);
-        writer.Write(rules.TheftPolicy != null);
+        writer.Write((byte)(((int)rules.GremlinGoldReward << 1) | (rules.TheftPolicy.HasValue ? 1 : 0)));
         writer.Write((int)(rules.TheftPolicy ?? TheftPolicy.LetEscape));
         writer.Write(rules.InitialEnemyCount);
         writer.Write(rules.InitialPersistentBuffValue);
@@ -455,7 +455,10 @@ internal static class SearchCodec
         bool actEnding = Codec.ReadBool(reader);
         bool act3 = Codec.ReadBool(reader);
         bool ignoreGrowth = Codec.ReadBool(reader);
-        bool hasTheft = Codec.ReadBool(reader);
+        byte theftFlags = reader.ReadByte();
+        bool hasTheft = (theftFlags & 1) != 0;
+        GremlinGoldReward gremlinGold = (GremlinGoldReward)(theftFlags >> 1);
+        if (!Enum.IsDefined(gremlinGold)) throw new InvalidDataException($"Invalid gremlin gold reward: {gremlinGold}.");
         int theftValue = reader.ReadInt32();
         TheftPolicy? theft = hasTheft
             ? ReadEnumInt<TheftPolicy>(theftValue, "窃取政策") : null;
@@ -481,6 +484,7 @@ internal static class SearchCodec
             Act3BossStrategy = act3,
             IgnoreGrowthRewards = ignoreGrowth,
             TheftPolicy = theft,
+            GremlinGoldReward = gremlinGold,
             InitialEnemyCount = enemyCount,
             InitialPersistentBuffValue = persistent,
             InitialEnemyStrengthSuppression = suppression,

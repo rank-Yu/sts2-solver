@@ -86,7 +86,7 @@ internal sealed partial class BeamSolver
         public int OstyMaxHp;
         public int LiveDeckClutter;
         public int LiveDeckSize;
-        public int OutstandingStolenResource;
+        public uint TheftLossRank;
         public int SandpitRemaining;
         public int ProcessedEnemyDeaths;
         public int TurnsWithoutProgress;
@@ -103,21 +103,21 @@ internal sealed partial class BeamSolver
         int PersistentBuffValue, int StrategicRetentionValue, int FutureResourceValue,
         int DelayedDamageValue, int ReplayPotentialValue, int RetainedAttackValue, int PlayerMaxHp,
         int LongTermResourceValue, int NetHpChange, int ProjectedNetHpChange, int OstyHp, int OstyMaxHp,
-        int LiveDeckClutter, int LiveDeckSize, int OutstandingStolenResource, int SandpitRemaining)
+        int LiveDeckClutter, int LiveDeckSize, uint TheftLossRank, int SandpitRemaining)
     {
         internal static CrossTurnInputs Of(in ScoreFeatures f) => new(
             f.EnemyHp, f.EnemyBlock, f.AliveEnemyCount, f.OffensiveProgressValue, f.PersistentBuffValue,
             f.StrategicRetentionValue, f.FutureResourceValue, f.DelayedDamageValue,
             f.ReplayPotentialValue, f.RetainedAttackValue, f.PlayerMaxHp, f.LongTermResourceValue,
             f.NetHpChange, f.ProjectedNetHpChange, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
-            f.OutstandingStolenResource, f.SandpitRemaining);
+            f.TheftLossRank, f.SandpitRemaining);
 
         internal static CrossTurnInputs Of(in RetentionFacts f) => new(
             f.EnemyHp, f.EnemyBlock, f.AliveEnemyCount, f.OffensiveProgressValue, f.PersistentBuffValue,
             f.StrategicRetentionValue, f.FutureResourceValue, f.DelayedDamageValue,
             f.ReplayPotentialValue, f.RetainedAttackValue, f.PlayerMaxHp, f.LongTermResourceValue,
             f.NetHpChange, f.ProjectedNetHpChange, f.OstyHp, f.OstyMaxHp, f.LiveDeckClutter, f.LiveDeckSize,
-            f.OutstandingStolenResource, f.SandpitRemaining);
+            f.TheftLossRank, f.SandpitRemaining);
     }
 
     private static CrossTurnProgress CaptureCrossTurnProgress(in Battle battle, in ScoreFeatures features)
@@ -153,7 +153,7 @@ internal sealed partial class BeamSolver
             OstyMaxHp = features.OstyMaxHp,
             LiveDeckClutter = features.LiveDeckClutter,
             LiveDeckSize = features.LiveDeckSize,
-            OutstandingStolenResource = features.OutstandingStolenResource,
+            TheftLossRank = features.TheftLossRank,
             SandpitRemaining = features.SandpitRemaining,
             ProcessedEnemyDeaths = ProcessedEnemyDeaths(in battle),
             TurnsWithoutProgress = 0,
@@ -229,7 +229,7 @@ internal sealed partial class BeamSolver
             || features.OstyMaxHp > prior.OstyMaxHp
             || features.LiveDeckClutter < prior.LiveDeckClutter
             || features.LiveDeckSize < prior.LiveDeckSize && prior.LiveDeckSize > CrossTurnDeckLine
-            || features.OutstandingStolenResource < prior.OutstandingStolenResource
+            || features.TheftLossRank < prior.TheftLossRank
             || features.SandpitRemaining < prior.SandpitRemaining;
 
         return new CrossTurnProgress
@@ -263,8 +263,8 @@ internal sealed partial class BeamSolver
             OstyMaxHp = Math.Max(prior.OstyMaxHp, features.OstyMaxHp),
             LiveDeckClutter = Math.Min(prior.LiveDeckClutter, features.LiveDeckClutter),
             LiveDeckSize = Math.Min(prior.LiveDeckSize, features.LiveDeckSize),
-            OutstandingStolenResource = Math.Min(prior.OutstandingStolenResource,
-                features.OutstandingStolenResource),
+            TheftLossRank = Math.Min(prior.TheftLossRank,
+                features.TheftLossRank),
             SandpitRemaining = Math.Min(prior.SandpitRemaining, features.SandpitRemaining),
             ProcessedEnemyDeaths = Math.Max(prior.ProcessedEnemyDeaths, processedEnemyDeaths),
             TurnsWithoutProgress = progressed ? 0 : checked(prior.TurnsWithoutProgress + 1),

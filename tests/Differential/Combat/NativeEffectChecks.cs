@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
 using Sts2Solver.Import;
+using Sts2Solver.Ai.Combat;
 using Sts2Solver.Autoplay;
 using Sts2Solver.Simulation.Combat;
 using Sts2Solver.TestHost;
@@ -39,6 +40,7 @@ internal static class NativeEffectChecks
         Battle current = tracker.ImportRoot(state, player, rules);
         tracker.Observe(current);
         Console.WriteLine($"NATIVE_EFFECT_ROOT scenario={request.ScenarioId} potion_slots={current.PotionSlotCount}");
+        SearchCase? initialGoldRequest = null;
         foreach (string command in commands)
         {
             string[] fields = command.Split(':');
@@ -74,6 +76,51 @@ internal static class NativeEffectChecks
                     Console.WriteLine($"NATIVE_WALK_CARD {entry.Key}={entry.Count}");
                 Console.WriteLine($"NATIVE_WALK_OK scenario={request.ScenarioId} seed={seed} actions={executed} outcome={current.Outcome}");
             }
+            else if (fields is ["hp-loss-clamp"])
+            {
+                foreach (decimal amount in new[] { decimal.MinValue, -3.25m, -1m, -0.25m, 0m, 1.75m, 75m, decimal.MaxValue })
+                {
+                    var native = new MegaCrit.Sts2.Core.Entities.Creatures.Creature(player, 75, 100);
+                    Creature simulated = new() { CurrentHp = 75, MaxHp = 100 };
+                    var expected = native.LoseHpInternal(amount, MegaCrit.Sts2.Core.ValueProps.ValueProp.Move);
+                    var actual = Kernel.LoseHp(ref simulated, Limits.PlayerOwner, amount, ValueProps.Move);
+                    if (simulated.CurrentHp != native.CurrentHp || actual.WasTargetKilled != expected.WasTargetKilled
+                        || actual.UnblockedDamage != expected.UnblockedDamage || actual.OverkillDamage != expected.OverkillDamage)
+                        throw new InvalidDataException($"HP loss {amount}: native={native.CurrentHp}, solver={simulated.CurrentHp}.");
+                }
+            }
+            else if (fields is ["gremlin-gold", var percent])
+            {
+                var fresh = Compile();
+                initialGoldRequest ??= fresh;
+                int nativePercent = (int)(100 * state.Encounter!.CalculateGoldProportion(state));
+                bool lost = nativePercent < 100 && rules.Mode != CombatMode.Blitz;
+                if (nativePercent != int.Parse(percent, CultureInfo.InvariantCulture)
+                    || fresh.Options.Scorer!.Features(current, 0).LosesEncounterGold != lost
+                    || initialGoldRequest.Options.Scorer!.Features(current, 0).LosesEncounterGold != lost)
+                    throw new InvalidDataException($"Gremlin encounter gold: native={nativePercent}%, expected={percent}%.");
+            }
+            else if (fields is ["potion-win", var bottles])
+            {
+                var search = Compile();
+                var options = SearchBudgetPolicy.ApplyRegression(search.Options) with { MaxTurns = 1, SearchThreads = 1 };
+                var noPotions = options with { Potions = options.Potions with { ForceAllDisabled = true } };
+                if (new BeamSolver(rules, noPotions).Solve([current], CancellationToken.None).BestIsVictory)
+                    throw new InvalidDataException("Fixture can win the opening turn without a potion.");
+                BeamResult result = new BeamSolver(rules, options).Solve([current], CancellationToken.None);
+                if (!result.BestIsVictory) throw new InvalidDataException("No opening-turn potion victory.");
+                var replay = ReplayedRoute.Build(current, rules, result.BestRoute, true);
+                List<string> used = [];
+                foreach (var step in replay.Actions)
+                {
+                    if (step.Action.Kind == PlayerActionKind.UsePotion)
+                        used.Add(Registry.Potion((ushort)(step.Before.Potions[step.Action.PotionSlot] - 1)).NativeId);
+                    Execute(step);
+                }
+                string names = string.Join(",", used);
+                if (names != bottles)
+                    throw new InvalidDataException($"Winning potions: {names}, expected {bottles}.");
+            }
             else if (fields is ["recapture"])
             {
                 rules = RulesCompiler.Compile(state, player, (RunState)state.RunState);
@@ -104,6 +151,16 @@ internal static class NativeEffectChecks
             Console.WriteLine($"NATIVE_EFFECT_OK scenario={request.ScenarioId} command={command}");
         }
         return 0;
+
+        SearchPolicy Policy() => SearchPolicyOverrides.ApplyOverrides(SearchPolicyCapture.Capture(state, player), request, player);
+
+        SearchCase Compile()
+        {
+            var search = SearchRequestCompiler.CompileRequest(state, player, rules, current, Policy(),
+                EvaluationRootFacts.Default, SearchPerformanceProfile.For(SearchPerformanceTier.Medium),
+                deterministic: true, searchMemoryBudgetBytes: 256 * 1024 * 1024);
+            return SearchCodec.DecodeRequest(SearchCodec.EncodeRequest(search));
+        }
 
         void Execute(ReplayedAction planned)
         {

@@ -29,7 +29,7 @@ internal static class VersionRootCapture
         string directory = Path.Combine(target, "d1", root);
         if (Directory.Exists(directory))
             throw new InvalidDataException("目标根已经存在，拒绝覆盖。");
-        OfflineRequest request = Program.LoadRequest(data, "tests/corpora", root);
+        OfflineRequest request = Program.LoadRequest(data, "tests/corpora", root, frozenSetup: true);
         string oldMetaPath = Path.Combine(source, "d1", root, "meta.json");
         if (File.Exists(oldMetaPath))
         {

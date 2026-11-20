@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "rain-shot-vigor",
+  "seed": "RAINSHOTVIGOR",
+  "characterId": "FOOL",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "clearPlayerPiles": true,
+  "enemyCurrentHp": 100,
+  "cards": [{ "cardId": "RAIN_SHOT", "pile": "Hand" }],
+  "powers": [
+    { "powerId": "AIM_POWER", "target": "Player", "amount": 5 },
+    { "powerId": "VIGOR_POWER", "target": "Player", "amount": 6 }
+  ]
+}

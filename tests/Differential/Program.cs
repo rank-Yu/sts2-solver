@@ -702,7 +702,8 @@ internal static class Program
     private static int BuildInProcess(string data, string corpora, string output, string root,
         bool importCompare, bool rulesCompare, bool configCompare, bool compiledRules)
     {
-        OfflineRequest request = LoadRequest(data, corpora, root);
+        OfflineRequest request = LoadRequest(data, corpora, root,
+            frozenSetup: importCompare || rulesCompare || configCompare);
         string stage = "init";
         try
         {
@@ -830,7 +831,7 @@ internal static class Program
         }
     }
 
-    internal static OfflineRequest LoadRequest(string data, string corpora, string root)
+    internal static OfflineRequest LoadRequest(string data, string corpora, string root, bool frozenSetup = false)
     {
         if (root.StartsWith("quality-", StringComparison.Ordinal))
         {
@@ -850,12 +851,8 @@ internal static class Program
             }
             string spec = Path.Combine(directory, "spec.json");
             if (!File.Exists(spec)) throw new FileNotFoundException("质量语料缺少生成规格。", spec);
-            return quality with
-            {
-                GeneratedScenarioPath = spec,
-                AllUnlocksForTest = true,
-                FullStartingHpForTest = true,
-            };
+            quality = quality with { GeneratedScenarioPath = spec };
+            return frozenSetup ? quality : quality with { AllUnlocksForTest = true, FullStartingHpForTest = true };
         }
         string metaPath = Path.Combine(data, "d1", root, "meta.json");
         if (!File.Exists(metaPath))

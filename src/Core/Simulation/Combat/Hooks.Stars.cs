@@ -30,51 +30,20 @@ public static partial class HookDispatch
         return amount;
     }
 
-    /// <summary>
-    /// <c>PowerLifecycleSupport.AfterStarsSpent</c>: the existing engine does not walk the listener
-    /// list. It runs <c>TriggerRelicsAfterStarsSpent</c> over the player's relics in relic order and
-    /// then the <c>ChildOfTheStarsPower</c> loop over <c>EffectivePowers()</c>. Sts2Solver therefore runs
-    /// the relic listeners first and the power listeners second; both groups keep table order. No
-    /// vanilla potion, card or monster implements the hook (only MiniRegent, GalacticDust and
-    /// ChildOfTheStarsPower do), so no other listener kind can observe this order.
-    /// </summary>
     public static void AfterStarsSpent(ref Exec x, int amount)
     {
-        if (amount <= 0 || (Registry.AnyHooks & HookMask.AfterStarsSpent) == 0)
+        if (amount <= 0)
             return;
-        Span<Listener> listeners = stackalloc Listener[MaxListenerCount(x.B, x.R)];
-        int count = CollectListeners(x.B, x.R, HookMask.AfterStarsSpent, listeners);
-        RejectUnsupportedAfterStarsSpentKinds(listeners[..count]);
-        for (int index = 0; index < count; index++)
-        {
-            if (listeners[index].Kind != ListenerKind.Relic)
-                continue;
-            Definition(x.B, x.R, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
-            if (x.NeedsChoice)
-                return;
-        }
-        for (int index = 0; index < count; index++)
-        {
-            if (listeners[index].Kind != ListenerKind.Power)
-                continue;
-            Definition(x.B, x.R, listeners[index]).AfterStarsSpent(ref x, listeners[index], amount);
-            if (x.NeedsChoice)
-                return;
-        }
+        var hook = new StarsSpentHook(amount);
+        Dispatch(ref x, ref hook, gatedByEnding: true);
     }
 
-    /// <summary>
-    /// The existing engine's two AfterStarsSpent phases only visit player relics and powers; a
-    /// potion, card, monster or orb implementing the hook would be dropped silently, so a capture of
-    /// such a listener is an explicit boundary.
-    /// </summary>
-    private static void RejectUnsupportedAfterStarsSpentKinds(scoped ReadOnlySpan<Listener> listeners)
+    private readonly struct StarsSpentHook(int amount) : IActionHook
     {
-        for (int index = 0; index < listeners.Length; index++)
-        {
-            if (listeners[index].Kind is not (ListenerKind.Relic or ListenerKind.Power))
-                throw new UnsupportedException($"星能消耗 Hook 的监听者类型 {listeners[index].Kind} 未支持。");
-        }
+        public static HookMask Mask => HookMask.AfterStarsSpent;
+
+        public void Invoke(ref Exec x, ListenerDef definition, Listener self)
+            => definition.AfterStarsSpent(ref x, self, amount);
     }
 
     /// <summary>

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "perfect-fit-copy-shuffle",
+  "seed": "NOV20SC81200341",
+  "characterId": "REGENT",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "clearPlayerPiles": true,
+  "enemyCurrentHp": 40,
+  "cards": [
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Hand",
+      "enchantmentId": "PERFECT_FIT"
+    },
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Discard",
+      "enchantmentId": "PERFECT_FIT"
+    },
+    {
+      "cardId": "STRIKE_REGENT",
+      "pile": "Discard",
+      "upgradeLevels": 1
+    }
+  ]
+}

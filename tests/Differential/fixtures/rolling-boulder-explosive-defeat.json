@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "rolling-boulder-explosive-defeat",
+  "seed": "ROCKBLAST",
+  "characterId": "IRONCLAD",
+  "encounterId": "SLUMBERING_BEETLE_NORMAL",
+  "initialPlayerHp": 80,
+  "initialPlayerMaxHp": 80,
+  "enemyCurrentHp": 3,
+  "clearPlayerPiles": true,
+  "cards": [
+    {
+      "cardId": "DEFEND_IRONCLAD",
+      "pile": "Draw",
+      "count": 5
+    }
+  ],
+  "powers": [
+    {
+      "powerId": "ROLLING_BOULDER_POWER",
+      "target": "Player",
+      "amount": 100
+    },
+    {
+      "powerId": "EXPLOSIVE_POWER",
+      "target": "Enemy",
+      "amount": 200
+    }
+  ]
+}

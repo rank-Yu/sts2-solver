@@ -27,7 +27,7 @@ internal static class RecaptureRoot
             ReadBrotli(Path.Combine(sourceDirectory, "golden.br")));
         byte[] oldConfig = ReadBrotli(Path.Combine(sourceDirectory, "config.br"));
 
-        OfflineRequest request = Program.LoadRequest(data, corpora, root);
+        OfflineRequest request = Program.LoadRequest(data, corpora, root, frozenSetup: true);
         MainLoopContext loop = new();
         SynchronizationContext.SetSynchronizationContext(loop);
         GameBootstrap.ApplyGodotBypasses();

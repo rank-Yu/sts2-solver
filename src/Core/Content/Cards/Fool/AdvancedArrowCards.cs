@@ -38,8 +38,12 @@ public sealed class RainShot : SingleArrowCard
         if (x.B.Creature(target).IsDead) return;
         int arrow = Kernel.TryShootArrow(ref x);
         if (arrow < 0 || x.NeedsChoice) return;
-        // RainShot uses AttackContext directly: no BeforeAttack callback or attacked-history entry.
-        Kernel.BeginAttack(ref x, ValueProps.Move | ValueProps.FromArrow, true);
+        // The enclosing AttackContext has Move props. Only the first damage call is FromArrow.
+        x.AttackUnblockedHits = 0;
+        BeforeAttackHook before = new() { Attacker = Limits.PlayerOwner, Props = ValueProps.Move };
+        HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);
+        if (x.NeedsChoice) return;
+        Kernel.BeginAttack(ref x, ValueProps.Move, hasCardSource: true);
         Span<byte> targets = stackalloc byte[Limits.Enemies];
         targets[0] = target;
         Kernel.Damage(ref x, targets[..1], FoolEffects.Var(ref x, 0),

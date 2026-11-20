@@ -270,11 +270,7 @@ public enum HookMask : ulong
     /// <summary><c>SimulatedCombatState.AfterPotionUsed</c>'s relic reactions (<c>ReptileTrinket</c>).</summary>
     AfterPotionUsed = 1UL << 60,
 
-    /// <summary>
-    /// <c>PowerLifecycleSupport.AfterStarsSpent</c>: <c>TriggerRelicsAfterStarsSpent</c> then the
-    /// <c>ChildOfTheStarsPower</c> loop. The existing engine uses a fixed relic-then-power order
-    /// instead of listener order, so <c>HookDispatch.AfterStarsSpent</c> dispatches in two passes.
-    /// </summary>
+    /// <summary>Native combat listeners notified after the player spends stars.</summary>
     AfterStarsSpent = 1UL << 61,
 
     /// <summary><c>HookMirrors.AfterStarsGained</c> (BlackHolePower).</summary>
@@ -708,13 +704,10 @@ public abstract class ListenerDef : ContentDef
     }
 
     /// <summary>
-    /// Native <c>AbstractModel.ModifyShuffleOrder</c> (<c>HookMirrors.ModifyShuffleOrder</c>): the existing engine
-    /// runs it after the stable shuffle and before the merged cards are placed into the draw pile. The kernel
-    /// passes the local <paramref name="cards"/> region (<paramref name="count"/> entries); <paramref name="self"/>
-    /// identifies the listener's own card by its absolute position in <see cref="Battle.Cards"/>.
+    /// Reorders the absolute Battle card positions after a non-initial shuffle. Positions identify
+    /// individual instances, including copies whose card values are identical.
     /// </summary>
-    public virtual void ModifyShuffleOrder(ref Exec x, Listener self, scoped Span<Card> cards, int count,
-        bool isInitialShuffle)
+    public virtual void ModifyShuffleOrder(Listener self, Span<int> positions)
     {
     }
 
@@ -883,12 +876,7 @@ public abstract class ListenerDef : ContentDef
     public virtual decimal TryModifyStarCost(in Battle battle, Rules rules, Listener self,
         in Card card, Pile pile, decimal amount) => amount;
 
-    /// <summary>
-    /// <c>PowerLifecycleSupport.AfterStarsSpent</c> (<c>CombatPredictionSimulator.SpendResources</c>):
-    /// the spender's relics first (<c>TriggerRelicsAfterStarsSpent</c>: MiniRegent, then GalacticDust),
-    /// then every effective power in listener order (ChildOfTheStarsPower). <paramref name="amount"/>
-    /// is the star cost actually paid and is always positive here.
-    /// </summary>
+    /// <summary>Receives the positive star cost actually paid, in combat listener order.</summary>
     public virtual void AfterStarsSpent(ref Exec x, Listener self, int amount)
     {
     }

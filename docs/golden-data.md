@@ -166,6 +166,8 @@ EndedCompressedStates | BestRootIndex | PotionPolicySatisfied
 
 当前冻结数据的来源记录保存在 `tests/Golden/data/manifest.json` 的 `provenance` 里；`d1Rerecord` 由 `Golden rerecord --reason` 写入，`refreeze` 由重冻工具写入，不手改。
 
+质量语料的 D1 原生对照和重录沿用各自 `request.json` 记录的解锁与起始生命设置。README 跑分统一使用全解锁、满血开局。
+
 当前冻结数据覆盖标准、恐惧和极速模式，包含愚者。D1 保留原有场景和游走种子；D2 同时包含当前生产协调器成员请求，以及前缀和回合准备根的固定预算请求。当前包含 413 个场景、423 个根、5,110 个一步分支、15,072 条游走（477,092 个状态、464,465 个转移），以及 2,094 个搜索请求及对应期望结果。精确计数和内容哈希以 manifest 为准。跨版本迁移的旧新计数、实机对照和验证记录保存在本地交接文档。
 
 侧回合开始的终局门控由原版最小场景核对。对应的 D1 根 id-c-instanced-powers 使用工具重录，K1、游走状态和转移数量不变；这项修正不改变 D2 结果。

@@ -697,50 +697,9 @@ internal static class NativePlanMatcher
     internal static IReadOnlyList<CardModel> Resolve(PlannedChoice plan,
         NativeChoiceRequest request, Player player)
     {
-        if (request.LiveOptions.Count != plan.OptionCount)
-        {
-            throw new NativeChoicePlanMismatchException(
-                $"{Describe(plan)} 选项数 {request.LiveOptions.Count} 与计划 {plan.OptionCount} 不符。");
-        }
-        Card[] predicted = plan.OptionsAreGenerated ? plan.GeneratedOptions : plan.PileOptions;
-        if (!plan.OptionsAreGenerated && !plan.Request.SourceIsNone)
-        {
-            PlayerCombatState state = player.PlayerCombatState
-                ?? throw new NativeChoicePlanMismatchException("原生选牌玩家没有战斗牌堆。");
-            IReadOnlyList<CardModel> source = PileCards(state, plan.Request.Source);
-            for (int index = 0; index < request.LiveOptions.Count; index++)
-            {
-                if (!ContainsReference(source, request.LiveOptions[index]))
-                {
-                    throw new NativeChoicePlanMismatchException(
-                        $"{Describe(plan)} 选项 {request.LiveOptions[index].Id.Entry} 不在计划的牌堆 " +
-                        $"{plan.Request.Source} 中。");
-                }
-            }
-        }
-        bool[] used = new bool[plan.OptionCount];
-        int[] map = new int[plan.OptionCount];
-        for (int option = 0; option < plan.OptionCount; option++)
-        {
-            Identity key = IdentityOf(predicted[option]);
-            int match = -1;
-            for (int candidate = 0; candidate < request.LiveOptions.Count; candidate++)
-            {
-                if (!used[candidate] && IdentityOf(request.LiveOptions[candidate]) == key)
-                {
-                    match = candidate;
-                    break;
-                }
-            }
-            if (match < 0)
-            {
-                throw new NativeChoicePlanMismatchException(
-                    $"{Describe(plan)} 找不到选项 {option} 对应的原生卡 {key}。" +
-                    $"native=[{string.Join(',', request.LiveOptions.Select(CardName))}]");
-            }
-            used[match] = true;
-            map[option] = match;
-        }
+        if (!PlannedNativeSelector.TryMapOptions(player, plan, request.LiveOptions, Describe(plan),
+            out int[] map, out string error))
+            throw new NativeChoicePlanMismatchException(error);
         List<int> selectedIndexes = [.. plan.SelectedIndexes()];
         if (selectedIndexes.Count < request.MinSelect || selectedIndexes.Count > request.MaxSelect)
         {
@@ -784,31 +743,6 @@ internal static class NativePlanMatcher
 
     private static Identity IdentityOf(Card card)
         => new(Registry.Card(card.Id).NativeId, card.Upgrade);
-
-    private static Identity IdentityOf(CardModel card)
-        => new(card.Id.Entry, card.CurrentUpgradeLevel);
-
-    private static IReadOnlyList<CardModel> PileCards(PlayerCombatState state, Pile pile) => pile switch
-    {
-        Pile.Hand => state.Hand.Cards,
-        Pile.Draw => state.DrawPile.Cards,
-        Pile.Discard => state.DiscardPile.Cards,
-        Pile.Exhaust => state.ExhaustPile.Cards,
-        Pile.Play => state.PlayPile.Cards,
-        _ => throw new NativeChoicePlanMismatchException($"选择来源牌堆 {pile} 无效。"),
-    };
-
-    private static bool ContainsReference(IReadOnlyList<CardModel> cards, CardModel card)
-    {
-        for (int index = 0; index < cards.Count; index++)
-        {
-            if (ReferenceEquals(cards[index], card))
-                return true;
-        }
-        return false;
-    }
-
-    private static string CardName(CardModel card) => $"{card.Id.Entry}+{card.CurrentUpgradeLevel}";
 
     private static string Describe(PlannedChoice choice)
         => $"{choice.Request.Kind}/{choice.Request.Effect} source={choice.Request.Source} " +

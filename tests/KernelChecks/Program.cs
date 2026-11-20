@@ -2174,6 +2174,24 @@ static void CheckCxKernel(Rules rules)
     Check(shuffleBattle.DrawCount == 3 && shuffleBattle.DiscardCount == 0, "洗牌后三张牌都应进入抽牌堆");
     Check(Fingerprint.Equal(shuffleBattle.Cards[shuffleBattle.HandCount], perfect),
         "PerfectFit 应把附魔卡放在洗牌后抽牌堆顶");
+
+    // Identical copies have separate shuffle hooks. A copy in hand is outside the shuffle.
+    Battle copies = NewBattle();
+    copies.Flags |= BattleFlags.PlayerHooksActive;
+    Card original = perfect;
+    original.Flags |= CardFlags.DeckCard;
+    Piles.Append(ref copies, Pile.Hand, perfect);
+    Piles.Append(ref copies, Pile.Discard, perfect);
+    Piles.Append(ref copies, Pile.Discard, original);
+    Piles.Append(ref copies, Pile.Discard, perfect);
+    for (int i = 0; i < 16; i++)
+        Piles.Append(ref copies, Pile.Discard, Enchanted(rules, defend, slither));
+    Exec copiesExec = new(ref copies, rules, default);
+    Kernel.Shuffle(ref copiesExec);
+    ReadOnlySpan<Card> shuffled = Piles.ReadCards(copies, Pile.Draw);
+    Check(shuffled.Length == 19 && Fingerprint.Equal(shuffled[0], perfect)
+        && Fingerprint.Equal(shuffled[1], original) && Fingerprint.Equal(shuffled[2], perfect),
+        "三张 PerfectFit 应分别置顶，并保留原牌与复制牌的触发顺序");
 }
 
 // SK: contracts for the Silent kernel capabilities. Discard pipeline + AfterCardDiscarded + Sly
@@ -3884,13 +3902,13 @@ static void CheckRgKernel(Rules rules)
     Check(Kernel.StarCostWithModifiers(battle, rules, card, Pile.Hand) == 0
         && Kg2TestLog.Lines.Count == 0, "RG 负星能费用不应派发 Hook");
 
-    // AfterStarsSpent: the existing engine runs the relics before the powers, not in listener order.
+    // AfterStarsSpent: the native combat listener list visits player powers before relics.
     Exec x = new(ref battle, rules, default);
     Kernel.ApplyPower(ref x, Limits.PlayerOwner, starPower, 1, Limits.PlayerOwner);
     Kernel.ResolvePowerAmountChanges(ref x);
     Kg2TestLog.Clear();
     HookDispatch.AfterStarsSpent(ref x, 4);
-    Check(string.Join(",", Kg2TestLog.Lines) == "stars-spent-relic:4,stars-spent-power:4",
+    Check(string.Join(",", Kg2TestLog.Lines) == "stars-spent-power:4,stars-spent-relic:4",
         $"RG 星能消耗顺序错误：{string.Join(",", Kg2TestLog.Lines)}");
 
     // GainStars: clamp, then AfterStarsGained; skipped while the combat is ending.

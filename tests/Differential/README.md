@@ -413,6 +413,12 @@ CrushUnder 和 DyingStar 在伤害前记录减力量的目标，死亡后新生�
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/entropy-other-character.json random:800297:100
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/catastrophe-dampen-autoplay.json random:800997:100
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/clone-return-history.json random:900104:100
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/perfect-fit-copy-shuffle.json end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/debt-turn-end.json end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/entropy-after-lethal-turn-start.json end
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/mini-regent-child-of-the-stars.json play:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/distilled-chaos-make-it-so.json play:0:255 play:0:255 potion:0:255
+    dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/distilled-chaos-nested-havoc.json play:0:255 play:0:255 potion:0:255
     dotnet run --project tests/Differential -c Release -- --native-effect-check tests/Differential/fixtures/knife-trap-blocked-autoplay.json random:900245:100
 
 临时属性的 BeforeApplied 引发死亡后，不再给已死亡的幻象补入临时能力：

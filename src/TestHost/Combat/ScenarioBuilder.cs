@@ -693,9 +693,6 @@ internal static class ScenarioBuilder
     private static async Task InjectPowerAsync(
         CombatState combatState, Player player, UnattendedPowerInjection injection)
     {
-        if (injection.Amount is < 1 or > 999_999_999)
-            throw new InvalidOperationException($"注入 Power 数值 {injection.Amount} 超出 1-999999999。");
-
         Creature owner = ResolvePowerInjectionCreature(
             combatState, player, injection.Target, injection.TargetIndex, "所有者");
         Creature powerTarget = string.IsNullOrWhiteSpace(injection.PowerTarget)
@@ -707,6 +704,9 @@ internal static class ScenarioBuilder
             : ResolvePowerInjectionCreature(
                 combatState, player, injection.Applier, injection.ApplierIndex, "施加者");
         PowerModel canonical = NativeLookup.ResolveUnique(ModelDb.AllPowers, injection.PowerId, "Power");
+        int minimum = canonical.AllowNegative ? -999_999_999 : 1;
+        if (injection.Amount == 0 || injection.Amount < minimum || injection.Amount > 999_999_999)
+            throw new InvalidOperationException($"不能为 {canonical.Id.Entry} 注入数值 {injection.Amount}。");
         PowerModel power = canonical.ToMutable();
         foreach ((string key, int value) in injection.DynamicVars)
         {

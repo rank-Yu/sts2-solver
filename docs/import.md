@@ -206,7 +206,7 @@ SearchCase request = EvaluationConfigCompiler.CompileRequest(
 
 根上的判定按 `FlashBoundBridge`：
 
-- 失效顺序：`growth_targets` → `theft_policy` → `growth_rewards` → `root_risk` → `pending_returning_cards` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
+- 失效顺序：`growth_targets` → `theft_policy`（偷牌遭遇）→ `growth_rewards` → `root_risk` → `remaining_certificate`。失效时所有数组为空，`FutureHealPotential = int.MaxValue`、`Certificate = None`、`RootPotionSlotCount = 0`。
 - `HasOnlyPostCombatHealing`：角色属于封闭集合、敌人都是原生的、没有药水、遗物只有 Burning Blood、Black Blood、Bound Phylactery、Ring of the Snake，玩家 Power 只有 Neurosurge、Doom，卡牌都在白名单里且没有附魔或苦难。
 - `Component` 证书：程序集 MVID 与审计时一致、单人、没有 Modifier、卡牌都属于已审计的 `ComponentInitialCard` 类型且附件安全、原版根监听者分类安全、基础回血可计算。`Tainted` 等卡牌附件在根监听者枚举里与原引擎一样被过滤。
 - `KnownNative` 证书：单人、全部原生模型与附件、没有 Modifier。外部 Mod 注册的回调不参与回血估算，不读取其配置；原版内容的实际导入和结算检查保持不变。Component 同样忽略外部抽象回调。复杂重放与生成链的有限估算见 [战斗 AI](combat-ai.md)。

@@ -236,9 +236,6 @@ public static partial class Kernel
     private static void PlayFromPlay(ref Exec x, Card card, byte target, int energyValue,
         int playPosition, bool isAutoPlay, out Pile resultPile, out int resultIndex)
     {
-        // A nested auto-play inside this play's effects runs its own PlayFromPlay and moves
-        // PlayPosition to its slot; put this play's slot back afterwards so CurrentPlayCard keeps
-        // addressing this card (nested cards are appended after it and leave the play pile first).
         int outerPlayPosition = x.PlayPosition;
         // A nested auto-play inside this play's effects (OwnChoice discarding a Sly card) completes its
         // own power-application scope, which overwrites LastCardPowerSourceSerial. Restore the outer
@@ -246,8 +243,37 @@ public static partial class Kernel
         int outerLastSourceSerial = x.LastCardPowerSourceSerial;
         int outerPlayIdentity = x.PlayIdentity;
         int outerLastPlayIdentity = x.LastPlayIdentity;
-        PlayFromPlayCore(ref x, card, target, energyValue, playPosition, isAutoPlay, out resultPile, out resultIndex);
-        x.PlayPosition = outerPlayPosition;
+        // An inner play can pull queued cards out from under its caller. Only callers with
+        // preceding Play cards can shift. Keep their identity until the inner play returns.
+        if (outerPlayPosition > 0 && outerPlayPosition < playPosition)
+        {
+            int markBase = ReserveTransientMarks(ref x, 1, out int mark);
+            ref Card outerCard = ref Piles.At(ref x.B, Pile.Play, outerPlayPosition);
+            byte previousMark = outerCard.TransientMark;
+            outerCard.TransientMark = checked((byte)mark);
+            try
+            {
+                PlayFromPlayCore(ref x, card, target, energyValue, playPosition, isAutoPlay, out resultPile, out resultIndex);
+            }
+            finally
+            {
+                x.PlayPosition = -1;
+                for (int i = 0; i < x.B.PlayCount; i++)
+                {
+                    if (Piles.At(ref x.B, Pile.Play, i).TransientMark != mark)
+                        continue;
+                    x.PlayPosition = i;
+                    break;
+                }
+                RestoreTransientMark(ref x.B, (byte)mark, previousMark);
+                ReleaseTransientMarks(ref x, markBase, mark, 1);
+            }
+        }
+        else
+        {
+            PlayFromPlayCore(ref x, card, target, energyValue, playPosition, isAutoPlay, out resultPile, out resultIndex);
+            x.PlayPosition = outerPlayPosition;
+        }
         x.LastCardPowerSourceSerial = outerLastSourceSerial;
         x.PlayIdentity = outerPlayIdentity;
         x.LastPlayIdentity = outerLastPlayIdentity;
@@ -258,8 +284,7 @@ public static partial class Kernel
     {
         resultPile = Pile.Play;
         resultIndex = -1;
-        // The play-pile slot is fixed before the first effect runs (nested auto-plays append after
-        // it), so OnPlay code can address its own live card with CurrentPlayCard.
+        // Effects that remove earlier queued cards update this play-local slot.
         x.PlayPosition = playPosition;
         x.PlayIdentity = ++x.PlayIdentityCounter;
         CardStats stats = x.R.Card(card.Id, card.Upgrade);
@@ -271,8 +296,8 @@ public static partial class Kernel
         if (result == Pile.Exhaust)
         {
             card.Flags &= ~CardFlags.ExhaustOnNextPlay;
-            if (playPosition < x.B.PlayCount)
-                Piles.At(ref x.B, Pile.Play, playPosition).Flags &= ~CardFlags.ExhaustOnNextPlay;
+            if (x.PlayPosition < x.B.PlayCount)
+                Piles.At(ref x.B, Pile.Play, x.PlayPosition).Flags &= ~CardFlags.ExhaustOnNextPlay;
         }
         // HookMirrors.ModifyCardPlayResultLocation, then CardModel.OnPlayWrapper's direct after dispatch
         // over the modifiers that changed the location.
@@ -330,11 +355,11 @@ public static partial class Kernel
             // Native CardPlay.Card is the live CardModel: a replay's BeforeCardPlayed sees what the
             // previous play index changed on it (Glam disables itself in AfterCardPlayed, so a Juggling
             // clone made at the replay's start copies the disabled enchantment).
-            CardPlayInfo play = new((uint)playPosition < (uint)x.B.PlayCount
-                    ? Piles.At(ref x.B, Pile.Play, playPosition)
+            CardPlayInfo play = new((uint)x.PlayPosition < (uint)x.B.PlayCount
+                    ? Piles.At(ref x.B, Pile.Play, x.PlayPosition)
                     : card,
                 target, index, playCount, removeFromCombat ? Pile.Play : result,
-                Piles.Start(x.B, Pile.Play) + playPosition);
+                Piles.Start(x.B, Pile.Play) + x.PlayPosition);
             BeforeCardPlayedHook before = new() { Play = play };
             HookDispatch.Dispatch(ref x, ref before, gatedByEnding: true);
             if (x.NeedsChoice)
@@ -436,18 +461,18 @@ public static partial class Kernel
                 completed = false;
                 break;
             }
-            if (!RunCardAttachmentOnPlay(ref x, playPosition, target))
+            if (!RunCardAttachmentOnPlay(ref x, target))
             {
                 completed = false;
                 break;
             }
             // CardModel is mutable: the played card value as seen by AfterCardPlayed includes the
             // effects and attachment OnPlay updates of this play index.
-            if ((uint)playPosition < (uint)x.B.PlayCount)
+            if ((uint)x.PlayPosition < (uint)x.B.PlayCount)
             {
-                play = new CardPlayInfo(Piles.At(ref x.B, Pile.Play, playPosition), target, index,
+                play = new CardPlayInfo(Piles.At(ref x.B, Pile.Play, x.PlayPosition), target, index,
                     playCount, removeFromCombat ? Pile.Play : result,
-                    Piles.Start(x.B, Pile.Play) + playPosition);
+                    Piles.Start(x.B, Pile.Play) + x.PlayPosition);
             }
             // CardPlayFinished: no tracked counter yet. AfterCardPlayed runs its normal pass, then
             // re-reads the listeners for the late pass, without the ending gate. The native history
@@ -457,14 +482,14 @@ public static partial class Kernel
             if (x.R.HasFoolMechanics)
                 RecordMelodyFinished(ref x.B, stats.Tags);
             if (Registry.Card(card.Id).ResolveCardType(x.B, x.R, card) == CardType.Attack)
-                RecordHistoryCourseAttack(ref x, playPosition);
+                RecordHistoryCourseAttack(ref x, x.PlayPosition);
             // CardPlayFinishedEntry.WasEthereal is `card.Keywords.Contains(Ethereal)`, taken when the
             // entry is created, before AfterCardPlayed. Keywords runs Hook.ModifyKeywords: a Hexed card
             // counts as Ethereal while HexPower is up, so the battle-aware helper (local keyword plus
             // Hexed+HexPower) is the source. Reading it after AfterCardPlayed misses a play whose
             // listeners kill the Hex applier (Storm channels Lightning, the evoke kills Spectral Knight).
-            if ((uint)playPosition < (uint)x.B.PlayCount
-                && HasKeyword(x.B, Piles.At(ref x.B, Pile.Play, playPosition), Keywords.Ethereal))
+            if ((uint)x.PlayPosition < (uint)x.B.PlayCount
+                && HasKeyword(x.B, Piles.At(ref x.B, Pile.Play, x.PlayPosition), Keywords.Ethereal))
             {
                 x.B.AddCounter(Counter.EtherealPlays, 1);
             }
@@ -499,10 +524,10 @@ public static partial class Kernel
             RecordCardPlayed(ref x, Registry.Card(card.Id).ResolveCardType(x.B, x.R, card));
             // SimulatedCombatState.RecordCardLifecycle: the completed play records the exact Fetch
             // object in _fetchCardsPlayedThisTurn. The value still sits in the play pile here.
-            if ((uint)playPosition < (uint)x.B.PlayCount
+            if ((uint)x.PlayPosition < (uint)x.B.PlayCount
                 && Registry.Card(card.Id).TracksFetchPlay)
             {
-                Piles.At(ref x.B, Pile.Play, playPosition).Private |= FetchPlayedBit;
+                Piles.At(ref x.B, Pile.Play, x.PlayPosition).Private |= FetchPlayedBit;
             }
             Registry.Card(card.Id).AfterPlayCompleted(ref x, index == playCount - 1);
             if (x.NeedsChoice) { completed = false; break; }
@@ -520,17 +545,8 @@ public static partial class Kernel
         if (x.NeedsChoice || !completed)
             return;
 
-        // ContinueCardResultExecution: the card is still in the play pile at its position. The
-        // native cost cleanup follows the result move and CheckForEmptyHand. Content that
-        // removes an earlier play-pile card (SummonForth moving a queued Sovereign Blade) shifts the
-        // live slot; PlayPosition is the adjusted identity, while the captured local can be stale.
-        int resultSlot = playPosition;
-        if ((uint)x.PlayPosition < (uint)x.B.PlayCount
-            && Fingerprint.Equal(Piles.At(ref x.B, Pile.Play, x.PlayPosition), x.Card))
-        {
-            resultSlot = x.PlayPosition;
-        }
-        bool cleanCosts = !removeFromCombat && resultSlot < x.B.PlayCount
+        int resultSlot = x.PlayPosition;
+        bool cleanCosts = !removeFromCombat && (uint)resultSlot < (uint)x.B.PlayCount
             && (Piles.At(ref x.B, Pile.Play, resultSlot).EnergyModifierCount != 0
                 || Piles.At(ref x.B, Pile.Play, resultSlot).HasTemporaryStarCost);
         int cleanupBase = 0, cleanupStart = 0;
@@ -544,7 +560,7 @@ public static partial class Kernel
         }
         try
         {
-            if (resultSlot < x.B.PlayCount)
+            if ((uint)resultSlot < (uint)x.B.PlayCount)
             {
                 if (removeFromCombat)
                 {
@@ -699,27 +715,26 @@ public static partial class Kernel
 
     /// <summary>
     /// <c>EnchantmentModel.OnPlay</c> then <c>AfflictionModel.OnPlay</c> for the card at
-    /// <paramref name="playPosition"/>. Returns false when a choice interrupted the tail or the owner
+    /// the current play-pile slot. Returns false when a choice interrupted the tail or the owner
     /// died, matching <c>CardTailContinuation</c>.
     /// </summary>
-    private static bool RunCardAttachmentOnPlay(ref Exec x, int playPosition, byte target)
+    private static bool RunCardAttachmentOnPlay(ref Exec x, byte target)
     {
-        if ((uint)playPosition >= (uint)x.B.PlayCount)
+        if ((uint)x.PlayPosition >= (uint)x.B.PlayCount)
             return true;
         // Nested auto-plays overwrite Exec.Card/Stats/Target; restore the outer play context so
         // the attachment hooks see this card and this target (CardModel/CardPlay are per-play objects
         // in the existing engine).
-        ref Card played = ref Piles.At(ref x.B, Pile.Play, playPosition);
+        ref Card played = ref Piles.At(ref x.B, Pile.Play, x.PlayPosition);
         x.Card = played;
         x.Stats = x.R.Card(played.Id, played.Upgrade);
         x.Target = target;
-        x.PlayPosition = playPosition;
         if (played.EnchantmentId != 0)
         {
             Registry.Enchantment((ushort)(played.EnchantmentId - 1)).OnPlay(ref x, played, target);
             if (x.NeedsChoice || x.B.Player.IsDead)
                 return false;
-            played = ref Piles.At(ref x.B, Pile.Play, playPosition);
+            played = ref Piles.At(ref x.B, Pile.Play, x.PlayPosition);
         }
         if (played.AfflictionId != 0)
         {

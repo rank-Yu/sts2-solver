@@ -286,14 +286,19 @@ public sealed class Regret : CardDef
 }
 
 /// <summary>
-/// Native <c>Debt</c>: Unplayable, no upgrade; its <c>OnTurnEndInHand</c> loses up to 10 gold. The
-/// existing engine has no mirror/compensation for that hook, so Sts2Solver keeps the definition empty to
-/// match the authority (the card still enters the play pile and is discarded at turn end).
+/// Native <c>Debt.OnTurnEndInHand</c> spends up to the card's Gold amount.
 /// </summary>
 [ContentId("DEBT")]
 public sealed class Debt : CardDef
 {
+    public override IReadOnlyList<string> VarNames => ["Gold"];
+
+    public override bool HasTurnEndInHandEffect => true;
+
     public override void OnPlay(ref Exec x)
     {
     }
+
+    public override void OnTurnEndInHand(ref Exec x)
+        => x.B.Gold = Math.Max(0, x.B.Gold - (int)CardEffects.Var(x, 0));
 }

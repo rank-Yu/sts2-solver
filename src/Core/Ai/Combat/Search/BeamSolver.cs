@@ -1643,6 +1643,8 @@ internal sealed partial class BeamSolver
         // A state can still earn every relic allowance, so its bound gives that credit back. Until the
         // incumbent meets every relic goal, an equal-HP state may beat it on the goals and is kept.
         bool goalTiesSettled = !_hasRelicTargets || bounded.GoalsComplete;
+        // A full-loot win can still be improved by finishing sooner at the same HP cost.
+        bool pruneEqualHp = goalTiesSettled && _pruneEqualHp && _theftPolicy != TheftPolicy.PreserveResources;
         int write = 0;
         for (int read = 0; read < pool.Count; read++)
         {
@@ -1658,7 +1660,7 @@ internal sealed partial class BeamSolver
                     pool.State(read).PlayerTurn,
                     bounded,
                     allowTurnTieBound: goalTiesSettled,
-                    pruneEqualHp: goalTiesSettled && _pruneEqualHp && !values.HasRisk);
+                    pruneEqualHp: pruneEqualHp && !values.HasRisk);
             }
             if (!incumbentPrune)
             {

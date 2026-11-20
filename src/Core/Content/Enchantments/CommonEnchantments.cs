@@ -358,26 +358,12 @@ public sealed class SlumberingEssence : EnchantmentDef
 [ContentId("PERFECT_FIT")]
 public sealed class PerfectFit : EnchantmentDef
 {
-    public override void ModifyShuffleOrder(ref Exec x, Listener self, scoped Span<Card> cards, int count,
-        bool isInitialShuffle)
+    public override void ModifyShuffleOrder(Listener self, Span<int> positions)
     {
-        if (isInitialShuffle || (uint)self.Index >= (uint)x.B.CardCount)
+        int index = positions.IndexOf((int)self.Index);
+        if (index <= 0)
             return;
-        Card own = x.B.Cards[self.Index];
-        int found = -1;
-        for (int index = 0; index < count; index++)
-        {
-            if (CardEffects.Equal(cards[index], own))
-            {
-                found = index;
-                break;
-            }
-        }
-        if (found <= 0)
-            return;
-        Card card = cards[found];
-        for (int index = found; index > 0; index--)
-            cards[index] = cards[index - 1];
-        cards[0] = card;
+        positions[..index].CopyTo(positions[1..]);
+        positions[0] = self.Index;
     }
 }

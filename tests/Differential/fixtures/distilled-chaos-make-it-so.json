@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "distilled-chaos-make-it-so",
+  "characterId": "REGENT",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "CHAOSMAKEITSO",
+  "clearPlayerPiles": true,
+  "enemyCurrentHp": 70,
+  "initialPlayerEnergy": 5,
+  "cards": [
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Hand",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_REGENT",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "MAKE_IT_SO",
+      "pile": "Draw"
+    },
+    {
+      "cardId": "VENERATE",
+      "pile": "Draw"
+    }
+  ],
+  "potions": [
+    {
+      "potionId": "DISTILLED_CHAOS"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "mini-regent-child-of-the-stars",
+  "seed": "MINIREGENTSTARS",
+  "characterId": "REGENT",
+  "encounterId": "SLUMBERING_BEETLE_NORMAL",
+  "initialPlayerStars": 3,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    { "cardId": "REFLECT", "pile": "Hand" }
+  ],
+  "relics": [
+    { "relicId": "MINI_REGENT", "addWithoutObtainedEffects": true }
+  ],
+  "powers": [
+    { "powerId": "STRENGTH_POWER", "target": "Player", "amount": -1 },
+    { "powerId": "CHILD_OF_THE_STARS_POWER", "target": "Player", "amount": 2 }
+  ]
+}

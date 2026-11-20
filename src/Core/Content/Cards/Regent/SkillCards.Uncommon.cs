@@ -224,16 +224,13 @@ public sealed class SummonForth : ForgeCardDef
                     inspected++;
                     continue;
                 }
-                int playPosition = x.PlayPosition;
                 // Native CardPileCmd.Add moves each card to the hand bottom and diverts it to the
                 // discard pile when the hand is full; MoveCard implements exactly that rule.
-                if (!Kernel.MoveCard(ref x.B, pile, index, Pile.Hand, PilePosition.Bottom))
+                if (!Kernel.MoveCardToHand(ref x, pile, index))
                 {
                     stopped = true;
                     break;
                 }
-                if (pile == Pile.Play && index < playPosition)
-                    x.PlayPosition--;
                 inspected++;
             }
         }

@@ -78,7 +78,7 @@ internal static class BoundCompiler
         bool component = ComponentCertificate(state, player);
         bool knownNative = KnownNativeCertificate(state, player);
         bool canCertify = component || !knownNative && EnvironmentCertificate(state, player);
-        string? disabled = DisabledReason(policy, root, canCertify, component);
+        string? disabled = DisabledReason(state, policy, root, canCertify, component);
         if (disabled != null)
             return Disabled(disabled);
 
@@ -126,12 +126,13 @@ internal static class BoundCompiler
         };
     }
 
-    private static string? DisabledReason(SearchPolicy policy, Battle root, bool canCertify,
-        bool component)
+    private static string? DisabledReason(CombatState state, SearchPolicy policy, Battle root,
+        bool canCertify, bool component)
     {
         if (policy.EffectiveHasGrowthTargets)
             return "growth_targets";
-        if (policy.TheftPolicy == SearchTheftPolicy.PreserveResources)
+        if (policy.TheftPolicy == SearchTheftPolicy.PreserveResources
+            && state.Encounter?.Id.Entry != "GREMLIN_MERC_NORMAL")
             return "theft_policy";
         if (GrowthRewardTotal(root) != 0)
             return "growth_rewards";

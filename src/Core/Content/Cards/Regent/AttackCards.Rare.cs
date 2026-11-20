@@ -64,7 +64,7 @@ public sealed class MakeItSo : CardDef
         if (finished % cards != 0)
             return;
         Pile pile = Piles.PileOf(x.B, position, out int index);
-        Kernel.MoveCard(ref x.B, pile, index, Pile.Hand);
+        Kernel.MoveCardToHand(ref x, pile, index);
     }
 }
 

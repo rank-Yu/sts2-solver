@@ -236,8 +236,8 @@ public sealed class RollingBoulderPower : PowerDef
         // instanced row. Re-resolve the snapshot instance by (owner, id, occurrence) before writing;
         // the native hook mutates the captured model object, not the pre-damage table index.
         int row = Kernel.FindPowerOccurrence(x.B, owner, id, occurrence);
-        if (row < 0)
-            throw new UnsupportedException("Rolling Boulder 的 Power 行在伤害后消失。");
+        if (row < 0) // The hit can kill the owner through a death trigger.
+            return;
         // RollingBoulderPower.CanonicalVars Damage = 5; the card upgrade raises the initial Amount,
         // not this increment (RollingBoulder.incrementAmount).
         x.B.Powers[row].Amount = (int)Math.Clamp((long)x.B.Powers[row].Amount + 5, 0, Limits.ValueClamp);
@@ -373,7 +373,7 @@ public sealed class EntropyPower : PowerDef
     public override void AfterPlayerTurnStart(ref Exec x, Listener self)
     {
         int hand = x.B.HandCount;
-        if (hand == 0)
+        if (hand == 0 || x.B.Player.IsDead || Kernel.IsOverOrEnding(x.B))
             return;
         int count = Math.Min(x.B.Powers[self.Index].Amount, hand);
         if (count <= 0)

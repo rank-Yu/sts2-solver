@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "debt-turn-end",
+  "characterId": "IRONCLAD",
+  "encounterId": "LAGAVULIN_MATRIARCH_BOSS",
+  "seed": "DEBTENDTURN",
+  "clearRunDeck": true,
+  "preserveNativeCombatStateForTest": true,
+  "ownedLoadoutForTest": {
+    "hp": 70,
+    "maxHp": 70,
+    "gold": 13
+  },
+  "cards": [],
+  "runCards": [
+    {
+      "cardId": "DEBT",
+      "count": 2
+    },
+    {
+      "cardId": "DEFEND_IRONCLAD"
+    }
+  ],
+  "relics": []
+}

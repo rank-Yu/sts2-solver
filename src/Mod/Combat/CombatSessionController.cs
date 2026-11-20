@@ -366,11 +366,18 @@ internal static partial class CombatSessionController
         SetupSupersededDeploymentCount = 0;
     }
 
-    internal static void ResumeAutoSearchForTest()
+    internal static void ResumeAutoSearchForTest(bool runCombat = false)
     {
         HoldAutoSearchForTest = false;
         if (_combatActive && _state != null)
+        {
+            if (runCombat)
+            {
+                _runCombat = CanRunCombat();
+                PublishSnapshot();
+            }
             OnTurnStarted(_state);
+        }
     }
 
     /// <summary>

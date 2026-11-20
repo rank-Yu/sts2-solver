@@ -49,6 +49,16 @@ public static partial class Kernel
         return true;
     }
 
+    /// <summary>A card effect can pull an earlier queued card out of Play while another card is resolving.</summary>
+    public static bool MoveCardToHand(ref Exec x, Pile from, int index)
+    {
+        if (!MoveCard(ref x.B, from, index, Pile.Hand))
+            return false;
+        if (from == Pile.Play && index < x.PlayPosition)
+            x.PlayPosition--;
+        return true;
+    }
+
     /// <summary>Mirrors <c>CombatPredictionSimulator.Draw</c> / <c>DrawCore</c>.</summary>
     public static void Draw(ref Exec x, int count, bool fromHandDraw)
     {
@@ -296,18 +306,26 @@ public static partial class Kernel
         Piles.ReadCards(x.B, Pile.Discard).CopyTo(list);
         Piles.ReadCards(x.B, Pile.Draw).CopyTo(list[discardCount..]);
 
-        // ListExtensions.StableShuffle: sort, then UnstableShuffle (Fisher-Yates from the end).
-        CardSort.Sort(list, x.R, in x.B, Pile.Draw);
+        // Only shuffle-order listeners need the original Battle slot of each card.
         ref RngState rng = ref x.B.RngStream(RngStream.Shuffle);
-        for (int n = total; n > 1;)
+        if (x.R.HasShuffleOrderEnchantment)
         {
-            n--;
-            int k = rng.NextInt(n + 1);
-            (list[k], list[n]) = (list[n], list[k]);
+            Span<int> positions = stackalloc int[total];
+            for (int i = 0; i < discardCount; i++)
+                positions[i] = x.B.HandCount + drawCount + i;
+            for (int i = 0; i < drawCount; i++)
+                positions[discardCount + i] = x.B.HandCount + i;
+            CardSort.SortWithOrigins(list, positions, x.R, in x.B, Pile.Draw);
+            ShuffleOrder(positions, ref rng);
+            ModifyShuffleOrder(ref x, positions);
+            for (int i = 0; i < total; i++)
+                list[i] = x.B.Cards[positions[i]];
         }
-        // HookMirrors.ModifyShuffleOrder runs after the stable shuffle and before AddToPile
-        // (PerfectFit moves its own card to the front of the merged list).
-        ModifyShuffleOrder(ref x, list, total);
+        else
+        {
+            CardSort.Sort(list, x.R, in x.B, Pile.Draw);
+            ShuffleOrder(list, ref rng);
+        }
 
         // Draw and discard are adjacent segments: the region becomes the new draw pile.
         list.CopyTo(System.Runtime.InteropServices.MemoryMarshal.CreateSpan(ref x.B.Cards[x.B.HandCount], total));
@@ -322,21 +340,21 @@ public static partial class Kernel
         HookDispatch.Dispatch(ref x, ref after, gatedByEnding: false);
     }
 
-    /// <summary>
-    /// <c>HookMirrors.ModifyShuffleOrder</c> over the combat listeners in dispatch order. The existing
-    /// engine always passes <c>isInitialShuffle: false</c> from <c>CombatPredictionSimulator.Shuffle</c>
-    /// (the only shuffle call site), so Sts2Solver passes false as well.
-    /// </summary>
-    private static void ModifyShuffleOrder(ref Exec x, scoped Span<Card> cards, int count)
+    private static void ShuffleOrder<T>(Span<T> values, ref RngState rng)
     {
-        if (!x.R.HasShuffleOrderEnchantment
-            || (Registry.AnyHooksExt & HookMaskExt.ModifyShuffleOrder) == 0)
-            return;
+        for (int n = values.Length - 1; n > 0; n--)
+        {
+            int k = rng.NextInt(n + 1);
+            (values[k], values[n]) = (values[n], values[k]);
+        }
+    }
+
+    private static void ModifyShuffleOrder(ref Exec x, scoped Span<int> positions)
+    {
         Span<Listener> listeners = stackalloc Listener[HookDispatch.MaxListenerCount(x.B, x.R)];
         int listenersCount = HookDispatch.CollectListeners(x.B, x.R, HookMaskExt.ModifyShuffleOrder, listeners);
         for (int index = 0; index < listenersCount; index++)
-            HookDispatch.Definition(x.B, x.R, listeners[index]).ModifyShuffleOrder(
-                ref x, listeners[index], cards, count, isInitialShuffle: false);
+            HookDispatch.Definition(x.B, x.R, listeners[index]).ModifyShuffleOrder(listeners[index], positions);
     }
 
     /// <summary>Mirrors <c>CombatPredictionSimulator.Exhaust</c>.</summary>

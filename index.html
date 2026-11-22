@@ -477,83 +477,48 @@ try {
         In our contiguous state, we enforce a strict rule: <strong>cards have no object identity; two cards with identical bytes are completely interchangeable.</strong> Every piece of per-card mutable state travels inside the card's own <strong>46 bytes</strong>:
       </p>
 
-      <!-- FIGURE 3: 46-Byte Card Anatomy & Cost Merging -->
+      <!-- FIGURE 3: Clean 46-Byte Card Layout -->
       <figure class="fig">
         <div class="canvas">
-          <svg viewBox="0 0 820 225" role="img" aria-label="Anatomy of a 46-byte card value and equivalence merging of energy cost modifiers.">
-            <defs>
-              <marker id="aa-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead-acc"/></marker>
-            </defs>
-
+          <svg viewBox="0 0 820 128" role="img" aria-label="46-byte contiguous card layout: Base attributes, 4 cost modifier slots, dynamic variables & enchantments, and private ledger & mark.">
             <!-- Title -->
             <text x="20" y="26" class="tb lang-zh">单张卡牌的 46 字节连续结构</text>
             <text x="20" y="26" class="tb lang-en">46-Byte Contiguous Card Layout</text>
 
-            <!-- Block 1: Identity, Cost & Flags (9 B) -->
-            <rect x="20" y="40" width="175" height="68" rx="8" class="box"/>
-            <text x="107" y="66" class="tb lang-zh" text-anchor="middle">基础与位图（9 B）</text>
-            <text x="107" y="66" class="tb lang-en" text-anchor="middle">Base &amp; Bitmaps (9 B)</text>
-            <text x="107" y="90" class="s lang-zh" text-anchor="middle">ID · 升级 · 基础费 · 词条位图</text>
-            <text x="107" y="90" class="s lang-en" text-anchor="middle">Id · Upgrade · Cost · Keywords</text>
+            <!-- Block 1: Base -->
+            <rect x="20" y="42" width="185" height="68" rx="8" class="box"/>
+            <text x="112" y="68" class="tb lang-zh" text-anchor="middle">基础属性</text>
+            <text x="112" y="68" class="tb lang-en" text-anchor="middle">Base Attributes</text>
+            <text x="112" y="92" class="m lang-zh" text-anchor="middle">ID · 升级 · 费用 · 词条</text>
+            <text x="112" y="92" class="m lang-en" text-anchor="middle">Id · Upgrade · Cost · Keywords</text>
 
-            <!-- Block 2: 4 Energy Cost Modifiers (12 B) -->
-            <rect x="203" y="40" width="204" height="68" rx="8" class="hot"/>
-            <text x="305" y="66" class="tb acc-t lang-zh" text-anchor="middle">4 个费用修改槽（12 B）</text>
-            <text x="305" y="66" class="tb acc-t lang-en" text-anchor="middle">4 Cost Modifiers (12 B)</text>
-            <text x="305" y="90" class="s lang-zh" text-anchor="middle">每槽 3 B · 相邻同类自动合并</text>
-            <text x="305" y="90" class="s lang-en" text-anchor="middle">3 B each · Adjacent entries merge</text>
+            <!-- Block 2: Cost Modifiers -->
+            <rect x="215" y="42" width="195" height="68" rx="8" class="hot"/>
+            <text x="312" y="68" class="tb acc-t lang-zh" text-anchor="middle">4 个费用修改槽</text>
+            <text x="312" y="68" class="tb acc-t lang-en" text-anchor="middle">4 Cost Modifier Slots</text>
+            <text x="312" y="92" class="m lang-zh" text-anchor="middle">相邻同类改费自动合并</text>
+            <text x="312" y="92" class="m lang-en" text-anchor="middle">Adjacent changes merge</text>
 
-            <!-- Block 3: Dynamic Vars & Enchantment/Affliction (18 B) -->
-            <rect x="415" y="40" width="195" height="68" rx="8" class="box"/>
-            <text x="512" y="66" class="tb lang-zh" text-anchor="middle">动态变量与附魔（18 B）</text>
-            <text x="512" y="66" class="tb lang-en" text-anchor="middle">Vars &amp; Enchantments (18 B)</text>
-            <text x="512" y="90" class="s lang-zh" text-anchor="middle">数值增量 · 附魔 · 苦难层数</text>
-            <text x="512" y="90" class="s lang-en" text-anchor="middle">Var deltas · Enchant · Affliction</text>
+            <!-- Block 3: Dynamic Vars & Enchantment -->
+            <rect x="420" y="42" width="190" height="68" rx="8" class="box"/>
+            <text x="515" y="68" class="tb lang-zh" text-anchor="middle">动态数值与附魔</text>
+            <text x="515" y="68" class="tb lang-en" text-anchor="middle">Vars &amp; Enchantments</text>
+            <text x="515" y="92" class="m lang-zh" text-anchor="middle">数值增量 · 附魔 · 苦难</text>
+            <text x="515" y="92" class="m lang-en" text-anchor="middle">Deltas · Enchant · Affliction</text>
 
-            <!-- Block 4: Private Ledger & Transient Mark (7 B) -->
-            <rect x="618" y="40" width="182" height="68" rx="8" class="box"/>
-            <text x="709" y="66" class="tb lang-zh" text-anchor="middle">随牌账本与标记（7 B）</text>
-            <text x="709" y="66" class="tb lang-en" text-anchor="middle">Private Ledger (7 B)</text>
-            <text x="709" y="90" class="s lang-zh" text-anchor="middle">专属计数 · 末尾 1B 临时标记</text>
-            <text x="709" y="90" class="s lang-en" text-anchor="middle">Private counter · 1B temp mark</text>
-
-            <!-- Cost Modifier Equivalence Merging Sub-diagram -->
-            <rect x="20" y="124" width="780" height="84" rx="10" class="box2"/>
-            <text x="38" y="148" class="tb lang-zh">费用修改等价合并：</text>
-            <text x="38" y="148" class="tb lang-en">Cost-modifier equivalence merging:</text>
-
-            <!-- Relative merge example -->
-            <rect x="38" y="160" width="110" height="32" rx="6" class="box"/>
-            <text x="93" y="181" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
-            <text x="93" y="181" class="s lang-en" text-anchor="middle">-1 this turn</text>
-            <text x="158" y="181" class="tb" text-anchor="middle">+</text>
-            <rect x="168" y="160" width="110" height="32" rx="6" class="box"/>
-            <text x="223" y="181" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
-            <text x="223" y="181" class="s lang-en" text-anchor="middle">-1 this turn</text>
-            <line x1="286" y1="176" x2="314" y2="176" class="path" marker-end="url(#aa-3)"/>
-            <rect x="322" y="160" width="120" height="32" rx="6" class="hot"/>
-            <text x="382" y="181" class="tb acc-t lang-zh" text-anchor="middle">本回合费用 -2</text>
-            <text x="382" y="181" class="tb acc-t lang-en" text-anchor="middle">-2 this turn</text>
-
-            <!-- Absolute merge example -->
-            <rect x="470" y="160" width="96" height="32" rx="6" class="box"/>
-            <text x="518" y="181" class="s lang-zh" text-anchor="middle">本回合设为 2</text>
-            <text x="518" y="181" class="s lang-en" text-anchor="middle">Set to 2</text>
-            <text x="576" y="181" class="tb" text-anchor="middle">+</text>
-            <rect x="586" y="160" width="96" height="32" rx="6" class="box"/>
-            <text x="634" y="181" class="s lang-zh" text-anchor="middle">本回合设为 0</text>
-            <text x="634" y="181" class="s lang-en" text-anchor="middle">Set to 0</text>
-            <line x1="690" y1="176" x2="714" y2="176" class="path" marker-end="url(#aa-3)"/>
-            <rect x="722" y="160" width="64" height="32" rx="6" class="hot"/>
-            <text x="754" y="181" class="tb acc-t lang-zh" text-anchor="middle">设为 0</text>
-            <text x="754" y="181" class="tb acc-t lang-en" text-anchor="middle">Set to 0</text>
+            <!-- Block 4: Private Ledger & Mark -->
+            <rect x="620" y="42" width="180" height="68" rx="8" class="box"/>
+            <text x="710" y="68" class="tb lang-zh" text-anchor="middle">随牌账本与标记</text>
+            <text x="710" y="68" class="tb lang-en" text-anchor="middle">Private Ledger</text>
+            <text x="710" y="92" class="m lang-zh" text-anchor="middle">专属计数 · 临时标记</text>
+            <text x="710" y="92" class="m lang-en" text-anchor="middle">Counter · Temp mark</text>
           </svg>
         </div>
         <figcaption class="lang-zh">
-          单张卡牌固定占 46 字节。所有随牌状态直接编码在卡值内部，并通过费用修改等价合并将改费历史压缩至 4 个槽位（12 字节）。
+          单张卡牌固定占 46 字节，所有随牌状态直接编码在卡值内部。
         </figcaption>
         <figcaption class="lang-en">
-          Every card occupies 46 bytes. Card-specific ledgers live inside the struct itself, and cost-modifier merging keeps the modifier stack within 4 slots (12 bytes).
+          Every card occupies 46 bytes, with all card-specific state encoded directly inside the value.
         </figcaption>
       </figure>
 
@@ -565,10 +530,10 @@ try {
           <strong>Per-card ledgers travel with the value:</strong> Scaling counters (such as <em>Claw</em> or <em>Rampage</em> bonuses), already-applied <em>Sovereign Blade</em> replay buffs, whether a card was played this turn, whether it returns to hand next turn, and its original upgrade level before a downgrade all live directly inside the 46-byte struct. Two cards in the same state have identical bytes and merge automatically during search deduplication.
         </li>
         <li class="lang-zh">
-          <strong>费用修改的等价合并（从 82 字节瘦身到 46 字节）：</strong>战斗中有很多修改卡牌费用的效果（如“本回合费用变为 0”、“每打出一张攻击牌本回合费用 -1”、混乱随机改费等）。如果把每次改费都原封不动地追加成一条历史记录，每张牌都得预留十几个槽位。我们严格对齐了游戏原版的算费规则：<strong>相邻且到期时间相同的“加减费”直接把数值相加；相邻且到期时间相同的“费用设为 X”只保留最后一次</strong>（后设的绝对费用总会覆盖前一次，且两者同时到期）。加上这条合并规则后，每张牌只需预留 <strong>4 个费用修改槽（共 12 字节）</strong> 就能无损表示实战中所有的改费组合，单张卡牌的体积也从最初的 82 字节缩减到了 46 字节。
+          <strong>费用修改的等价合并：</strong>战斗中有很多修改卡牌费用的效果（如“本回合费用变为 0”、“每打出一张攻击牌本回合费用 -1”、混乱随机改费等）。如果把每次改费都原封不动地追加成一条历史记录，每张牌都得预留十几个槽位。我们严格对齐了游戏原版的算费规则：<strong>相邻且到期时间相同的“加减费”直接把数值相加；相邻且到期时间相同的“费用设为 X”只保留最后一次</strong>（后设的绝对费用总会覆盖前一次，且两者同时到期）。加上这条合并规则后，每张牌只需预留 <strong>4 个费用修改槽</strong> 就能无损表示实战中所有的改费组合。
         </li>
         <li class="lang-en">
-          <strong>Equivalence merging for cost modifiers (82 B &rarr; 46 B):</strong> Cards can accumulate many local cost modifications over a fight. Instead of reserving a long history list on every card, we mirror the game's exact cost-resolution semantics: <strong>adjacent relative modifiers with the same expiration sum their amounts, and adjacent absolute cost assignments with the same expiration keep only the latest value.</strong> With equivalence merging, just <strong>4 slots (12 bytes)</strong> losslessly represent combat cost chains, shrinking every card from 82 bytes down to 46 bytes.
+          <strong>Equivalence merging for cost modifiers:</strong> Cards can accumulate many local cost modifications over a fight. Instead of reserving a long history list on every card, we mirror the game's exact cost-resolution semantics: <strong>adjacent relative modifiers with the same expiration sum their amounts, and adjacent absolute cost assignments with the same expiration keep only the latest value.</strong> With equivalence merging, just <strong>4 slots</strong> losslessly represent combat cost chains.
         </li>
         <li class="lang-zh">
           <strong>离场牌与单次动作内的临时追踪：</strong>如果一张牌被《梦魇》选中（下回合要复制它），或者被飞贼偷走，它暂时离开了五个牌区，但未来还会用到——我们在战斗头部预留了 3 个“离场牌槽”专门存放这类跨回合的完整牌值。而如果某张牌在结算中途需要跨洗牌或自动出牌追踪“刚才选中的是哪几张牌”（例如抽若干张牌后把其中满足条件的弃掉），我们利用卡牌最末尾的 1 个字节作为<strong>动作内临时标记</strong>，在动作开始时给目标牌编号、动作结算完毕前统一清零。在任何动作结束后的稳定局面里，这个字节永远是 0，既解决了动作内的追踪问题，又不会污染状态去重。

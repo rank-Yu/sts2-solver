@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>尖塔求解 · 把一场《杀戮尖塔 2》战斗装进 4 KB 连续内存</title>
-<meta name="description" content="尖塔求解器（Sts2Solver）如何将整场《杀戮尖塔 2》的战斗状态压缩进约 4 KB 的无指针连续内存，实现零 GC 分叉、零字节搬运抽牌与 7.4 倍搜索吞吐提升。">
+<meta name="description" content="尖塔求解（Spire Solver）如何将整场《杀戮尖塔 2》的战斗状态压缩进约 4 KB 的无指针连续内存，实现零 GC 分叉、零字节搬运抽牌与 7.4 倍搜索吞吐提升。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 9v14l12 7 12-7V9z' fill='%23d9a441'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,13 +26,13 @@ try {
 <body>
 
 <header class="top">
-  <a class="brand" href="index.html" aria-label="Sts2Solver home">
+  <a class="brand" href="index.html" aria-label="Spire Solver home">
     <svg viewBox="0 0 32 32" aria-hidden="true">
       <path d="M16 2 4 9v14l12 7 12-7V9z" fill="currentColor" opacity=".18"/>
       <path d="M16 2 4 9v14l12 7 12-7V9zm0 4.6 8 4.7v9.4l-8 4.7-8-4.7v-9.4z" fill="oklch(0.78 0.13 76)"/>
     </svg>
     <span class="lang-zh">尖塔求解</span>
-    <span class="lang-en">Sts2Solver</span>
+    <span class="lang-en">Spire Solver</span>
   </a>
 
   <nav class="toplinks" aria-label="Site">
@@ -84,19 +84,19 @@ try {
       </li>
       <li>
         <a href="#packed-prefix">
-          <span class="lang-zh">2. 4 KB 变长打包前缀</span>
+          <span class="lang-zh">2. 4 KB 的变长打包前缀</span>
           <span class="lang-en">2. The 4 KB Packed Prefix</span>
         </a>
       </li>
       <li>
         <a href="#unified-piles">
           <span class="lang-zh">3. 五牌区合一与零搬运抽牌</span>
-          <span class="lang-en">3. Five Piles in One &amp; Zero-Copy Draws</span>
+          <span class="lang-en">3. Five Piles &amp; Zero-Copy Draws</span>
         </a>
       </li>
       <li>
         <a href="#card-value">
-          <span class="lang-zh">4. 46 字节单卡与无身份原则</span>
+          <span class="lang-zh">4. 46 字节单卡与无身份设计</span>
           <span class="lang-en">4. 46-Byte Cards Without Identity</span>
         </a>
       </li>
@@ -122,17 +122,17 @@ try {
       <h1 class="lang-en">Fitting a Slay the Spire 2 Fight into 4 KB of Contiguous Memory</h1>
 
       <p class="lede lang-zh">
-        《杀戮尖塔 2》在退出重进（SL）一局战斗时，战斗内的随机种子是固定的——每次洗牌的顺序、随机生成哪张牌、随机打中哪个敌人，只要操作序列相同，结果就完全确定。尖塔求解器（Sts2Solver）正是利用这一点，在后台推演成千上万条出牌、喝药、选牌的“平行世界线”，从中找出不死、少掉血、少交药水的最优打法。要把这件事做得既快又准，最关键的设计不在搜索算法有多花哨，而在一个更底层的问题：<strong>怎么在内存里表示“一场正在进行的战斗”？</strong>
+        《杀戮尖塔 2》在 SL 一局战斗时，战斗内的随机种子是固定的——每次洗牌的顺序、随机生成哪张牌、随机打中哪个敌人，只要操作序列相同，结果就完全确定。尖塔求解正是利用这一点，在后台推演成千上万条出牌、喝药、选牌的“平行世界线”，从中找出不死、少掉血、少交药水的最优打法。要把这件事做得既快又准，关键的设计在于：<strong>怎么在内存里表示“一场正在进行的战斗”？</strong>
       </p>
       <p class="lede lang-en">
-        When you save and reload (SL) a fight in <em>Slay the Spire 2</em>, every random seed inside the encounter is deterministic—shuffle order, generated cards, and random targets all play out identically for the same sequence of actions. Sts2Solver exploits this property by exploring tens of thousands of parallel action timelines in the background to find a line that wins with minimal HP loss and potion use. Making that search fast and exact comes down to a fundamental systems question: <strong>how do you represent an entire ongoing fight in memory?</strong>
+        When you SL a fight in <em>Slay the Spire 2</em>, every random seed inside the encounter is deterministic—shuffle order, generated cards, and random targets all play out identically for the same sequence of actions. Spire Solver exploits this property by exploring tens of thousands of parallel action timelines in the background to find a line that wins with minimal HP loss and potion use. To make that search both fast and exact, the key design question is: <strong>how do we represent an ongoing fight in memory?</strong>
       </p>
     </section>
 
     <!-- ==================== SECTION 1 ==================== -->
     <section id="bottleneck">
-      <h2 class="lang-zh">一、 为什么核心瓶颈在“怎么存一局战斗”？</h2>
-      <h2 class="lang-en">1. Why State Representation Is the Core Bottleneck</h2>
+      <h2 class="lang-zh">一、 为什么瓶颈在“怎么存一局战斗”</h2>
+      <h2 class="lang-en">1. Why State Layout Is the Bottleneck</h2>
 
       <p class="lang-zh">
         在搜索树里，求解器每秒钟都在重复做同一件事：<strong>从当前局面分叉（复制）出几个平行世界，在每个世界里分别尝试打出一张手牌、喝一瓶药水或结束回合，看看会发生什么。</strong>一场几秒钟的常规搜索，往往要展开数万个父节点、模拟十多万次动作（平均每展开一个父节点，就要分叉并模拟约 4.5 次动作）。
@@ -149,10 +149,10 @@ try {
       </p>
 
       <p class="lang-zh">
-        我们的设计思路很直接：<strong>能不能把一整场战斗的所有可变状态，拍平成一块完全没有指针、只有几千字节的连续内存？</strong>
+        我们的设计思路是：<strong>把一整场战斗的所有可变状态，拍平成一块完全没有指针、只有几千字节的连续内存。</strong>
       </p>
       <p class="lang-en">
-        Our approach is direct: <strong>flatten every piece of branch-mutable combat state into a single, pointer-free block of contiguous bytes only a few kilobytes wide.</strong>
+        Our design <strong>flattens all mutable combat state into a single, pointer-free block of contiguous memory just a few kilobytes wide.</strong>
       </p>
 
       <div class="cards">
@@ -177,17 +177,17 @@ try {
       </div>
 
       <p class="lang-zh">
-        在完全相同的搜索策略与 126 场实机战斗测试中，这套连续内存设计每秒能展开超过 <strong>22,400 个父节点</strong>（折算每模拟一次动作仅需 <strong>约 10 微秒 / 0.01 毫秒</strong>），比传统的对象图模拟快了 <strong>7.4 倍</strong>，126 场开局搜索总耗时缩短了 <strong>72.2%</strong>（从 1,343 秒降至 373 秒）。
+        在完全相同的搜索策略与 126 场实机战斗测试中，这套连续内存设计每秒能展开超过 <strong>22,400 个父节点</strong>（折算每模拟一次动作仅需 <strong>约 10 微秒 / 0.01 毫秒</strong>），对比传统基于对象的模拟器快了 <strong>7.4 倍</strong>，126 场开局搜索总耗时缩短了 <strong>72.2%</strong>（从 1,343 秒降至 373 秒）。
       </p>
       <p class="lang-en">
-        Measured across the exact same 126 in-game fights under the same search strategy, this contiguous state design expands over <strong>22,400 parent nodes per second</strong>—about <strong>10 µs (0.01 ms) per simulated action</strong>—delivering a <strong>7.4× throughput speedup and cutting total search time by 72.2%</strong> (from 1,343 s down to 373 s).
+        Measured across the exact same 126 in-game fights under the same search strategy, this contiguous state design expands over <strong>22,400 parent nodes per second</strong>—about <strong>10 µs (0.01 ms) per simulated action</strong>—running <strong>7.4× faster</strong> than a traditional object-based simulator and cutting total search time by <strong>72.2%</strong> (from 1,343 s down to 373 s).
       </p>
     </section>
 
     <!-- ==================== SECTION 2 ==================== -->
     <section id="packed-prefix">
-      <h2 class="lang-zh">二、 4 KB 的“变长打包前缀”：既兜住极端牌组，又不浪费日常带宽</h2>
-      <h2 class="lang-en">2. The 4 KB Packed Prefix: Bounding Extreme Decks Without Paying for Empty Slots</h2>
+      <h2 class="lang-zh">二、 4 KB 的变长打包前缀</h2>
+      <h2 class="lang-en">2. The 4 KB Packed Prefix</h2>
 
       <p class="lang-zh">
         一场战斗需要记住的状态很多：玩家与召唤物的生命和格挡、能量与星能、10 条随机数流的当前进度、场上最多 12 个怪物的生命与意图状态、全场最多 32 个能力（Power）的层数、药水栏、充能球，以及所有的卡牌。我们把这些数据全部用定长槽位排布在一块连续内存里，不留任何一个对象引用。
@@ -291,8 +291,8 @@ try {
 
     <!-- ==================== SECTION 3 ==================== -->
     <section id="unified-piles">
-      <h2 class="lang-zh">三、 五个牌区合一：为什么“抽一张牌”不需要搬运任何内存？</h2>
-      <h2 class="lang-en">3. Five Piles in One Array: Why Drawing a Card Moves Zero Bytes</h2>
+      <h2 class="lang-zh">三、 五牌区合一与零搬运抽牌</h2>
+      <h2 class="lang-en">3. Five Piles &amp; Zero-Copy Draws</h2>
 
       <p class="lang-zh">
         杀戮尖塔的战斗中有五个牌区：<strong>手牌、抽牌堆、弃牌堆、消耗堆、打出区</strong>。直观的做法是用五个独立的数组或列表分别存这五个区域。但那样一来，“从抽牌堆顶抽一张牌放到手牌末尾”，就得先从抽牌堆数组删掉第 0 个元素（把后面几十张牌往前挪一格），再往手牌数组末尾追加一个元素。
@@ -311,7 +311,7 @@ try {
       <!-- FIGURE 2: Unified Piles & Zero-Copy Draw -->
       <figure class="fig">
         <div class="canvas">
-          <svg viewBox="0 0 820 290" role="img" aria-label="Five card piles packed in one contiguous array. Because the Draw segment immediately follows the Hand segment, drawing the top card only increments HandCount and decrements DrawCount without moving any card bytes.">
+          <svg viewBox="0 0 820 265" role="img" aria-label="Five card piles packed in one contiguous array. Because the Draw segment immediately follows the Hand segment, drawing the top card only increments HandCount and decrements DrawCount without moving any card bytes.">
             <defs>
               <marker id="aa-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead-acc"/></marker>
             </defs>
@@ -322,8 +322,8 @@ try {
 
             <!-- Hand segment bracket (Before) -->
             <rect x="20" y="42" width="222" height="72" rx="8" class="box"/>
-            <text x="131" y="61" class="s lang-zh" text-anchor="middle">手牌段（Hand = 3）</text>
-            <text x="131" y="61" class="s lang-en" text-anchor="middle">Hand Segment (3)</text>
+            <text x="131" y="61" class="s lang-zh" text-anchor="middle">手牌段</text>
+            <text x="131" y="61" class="s lang-en" text-anchor="middle">Hand</text>
             <rect x="28" y="69" width="64" height="36" rx="5" class="box2"/>
             <text x="60" y="91" class="s lang-zh" text-anchor="middle">打击</text>
             <text x="60" y="91" class="s lang-en" text-anchor="middle">Strike</text>
@@ -336,8 +336,8 @@ try {
 
             <!-- Draw segment bracket (Before) -->
             <rect x="248" y="42" width="294" height="72" rx="8" class="box"/>
-            <text x="395" y="61" class="s lang-zh" text-anchor="middle">抽牌堆段（Draw = 4，第 0 张即牌堆顶）</text>
-            <text x="395" y="61" class="s lang-en" text-anchor="middle">Draw Segment (4, index 0 = top of draw pile)</text>
+            <text x="395" y="61" class="s lang-zh" text-anchor="middle">抽牌堆段</text>
+            <text x="395" y="61" class="s lang-en" text-anchor="middle">Draw Pile</text>
 
             <!-- Highlighted Top Card -->
             <rect x="256" y="69" width="64" height="36" rx="5" class="hot"/>
@@ -356,8 +356,8 @@ try {
 
             <!-- Other segments (Discard | Exhaust | Play) -->
             <rect x="548" y="42" width="252" height="72" rx="8" class="box"/>
-            <text x="674" y="61" class="s lang-zh" text-anchor="middle">其余牌段（首尾相接）</text>
-            <text x="674" y="61" class="s lang-en" text-anchor="middle">Remaining Segments</text>
+            <text x="674" y="61" class="s lang-zh" text-anchor="middle">其余牌段</text>
+            <text x="674" y="61" class="s lang-en" text-anchor="middle">Other Piles</text>
             <rect x="556" y="69" width="76" height="36" rx="5" class="box2"/>
             <text x="594" y="91" class="s lang-zh" text-anchor="middle">弃牌堆</text>
             <text x="594" y="91" class="s lang-en" text-anchor="middle">Discard</text>
@@ -371,8 +371,8 @@ try {
             <!-- Boundary Marker 1 & Shift Arrow -->
             <line x1="245" y1="36" x2="245" y2="122" class="path"/>
             <path d="M245,126 C245,146 323,130 323,152" class="path" marker-end="url(#aa-2)"/>
-            <text x="336" y="144" class="tb acc-t lang-zh">仅移动分界线（手牌 +1，抽牌堆 -1），卡牌内存 0 搬运</text>
-            <text x="336" y="144" class="tb acc-t lang-en">Only the boundary shifts (Hand +1, Draw -1); zero card bytes move</text>
+            <text x="336" y="144" class="tb acc-t lang-zh">仅右移分界线，卡牌内存 0 搬运</text>
+            <text x="336" y="144" class="tb acc-t lang-en">Only the boundary shifts; zero card bytes move</text>
 
             <!-- Vertical alignment guide lines showing cards stay in exact same physical slots -->
             <line x1="60" y1="106" x2="60" y2="195" class="line dash" opacity="0.45"/>
@@ -386,8 +386,8 @@ try {
 
             <!-- Hand segment bracket (After) -->
             <rect x="20" y="176" width="300" height="72" rx="8" class="box"/>
-            <text x="170" y="195" class="s lang-zh" text-anchor="middle">手牌段（Hand = 4）</text>
-            <text x="170" y="195" class="s lang-en" text-anchor="middle">Hand Segment (4)</text>
+            <text x="170" y="195" class="s lang-zh" text-anchor="middle">手牌段</text>
+            <text x="170" y="195" class="s lang-en" text-anchor="middle">Hand</text>
             <rect x="28" y="203" width="64" height="36" rx="5" class="box2"/>
             <text x="60" y="225" class="s lang-zh" text-anchor="middle">打击</text>
             <text x="60" y="225" class="s lang-en" text-anchor="middle">Strike</text>
@@ -408,8 +408,8 @@ try {
 
             <!-- Draw segment bracket (After) -->
             <rect x="326" y="176" width="216" height="72" rx="8" class="box"/>
-            <text x="434" y="195" class="s lang-zh" text-anchor="middle">抽牌堆段（Draw = 3）</text>
-            <text x="434" y="195" class="s lang-en" text-anchor="middle">Draw Segment (3)</text>
+            <text x="434" y="195" class="s lang-zh" text-anchor="middle">抽牌堆段</text>
+            <text x="434" y="195" class="s lang-en" text-anchor="middle">Draw Pile</text>
             <rect x="334" y="203" width="64" height="36" rx="5" class="box2"/>
             <text x="366" y="225" class="s lang-zh" text-anchor="middle">顺劈斩</text>
             <text x="366" y="225" class="s lang-en" text-anchor="middle">Cleave</text>
@@ -422,8 +422,8 @@ try {
 
             <!-- Other segments (After) -->
             <rect x="548" y="176" width="252" height="72" rx="8" class="box"/>
-            <text x="674" y="195" class="s lang-zh" text-anchor="middle">其余牌段（位置不变）</text>
-            <text x="674" y="195" class="s lang-en" text-anchor="middle">Remaining Segments (Unchanged)</text>
+            <text x="674" y="195" class="s lang-zh" text-anchor="middle">其余牌段</text>
+            <text x="674" y="195" class="s lang-en" text-anchor="middle">Other Piles</text>
             <rect x="556" y="203" width="76" height="36" rx="5" class="box2"/>
             <text x="594" y="225" class="s lang-zh" text-anchor="middle">弃牌堆</text>
             <text x="594" y="225" class="s lang-en" text-anchor="middle">Discard</text>
@@ -433,9 +433,6 @@ try {
             <rect x="720" y="203" width="72" height="36" rx="5" class="box2"/>
             <text x="756" y="225" class="s lang-zh" text-anchor="middle">打出区</text>
             <text x="756" y="225" class="s lang-en" text-anchor="middle">Play</text>
-
-            <text x="20" y="276" class="s lang-zh">注：其余跨牌区移动（如打出手牌进入弃牌堆）也只需对源位置与目标位置之间的连续子区间做一次原地旋转，数组其余部分不动。</text>
-            <text x="20" y="276" class="s lang-en">Note: Any other cross-pile move simply rotates the contiguous slice between the source and destination indices in place.</text>
           </svg>
         </div>
         <figcaption class="lang-zh">
@@ -463,8 +460,8 @@ try {
 
     <!-- ==================== SECTION 4 ==================== -->
     <section id="card-value">
-      <h2 class="lang-zh">四、 46 字节一张牌：去掉“对象身份”，让状态跟着牌走</h2>
-      <h2 class="lang-en">4. 46 Bytes per Card: Dropping Object Identity So State Travels with the Card</h2>
+      <h2 class="lang-zh">四、 46 字节单卡与无身份设计</h2>
+      <h2 class="lang-en">4. 46-Byte Cards Without Identity</h2>
 
       <p class="lang-zh">
         在传统的对象模型里，每张牌都是一个独立实例——哪怕手里有两张完全相同的初始《打击》，它们也有各自的内存地址。如果某个能力或遗物需要记录“哪张牌本回合打过了”、“哪张牌吃到了加成”、“哪张牌下回合要回到手牌”，通常会建一张外部字典（以卡牌对象的地址为键）。这不仅导致每次分叉都要重建字典，还会让求解器难以判断两张牌是否等价。
@@ -483,85 +480,73 @@ try {
       <!-- FIGURE 3: 46-Byte Card Anatomy & Cost Merging -->
       <figure class="fig">
         <div class="canvas">
-          <svg viewBox="0 0 820 265" role="img" aria-label="Anatomy of a 46-byte card value and equivalence merging of energy cost modifiers.">
+          <svg viewBox="0 0 820 225" role="img" aria-label="Anatomy of a 46-byte card value and equivalence merging of energy cost modifiers.">
             <defs>
               <marker id="aa-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead-acc"/></marker>
             </defs>
 
             <!-- Title -->
-            <text x="20" y="26" class="tb lang-zh">单张卡牌的 46 字节连续结构（字节 0 .. 45）</text>
-            <text x="20" y="26" class="tb lang-en">46-Byte Contiguous Card Layout (Bytes 0 .. 45)</text>
+            <text x="20" y="26" class="tb lang-zh">单张卡牌的 46 字节连续结构</text>
+            <text x="20" y="26" class="tb lang-en">46-Byte Contiguous Card Layout</text>
 
             <!-- Block 1: Identity, Cost & Flags (9 B) -->
-            <rect x="20" y="40" width="175" height="84" rx="8" class="box"/>
-            <text x="107" y="62" class="tb lang-zh" text-anchor="middle">基础与位图（9 B）</text>
-            <text x="107" y="62" class="tb lang-en" text-anchor="middle">Base &amp; Bitmaps (9 B)</text>
-            <text x="107" y="82" class="s lang-zh" text-anchor="middle">卡牌 ID · 升级等级 · 基础费</text>
-            <text x="107" y="82" class="s lang-en" text-anchor="middle">Id · Upgrade · Base Cost</text>
-            <text x="107" y="100" class="s lang-zh" text-anchor="middle">词条位图 · 回手/克隆/临时星费</text>
-            <text x="107" y="100" class="s lang-en" text-anchor="middle">Keywords · Return/Clone/Star</text>
+            <rect x="20" y="40" width="175" height="68" rx="8" class="box"/>
+            <text x="107" y="66" class="tb lang-zh" text-anchor="middle">基础与位图（9 B）</text>
+            <text x="107" y="66" class="tb lang-en" text-anchor="middle">Base &amp; Bitmaps (9 B)</text>
+            <text x="107" y="90" class="s lang-zh" text-anchor="middle">ID · 升级 · 基础费 · 词条位图</text>
+            <text x="107" y="90" class="s lang-en" text-anchor="middle">Id · Upgrade · Cost · Keywords</text>
 
             <!-- Block 2: 4 Energy Cost Modifiers (12 B) -->
-            <rect x="201" y="40" width="210" height="84" rx="8" class="hot"/>
-            <text x="306" y="62" class="tb acc-t lang-zh" text-anchor="middle">4 个费用修改槽（12 B）</text>
-            <text x="306" y="62" class="tb acc-t lang-en" text-anchor="middle">4 Cost Modifier Slots (12 B)</text>
-            <text x="306" y="82" class="s lang-zh" text-anchor="middle">每槽 3 字节（2B 数值 + 1B 到期/类型）</text>
-            <text x="306" y="82" class="s lang-en" text-anchor="middle">3 B each (2B amount + 1B expiry/type)</text>
-            <text x="306" y="100" class="s lang-zh" text-anchor="middle">相邻同有效期改费自动等价合并</text>
-            <text x="306" y="100" class="s lang-en" text-anchor="middle">Adjacent same-expiry entries merge</text>
+            <rect x="203" y="40" width="204" height="68" rx="8" class="hot"/>
+            <text x="305" y="66" class="tb acc-t lang-zh" text-anchor="middle">4 个费用修改槽（12 B）</text>
+            <text x="305" y="66" class="tb acc-t lang-en" text-anchor="middle">4 Cost Modifiers (12 B)</text>
+            <text x="305" y="90" class="s lang-zh" text-anchor="middle">每槽 3 B · 相邻同类自动合并</text>
+            <text x="305" y="90" class="s lang-en" text-anchor="middle">3 B each · Adjacent entries merge</text>
 
             <!-- Block 3: Dynamic Vars & Enchantment/Affliction (18 B) -->
-            <rect x="417" y="40" width="195" height="84" rx="8" class="box"/>
-            <text x="514" y="62" class="tb lang-zh" text-anchor="middle">动态变量与附魔（18 B）</text>
-            <text x="514" y="62" class="tb lang-en" text-anchor="middle">Vars &amp; Enchantments (18 B)</text>
-            <text x="514" y="82" class="s lang-zh" text-anchor="middle">伤害/格挡增量 · 捕获 X 能量</text>
-            <text x="514" y="82" class="s lang-en" text-anchor="middle">Var deltas · Captured X energy</text>
-            <text x="514" y="100" class="s lang-zh" text-anchor="middle">附魔状态 · 苦难层数 · 外部词条</text>
-            <text x="514" y="100" class="s lang-en" text-anchor="middle">Enchantment · Affliction · Keywords</text>
+            <rect x="415" y="40" width="195" height="68" rx="8" class="box"/>
+            <text x="512" y="66" class="tb lang-zh" text-anchor="middle">动态变量与附魔（18 B）</text>
+            <text x="512" y="66" class="tb lang-en" text-anchor="middle">Vars &amp; Enchantments (18 B)</text>
+            <text x="512" y="90" class="s lang-zh" text-anchor="middle">数值增量 · 附魔 · 苦难层数</text>
+            <text x="512" y="90" class="s lang-en" text-anchor="middle">Var deltas · Enchant · Affliction</text>
 
             <!-- Block 4: Private Ledger & Transient Mark (7 B) -->
-            <rect x="618" y="40" width="182" height="84" rx="8" class="box"/>
-            <text x="709" y="62" class="tb lang-zh" text-anchor="middle">随牌账本与标记（7 B）</text>
-            <text x="709" y="62" class="tb lang-en" text-anchor="middle">Private Ledger &amp; Mark (7 B)</text>
-            <text x="709" y="82" class="s lang-zh" text-anchor="middle">专属计数（爪击/君王刃/本回合打出）</text>
-            <text x="709" y="82" class="s lang-en" text-anchor="middle">Private counter · Dampen level</text>
-            <rect x="632" y="90" width="154" height="24" rx="5" class="box2"/>
-            <text x="709" y="106" class="s lang-zh" text-anchor="middle">末尾 1B：动作内临时标记 (恒清零)</text>
-            <text x="709" y="106" class="s lang-en" text-anchor="middle">Last 1B: Transient mark (0 at rest)</text>
+            <rect x="618" y="40" width="182" height="68" rx="8" class="box"/>
+            <text x="709" y="66" class="tb lang-zh" text-anchor="middle">随牌账本与标记（7 B）</text>
+            <text x="709" y="66" class="tb lang-en" text-anchor="middle">Private Ledger (7 B)</text>
+            <text x="709" y="90" class="s lang-zh" text-anchor="middle">专属计数 · 末尾 1B 临时标记</text>
+            <text x="709" y="90" class="s lang-en" text-anchor="middle">Private counter · 1B temp mark</text>
 
             <!-- Cost Modifier Equivalence Merging Sub-diagram -->
-            <rect x="20" y="144" width="780" height="104" rx="10" class="box2"/>
-            <text x="38" y="168" class="tb lang-zh">费用修改的等价合并（单卡从 82 B 瘦身至 46 B 的关键）：</text>
-            <text x="38" y="168" class="tb lang-en">Cost-modifier equivalence merging (how cards shrank from 82 B to 46 B):</text>
+            <rect x="20" y="124" width="780" height="84" rx="10" class="box2"/>
+            <text x="38" y="148" class="tb lang-zh">费用修改等价合并：</text>
+            <text x="38" y="148" class="tb lang-en">Cost-modifier equivalence merging:</text>
 
             <!-- Relative merge example -->
-            <rect x="38" y="182" width="110" height="32" rx="6" class="box"/>
-            <text x="93" y="203" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
-            <text x="93" y="203" class="s lang-en" text-anchor="middle">-1 this turn</text>
-            <text x="158" y="203" class="tb" text-anchor="middle">+</text>
-            <rect x="168" y="182" width="110" height="32" rx="6" class="box"/>
-            <text x="223" y="203" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
-            <text x="223" y="203" class="s lang-en" text-anchor="middle">-1 this turn</text>
-            <line x1="286" y1="198" x2="314" y2="198" class="path" marker-end="url(#aa-3)"/>
-            <rect x="322" y="182" width="120" height="32" rx="6" class="hot"/>
-            <text x="382" y="203" class="tb acc-t lang-zh" text-anchor="middle">本回合费用 -2</text>
-            <text x="382" y="203" class="tb acc-t lang-en" text-anchor="middle">-2 this turn</text>
+            <rect x="38" y="160" width="110" height="32" rx="6" class="box"/>
+            <text x="93" y="181" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
+            <text x="93" y="181" class="s lang-en" text-anchor="middle">-1 this turn</text>
+            <text x="158" y="181" class="tb" text-anchor="middle">+</text>
+            <rect x="168" y="160" width="110" height="32" rx="6" class="box"/>
+            <text x="223" y="181" class="s lang-zh" text-anchor="middle">本回合费用 -1</text>
+            <text x="223" y="181" class="s lang-en" text-anchor="middle">-1 this turn</text>
+            <line x1="286" y1="176" x2="314" y2="176" class="path" marker-end="url(#aa-3)"/>
+            <rect x="322" y="160" width="120" height="32" rx="6" class="hot"/>
+            <text x="382" y="181" class="tb acc-t lang-zh" text-anchor="middle">本回合费用 -2</text>
+            <text x="382" y="181" class="tb acc-t lang-en" text-anchor="middle">-2 this turn</text>
 
             <!-- Absolute merge example -->
-            <rect x="470" y="182" width="96" height="32" rx="6" class="box"/>
-            <text x="518" y="203" class="s lang-zh" text-anchor="middle">本回合设为 2</text>
-            <text x="518" y="203" class="s lang-en" text-anchor="middle">Set to 2</text>
-            <text x="576" y="203" class="tb" text-anchor="middle">+</text>
-            <rect x="586" y="182" width="96" height="32" rx="6" class="box"/>
-            <text x="634" y="203" class="s lang-zh" text-anchor="middle">本回合设为 0</text>
-            <text x="634" y="203" class="s lang-en" text-anchor="middle">Set to 0</text>
-            <line x1="690" y1="198" x2="714" y2="198" class="path" marker-end="url(#aa-3)"/>
-            <rect x="722" y="182" width="64" height="32" rx="6" class="hot"/>
-            <text x="754" y="203" class="tb acc-t lang-zh" text-anchor="middle">设为 0</text>
-            <text x="754" y="203" class="tb acc-t lang-en" text-anchor="middle">Set to 0</text>
-
-            <text x="38" y="234" class="s lang-zh">相邻且同有效期的相对加减费直接累加；相邻且同有效期的绝对设费只保留最后一条（后设覆盖前设），4 个槽位即可精确覆盖实战改费。</text>
-            <text x="38" y="234" class="s lang-en">Adjacent same-expiry relative modifiers sum together; adjacent same-expiry absolute assignments keep only the last entry (4 slots cover all chains).</text>
+            <rect x="470" y="160" width="96" height="32" rx="6" class="box"/>
+            <text x="518" y="181" class="s lang-zh" text-anchor="middle">本回合设为 2</text>
+            <text x="518" y="181" class="s lang-en" text-anchor="middle">Set to 2</text>
+            <text x="576" y="181" class="tb" text-anchor="middle">+</text>
+            <rect x="586" y="160" width="96" height="32" rx="6" class="box"/>
+            <text x="634" y="181" class="s lang-zh" text-anchor="middle">本回合设为 0</text>
+            <text x="634" y="181" class="s lang-en" text-anchor="middle">Set to 0</text>
+            <line x1="690" y1="176" x2="714" y2="176" class="path" marker-end="url(#aa-3)"/>
+            <rect x="722" y="160" width="64" height="32" rx="6" class="hot"/>
+            <text x="754" y="181" class="tb acc-t lang-zh" text-anchor="middle">设为 0</text>
+            <text x="754" y="181" class="tb acc-t lang-en" text-anchor="middle">Set to 0</text>
           </svg>
         </div>
         <figcaption class="lang-zh">
@@ -596,8 +581,8 @@ try {
 
     <!-- ==================== SECTION 5 ==================== -->
     <section id="three-layers">
-      <h2 class="lang-zh">五、 动静分离的三层边界：什么该进这 4 KB，什么不该？</h2>
-      <h2 class="lang-en">5. Separating Static Rules, Branch State, and Action Transients</h2>
+      <h2 class="lang-zh">五、 动静分离的三层边界</h2>
+      <h2 class="lang-en">5. Three-Layer State Boundary</h2>
 
       <p class="lang-zh">
         之所以能把整场战斗压进 4 KB，除了紧凑编码，更重要的是严格区分<strong>“什么数据才配占这 4 KB 的地方”</strong>。我们把战斗涉及的所有信息切成了边界分明的三层：
@@ -686,23 +671,14 @@ try {
       <p class="lang-en">
         Similarly, instead of appending event objects to a growing <strong>combat history log</strong> on every card play and damage instance, we reduce all history queries that affect future mechanics into <strong>48 fixed integer counters</strong> (attacks played this turn, unblocked damage events this combat, stars gained this turn, and so on).
       </p>
-
-      <div class="callout">
-        <p class="lang-zh">
-          <strong>当状态真正变成干净的 4 KB 字节前缀后，搜索去重也变得异常纯粹：</strong>哪怕两条出牌路线先后顺序不同，只要最终走到了相同的战局，它们生成的 ~4 KB 字节前缀就必然一模一样。求解器只需要直接比对这段连续字节前缀，就能在微秒级时间内完成零误差的状态合并——既不需要遍历对象，也永远不会因为漏看某个字段而把不同的战局错误合并。
-        </p>
-        <p class="lang-en">
-          <strong>When a combat state is canonicalized into a clean 4 KB byte prefix, state deduplication becomes trivial:</strong> two action sequences that reach the same combat position produce the exact same byte prefix. Comparing two states reduces to comparing that contiguous prefix directly in memory—merging equivalent branches in microseconds without traversing object graphs or risking missed fields.
-        </p>
-      </div>
     </section>
 
   </main>
 </div>
 
 <footer class="foot">
-  <span class="lang-zh">尖塔求解（Sts2Solver）· 开源《杀戮尖塔 2》战斗求解器</span>
-  <span class="lang-en">Sts2Solver · Open-source combat solver for Slay the Spire 2</span>
+  <span class="lang-zh">尖塔求解 · 开源《杀戮尖塔 2》战斗求解器</span>
+  <span class="lang-en">Spire Solver · Open-source combat solver for Slay the Spire 2</span>
   <span>·</span>
   <a href="https://github.com/rank-Yu/sts2-solver">GitHub (rank-Yu/sts2-solver)</a>
 </footer>

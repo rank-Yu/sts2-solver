@@ -17,7 +17,7 @@
   // Language toggle (default: zh)
   const TITLES = {
     zh: '尖塔求解 · 把一场《杀戮尖塔 2》战斗装进 4 KB 连续内存',
-    en: 'Sts2Solver · Fitting a Slay the Spire 2 Fight into 4 KB of Contiguous Memory',
+    en: 'Spire Solver · Fitting a Slay the Spire 2 Fight into 4 KB of Contiguous Memory',
   };
 
   function applyLang(lang) {

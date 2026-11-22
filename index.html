@@ -127,29 +127,6 @@ try {
       <p class="lede lang-en">
         When you save and reload (SL) a fight in <em>Slay the Spire 2</em>, every random seed inside the encounter is deterministic—shuffle order, generated cards, and random targets all play out identically for the same sequence of actions. Sts2Solver exploits this property by exploring tens of thousands of parallel action timelines in the background to find a line that wins with minimal HP loss and potion use. Making that search fast and exact comes down to a fundamental systems question: <strong>how do you represent an entire ongoing fight in memory?</strong>
       </p>
-
-      <dl class="stats">
-        <div>
-          <dt class="lang-zh">常规 30 张牌局面打包前缀</dt>
-          <dt class="lang-en">Packed prefix for a 30-card fight</dt>
-          <dd>~4.2<span class="unit">KB</span></dd>
-        </div>
-        <div>
-          <dt class="lang-zh">单张卡牌固定大小</dt>
-          <dt class="lang-en">Fixed size per card value</dt>
-          <dd>46<span class="unit">B</span></dd>
-        </div>
-        <div>
-          <dt class="lang-zh">平均每次模拟动作耗时（4 线程）</dt>
-          <dt class="lang-en">Mean time per simulated action (4 threads)</dt>
-          <dd>~9.8<span class="unit">µs</span></dd>
-        </div>
-        <div>
-          <dt class="lang-zh">每秒展开父节点数（提升 7.4×）</dt>
-          <dt class="lang-en">Expanded nodes / sec (7.4× speedup)</dt>
-          <dd>22,487<span class="unit">/s</span></dd>
-        </div>
-      </dl>
     </section>
 
     <!-- ==================== SECTION 1 ==================== -->
@@ -200,10 +177,10 @@ try {
       </div>
 
       <p class="lang-zh">
-        在完全相同的搜索策略与 126 场实机战斗测试（6 个角色各 21 场，4 搜索线程）中，这套连续内存设计每秒能展开 <strong>22,487 个父节点</strong>（折算每模拟一次动作仅需 <strong>约 9.8 微秒 / 0.01 毫秒</strong>），对比传统对象图模拟的 3,049 节点/秒（每次动作约 73 微秒），<strong>搜索吞吐提升了 7.4 倍，126 场开局搜索总耗时缩短了 72.2%</strong>（从 1,343 秒降至 373 秒）。
+        在完全相同的搜索策略与 126 场实机战斗测试中，这套连续内存设计每秒能展开超过 <strong>22,400 个父节点</strong>（折算每模拟一次动作仅需 <strong>约 10 微秒 / 0.01 毫秒</strong>），比传统的对象图模拟快了 <strong>7.4 倍</strong>，126 场开局搜索总耗时缩短了 <strong>72.2%</strong>（从 1,343 秒降至 373 秒）。
       </p>
       <p class="lang-en">
-        Measured across the exact same 126 in-game fights (21 fights across each of the 6 characters, 4 search threads) under the same search strategy, this contiguous state design expands <strong>22,487 parent nodes per second</strong>—about <strong>9.8 µs (0.01 ms) per simulated action</strong>—compared to 3,049 nodes/s (~73 µs per action) with an object-graph state, delivering a <strong>7.4× throughput speedup and cutting total search time by 72.2%</strong> (from 1,343 s down to 373 s).
+        Measured across the exact same 126 in-game fights under the same search strategy, this contiguous state design expands over <strong>22,400 parent nodes per second</strong>—about <strong>10 µs (0.01 ms) per simulated action</strong>—delivering a <strong>7.4× throughput speedup and cutting total search time by 72.2%</strong> (from 1,343 s down to 373 s).
       </p>
     </section>
 
@@ -233,87 +210,46 @@ try {
         We resolve this by placing the card array at the very end of the state and operating only on the <strong>packed prefix</strong>:
       </p>
 
-      <!-- FIGURE 1: Packed Prefix Layout -->
+      <!-- FIGURE 1: Clean Packed Prefix Layout -->
       <figure class="fig">
         <div class="canvas">
-          <svg viewBox="0 0 820 275" role="img" aria-label="Memory layout of a combat state: 2,936-byte fixed header followed by N active cards (46 bytes each), forming a ~4.2 KB packed prefix, with unused card slots at the tail.">
+          <svg viewBox="0 0 820 205" role="img" aria-label="Memory layout of a combat state: 2,936-byte fixed header followed by N active cards (46 bytes each), forming a ~4.2 KB packed prefix, with unused card slots at the tail.">
             <defs>
               <marker id="ah-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker>
-              <marker id="aa-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead-acc"/></marker>
             </defs>
 
             <!-- Top total span -->
-            <line x1="20" y1="26" x2="800" y2="26" class="line-m" marker-start="url(#ah-1)" marker-end="url(#ah-1)"/>
-            <rect x="235" y="12" width="350" height="24" rx="6" fill="var(--surface)"/>
-            <text x="410" y="29" class="m lang-zh" text-anchor="middle">完整状态结构容量上限：32,376 字节（支持最多 640 张牌）</text>
-            <text x="410" y="29" class="m lang-en" text-anchor="middle">Full struct capacity: 32,376 bytes (up to 640 cards)</text>
+            <line x1="20" y1="24" x2="800" y2="24" class="line-m" marker-start="url(#ah-1)" marker-end="url(#ah-1)"/>
+            <rect x="245" y="10" width="330" height="24" rx="6" fill="var(--surface)"/>
+            <text x="410" y="27" class="m lang-zh" text-anchor="middle">完整状态结构上限：32,376 B（最多 640 张牌）</text>
+            <text x="410" y="27" class="m lang-en" text-anchor="middle">Full struct capacity: 32,376 B (up to 640 cards)</text>
 
             <!-- Left: Fixed Header (2,936 B) -->
-            <rect x="20" y="48" width="330" height="142" rx="10" class="box"/>
-            <text x="185" y="72" class="tb lang-zh" text-anchor="middle">固定头部（2,936 字节）</text>
-            <text x="185" y="72" class="tb lang-en" text-anchor="middle">Fixed Header (2,936 B)</text>
-
-            <!-- Sub-blocks inside Header -->
-            <rect x="32" y="84" width="96" height="44" rx="6" class="box2"/>
-            <text x="80" y="103" class="s lang-zh" text-anchor="middle">标量 · 牌堆张数</text>
-            <text x="80" y="103" class="s lang-en" text-anchor="middle">Scalars &amp; Counts</text>
-            <text x="80" y="119" class="s num" text-anchor="middle">Player / Pets</text>
-
-            <rect x="137" y="84" width="96" height="44" rx="6" class="box2"/>
-            <text x="185" y="103" class="s lang-zh" text-anchor="middle">48 计数器 · RNG</text>
-            <text x="185" y="103" class="s lang-en" text-anchor="middle">48 Counters · RNG</text>
-            <text x="185" y="119" class="s num" text-anchor="middle">192 + 400 B</text>
-
-            <rect x="242" y="84" width="96" height="44" rx="6" class="box2"/>
-            <text x="290" y="103" class="s lang-zh" text-anchor="middle">12 怪物槽</text>
-            <text x="290" y="103" class="s lang-en" text-anchor="middle">12 Enemies</text>
-            <text x="290" y="119" class="s num" text-anchor="middle">12 × 64 B</text>
-
-            <rect x="32" y="135" width="148" height="44" rx="6" class="box2"/>
-            <text x="106" y="154" class="s lang-zh" text-anchor="middle">32 能力槽（Power）</text>
-            <text x="106" y="154" class="s lang-en" text-anchor="middle">32 Power Slots</text>
-            <text x="106" y="170" class="s num" text-anchor="middle">32 × 24 B = 768 B</text>
-
-            <rect x="190" y="135" width="148" height="44" rx="6" class="box2"/>
-            <text x="264" y="154" class="s lang-zh" text-anchor="middle">24 遗物槽 · 10 球 · 离场牌</text>
-            <text x="264" y="154" class="s lang-en" text-anchor="middle">24 Relics · 10 Orbs · Misc</text>
-            <text x="264" y="170" class="s num" text-anchor="middle">216 + 80 B + ...</text>
+            <rect x="20" y="46" width="290" height="84" rx="10" class="box"/>
+            <text x="165" y="78" class="tb lang-zh" text-anchor="middle">固定头部（2,936 B）</text>
+            <text x="165" y="78" class="tb lang-en" text-anchor="middle">Fixed Header (2,936 B)</text>
+            <text x="165" y="104" class="m lang-zh" text-anchor="middle">玩家 · 怪物 · 能力 · 遗物 · 球 · 随机数</text>
+            <text x="165" y="104" class="m lang-en" text-anchor="middle">Player · Enemies · Powers · Relics · Orbs · RNG</text>
 
             <!-- Middle: Active Cards Prefix (N x 46 B) -->
-            <rect x="356" y="48" width="214" height="142" rx="10" class="hot"/>
-            <text x="463" y="72" class="tb acc-t lang-zh" text-anchor="middle">前 N 张有效卡牌</text>
-            <text x="463" y="72" class="tb acc-t lang-en" text-anchor="middle">First N Active Cards</text>
-            <text x="463" y="92" class="s num" text-anchor="middle">N × 46 B (30 → 1,380 B)</text>
-
-            <!-- Mini card blocks inside active cards -->
-            <rect x="370" y="106" width="38" height="68" rx="5" class="box2"/>
-            <text x="389" y="138" class="s num" text-anchor="middle">#0</text>
-            <text x="389" y="154" class="s num" text-anchor="middle">46B</text>
-
-            <rect x="414" y="106" width="38" height="68" rx="5" class="box2"/>
-            <text x="433" y="138" class="s num" text-anchor="middle">#1</text>
-            <text x="433" y="154" class="s num" text-anchor="middle">46B</text>
-
-            <rect x="458" y="106" width="38" height="68" rx="5" class="box2"/>
-            <text x="477" y="138" class="s num" text-anchor="middle">...</text>
-
-            <rect x="502" y="106" width="54" height="68" rx="5" class="box2"/>
-            <text x="529" y="138" class="s num" text-anchor="middle">#N-1</text>
-            <text x="529" y="154" class="s num" text-anchor="middle">46B</text>
+            <rect x="318" y="46" width="244" height="84" rx="10" class="hot"/>
+            <text x="440" y="78" class="tb acc-t lang-zh" text-anchor="middle">前 N 张有效卡牌（N × 46 B）</text>
+            <text x="440" y="78" class="tb acc-t lang-en" text-anchor="middle">First N Active Cards (N × 46 B)</text>
+            <text x="440" y="104" class="m lang-zh" text-anchor="middle">30 张牌时为 1,380 B</text>
+            <text x="440" y="104" class="m lang-en" text-anchor="middle">1,380 B for 30 cards</text>
 
             <!-- Right: Unused Card Slots -->
-            <rect x="576" y="48" width="224" height="142" rx="10" class="faint"/>
-            <text x="688" y="102" class="tb lang-zh" text-anchor="middle" style="fill:var(--muted)">未使用的空牌槽</text>
-            <text x="688" y="102" class="tb lang-en" text-anchor="middle" style="fill:var(--muted)">Unused Card Slots</text>
-            <text x="688" y="124" class="s num" text-anchor="middle">[N .. 640)</text>
-            <text x="688" y="146" class="s lang-zh" text-anchor="middle">不读 · 不写 · 不复制 · 不比较</text>
-            <text x="688" y="146" class="s lang-en" text-anchor="middle">Never read, copied, or hashed</text>
+            <rect x="570" y="46" width="230" height="84" rx="10" class="faint"/>
+            <text x="685" y="78" class="tb lang-zh" text-anchor="middle" style="fill:var(--muted)">未使用的空牌槽</text>
+            <text x="685" y="78" class="tb lang-en" text-anchor="middle" style="fill:var(--muted)">Unused Card Slots</text>
+            <text x="685" y="104" class="m lang-zh" text-anchor="middle">不读 · 不写 · 不复制</text>
+            <text x="685" y="104" class="m lang-en" text-anchor="middle">Never read or copied</text>
 
             <!-- Bottom: Packed Prefix Highlight Span -->
-            <path d="M20,204 L20,218 L570,218 L570,204" class="path"/>
-            <line x1="295" y1="218" x2="295" y2="232" class="path"/>
-            <text x="295" y="252" class="tb acc-t lang-zh" text-anchor="middle">实际分叉复制、入池与比对的“打包前缀”（30 张牌时仅 4,316 B ≈ 4.2 KB）</text>
-            <text x="295" y="252" class="tb acc-t lang-en" text-anchor="middle">Packed Prefix copied, pooled &amp; compared (only 4,316 B ≈ 4.2 KB for 30 cards)</text>
+            <path d="M20,144 L20,158 L562,158 L562,144" class="path"/>
+            <line x1="291" y1="158" x2="291" y2="172" class="path"/>
+            <text x="291" y="191" class="tb acc-t lang-zh" text-anchor="middle">实际拷贝与比对的“打包前缀”（30 张牌时仅 4,316 B ≈ 4.2 KB）</text>
+            <text x="291" y="191" class="tb acc-t lang-en" text-anchor="middle">Packed Prefix copied &amp; compared (only 4,316 B ≈ 4.2 KB for 30 cards)</text>
           </svg>
         </div>
         <figcaption class="lang-zh">
@@ -346,10 +282,10 @@ try {
       </ol>
 
       <p class="lang-zh">
-        在搜索热路径上，无论是分叉复制一个局面、把局面存进候选池，还是计算状态指纹，我们都<strong>只处理这段 4.2 KB 的连续前缀</strong>。第 31 张牌往后的内存哪怕留着上一次推演的旧数据也完全不管。这样既支持了 640 张牌的极端上限，又让日常战斗只付出 4 KB 的复制成本。
+        在搜索热路径上，无论是分叉复制一个局面、把局面存进候选池，还是比对两个局面是否相同，我们都<strong>只处理这段 4.2 KB 的连续前缀</strong>。第 31 张牌往后的内存哪怕留着上一次推演的旧数据也完全不管。这样既支持了 640 张牌的极端上限，又让日常战斗只付出 4 KB 的复制成本。
       </p>
       <p class="lang-en">
-        Every hot-path operation—forking a child state, storing a candidate in the search arena, hashing, and equality checks—<strong>touches only this 4.2 KB prefix</strong>. Bytes at and after card index <code>N</code> are left untouched and undefined, giving us a 640-card ceiling at a 4 KB everyday cost.
+        Every hot-path operation—forking a child state, storing a candidate in the search arena, and comparing two states—<strong>touches only this 4.2 KB prefix</strong>. Bytes at and after card index <code>N</code> are left untouched and undefined, giving us a 640-card ceiling at a 4 KB everyday cost.
       </p>
     </section>
 
@@ -753,10 +689,10 @@ try {
 
       <div class="callout">
         <p class="lang-zh">
-          <strong>当状态真正变成干净的 4 KB 字节前缀后，搜索去重也变得异常纯粹：</strong>哪怕两条出牌路线先后顺序不同，只要最终走到了相同的战局，它们生成的 ~4 KB 字节前缀就必然一模一样。求解器只需要对这串字节做一次四路并行哈希，命中后再用一条向量化内存比较指令（<code>memcmp</code>）核对前缀字节，就能在微秒级时间内完成零误差的状态合并。
+          <strong>当状态真正变成干净的 4 KB 字节前缀后，搜索去重也变得异常纯粹：</strong>哪怕两条出牌路线先后顺序不同，只要最终走到了相同的战局，它们生成的 ~4 KB 字节前缀就必然一模一样。求解器只需要直接比对这段连续字节前缀，就能在微秒级时间内完成零误差的状态合并——既不需要遍历对象，也永远不会因为漏看某个字段而把不同的战局错误合并。
         </p>
         <p class="lang-en">
-          <strong>When a combat state is canonicalized into a clean 4 KB byte prefix, state deduplication becomes trivial:</strong> two action sequences that reach the same combat position produce the exact same byte prefix. The solver hashes the active byte slices across four parallel 64-bit lanes and verifies hits with a single vectorized memory comparison (<code>memcmp</code>)—merging equivalent branches in microseconds with zero risk of hash-collision false positives.
+          <strong>When a combat state is canonicalized into a clean 4 KB byte prefix, state deduplication becomes trivial:</strong> two action sequences that reach the same combat position produce the exact same byte prefix. Comparing two states reduces to comparing that contiguous prefix directly in memory—merging equivalent branches in microseconds without traversing object graphs or risking missed fields.
         </p>
       </div>
     </section>

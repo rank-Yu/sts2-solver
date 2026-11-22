@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>尖塔求解 · 把一场《杀戮尖塔 2》战斗装进 4 KB 连续内存</title>
 <meta name="description" content="尖塔求解（Spire Solver）如何将整场《杀戮尖塔 2》的战斗状态压缩进约 4 KB 的无指针连续内存，实现零 GC 分叉、零字节搬运抽牌与 7.4 倍搜索吞吐提升。">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 9v14l12 7 12-7V9z' fill='%23d9a441'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141622'/%3E%3Cg stroke='%238ca0be' stroke-width='1.4' stroke-linecap='round' opacity='.55'%3E%3Cpath d='M16 5 10 12M10 12 6 20M10 12 13 20M6 20 4 27M6 20 9 27M13 20 12 27M13 20 16 27M21 12 17 20M24 20 27 27'/%3E%3C/g%3E%3Cg fill='%239eb2d0' opacity='.65'%3E%3Ccircle cx='10' cy='12' r='1.6'/%3E%3Ccircle cx='6' cy='20' r='1.5'/%3E%3Ccircle cx='13' cy='20' r='1.5'/%3E%3Ccircle cx='17' cy='20' r='1.5'/%3E%3Ccircle cx='4' cy='27' r='1.4'/%3E%3Ccircle cx='9' cy='27' r='1.4'/%3E%3Ccircle cx='12' cy='27' r='1.4'/%3E%3Ccircle cx='16' cy='27' r='1.4'/%3E%3Ccircle cx='27' cy='27' r='1.4'/%3E%3C/g%3E%3Cpath d='M16 5 21 12 24 20 22 27' fill='none' stroke='%23e8b84c' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cg fill='%23e8b84c'%3E%3Ccircle cx='16' cy='5' r='2.3'/%3E%3Ccircle cx='21' cy='12' r='2.1'/%3E%3Ccircle cx='24' cy='20' r='2.1'/%3E%3Ccircle cx='22' cy='27' r='2.2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kreon:wght@500;700&display=swap">
@@ -28,8 +28,27 @@ try {
 <header class="top">
   <a class="brand" href="index.html" aria-label="Spire Solver home">
     <svg viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M16 2 4 9v14l12 7 12-7V9z" fill="currentColor" opacity=".18"/>
-      <path d="M16 2 4 9v14l12 7 12-7V9zm0 4.6 8 4.7v9.4l-8 4.7-8-4.7v-9.4z" fill="oklch(0.78 0.13 76)"/>
+      <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".38">
+        <path d="M16 4 10 11M10 11 6 19M10 11 13 19M6 19 4 27M6 19 9 27M13 19 12 27M13 19 16 27M21 11 17 19M24 19 28 27"/>
+      </g>
+      <g fill="currentColor" opacity=".48">
+        <circle cx="10" cy="11" r="1.6"/>
+        <circle cx="6" cy="19" r="1.5"/>
+        <circle cx="13" cy="19" r="1.5"/>
+        <circle cx="17" cy="19" r="1.5"/>
+        <circle cx="4" cy="27" r="1.4"/>
+        <circle cx="9" cy="27" r="1.4"/>
+        <circle cx="12" cy="27" r="1.4"/>
+        <circle cx="16" cy="27" r="1.4"/>
+        <circle cx="28" cy="27" r="1.4"/>
+      </g>
+      <path d="M16 4 21 11 24 19 22 27" fill="none" stroke="oklch(0.78 0.13 76)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="oklch(0.78 0.13 76)">
+        <circle cx="16" cy="4" r="2.4"/>
+        <circle cx="21" cy="11" r="2.1"/>
+        <circle cx="24" cy="19" r="2.1"/>
+        <circle cx="22" cy="27" r="2.3"/>
+      </g>
     </svg>
     <span class="lang-zh">尖塔求解</span>
     <span class="lang-en">Spire Solver</span>

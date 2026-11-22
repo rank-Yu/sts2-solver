@@ -260,14 +260,14 @@ try {
             <text x="80" y="119" class="s num" text-anchor="middle">Player / Pets</text>
 
             <rect x="137" y="84" width="96" height="44" rx="6" class="box2"/>
-            <text x="185" y="103" class="s lang-zh" text-anchor="middle">48 计数器 · 10 RNG</text>
+            <text x="185" y="103" class="s lang-zh" text-anchor="middle">48 计数器 · RNG</text>
             <text x="185" y="103" class="s lang-en" text-anchor="middle">48 Counters · RNG</text>
-            <text x="185" y="119" class="s num" text-anchor="middle">192 B + 400 B</text>
+            <text x="185" y="119" class="s num" text-anchor="middle">192 + 400 B</text>
 
             <rect x="242" y="84" width="96" height="44" rx="6" class="box2"/>
             <text x="290" y="103" class="s lang-zh" text-anchor="middle">12 怪物槽</text>
             <text x="290" y="103" class="s lang-en" text-anchor="middle">12 Enemies</text>
-            <text x="290" y="119" class="s num" text-anchor="middle">12 × 64 B = 768 B</text>
+            <text x="290" y="119" class="s num" text-anchor="middle">12 × 64 B</text>
 
             <rect x="32" y="135" width="148" height="44" rx="6" class="box2"/>
             <text x="106" y="154" class="s lang-zh" text-anchor="middle">32 能力槽（Power）</text>
@@ -275,15 +275,15 @@ try {
             <text x="106" y="170" class="s num" text-anchor="middle">32 × 24 B = 768 B</text>
 
             <rect x="190" y="135" width="148" height="44" rx="6" class="box2"/>
-            <text x="264" y="154" class="s lang-zh" text-anchor="middle">24 遗物动态槽 · 10 球 · 离场牌</text>
-            <text x="264" y="154" class="s lang-en" text-anchor="middle">24 Relic States · Orbs · Fool</text>
-            <text x="264" y="170" class="s num" text-anchor="middle">216 B + 80 B + ...</text>
+            <text x="264" y="154" class="s lang-zh" text-anchor="middle">24 遗物槽 · 10 球 · 离场牌</text>
+            <text x="264" y="154" class="s lang-en" text-anchor="middle">24 Relics · 10 Orbs · Misc</text>
+            <text x="264" y="170" class="s num" text-anchor="middle">216 + 80 B + ...</text>
 
             <!-- Middle: Active Cards Prefix (N x 46 B) -->
             <rect x="356" y="48" width="214" height="142" rx="10" class="hot"/>
             <text x="463" y="72" class="tb acc-t lang-zh" text-anchor="middle">前 N 张有效卡牌</text>
             <text x="463" y="72" class="tb acc-t lang-en" text-anchor="middle">First N Active Cards</text>
-            <text x="463" y="92" class="s num" text-anchor="middle">N × 46 B (e.g. 30 × 46 = 1,380 B)</text>
+            <text x="463" y="92" class="s num" text-anchor="middle">N × 46 B (30 → 1,380 B)</text>
 
             <!-- Mini card blocks inside active cards -->
             <rect x="370" y="106" width="38" height="68" rx="5" class="box2"/>
@@ -624,8 +624,8 @@ try {
             <text x="754" y="203" class="tb acc-t lang-zh" text-anchor="middle">设为 0</text>
             <text x="754" y="203" class="tb acc-t lang-en" text-anchor="middle">Set to 0</text>
 
-            <text x="38" y="234" class="s lang-zh">相邻且同有效期的相对加减费直接累加；相邻且同有效期的绝对设费只保留最后一条（后一次总会覆盖前一次且同时到期）。仅需 4 个槽位即可精确覆盖实战改费。</text>
-            <text x="38" y="234" class="s lang-en">Adjacent same-expiry relative modifiers sum together; adjacent same-expiry absolute assignments keep only the last entry. 4 slots cover all in-game cost chains.</text>
+            <text x="38" y="234" class="s lang-zh">相邻且同有效期的相对加减费直接累加；相邻且同有效期的绝对设费只保留最后一条（后设覆盖前设），4 个槽位即可精确覆盖实战改费。</text>
+            <text x="38" y="234" class="s lang-en">Adjacent same-expiry relative modifiers sum together; adjacent same-expiry absolute assignments keep only the last entry (4 slots cover all chains).</text>
           </svg>
         </div>
         <figcaption class="lang-zh">
